@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council
+# Copyright (c) 2019-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ TRANSFORM - Switch for applying transformations to PSy layer before
            searching for the Kernel call,
 TRANS_SCRIPT - Name of the transformation script which applies PSyclone
                transformations to the code. A valid script file must
-               contain a 'trans' function which modifies the PSy object.
+               contain a 'trans' function which modifies the PSyIR.
 '''
 
 import os

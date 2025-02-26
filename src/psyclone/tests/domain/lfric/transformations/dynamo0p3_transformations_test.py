@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@
 #          C.M. Maynard, Met Office / University of Reading
 # Modified: J. Henrichs, Bureau of Meteorology
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
+#           J. Dendy, Met Office
 
 ''' Tests of transformations with the LFRic (Dynamo 0.3) API '''
 
@@ -57,18 +58,15 @@ from psyclone.psyir.nodes import (colored, Loop, Schedule, Literal, Directive,
 from psyclone.psyir.symbols import (AutomaticInterface, ScalarType, ArrayType,
                                     REAL_TYPE, INTEGER_TYPE)
 from psyclone.psyir.transformations import (
-    ACCKernelsTrans, LoopFuseTrans, LoopTrans, TransformationError)
+    ACCKernelsTrans, LoopFuseTrans, LoopTrans, OMPLoopTrans,
+    TransformationError)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import OMPParallelTrans, \
-    Dynamo0p3ColourTrans, \
-    Dynamo0p3OMPLoopTrans, \
-    DynamoOMPParallelLoopTrans, \
-    MoveTrans, \
-    Dynamo0p3RedundantComputationTrans, \
-    Dynamo0p3AsyncHaloExchangeTrans, \
-    Dynamo0p3KernelConstTrans, \
-    ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans
+from psyclone.transformations import (
+    OMPParallelTrans, Dynamo0p3ColourTrans, Dynamo0p3OMPLoopTrans,
+    DynamoOMPParallelLoopTrans, MoveTrans, Dynamo0p3RedundantComputationTrans,
+    Dynamo0p3AsyncHaloExchangeTrans, Dynamo0p3KernelConstTrans,
+    ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans)
 
 
 # The version of the API that the tests in this file
@@ -229,7 +227,7 @@ def test_colour_trans(tmpdir, dist_mem):
 
     # Check that we're using the colour map when getting the cell dof maps
     assert (
-        "call testkern_code(nlayers, a, f1_data, f2_data, "
+        "call testkern_code(nlayers_f1, a, f1_data, f2_data, "
         "m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cmap(colour,cell)), ndf_w2, undf_w2, "
         "map_w2(:,cmap(colour,cell)), ndf_w3, undf_w3, "
@@ -315,8 +313,9 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
 
     assert (
         "          CALL columnwise_op_asm_field_kernel_code(cmap(colour,"
-        "cell), nlayers, ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
-        "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
+        "cell), nlayers_afield, ncell_2d, afield_data, "
+        "lma_op1_proxy%ncell_3d, lma_op1_local_stencil, "
+        "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, "
         "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
         "ndf_aspc1_afield, undf_aspc1_afield, "
@@ -348,7 +347,7 @@ def test_colour_trans_stencil(dist_mem, tmpdir):
 
     # Check that we index the stencil dofmap appropriately
     assert (
-        "          CALL testkern_stencil_code(nlayers, f1_data, "
+        "          CALL testkern_stencil_code(nlayers_f1, f1_data, "
         "f2_data, f2_stencil_size(cmap(colour,cell)), "
         "f2_stencil_dofmap(:,:,cmap(colour,cell)), f3_data, "
         "f4_data, ndf_w1, undf_w1, map_w1(:,cmap(colour,cell)), "
@@ -384,7 +383,7 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
 
     # Check that we index the adjacent face dofmap appropriately
     assert (
-        "CALL testkern_mesh_prop_code(nlayers, a, f1_data, ndf_w1, "
+        "CALL testkern_mesh_prop_code(nlayers_f1, a, f1_data, ndf_w1, "
         "undf_w1, map_w1(:,cmap(colour,cell)), nfaces_re_h, "
         "adjacent_face(:,cmap(colour,cell))" in gen)
 
@@ -1299,7 +1298,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         f"        !$omp parallel default(shared), private(cell)\n"
         f"        !$omp do schedule(static)\n"
         f"        DO cell = loop1_start, {lookup}, 1\n"
-        f"          CALL ru_code(nlayers, a_data, b_data, "
+        f"          CALL ru_code(nlayers_a, a_data, b_data, "
         f"istp, rdt, d_data, e_1_data, e_2_data, "
         f"e_3_data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
@@ -1310,7 +1309,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         f"        !$omp end do\n"
         f"        !$omp do schedule(static)\n"
         f"        DO cell = loop2_start, {lookup}, 1\n"
-        f"          CALL ru_code(nlayers, f_data, b_data, "
+        f"          CALL ru_code(nlayers_f, f_data, b_data, "
         f"istp, rdt, d_data, e_1_data, e_2_data, "
         f"e_3_data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
@@ -1382,7 +1381,7 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "      cma_op1_gamma_p = cma_op1_proxy%gamma_p\n"
     ) in code
     assert (
-        "CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
+        "CALL columnwise_op_asm_field_kernel_code(cell, nlayers_afield, "
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
@@ -1390,7 +1389,7 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "undf_aspc1_afield, map_aspc1_afield(:,cell), "
         "cbanded_map_aspc1_afield, ndf_aspc2_lma_op1, "
         "cbanded_map_aspc2_lma_op1)\n"
-        "        CALL testkern_two_real_scalars_code(nlayers, scalar1, "
+        "        CALL testkern_two_real_scalars_code(nlayers_afield, scalar1, "
         "afield_data, bfield_data, cfield_data, "
         "dfield_data, scalar2, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
@@ -4148,6 +4147,23 @@ def test_rc_nodm():
             "distributed memory must be switched on") in str(excinfo.value)
 
 
+def test_rc_no_halo_kernels():
+    '''
+    Test that Dynamo0p3RedundantComputationTrans refuses to transform a kernel
+    that operates on halo cells.
+
+    '''
+    _, invoke = get_invoke("1.4.1_into_halos_plus_domain_invoke.f90",
+                           TEST_API, idx=0, dist_mem=True)
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = invoke.schedule.walk(LFRicLoop)[0]
+    with pytest.raises(TransformationError) as err:
+        rc_trans.validate(loop)
+    assert ("Dynamo0p3RedundantComputationTrans transformation to kernels that"
+            " operate on halo cells but kernel 'testkern_halo_only_code' "
+            "operates on 'halo_cell_column'" in str(err.value))
+
+
 def test_rc_invalid_depth():
     ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied depth is less than 1. '''
@@ -4230,7 +4246,7 @@ def test_rc_continuous_no_depth():
     assert "loop0_stop = mesh%get_last_halo_cell()" in result
     assert "DO cell = loop0_start, loop0_stop" in result
     assert ("      CALL f1_proxy%set_dirty()\n"
-            "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)") in result
+            "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)") in result
 
 
 def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
@@ -4761,7 +4777,7 @@ def test_rc_vector_no_depth(tmpdir):
     for idx in range(1, 4):
         assert f"CALL chi_proxy({idx})%set_dirty()" in result
     for idx in range(1, 4):
-        assert (f"CALL chi_proxy({idx})%set_clean(max_halo_depth_mesh-1)"
+        assert (f"CALL chi_proxy({idx})%set_clean(max_halo_depth_mesh - 1)"
                 in result)
 
 
@@ -4993,8 +5009,8 @@ def test_rc_continuous_halo_remove():
     rc_trans.apply(f3_inc_loop, {"depth": 3})
     result = str(psy.gen)
     assert result.count("CALL f3_proxy%halo_exchange(depth=") == 2
-    assert f3_inc_hex._compute_halo_depth() == "2"
-    assert f3_read_hex._compute_halo_depth() == "3"
+    assert f3_inc_hex._compute_halo_depth().value == "2"
+    assert f3_read_hex._compute_halo_depth().value == "3"
     assert "IF (f3_proxy%is_dirty(depth=2)) THEN" in result
     assert "IF (f3_proxy%is_dirty(depth=3)) THEN" not in result
     #
@@ -5005,7 +5021,7 @@ def test_rc_continuous_halo_remove():
     rc_trans.apply(f3_inc_loop, {"depth": 4})
     result = str(psy.gen)
     assert result.count("CALL f3_proxy%halo_exchange(depth=") == 1
-    assert f3_inc_hex._compute_halo_depth() == "3"
+    assert f3_inc_hex._compute_halo_depth().value == "3"
     # Position 7 is now halo exchange on f4 instead of f3
     assert schedule.children[7].field != "f3"
     assert "IF (f3_proxy%is_dirty(depth=4)" not in result
@@ -5332,7 +5348,7 @@ def test_rc_max_w_to_r_continuous_known_halo(monkeypatch, annexed):
         w_to_r_halo_exchange = schedule.children[4]
 
     # sanity check that the halo exchange goes to the full halo depth
-    assert (w_to_r_halo_exchange._compute_halo_depth() ==
+    assert (w_to_r_halo_exchange._compute_halo_depth().symbol.name ==
             "max_halo_depth_mesh")
 
     # the halo exchange should be both required to be added and known
@@ -5686,7 +5702,7 @@ def test_rc_max_colour(tmpdir):
 
     assert (
         "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5755,7 +5771,7 @@ def test_rc_then_colour(tmpdir):
         "      DO colour = loop0_start, loop0_stop, 1\n"
         "        DO cell = loop1_start, last_halo_cell_all_colours(colour,3),"
         " 1\n"
-        "          CALL testkern_code(nlayers, a, f1_data,"
+        "          CALL testkern_code(nlayers_f1, a, f1_data,"
         " f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cmap(colour,cell)), ndf_w2, undf_w2, "
         "map_w2(:,cmap(colour,cell)), ndf_w3, undf_w3, "
@@ -5814,7 +5830,7 @@ def test_rc_then_colour2(tmpdir):
 
     assert (
         "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5871,7 +5887,7 @@ def test_loop_fuse_then_rc(tmpdir):
         "max_halo_depth_mesh), 1\n" in result)
     assert (
         "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5892,15 +5908,14 @@ def test_haloex_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "1"
+        assert halo_exchange._compute_halo_depth().value == "1"
         assert halo_exchange.required() == (True, True)
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
         write_access = halo_exchange._compute_halo_write_info()
         assert write_access.set_by_value
-        assert not write_access.var_depth
+        assert write_access.var_depth.value == "1"
         assert not write_access.max_depth
-        assert write_access.literal_depth == 1
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -5908,9 +5923,8 @@ def test_haloex_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert depth_info.literal_depth == 1
+        assert depth_info.var_depth.value == "1"
         assert not depth_info.max_depth
-        assert not depth_info.var_depth
 
     config = Config.get()
     dyn_config = config.api_conf("lfric")
@@ -5974,15 +5988,15 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "max_halo_depth_mesh"
+        assert (halo_exchange._compute_halo_depth().symbol.name ==
+                "max_halo_depth_mesh")
         assert halo_exchange.required
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
         write_access = halo_exchange._compute_halo_write_info()
         assert write_access.set_by_value
-        assert not write_access.var_depth
+        assert write_access.var_depth.value == "1"
         assert not write_access.max_depth
-        assert write_access.literal_depth == 1
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -5990,7 +6004,6 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert not depth_info.literal_depth
         assert depth_info.max_depth
         assert not depth_info.var_depth
 
@@ -6040,8 +6053,6 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
-        print("OK for iteration ", idx)
-
 
 def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
@@ -6067,7 +6078,7 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "1"
+        assert halo_exchange._compute_halo_depth().value == "1"
         assert halo_exchange.required() == (True, False)
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
@@ -6075,7 +6086,6 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         assert write_access.set_by_value
         assert not write_access.var_depth
         assert write_access.max_depth
-        assert not write_access.literal_depth
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -6083,9 +6093,8 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert depth_info.literal_depth == 1
         assert not depth_info.max_depth
-        assert not depth_info.var_depth
+        assert depth_info.var_depth.value == "1"
 
     config = Config.get()
     dyn_config = config.api_conf("lfric")
@@ -6132,8 +6141,6 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
-        print("OK for iteration ", idx)
-
 
 def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
@@ -6158,7 +6165,8 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "max_halo_depth_mesh"
+        assert (halo_exchange._compute_halo_depth().symbol.name ==
+                "max_halo_depth_mesh")
         assert halo_exchange.required() == (True, True)
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
@@ -6166,7 +6174,6 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         assert write_access.set_by_value
         assert not write_access.var_depth
         assert write_access.max_depth
-        assert not write_access.literal_depth
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -6174,7 +6181,6 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert not depth_info.literal_depth
         assert depth_info.max_depth
         assert not depth_info.var_depth
 
@@ -6221,8 +6227,6 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         check_halo_exchange(halo_exchange)
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
-
-        print("OK for iteration ", idx)
 
 
 def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
@@ -6306,10 +6310,12 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
-        print("OK for iteration ", idx)
 
-
-def test_intergrid_colour(dist_mem):
+@pytest.mark.parametrize("trans_class",
+                         [(None, None, ""),
+                          (ACCParallelTrans, ACCLoopTrans, "acc"),
+                          (OMPParallelTrans, OMPLoopTrans, "omp")])
+def test_intergrid_colour(dist_mem, trans_class, tmpdir):
     ''' Check that we can apply colouring to a loop containing
     an inter-grid kernel. '''
     # Use an example that contains both prolongation and restriction
@@ -6320,10 +6326,17 @@ def test_intergrid_colour(dist_mem):
     # First two kernels are prolongation, last two are restriction
     loops = schedule.walk(Loop)
     ctrans = Dynamo0p3ColourTrans()
+    reg_trans = trans_class[0]() if trans_class[0] else None
+    loop_trans = trans_class[1]() if trans_class[1] else None
     # To a prolong kernel
     ctrans.apply(loops[1])
     # To a restrict kernel
     ctrans.apply(loops[3])
+    if reg_trans and loop_trans:
+        for loop in schedule.walk(Loop):
+            if loop.loop_type == "colour":
+                reg_trans.apply(loop)
+                loop_trans.apply(loop)
     gen = str(psy.gen).lower()
     expected = '''\
       ncolour_fld_m = mesh_fld_m%get_ncolours()
@@ -6335,28 +6348,31 @@ def test_intergrid_colour(dist_mem):
     assert expected in gen
     assert "loop1_stop = ncolour_fld_m" in gen
     assert "loop2_stop" not in gen
+    assert "      do colour = loop1_start, loop1_stop, 1\n" in gen
+    if trans_class[2]:
+        assert f"!${trans_class[2]} " in gen
     if dist_mem:
         assert ("last_halo_cell_all_colours_fld_m = "
                 "mesh_fld_m%get_last_halo_cell_all_colours()" in gen)
         expected = (
-            "      do colour = loop1_start, loop1_stop, 1\n"
             "        do cell = loop2_start, last_halo_cell_all_colours_fld_m"
             "(colour,1), 1\n")
     else:
         assert ("last_edge_cell_all_colours_fld_m = "
                 "mesh_fld_m%get_last_edge_cell_all_colours()" in gen)
         expected = (
-            "      do colour = loop1_start, loop1_stop, 1\n"
             "        do cell = loop2_start, last_edge_cell_all_colours_fld_m"
             "(colour), 1\n")
     assert expected in gen
     expected = (
-        "          call prolong_test_kernel_code(nlayers, cell_map_fld_m"
+        "          call prolong_test_kernel_code(nlayers_fld_f, cell_map_fld_m"
         "(:,:,cmap_fld_m(colour,cell)), ncpc_fld_f_fld_m_x, "
         "ncpc_fld_f_fld_m_y, ncell_fld_f, fld_f_data, fld_m_data, "
         "ndf_w1, undf_w1, map_w1, undf_w2, "
         "map_w2(:,cmap_fld_m(colour,cell)))\n")
     assert expected in gen
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_intergrid_colour_errors(dist_mem, monkeypatch):
@@ -6374,15 +6390,7 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     ctrans.apply(loop)
     # Update our list of loops
     loops = schedule.walk(Loop)
-    # Trigger the error by calling the internal method to get the upper
-    # bound before the colourmaps have been set-up
-    with pytest.raises(InternalError) as err:
-        _ = loops[1]._upper_bound_fortran()
-    assert ("All kernels within a loop over colours must have been coloured "
-            "but kernel 'prolong_test_kernel_code' has not" in str(err.value))
-    # Set-up the colourmaps
-    psy.invokes.invoke_list[0].meshes._colourmap_init()
-    # Check that the upper bound is now correct
+    # Check that the upper bound is correct
     upperbound = loops[1]._upper_bound_fortran()
     assert upperbound == "ncolour_fld_m"
     # Manually add an un-coloured kernel to the loop that we coloured
@@ -6471,7 +6479,7 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
             f"        !$omp parallel default(shared), private(cell)\n"
             f"        !$omp do schedule(static)\n"
             f"        DO cell = loop1_start, {upper_bound}, 1\n"
-            f"          CALL prolong_test_kernel_code(nlayers, "
+            f"          CALL prolong_test_kernel_code(nlayers_fld_m, "
             f"cell_map_cmap_fld_c(:,:,cmap_cmap_fld_c(colour,cell)), "
             f"ncpc_fld_m_cmap_fld_c_x, ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, "
             f"fld_m_data, cmap_fld_c_data, ndf_w1, undf_w1, "
@@ -6573,7 +6581,7 @@ def test_accenterdata_builtin(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert ("!$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
-            "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+            "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
             "undf_w1,undf_w2,undf_w3)" in output)
     assert "loop2_stop = undf_aspc1_f1" in output
     assert ("      !$acc loop independent\n"
@@ -6662,7 +6670,7 @@ def test_accparalleltrans(tmpdir):
     assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
     assert (
         "      !$acc enter data copyin(f1_data,f2_data,m1_data,"
-        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
         "undf_w1,undf_w2,undf_w3)\n"
         "      !\n"
         "      !$acc parallel default(present)\n"
@@ -6698,7 +6706,7 @@ def test_accparalleltrans_dm(tmpdir):
 
     assert ("      !$acc parallel default(present)\n"
             "      DO cell = loop0_start, loop0_stop, 1\n"
-            "        CALL testkern_code(nlayers, a, f1_data, "
+            "        CALL testkern_code(nlayers_f1, a, f1_data, "
             "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell))\n"
@@ -6737,7 +6745,7 @@ def test_acclooptrans():
     assert "loop0_stop = ncolour" in code
     assert (
         "      !$acc enter data copyin(f1_data,f2_data,m1_data,"
-        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
         "undf_w1,undf_w2,undf_w3)\n"
         "      !\n"
         "      !$acc parallel default(present)\n"
@@ -6928,7 +6936,7 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
     assert (
         "      CALL f2_proxy%halo_exchange_start(depth=1)\n"
         "      DO cell = loop3_start, loop3_stop, 1\n"
-        "        CALL testkern_any_space_3_code(cell, nlayers, "
+        "        CALL testkern_any_space_3_code(cell, nlayers_op, "
         "op_proxy%ncell_3d, op_local_stencil, ndf_aspc1_op, "
         "ndf_aspc2_op)\n"
         "      END DO\n"
@@ -7325,7 +7333,7 @@ def test_kern_const_name():
 
 def test_kern_const_apply(capsys, monkeypatch):
     '''Check that we generate the expected output from the apply method
-    with different valid combinations of the element_order,
+    with different valid combinations of the element_order_<h,v> arguments,
     number_of_layers and quadrature arguments.
 
     '''
@@ -7343,8 +7351,8 @@ def test_kern_const_apply(capsys, monkeypatch):
         "    Modified nqp_h, arg position 21, value 3.\n"
         "    Modified nqp_v, arg position 22, value 3.\n")
 
-    # element_order only
-    kctrans.apply(kernel, {"element_order": 0})
+    # element_order_<h,v> only
+    kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     result, _ = capsys.readouterr()
     assert result == element_order_expected
 
@@ -7354,22 +7362,24 @@ def test_kern_const_apply(capsys, monkeypatch):
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected
 
-    # element_order and quadrature
+    # element_order_<h,v> and quadrature
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
-    kctrans.apply(kernel, {"element_order": 0, "quadrature": True})
+    kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
+                           "quadrature": True})
     result, _ = capsys.readouterr()
     assert result == quadrature_expected + element_order_expected
 
-    # element_order and nlayers
+    # element_order_<h,v> and nlayers
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
-    kctrans.apply(kernel, {"element_order": 0, "number_of_layers": 20})
+    kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
+                           "number_of_layers": 20})
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected + element_order_expected
 
-    # element_order, nlayers and quadrature
+    # element_order_<h,v>, nlayers and quadrature
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
-    kctrans.apply(kernel, {"element_order": 0, "number_of_layers": 20,
-                           "quadrature": True})
+    kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
+                           "number_of_layers": 20, "quadrature": True})
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected + quadrature_expected + \
         element_order_expected
@@ -7395,7 +7405,7 @@ def test_kern_const_anyspace_anydspace_apply(capsys):
 
     kctrans = Dynamo0p3KernelConstTrans()
 
-    kctrans.apply(kernel, {"element_order": 0})
+    kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     result, _ = capsys.readouterr()
     assert result == (
         "    Skipped dofs, arg position 9, function space any_space_1\n"
@@ -7420,7 +7430,7 @@ def test_kern_const_anyw2_apply(capsys):
 
     kctrans = Dynamo0p3KernelConstTrans()
 
-    kctrans.apply(kernel, {"element_order": 0})
+    kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     result, _ = capsys.readouterr()
     assert result == (
         "    Skipped dofs, arg position 5, function space any_w2\n")
@@ -7433,36 +7443,186 @@ def test_kern_const_ndofs():
     Note: w2*trace spaces have their dofs on cell faces only.
 
     '''
-    expected = {"w3": [1, 8, 27, 64, 125, 216, 343, 512, 729, 1000],
-                "w2": [6, 36, 108, 240, 450, 756, 1176, 1728, 2430, 3300],
-                "w1": [12, 54, 144, 300, 540, 882, 1344, 1944, 2700, 3630],
-                "w0": [8, 27, 64, 125, 216, 343, 512, 729, 1000, 1331],
-                "wtheta": [2, 12, 36, 80, 150, 252, 392, 576, 810, 1100],
-                "w2h": [4, 24, 72, 160, 300, 504, 784, 1152, 1620, 2200],
-                "w2v": [2, 12, 36, 80, 150, 252, 392, 576, 810, 1100],
-                "w2broken": [6, 36, 108, 240, 450, 756, 1176, 1728, 2430,
-                             3300],
-                "wchi": [1, 8, 27, 64, 125, 216, 343, 512, 729, 1000],
-                "w2trace": [6, 24, 54, 96, 150, 216, 294, 384, 486, 600],
-                "w2htrace": [4, 16, 36, 64, 100, 144, 196, 256, 324, 400],
-                "w2vtrace": [2, 8, 18, 32, 50, 72, 98, 128, 162, 200]}
+    # A dictionary of expected ndofs indexed by
+    # space_to_dofs[space](element_order_h, element_order_v) =
+    #     expected[space](element_order_h + 10*element_order_v)
+    expected = {
+        "w3":       [1,    4,    9,    16,   25,   36,   49,   64,
+                     81,   100,  2,    8,    18,   32,   50,   72,
+                     98,   128,  162,  200,  3,    12,   27,   48,
+                     75,   108,  147,  192,  243,  300,  4,    16,
+                     36,   64,   100,  144,  196,  256,  324,  400,
+                     5,    20,   45,   80,   125,  180,  245,  320,
+                     405,  500,  6,    24,   54,   96,   150,  216,
+                     294,  384,  486,  600,  7,    28,   63,   112,
+                     175,  252,  343,  448,  567,  700,  8,    32,
+                     72,   128,  200,  288,  392,  512,  648,  800,
+                     9,    36,   81,   144,  225,  324,  441,  576,
+                     729,  900,  10,   40,   90,   160,  250,  360,
+                     490,  640,  810,  1000],
+        "w2":       [6,    20,   42,   72,   110,  156,  210,  272,
+                     342,  420,  11,   36,   75,   128,  195,  276,
+                     371,  480,  603,  740,  16,   52,   108,  184,
+                     280,  396,  532,  688,  864,  1060, 21,   68,
+                     141,  240,  365,  516,  693,  896,  1125, 1380,
+                     26,   84,   174,  296,  450,  636,  854,  1104,
+                     1386, 1700, 31,   100,  207,  352,  535,  756,
+                     1015, 1312, 1647, 2020, 36,   116,  240,  408,
+                     620,  876,  1176, 1520, 1908, 2340, 41,   132,
+                     273,  464,  705,  996,  1337, 1728, 2169, 2660,
+                     46,   148,  306,  520,  790,  1116, 1498, 1936,
+                     2430, 2980, 51,   164,  339,  576,  875,  1236,
+                     1659, 2144, 2691, 3300],
+        "w1":       [12,   33,   64,   105,  156,  217,  288,  369,
+                     460,  561,  20,   54,   104,  170,  252,  350,
+                     464,  594,  740,  902,  28,   75,   144,  235,
+                     348,  483,  640,  819,  1020, 1243, 36,   96,
+                     184,  300,  444,  616,  816,  1044, 1300, 1584,
+                     44,   117,  224,  365,  540,  749,  992,  1269,
+                     1580, 1925, 52,   138,  264,  430,  636,  882,
+                     1168, 1494, 1860, 2266, 60,   159,  304,  495,
+                     732,  1015, 1344, 1719, 2140, 2607, 68,   180,
+                     344,  560,  828,  1148, 1520, 1944, 2420, 2948,
+                     76,   201,  384,  625,  924,  1281, 1696, 2169,
+                     2700, 3289, 84,   222,  424,  690,  1020, 1414,
+                     1872, 2394, 2980, 3630],
+        "w0":       [8,    18,   32,   50,   72,   98,   128,  162,
+                     200,  242,  12,   27,   48,   75,   108,  147,
+                     192,  243,  300,  363,  16,   36,   64,   100,
+                     144,  196,  256,  324,  400,  484,  20,   45,
+                     80,   125,  180,  245,  320,  405,  500,  605,
+                     24,   54,   96,   150,  216,  294,  384,  486,
+                     600,  726,  28,   63,   112,  175,  252,  343,
+                     448,  567,  700,  847,  32,   72,   128,  200,
+                     288,  392,  512,  648,  800,  968,  36,   81,
+                     144,  225,  324,  441,  576,  729,  900,  1089,
+                     40,   90,   160,  250,  360,  490,  640,  810,
+                     1000, 1210, 44,   99,   176,  275,  396,  539,
+                     704,  891,  1100, 1331],
+        "wtheta":   [2,    8,    18,   32,   50,   72,   98,   128,
+                     162,  200,  3,    12,   27,   48,   75,   108,
+                     147,  192,  243,  300,  4,    16,   36,   64,
+                     100,  144,  196,  256,  324,  400,  5,    20,
+                     45,   80,   125,  180,  245,  320,  405,  500,
+                     6,    24,   54,   96,   150,  216,  294,  384,
+                     486,  600,  7,    28,   63,   112,  175,  252,
+                     343,  448,  567,  700,  8,    32,   72,   128,
+                     200,  288,  392,  512,  648,  800,  9,    36,
+                     81,   144,  225,  324,  441,  576,  729,  900,
+                     10,   40,   90,   160,  250,  360,  490,  640,
+                     810,  1000, 11,   44,   99,   176,  275,  396,
+                     539,  704,  891,  1100],
+        "w2h":      [4,    12,   24,   40,   60,   84,   112,  144,
+                     180,  220,  8,    24,   48,   80,   120,  168,
+                     224,  288,  360,  440,  12,   36,   72,   120,
+                     180,  252,  336,  432,  540,  660,  16,   48,
+                     96,   160,  240,  336,  448,  576,  720,  880,
+                     20,   60,   120,  200,  300,  420,  560,  720,
+                     900,  1100, 24,   72,   144,  240,  360,  504,
+                     672,  864,  1080, 1320, 28,   84,   168,  280,
+                     420,  588,  784,  1008, 1260, 1540, 32,   96,
+                     192,  320,  480,  672,  896,  1152, 1440, 1760,
+                     36,   108,  216,  360,  540,  756,  1008, 1296,
+                     1620, 1980, 40,   120,  240,  400,  600,  840,
+                     1120, 1440, 1800, 2200],
+        "w2v":      [2,    8,    18,   32,   50,   72,   98,   128,
+                     162,  200,  3,    12,   27,   48,   75,   108,
+                     147,  192,  243,  300,  4,    16,   36,   64,
+                     100,  144,  196,  256,  324,  400,  5,    20,
+                     45,   80,   125,  180,  245,  320,  405,  500,
+                     6,    24,   54,   96,   150,  216,  294,  384,
+                     486,  600,  7,    28,   63,   112,  175,  252,
+                     343,  448,  567,  700,  8,    32,   72,   128,
+                     200,  288,  392,  512,  648,  800,  9,    36,
+                     81,   144,  225,  324,  441,  576,  729,  900,
+                     10,   40,   90,   160,  250,  360,  490,  640,
+                     810,  1000, 11,   44,   99,   176,  275,  396,
+                     539,  704,  891,  1100],
+        "w2broken": [6,    20,   42,   72,   110,  156,  210,  272,
+                     342,  420,  11,   36,   75,   128,  195,  276,
+                     371,  480,  603,  740,  16,   52,   108,  184,
+                     280,  396,  532,  688,  864,  1060, 21,   68,
+                     141,  240,  365,  516,  693,  896,  1125, 1380,
+                     26,   84,   174,  296,  450,  636,  854,  1104,
+                     1386, 1700, 31,   100,  207,  352,  535,  756,
+                     1015, 1312, 1647, 2020, 36,   116,  240,  408,
+                     620,  876,  1176, 1520, 1908, 2340, 41,   132,
+                     273,  464,  705,  996,  1337, 1728, 2169, 2660,
+                     46,   148,  306,  520,  790,  1116, 1498, 1936,
+                     2430, 2980, 51,   164,  339,  576,  875,  1236,
+                     1659, 2144, 2691, 3300],
+        "wchi":     [1,    4,    9,    16,   25,   36,   49,   64,
+                     81,   100,  2,    8,    18,   32,   50,   72,
+                     98,   128,  162,  200,  3,    12,   27,   48,
+                     75,   108,  147,  192,  243,  300,  4,    16,
+                     36,   64,   100,  144,  196,  256,  324,  400,
+                     5,    20,   45,   80,   125,  180,  245,  320,
+                     405,  500,  6,    24,   54,   96,   150,  216,
+                     294,  384,  486,  600,  7,    28,   63,   112,
+                     175,  252,  343,  448,  567,  700,  8,    32,
+                     72,   128,  200,  288,  392,  512,  648,  800,
+                     9,    36,   81,   144,  225,  324,  441,  576,
+                     729,  900,  10,   40,   90,   160,  250,  360,
+                     490,  640,  810,  1000],
+        "w2trace":  [6,    16,   30,   48,   70,   96,   126,  160,
+                     198,  240,  10,   24,   42,   64,   90,   120,
+                     154,  192,  234,  280,  14,   32,   54,   80,
+                     110,  144,  182,  224,  270,  320,  18,   40,
+                     66,   96,   130,  168,  210,  256,  306,  360,
+                     22,   48,   78,   112,  150,  192,  238,  288,
+                     342,  400,  26,   56,   90,   128,  170,  216,
+                     266,  320,  378,  440,  30,   64,   102,  144,
+                     190,  240,  294,  352,  414,  480,  34,   72,
+                     114,  160,  210,  264,  322,  384,  450,  520,
+                     38,   80,   126,  176,  230,  288,  350,  416,
+                     486,  560,  42,   88,   138,  192,  250,  312,
+                     378,  448,  522,  600],
+        "w2htrace": [4,    8,    12,   16,   20,   24,   28,   32,
+                     36,   40,   8,    16,   24,   32,   40,   48,
+                     56,   64,   72,   80,   12,   24,   36,   48,
+                     60,   72,   84,   96,   108,  120,  16,   32,
+                     48,   64,   80,   96,   112,  128,  144,  160,
+                     20,   40,   60,   80,   100,  120,  140,  160,
+                     180,  200,  24,   48,   72,   96,   120,  144,
+                     168,  192,  216,  240,  28,   56,   84,   112,
+                     140,  168,  196,  224,  252,  280,  32,   64,
+                     96,   128,  160,  192,  224,  256,  288,  320,
+                     36,   72,   108,  144,  180,  216,  252,  288,
+                     324,  360,  40,   80,   120,  160,  200,  240,
+                     280,  320,  360,  400],
+        "w2vtrace": [2,    8,    18,   32,   50,   72,   98,   128,
+                     162,  200,  2,    8,    18,   32,   50,   72,
+                     98,   128,  162,  200,  2,    8,    18,   32,
+                     50,   72,   98,   128,  162,  200,  2,    8,
+                     18,   32,   50,   72,   98,   128,  162,  200,
+                     2,    8,    18,   32,   50,   72,   98,   128,
+                     162,  200,  2,    8,    18,   32,   50,   72,
+                     98,   128,  162,  200,  2,    8,    18,   32,
+                     50,   72,   98,   128,  162,  200,  2,    8,
+                     18,   32,   50,   72,   98,   128,  162,  200,
+                     2,    8,    18,   32,   50,   72,   98,   128,
+                     162,  200,  2,    8,    18,   32,   50,   72,
+                     98,   128,  162,  200]}
+
     kct = Dynamo0p3KernelConstTrans()
-    for order in range(10):
-        for function_space in ["w3", "w2", "w1", "w0", "wtheta", "w2h",
-                               "w2v", "w2broken", "wchi", "w2trace",
-                               "w2htrace", "w2vtrace"]:
-            assert kct.space_to_dofs[function_space](order) == \
-                expected[function_space][order]
-        # wtheta should equal w2v
-        assert kct.space_to_dofs["wtheta"](order) == \
-            kct.space_to_dofs["w2v"](order)
-        # w2h and w2v should sum up to w2
-        assert kct.space_to_dofs["w2h"](order) + \
-            kct.space_to_dofs["w2v"](order) == kct.space_to_dofs["w2"](order)
-        # w2htrace and w2vtrace should sum up to w2trace
-        assert kct.space_to_dofs["w2htrace"](order) + \
-            kct.space_to_dofs["w2vtrace"](order) == \
-            kct.space_to_dofs["w2trace"](order)
+    for order_h in range(10):
+        for order_v in range(10):
+            for function_space in ["w3", "w2", "w1", "w0", "wtheta", "w2h",
+                                   "w2v", "w2broken", "wchi", "w2trace",
+                                   "w2htrace", "w2vtrace"]:
+                assert kct.space_to_dofs[function_space](order_h, order_v) == \
+                    expected[function_space][order_h + 10*order_v]
+                # wtheta should equal w2v
+                assert kct.space_to_dofs["wtheta"](order_h, order_v) == \
+                    kct.space_to_dofs["w2v"](order_h, order_v)
+                # w2h and w2v should sum up to w2
+                assert kct.space_to_dofs["w2h"](order_h, order_v) + \
+                    kct.space_to_dofs["w2v"](order_h, order_v) == \
+                    kct.space_to_dofs["w2"](order_h, order_v)
+                # w2htrace and w2vtrace should sum up to w2trace
+                assert kct.space_to_dofs["w2htrace"](order_h, order_v) + \
+                    kct.space_to_dofs["w2vtrace"](order_h, order_v) == \
+                    kct.space_to_dofs["w2trace"](order_h, order_v)
 
 
 def test_kern_const_invalid():
@@ -7488,9 +7648,10 @@ def test_kern_const_invalid():
 
     # Element order < 0
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": -1})
-    assert "The element_order argument must be >= 0 but found '-1'." \
-        in str(excinfo.value)
+        kctrans.apply(kernel, {"element_order_h": -1, "element_order_v": -1})
+    assert ("The element_order_h and element_order_v argument must be >= 0 "
+            "but found element_order_h = '-1', element_order_v = '-1'."
+            in str(excinfo.value))
 
     # Number of layers < 1
     with pytest.raises(TransformationError) as excinfo:
@@ -7504,18 +7665,20 @@ def test_kern_const_invalid():
     assert "The quadrature argument must be boolean but found 'hello'." \
         in str(excinfo.value)
 
-    # Not element order and not number of layers
+    # Not element order(s) and not number of layers
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel)
-    assert ("At least one of element_order or number_of_layers must be set "
-            "otherwise this transformation does nothing.") \
+    assert ("At least one of [element_order_h, element_order_v] or "
+            "number_of_layers must be set otherwise this transformation does "
+            "nothing.") \
         in str(excinfo.value)
 
     # Quadrature but not element order
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"number_of_layers": 20,
                                "quadrature": True})
-    assert "If quadrature is set then element_order must also be set" \
+    assert ("If quadrature is set then both element_order_h and "
+            "element_order_v must also be set") \
         in str(excinfo.value)
 
 
@@ -7531,7 +7694,7 @@ def test_kern_const_invalid_dofs(monkeypatch):
                         {"wa": [], "wb": []})
 
     with pytest.raises(InternalError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert "Unsupported function space 'w1' found. Expecting one of " \
         in str(excinfo.value)
     assert "'wa'" in str(excinfo.value)
@@ -7552,7 +7715,7 @@ def test_kern_const_invalid_kern(monkeypatch):
         raise NotImplementedError("Monkeypatch error")
     monkeypatch.setattr(kernel, "get_kernel_schedule", dummy)
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert (
         "Failed to parse kernel 'testkern_code'. Error reported was "
         "'Monkeypatch error'.") in str(excinfo.value)
@@ -7569,7 +7732,8 @@ def test_kern_const_invalid_quad(monkeypatch):
     kctrans = Dynamo0p3KernelConstTrans()
     monkeypatch.setattr(kernel, "_eval_shapes", ["gh_quadrature_face"])
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0, "quadrature": True})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
+                               "quadrature": True})
     assert (
         "Support is currently limited to 'xyoz' quadrature but found "
         "['gh_quadrature_face'].") in str(excinfo.value)
@@ -7595,7 +7759,7 @@ def test_kern_const_invalid_make_constant1():
     symbol_table._argument_list = []
     kctrans = Dynamo0p3KernelConstTrans()
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert ("The argument index '7' is greater than the number of "
             "arguments '0'.") in str(excinfo.value)
 
@@ -7617,13 +7781,13 @@ def test_kern_const_invalid_make_constant2():
     # Expecting scalar integer. Set to array.
     symbol._datatype = ArrayType(INTEGER_TYPE, [10])
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert ("Expected entry to be a scalar argument but found "
             "'ArrayType'." in str(excinfo.value))
     # Expecting scalar integer. Set to real.
     symbol._datatype = REAL_TYPE
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert ("Expected entry to be a scalar integer argument but found "
             "'Scalar<REAL, UNDEFINED>'." in str(excinfo.value))
     # Expecting scalar integer. Set to constant.
@@ -7632,7 +7796,7 @@ def test_kern_const_invalid_make_constant2():
     symbol._initial_value = Literal("10", INTEGER_TYPE)
     symbol._is_constant = True
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert ("Expected entry to be a scalar integer argument but found "
             "a constant." in str(excinfo.value))
 

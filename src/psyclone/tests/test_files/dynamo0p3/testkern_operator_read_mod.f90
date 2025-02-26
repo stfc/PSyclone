@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2024, Science and Technology Facilities Council
+! Copyright (c) 2017-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -79,7 +79,7 @@ contains
     real(kind=r_def), intent(inout), dimension(undf_w3) :: xdata
     real(kind=r_def), intent(inout), dimension(undf_w3) :: ydata
     real(kind=r_def), intent(inout), dimension(undf_w3) :: zdata
-    real(kind=r_def), intent(in), dimension(ndf_w3,ndf_w3,ncell_3d) :: local_stencil
+    real(kind=r_def), intent(in), dimension(ncell_3d,ndf_w3,ndf_w3) :: local_stencil
     real(kind=r_def), intent(in), dimension(1,ndf_w3,np_xy,np_z) :: basis_w3
     real(kind=r_def), intent(in), dimension(3,ndf_w3,np_xy,np_z) :: diff_basis_w3
     real(kind=r_def), intent(in), dimension(np_xy) :: weights_xy

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,8 @@ def test_accrt_validate_invalid_parallelism():
     option.'''
     artrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
-        artrans.validate(Routine("fake"), options={"parallelism": "wrong"})
+        artrans.validate(Routine.create("fake"),
+                         options={"parallelism": "wrong"})
     assert ("'wrong' is not a supported level of parallelism. Should be one "
             "of [" in str(err.value))
 
@@ -64,7 +65,7 @@ def test_accrt_apply_calls_validate(monkeypatch):
     artrans = ACCRoutineTrans()
     monkeypatch.setattr(artrans, "validate", fake_validate)
     with pytest.raises(NotImplementedError) as err:
-        artrans.apply(Routine("fake"))
+        artrans.apply(Routine.create("fake"))
     assert "this one" in str(err.value)
 
 

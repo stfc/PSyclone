@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,10 +37,14 @@
 ''' Performs py.test tests on the ScopingNode PSyIR node. '''
 
 import pytest
-from psyclone.psyir.nodes import (Schedule, Assignment, Reference, Container,
-                                  Loop, Literal, Routine, ArrayReference)
-from psyclone.psyir.symbols import (DataSymbol, ArrayType, INTEGER_TYPE,
-                                    ArgumentInterface, SymbolTable, REAL_TYPE)
+from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.psyir.nodes import (
+    Schedule, Assignment, Reference, Container, Loop, Literal,
+    Routine, ArrayReference)
+from psyclone.psyir.symbols import (
+    ArrayType, ArgumentInterface, DataSymbol, DataTypeSymbol, INTEGER_TYPE,
+    REAL_TYPE, ScalarType, StructureType, Symbol, SymbolTable,
+    UnsupportedFortranType)
 from psyclone.tests.utilities import Compile
 
 
@@ -104,7 +108,7 @@ def test_scoping_node_copy():
 
 def test_scoping_node_replace_symbols():
     '''Test the replace_symbols_using() method.'''
-    sched = Routine("my_sub")
+    sched = Routine.create("my_sub")
     table = SymbolTable()
     # Should do nothing but be happy.
     sched.replace_symbols_using(table)
@@ -138,7 +142,7 @@ def test_scoping_node_copy_hierarchy(fortran_writer):
     parent_node = Container("module")
     symbol_b = parent_node.symbol_table.new_symbol(
         "b", symbol_type=DataSymbol, datatype=ArrayType(INTEGER_TYPE, [5]))
-    schedule = Routine("routine")
+    schedule = Routine.create("routine")
     parent_node.addchild(schedule)
     symbol_a = schedule.symbol_table.new_symbol(
         "a", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
@@ -153,6 +157,8 @@ def test_scoping_node_copy_hierarchy(fortran_writer):
                                                 [Reference(symbol_i)])))
 
     new_schedule = schedule.copy()
+    # Need to modify the name of the new schedule
+    new_schedule.name = "routine2"
 
     # Check that the symbol_table has been deep copied
     assert new_schedule.symbol_table is not schedule.symbol_table
@@ -199,13 +205,13 @@ module module
     a = b_global(i)
 
   end subroutine routine
-  subroutine routine(a)
+  subroutine routine2(a)
     integer, intent(inout) :: a
     integer :: i_new
 
     a = b_global(i_new)
 
-  end subroutine routine
+  end subroutine routine2
 
 end module module
 '''
@@ -223,7 +229,7 @@ def test_scoping_node_copy_loop(fortran_writer, tmpdir):
 
     '''
     # Create the PSyIR for a Routine containing a simple loop
-    schedule = Routine("routine")
+    schedule = Routine.create("routine")
     symbol_table = schedule.scope.symbol_table
     loop_var = symbol_table.new_symbol(root_name="idx",
                                        symbol_type=DataSymbol,
@@ -273,3 +279,116 @@ def test_scoping_node_equality():
 
     assert sched1 == sched2
     assert sched1 != sched3
+
+
+def test_scoping_node_reference_accesses():
+    '''Test the reference_accesses() method of ScopingNode.'''
+    vai = VariablesAccessInfo()
+    sched = Schedule()
+    table = sched.symbol_table
+    # First test with an empty symbol table.
+    sched.reference_accesses(vai)
+    assert not vai.all_signatures
+    # Just adding a Symbol to the table does not affect anything.
+    prsym = table.new_symbol("r_def", symbol_type=DataSymbol,
+                             datatype=INTEGER_TYPE)
+    sched.reference_accesses(vai)
+    assert not vai.all_signatures
+    # Add another Symbol that references the first one in its precision.
+    new_type = ScalarType(ScalarType.Intrinsic.REAL, prsym)
+    _ = table.new_symbol("var1", symbol_type=DataSymbol, datatype=new_type)
+    sched.reference_accesses(vai)
+    assert vai.all_signatures == [Signature("r_def")]
+    assert not vai[Signature("r_def")].has_data_access()
+    # Add a Symbol with initialisation.
+    idef = table.new_symbol("i_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
+    _ = table.new_symbol("var2", symbol_type=DataSymbol,
+                         datatype=INTEGER_TYPE,
+                         is_constant=True,
+                         initial_value=Literal("100", int_type))
+    vai2 = VariablesAccessInfo()
+    sched.reference_accesses(vai2)
+    assert len(vai2.all_signatures) == 2
+    assert Signature("i_def") in vai2.all_signatures
+    assert not vai2[Signature("i_def")].has_data_access()
+
+
+def test_reference_accesses_struct():
+    '''Test reference_accesses() when the associated SymbolTable contains
+    a StructureType.
+
+    '''
+    sched = Schedule()
+    table = sched.symbol_table
+    idef = table.new_symbol("i_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
+    real_type = ScalarType(ScalarType.Intrinsic.INTEGER, rdef)
+    stype = StructureType.create([
+        ("iflag", int_type, Symbol.Visibility.PRIVATE, None),
+        ("rmask", real_type, Symbol.Visibility.PUBLIC,
+         Literal("100", real_type))])
+    ssym = DataTypeSymbol("my_type", stype)
+    table.add(ssym)
+    vai3 = VariablesAccessInfo()
+    sched.reference_accesses(vai3)
+    assert len(vai3.all_signatures) == 2
+    assert Signature("i_def") in vai3.all_signatures
+    assert Signature("r_def") in vai3.all_signatures
+    table.new_symbol("var4", symbol_type=DataSymbol, datatype=ssym)
+    vai4 = VariablesAccessInfo()
+    sched.reference_accesses(vai4)
+
+
+def test_reference_accesses_array():
+    '''Test reference_accesses() when the associated SymbolTable contains
+    an array with dimensions that make reference to another Symbol.
+
+    '''
+    sched = Schedule()
+    table = sched.symbol_table
+    idef = table.new_symbol("i_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
+    real_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
+    var2 = table.new_symbol("var2", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE, is_constant=True,
+                            initial_value=Literal("100", int_type))
+    atype = ArrayType(real_type, [Reference(var2)])
+    _ = table.new_symbol("var3", symbol_type=DataSymbol, datatype=atype)
+    vai = VariablesAccessInfo()
+    sched.reference_accesses(vai)
+    assert Signature("i_def") in vai.all_signatures
+    assert Signature("r_def") in vai.all_signatures
+    assert Signature("var2") in vai.all_signatures
+
+
+def test_reference_accesses_unknown_type():
+    '''Test reference_accesses() when the symbol table contains a symbol
+    of UnsupportedFortranType but with partial type information.
+
+    '''
+    sched = Schedule()
+    table = sched.symbol_table
+    # Create partial type information - an array of specified precision
+    # with an extent specified by another symbol.
+    rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    big_sym = table.new_symbol("big", symbol_type=DataSymbol,
+                               datatype=INTEGER_TYPE)
+    real_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
+    ptype = ArrayType(real_type, [Reference(big_sym)])
+    utype = UnsupportedFortranType(
+        "real(r_def), dimension(big), target :: array",
+        partial_datatype=ptype)
+    table.new_symbol("array", symbol_type=DataSymbol, datatype=utype)
+    vai = VariablesAccessInfo()
+    sched.reference_accesses(vai)
+    assert Signature("r_def") in vai.all_signatures
+    assert Signature("big") in vai.all_signatures

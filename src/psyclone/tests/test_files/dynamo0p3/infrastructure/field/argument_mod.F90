@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2024,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
@@ -10,7 +10,7 @@
 !-----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020-2021, Science and Technology
+! Modifications copyright (c) 2020-2025, Science and Technology
 ! Facilities Council.
 ! All rights reserved.
 !
@@ -215,9 +215,11 @@ module argument_mod
 
   !> @defgroup operates_on Enumeration of kernel iterator property descriptors.
   !> @{
-  integer, public, parameter :: CELL_COLUMN = 396
-  integer, public, parameter :: DOMAIN      = 945
-  integer, public, parameter :: DOF         = 712
+  integer, public, parameter :: CELL_COLUMN                = 396
+  integer, public, parameter :: HALO_CELL_COLUMN           = 397
+  integer, public, parameter :: OWNED_AND_HALO_CELL_COLUMN = 398
+  integer, public, parameter :: DOMAIN                     = 945
+  integer, public, parameter :: DOF                        = 712
   !> @}
 
   !> Metadata for the argument type description, stored in the `arg_type` type

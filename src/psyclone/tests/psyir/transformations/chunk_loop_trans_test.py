@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,7 @@ def test_chunkloop_trans_validate1():
     increment'''
     chunktrans = ChunkLoopTrans()
     # Construct a Loop with a non-constant increment
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     lvar = routine.symbol_table.find_or_create_tag(
             "lvar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,

@@ -1,11 +1,11 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2024,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020, Science and Technology Facilities Council.
+! Modifications copyright (c) 2020-2025, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,9 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
+! Modified by: J. Dendy, Met Office
+! -----------------------------------------------------------------------------
+!
 !> Manages the finite_element namelist.
 !>
 module finite_element_config_mod
@@ -58,8 +61,10 @@ module finite_element_config_mod
 
   integer(i_native), public, protected :: cellshape
   integer(i_def), public, protected :: coordinate_order
-  integer(i_def), public, protected :: element_order
-  integer(i_def), public, protected :: nqp_exact
+  integer(i_def), public, protected :: element_order_h
+  integer(i_def), public, protected :: element_order_v
+  integer(i_def), public, protected :: nqp_h_exact
+  integer(i_def), public, protected :: nqp_v_exact
   logical(l_def), public, protected :: rehabilitate
   logical(l_def), public, protected :: vorticity_in_w1
 
@@ -184,7 +189,7 @@ contains
     integer(i_native), intent(in) :: local_rank
     integer(i_native), intent(out) :: dummy_cellshape
 
-    integer(i_def) :: buffer_integer_i_def(2)
+    integer(i_def) :: buffer_integer_i_def(3)
     integer(i_native) :: buffer_integer_i_native(1)
     integer(i_native) :: buffer_logical_l_def(2)
 
@@ -192,7 +197,8 @@ contains
 
     namelist /finite_element/ cellshape, &
                               coordinate_order, &
-                              element_order, &
+                              element_order_h, &
+                              element_order_v, &
                               rehabilitate, &
                               vorticity_in_w1
 
@@ -200,8 +206,10 @@ contains
 
     cellshape = unset_key
     coordinate_order = imdi
-    element_order = imdi
-    nqp_exact = imdi
+    element_order_h = imdi
+    element_order_v = imdi
+    nqp_h_exact = imdi
+    nqp_v_exact = imdi
     rehabilitate = .false.
     vorticity_in_w1 = .false.
 
@@ -218,21 +226,27 @@ contains
 
     buffer_integer_i_native(1) = dummy_cellshape
     buffer_integer_i_def(1) = coordinate_order
-    buffer_integer_i_def(2) = element_order
+    buffer_integer_i_def(2) = element_order_h
+    buffer_integer_i_def(3) = element_order_v
     buffer_logical_l_def(1) = merge( 1, 0, rehabilitate )
     buffer_logical_l_def(2) = merge( 1, 0, vorticity_in_w1 )
 
     dummy_cellshape = buffer_integer_i_native(1)
     coordinate_order = buffer_integer_i_def(1)
-    element_order = buffer_integer_i_def(2)
+    element_order_h = buffer_integer_i_def(2)
+    element_order_v = buffer_integer_i_def(3)
     rehabilitate = buffer_logical_l_def(1) /= 0
     vorticity_in_w1 = buffer_logical_l_def(2) /= 0
 
-    if ( any([element_order] == imdi) .or. &
-         any([element_order] == rmdi) ) then
-      nqp_exact = imdi
+    if ( any([element_order_h] == imdi) .or. &
+         any([element_order_h] == rmdi) .or. &
+         any([element_order_v] == imdi) .or. &
+         any([element_order_v] == rmdi) ) then
+      nqp_h_exact = imdi
+      nqp_v_exact = imdi
     else
-      nqp_exact = element_order + 3
+      nqp_h_exact = element_order_h + 3
+      nqp_v_exact = element_order_v + 3
     end if
 
     namelist_loaded = .true.
@@ -288,8 +302,10 @@ contains
 
     cellshape = int(imdi,i_native)
     coordinate_order = imdi
-    element_order = imdi
-    nqp_exact = imdi
+    element_order_h = imdi
+    element_order_v = imdi
+    nqp_h_exact = imdi
+    nqp_v_exact = imdi
     rehabilitate = .false.
     vorticity_in_w1 = .false.
 

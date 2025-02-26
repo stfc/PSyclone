@@ -1,5 +1,5 @@
 !-------------------------------------------------------------------------------
-! Copyright (c) 2017-2024,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-------------------------------------------------------------------------------
@@ -8,23 +8,23 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2025, Science and Technology Facilities Council
 ! All rights reserved.
-! 
+!
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
-! 
+!
 ! * Redistributions of source code must retain the above copyright notice, this
 !   list of conditions and the following disclaimer.
-! 
+!
 ! * Redistributions in binary form must reproduce the above copyright notice,
 !   this list of conditions and the following disclaimer in the documentation
 !   and/or other materials provided with the distribution.
-! 
+!
 ! * Neither the name of the copyright holder nor the names of its
 !   contributors may be used to endorse or promote products derived from
 !   this software without specific prior written permission.
-! 
+!
 ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 ! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 ! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -38,11 +38,12 @@
 ! -----------------------------------------------------------------------------
 ! Modified: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 !           I. Kavcic, Met Office
+!           J. Dendy, Met Office
 
 !>@brief compute the locally assembled SI operators
 module si_operators_alg_mod
 
-  use constants_mod,             only: i_def, r_def
+  use constants_mod,             only: i_def, r_solver
   use operator_mod,              only: operator_type
   use field_mod,                 only: field_type
   use finite_element_config_mod, only: wtheta_on
@@ -57,7 +58,7 @@ module si_operators_alg_mod
   private
 
   ! Variables private to this module that can only be accessed by public
-  ! functions returning pointers to them 
+  ! functions returning pointers to them
   type(operator_type), target :: m3_rho_star
   type(operator_type), target :: m3_exner_star
   type(operator_type), target :: div_star
@@ -74,13 +75,13 @@ module si_operators_alg_mod
   public :: create_si_operators
   public :: compute_si_operators
   public :: get_m3_rho_star
-  public :: get_m3_exner_star 
+  public :: get_m3_exner_star
   public :: get_div_star
   public :: get_p2theta
-  public :: get_ptheta2 
+  public :: get_ptheta2
   public :: get_p3theta
-  public :: get_compound_div 
-  public :: get_rho_at_u 
+  public :: get_compound_div
+  public :: get_rho_at_u
   public :: get_mt_lumped
   public :: get_tri_precon
   public :: get_helm_diag
@@ -92,7 +93,7 @@ subroutine create_si_operators(mesh_id)
 
   use function_space_mod,        only: function_space_type
   use fs_continuity_mod,         only: W0, W2, W3, Wtheta
-  use finite_element_config_mod, only: element_order
+  use finite_element_config_mod, only: element_order_h, element_order_v
   use function_space_collection_mod, &
                                  only: function_space_collection
 
@@ -104,17 +105,21 @@ subroutine create_si_operators(mesh_id)
   type(function_space_type), pointer     :: w3_fs => null()
   type(function_space_type), pointer     :: wtheta_fs => null()
 
-  call log_event( "Dynamo: creating si_operators", LOG_LEVEL_INFO )
+  call log_event( "LFRic: creating si_operators", LOG_LEVEL_INFO )
 
-  w2_fs     => function_space_collection%get_fs( mesh_id, element_order, W2 )
-  w3_fs     => function_space_collection%get_fs( mesh_id, element_order, W3 )
+  w2_fs     => function_space_collection%get_fs( mesh_id, element_order_h, &
+                                                 element_order_v, W2 )
+  w3_fs     => function_space_collection%get_fs( mesh_id, element_order_h, &
+                                                 element_order_v, W3 )
   if (wtheta_on) then
-    wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, Wtheta )
+    wtheta_fs => function_space_collection%get_fs( mesh_id, element_order_h, &
+                                                   element_order_v, Wtheta )
   else
-    wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, W0 )
+    wtheta_fs => function_space_collection%get_fs( mesh_id, element_order_h, &
+                                                   element_order_v, W0 )
   end if
   ! Should change 0 to theta
- 
+
   m3_rho_star   = operator_type( w3_fs, w3_fs )
   m3_exner_star = operator_type( w3_fs, w3_fs )
   div_star      = operator_type( w3_fs, w2_fs )
@@ -127,7 +132,7 @@ subroutine create_si_operators(mesh_id)
   mt_lumped = field_type(vector_space = wtheta_fs)
 
   if ( preconditioner == solver_preconditioner_tridiagonal ) then
-    if ( element_order /= 0 ) then
+    if ( element_order_h /= 0 .or. element_order_v /= 0) then
       call log_event( "tridiagonal precon only valid for order 0", &
                       LOG_LEVEL_ERROR )
     end if
@@ -154,7 +159,8 @@ subroutine compute_si_operators(ref_state)
                                              invoke_compute_tri_precon_kernel, &
                                              invoke_weighted_div_bd_kernel_type
   use multiplicity_kernel_mod,         only: multiplicity_kernel_type
-  use finite_element_config_mod,       only: element_order, wtheta_on
+  use finite_element_config_mod,       only: element_order_h, element_order_v, &
+                                             wtheta_on
   use function_space_mod,              only: function_space_type
   use function_space_collection_mod,   only: function_space_collection
   use matrix_vector_kernel_mod,        only: matrix_vector_kernel_type
@@ -174,15 +180,17 @@ subroutine compute_si_operators(ref_state)
   type(field_type)                     :: ones, w2_multiplicity
   type(function_space_type),   pointer :: u_fs, theta_fs, rho_fs => null()
   type(evaluator_xyz_type)             :: evaluator
+  real(kind=r_solver)                  :: const2 = 1.0_r_solver
 
-  qr = quadrature_type(element_order+3, GAUSSIAN)
+  qr = quadrature_type(element_order_h+3, element_order_h+3, &
+                       element_order_v+3, GAUSSIAN)
   theta  => ref_state(2)
-  rho    => ref_state(3)  
+  rho    => ref_state(3)
   chi    => get_coordinates()
   m3_inv => get_mass_matrix(4)
   div    => get_div()
 
-  call invoke( weighted_proj_theta2_kernel_type(ptheta2, theta, qr) )
+  call invoke( weighted_proj_theta2_kernel_type(ptheta2, theta, const2, qr) )
 
 end subroutine compute_si_operators
 

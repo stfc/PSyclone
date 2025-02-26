@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -83,10 +83,10 @@ def check_line_length(filename):
     '''Check that the code contained within the filename file
     conforms to the 132 line length limit.
 
-    :param str filename: The file containing the code.
+    :param str filename: The name of the file containing the code.
 
     :raises InternalError: if the specified file can not be opened or read.
-    :raises ParseError: if one of more lines are longer than the 132 \
+    :raises ParseError: if one of more lines are longer than the 132
                         line length limit.
     '''
     fll = FortLineLength()
@@ -94,12 +94,14 @@ def check_line_length(filename):
         with io.open(filename, "r", encoding='utf8') as myfile:
             code_str = myfile.read()
     except IOError as excinfo:
-        raise InternalError(f"In utils.py:check_line_length: {excinfo}")
+        raise InternalError(
+            f"In utils.py:check_line_length: {excinfo}") from excinfo
 
     if fll.long_lines(code_str):
         raise ParseError(
-            f"the file does not conform to the specified {fll.length} line "
-            f"length limit")
+            f"File '{filename}' does not conform to the specified {fll.length}"
+            f" line-length limit. Either correct the file or change the "
+            f"'-l/--limit' setting on the PSyclone command line.")
 
 
 def parse_fp2(filename):
@@ -112,7 +114,6 @@ def parse_fp2(filename):
     :raises ParseError: if the file could not be parsed.
 
     '''
-    parser = ParserFactory().create(std="f2008")
     # We get the directories to search for any Fortran include files from
     # our configuration object.
     config = Config.get()
@@ -121,11 +122,12 @@ def parse_fp2(filename):
     except IOError as error:
         raise ParseError(
             f"algorithm.py:parse_fp2: Failed to parse file '{filename}'. "
-            f"Error returned was ' {error} '.")
+            f"Error returned was ' {error} '.") from error
+    parser = ParserFactory().create(std=config.fortran_standard)
     try:
         parse_tree = parser(reader)
     except FortranSyntaxError as msg:
         raise ParseError(
             f"algorithm.py:parse_fp2: Syntax error in file '{filename}':\n"
-            f"{msg}")
+            f"{msg}") from msg
     return parse_tree

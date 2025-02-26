@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,11 @@
 
 ''' This module contains the ScopingNode implementation.'''
 
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import SymbolError, SymbolTable
+from psyclone.psyir.symbols import (
+    ArrayType, DataType, DataTypeSymbol, RoutineSymbol, StructureType, Symbol,
+    SymbolError, SymbolTable, UnsupportedFortranType)
 
 
 class ScopingNode(Node):
@@ -61,15 +64,20 @@ class ScopingNode(Node):
     _symbol_table_class = SymbolTable
 
     def __init__(self, children=None, parent=None, symbol_table=None):
-        super().__init__(children=children, parent=parent)
         self._symbol_table = None
 
+        # As Routines (a ScopingNode subclass) add their own symbol
+        # into their parent's symbol table its necessary to ensure
+        # that the _symbol_table exists before we add the children
+        # to the Node (which happens in the super constructor).
         if symbol_table is not None:
             # Attach the provided symbol table to this scope
             symbol_table.attach(self)
         else:
             # Create a new symbol table attached to this scope
             self._symbol_table = self._symbol_table_class(self)
+
+        super().__init__(children=children, parent=parent)
 
     def __eq__(self, other):
         '''
@@ -119,10 +127,43 @@ class ScopingNode(Node):
         :type other: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        super(ScopingNode, self)._refine_copy(other)
+        # Reorganise the symbol table construction to occur before we add
+        # the children.
         self._symbol_table = other.symbol_table.deep_copy()
-        # pylint: disable-next=protected-access
         self._symbol_table._node = self  # Associate to self
+
+        # Remove symbols corresponding to Routines that are contained in this
+        # ScopingNode. These symbols will be added automatically by the Routine
+        # objects when we add them to our child list in the super refine_copy
+        # call.
+        # We have to import Routine here to avoid a circular dependency.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.routine import Routine
+        removed_tags = {}
+        for node in other.walk(Routine):
+            try:
+                if isinstance(self._symbol_table.lookup(node.name),
+                              RoutineSymbol):
+                    # We have to force the removal of the symbol.
+                    symbol = self._symbol_table.lookup(node.name)
+                    norm_name = self._symbol_table._normalize(symbol.name)
+                    self._symbol_table._symbols.pop(norm_name)
+                    # If the symbol had a tag, it should be disassociated
+                    for tag, tagged_symbol in list(
+                            self._symbol_table._tags.items()):
+                        if symbol is tagged_symbol:
+                            removed_tags[tag] = tagged_symbol
+                            del self._symbol_table._tags[tag]
+            except KeyError:
+                pass
+
+        super(ScopingNode, self)._refine_copy(other)
+
+        # Add any routine tags back
+        for tag in removed_tags.keys():
+            # pylint: disable-next=protected-access
+            self._symbol_table._tags[tag] = self._symbol_table.lookup(
+                    removed_tags[tag].name)
 
         # Now we've updated the symbol table, walk back down the tree and
         # update any Symbols.
@@ -131,6 +172,68 @@ class ScopingNode(Node):
         # a performance issue we could keep track of the depth of the recursive
         # call to _refine_copy and only do this call when that depth is zero.
         self.replace_symbols_using(self._symbol_table)
+
+    def reference_accesses(self, access_info: VariablesAccessInfo):
+        '''
+        Get all variable access information. This specialisation is required
+        to query the SymbolTable associated with a Scoping node and ensure
+        that any Symbols appearing in precision specifications, array shapes or
+        initialisation expressions are captured.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the
+            information about variable accesses.
+
+        '''
+        def _get_accesses(dtype: DataType, info: VariablesAccessInfo):
+            '''
+            Store information on any symbols referenced within the supplied
+            datatype.
+
+            :param dtype: the datatype to query.
+            :param info: the VariablesAccessInfo instance in which to store
+                         information.
+            '''
+            if (hasattr(dtype, "precision") and isinstance(dtype.precision,
+                                                           Symbol)):
+                # The use of a Symbol to specify precision does not constitute
+                # a read (since it is resolved at compile time).
+                access_info.add_access(
+                    Signature(dtype.precision.name),
+                    AccessType.TYPE_INFO, self)
+
+            if isinstance(dtype, DataTypeSymbol):
+                # The use of a DataTypeSymbol in a declaration is a compile-
+                # time access.
+                info.add_access(Signature(dtype.name),
+                                AccessType.TYPE_INFO, self)
+            elif isinstance(dtype, StructureType):
+                for cmpt in sym.datatype.components.values():
+                    # Recurse for members of a StructureType
+                    _get_accesses(cmpt.datatype, info)
+                    if cmpt.initial_value:
+                        cmpt.initial_value.reference_accesses(info)
+            elif isinstance(dtype, ArrayType):
+                for dim in dtype.shape:
+                    if isinstance(dim, ArrayType.ArrayBounds):
+                        dim.lower.reference_accesses(access_info)
+                        dim.upper.reference_accesses(access_info)
+            elif (isinstance(dtype, UnsupportedFortranType) and
+                  dtype.partial_datatype):
+                # Recurse to examine partial datatype information.
+                _get_accesses(dtype.partial_datatype, info)
+
+        # Examine the datatypes and initial values of all DataSymbols.
+        for sym in self._symbol_table.datasymbols:
+            _get_accesses(sym.datatype, access_info)
+
+            if sym.initial_value:
+                sym.initial_value.reference_accesses(access_info)
+
+        # Examine the definition of each DataTypeSymbol.
+        for sym in self._symbol_table.datatypesymbols:
+            _get_accesses(sym.datatype, access_info)
+
+        super().reference_accesses(access_info)
 
     def replace_symbols_using(self, table):
         '''

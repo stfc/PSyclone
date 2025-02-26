@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2024, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2025, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -38,17 +38,6 @@
 
 The psyclone command
 ====================
-
-The simplest way to run PSyclone is to use the ``psyclone`` command. If
-you installed PSyclone using ``pip`` then this command should be available
-on your PATH (see :ref:`getting-going-env` for more
-details). Alternatively it can be found in the ``<PSYCLONEHOME>/bin``
-directory. The command takes an algorithm file as input and outputs
-modified algorithm code and generated PSy code. This section walks
-through its functionality.
-
-Running
--------
 
 The ``psyclone`` command is an executable script designed to be run from the
 command line, e.g.:

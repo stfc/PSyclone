@@ -1,5 +1,5 @@
 # Makefile to Generate PSyclone versions of NEMO, Compile, and Run them.
-# It supports the targets: serial (only compile), openmp-cpu, openmp-gpu, openacc-kernels
+# It supports the targets: serial (only compile and run), openmp-cpu, openmp-gpu, openacc-kernels
 # - To generate the psycloned versions use: `make <target>` 
 # - To compile that version use: `make compile-<target>`
 # - To run that version use: `make run-<target>`
@@ -19,28 +19,25 @@ TEST_CASE ?= SPITZ12
 # ADD_KEYS ?= 
 # DEL_KEYS ?=
 # - Specify input files
-# MODEL_DIR ?=
-# NAMELISTS_DIR ?=
+# INPUT_DIR ?=
 
 # Example Config for MetOffice - eORCA1_GO8 - nvidia
-NEMO_DIR ?= ${WORKSPACE}/NEMO
+NEMO_DIR ?= ${WORKSPACE}/NEMO_MO
 ROOT_SRC ?= ${NEMO_DIR}/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
-MPI_INC_DIR ?= ${NVHPC_ROOT}/comm_libs/latest/hpcx/latest/ompi/include
+MPI_INC_DIR ?= ${MPI_HOME}/include
 COMPILER_ARCH ?= linux_nvidia_omp_gpu
 ADD_KEYS ?= "IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
 DEL_KEYS ?= "key_iomput key_mpp_mpi key_si3"
-MODEL_DIR ?= /home/aporter/NEMO/orca1_inputs/
-NAMELISTS_DIR ?= ${NEMO_DIR}/
+INPUT_DIR ?= /archive/NEMO_INPUTS/NEMOv4/MO/eORCA1_GO8/
 
 # Example Config for ECMWF - eORCA1_GO8_Z75 (with MPI and SI3) - intel compiler
-# NEMO_DIR ?= ${WORKSPACE}/ecmwf_nemo/nemo/NEMOGCM_V40/
+# NEMO_DIR ?= ${WORKSPACE}/NEMO_ESMWF_V40
 # ROOT_SRC ?= ${NEMO_DIR}/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
 # MPI_INC_DIR ?= ${I_MPI_ROOT}/include
 # COMPILER_ARCH ?= linux_intel
 # ADD_KEYS ?= "IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
 # DEL_KEYS ?= "key_iomput"
-# MODEL_DIR ?= /archive/ssiso/ecmwf_eORCA1_GO8/
-# NAMELISTS_DIR ?= ${WORKSPACE}/ecmwf_nemo/nemo/testscripts_V40/output/openmp_outer_V40_eORCA1_GO8_Z75_20170906_cray_dp_1x1/
+# INPUT_DIR ?= /archive/NEMO_INPUTS/NEMOv4/ECMWF/eORCA1_GO8/
 
 # ---- End of configuration section - do not edit below this point ----
 
@@ -99,15 +96,32 @@ compile-serial:
 
 # Run NEMO
 run-%:
-	 ln -sf ${MODEL_DIR}/*.nc ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
-	 cp ${NAMELISTS_DIR}namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
-	 cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; ./nemo
-	 cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; cat timing.output; cat run.stat
+	# Make sure we don't have leftovers from previous runs
+	cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; rm -f timing.output run.stat
+	# Symlink nc files as they are big, but cp namelists so they can be modified
+	ln -sf ${INPUT_DIR}/*.nc ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	cp ${INPUT_DIR}/namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; ./nemo
+	cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; cat timing.output; cat run.stat
+
+gdb-%:
+	# Symlink nc files as they are big, but cp namelists so they can be modified
+	ln -sf ${INPUT_DIR}/*.nc ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	cp ${INPUT_DIR}/namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; gdb ./nemo
+
+# Print output files
+output-%:
+	cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; cat run.stat
+
+time-%:
+	cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; cat timing.output
 
 # Run NEMO with NVPROF
 nvprof-%:
-	 ln -sf ${MODEL_DIR}/*.nc ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
-	 cp ${NAMELISTS_DIR}namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	 # Symlink nc files as they are big, but cp namelists so they can be modified
+	 ln -sf ${INPUT_DIR}/*.nc ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	 cp ${INPUT_DIR}/namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
 	 cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; nsys profile ./nemo
 
 # Clean (only psycloned- folders)

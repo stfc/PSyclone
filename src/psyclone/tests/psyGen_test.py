@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -412,8 +412,9 @@ def test_invokeschedule_node_str():
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="lfric")
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
+    symbol = RoutineSymbol("name")
     # Create a plain InvokeSchedule
-    sched = InvokeSchedule('name', None, None)
+    sched = InvokeSchedule(symbol, None, None)
     # Manually supply it with an Invoke object created with the Dynamo API.
     sched._invoke = psy.invokes.invoke_list[0]
     output = sched.node_str()
@@ -746,9 +747,6 @@ def test_call_abstract_methods():
 
     dummy_call = DummyClass(my_ktype)
     my_call = Kern(None, dummy_call, "dummy", DummyArguments)
-    with pytest.raises(NotImplementedError) as excinfo:
-        my_call.local_vars()
-    assert "Kern.local_vars should be implemented" in str(excinfo.value)
 
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.gen_code(None)
@@ -1141,7 +1139,6 @@ def test_named_invoke_name_clash(tmpdir):
                            api="lfric")
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-
     assert ("SUBROUTINE invoke_a(invoke_a_1, b, istp, rdt, d, e, ascalar, "
             "f, c, g, qr)") in gen
     assert "TYPE(field_type), intent(in) :: invoke_a_1" in gen

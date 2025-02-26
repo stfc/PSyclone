@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,13 +43,13 @@ and move it to psyir/transformations/.
 
 '''
 
-
+from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
-    IntrinsicSymbol, RoutineSymbol, Symbol)
+    RoutineSymbol, Symbol)
 from psyclone.psyir.nodes import (
     Container, Reference, Routine, ScopingNode,
     Literal, CodeBlock, Call, IntrinsicCall)
@@ -154,43 +154,26 @@ class KernelModuleInlineTrans(Transformation):
             ) from error
 
         # We do not support kernels that use symbols representing data
-        # declared in their own parent module (we would need to new imports
-        # from this module for those, and we don't do this yet).
-        # These can only be found in References and CodeBlocks.
-        for var in kernel_schedule.walk(Reference):
-            symbol = var.symbol
-            if isinstance(symbol, IntrinsicSymbol):
-                continue
-            if not symbol.is_import:
-                if not var.scope.symbol_table.lookup(
-                        symbol.name, scope_limit=kernel_schedule,
-                        otherwise=False):
-                    raise TransformationError(
-                        f"{kern_or_call} '{kname}' contains accesses to "
-                        f"'{symbol.name}' which is declared in the same "
-                        f"module scope. Cannot inline such a {kern_or_call}.")
-        for block in kernel_schedule.walk(CodeBlock):
-            for name in block.get_symbol_names():
-                # Is this quantity declared within the kernel?
-                sym = block.scope.symbol_table.lookup(
-                    name, scope_limit=kernel_schedule, otherwise=None)
-                if not sym:
-                    # It isn't declared in the kernel.
-                    # Can we find the corresponding symbol at all?
-                    sym = block.scope.symbol_table.lookup(name, otherwise=None)
-                    if not sym:
-                        raise TransformationError(
-                            f"{kern_or_call} '{kname}' contains accesses to "
-                            f"'{name}' in a CodeBlock but the origin of this "
-                            f"symbol is unknown.")
-                    # We found it in an outer scope - is it from an import or a
-                    # declaration?
-                    if not sym.is_import:
-                        raise TransformationError(
-                            f"{kern_or_call} '{kname}' contains accesses to "
-                            f"'{name}' in a CodeBlock that is declared in the "
-                            f"same module scope. Cannot inline such a "
-                            f"{kern_or_call}.")
+        # declared in their own parent module (we would need to add new imports
+        # from this module at the call site, and we don't do this yet).
+        # TODO #2424 - this suffers from the limitation that
+        # VariablesAccessInfo does not work with nested scopes. (e.g. 2
+        # different symbols with the same name but declared in different,
+        # nested scopes will be assumed to be the same symbol).
+        vai = VariablesAccessInfo(kernel_schedule)
+        table = kernel_schedule.symbol_table
+        for sig in vai.all_signatures:
+            symbol = table.lookup(sig.var_name, otherwise=None)
+            if not symbol:
+                raise TransformationError(
+                    f"{kern_or_call} '{kname}' contains accesses to "
+                    f"'{sig.var_name}' but the origin of this signature is "
+                    f"unknown.")
+            if not symbol.is_import and symbol.name not in table:
+                raise TransformationError(
+                    f"{kern_or_call} '{kname}' contains accesses to "
+                    f"'{symbol.name}' which is declared in the callee "
+                    f"module scope. Cannot inline such a {kern_or_call}.")
 
         # We can't transform subroutines that shadow top-level symbol module
         # names, because we won't be able to bring this into the subroutine
@@ -377,14 +360,12 @@ class KernelModuleInlineTrans(Transformation):
 
         container = node.ancestor(Container)
         if not existing_symbol:
-            # If it doesn't exist already, module-inline the subroutine by:
-            # 1) Registering the subroutine symbol in the Container
-            routine_symbol = RoutineSymbol(
-                callee_name, interface=DefaultModuleInterface(),
-                visibility=Symbol.Visibility.PRIVATE)
-            container.symbol_table.add(routine_symbol)
-            # 2) Insert the relevant code into the tree.
-            container.addchild(code_to_inline.detach())
+            # If it doesn't exist already, module-inline the subroutine by
+            # inserting the relevant code into the tree.
+            # We need to set the visibility of the routine's symbol to
+            # be private.
+            code_to_inline.symbol.visibility = Symbol.Visibility.PRIVATE
+            node.ancestor(Container).addchild(code_to_inline.detach())
         else:
             if existing_symbol.is_import:
                 # The RoutineSymbol is in the table but that is because it is
@@ -400,7 +381,10 @@ class KernelModuleInlineTrans(Transformation):
                 existing_symbol.visibility = Symbol.Visibility.PRIVATE
                 if remove_csym:
                     ctable.remove(csym)
-                container.addchild(code_to_inline.detach())
+                code_to_inline = code_to_inline.detach()
+                # Set the routine's symbol to the existing_symbol
+                code_to_inline.symbol = existing_symbol
+                container.addchild(code_to_inline)
             else:
                 # The routine symbol already exists, and we know from the
                 # validation that it's a Routine. Now check if they are
@@ -427,8 +411,14 @@ class KernelModuleInlineTrans(Transformation):
             routine_symbol = existing_symbol
             table = routine_symbol.find_symbol_table(node)
             if table.node is not container:
-                container.symbol_table.add(routine_symbol)
-                table.remove(routine_symbol)
+                # Set the visibility of the symbol to always be private.
+                sym = container.symbol_table.lookup(routine_symbol.name)
+                sym.visibility = Symbol.Visibility.PRIVATE
+                # Force removal of the routine_symbol if its also present in
+                # the Routine's symbol table.
+                table.lookup(routine_symbol.name)
+                norm_name = table._normalize(routine_symbol.name)
+                table._symbols.pop(norm_name)
 
         # We only modify the kernel call name after the equality check to
         # ensure the apply will succeed and we don't leave with an inconsistent

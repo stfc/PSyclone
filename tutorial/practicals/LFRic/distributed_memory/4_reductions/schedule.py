@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
-'''A PSyclone transformation script that outputs a textual
-representation of the PSyIR representing the PSy-layer for the first
-invoke found in the algorithm layer code.
+'''A PSyclone transformation script that outputs a textual representation
+of the PSyIR representing the PSy-layer for the given algorithm layer code.
 
 This PSyclone transformation script is designed to be passed to
 PSyclone, it is not designed to be run directly from python.
@@ -43,18 +43,13 @@ PSyclone, it is not designed to be run directly from python.
 '''
 
 
-def trans(psy):
-    '''Output a textual view of the PSyIR representing the PSy-layer for
-    the first invoke found in the algorithm layer code.
+def trans(psyir):
+    '''Output a textual view of the PSyIR representing the PSy-layer
+    generated for the given algorithm layer code.
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
-        kernel information required by PSyclone.
-    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    # Get the object representing the first PSy-layer invoke
-    invoke = psy.invokes.invoke_list[0]
-    # Get the schedule (the PSyIR representation of the PSy-layer)
-    schedule = invoke.schedule
     # Take a look at the PSy-layer PSyIR
-    print(schedule.view())
+    print(psyir.view())

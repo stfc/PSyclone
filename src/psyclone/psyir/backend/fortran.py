@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -305,28 +305,16 @@ class FortranWriter(LanguageWriter):
     currently PSyIR algorithm code which has its own gen method for
     generating Fortran).
 
-    :param bool skip_nodes: If skip_nodes is False then an exception \
-        is raised if a visitor method for a PSyIR node has not been \
-        implemented, otherwise the visitor silently continues. This is an \
-        optional argument which defaults to False.
-    :param str indent_string: Specifies what to use for indentation. This \
-        is an optional argument that defaults to two spaces.
-    :param int initial_indent_depth: Specifies how much indentation to \
-        start with. This is an optional argument that defaults to 0.
-    :param bool check_global_constraints: whether or not to validate all \
-        global constraints when walking the tree. Defaults to True.
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
 
     '''
     _COMMENT_PREFIX = "! "
 
-    def __init__(self, skip_nodes=False, indent_string="  ",
-                 initial_indent_depth=0, check_global_constraints=True):
+    def __init__(self, **kwargs):
         # Construct the base class using () as array parenthesis, and
         # % as structure access symbol
-        super().__init__(("(", ")"), "%", skip_nodes,
-                         indent_string,
-                         initial_indent_depth,
-                         check_global_constraints)
+        super().__init__(("(", ")"), "%", **kwargs)
         # Reverse the Fparser2Reader maps that are used to convert from
         # Fortran operator names to PSyIR operator names.
         self._operator_2_str = {}
@@ -349,14 +337,13 @@ class FortranWriter(LanguageWriter):
         mapping. Any key that does already exist in `reverse_dict`
         is not overwritten, only new keys are added.
 
-        :param reverse_dict: the dictionary to which the new mapping of \
+        :param reverse_dict: the dictionary to which the new mapping of
             operator to string is added.
-        :type reverse_dict: dict from \
-            :py:class:`psyclone.psyir.nodes.BinaryOperation`, \
-            :py:class:`psyclone.psyir.nodes.NaryOperation` or \
-            :py:class:`psyclone.psyir.nodes.UnaryOperation` to str
+        :type reverse_dict: dict[
+                :py:class:`psyclone.psyir.nodes.Operation`, str
+            ]
 
-        :param op_map: mapping from string representation of operator to \
+        :param op_map: mapping from string representation of operator to
                        enumerated type.
         :type op_map: :py:class:`collections.OrderedDict`
 
@@ -548,6 +535,11 @@ class FortranWriter(LanguageWriter):
                                 f"and should not be provided to 'gen_vardecl'."
                                 )
 
+        result = ""
+        if len(symbol.preceding_comment) > 0:
+            for line in symbol.preceding_comment.splitlines():
+                result += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+
         # Whether we're dealing with an array declaration and, if so, the
         # shape of that array.
         if isinstance(symbol.datatype, ArrayType):
@@ -566,10 +558,14 @@ class FortranWriter(LanguageWriter):
                     # blocks appearing in SAVE statements.
                     decln = add_accessibility_to_unsupported_declaration(
                                 symbol)
-                    return f"{self._nindent}{decln}\n"
-
-                decln = symbol.datatype.declaration
-                return f"{self._nindent}{decln}\n"
+                else:
+                    decln = symbol.datatype.declaration
+                result += f"{self._nindent}{decln}"
+                if symbol.inline_comment != "":
+                    result += (f" {self._COMMENT_PREFIX}"
+                               f"{symbol.inline_comment}")
+                result += "\n"
+                return result
             # The Fortran backend only handles UnsupportedFortranType
             # declarations.
             raise VisitorError(
@@ -578,10 +574,9 @@ class FortranWriter(LanguageWriter):
                 f"supported by the Fortran backend.")
 
         datatype = gen_datatype(symbol.datatype, symbol.name)
-        result = f"{self._nindent}{datatype}"
+        result += f"{self._nindent}{datatype}"
 
-        if ArrayType.Extent.DEFERRED in array_shape:
-            # A 'deferred' array extent means this is an allocatable array
+        if array_shape and symbol.datatype.is_allocatable:
             result += ", allocatable"
 
         # Specify Fortran attributes
@@ -627,6 +622,9 @@ class FortranWriter(LanguageWriter):
                     f"therefore (in Fortran) must have a StaticInterface. "
                     f"However it has an interface of '{symbol.interface}'.")
             result += " = " + self._visit(symbol.initial_value)
+
+        if symbol.inline_comment != "":
+            result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
 
         return result + "\n"
 
@@ -708,7 +706,12 @@ class FortranWriter(LanguageWriter):
                 f"Fortran backend cannot generate code for symbol "
                 f"'{symbol.name}' of type '{type(symbol.datatype).__name__}'")
 
-        result = f"{self._nindent}type"
+        result = ""
+        if symbol.preceding_comment != "":
+            for line in symbol.preceding_comment.splitlines():
+                result += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+
+        result += f"{self._nindent}type"
 
         if include_visibility:
             if symbol.visibility == Symbol.Visibility.PRIVATE:
@@ -738,7 +741,13 @@ class FortranWriter(LanguageWriter):
                                        include_visibility=include_visibility)
         self._depth -= 1
 
-        result += f"{self._nindent}end type {symbol.name}\n"
+        result += f"{self._nindent}end type {symbol.name}"
+
+        if symbol.inline_comment != "":
+            result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
+
+        result += "\n"
+
         return result
 
     def gen_default_access_stmt(self, symbol_table):
@@ -785,24 +794,16 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-        # Find the symbol that represents itself, this one will not need
-        # an accessibility statement
-        try:
-            itself = symbol_table.lookup_with_tag('own_routine_symbol')
-        except KeyError:
-            itself = None
-
         public_symbols = []
         private_symbols = []
         for symbol in symbol_table.symbols:
             if (isinstance(symbol, RoutineSymbol) or
                     symbol.is_unresolved or symbol.is_import):
 
-                # Skip the symbol representing the routine where these
-                # declarations belong
-                if isinstance(symbol, RoutineSymbol) and symbol is itself:
+                # Skip _PSYCLONE_INTERNAL_* symbols
+                if (isinstance(symbol, RoutineSymbol) and
+                        symbol.name.startswith("_PSYCLONE_INTERNAL_")):
                     continue
-
                 # It doesn't matter whether this symbol has a local or import
                 # interface - its accessibility in *this* context is determined
                 # by the local accessibility statements. e.g. if we are
@@ -1155,14 +1156,7 @@ class FortranWriter(LanguageWriter):
 
         :returns: the Fortran code for this node.
         :rtype: str
-
-        :raises VisitorError: if the name attribute of the supplied \
-                              node is empty or None.
-
         '''
-        if not node.name:
-            raise VisitorError("Expected node name to have a value.")
-
         if node.is_program:
             result = f"{self._nindent}program {node.name}\n"
             routine_type = "program"
@@ -1171,8 +1165,8 @@ class FortranWriter(LanguageWriter):
             container = node.ancestor(Container)
             rsym = None
             if container:
-                rsym = container.symbol_table.get_symbols().get(
-                    node.name, None)
+                # TODO #2592: When this is implemented it will be node.symbol
+                rsym = container.symbol_table.lookup(node.name, otherwise=None)
             prefix = ""
             if rsym:
                 if rsym.is_elemental:
@@ -1214,14 +1208,7 @@ class FortranWriter(LanguageWriter):
 
             for schedule in node.walk(Schedule):
                 sched_table = schedule.symbol_table
-                # We can't declare a routine inside itself so make sure we
-                # skip any RoutineSymbol representing this routine.
-                try:
-                    rsym = sched_table.lookup_with_tag("own_routine_symbol")
-                    skip = [rsym] if isinstance(rsym, RoutineSymbol) else []
-                except KeyError:
-                    skip = []
-                whole_routine_scope.merge(sched_table, skip)
+                whole_routine_scope.merge(sched_table)
                 if schedule is node:
                     # Replace the Routine's symbol table as soon as we've
                     # merged it into the new one. This ensures that the new
@@ -1293,14 +1280,16 @@ class FortranWriter(LanguageWriter):
                     return f"({lhs} {fort_oper} {rhs})"
                 if precedence(fort_oper) == precedence(parent_fort_oper):
                     # We still may need to enforce precedence
-                    if (isinstance(parent, UnaryOperation) or
-                            (isinstance(parent, BinaryOperation) and
-                             parent.children[1] == node)):
-                        # We need brackets to enforce precedence
-                        # as a) a unary operator is performed
-                        # before a binary operator and b) floating
-                        # point operations are not actually
-                        # associative due to rounding errors.
+                    if (
+                        # If parent is a UnaryOperation
+                        isinstance(parent, UnaryOperation) or
+                        # Or it is a BinaryOperation ...
+                        (isinstance(parent, BinaryOperation) and
+                            # ... with right-to-left precedence
+                            (parent.children[1] == node) or
+                            # ... or originally had explicit parenthesis
+                            node.has_explicit_grouping)
+                    ):
                         return f"({lhs} {fort_oper} {rhs})"
             return f"{lhs} {fort_oper} {rhs}"
         except KeyError as error:
@@ -1384,12 +1373,23 @@ class FortranWriter(LanguageWriter):
                         )
                 quote_symbol = '"'
             result = f"{quote_symbol}{node.value}{quote_symbol}"
-        elif (node.datatype.intrinsic == ScalarType.Intrinsic.REAL and
-              precision == ScalarType.Precision.DOUBLE):
-            # The PSyIR stores real scalar values using the standard 'e'
-            # notation. If the scalar is in fact double precision then this
-            # 'e' must be replaced by 'd' for Fortran.
-            result = node.value.replace("e", "d", 1)
+        elif node.datatype.intrinsic == ScalarType.Intrinsic.REAL:
+            # Ensure it ends with ".0" if it isn't already explicitly
+            # formatted as a real.
+            result = node.value
+            try:
+                _ = int(result)
+                if precision == ScalarType.Precision.DOUBLE:
+                    result = result + ".0d0"
+                else:
+                    result = result + ".0"
+            except ValueError:
+                # It is already formatted as a real.
+                if precision == ScalarType.Precision.DOUBLE:
+                    # The PSyIR stores real, scalar values using the standard
+                    # 'e' notation. If the scalar is in fact double precision
+                    # then this 'e' must be replaced by 'd' for Fortran.
+                    result = result.replace("e", "d", 1)
         else:
             result = node.value
 
@@ -1765,3 +1765,19 @@ class FortranWriter(LanguageWriter):
             result_list.append(self._visit(child))
         args = ", ".join(result_list)
         return f"{node.name}({args})"
+
+    def schedule_node(self, node):
+        '''
+        Translate the Schedule node into Fortran.
+
+        :param node: the PSyIR node to translate.
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :returns: the equivalent Fortran code.
+        :rtype: str
+
+        '''
+        result = ""
+        for child in node.children:
+            result += self._visit(child)
+        return result

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@
 ''' This module contains the implementation of the Reference node.'''
 
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import Symbol
@@ -93,6 +93,47 @@ class Reference(DataNode):
 
         '''
         return self.symbol.is_array
+
+    @property
+    def is_read(self):
+        '''
+        :returns: whether this reference is reading from its symbol.
+        :rtype: bool
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.assignment import Assignment
+        parent = self.parent
+        if isinstance(parent, Assignment):
+            if parent.lhs is self:
+                return False
+        # All references other than LHS of assignments represent a read. This
+        # can be improved in the future by looking at Call intents.
+        return True
+
+    @property
+    def is_write(self):
+        '''
+        :returns: whether this reference is writing to its symbol.
+        :rtype: bool
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.assignment import Assignment
+        from psyclone.psyir.nodes.call import Call
+        from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+        parent = self.parent
+        # pure or inquiry IntrinsicCall nodes do not write to their arguments.
+        if (isinstance(parent, IntrinsicCall) and (parent.is_inquiry or
+                                                   parent.is_pure)):
+            return False
+        # All other arguments of all other Calls are assumed to write to their
+        # arguments. This could be improved in the future by looking at
+        # intents where available.
+        if isinstance(parent, Call):
+            return True
+        # The reference that is the LHS of an assignment is a write.
+        if isinstance(parent, Assignment) and parent.lhs is self:
+            return True
+        return False
 
     @property
     def symbol(self):
@@ -192,63 +233,31 @@ class Reference(DataNode):
             return UnresolvedType()
         return self.symbol.datatype
 
-    def previous_access(self):
+    def previous_accesses(self):
         '''
-        :returns: the previous reference to the same symbol.
-        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
-        '''
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.routine import Routine
-        # The scope is as far as the Routine that contains this
-        # Reference.
-        routine = self.ancestor(Routine)
-        # Handle the case when this is a subtree without an ancestor
-        # Routine
-        if routine is None:
-            routine = self.root
-        var_access = VariablesAccessInfo(nodes=routine)
-        signature, _ = self.get_signature_and_indices()
-        all_accesses = var_access[signature].all_accesses
-        index = -1
-        # Find my position in the VariablesAccesInfo
-        for i, access in enumerate(all_accesses):
-            if access.node is self:
-                index = i
-                break
-
-        if index > 0:
-            return all_accesses[index-1].node
-        return None
-
-    def next_access(self):
-        '''
-        :returns: the next reference to the same symbol.
-        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :returns: the nodes accessing the same symbol directly before this
+                  reference. It can be multiple nodes if the control flow
+                  diverges and there are multiple possible accesses.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.routine import Routine
-        # The scope is as far as the Routine that contains this
-        # Reference.
-        routine = self.ancestor(Routine)
-        # Handle the case when this is a subtree without an ancestor
-        # Routine
-        if routine is None:
-            routine = self.root
-        var_access = VariablesAccessInfo(nodes=routine)
-        signature, _ = self.get_signature_and_indices()
-        all_accesses = var_access[signature].all_accesses
-        index = len(all_accesses)
-        # Find my position in the VariablesAccesInfo
-        for i, access in enumerate(all_accesses):
-            if access.node is self:
-                index = i
-                break
+        from psyclone.psyir.tools import DefinitionUseChain
+        chain = DefinitionUseChain(self)
+        return chain.find_backward_accesses()
 
-        if len(all_accesses) > index+1:
-            return all_accesses[index+1].node
-        return None
+    def next_accesses(self):
+        '''
+        :returns: the nodes accessing the same symbol directly after this
+                  reference. It can be multiple nodes if the control flow
+                  diverges and there are multiple possible accesses.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DefinitionUseChain
+        chain = DefinitionUseChain(self)
+        return chain.find_forward_accesses()
 
     def replace_symbols_using(self, table):
         '''

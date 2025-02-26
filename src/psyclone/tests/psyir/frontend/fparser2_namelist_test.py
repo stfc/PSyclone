@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2024, Science and Technology Facilities Council.
+# Copyright (c) 2023-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ def test_named_namelist():
     ''' Test that namelists are correctly captured. '''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 
@@ -73,7 +73,7 @@ def test_multiple_namelists_in_statement():
     correctly.'''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 
@@ -101,7 +101,7 @@ def test_namelist_with_posterior_declaration():
     namelist statement are handled correctly.'''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 

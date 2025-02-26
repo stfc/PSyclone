@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by L. Turner, Met Office
+# Modified by T. Vockerodt, Met Office
 
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
@@ -82,7 +83,7 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
     '''
     table = prog.symbol_table
     idef_sym = table.add_lfric_precision_symbol("i_def")
-    idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
+    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef_sym)
 
     # Initialise the sum to zero: sum = 0.0
     prog.addchild(Assignment.create(Reference(sum_sym),
@@ -156,7 +157,7 @@ def _compute_field_inner_products(routine, field_pairs):
     rdef_sym = table.add_lfric_precision_symbol("r_def")
     rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef_sym)
     idef_sym = table.add_lfric_precision_symbol("i_def")
-    idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
+    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef_sym)
 
     builtin_factory = LFRicBuiltinFunctorFactory.get()
 
@@ -265,7 +266,7 @@ def _init_fields_random(fields, input_symbols, table):
 
     '''
     idef_sym = table.add_lfric_precision_symbol("i_def")
-    idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
+    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef_sym)
     # We use the setval_random builtin to initialise all fields.
     kernel_list = []
     builtin_factory = LFRicBuiltinFunctorFactory.get()
@@ -522,11 +523,13 @@ def _lfric_log_write(sym_table, kernel, var1, var2):
 
 
 def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
-                                   panel_id_arg_idx=None):
+                                   panel_id_arg_idx=None,
+                                   test_name="adjoint_test"):
     '''
     Constructs and returns the PSyIR for a Container and Routine that
     implements a test harness for the adjoint of the supplied tangent-linear
-    kernel.
+    kernel. The base name to use for the Container and Routine is given by
+    the test_name argument.
 
     :param tl_psyir: the PSyIR of an LFRic module defining a \
                      tangent-linear kernel.
@@ -535,6 +538,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         field in the list of arguments in the kernel metadata (if present).
     :param Optional[int] panel_id_arg_idx: 1-indexed position of the panel-id \
         field in the list of arguments in the kernel metadata (if present).
+    :param Optional[str] test_name: Name of the adjoint test algorithm \
+        (if present).
 
     :returns: PSyIR of an Algorithm that tests the adjoint of the supplied \
               LFRic TL kernel.
@@ -555,7 +560,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
             f"does not have a Container node:\n{tl_psyir.view(colour=False)}")
 
     lfalg = LFRicAlg()
-    container = lfalg.create_alg_routine("adjoint_test")
+    # Variable test_name is validated inside create_alg_routine.
+    container = lfalg.create_alg_routine(test_name)
     routine = container.walk(Routine)[0]
     table = routine.symbol_table
 

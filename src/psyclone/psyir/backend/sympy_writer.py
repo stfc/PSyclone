@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council
+# Copyright (c) 2021-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@
 
 import keyword
 
-from sympy import Function, Symbol
+import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -233,7 +233,7 @@ class SymPyWriter(FortranWriter):
         # https://docs.sympy.org/latest/modules/functions/index.html:
         # "It [Function class] also serves as a constructor for undefined
         # function classes."
-        new_func = Function(name)
+        new_func = sympy.Function(name)
         # pylint: disable=protected-access
         new_func._sympystr = SymPyReader.print_fortran_array
 
@@ -246,7 +246,8 @@ class SymPyWriter(FortranWriter):
         return new_func
 
     # -------------------------------------------------------------------------
-    def _create_type_map(self, list_of_expressions):
+    def _create_type_map(self, list_of_expressions, identical_variables=None,
+                         all_variables_positive=None):
         '''This function creates a dictionary mapping each Reference in any
         of the expressions to either a SymPy Function (if the reference
         is an array reference) or a Symbol (if the reference is not an
@@ -269,10 +270,25 @@ class SymPyWriter(FortranWriter):
         ``lambda_1``). The SymPyWriter (e.g. in ``reference_node``) will
         use the renamed value when creating the string representation.
 
+        The optional identical_variables dictionary can contain information
+        about variables which are known to be the same. For example, if
+        `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
+        considered equal.
+
+        The optional `all_variables_positive` flag can be used to indicate that
+        all variables are positive definite. This means that, e.g. 'i+j' will
+        be considered greater than 'i'.
+
         :param list_of_expressions: the list of expressions from which all
             references are taken and added to a symbol table to avoid
             renaming any symbols (so that only member names will be renamed).
         :type list_of_expressions: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param identical_variables: which variable names are known to represent
+            identical quantities.
+        :type identical_variables: Optional[dict[str, str]]
+        :param Optional[bool] all_variables_positive: whether or not (the
+            default) to assume that all variables are positive definite
+            quantities.
 
         '''
         # Create a new symbol table, so previous symbol will not affect this
@@ -283,6 +299,11 @@ class SymPyWriter(FortranWriter):
         self._symbol_table = SymbolTable()
         for reserved in SymPyWriter._RESERVED_NAMES:
             self._symbol_table.new_symbol(reserved)
+
+        # Set-up whether we should assume all Symbols are positive.
+        assumptions = {}
+        if all_variables_positive:
+            assumptions["positive"] = True
 
         # Find each reference in each of the expression, and declare this name
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
@@ -310,7 +331,8 @@ class SymPyWriter(FortranWriter):
                 unique_sym = self._symbol_table.new_symbol(name, tag=name)
                 # Test if an array or an array expression is used:
                 if not ref.is_array:
-                    self._sympy_type_map[unique_sym.name] = Symbol(name)
+                    self._sympy_type_map[unique_sym.name] = sympy.Symbol(
+                        name, **assumptions)
                     continue
 
                 # A Fortran array is used which has not been seen before.
@@ -319,6 +341,16 @@ class SymPyWriter(FortranWriter):
                 # Fortran code.
                 self._sympy_type_map[unique_sym.name] = \
                     self._create_sympy_array_function(name)
+
+        if not identical_variables:
+            identical_variables = {}
+        # For all variables that are the same, set the symbols to be
+        # identical. This means if e.g. identical_variables={'i': 'j'},
+        # the expression i-j becomes j-j = 0
+
+        for var1, var2 in identical_variables.items():
+            if var1 in self._sympy_type_map and var2 in self._sympy_type_map:
+                self._sympy_type_map[var1] = self._sympy_type_map[var2]
 
         # Now all symbols have been added to the symbol table, create
         # unique names for the lower- and upper-bounds using special tags:
@@ -358,16 +390,28 @@ class SymPyWriter(FortranWriter):
         return self._sympy_type_map
 
     # -------------------------------------------------------------------------
-    def _to_str(self, list_of_expressions):
+    def _to_str(self, list_of_expressions, identical_variables=None,
+                all_variables_positive=False):
         '''Converts PSyIR expressions to strings. It will replace Fortran-
         specific expressions with code that can be parsed by SymPy. The
         argument can either be a single element (in which case a single string
         is returned) or a list/tuple, in which case a list is returned.
+        The optional identical_variables dictionary can contain information
+        about variables which are known to be the same. For example, if
+        `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
+        considered equal.
+
+        :param identical_variables: which variable names are known to be
+            identical
+        :type identical_variables: Optional[dict[str, str]]
 
         :param list_of_expressions: the list of expressions which are to be
             converted into SymPy-parsable strings.
         :type list_of_expressions: Union[:py:class:`psyclone.psyir.nodes.Node`,
             List[:py:class:`psyclone.psyir.nodes.Node`]]
+        :param Optional[bool] all_variables_positive: whether or not (the
+            default) to assume that all variables are positive definite
+            quantities.
 
         :returns: the converted strings(s).
         :rtype: Union[str, List[str]]
@@ -379,7 +423,9 @@ class SymPyWriter(FortranWriter):
 
         # Create the type map in `self._sympy_type_map`, which is required
         # when converting these strings to SymPy expressions
-        self._create_type_map(list_of_expressions)
+        self._create_type_map(list_of_expressions,
+                              identical_variables=identical_variables,
+                              all_variables_positive=all_variables_positive)
 
         expression_str_list = []
         for expr in list_of_expressions:
@@ -392,7 +438,8 @@ class SymPyWriter(FortranWriter):
         return expression_str_list
 
     # -------------------------------------------------------------------------
-    def __call__(self, list_of_expressions):
+    def __call__(self, list_of_expressions, identical_variables=None,
+                 all_variables_positive=False):
         '''
         This function takes a list of PSyIR expressions, and converts
         them all into Sympy expressions using the SymPy parser.
@@ -400,11 +447,21 @@ class SymPyWriter(FortranWriter):
         constants with kind specification, ...), including the renaming of
         member accesses, as described in
         https://psyclone-dev.readthedocs.io/en/latest/sympy.html#sympy
+        The optional identical_variables dictionary can contain information
+        about variables which are known to be the same. For example, if
+        `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
+        considered equal.
 
         :param list_of_expressions: the list of expressions which are to be
             converted into SymPy-parsable strings.
         :type list_of_expressions: list of
             :py:class:`psyclone.psyir.nodes.Node`
+        :param identical_variables: which variable names are known to be
+            identical
+        :type identical_variables: Optional[dict[str, str]]
+        :param Optional[bool] all_variables_positive: whether or not (the
+            default) to assume that all variables are positive definite
+            quantities.
 
         :returns: a 2-tuple consisting of the the converted PSyIR
             expressions, followed by a dictionary mapping the symbol names
@@ -413,12 +470,26 @@ class SymPyWriter(FortranWriter):
                       List[:py:class:`sympy.core.basic.Basic`]]
 
         :raises VisitorError: if an invalid SymPy expression is found.
+        :raises TypeError: if the identical_variables parameter is not
+            a dict, or does contain a key or value that is not a string.
 
         '''
+        if identical_variables:
+            if not isinstance(identical_variables, dict):
+                raise TypeError(f"Expected identical_variables to be "
+                                f"a dictionary, but got "
+                                f"{type(identical_variables)}.")
+            if any(not isinstance(key, str) or not isinstance(value, str)
+                   for key, value in identical_variables.items()):
+                raise TypeError("Dictionary identical_variables "
+                                "contains a non-string key or value.")
+
         is_list = isinstance(list_of_expressions, (tuple, list))
         if not is_list:
             list_of_expressions = [list_of_expressions]
-        expression_str_list = self._to_str(list_of_expressions)
+        expression_str_list = self._to_str(
+            list_of_expressions, identical_variables=identical_variables,
+            all_variables_positive=all_variables_positive)
 
         result = []
         for expr in expression_str_list:
@@ -516,7 +587,7 @@ class SymPyWriter(FortranWriter):
         # but the required symbol is mapped to the original name, which means
         # if the SymPy expression is converted to a string (in order to be
         # parsed), it will use the original structure reference syntax:
-        self._sympy_type_map[unique_name] = Symbol(sig.to_language())
+        self._sympy_type_map[unique_name] = sympy.Symbol(sig.to_language())
         return unique_name
 
     # -------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council
+# Copyright (c) 2022-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,12 +68,6 @@ def _get_array_bound(vector1, vector2):
     full size of that dimension (they are limited to ":"). This
     function makes use of these constraint, e.g. it always returns 1
     for the stride.
-
-    Issue #717 requires similar functionality to this
-    function. However, to use this function safely in other situations
-    we would need to move the tests in validate into this function
-    first and then potentially add this function to the ArrayMixin
-    class, or a separate utils module.
 
     :param array: the reference that we are interested in.
     :type array: :py:class:`psyir.nodes.Reference`

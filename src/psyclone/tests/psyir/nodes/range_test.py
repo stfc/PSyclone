@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -140,7 +140,7 @@ def test_range_references_props():
     ''' Test that the properties of a Range return what we expect
     when the start, stop and step are references or expressions. '''
     from psyclone.psyir.nodes import BinaryOperation, KernelSchedule
-    sched = KernelSchedule("test_sched")
+    sched = KernelSchedule.create("test_sched")
     sym_table = sched.symbol_table
     start_symbol = DataSymbol("istart", INTEGER_SINGLE_TYPE)
     stop_symbol = DataSymbol("istop", INTEGER_SINGLE_TYPE)

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2024, Science and Technology Facilities Council
+! Copyright (c) 2017-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -76,7 +76,7 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_aspc1) :: map_aspc1
     real(kind=r_def), intent(inout), dimension(undf_aspc1) :: f1_data
     real(kind=r_def), intent(in), dimension(undf_aspc1)    :: f2_data
-    real(kind=r_def), intent(in), dimension(ndf_aspc1,ndf_aspc1,ncell_3d) :: local_stencil
+    real(kind=r_def), intent(in), dimension(ncell_3d,ndf_aspc1,ndf_aspc1) :: local_stencil
 
   end subroutine testkern_any_space_2_code
 

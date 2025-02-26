@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2017-2024, Science and Technology Facilities Council.
+   Copyright (c) 2017-2025, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -82,10 +82,8 @@ and the
     getting_going
     psyclone_command
     configuration
-    tutorial
-    examples
+    tutorials_and_examples
     libraries
-    system_specific_setup
 
 .. toctree::
     :maxdepth: 2

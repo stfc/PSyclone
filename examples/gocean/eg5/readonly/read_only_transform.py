@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,37 +40,29 @@ the invokes. This then creates code that, at runtime, verifies that
 all read-only entities passed to the kernel have not been modified.
 '''
 
-from __future__ import print_function
 from psyclone.psyir.transformations import ReadOnlyVerifyTrans
+from psyclone.psyGen import InvokeSchedule
 
 
-def trans(psy):
+def trans(psyir):
     '''
-    Take the supplied psy object, and add verification to both
-    invokes that read only parameters are not modified.
+    Add verification checks to both invokes that read only parameters are not
+    modified.
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     read_only_verify = ReadOnlyVerifyTrans()
 
-    invoke = psy.invokes.get("invoke_0")
-    schedule = invoke.schedule
+    for schedule in psyir.walk(InvokeSchedule):
+        if schedule.name == "invoke_0":
+            # You could just apply the transform for all subroutines, but
+            # in this case we also want to give the regions a friendlier name:
+            read_only_verify.apply(schedule.children,
+                                   {"region_name": ("main", "init")})
 
-    # You could just apply the transform for all elements of
-    # psy.invokes.invoke_list. But in this case we also
-    # want to give the regions a friendlier name:
-    read_only_verify.apply(schedule.children,
-                           {"region_name": ("main", "init")})
-
-    invoke = psy.invokes.get("invoke_1_update_field")
-    schedule = invoke.schedule
-
-    # Enclose everything in a read_only_verify region
-    read_only_verify.apply(schedule.children,
-                           {"region_name": ("main", "update")})
-    return psy
+        if schedule.name == "invoke_1_update_field":
+            # Enclose everything in a read_only_verify region
+            read_only_verify.apply(schedule.children,
+                                   {"region_name": ("main", "update")})

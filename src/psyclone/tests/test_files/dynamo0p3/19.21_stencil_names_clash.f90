@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2024, Science and Technology Facilities Council
+! Copyright (c) 2017-2025, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -31,7 +31,8 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Modified: I. Kavcic, Met Office
+!           A. R. Porter, STFC Daresbury Lab
 
 program single_stencil
   ! Description: single stencil with an xory1d stencil specified in
@@ -46,14 +47,14 @@ program single_stencil
 
   type(field_type) :: f1, f2, f3, f4
   integer(i_def)   :: f2_stencil_size = 1
-  integer(i_def)   :: nlayers = x_direction
+  integer(i_def)   :: nlayers_f1 = x_direction
 
   ! Rename "f2_extent" to "f2_stencil_size" as this is an internally
   ! generated name in the PSy-layer. Similarly, rename "f2_direction" to
-  ! "nlayers" as this is an internally generated name in the PSy-layer.
+  ! "nlayers_f1" as this is an internally generated name in the PSy-layer.
 
   call invoke(                                                                &
-       testkern_stencil_xory1d_type(f1, f2, f2_stencil_size, nlayers, f3, f4) &
+    testkern_stencil_xory1d_type(f1, f2, f2_stencil_size, nlayers_f1, f3, f4) &
        )
 
 end program single_stencil

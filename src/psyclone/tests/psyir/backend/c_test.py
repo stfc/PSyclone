@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -142,6 +142,9 @@ def test_cw_literal():
 
     lit = Literal('1', INTEGER_TYPE)
     assert cwriter(lit) == '1'
+
+    lit = Literal('1', REAL_TYPE)
+    assert cwriter(lit) == '1.0'
 
     # Test that scientific notation is output correctly
     lit = Literal("3e5", REAL_TYPE, None)

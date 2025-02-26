@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ def test_read_only_verify_lower_to_language_level():
     ''' Test that the lowering methods works as expected. '''
 
     # Create a ReadOnlyVerify code with a read-only variable 'a'
-    routine = Routine('my_routine')
+    routine = Routine.create('my_routine')
     symbol = DataSymbol("a", INTEGER_TYPE)
     routine.symbol_table.add(symbol)
     node = ReadOnlyVerifyNode()

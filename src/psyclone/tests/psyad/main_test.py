@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by T. Vockerodt, Met Office
+# Modified by A. Pirrie, Met Office
 
 '''A module to perform pytest tests on the code in the main.py file
 within the psyad directory.
@@ -43,8 +45,8 @@ import os
 
 import pytest
 
+from psyclone.configuration import Config
 from psyclone.psyad import main
-
 
 TEST_PROG = (
     "program test\n"
@@ -61,6 +63,59 @@ TEST_MOD = (
     "  end subroutine kern\n"
     "end module my_mod\n"
 )
+
+TEST_LFRIC_KERNEL = '''module tl_foo_kernel_mod
+
+  use argument_mod,      only : arg_type, func_type, &
+                                GH_FIELD, GH_REAL,   &
+                                GH_INC, CELL_COLUMN
+  use constants_mod,     only : r_def, i_def
+  use fs_continuity_mod, only : W2
+  use kernel_mod,        only : kernel_type
+
+  implicit none
+
+  private
+
+  type, public, extends(kernel_type) :: tl_foo_kernel_type
+    private
+    type(arg_type) :: meta_args(1) = (/            &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2)  &
+         /)
+    integer :: operates_on = CELL_COLUMN
+  contains
+    procedure, nopass :: tl_foo_kernel_code
+  end type
+
+  public :: tl_foo_kernel_code
+
+contains
+
+subroutine tl_foo_kernel_code(nlayers,           &
+                              field,             &
+                              ndf2, undf2, map2  &
+                              )
+
+  implicit none
+
+  ! Arguments
+  integer(kind=i_def),                      intent(in)    :: nlayers
+  integer(kind=i_def),                      intent(in)    :: ndf2, undf2
+  integer(kind=i_def), dimension(ndf2),     intent(in)    :: map2
+  real(kind=r_def), dimension(undf2),       intent(inout) :: field
+
+  ! Internal variables
+  integer(kind=i_def)            :: df2, k
+
+  do k = 0, nlayers-1
+    do df2 = 1,ndf2
+      field( map2(df2)+k ) = 0.0_r_def
+    end do
+  end do
+
+end subroutine tl_foo_kernel_code
+
+end module tl_foo_kernel_mod'''
 
 EXPECTED_HARNESS_CODE = '''program adj_test
   use my_mod, only : kern
@@ -121,22 +176,31 @@ def test_main_h_option(capsys):
     assert str(info.value) == "0"
     output, error = capsys.readouterr()
     assert error == ""
-    # The name of the executable is replaced with either pytest or -c
-    # when using pytest, therefore we split this test into sections.
+    # Python usage messages have seen slight tweaks over the years, e.g.,
+    # Python >= 3.13 tweaks the usage message to avoid repeating the args
+    # to an option between aliases, therefore we split this test into sections.
     assert "usage: " in output
     expected2 = (
         "[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
         "[-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] "
-        "-a ACTIVE [ACTIVE ...] -- filename\n\n"
+        "[-c CONFIG] -a ACTIVE [ACTIVE ...] -- filename\n\n"
         "Run the PSyclone adjoint code generator on a tangent-linear "
         "kernel file\n\n"
         "positional arguments:\n"
         "  filename              tangent-linear kernel source\n\n")
     assert expected2 in output
+    assert ("  -h, --help            show this help message and exit\n"
+            in output)
+    assert ("  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
+            in output or
+            "  -a, --active ACTIVE [ACTIVE ...]\n" in output)
+    assert ("                        names of active variables\n"
+            in output)
+    assert ("  -c CONFIG, --config CONFIG\n"
+            "                        config file with PSyclone specific "
+            "options\n" in output or " -c, --config CONFIG   config file"
+            " with PSyclone specific options\n" in output)
     expected3 = (
-        "  -h, --help            show this help message and exit\n"
-        "  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
-        "                        names of active variables\n"
         "  -v, --verbose         increase the verbosity of the output\n"
         "  -t, --gen-test        generate a standalone unit test for the "
         "adjoint code\n"
@@ -156,9 +220,6 @@ def test_main_h_option(capsys):
         "  -otest TEST_FILENAME  filename for the unit test (implies -t)\n"
         "  -oad OAD              filename for the transformed code\n")
     assert expected3 in output
-    assert ("-otest TEST_FILENAME  filename for the unit test (implies -t)"
-            in output)
-    assert "-oad OAD              filename for the transformed code" in output
 
 
 # no args
@@ -175,7 +236,7 @@ def test_main_no_args(capsys):
     expected1 = "usage: "
     expected2 = ("[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
                  "[-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] "
-                 "-a ACTIVE [ACTIVE ...] -- filename")
+                 "[-c CONFIG] -a ACTIVE [ACTIVE ...] -- filename")
     expected3 = ("error: the following arguments are required: "
                  "-a/--active, filename\n")
     assert expected1 in error
@@ -413,6 +474,44 @@ def test_main_t_option(tmpdir, capsys):
     assert EXPECTED_HARNESS_CODE in output.lower()
 
 
+def test_config_flag(tmpdir):
+    ''' Test that -c/--config take precedence over the configuration
+        file references in the environment variable.
+    '''
+    filename_in = str(tmpdir.join("tl.f90"))
+
+    # Create LFRic kernel file
+    with open(filename_in, "w", encoding='utf-8') as my_file:
+        my_file.write(TEST_LFRIC_KERNEL)
+
+    # dummy_config has a non-default REPROD_PAD_SIZE of 7
+    config_name = os.path.join(
+        os.path.split(os.path.dirname(os.path.abspath(__file__)))[0],
+        "test_files", "dummy_config.cfg")
+
+    # Test with no option
+    Config._HAS_CONFIG_BEEN_INITIALISED = False
+    main([filename_in, "-a", "field", "-api", "lfric"])
+    assert Config.get().api == "lfric"
+    assert Config.has_config_been_initialised() is True
+    assert Config.get().reprod_pad_size == 8
+
+    # Test with with -c
+    Config._HAS_CONFIG_BEEN_INITIALISED = False
+    main([filename_in, "-a", "field", "-c", config_name, "-api", "lfric"])
+    assert Config.get().api == "lfric"
+    assert Config.has_config_been_initialised() is True
+    assert Config.get().reprod_pad_size == 7
+
+    # Test with with --config
+    Config._HAS_CONFIG_BEEN_INITIALISED = False
+    main([filename_in, "-a", "field", "--config", config_name,
+         "-api", "lfric"])
+    assert Config.get().api == "lfric"
+    assert Config.has_config_been_initialised() is True
+    assert Config.get().reprod_pad_size == 7
+
+
 @pytest.mark.parametrize("extra_args", [[], ["-t"]])
 def test_main_otest_option(tmpdir, capsys, extra_args):
     ''' Test that the -otest option switches on test-harness generation and
@@ -511,3 +610,43 @@ def test_main_otest_verbose(tmpdir, caplog):
                      "github actions.")
     assert "Writing test harness for adjoint kernel to file" in caplog.text
     assert "/harness.f90" in caplog.text
+
+
+def test_main_otest_lfric(tmpdir, capsys):
+    ''' Test that the -otest option combined with LFRic API
+    generates the expected adjoint test. '''
+    filename_in = str(tmpdir.join("tl_foo_kernel_mod.f90"))
+    filename_out = str(tmpdir.join("atl_foo_kernel_mod.f90"))
+    harness_out = str(tmpdir.join("atlt_foo_alg_mod.x90"))
+    with open(filename_in, "w", encoding='utf-8') as my_file:
+        my_file.write(TEST_LFRIC_KERNEL)
+    main([filename_in, "-a", "field", "-api", "lfric", "-oad", filename_out,
+          "-otest", harness_out])
+    output, error = capsys.readouterr()
+    assert error == ""
+    assert output == ""
+    with open(harness_out, 'r', encoding='utf-8') as my_file:
+        data = my_file.read()
+    assert "module atlt_foo_alg_mod" in data.lower()
+    assert "subroutine atlt_foo_alg" in data.lower()
+
+
+def test_main_otest_lfric_error_name(capsys, caplog):
+    ''' Test that a bad -otest option combined with LFRic API
+    generates the expected error. '''
+    harness_out = "some/path/foo_alg_mod.x90"
+    logger = logging.getLogger("psyclone.psyad.main")
+    logger.propagate = True
+    with caplog.at_level(logging.ERROR, "psyclone.psyad.main"):
+        with pytest.raises(SystemExit) as err:
+            main(["input.f90", "-a", "field", "-api", "lfric", "-oad",
+                  "output.f90", "-otest", harness_out])
+    assert str(err.value) == "1"
+    x_fail_str = (rf"Filename '{harness_out}' with 'lfric' API "
+                  "must be of the form "
+                  "<path>/adjt_<name>_alg_mod.[Xx]90 or "
+                  "<path>/atlt_<name>_alg_mod.[Xx]90.")
+    assert x_fail_str in caplog.text
+    output, error = capsys.readouterr()
+    assert error == ""
+    assert output == ""

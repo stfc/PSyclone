@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2024,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2023, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
 ! -----------------------------------------------------------------------------
 ! Modified by A. Porter, STFC Daresbury Lab
 ! Modified by I. Kavcic, Met Office
+!             J. Dendy, Met Office
 !
 !> @brief Contains methods and algorithms for solving a system A.x = b for known
 !! input field b and matrix A and returns field x
@@ -51,7 +52,7 @@ module solver_mod
   use constants_mod,                 only : r_def, str_def, i_def
   use function_space_collection_mod, only : function_space_collection
   use field_mod,                     only : field_type
-  use finite_element_config_mod,     only : element_order
+  use finite_element_config_mod,     only : element_order_h, element_order_v
   use fs_continuity_mod,             only : W3
   use function_space_mod,            only : function_space_type
   use log_mod,                   only : log_event,         &
@@ -121,8 +122,9 @@ subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
 
   flag_obj%rflag = 0.0_r_def
 
-  rhs_fs => function_space_collection%get_fs( mesh, &
-                                              element_order, &
+  rhs_fs => function_space_collection%get_fs( mesh,            &
+                                              element_order_h, &
+                                              element_order_v, &
                                               rhs%which_function_space() )
 
   diagonal = field_type( vector_space = rhs_fs )

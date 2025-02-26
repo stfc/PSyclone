@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council
+# Copyright (c) 2019-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Authors: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
+# Modified by: J. Dendy, Met Office
 
 
 '''An example PSyclone transformation script which makes ndofs, nqp*
@@ -55,7 +56,6 @@ $ psyclone -api lfric -s ./kernel_constants.py \
 
 '''
 
-from __future__ import print_function
 from psyclone.transformations import Dynamo0p3KernelConstTrans, \
     TransformationError
 
@@ -63,33 +63,33 @@ from psyclone.transformations import Dynamo0p3KernelConstTrans, \
 # associated kernel value constant (rather than passing it in by
 # argument).
 NUMBER_OF_LAYERS = 20
-# The element order to use when modifying a kernel to make the
+# The element orders to use when modifying a kernel to make the
 # associated degrees of freedom values constant (rather than passing
 # them in by argument).
-ELEMENT_ORDER = 0
+ELEMENT_ORDER_H = 0
+ELEMENT_ORDER_V = 0
 # Whether or not to make the number of quadrature points constant in a
 # kernel (rather than passing them in by argument).
 CONSTANT_QUADRATURE = True
 
 
-def trans(psy):
-    '''PSyclone transformation script for the Dynamo0.3 API to make the
+def trans(psyir):
+    '''PSyclone transformation script for the LFRic API to make the
     kernel values of ndofs, nlayers and nquadrature-point sizes constant.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     const_trans = Dynamo0p3KernelConstTrans()
 
-    for invoke in psy.invokes.invoke_list:
-        print(f"invoke '{invoke.name}'")
-        schedule = invoke.schedule
-        for kernel in schedule.coded_kernels():
-            print(f"  kernel '{kernel.name.lower()}'")
-            try:
-                const_trans.apply(kernel,
-                                  {"number_of_layers": NUMBER_OF_LAYERS,
-                                   "element_order": ELEMENT_ORDER,
-                                   "quadrature": CONSTANT_QUADRATURE})
-            except TransformationError:
-                print(f"    Failed to modify kernel '{kernel.name}'")
-
-    return psy
+    for kernel in psyir.coded_kernels():
+        print(f"  kernel '{kernel.name.lower()}'")
+        try:
+            const_trans.apply(kernel,
+                              {"number_of_layers": NUMBER_OF_LAYERS,
+                               "element_order_h": ELEMENT_ORDER_H,
+                               "element_order_v": ELEMENT_ORDER_V,
+                               "quadrature": CONSTANT_QUADRATURE})
+        except TransformationError:
+            print(f"    Failed to modify kernel '{kernel.name}'")

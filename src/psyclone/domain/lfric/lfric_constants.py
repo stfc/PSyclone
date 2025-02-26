@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -179,34 +179,35 @@ class LFRicConstants():
         LFRicConstants.HALO_ACCESS_LOOP_BOUNDS = ["cell_halo", "dof_halo",
                                                   "colour_halo"]
 
-        LFRicConstants.VALID_LOOP_BOUNDS_NAMES = \
-            (["start",     # the starting
-                           # index. Currently this is
-                           # always 1
-              "inner",     # a placeholder for when we
-                           # support loop splitting into
-                           # work that does not access
-                           # the halo and work that does.
-                           # This will be used to help
-                           # overlap computation and
-                           # communication
-              "ncolour",   # the number of cells with
-                           # the current colour
-              "ncolours",  # the number of colours in a
-                           # coloured loop
-              "ncells",    # the number of owned cells
-              "ndofs",     # the number of owned dofs
-              "nannexed"]  # the number of owned dofs
-                           # plus the number of annexed
-                           # dofs. As the indices of
-                           # dofs are arranged that
-                           # owned dofs have lower
-                           # indices than annexed dofs,
-                           # having this value as an
-                           # upper bound will compute
-                           # both owned and annexed
-                           # dofs.
-             + LFRicConstants.HALO_ACCESS_LOOP_BOUNDS)
+        LFRicConstants.VALID_LOOP_BOUNDS_NAMES = (
+            ["start",     # the starting
+                          # index. Currently this is
+                          # always 1
+             "cell_halo_start",  # the first cell in the halo region.
+             "inner",     # a placeholder for when we
+                          # support loop splitting into
+                          # work that does not access
+                          # the halo and work that does.
+                          # This will be used to help
+                          # overlap computation and
+                          # communication
+             "ncolour",   # the number of cells with
+                          # the current colour
+             "ncolours",  # the number of colours in a
+                          # coloured loop
+             "ncells",    # the number of owned cells
+             "ndofs",     # the number of owned dofs
+             "nannexed"]  # the number of owned dofs
+                          # plus the number of annexed
+                          # dofs. As the indices of
+                          # dofs are arranged that
+                          # owned dofs have lower
+                          # indices than annexed dofs,
+                          # having this value as an
+                          # upper bound will compute
+                          # both owned and annexed
+                          # dofs.
+            + LFRicConstants.HALO_ACCESS_LOOP_BOUNDS)
 
         # Valid LFRic loop types. The default is "" which is over cell columns
         # (in the horizontal plane). A "null" loop doesn't iterate over
@@ -229,10 +230,16 @@ class LFRicConstants():
 
         # Valid LFRic iteration spaces for user-supplied kernels and
         # built-in kernels
-        LFRicConstants.USER_KERNEL_ITERATION_SPACES = ["cell_column", "domain"]
+        LFRicConstants.USER_KERNEL_ITERATION_SPACES = [
+            "cell_column", "domain",
+            "dof",
+            "halo_cell_column",
+            "owned_and_halo_cell_column"]
+
         LFRicConstants.VALID_ITERATION_SPACES = \
-            LFRicConstants.USER_KERNEL_ITERATION_SPACES + \
-            LFRicConstants.BUILTIN_ITERATION_SPACES
+            list(OrderedDict.fromkeys(
+                LFRicConstants.USER_KERNEL_ITERATION_SPACES +
+                LFRicConstants.BUILTIN_ITERATION_SPACES))
 
         # ---------- Function spaces (FS) -------------------------------------
         # Discontinuous FS

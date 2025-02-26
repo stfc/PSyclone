@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -529,6 +529,12 @@ end module my_mod
     assert ("Cannot remove RoutineSymbol 'my_sub' because it is referenced by "
             "'call my_sub()" in str(err))
 
+    # Add the routine symbol into the filecontainer then we should be able
+    # to remove it from the module - this validates the
+    # _validate_remove_routinesymbol check.
+    psyir.symbol_table.add(my_sub)
+    table.remove(my_sub)
+
 
 def test_no_remove_routinesymbol_interface(fortran_reader):
     '''Check that remove() refuses to remove a RoutineSymbol if it is
@@ -829,7 +835,7 @@ def test_table_merge():
     table2.add(symbols.DataSymbol("beeblebrox", symbols.INTEGER_TYPE))
     # A symbol we will exclude from the merge.
     dent = symbols.RoutineSymbol("dent")
-    table2.add(dent, tag="own_routine_symbol")
+    table2.add(dent)
     # Precision symbol should be included.
     wp_sym = symbols.DataSymbol("wp", symbols.INTEGER_TYPE, is_constant=True,
                                 initial_value=8)
@@ -1456,15 +1462,13 @@ def test_view():
                       "  func: RoutineSymbol<Scalar<REAL, UNDEFINED>, "
                       "pure=unknown, elemental=unknown>\n")
 
-    Routine("func", symbol_table=sym_table_2)
+    Routine.create("func", symbol_table=sym_table_2)
     output = sym_table_2.view()
     assert "Symbol Table of Routine 'func':\n" in output
     assert "DataSymbol:\n" in output
     assert "var1" in output
     assert "var2" in output
-    assert "RoutineSymbol:\n" in output
     assert "func" in output
-    assert output.index("DataSymbol:\n") < output.index("RoutineSymbol:\n")
     assert output.index("var1") < output.index("var2")
     assert output == ("Symbol Table of Routine 'func':\n"
                       "-------------------------------\n"
@@ -2270,8 +2274,9 @@ def test_get_symbols():
     # get_symbols() works when the symbol table is attached to a
     # node which has no parent.
     all_symbols = container_symbol_table.get_symbols()
-    assert len(all_symbols) == 1
+    assert len(all_symbols) == 2
     assert all_symbols[symbol2.name] is symbol2
+    assert all_symbols[schedule.name] is schedule._symbol
 
     # get_symbols() works when the symbol table has ancestor symbol
     # tables.
@@ -2313,7 +2318,7 @@ def test_get_tags():
     # get_tags() works when the symbol table has ancestor symbol
     # tables.
     all_tags = schedule_symbol_table.get_tags()
-    assert len(all_tags) == 3
+    assert len(all_tags) == 2
     assert all_tags[symbol1_tag] is symbol1
     assert all_tags[symbol2_tag] is symbol2
 
@@ -2870,6 +2875,20 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     # In this case check that the visibility stays PRIVATE
     assert isinstance(a_2, symbols.DataSymbol)
     assert a_2.visibility == symbols.Symbol.Visibility.PRIVATE
+
+
+def test_resolve_imports_missing_container(monkeypatch):
+    '''
+    Test that a clean failure to get Container PSyIR does not cause problems.
+    '''
+    table = symbols.SymbolTable()
+    csym = symbols.ContainerSymbol("a_mod")
+    # Monkeypatch the find_container_psyir() method of this ContainerSymbol
+    # so that it returns None.
+    monkeypatch.setattr(csym, "find_container_psyir", lambda local_node: None)
+    table.add(csym)
+    # Resolving imports should run without problems.
+    table.resolve_imports()
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")

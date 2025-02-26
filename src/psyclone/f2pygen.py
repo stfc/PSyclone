@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024 and Technology Facilities Council.
+# Copyright (c) 2017-2025 and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -138,7 +138,8 @@ class OMPDirective(Directive):
     '''
     def __init__(self, root, line, position, dir_type):
         self._types = ["parallel do", "parallel", "do", "master", "single",
-                       "taskloop", "taskwait", "declare"]
+                       "taskloop", "taskwait", "declare", "target", "teams",
+                       "teams distribute parallel do"]
         self._positions = ["begin", "end"]
 
         super(OMPDirective, self).__init__(root, line, position, dir_type)

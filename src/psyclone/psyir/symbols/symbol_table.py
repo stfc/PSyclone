@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1583,12 +1583,12 @@ class SymbolTable():
         :type symbol_target: Optional[
             :py:class:`psyclone.psyir.symbols.Symbol`]
 
-        :raises SymbolError: if a symbol name clash is found between multiple \
+        :raises SymbolError: if a symbol name clash is found between multiple
             imports or an import and a local symbol.
-        :raises TypeError: if the provided container_symbols is not a list of \
+        :raises TypeError: if the provided container_symbols is not a list of
             ContainerSymbols.
         :raises TypeError: if the provided symbol_target is not a Symbol.
-        :raises KeyError: if a symbol_target has been specified but this has \
+        :raises KeyError: if a symbol_target has been specified but this has
             not been found in any of the searched containers.
 
         '''
@@ -1617,12 +1617,17 @@ class SymbolTable():
             try:
                 external_container = c_symbol.find_container_psyir(
                     local_node=self.node)
-            # pylint: disable=broad-except
+            # pylint: disable-next=broad-except
             except Exception:
                 # Ignore this container if the associated module file has not
                 # been found in the given include_path or any issue has arisen
                 # during parsing.
                 # TODO #11: It would be useful to log this.
+                continue
+
+            if not external_container:
+                # Failed to get a Container (possibly due to parsing or raising
+                # errors).
                 continue
 
             # Examine all Symbols defined within this external container
@@ -1669,6 +1674,15 @@ class SymbolTable():
                                     sym.wildcard_import]:
                                 symbol_table.remove(test_symbol)
                                 if test_symbol.name not in self:
+                                    # The visibility given by the inner symbol
+                                    # table does not necessarily match the one
+                                    # from the scope it should have been in (it
+                                    # doesn't have a non-default visibility,
+                                    # otherwise the symbol would already be in
+                                    # the ancestor symbol table).
+                                    test_symbol.visibility = \
+                                        self.default_visibility
+
                                     self.add(test_symbol)
                                 else:
                                     for ref in symbol_table.node.walk(

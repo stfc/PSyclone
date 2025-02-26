@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2024, Science and Technology Facilities Council
+! Copyright (c) 2017-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -93,10 +93,10 @@ contains
     integer(kind=i_def), dimension(ndf_aspc4_d) :: map_aspc4_d
     real(kind=r_def), dimension(undf_aspc5_a) :: adata
     real(kind=r_def), dimension(undf_aspc4_d) :: fdata
-    real(kind=r_def), dimension(ndf_aspc1_b,ndf_aspc2_b,ncell_3d_b) :: b_stencil
-    real(kind=r_def), dimension(ndf_aspc3_c,ndf_aspc2_b,ncell_3d_c) :: c_stencil
-    real(kind=r_def), dimension(ndf_aspc4_d,ndf_aspc4_d,ncell_3d_d) :: d_stencil
-    real(kind=r_def), dimension(ndf_aspc3_c,ndf_aspc5_a,ncell_3d_e) :: e_stencil
+    real(kind=r_def), dimension(ncell_3d_b,ndf_aspc1_b,ndf_aspc2_b) :: b_stencil
+    real(kind=r_def), dimension(ncell_3d_c,ndf_aspc3_c,ndf_aspc2_b) :: c_stencil
+    real(kind=r_def), dimension(ncell_3d_d,ndf_aspc4_d,ndf_aspc4_d) :: d_stencil
+    real(kind=r_def), dimension(ncell_3d_e,ndf_aspc3_c,ndf_aspc5_a) :: e_stencil
     real(kind=r_def), dimension(:,:,:,:) :: basis_aspc1_b_qr, &
                                             basis_aspc4_d_qr, &
                                             diff_basis_aspc4_d_qr
