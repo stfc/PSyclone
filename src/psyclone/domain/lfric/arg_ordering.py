@@ -205,7 +205,7 @@ class ArgOrdering:
         else:
             # If it has a tag, first try to look up for it
             try:
-                sym = self._symtab.lookup_with_tag("tag")
+                sym = self._symtab.lookup_with_tag(tag)
                 self.psyir_append(Reference(sym))
                 return sym
             except KeyError:
