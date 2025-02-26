@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -590,3 +590,42 @@ def test_loop_type(fortran_reader):
     Loop.set_loop_type_inference_rules(None)
     assert outer_loop.loop_type is None
     assert inner_loop.loop_type is None
+
+
+def test_explicitly_private_symbols(fortran_reader):
+    ''' Check that the explicitly_private_symbols functionality works '''
+    code = '''
+    subroutine basic_loop()
+      integer, parameter :: jpi=16, jpj=16
+      integer :: ji, jj
+      real :: a(jpi, jpj), fconst
+      do jj = 1, jpj
+        do ji = 1, jpi
+          a(ji) = b(ji, jj)
+        end do
+      end do
+    end subroutine basic_loop
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    a_ref = psyir.walk(Assignment)[0].lhs
+    b_ref = psyir.walk(Assignment)[0].rhs
+
+    # By default no loop has explict local symbols
+    assert len(loops[0].explicitly_private_symbols) == 0
+    assert len(loops[1].explicitly_private_symbols) == 0
+
+    # Add A as explicitly local to the first loop
+    loops[0].explicitly_private_symbols.add(a_ref.symbol)
+    assert len(loops[0].explicitly_private_symbols) == 1
+    assert a_ref.symbol in loops[0].explicitly_private_symbols
+    assert b_ref.symbol not in loops[0].explicitly_private_symbols
+    assert len(loops[1].explicitly_private_symbols) == 0
+
+    # Check that the copy method appropriately updates the symbol references
+    new_psyir = psyir.copy()
+    new_loops = new_psyir.walk(Loop)
+    new_a_ref = new_psyir.walk(Assignment)[0].lhs
+    assert new_a_ref.symbol is not a_ref.symbol
+    assert a_ref.symbol not in new_loops[0].explicitly_private_symbols
+    assert new_a_ref.symbol in new_loops[0].explicitly_private_symbols

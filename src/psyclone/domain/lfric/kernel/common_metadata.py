@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council
+# Copyright (c) 2022-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,8 @@ from abc import ABC, abstractmethod
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import NoMatchError, FortranSyntaxError
+
+from psyclone.configuration import Config
 
 
 # TODO issue #1886. This class and its subclasses may have
@@ -120,7 +122,8 @@ class CommonMetadata(ABC):
             expected form.
 
         '''
-        _ = ParserFactory().create(std="f2003")
+        std = Config.get().fortran_standard
+        _ = ParserFactory().create(std=std)
         reader = FortranStringReader(fortran_string)
         match = True
         try:

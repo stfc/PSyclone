@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -88,9 +88,9 @@ class LFRicDofmaps(LFRicCollection):
         self._unique_indirection_maps = OrderedDict()
 
         for call in self._calls:
-            # We only need a dofmap if the kernel operates on a cell_column
-            # or the domain.
-            if call.iterates_over in ["cell_column", "domain"]:
+            # We only need a dofmap if the kernel operates on cells
+            # rather than dofs.
+            if call.iterates_over != "dof":
                 for unique_fs in call.arguments.unique_fss:
                     # We only need a dofmap if there is a *field* on this
                     # function space. If there is then we use it to look

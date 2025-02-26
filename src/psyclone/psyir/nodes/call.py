@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,23 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
-    RoutineSymbol, Symbol, SymbolError, UnsupportedFortranType)
+    RoutineSymbol,
+    Symbol,
+    SymbolError,
+    UnsupportedFortranType,
+    DataSymbol,
+)
+from typing import List
+from psyclone.errors import PSycloneError
+
+
+class CallMatchingArgumentsNotFound(PSycloneError):
+    '''Exception to signal that matching arguments have not been found
+    for this routine
+    '''
+    def __init__(self, value):
+        PSycloneError.__init__(self, value)
+        self.value = "CallMatchingArgumentsNotFound: " + str(value)
 
 
 class Call(Statement, DataNode):
@@ -229,18 +245,16 @@ class Call(Statement, DataNode):
         # because the 1st child is the routine reference
         self.children.insert(index + 1, arg)
 
-    def replace_named_arg(self, existing_name, arg):
+    def replace_named_arg(self, existing_name: str, arg: DataNode):
         '''Replace one named argument node with another node keeping the
         same name.
 
-           :param str existing_name: the argument name.
-           :param arg: the argument expression.
-           :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
+        :param existing_name: the argument name.
+        :param arg: the argument expression.
 
-           :raises TypeError: if the name argument is the wrong type.
-           :raises ValueError: if the name argument is already used \
-               for an existing argument.
-           :raises TypeError: if the index argument is the wrong type.
+        :raises TypeError: if the name argument is the wrong type.
+        :raises ValueError: if the name argument is already used
+            for an existing argument.
 
         '''
         if not isinstance(existing_name, str):
@@ -301,16 +315,20 @@ class Call(Statement, DataNode):
             # We conservatively default to READWRITE otherwise (TODO #446).
             default_access = AccessType.READWRITE
 
-        # TODO #2271: This may skip references in inner expressions of
-        # structure calls, but to implement properly we new a new kind of
-        # AccessType that represents being called (USED but not READ, maybe
-        # the same that we need for INQUIRY type attributes?)
+        # The RoutineSymbol has a CALL access.
+        sig, indices_list = self.routine.get_signature_and_indices()
+        var_accesses.add_access(sig, AccessType.CALL, self.routine)
+        # Continue processing references in any index expressions.
+        for indices in indices_list:
+            for idx in indices:
+                idx.reference_accesses(var_accesses)
+
         for arg in self.arguments:
             if isinstance(arg, Reference):
                 # This argument is pass-by-reference.
                 sig, indices_list = arg.get_signature_and_indices()
                 var_accesses.add_access(sig, default_access, arg)
-                # Any symbols referenced in any index expressions are READ.
+                # Continue processing references in any index expressions.
                 for indices in indices_list:
                     for idx in indices:
                         idx.reference_accesses(var_accesses)
@@ -334,7 +352,7 @@ class Call(Statement, DataNode):
         return None
 
     @property
-    def arguments(self):
+    def arguments(self) -> List[DataNode]:
         '''
         :returns: the children of this node that represent its arguments.
         :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
@@ -359,12 +377,13 @@ class Call(Statement, DataNode):
     @property
     def is_pure(self):
         '''
-        :returns: whether the routine being called is pure (guaranteed to \
-            return the same result when provided with the same argument \
+        :returns: whether the routine being called is pure (guaranteed to
+            return the same result when provided with the same argument
             values).  If this information is not known then it returns None.
         :rtype: NoneType | bool
         '''
-        if self.routine and self.routine.symbol:
+        if (self.routine and self.routine.symbol and
+                isinstance(self.routine.symbol, RoutineSymbol)):
             return self.routine.symbol.is_pure
         return None
 
@@ -444,7 +463,8 @@ class Call(Statement, DataNode):
 
     def get_callees(self):
         '''
-        Searches for the implementation(s) of the target routine for this Call.
+        Searches for the implementation(s) of all potential target routines
+        for this Call without any arguments check.
 
         :returns: the Routine(s) that this call targets.
         :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
@@ -593,3 +613,190 @@ class Call(Statement, DataNode):
             f"Failed to find a Routine named '{rsym.name}' in "
             f"{_location_txt(root_node)}. This is normally because the routine"
             f" is within a CodeBlock.")
+
+    def _check_argument_type_matches(
+                self,
+                call_arg: DataSymbol,
+                routine_arg: DataSymbol,
+            ) -> None:
+        """Return information whether argument types are matching.
+        This also supports 'optional' arguments by using
+        partial types.
+
+        :param call_arg: One argument of the call
+        :param routine_arg: One argument of the routine
+
+        :raises CallMatchingArgumentsNotFound: Raised if no matching argument
+            was found.
+
+        """
+        if isinstance(
+            routine_arg.datatype, UnsupportedFortranType
+        ):
+            # This could be an 'optional' argument.
+            # This has at least a partial data type
+            if (
+                call_arg.datatype
+                != routine_arg.datatype.partial_datatype
+            ):
+                raise CallMatchingArgumentsNotFound(
+                    f"Argument partial type mismatch of call "
+                    f"argument '{call_arg}' and routine argument "
+                    f"'{routine_arg}'"
+                )
+        else:
+            if call_arg.datatype != routine_arg.datatype:
+                raise CallMatchingArgumentsNotFound(
+                    f"Argument type mismatch of call argument "
+                    f"'{call_arg}' and routine argument "
+                    f"'{routine_arg}'"
+                )
+
+    def _get_argument_routine_match(self, routine: Routine):
+        '''Return a list of integers giving for each argument of the call
+        the index of the corresponding entry in the argument list of the
+        supplied routine.
+
+        :return: None if no match was found, otherwise list of integers
+            referring to matching arguments.
+        :rtype: None|List[int]
+        '''
+
+        # Create a copy of the list of actual arguments to the routine.
+        # Once an argument has been successfully matched, set it to 'None'
+        routine_argument_list: List[DataSymbol] = (
+            routine.symbol_table.argument_list[:]
+        )
+
+        if len(self.arguments) > len(routine.symbol_table.argument_list):
+            raise CallMatchingArgumentsNotFound(
+                f"More arguments in call ('{self.debug_string()}')"
+                f" than callee (routine '{routine.name}')"
+            )
+
+        # Iterate over all arguments to the call
+        ret_arg_idx_list = []
+        for call_arg_idx, call_arg in enumerate(self.arguments):
+            call_arg_idx: int
+            call_arg: DataSymbol
+
+            # If the associated name is None, it's a positional argument
+            # => Just return the index if the types match
+            if self.argument_names[call_arg_idx] is None:
+                routine_arg = routine_argument_list[call_arg_idx]
+                routine_arg: DataSymbol
+
+                self._check_argument_type_matches(call_arg, routine_arg)
+
+                ret_arg_idx_list.append(call_arg_idx)
+                routine_argument_list[call_arg_idx] = None
+                continue
+
+            #
+            # Next, we handle all named arguments
+            #
+            arg_name = self.argument_names[call_arg_idx]
+            routine_arg_idx = None
+
+            for routine_arg_idx, routine_arg in enumerate(
+                routine_argument_list
+            ):
+                routine_arg: DataSymbol
+
+                # Check if argument was already processed
+                if routine_arg is None:
+                    continue
+
+                if arg_name == routine_arg.name:
+                    self._check_argument_type_matches(call_arg, routine_arg)
+                    ret_arg_idx_list.append(routine_arg_idx)
+                    break
+
+            else:
+                # It doesn't match => Raise exception
+                raise CallMatchingArgumentsNotFound(
+                    f"Named argument '{arg_name}' not found for routine"
+                    f" '{routine.name}' in call '{self.debug_string()}'"
+                )
+
+            routine_argument_list[routine_arg_idx] = None
+
+        #
+        # Finally, we check if all left-over arguments are optional arguments
+        #
+        for routine_arg in routine_argument_list:
+            routine_arg: DataSymbol
+
+            if routine_arg is None:
+                continue
+
+            # TODO #759: Optional keyword is not yet supported in psyir.
+            # Hence, we use a simple string match.
+            if ", OPTIONAL" not in str(routine_arg.datatype):
+                raise CallMatchingArgumentsNotFound(
+                    f"Argument '{routine_arg.name}' in subroutine"
+                    f" '{routine.name}' does not match any in the call"
+                    f" '{self.debug_string()}' and is not OPTIONAL."
+                )
+
+        return ret_arg_idx_list
+
+    def get_callee(
+        self,
+        check_matching_arguments: bool = True,
+    ):
+        '''
+        Searches for the implementation(s) of the target routine for this Call
+        including argument checks.
+
+        If `check_matching_arguments` is set to `False`, the very first
+        implementation of the matching routine will be returned in case no
+        match was found. Then, the arguments of the call and routine
+        might not match each other.
+
+        :param check_matching_arguments: Also check argument types to match.
+            If set to `False` and in case it doesn't find matching arguments,
+            the very first implementation of the matching routine will be
+            returned (even if the argument type check failed). The argument
+            types and number of arguments might therefore mismatch!
+        :type ret_arg_match_list: bool
+
+        :returns: A tuple of two elements. The first element is the routine
+            that this call targets. The second one a list of arguments
+            providing the information on matching argument indices.
+        :rtype: Set[psyclone.psyir.nodes.Routine, List[int]]
+
+        :raises NotImplementedError: if the routine is not local and not found
+            in any containers in scope at the call site.
+        '''
+
+        routine_list = self.get_callees()
+
+        err_info_list = []
+
+        # Search for the routine matching the right arguments
+        for routine in routine_list:
+            routine: Routine
+
+            try:
+                arg_match_list = self._get_argument_routine_match(routine)
+            except CallMatchingArgumentsNotFound as err:
+                err_info_list.append(err.value)
+                continue
+
+            return (routine, arg_match_list)
+
+        # If we didn't find any routine, return some routine if no matching
+        # arguments have been found.
+        # This is handy for the transition phase until optional argument
+        # matching is supported.
+        if not check_matching_arguments:
+            # Also return a list of dummy argument indices
+            return list(range(len(self.arguments)))
+
+        error_msg = "\n".join(err_info_list)
+
+        raise CallMatchingArgumentsNotFound(
+            f"No matching routine found for '{self.debug_string()}':"
+            "\n" + error_msg
+        )

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -74,7 +74,7 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.while_loop import WhileLoop
-from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
+from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType, DataSymbol
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -1539,7 +1539,7 @@ class OMPParallelDirective(OMPRegionDirective):
 
         This method analyses the directive body and automatically classifies
         each symbol using the following rules:
-        - All arrays are shared.
+        - All arrays are shared unless listed in the explicitly private list.
         - Scalars that are accessed only once are shared.
         - Scalars that are read-only or written outside a loop are shared.
         - Scalars written in multiple iterations of a loop are private, unless:
@@ -1576,8 +1576,9 @@ class OMPParallelDirective(OMPRegionDirective):
 
         # TODO #598: Improve the handling of scalar variables, there are
         # remaining issues when we have accesses after the parallel region
-        # of variables that we currently declare as private. This should be
-        # lastprivate.
+        # of variables that we currently declare as private. We could use
+        # the DefinitionUseChain to prove that there are no more uses after
+        # the loop.
         # e.g:
         # !$omp parallel do <- will set private(ji, my_index)
         # do ji = 1, jpk
@@ -1595,9 +1596,32 @@ class OMPParallelDirective(OMPRegionDirective):
         var_accesses = VariablesAccessInfo()
         self.reference_accesses(var_accesses)
         for signature in var_accesses.all_signatures:
+            if not var_accesses[signature].has_data_access():
+                continue
             accesses = var_accesses[signature].all_accesses
-            # Ignore variables that have indices, we only look at scalars
-            if accesses[0].is_array():
+            # TODO #2094: var_name only captures the top-level
+            # component in the derived type accessor. If the attributes
+            # only apply to a sub-component, this won't be captured
+            # appropriately.
+            name = signature.var_name
+            symbol = accesses[0].node.scope.symbol_table.lookup(
+                name, otherwise=None)
+
+            # If it is manually marked as a local symbol, add it to private or
+            # firstprivate set
+            if (isinstance(symbol, DataSymbol) and
+                    isinstance(self.dir_body[0], Loop) and
+                    symbol in self.dir_body[0].explicitly_private_symbols):
+                if any(ref.symbol is symbol for ref in self.preceding()
+                       if isinstance(ref, Reference)):
+                    # If it's used before the loop, make it firstprivate
+                    fprivate.add(symbol)
+                else:
+                    private.add(symbol)
+                continue
+
+            # All arrays not explicitly marked as threadprivate are shared
+            if any(accs.is_array() for accs in accesses):
                 continue
 
             # If a variable is only accessed once, it is either an error
@@ -2084,17 +2108,17 @@ class OMPDoDirective(OMPRegionDirective):
                                  number of nested Loops.
         '''
         if self._collapse:
-            cursor = self.dir_body.children[0]
+            cursor = self.dir_body
             for depth in range(self._collapse):
-                if (len(cursor.parent.children) != 1 or
-                        not isinstance(cursor, Loop)):
+                if (len(cursor.children) != 1 or
+                        not isinstance(cursor.children[0], Loop)):
                     raise GenerationError(
                         f"{type(self).__name__} must have as many immediately "
                         f"nested loops as the collapse clause specifies but "
                         f"'{self}' has a collapse={self._collapse} and the "
                         f"nested body at depth {depth} cannot be "
                         f"collapsed.")
-                cursor = cursor.loop_body.children[0]
+                cursor = cursor.children[0].loop_body
 
     def _validate_single_loop(self):
         '''
@@ -2390,6 +2414,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 class OMPTeamsDistributeParallelDoDirective(OMPParallelDoDirective):
     ''' Class representing the OMP teams distribute parallel do directive. '''
     _directive_string = "teams distribute parallel do"
+
+
+class OMPTeamsLoopDirective(OMPParallelDoDirective):
+    ''' Class representing the OMP teams loop directive. '''
+    _directive_string = "teams loop"
 
 
 class OMPTargetDirective(OMPRegionDirective):

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,32 +38,26 @@
 function via the -s option. Transforms the invoke with the addition of
 OpenACC directives and then encloses the whole in a profiling region. '''
 
-from __future__ import print_function
 from acc_transform import trans as acc_trans
 from psyclone.psyir.transformations import ProfileTrans
 
 
-def trans(psy):
+def trans(psyir):
     '''
     Take the supplied psy object, add OpenACC directives and then enclose
     the whole schedule within a profiling region.
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     proftrans = ProfileTrans()
 
     # Use the trans() routine in acc_transform.py to add the OpenACC directives
-    psy = acc_trans(psy)
+    acc_trans(psyir)
 
-    invoke = psy.invokes.get('invoke_0_inc_field')
-    schedule = invoke.schedule
+    schedule = next(x for x in psyir.children[0].children
+                    if x.name == 'invoke_0_inc_field')
 
     # Enclose everything in a profiling region
     proftrans.apply(schedule.children)
-    print(schedule.view())
-    return psy

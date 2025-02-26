@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council
+# Copyright (c) 2022-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -95,6 +95,22 @@ def test_kcial_generate_operator(lfrickern_op):
     assert isinstance(opers[0][0], DataSymbol)
     assert opers[0][1] == "w3"
     assert opers[0][2] == "w2"
+
+
+def test_kcial_generate_halos(lfrickern_halo):
+    '''
+    Test that appropriate arguments are generated for a kernel that operates
+    on halo cells.
+    '''
+    # generate() assumes a suitably initialised symbol table so create
+    # that here.
+    table = LFRicSymbolTable()
+    table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+                     datatype=UnresolvedType())
+    kcial = KernCallInvokeArgList(lfrickern_halo, table)
+    kcial.generate()
+    assert len(kcial.arglist) == 9
+    assert kcial.arglist[0] == "halo_depth"
 
 
 def test_kcial_not_implemented(lfrickern):

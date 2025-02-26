@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,6 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-EXAMPLES=extract nan profile readonly
+EXAMPLES=extract value_range_check profile readonly
 
 include ../../top_level.mk

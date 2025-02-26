@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council.
+# Copyright (c) 2018-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -111,6 +111,9 @@ def test_omptargettrans_validate(fortran_reader):
     function myfunc(a)
         integer :: a
         integer :: myfunc
+        do i = 1, 1
+            myfunc = a
+        enddo
     end function
     subroutine my_subroutine()
         integer, dimension(10, 10) :: A
@@ -133,11 +136,17 @@ def test_omptargettrans_validate(fortran_reader):
 
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[0])
+    assert ("OpenMP Target cannot enclose a region that has a function "
+            "return value symbol, but found one in 'myfunc'."
+            in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[1])
     assert ("'myfunc' is not available on the accelerator device, and "
             "therefore it cannot be called from within an OMP Target region."
             in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[1])
+        omptargettrans.validate(loops[2])
     assert ("Nodes of type 'CodeBlock' cannot be enclosed by a OMPTarget"
             "Trans transformation" in str(err.value))

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1106,14 +1106,15 @@ def test_fw_binaryoperator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = b * (c + d)\n"
         "    a = b * c + d\n"
         "    a = (b * c) + d\n"
-        "    a = b * c * d * a\n"
-        "    a = (((b * c) * d) * a)\n"
-        "    a = (b * (c * (d * a)))\n"
+        "    a = b * c * d * a\n"  # Left-to-right
+        "    a = (((b * c) * d) * a)\n"  # Left-to-right with explicit par.
+        "    a = (b * (c * (d * a)))\n"  # Right-to-left
         "    a = -(a + b)\n"
         "    e = .not.(e .and. (f .or. g))\n"
         "    e = (((.not.e) .and. f) .or. g)\n"
         "    e = (e .and. (f .eqv. g))\n"
         "    e = (e .and. f .neqv. g)\n"
+        "    a = ((a + b) + (c + d)) / a * b\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
@@ -1124,13 +1125,14 @@ def test_fw_binaryoperator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = b * c + d\n"
         "    a = b * c + d\n"
         "    a = b * c * d * a\n"
-        "    a = b * c * d * a\n"
+        "    a = ((b * c) * d) * a\n"
         "    a = b * (c * (d * a))\n"
         "    a = -(a + b)\n"
         "    e = .NOT.(e .AND. (f .OR. g))\n"
         "    e = .NOT.e .AND. f .OR. g\n"
         "    e = e .AND. (f .EQV. g)\n"
-        "    e = e .AND. f .NEQV. g\n")
+        "    e = e .AND. f .NEQV. g\n"
+        "    a = ((a + b) + (c + d)) / a * b\n")
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
 
@@ -1392,6 +1394,7 @@ def test_fw_char_literal(fortran_writer):
     lit = Literal("hello", CHARACTER_TYPE)
     result = fortran_writer(lit)
     assert result == "'hello'"
+
 
 # literal is already checked within previous tests
 
@@ -1687,6 +1690,10 @@ def test_fw_literal_node(fortran_writer):
     result = fortran_writer(lit1)
     assert result == '3.14'
 
+    lit1 = Literal('3', REAL_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '3.0'
+
     lit1 = Literal('3.14E0', REAL_TYPE)
     result = fortran_writer(lit1)
     assert result == '3.14e0'
@@ -1694,6 +1701,10 @@ def test_fw_literal_node(fortran_writer):
     lit1 = Literal('3.14E0', REAL_DOUBLE_TYPE)
     result = fortran_writer(lit1)
     assert result == '3.14d0'
+
+    lit1 = Literal('3', REAL_DOUBLE_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '3.0d0'
 
     # Check that BOOLEANS use the FORTRAN formatting
     lit1 = Literal('true', BOOLEAN_TYPE)
@@ -2026,3 +2037,24 @@ def test_pointer_assignments(fortran_reader, fortran_writer):
     assert "a = 4" in code
     assert "b => a" in code
     assert "field(3,c)%pointer => b" in code
+
+
+def test_fw_schedule(fortran_reader, fortran_writer):
+    '''Test that the FortranWriter correctly handles a Schedule node.
+
+    '''
+    routine_header = ("subroutine foo()\n"
+                      "real :: a, b, c\n")
+    test_code = (
+        "a = b\n"
+        "b = c\n"
+        "call bar(a)\n"
+    )
+    routine_end = "end subroutine foo\n"
+    routine_code = routine_header + test_code + routine_end
+    schedule = Schedule()
+    routine = fortran_reader.psyir_from_source(routine_code).children[0]
+    for child in routine.children:
+        schedule.addchild(child.copy().detach())
+    result = fortran_writer(schedule)
+    assert result == test_code

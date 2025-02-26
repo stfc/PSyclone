@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -78,13 +78,14 @@ def pytest_addoption(parser):
 
 @pytest.fixture
 def have_graphviz():
-    ''' Whether or not the system has graphviz installed. Note that this
-    only checks for the Python bindings. The underlying library must
-    also have been installed for dag generation to work correctly. '''
+    ''' Whether or not the system has graphviz installed. This refers to
+    the underlying system library, not the python bindings that are provided
+    by 'import graphviz'. '''
+    # pylint: disable=import-outside-toplevel
+    import graphviz
     try:
-        # pylint: disable=import-outside-toplevel, unused-import
-        import graphviz  # noqa: F401
-    except ImportError:
+        graphviz.version()
+    except graphviz.ExecutableNotFound:
         return False
     return True
 

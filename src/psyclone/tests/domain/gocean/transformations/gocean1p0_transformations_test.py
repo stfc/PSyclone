@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1384,7 +1384,7 @@ def test_acc_enter_directive_infrastructure_setup_error():
 
     # Generate the code
     with pytest.raises(GenerationError) as err:
-        _ = psy.gen
+        _ = schedule.lower_to_language_level()
     assert ("The GOACCEnterDataDirective can only be generated/lowered inside "
             "a Container in order to insert a sibling subroutine, but "
             "'GOACCEnterDataDirective[]' is not inside a Container."

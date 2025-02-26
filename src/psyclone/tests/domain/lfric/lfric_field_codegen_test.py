@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -612,7 +612,7 @@ def test_int_field_fs(tmpdir):
         "f4, m3, m4, f5, f6, m5, m6, f7, f8, m7\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers_f2\n"
+        "      INTEGER(KIND=i_def) nlayers_f1\n"
         "      INTEGER(KIND=i_def), pointer, dimension(:) :: m7_data => "
         "null()\n"
         "      INTEGER(KIND=i_def), pointer, dimension(:) :: f8_data => "
@@ -699,7 +699,7 @@ def test_int_field_fs(tmpdir):
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers_f2 = f2_proxy%vspace%get_nlayers()\n"
+        "      nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
@@ -849,7 +849,7 @@ def test_int_field_fs(tmpdir):
         "        CALL m7_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_fs_int_field_code(nlayers_f2, f1_data, "
+        "        CALL testkern_fs_int_field_code(nlayers_f1, f1_data, "
         "f2_data, m1_data, m2_data, f3_data, "
         "f4_data, m3_data, m4_data, f5_data, "
         "f6_data, m5_data, m6_data, f7_data, "
@@ -993,7 +993,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers_f1, nlayers_i2\n"
+        "      INTEGER(KIND=i_def) nlayers_f1, nlayers_i1\n"
         "      INTEGER(KIND=i_def), pointer, dimension(:) :: n7_data => "
         "null()\n"
         "      INTEGER(KIND=i_def), pointer, dimension(:) :: i8_data => "
@@ -1051,7 +1051,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
-        "      nlayers_i2 = i2_proxy%vspace%get_nlayers()\n"
+        "      nlayers_i1 = i1_proxy%vspace%get_nlayers()\n"
         "      !\n")
     if dist_mem:
         output += (
@@ -1081,7 +1081,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     assert output in generated_code
     # Kernel calls are the same regardless of distributed memory
     kern1_call = (
-        "        CALL testkern_fs_int_field_code(nlayers_i2, i1_data, "
+        "        CALL testkern_fs_int_field_code(nlayers_i1, i1_data, "
         "i2_data, n1_data, n2_data, i3_data, "
         "i4_data, n3_data, n4_data, i5_data, "
         "i6_data, n5_data, n6_data, i7_data, "

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified by: J. Dendy, Met Office
 
 
 '''An example PSyclone transformation script which makes ndofs, nqp*
@@ -51,7 +52,6 @@ This script can be applied via the -s option in the psyclone command,
 it is not designed to be directly run from python.
 
 '''
-from __future__ import print_function
 from psyclone.transformations import Dynamo0p3KernelConstTrans, \
     TransformationError
 
@@ -59,37 +59,36 @@ from psyclone.transformations import Dynamo0p3KernelConstTrans, \
 # associated kernel value constant (rather than passing it in by
 # argument).
 NUMBER_OF_LAYERS = 20
-# The element order to use when modifying a kernel to make the
+# The horizontal element order to use when modifying a kernel to make the
 # associated degrees of freedom values constant (rather than passing
 # them in by argument).
-ELEMENT_ORDER = 0
+ELEMENT_ORDER_H = 0
+# The vertical element order to use when modifying a kernel to make the
+# associated degrees of freedom values constant (rather than passing
+# them in by argument).
+ELEMENT_ORDER_V = 0
 # Whether or not to make the number of quadrature points constant in a
 # kernel (rather than passing them in by argument).
 CONSTANT_QUADRATURE = True
 
 
-def trans(psy):
-    '''PSyclone transformation script for the Dynamo0.3 API to make the
+def trans(psyir):
+    '''PSyclone transformation script for the LFRic API to make the
     kernel values of ndofs, nlayers and nquadrature-point sizes constant.
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
-        kernel information required by PSyclone.
-    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     const_trans = Dynamo0p3KernelConstTrans()
 
-    for invoke in psy.invokes.invoke_list:
-        print(f"invoke '{invoke.name}'")
-        schedule = invoke.schedule
-        for kernel in schedule.coded_kernels():
-            print(f"  kernel '{kernel.name.lower()}'")
-            try:
-                const_trans.apply(kernel,
-                                  {"number_of_layers": NUMBER_OF_LAYERS,
-                                   "element_order": ELEMENT_ORDER,
-                                   "quadrature": CONSTANT_QUADRATURE})
-            except TransformationError:
-                print(f"    Failed to modify kernel '{kernel.name}'")
-
-    return psy
+    for kernel in psyir.coded_kernels():
+        print(f"  kernel '{kernel.name.lower()}'")
+        try:
+            const_trans.apply(kernel,
+                              {"number_of_layers": NUMBER_OF_LAYERS,
+                               "element_order_h": ELEMENT_ORDER_H,
+                               "element_order_v": ELEMENT_ORDER_V,
+                               "quadrature": CONSTANT_QUADRATURE})
+        except TransformationError:
+            print(f"    Failed to modify kernel '{kernel.name}'")

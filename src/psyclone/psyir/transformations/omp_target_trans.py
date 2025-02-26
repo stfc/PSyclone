@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,8 @@
 
 ''' This module provides the OMPTargetTrans PSyIR transformation '''
 
-from psyclone.psyir.nodes import CodeBlock, OMPTargetDirective, Call
+from psyclone.psyir.nodes import (
+    CodeBlock, OMPTargetDirective, Call, Routine, Reference)
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations import TransformationError
 
@@ -101,6 +102,8 @@ class OMPTargetTrans(RegionTrans):
 
         :raises TransformationError: if it contains calls to routines that
             are not available in the accelerator device.
+        :raises TransformationError: if its a function and the target region
+            attempts to enclose the assingment setting the return value.
         '''
         node_list = self.get_node_list(node)
         super().validate(node, options)
@@ -111,6 +114,16 @@ class OMPTargetTrans(RegionTrans):
                         f"'{call.routine.name}' is not available on the "
                         f"accelerator device, and therefore it cannot "
                         f"be called from within an OMP Target region.")
+        routine = node.ancestor(Routine)
+        if routine and routine.return_symbol:
+            # if it is a function, the target must not include its return sym
+            for check_node in node_list:
+                for ref in check_node.walk(Reference):
+                    if ref.symbol is routine.return_symbol:
+                        raise TransformationError(
+                            f"OpenMP Target cannot enclose a region that has "
+                            f"a function return value symbol, but found one in"
+                            f" '{routine.return_symbol.name}'.")
 
     def apply(self, node, options=None):
         ''' Insert an OMPTargetDirective before the provided node or list

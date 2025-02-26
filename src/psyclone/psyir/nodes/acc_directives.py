@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 #         C.M. Maynard, Met Office / University of Reading
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
-# Modified J. G. Wallwork, Met Office
+# Modified J. G. Wallwork, Met Office / University of Cambridge
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the various OpenACC Directive
@@ -447,6 +447,7 @@ class ACCLoopDirective(ACCRegionDirective):
         self._sequential = sequential
         self._gang = gang
         self._vector = vector
+        self._check_clauses_consistent()
         super().__init__(**kwargs)
 
     def __eq__(self, other):
@@ -468,6 +469,19 @@ class ACCLoopDirective(ACCRegionDirective):
         is_eq = is_eq and self.vector == other.vector
 
         return is_eq
+
+    def _check_clauses_consistent(self):
+        '''
+        Check that the clauses applied to the loop directive make sense.
+
+        :raises ValueError: if sequential is used in conjunction with gang
+            and/or vector
+        '''
+        if self.sequential and (self.gang or self.vector):
+            raise ValueError(
+                "The OpenACC seq clause cannot be used in conjunction with the"
+                " gang or vector clauses."
+            )
 
     @property
     def collapse(self):
@@ -550,12 +564,13 @@ class ACCLoopDirective(ACCRegionDirective):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
+        self._check_clauses_consistent()
         text = self.coloured_name(colour)
-        text += f"[sequential={self._sequential},"
-        text += f"gang={self._gang},"
-        text += f"vector={self._vector},"
-        text += f"collapse={self._collapse},"
-        text += f"independent={self._independent}]"
+        text += f"[sequential={self.sequential},"
+        text += f"gang={self.gang},"
+        text += f"vector={self.vector},"
+        text += f"collapse={self.collapse},"
+        text += f"independent={self.independent}]"
         return text
 
     def validate_global_constraints(self):
@@ -619,17 +634,18 @@ class ACCLoopDirective(ACCRegionDirective):
         if leading_acc:
             clauses = ["acc", "loop"]
 
-        if self._sequential:
+        self._check_clauses_consistent()
+        if self.sequential:
             clauses += ["seq"]
         else:
-            if self._gang:
+            if self.gang:
                 clauses += ["gang"]
-            if self._vector:
+            if self.vector:
                 clauses += ["vector"]
-            if self._independent:
+            if self.independent:
                 clauses += ["independent"]
-            if self._collapse:
-                clauses += [f"collapse({self._collapse})"]
+            if self.collapse:
+                clauses += [f"collapse({self.collapse})"]
         return " ".join(clauses)
 
     def end_string(self):

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council
+# Copyright (c) 2021-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -82,9 +82,8 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
 
     def apply(self, node, options=None):
         '''Apply this utility transformation to the specified node. This node
-        must be a MIN or MAX BinaryOperation or NaryOperation. The
-        operation is converted to equivalent inline code.  This is
-        implemented as a PSyIR transform from:
+        must be a MIN or MAX IntrinsicCall. The intrinsic is converted to
+        equivalent inline code. This is implemented as a PSyIR transform from:
 
         .. code-block:: python
 
@@ -108,13 +107,12 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
         PSyIR expressions and the ``...`` before and after ``[MIN or
         MAX](A, B, C ...)`` can be arbitrary PSyIR code.
 
-        This transformation requires the operation node to be a
+        This transformation requires the IntrinsicCall node to be a
         descendent of an assignment and will raise an exception if
         this is not the case.
 
-        :param node: a MIN or MAX Binary- or Nary-Operation node.
-        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation` or \
-            :py:class:`psyclone.psyir.nodes.NaryOperation`
+        :param node: a MIN or MAX intrinsic.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -141,7 +139,7 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
             f"tmp_{self._intrinsic.name.lower()}",
             symbol_type=DataSymbol, datatype=REAL_TYPE)
 
-        # Replace operation with a temporary (res_var).
+        # Replace intrinsic with a temporary (res_var).
         node.replace_with(Reference(res_var_symbol))
 
         # res_var=A (child[0] of node)

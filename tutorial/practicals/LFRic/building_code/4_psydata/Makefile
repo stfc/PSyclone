@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,12 +41,12 @@ default:
 	@echo "Please use one of the transformation-specific Makefiles, e.g."
 	@echo "make -f Makefile.extract_one"
 
-PSYDATA_PATH?=$(PSYCLONE_RELPATH)/lib/nan_test/lfric
-PSYDATA_LIB_NAME?=_nan_test
+PSYDATA_PATH?=$(PSYCLONE_RELPATH)/lib/value_range_check/lfric
+PSYDATA_LIB_NAME?=_value_range_check
 
 # Target for testing the tutorials with compilation (use only one PSyData wrapper)
 compile:
-	make -f solutions/Makefile.nan_all
+	make -f solutions/Makefile.value_range_check
 
 run: compile
 	./time_evolution
@@ -58,7 +58,7 @@ transform:
 	make clean
 	make -f solutions/Makefile.extract_all time_evolution_alg_mod_psy.f90
 	make clean
-	make -f solutions/Makefile.nan_all time_evolution_alg_mod_psy.f90
+	make -f solutions/Makefile.value_range_check time_evolution_alg_mod_psy.f90
 	make clean
 	make -f solutions/Makefile.readonly_all time_evolution_alg_mod_psy.f90
 

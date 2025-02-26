@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2021 Met Office. All rights reserved.
+! (C) Crown copyright 2021-2025 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
@@ -201,8 +201,8 @@ subroutine tl_kinetic_energy_gradient_code(nlayers,       &
         end do
 
         ! Calculation
-        mul1(3) = matmul( jac(:,:,qp1,qp2), ls_u_at_quad )
-        mul2(3) = matmul( jac(:,:,qp1,qp2), u_at_quad )
+        mul1 = matmul( jac(:,:,qp1,qp2), ls_u_at_quad )
+        mul2 = matmul( jac(:,:,qp1,qp2), u_at_quad )
         ke_at_quad = dot_product(mul1, mul2) / ( dj(qp1,qp2)**2 )
 
         do df = 1, ndf_w2

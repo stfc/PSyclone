@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -167,7 +167,7 @@ def test_extract_node_lower_to_language_level():
     output = (
         """CALL extract_psy_data % """
         """PreStart("psy_single_invoke_three_kernels", "invoke_0-compute_cu_"""
-        """code-r0", 6, 3)
+        """code-r0", 9, 3)
       CALL extract_psy_data % PreDeclareVariable("cu_fld%internal%xstart", """
         """cu_fld % internal % xstart)
       CALL extract_psy_data % PreDeclareVariable("cu_fld%internal%xstop", """
@@ -178,6 +178,9 @@ def test_extract_node_lower_to_language_level():
         """cu_fld % internal % ystop)
       CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
       CALL extract_psy_data % PreDeclareVariable("u_fld", u_fld)
+      CALL extract_psy_data % PreDeclareVariable("cu_fld", cu_fld)
+      CALL extract_psy_data % PreDeclareVariable("i", i)
+      CALL extract_psy_data % PreDeclareVariable("j", j)
       CALL extract_psy_data % PreDeclareVariable("cu_fld_post", cu_fld)
       CALL extract_psy_data % PreDeclareVariable("i_post", i)
       CALL extract_psy_data % PreDeclareVariable("j_post", j)
@@ -192,6 +195,9 @@ def test_extract_node_lower_to_language_level():
         """cu_fld % internal % ystop)
       CALL extract_psy_data % ProvideVariable("p_fld", p_fld)
       CALL extract_psy_data % ProvideVariable("u_fld", u_fld)
+      CALL extract_psy_data % ProvideVariable("cu_fld", cu_fld)
+      CALL extract_psy_data % ProvideVariable("i", i)
+      CALL extract_psy_data % ProvideVariable("j", j)
       CALL extract_psy_data % PreEnd
       DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1
         DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
@@ -221,7 +227,7 @@ def test_extract_node_gen():
     output = '''      ! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_psy", \
-"invoke_0_testkern_type-testkern_code-r0", 17, 2)
+"invoke_0_testkern_type-testkern_code-r0", 18, 2)
       CALL extract_psy_data%PreDeclareVariable("a", a)
       CALL extract_psy_data%PreDeclareVariable("f1_data", f1_data)
       CALL extract_psy_data%PreDeclareVariable("f2_data", f2_data)
@@ -239,6 +245,7 @@ def test_extract_node_gen():
       CALL extract_psy_data%PreDeclareVariable("undf_w1", undf_w1)
       CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreDeclareVariable("undf_w3", undf_w3)
+      CALL extract_psy_data%PreDeclareVariable("cell", cell)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("f1_data_post", f1_data)
       CALL extract_psy_data%PreEndDeclaration
@@ -259,6 +266,7 @@ def test_extract_node_gen():
       CALL extract_psy_data%ProvideVariable("undf_w1", undf_w1)
       CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
       CALL extract_psy_data%ProvideVariable("undf_w3", undf_w3)
+      CALL extract_psy_data%ProvideVariable("cell", cell)
       CALL extract_psy_data%PreEnd
       DO cell = loop0_start, loop0_stop, 1
         CALL testkern_code(nlayers_f1, a, f1_data, f2_data, ''' + \

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2024, Science and Technology Facilities Council.
+# Copyright (c) 2023-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,13 +62,13 @@ GENERATED_FILES += psy.f90 psy.o traadv-$(TYPE).exe output.dat
 # Pick up the right extraction library:
 PSYROOT=../../..
 ifeq ($(TYPE), netcdf)
-	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/nemo
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/generic
 	READ_DIR ?= $(PSYROOT)/lib/extract/netcdf
 	F90FLAGS += $$(nf-config --fflags)
 	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 	GENERATED_FILES += tra_adv-r?.nc
 else
-	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/nemo
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/generic
 	READ_DIR ?= $(PSYROOT)/lib/extract/standalone
 	GENERATED_FILES += tra_adv-r?.binary
 endif
@@ -95,7 +95,7 @@ kernels: extract_kernels.py
 	$(PSYCLONE) -l all -s ./extract_kernels.py -o psy.f90 ../code/tra_adv.F90
 
 $(EXTRACT_DIR)/$(LIB_NAME):
-	make -C $(EXTRACT_DIR)
+	${MAKE} -C $(EXTRACT_DIR)
 
 # Compilation uses the 'kernels' transformed code
 psy.f90: kernels
@@ -103,3 +103,6 @@ psy.o:  $(EXTRACT_DIR)/$(LIB_NAME)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
+
+allclean: clean
+	${MAKE} -C ${EXTRACT_DIR} allclean

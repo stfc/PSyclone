@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -579,6 +579,13 @@ def test_array_datatype():
     aref6.addchild(Reference(index))
     aref6._symbol = test_struc_sym
     assert isinstance(aref6.datatype, UnresolvedType)
+
+    # TODO #2448 - we don't handle an array access to something that we
+    # don't know is an array.
+    aref7 = ArrayReference(generic_sym)
+    aref7.addchild(one.copy())
+    aref7._symbol = DataSymbol("int_test", INTEGER_TYPE)
+    assert isinstance(aref7.datatype, UnresolvedType)
 
 
 def test_array_create_colon(fortran_writer):

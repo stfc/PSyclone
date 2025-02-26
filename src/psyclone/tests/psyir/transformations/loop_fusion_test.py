@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
 '''This module tests the loop fusion transformation.
 '''
 
-from __future__ import absolute_import, print_function
+from unittest import mock
 
 import pytest
 
@@ -144,6 +144,36 @@ def fuse_loops(fortran_code, fortran_reader, fortran_writer):
     fuse.apply(loop1, loop2)
 
     return fortran_writer(psyir), psyir
+
+
+# ----------------------------------------------------------------------------
+def test_fuse_dependency_tools_called(fortran_reader):
+    '''Make sure that `DependencyTools.can_loops_be_fused` is indeed called
+    from the loop fuse transformation with the right parameters.
+    '''
+
+    # First test: read/read of scalar variable
+    code = '''subroutine sub()
+              integer :: jj, n
+              real, dimension(10) :: s, t
+              real                :: a
+              do jj=1, n
+                 s(jj) = t(jj) + a
+              enddo
+              do jj=1, n
+                 t(jj) = t(jj) - a
+              enddo
+              end subroutine sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    # Get the PSyIR of the original loops
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+
+    fuse = LoopFuseTrans()
+    with mock.patch("psyclone.psyir.tools.dependency_tools.DependencyTools."
+                    "can_loops_be_fused", result=True) as dep_fuse_check:
+        fuse.apply(loop1, loop2)
+    dep_fuse_check.assert_called_once_with(loop1, loop2)
 
 
 # ----------------------------------------------------------------------------
@@ -331,14 +361,15 @@ def test_fuse_correct_bounds(tmpdir, fortran_reader, fortran_writer):
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_dimension_change(tmpdir, fortran_reader, fortran_writer):
-    '''Test that inconsistent use of dimemsions are detected, e.g.:
-    loop1:  a(i,j)
-    loop2:  a(j,i)
-    when at least one operation is a write
+def test_fuse_dimension_change_for_read(tmpdir, fortran_reader,
+                                        fortran_writer):
+    '''Test that inconsistent use of dimensions for variables that are read
+    only are accepted. The failure cases are all tested in the
+    DependencyTools, the success is here in order to easily allow compilation
+    tests, and also check again that the output of loop fuse is as expected.
     '''
 
-    # The first example can be merged, since 't' is read-only,
+    # This example can be merged, since 't' is read-only,
     # so it doesn't matter that it is accessed differently
     code = '''subroutine sub()
               integer :: ji, jj, n
@@ -368,114 +399,13 @@ def test_fuse_dimension_change(tmpdir, fortran_reader, fortran_writer):
     assert correct in out
     assert Compile(tmpdir).string_compiles(out)
 
-    # This cannot be fused, since 's' is written in the
-    # first iteration and read in the second.
-    code = '''subroutine sub()
-              integer :: ji, jj, n
-              integer, dimension(10,10) :: s, t, u
-              do jj=1, n+1
-                 do ji=1, 10
-                    s(ji, jj)=t(ji, jj)+1
-                 enddo
-              enddo
-              do jj=1, n+1
-                 do ji=1, 10
-                    u(ji, jj)=s(jj, ji)+1
-                 enddo
-              enddo
-              end subroutine sub'''
-
-    with pytest.raises(TransformationError) as err:
-        fuse_loops(code, fortran_reader, fortran_writer)
-    assert ("Variable 's' is written to and the "
-            "loop variable 'jj' is used in different index locations: "
-            "s(ji,jj) and s(jj,ji)."
-            in str(err.value))
-
-    # This cannot be fused, since 's' is read in the
-    # first iteration and written in the second with
-    # different indices.
-    code = '''subroutine sub()
-              integer :: ji, jj, n
-              integer, dimension(10,10) :: s, t, u
-              do jj=1, n+1
-                 do ji=1, 10
-                    u(ji, jj)=s(jj, ji)+1
-                 enddo
-              enddo
-              do jj=1, n+1
-                 do ji=1, 10
-                    s(ji, jj)=t(ji, jj)+1
-                 enddo
-              enddo
-              end subroutine sub'''
-
-    with pytest.raises(TransformationError) as err:
-        fuse_loops(code, fortran_reader, fortran_writer)
-    assert ("Variable 's' is written to and the loop variable 'jj' is "
-            "used in different index locations: s(jj,ji) and s(ji,jj)."
-            in str(err.value))
-
-    # Same test using a structure type:
-    code = '''subroutine sub()
-              use my_module
-              integer :: ji, jj, n
-              type(my_type) :: s, t, u
-              do jj=1, n+1
-                 do ji=1, 10
-                    u%comp1(ji)%comp2(jj)=s%comp1(jj)%comp2(ji)+1
-                 enddo
-              enddo
-              do jj=1, n+1
-                 do ji=1, 10
-                    s%comp1(ji)%comp2(jj)=t%comp1(ji)%comp2(jj)+1
-                 enddo
-              enddo
-              end subroutine sub'''
-
-    with pytest.raises(TransformationError) as err:
-        fuse_loops(code, fortran_reader, fortran_writer)
-    assert ("Variable 's' is written to and the loop variable 'jj' is used "
-            "in different index locations: s%comp1(jj)%comp2(ji) and "
-            "s%comp1(ji)%comp2(jj)."
-            in str(err.value))
-
-
-# ----------------------------------------------------------------------------
-def test_fuse_independent_array(fortran_reader, fortran_writer):
-    '''Test that using arrays which are not dependent on the loop variable
-    are handled correctly. Example:
-    do j  ... a(1) = b(j) * c(j)
-    do j ...  d(j) = a(1)
-    '''
-
-    # The first example can be merged, since 's' does not
-    # depend on the loop variable, and it is written and read.
-    code = '''subroutine sub()
-              integer :: ji, jj, n
-              integer, dimension(10,10) :: s, t
-              do jj=1, n
-                 do ji=1, 10
-                    s(1, 1)=t(ji, jj)+1
-                 enddo
-              enddo
-              do jj=1, n
-                 do ji=1, 10
-                    t(ji, jj) = s(1, 1) + t(ji, jj)
-                 enddo
-              enddo
-              end subroutine sub'''
-
-    with pytest.raises(TransformationError) as err:
-        fuse_loops(code, fortran_reader, fortran_writer)
-    assert ("Variable 's' does not depend on loop variable 'jj', but is "
-            "read and written" in str(err.value))
-
 
 # ----------------------------------------------------------------------------
 def test_fuse_scalars(tmpdir, fortran_reader, fortran_writer):
     '''Test that using scalars work as expected in all combinations of
-    being read/written in both loops.
+    being read/written in both loops. Note that the dependency tools check
+    more cases, this test is only here to check compilation of the fused
+    loops.
     '''
 
     # First test: read/read of scalar variable
@@ -497,53 +427,7 @@ def test_fuse_scalars(tmpdir, fortran_reader, fortran_writer):
     out, _ = fuse_loops(code, fortran_reader, fortran_writer)
     assert Compile(tmpdir).string_compiles(out)
 
-    # Second test: read/write of scalar variable
-    code = '''subroutine sub()
-              integer :: ji, jj, n
-              real, dimension(10,10) :: s, t
-              real                   :: a
-              do jj=1, n
-                 do ji=1, 10
-                    s(ji, jj)=t(ji, jj)+a
-                 enddo
-              enddo
-              do jj=1, n
-                 do ji=1, 10
-                    a = t(ji, jj) - 2
-                    s(ji, jj)=t(ji, jj)+a
-                 enddo
-              enddo
-              end subroutine sub'''
-
-    with pytest.raises(TransformationError) as err:
-        fuse_loops(code, fortran_reader, fortran_writer)
-    assert ("Scalar variable 'a' is written in one loop, but only read in "
-            "the other loop." in str(err.value))
-
-    # Third test: write/read of scalar variable
-    code = '''subroutine sub()
-              integer :: ji, jj, n
-              real, dimension(10,10) :: s, t
-              real                   :: b
-              do jj=1, n
-                 do ji=1, 10
-                    b = t(ji, jj) - 2
-                    s(ji, jj )=t(ji, jj)+b
-                 enddo
-              enddo
-              do jj=1, n
-                 do ji=1, 10
-                    s(ji, jj)=t(ji, jj)+b
-                 enddo
-              enddo
-              end subroutine sub'''
-
-    with pytest.raises(TransformationError) as err:
-        fuse_loops(code, fortran_reader, fortran_writer)
-    assert "Scalar variable 'b' is written in one loop, but only read in " \
-           "the other loop." in str(err.value)
-
-    # Fourth test: write/write of scalar variable - this is ok
+    # Second test: write/write of scalar variable - this is ok
     code = '''subroutine sub()
               integer :: ji, jj, n
               real, dimension(10,10) :: s, t
@@ -746,7 +630,7 @@ def test_loop_fuse_different_variables(fortran_reader, fortran_writer):
         s(ji, jj) = t(ji, jj) + 1
       end do
       do jk = 1, 10
-        s(jk, jj) = t(jk, jj) + 1
+        s(jk, jj) = t(jk, jj) - 1
       end do
     end do
     end subroutine sub'''
@@ -766,12 +650,22 @@ def test_loop_fuse_different_variables(fortran_reader, fortran_writer):
   do jj = 1, n, 1
     do ji = 1, 10, 1
       s(ji,jj) = t(ji,jj) + 1
-      s(ji,jj) = t(ji,jj) + 1
+      s(ji,jj) = t(ji,jj) - 1
     enddo
   enddo
 
 end subroutine sub'''
     assert correct in out
+
+    # Now try to provide the loops in the wrong order. Recreate the PSyIR
+    # by re-parsing the original code
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.children[0].walk(Loop)
+    fuse = LoopFuseTrans()
+    with pytest.raises(TransformationError) as err:
+        fuse.apply(loops[2], loops[1])
+    assert ("Error in LoopFuseTrans transformation. The second loop does not "
+            "immediately follow the first loop" in str(err.value))
 
 
 def test_loop_fuse_different_variables_with_access(fortran_reader):
@@ -795,7 +689,7 @@ def test_loop_fuse_different_variables_with_access(fortran_reader):
     fuse = LoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         fuse.apply(loops[1], loops[2])
-    assert ("Error in LoopFuseTrans transformation. Second loop contains "
+    assert ("LoopFuseTrans. Error: Second loop contains "
             "accesses to the first loop's variable: ji." in str(excinfo.value))
 
     code = '''subroutine sub()
@@ -816,6 +710,6 @@ def test_loop_fuse_different_variables_with_access(fortran_reader):
     fuse = LoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         fuse.apply(loops[1], loops[2])
-    assert ("Error in LoopFuseTrans transformation. First loop contains "
+    assert ("LoopFuseTrans. Error: First loop contains "
             "accesses to the second loop's variable: jk."
             in str(excinfo.value))

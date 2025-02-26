@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2021 Met Office. All rights reserved.
+! (C) Crown copyright 2021-2025 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
@@ -146,7 +146,7 @@ subroutine tl_project_eos_pressure_code(cell, nlayers,                          
   real(kind=r_def), dimension(undf_chi), intent(in)    :: chi1, chi2, chi3
   real(kind=r_def), dimension(undf_pid), intent(in)    :: panel_id
 
-  real(kind=r_def), dimension(ndf_w3,ndf_w3,ncell_3d), intent(in) :: m3_inv
+  real(kind=r_def), dimension(ncell_3d,ndf_w3,ndf_w3), intent(in) :: m3_inv
 
   real(kind=r_def), dimension(nqp_h), intent(in) ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in) ::  wqp_v
@@ -243,7 +243,7 @@ subroutine tl_project_eos_pressure_code(cell, nlayers,                          
       end do
     end do
     ik = 1 + k + (cell-1)*nlayers
-    exner_e = matmul(m3_inv(:,:,ik),r_exner)
+    exner_e = matmul(m3_inv(ik,:,:),r_exner)
     do df = 1, ndf_w3
       exner( map_w3(df) + k ) =  exner_e(df)
     end do

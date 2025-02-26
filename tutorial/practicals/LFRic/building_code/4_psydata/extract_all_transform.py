@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,25 +32,22 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone using the -s option.
 This is a template that doesn't do anything, but it contains the
 framework to find a certain invoke.
 '''
 
-from __future__ import print_function
+from psyclone.psyir.nodes import Routine
 
 
-def trans(psy):
+def trans(psyir):
     '''
-    Take the supplied psy object, and add kernel extraction code.
+    Add kernel extraction code.
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
 
@@ -60,21 +57,15 @@ def trans(psy):
     # from ... import ...
     # my_transform = ...()
 
-    for invoke_name in psy.invokes.names:
-        print(invoke_name)
-
-        invoke = psy.invokes.get(invoke_name)
-
-        # Now get the schedule, to which we want to apply the transformation
-        schedule = invoke.schedule
+    for subroutine in psyir.walk(Routine):
+        print(subroutine.name)
 
         # ------------------------------------------------------
         # TODO: Apply the transformation
         # ------------------------------------------------------
-        ....apply(schedule, {"region_name": ("time_evolution", invoke_name)})
+        ....apply(subroutine, {"region_name": ("time_evolution",
+                                               subroutine.name)})
 
-        # Just as feedback: show the modified schedule, which should have
+        # Just as feedback: show the modified PSyIR, which should have
         # a new node at the top:
-        print(schedule.view())
-
-    return psy
+        print(subroutine.view())

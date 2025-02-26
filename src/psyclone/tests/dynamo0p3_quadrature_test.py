@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -831,23 +831,23 @@ def test_qr_basis_stub():
         ":: field_11_w2htrace\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
-        "op_2_ncell_3d) :: op_2\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_2_ncell_3d,"
+        "ndf_w1,ndf_w1) :: op_2\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w3,ndf_w3,"
-        "op_4_ncell_3d) :: op_4\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_4_ncell_3d,"
+        "ndf_w3,ndf_w3) :: op_4\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
-        "op_6_ncell_3d) :: op_6\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_6_ncell_3d,"
+        "ndf_w2h,ndf_w2h) :: op_6\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_8_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2broken,"
-        "ndf_w2broken,op_8_ncell_3d) :: op_8\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_8_ncell_3d,"
+        "ndf_w2broken,ndf_w2broken) :: op_8\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2trace,"
-        "ndf_w2trace,op_10_ncell_3d) :: op_10\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_10_ncell_3d,"
+        "ndf_w2trace,ndf_w2trace) :: op_10\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2vtrace,"
-        "ndf_w2vtrace,op_12_ncell_3d) :: op_12\n"
+        "      REAL(KIND=r_def), intent(in), dimension(op_12_ncell_3d,"
+        "ndf_w2vtrace,ndf_w2vtrace) :: op_12\n"
         "      INTEGER(KIND=i_def), intent(in) :: np_xy_qr_xyoz, "
         "np_z_qr_xyoz\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,"

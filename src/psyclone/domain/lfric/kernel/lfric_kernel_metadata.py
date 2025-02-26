@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council
+# Copyright (c) 2022-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -289,20 +289,20 @@ class LFRicKernelMetadata(CommonMetadata):
                 "A general purpose kernel should not operate on a domain, "
                 "however this does"))
 
-        # General-purpose kernels with operates_on = CELL_COLUMN only
+        # General-purpose kernels with operates_on = *CELL_COLUMN only
         # accept meta_arg arguments of the following types: field,
         # field vector, LMA operator, scalar. Scalar meta_arg
         # arguments must be one of 'real', 'integer' or 'logical' (but
         # this is all supported types so no need to check). Scalar
         # meta_arg arguments must also be read only.
-        if self.operates_on == "cell_column":
+        if self.operates_on.endswith("cell_column"):
             for meta_arg in self.meta_args:
                 if type(meta_arg) not in [
                         FieldArgMetadata, FieldVectorArgMetadata,
                         OperatorArgMetadata, ScalarArgMetadata]:
                     raise ParseError(self._validation_error_str(
                         f"General purpose kernels with 'operates_on == "
-                        f"cell_column' should only have meta_arg arguments "
+                        f"*cell_column' should only have meta_arg arguments "
                         f"of type field, field vector, LMA operator or scalar"
                         f", but found '{meta_arg.check_name}'"))
 
@@ -414,8 +414,8 @@ class LFRicKernelMetadata(CommonMetadata):
         # Must operate on a cell_column.
         if self.operates_on != "cell_column":
             raise ParseError(self._validation_error_str(
-                f"A CMA kernel should only operate on a 'cell_column', but "
-                f"found '{self.operates_on}'"))
+                f"A CMA kernel should only operate on a 'cell_column', "
+                f"but found '{self.operates_on}'"))
 
         # At least one CMA operator argument required.
         cma_ops = self.meta_args_get(ColumnwiseOperatorArgMetadata)
@@ -737,7 +737,7 @@ class LFRicKernelMetadata(CommonMetadata):
             fortran_string = str(fparser2_node).lower()
             # pylint: disable=protected-access
             if "operates_on" in fortran_string:
-                # the value of operates on (CELL_COLUMN, ...)
+                # the value of operates on (*CELL_COLUMN, ...)
                 kernel_metadata._operates_on = OperatesOnMetadata.\
                     create_from_fparser2(fparser2_node)
             elif "meta_args" in fortran_string:

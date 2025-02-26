@@ -30,21 +30,28 @@ Examples of the application of kernel transforms to kernels that access
 data and/or routines from other Fortran modules. Note that this is not
 yet fully supported and is the subject of Issue #342.
 
-## Example 5a
+## Example 5a (profile)
 
 Illustrates the use of the profiling support in PSyclone. The resulting
 code may be compiled and executed.
 
-## Example 5b
+## Example 5b (extract)
 
 Illustrates the use of the kernel-data extraction support in PSyclone. The
 resulting code may be compiled and executed (requires a netcdf installation).
 
-## Example 5c
+## Example 5c (readonly)
 
 Illustrates the use of the read-only verification in PSyclone. The
 resulting code may be compiled and executed to show warnings printed
 by the read-only verification.
+
+## Example 5d (value_range_check)
+
+Illustrates the use of the value range check in PSyclone. The
+resulting code may be compiled and executed to show warnings printed.
+Note that certain environment variables need to be defined to enable
+the value range check, see the README.md in that directory for details.
 
 ## Example 6
 
@@ -61,7 +68,7 @@ Demonstrates the use of a script that can transform the algorithm layer.
 
 BSD 3-Clause License
 
-Copyright (c) 2017-2024, Science and Technology Facilities Council.
+Copyright (c) 2017-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

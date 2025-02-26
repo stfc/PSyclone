@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council.
+# Copyright (c) 2018-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,31 +40,31 @@ This script calls a successful exit from inside because it is a work in
 progress of the development tracked by issue #1010.
 '''
 
-from __future__ import print_function
 import sys
+from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
-def trans(psy):
-    ''' Use the PSyIR back-end to generate PSy-layer target code'''
+def trans(psyir):
+    ''' Use the PSyIR back-end to generate PSy-layer target code.
 
-    # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
-        print("Transforming invoke '"+invoke.name+"'...")
-        schedule = invoke.schedule
+    '''
+    # Loop over all of the Invokes Schedules
+    for schedule in psyir.walk(InvokeSchedule):
+
+        print(f"Transforming invoke '{schedule.name}'...")
 
         print("DSL level view:")
         print(schedule.view())
-
-    print("f2pygen code:")
-    print(str(psy.gen))
 
     # TODO #1010: This script should terminate here until LFRic declares
     # all its symbols to the symbol table.
     sys.exit(0)
 
-    for invoke in psy.invokes.invoke_list:
+    for schedule in psyir.walk(InvokeSchedule):
         # In-place lowering to Language-level PSyIR
         print(schedule.symbol_table.view())
         schedule.lower_to_language_level()
@@ -76,4 +76,4 @@ def trans(psy):
     print("")
     print("FortranWriter code:")
     fvisitor = FortranWriter()
-    print(fvisitor(psy.container))
+    print(fvisitor(psyir))

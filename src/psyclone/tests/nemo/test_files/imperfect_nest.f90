@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities
+! Modifications copyright (c) 2017-2025, Science and Technology Facilities
 ! Council.
 ! All rights reserved.
 !
@@ -73,7 +73,7 @@ program imperfect_nest
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         zabe1 = pahu(ji, jj, jk) * e2_e1u(ji, jj) * e3u_n(ji, jj, jk)
-        zmsku = 1. / MAX(wmask(ji + 1, jj, jk) + wmask(ji, jj, jk + 1) + wmask(ji + 1, jj, jk + 1) + wmask(ji, jj, jk), 1.)
+        zmsku = 1._wp / MAX(wmask(ji + 1, jj, jk) + wmask(ji, jj, jk + 1) + wmask(ji + 1, jj, jk + 1) + wmask(ji, jj, jk), 1.)
         zcof1 = - pahu(ji, jj, jk) * e2u(ji, jj) * uslp(ji, jj, jk) * zmsku
         zftu(ji, jj, jk) = (zabe1 * zdit(ji, jj, jk) + zcof1 * (zdkt(ji + 1, jj) + zdk1t(ji, jj) + zdk1t(ji + 1, jj) + zdkt(ji, jj))) * umask(ji, jj, jk)
       END DO

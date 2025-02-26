@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,11 +42,12 @@
 # Imports
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen, SubroutineGen,
                               UseGen)
 from psyclone.psyGen import Invoke
+from psyclone.psyir.nodes import Literal
 
 
 class LFRicInvoke(Invoke):
@@ -87,8 +88,8 @@ class LFRicInvoke(Invoke):
 
         # The base class works out the algorithm code's unique argument
         # list and stores it in the 'self._alg_unique_args'
-        # list. However, the base class currently ignores any stencil and qr
-        # arguments so we need to add them in.
+        # list. However, the base class currently ignores any stencil,
+        # quadrature and halo-depth arguments so we need to add them in.
 
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
@@ -98,7 +99,8 @@ class LFRicInvoke(Invoke):
                                         DynMeshes, DynBoundaryConditions,
                                         DynProxies, LFRicMeshProperties)
         from psyclone.domain.lfric import (
-            LFRicCellIterators, LFRicLoopBounds, LFRicRunTimeChecks,
+            LFRicCellIterators, LFRicHaloDepths, LFRicLoopBounds,
+            LFRicRunTimeChecks,
             LFRicScalarArgs, LFRicFields, LFRicDofmaps, LFRicStencils)
 
         self.scalar_args = LFRicScalarArgs(self)
@@ -122,6 +124,8 @@ class LFRicInvoke(Invoke):
         # Initialise the object holding all information on the column-
         # -matrix assembly operators required by this Invoke
         self.cma_ops = DynCMAOperators(self)
+
+        self.halo_depths = LFRicHaloDepths(self)
 
         # Initialise the object holding all information on the quadrature
         # and/or evaluators required by this Invoke
@@ -191,6 +195,18 @@ class LFRicInvoke(Invoke):
                         unique=True):
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
+
+        # Add the halo depth(s) for any kernel(s) that operate in the halos
+        self._alg_unique_halo_depth_args = []
+        if Config.get().distributed_memory:
+            for call in self.schedule.kernels():
+                if ("halo" in call.iterates_over and not
+                        isinstance(call.halo_depth, Literal)):
+                    sym = call.halo_depth.symbol
+                    if sym.name not in self._alg_unique_halo_depth_args:
+                        self._alg_unique_halo_depth_args.append(sym.name)
+
+            self._alg_unique_args.extend(self._alg_unique_halo_depth_args)
 
     def arg_for_funcspace(self, fspace):
         '''
@@ -277,13 +293,15 @@ class LFRicInvoke(Invoke):
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
                                    self.stencil.unique_alg_vars +
-                                   self._psy_unique_qr_vars)
+                                   self._psy_unique_qr_vars +
+                                   self._alg_unique_halo_depth_args)
 
         # Declare all quantities required by this PSy routine (Invoke)
         for entities in [self.scalar_args, self.fields, self.lma_ops,
                          self.stencil, self.meshes,
                          self.function_spaces, self.dofmaps, self.cma_ops,
                          self.boundary_conditions, self.evaluators,
+                         self.halo_depths,
                          self.proxies, self.cell_iterators,
                          self.reference_element_properties,
                          self.mesh_properties, self.loop_bounds,

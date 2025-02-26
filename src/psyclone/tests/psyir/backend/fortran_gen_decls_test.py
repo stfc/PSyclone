@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -296,6 +296,33 @@ def test_gen_decls_static_variables(fortran_writer):
     sym.initial_value = 1
     sym.is_constant = True
     assert "parameter :: v1 = 1" in fortran_writer.gen_vardecl(sym)
+
+
+def test_gen_decls_comments(fortran_writer):
+    '''Test that the gen_vardecl method adds comments to the Fortran code
+    when the symbol has a description.
+
+    '''
+    sym = DataSymbol("v1", datatype=INTEGER_TYPE,
+                     initial_value=Literal("1", INTEGER_TYPE),
+                     is_constant=True)
+    sym.preceding_comment = "Preceding comment"
+    sym.inline_comment = "Inline comment"
+    result = fortran_writer.gen_vardecl(sym)
+    expected = ("! Preceding comment\n"
+                "integer, parameter :: v1 = 1 ! Inline comment")
+    assert expected in result
+
+    sym2 = DataSymbol("v2", datatype=INTEGER_TYPE,
+                      initial_value=Literal("2", INTEGER_TYPE),
+                      is_constant=True)
+    sym2.preceding_comment = "Preceding comment\nwith newline"
+    sym2.inline_comment = "Inline comment"
+    result = fortran_writer.gen_vardecl(sym2)
+    expected = ("! Preceding comment\n"
+                "! with newline\n"
+                "integer, parameter :: v2 = 2 ! Inline comment")
+    assert expected in result
 
 
 @pytest.mark.parametrize("visibility", ["public", "private"])

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,7 @@ from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.extract_node import ExtractNode
 from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
 from psyclone.psyir.nodes.member import Member
-from psyclone.psyir.nodes.nan_test_node import NanTestNode
+from psyclone.psyir.nodes.value_range_check_node import ValueRangeCheckNode
 from psyclone.psyir.nodes.profile_node import ProfileNode
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.read_only_verify_node import ReadOnlyVerifyNode
@@ -92,7 +92,7 @@ from psyclone.psyir.nodes.omp_directives import (
     OMPStandaloneDirective, OMPRegionDirective, OMPTargetDirective,
     OMPLoopDirective, OMPDeclareTargetDirective,
     OMPTeamsDistributeParallelDoDirective, OMPAtomicDirective,
-    OMPSimdDirective)
+    OMPSimdDirective, OMPTeamsLoopDirective)
 from psyclone.psyir.nodes.clause import Clause, OperandClause
 from psyclone.psyir.nodes.omp_clauses import (
     OMPGrainsizeClause, OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause,
@@ -142,8 +142,8 @@ __all__ = [
         'PSyDataNode',
         'ExtractNode',
         'ProfileNode',
-        'NanTestNode',
         'ReadOnlyVerifyNode',
+        'ValueRangeCheckNode',
         # Directive Nodes
         'Directive',
         'RegionDirective',
@@ -184,6 +184,7 @@ __all__ = [
         'OMPDeclareTargetDirective',
         'OMPSimdDirective',
         'OMPTeamsDistributeParallelDoDirective',
+        'OMPTeamsLoopDirective',
         # OMP Clause Nodes
         'OMPGrainsizeClause',
         'OMPNogroupClause',

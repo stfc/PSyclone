@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 
 ''' Module containing various utilities to aid in the application of
     OpenACC KERNELS directives to NEMO source. Mainly required to
-    workaround the vagaries of the PGI compiler's support for OpenACC.
+    workaround the vagaries of the NVIDIA compiler's support for OpenACC.
 '''
 
 from fparser.two.utils import walk

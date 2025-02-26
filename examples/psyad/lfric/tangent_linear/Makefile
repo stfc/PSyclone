@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2024, Science and Technology Facilities Council.
+# Copyright (c) 2023-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
+# Modified: I. Kavcic, Met Office
 
 PSYROOT=../../../..
 include ${PSYROOT}/examples/common.mk
@@ -79,10 +80,11 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=sample_flux_kernel ACTIVE_VAR_LIST="flux u" OUT_DIR="../adjoint"
 	#
 	# The arguments to helmholtz_operator_kernel do not conform to
-	# those expected by the metadata. I presume this is a
-	# psykalite kernel. This causes psyad to fail when updating
-	# the adjoint metadata description. It can be seen that the
-	# arguments differ by looking at the number of arguments at
+	# those expected by the metadata. The kernel is currently called
+	# through PSyKAl-lite code due to missing support for stencils
+	# for operators (issue #1103). This causes PSyAD to fail when
+	# updating the adjoint metadata description. It can be seen that
+	# the arguments differ by looking at the number of arguments at
 	# the start of the argument list. Two are expected (cell and
 	# nlayers) but a load of stencil information is passed first.
 	#

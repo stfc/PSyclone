@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -70,6 +70,9 @@ class LFRicKernCallFactory():
             # We still need a loop object though as that is where the logic
             # for handling halo exchanges is currently implemented.
             loop_type = "null"
+        elif call.ktype.iterates_over == "dof":
+            # Loop over dofs within a field.
+            loop_type = "dof"
         else:
             # Loop over cells, indicated by an empty string.
             loop_type = ""

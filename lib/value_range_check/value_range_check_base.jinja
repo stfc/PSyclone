@@ -1,0 +1,536 @@
+{# Added this as Jinja code so that it is understood that the
+   comment does not apply to THIS file. #}
+{{ "! ================================================== !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !" }}
+{{ "! DO NOT MODIFY DIRECTLY!                            !" }}
+{{ "! ================================================== !" }}
+
+{# This jinja template file creates a base class for a value-range-check
+   verification library. It produces the required ProvideVariable()
+   functions for the specified Fortran basic types. Any library
+   using this base class can provide the required Fortran basic
+   types (see ALL_TYPES below) and the list of array dimensions
+   (see ALL_DIMS) that need to be supported when processing this
+   template. 
+
+   This ValueRangeCheck base class depends on the PSyData base
+   class, which will provide the other Fortran-type-specific
+   functions for PreDeclarVariable(). Any function can obviously
+   be overwritten by a derived class.
+#}
+
+{% if ALL_DIMS is not defined %}
+   {# Support 1 to 4 dimensional arrays if not specified #}
+   {% set ALL_DIMS = [1, 2, 3, 4] %}
+{% endif %}
+
+{# The types that are supported. The first entry of each tuple
+   is the name used when naming subroutines and in user messages.
+   The second entry is the Fortran declaration. #}
+
+{% if ALL_TYPES is not defined %}
+   {% set ALL_TYPES = [ ("Double",  "real(kind=real64)"  ),
+                        ("Real",    "real(kind=real32)"  ),
+                        ("Char",    "character",         ),
+                        ("Logical", "logical",           ),
+                        ("Int",     "integer(kind=int32)") ] %}
+{% endif %}
+
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2020-2025, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author J. Henrichs, Bureau of Meteorology
+! Modified I. Kavcic, Met Office
+
+!> This module implements a PSyData-based verification that checks if
+!! variable values are within a certain range. This range is specified
+!! by environment variables. Three different formats can be used:
+!! 1. PSYVERIFY__module__region__variable
+!!    Checks the specified variable in the given module and region (i.e.
+!!    kernel).
+!! 2. PSYVERIFY__module__variable
+!!    Checks the specified variable anywhere in the given module.
+!! 3. PSYVERIFY__variable
+!!    Checks the specified variable in any instrumented region.
+!! Additionally, the library will also check that any floating point
+!! input and output parameters are not NAN and not infinite.
+
+module value_range_check_base_mod
+
+    use, intrinsic :: iso_fortran_env, only : int64, int32,   &
+                                              real32, real64, &
+                                              stderr => Error_Unit
+    use psy_data_base_mod, only : PSyDataBaseType, &
+        value_range_check_PSyDataShutdown, &
+        value_range_check_PSyDataInit, is_enabled, &
+        value_range_check_PSyDataStart, value_range_check_PSyDataStop
+
+    implicit none
+
+    integer, parameter :: has_none    = 0
+    integer, parameter :: has_min     = 1
+    integer, parameter :: has_max     = 2
+    integer, parameter :: has_min_max = 3
+
+    type, extends(PSyDataBaseType), public :: ValueRangeCheckBaseType
+        ! Indicates if a variable has test values, and if so, which kind of
+        ! test (has_min/max/min_max)
+        integer, dimension(:), allocatable :: has_checks
+        ! This array stores the minimum and maximum value for each variable
+        real(kind=real64), dimension(:, :), allocatable :: value_ranges
+
+        ! Is set if the environment variables have been read
+        logical :: env_var_have_been_read = .false.
+
+    contains
+
+        procedure get_min_max
+
+        ! The various procedures used
+        procedure :: PreEndDeclaration
+        procedure :: PostEnd
+
+        {# Collect and declare the various procedures for the same generic interface -#}
+        {# ------------------------------------------------------------------------- -#}
+        {% set all_declares=[] -%}
+        {% set all_provides=[] -%}
+        {% for name, type in ALL_TYPES %}
+        procedure :: ProvideScalar{{name}}
+          {{- all_provides.append("ProvideScalar"~name) or "" }}
+          {% for dim in ALL_DIMS %}
+        procedure :: ProvideArray{{dim}}d{{name}}
+            {{- all_provides.append("ProvideArray"~dim~"d"~name) or "" }}
+          {% endfor %}
+        {% endfor %}
+
+        {% set indent="            " %}
+        {% if GENERIC_PROVIDE %}
+        !> The generic interface for providing the value of variables:
+        generic, public :: ProvideVariable => &
+            {{all_provides|join(", &\n"+indent) }}
+        {% endif %}
+
+    end type ValueRangeCheckBaseType
+
+contains
+
+    subroutine get_min_max(this, module, region, variable_name,   &
+                           has_values, value_range)
+    !> @brief This subroutine checks if any environment variables are set
+    !! that specify minimum and/or maximum values to be checked for the
+    !! specified variable. It returns result information in
+    !! has_values (one of has_none, has_min, has_max, has_min_max).
+    !! If a minimum is specified, its value will be stored in
+    !! value_range(1). If a maximum is specified, its value will be
+    !! stores in value_range(2).
+    !! @param[in] this The instance of the ValueRangeCheckBaseType.
+    !! @param[in] module The name of the module of the instrumented
+    !!            region.
+    !! @param[in] region The name of the instrumented region.
+    !! @param[in] variable_name The name of the variable to test.
+    !! @param[out] has_values Indicates if the variable should be range tested.
+    !!             One off has_none, has_min, has_max, has_min_max
+    !! @param[out] value_range Index 1 stores the minimum value if specified,
+    !!              index 2 the maximum (if specified)
+
+        implicit none
+        class(ValueRangeCheckBaseType), intent(in), target :: this
+        character(len=*), intent(in) :: module, region, variable_name
+        integer, intent(out) :: has_values
+        real(kind=real64), dimension(2), intent(out) :: value_range
+
+        character(len=:), allocatable :: env_name, env_value, sub_str
+        ! We need a copy of the names to replace '-' with '_'
+        character(len=:), allocatable :: local_module, local_region
+        integer      :: status, value_len, index_colon, i
+
+        local_module = module
+        do i=1, len(local_module)
+            if (local_module(i:i) == "-") then
+                local_module(i:i) = "_"
+            endif
+        enddo
+        local_region = region
+        do i=1, len(local_region)
+            if (local_region(i:i) == "-") then
+                local_region(i:i) = "_"
+            endif
+        enddo
+        env_name = "PSYVERIFY__" // trim(local_module) // "__" // trim(local_region) &
+                                 // "__" // trim(variable_name)
+
+
+        call get_environment_variable(env_name, length=value_len, status=status)
+        ! Status >=1 indicates the variable does not exist, or some other OS
+        ! specific error - in any case we have to ignore it.
+        if (status >= 1) then
+            ! No specification for this variable with module and region.
+            ! Try without region:
+            env_name = "PSYVERIFY__" // trim(local_module) // "__"  &
+                                     // trim(variable_name)
+
+            call get_environment_variable(env_name, length=value_len, &
+                                          status=status)
+            if (status >= 1) then
+                ! No specification with only variable and module name.
+                ! Try without module:
+                env_name = "PSYVERIFY__" // trim(variable_name)
+                call get_environment_variable(env_name, length=value_len, &
+                                              status=status)
+                if (status >= 1) then
+                    has_values = has_none
+                    return
+                endif
+            endif  ! No specification without region
+        endif   ! No specification with module & region
+        allocate(character(len=value_len)::env_value)
+        call get_environment_variable(env_name, env_value, status=status)
+        ! Analyse the specified range
+        index_colon = index(env_value, ":")
+        if (index_colon == 0) then
+            ! No range at all, must be a constant value??
+            write(stderr,*) "PSyData: env variable '", env_name,"' = ",  &
+                            trim(env_value), " does not contain a ':' ", &
+                            "- ignored"
+            has_values = has_none
+        else if (index_colon == 1) then
+            ! ":5" i.e. 5 or smaller
+            has_values = has_max
+            read(env_value(2:), *) value_range(2)
+            if (this%verbosity>0) then
+                write(stderr,*) "PSyData: checking '", trim(module), &
+                                "' region '", trim(region),"' :",    &
+                                variable_name, " <= ", value_range(2)
+            endif
+        else if (index_colon == len(env_value)) then
+            ! "5:"   i.e. 5 or larger:
+            has_values = has_min
+            read(env_value(:index_colon-1), *) value_range(1)
+            if (this%verbosity>0) then
+                write(stderr,*) "PSyData: checking '", trim(module), &
+                                "' region '", trim(region),"' :",    &
+                                value_range(1), " <= ", variable_name
+            endif
+        else
+            ! "1:3" i.e. between 1 and 3
+            has_values = has_min_max
+            read(env_value(1:index_colon-1), *) value_range(1)
+            read(env_value(index_colon+1:), *) value_range(2)
+            if (this%verbosity>0) then
+                write(stderr,*) "PSyData: checking '", trim(module),   &
+                                "' region '", trim(region),"' :",      &
+                                value_range(1), " <= ", variable_name, &
+                                " <= ", value_range(2)
+            endif
+        endif
+    end subroutine get_min_max
+
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine is called once all variables are declared. It makes
+    !! sure that the next variable index is starting at 1 again.
+    !! @param[in,out] this The instance of the ValueRangeCheckBaseType.
+    subroutine PreEndDeclaration(this)
+        implicit none
+        class(ValueRangeCheckBaseType), intent(inout), target :: this
+        integer :: err
+
+        if (.not. is_enabled) return
+
+        ! During the declaration the number of variables was counted
+        ! (in LFRic this number can be different from the number of input-
+        ! and output-variables) in next_var_index, so allocate the array
+        ! now (if it has not been allocated already in a previous call):
+        if (.not. allocated(this%has_checks)) then
+            allocate(this%has_checks(this%next_var_index-1), stat=err)
+            if(err/=0) then
+                write(stderr, *) "PSyData: Could not allocate ", &
+                                 this%next_var_index-1,          &
+                                 " integers, aborting."
+                call this%Abort("Out of memory")
+            endif
+            allocate(this%value_ranges(this%next_var_index-1,2), stat=err)
+            if(err/=0) then
+                write(stderr, *) "PSyData: Could not allocate ", &
+                                 this%next_var_index-1,          &
+                                 "*2 real64 array, aborting."
+                call this%Abort("Out of memory")
+            endif
+        endif
+
+        call this%PSyDataBaseType%PreEndDeclaration()
+
+    end subroutine PreEndDeclaration
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine is called after the instrumented region has been
+    !! executed and all values of variables after the instrumented
+    !! region have been provided. This sets the flag that all environment
+    !! variables have been read to true.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
+    subroutine PostEnd(this)
+
+        implicit none
+
+        class(ValueRangeCheckBaseType), intent(inout), target :: this
+
+        this%env_var_have_been_read = .true.
+        call this%PSyDataBaseType%PreEnd()
+
+    end subroutine PostEnd
+
+    ! =========================================================================
+    ! Jinja created code.
+    ! =========================================================================
+
+{% for name, type in ALL_TYPES %}
+
+    ! =========================================================================
+    ! Implementation for all {{type}} types
+    ! =========================================================================
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine checks if a numerical variable is within the
+    !! specified range (based on environment variables set by the user).
+    !! Additionally, in the case of a floating point value, it will also check
+    !! that this value is not NAN or infinite using the IEEE_IS_FINITE function.
+    !! @param[in,out] this The instance of the ValueRangeCheckBaseType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine ProvideScalar{{name}}(this, name, value)
+
+        use, intrinsic :: ieee_arithmetic
+
+        implicit none
+
+        class(ValueRangeCheckBaseType), intent(inout), target :: this
+        character(*), intent(in)                      :: name
+        {{type}}, intent(in)                          :: value
+
+        {% if name in ["Logical", "Char"] %}
+        ! We can't compare {{type}} values with a real, nor can
+        ! we check for non-finite values. So do nothing.
+        {% else %}
+        {# Now it's a floating point or integer value #}
+        if (.not. is_enabled) return
+
+        if (.not. this%env_var_have_been_read) then
+            call this%get_min_max(this%module_name, this%region_name,         &
+                                  name, this%has_checks(this%next_var_index), &
+                                  this%value_ranges(this%next_var_index,:))
+        endif
+
+        if (this%has_checks(this%next_var_index) == has_min) then
+            {# The spaces take care of proper indentation #}
+            {{indent}}if (value < this%value_ranges(this%next_var_index,1)) then
+            {{indent}}    write(stderr, '(11G0)') "PSyData: Variable '",                    &
+            {{indent}}                     name,"' has the value ",                         &
+            {{indent}}                     value, " in module '", trim(this%module_name),   &
+            {{indent}}                     "', region '", trim(this%region_name),           &
+            {{indent}}                     "' which is less than '",                        &
+            {{indent}}                     this%value_ranges(this%next_var_index,1),"'."
+            {{indent}}endif
+        else if (this%has_checks(this%next_var_index) == has_max) then
+            {# The spaces take care of proper indentation #}
+            {{indent}}if (value > this%value_ranges(this%next_var_index,2)) then
+            {{indent}}    write(stderr, '(11G0)') "PSyData: Variable '",                    &
+            {{indent}}                     name,"' has the value ",                         &
+            {{indent}}                     value, " in module '", trim(this%module_name),   &
+            {{indent}}                     "', region '", trim(this%region_name),           &
+            {{indent}}                     "', which is greater than '",                    &
+            {{indent}}                     this%value_ranges(this%next_var_index,2),"'."
+            {{indent}}endif
+        else if (this%has_checks(this%next_var_index) == has_min_max) then
+            {# The spaces take care of proper indentation #}
+            {{indent}}if (value < this%value_ranges(this%next_var_index,1)  .or.               &
+            {{indent}}    value > this%value_ranges(this%next_var_index,2)) then
+            {{indent}}    write(stderr, '(13G0)') "PSyData: Variable '",                       &
+            {{indent}}                     name,"' has the value ",                            &
+            {{indent}}                     value , " in module '", trim(this%module_name),     &
+            {{indent}}                     "', region '", trim(this%region_name),              &
+            {{indent}}                     "', which is not between '",                        &
+            {{indent}}                     this%value_ranges(this%next_var_index,1),"' and '", &
+            {{indent}}                     this%value_ranges(this%next_var_index,2),"'."
+            {{indent}}endif
+        endif
+
+        {% if name in ["Int", "Long"] %}
+        ! Variables of type {{type}} do not have NANs, and cannot usefully be
+        ! checked for non-finite values. So nothing to do here.
+        {% else -%}    {# floating point #}
+        if (IEEE_SUPPORT_DATATYPE(value)) then
+            if (.not. IEEE_IS_FINITE(value)) then
+                write(stderr, '(8G0)') "PSyData: Variable '", name,"' has invalid value ", &
+                                 value, " in module '", trim(this%module_name),            &
+                                 "', region '", trim(this%region_name),"'."
+            endif
+        endif
+        {% endif %}   {# floating point value #}
+        {% endif %}   {# floating point or integer #}
+
+        call this%PSyDataBaseType%ProvideScalar{{name}}(name, value)
+
+    end subroutine ProvideScalar{{name}}
+
+  {# Now provide the array implementations #}
+  {# ------------------------------------- #}
+  {% for dim in ALL_DIMS %}
+    {# Create the ':,:,:,:' string
+       We repeat the list [":"] DIM-times, which is then joined #}
+    {% set DIMENSION=([":"]*dim)|join(",") %}
+
+    {# Create list of variables: "i1, i2, i3, i4" #}
+    {% set vars = "i"~range(1,dim+1)|join(", i") %}
+    {% set indent = " "*3*dim %}
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine checks if each element of a numerical array is
+    !! within the  specified range (based on environment variables set by the
+    !! user). Additionally, in the case of a floating point value, it will also
+    !! check that this value is not NAN or infinite using the IEEE_IS_FINITE
+    !! function.
+    !! @param[in,out] this The instance of the ValueRangeCheckBaseType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine ProvideArray{{dim}}d{{name}}(this, name, value)
+
+        use, intrinsic :: ieee_arithmetic
+
+        implicit none
+
+        class(ValueRangeCheckBaseType), intent(inout), target :: this
+        character(*), intent(in) :: name
+        {{type}}, dimension({{DIMENSION}}), intent(in) :: value
+
+        integer :: {{vars}}
+
+        {% if name in ["Logical", "Char"] %}
+        ! We can't compare {{type}} values with a real, nor can
+        ! we check for non-finite values. So do nothing.
+        {% else %}
+        {# Now it's a floating point or integer value #}
+        if (.not. is_enabled) return
+
+        if (.not. this%env_var_have_been_read) then
+            call this%get_min_max(this%module_name, this%region_name,         &
+                                  name, this%has_checks(this%next_var_index), &
+                                  this%value_ranges(this%next_var_index,:))
+        endif
+
+        if (this%has_checks(this%next_var_index) == has_min) then
+            {# The spaces take care of proper indentation #}
+            {% for j in range(dim, 0, -1) %}
+            {{ " "*3*(dim-j)}}do i{{j}}=1, size(value, {{j}})
+            {% endfor %}
+            {{indent}}if (value({{vars}}) < this%value_ranges(this%next_var_index,1)) then
+            {{indent}}    write(stderr, '(5G0,{{dim}}(G0,X),7G0)') "PSyData: Variable '",   &
+            {{indent}}                     name,"' has the value ",                         &
+            {{indent}}                     value({{vars}}), " at index/indices ", {{vars}}, &
+            {{indent}}                     "in module '", trim(this%module_name),           &
+            {{indent}}                     "', region '", trim(this%region_name),           &
+            {{indent}}                     "' which is less than '",                        &
+            {{indent}}                     this%value_ranges(this%next_var_index,1),"'."
+            {{indent}}endif
+            {% for j in range(dim, 0, -1) %}
+            {{" "*3*(j-1)}}enddo
+            {% endfor %}
+        else if (this%has_checks(this%next_var_index) == has_max) then
+            {# The spaces take care of proper indentation #}
+            {% for j in range(dim, 0, -1) %}
+            {{ " "*3*(dim-j)}}do i{{j}}=1, size(value, {{j}})
+            {% endfor %}
+            {{indent}}if (value({{vars}}) > this%value_ranges(this%next_var_index,2)) then
+            {{indent}}    write(stderr, '(5G0,{{dim}}(G0,X),7G0)') "PSyData: Variable '",   &
+            {{indent}}                     name,"' has the value ",                         &
+            {{indent}}                     value({{vars}}), " at index/indices ", {{vars}}, &
+            {{indent}}                     "in module '", trim(this%module_name),           &
+            {{indent}}                     "', region '", trim(this%region_name),           &
+            {{indent}}                     "', which is greater than '",                    &
+            {{indent}}                     this%value_ranges(this%next_var_index,2),"'."
+            {{indent}}endif
+            {% for j in range(dim, 0, -1) %}
+            {{" "*3*(j-1)}}enddo
+            {% endfor %}
+        else if (this%has_checks(this%next_var_index) == has_min_max) then
+            {# The spaces take care of proper indentation #}
+            {% for j in range(dim, 0, -1) %}
+            {{ " "*3*(dim-j)}}do i{{j}}=1, size(value, {{j}})
+            {% endfor %}
+            {{indent}}if (value({{vars}}) < this%value_ranges(this%next_var_index,1)  .or.     &
+            {{indent}}    value({{vars}}) > this%value_ranges(this%next_var_index,2)) then
+            {{indent}}    write(stderr, '(5G0,{{dim}}(G0,X),9G0)') "PSyData: Variable '",      &
+            {{indent}}                     name,"' has the value ",                            &
+            {{indent}}                     value({{vars}}), " at index/indices ", {{vars}},    &
+            {{indent}}                     "in module '", trim(this%module_name),              &
+            {{indent}}                     "', region '", trim(this%region_name),              &
+            {{indent}}                     "', which is not between '",                        &
+            {{indent}}                     this%value_ranges(this%next_var_index,1),"' and '", &
+            {{indent}}                     this%value_ranges(this%next_var_index,2),"'."
+            {{indent}}endif
+            {% for j in range(dim, 0, -1) %}
+            {{" "*3*(j-1)}}enddo
+            {% endfor %}
+        endif
+
+        {% if name in ["Int", "Long"] %}
+        ! Variables of type {{type}} do not have NANs, and cannot usefully be
+        ! checked for non-finite values. So nothing to do here.
+        {% else -%}    {# floating point #}
+        if (IEEE_SUPPORT_DATATYPE(value)) then
+            {# The spaces take care of proper indentation #}
+            {% for j in range(dim, 0, -1) %}
+            {{ " "*3*(dim-j)}}do i{{j}}=1, size(value, {{j}})
+            {% endfor %}
+            {{indent}}if (.not. IEEE_IS_FINITE(value({{vars}}))) then
+            {{indent}}    write(stderr, '(5G0,{{dim}}(G0,X),5G0)') "PSyData: Variable '",    &
+            {{indent}}                     name,"' has the invalid value '",                 &
+            {{indent}}                     value({{vars}}), "' at index/indices ", {{vars}}, &
+            {{indent}}                     "in module '", trim(this%module_name),            &
+            {{indent}}                     "', region '", trim(this%region_name),"'."
+            {{indent}}endif
+            {% for j in range(dim, 0, -1) %}
+            {{" "*3*(j-1)}}enddo
+            {% endfor %}
+        endif
+        {% endif %}   {# floating point value #}
+        {% endif %}   {# floating point or integer #}
+
+        call this%PSyDataBaseType%ProvideArray{{dim}}d{{name}}(name, value)
+
+    end subroutine ProvideArray{{dim}}d{{name}}
+
+  {% endfor -%}   {# for dim #}
+{%- endfor -%}   {# for #}
+
+    ! -------------------------------------------------------------------------
+
+end module value_range_check_base_mod

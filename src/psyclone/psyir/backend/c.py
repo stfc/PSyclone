@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council
+# Copyright (c) 2019-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -179,10 +179,15 @@ class CWriter(LanguageWriter):
         :rtype: str
 
         '''
-        result = node.value
-        # C Scientific notation is always an 'e' letter
-        result = result.replace('d', 'e')
-        result = result.replace('D', 'e')
+        if node.datatype.intrinsic == ScalarType.Intrinsic.REAL:
+            try:
+                _ = int(node.value)
+                result = node.value + ".0"
+            except ValueError:
+                # It is already formatted as a real.
+                result = node.value
+        else:
+            result = node.value
         return result
 
     def ifblock_node(self, node):

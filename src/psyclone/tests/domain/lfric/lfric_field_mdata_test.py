@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -281,7 +281,8 @@ def test_ad_field_init_wrong_iteration_space():
             field_arg, metadata.iterates_over, 0)._init_field(
                 field_arg, "ncolours")
     assert ("Invalid operates_on 'ncolours' in the kernel metadata (expected "
-            "one of ['cell_column', 'domain', 'dof'])." in
+            "one of ['cell_column', 'domain', 'dof', 'halo_cell_column', "
+            "'owned_and_halo_cell_column'])." in
             str(excinfo.value))
 
 

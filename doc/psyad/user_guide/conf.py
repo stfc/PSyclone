@@ -16,7 +16,7 @@ import sys
 # -- Project information -----------------------------------------------------
 
 project = 'PSyAD'
-copyright = '2021-2023, Rupert Ford and Andrew Porter'
+copyright = '2021-2025, Rupert Ford and Andrew Porter'
 author = 'Rupert Ford and Andrew Porter'
 
 # The full version, including alpha/beta/rc tags
@@ -36,6 +36,7 @@ sys.path.insert(0, os.path.join(docs_dir, "_ext"))
 # ones. The definition of 'apilinks' is in PSyclone/doc/_ext/apilinks.py.
 extensions = [
     'sphinx.ext.imgmath', 'sphinx.ext.autodoc', 'sphinx.ext.intersphinx',
+    'sphinx_autodoc_typehints',
     'apilinks']
 
 

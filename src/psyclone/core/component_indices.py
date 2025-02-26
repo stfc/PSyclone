@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -90,7 +90,7 @@ class ComponentIndices():
 
     # ------------------------------------------------------------------------
     def __str__(self):
-        '''Returns a string representating the indices.'''
+        '''Returns a string representing the indices.'''
         return str(self._component_indices)
 
     # ------------------------------------------------------------------------

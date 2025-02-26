@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2024, Science and Technology Facilities Council
+# Copyright (c) 2023-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -74,8 +74,13 @@ def main():
         line_f2 = file2.readline()
         while line_f1 and line_f2:
             # Get all numbers (rhs of each :)
-            values1 = [float(x) for x in line_f1.split(' ') if is_float(x)]
-            values2 = [float(x) for x in line_f2.split(' ') if is_float(x)]
+            list_f1 = [x.replace('D', 'E') for x in line_f1.split(' ')]
+            list_f2 = [x.replace('D', 'E') for x in line_f2.split(' ')]
+            values1 = [float(x) for x in list_f1 if is_float(x)]
+            values2 = [float(x) for x in list_f2 if is_float(x)]
+            if len(values1) != 6 or len(values2) != 6:
+                sys.exit(f"One of the lines does not have the expected 6 "
+                         f"output numbers:\n{line_f1}{line_f2}")
             for value1, value2 in zip(values1, values2):
                 if not math.isclose(value1, value2, rel_tol=TOLERANCE):
                     sys.exit(f"The values are not equal:\n{line_f1}{line_f2}")

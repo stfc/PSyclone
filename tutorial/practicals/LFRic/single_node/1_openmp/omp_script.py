@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-'''File containing a PSyclone transformation script for the dynamo0p3
+'''File containing a PSyclone transformation script for the LFRic
 API to apply OpenMP Parallel Loop parallelisation. This script can be
 applied via the -s option in the psyclone command, it is not designed
 to be directly run from python.
 
 '''
-from __future__ import print_function
 from psyclone.transformations import DynamoOMPParallelLoopTrans, \
     TransformationError, Dynamo0p3ColourTrans, OMPParallelTrans, \
     Dynamo0p3OMPLoopTrans
@@ -47,29 +46,23 @@ from psyclone.psyGen import Loop
 from psyclone.domain.lfric.function_space import FunctionSpace
 
 
-def trans(psy):
-    '''PSyclone transformation script for the dynamo0p3 API that applies
+def trans(psyir):
+    '''PSyclone transformation script for the LFRic API that applies
     OpenMP parallel loop parallelisation. It also outputs a textual
     representation of the transformated PSyIR.
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
-        kernel information required by PSyclone.
-    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     otrans = DynamoOMPParallelLoopTrans()
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
+    # Add OpenMP parallel do directives to the loops
+    for loop in psyir.loops():
+        try:
+            otrans.apply(loop)
+        except TransformationError as info:
+            print(str(info.value))
 
-        # Add OpenMP parallel do directives to the loops
-        for loop in schedule.loops():
-            try:
-                otrans.apply(loop)
-            except TransformationError as info:
-                print(str(info.value))
-
-        # take a look at what we've done
-        print(schedule.view())
-
-        return psy
+    # take a look at what we've done
+    print(psyir.view())

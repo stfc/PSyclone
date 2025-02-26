@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,8 @@ from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import (
     DynACCEnterDataDirective, DynBoundaryConditions, DynGlobalSum,
-    DynKernelArguments, DynProxies, HaloReadAccess, KernCallArgList)
+    DynKernelArgument, DynKernelArguments, DynProxies, HaloReadAccess,
+    KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
@@ -61,7 +62,7 @@ from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
 from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
-                                  Reference, Routine)
+                                  Reference, Routine, Container)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
 from psyclone.tests.lfric_build import LFRicBuild
@@ -189,7 +190,8 @@ def test_ad_invalid_iteration_space():
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, "colours", 0)
     assert ("Expected operates_on in the kernel metadata to be one of "
-            "['cell_column', 'domain', 'dof'] but got "
+            "['cell_column', 'domain', 'dof', 'halo_cell_column', "
+            "'owned_and_halo_cell_column'] but got "
             "'colours'." in str(excinfo.value))
 
 
@@ -320,7 +322,8 @@ def test_kernel_call_invalid_iteration_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.validate_global_constraints()
     assert ("The LFRic API supports calls to user-supplied kernels that "
-            "operate on one of ['cell_column', 'domain', 'dof'], but "
+            "operate on one of ['cell_column', 'domain', 'dof', "
+            "'halo_cell_column', 'owned_and_halo_cell_column'], but "
             "kernel 'testkern_dofs_code' operates on 'vampires'."
             in str(excinfo.value))
 
@@ -462,7 +465,7 @@ def test_op_any_discontinuous_space_1(tmpdir):
     assert "ndf_adspc3_op4 = op4_proxy%fs_to%get_ndf()" in generated_code
     assert "ndf_adspc7_op4 = op4_proxy%fs_from%get_ndf()" in generated_code
     assert ("CALL testkern_any_discontinuous_space_op_1_code(cell, "
-            "nlayers_op4, f1_1_data, f1_2_data, f1_3_data, "
+            "nlayers_f1, f1_1_data, f1_2_data, f1_3_data, "
             "f2_data, op3_proxy%ncell_3d, op3_local_stencil, "
             "op4_proxy%ncell_3d, op4_local_stencil, rdt, "
             "ndf_adspc1_f1, undf_adspc1_f1, map_adspc1_f1(:,cell), "
@@ -2724,7 +2727,7 @@ def test_halo_exchange_view():
         sched + "[invoke='invoke_0_testkern_stencil_type', dm=True]\n"
         "    0: " + exch + "[field='f1', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    1: " + exch + "[field='f2', type='region', depth=f2_extent+1, "
+        "    1: " + exch + "[field='f2', type='region', depth=f2_extent + 1, "
         "check_dirty=True]\n"
         "    2: " + exch + "[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
@@ -2900,7 +2903,7 @@ def test_haloexchange_unknown_halo_depth():
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 10
     halo_exchange = schedule.children[1]
-    assert halo_exchange._compute_halo_depth() == '11'
+    assert halo_exchange._compute_halo_depth().value == '11'
 
 
 def test_haloexchange_correct_parent():
@@ -3054,6 +3057,25 @@ def test_kernel_args_has_op():
     with pytest.raises(GenerationError) as excinfo:
         _ = dka.has_operator(op_type="gh_field")
     assert "'op_type' must be a valid operator type" in str(excinfo.value)
+
+
+def test_dynkernelargs_first_field_or_op(monkeypatch):
+    '''Test the first_field_or_operator property of DynKernelArguments.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api=TEST_API)
+    # Find the parsed code's Call class
+    call = invoke_info.calls[0].kcalls[0]
+    dka = DynKernelArguments(call, None)
+    arg = dka.first_field_or_operator
+    assert isinstance(arg, DynKernelArgument)
+    assert arg.is_field
+    # Monkeypatch the argument list to make it invalid.
+    monkeypatch.setattr(dka, "_args", [])
+    with pytest.raises(InternalError) as err:
+        dka.first_field_or_operator
+    assert ("Invalid LFRic kernel: failed to find a DynKernelArgument that is "
+            "a field or operator in ''" in str(err.value))
 
 
 def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
@@ -3440,7 +3462,6 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
     halo_access = HaloReadAccess(arg, schedule.symbol_table)
     assert not halo_access.max_depth
     assert halo_access.var_depth is None
-    assert halo_access.literal_depth == 0
     assert halo_access.stencil_type is None
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -3703,9 +3724,12 @@ def test_kerncallarglist_positions_noquad(dist_mem):
     assert create_arg_list.nlayers_positions == [1]
     assert not create_arg_list.nqp_positions
     assert len(create_arg_list.ndf_positions) == 3
-    assert create_arg_list.ndf_positions[0] == (7, "w1")
-    assert create_arg_list.ndf_positions[1] == (10, "w2")
-    assert create_arg_list.ndf_positions[2] == (13, "w3")
+    assert create_arg_list.ndf_positions[0].position == 7
+    assert create_arg_list.ndf_positions[0].function_space == "w1"
+    assert create_arg_list.ndf_positions[1].position == 10
+    assert create_arg_list.ndf_positions[1].function_space == "w2"
+    assert create_arg_list.ndf_positions[2].position == 13
+    assert create_arg_list.ndf_positions[2].function_space == "w3"
 
 
 def test_kerncallarglist_positions_quad(dist_mem):
@@ -3732,9 +3756,12 @@ def test_kerncallarglist_positions_quad(dist_mem):
     assert create_arg_list.nqp_positions[0]["horizontal"] == 21
     assert create_arg_list.nqp_positions[0]["vertical"] == 22
     assert len(create_arg_list.ndf_positions) == 3
-    assert create_arg_list.ndf_positions[0] == (8, "w1")
-    assert create_arg_list.ndf_positions[1] == (12, "w2")
-    assert create_arg_list.ndf_positions[2] == (16, "w3")
+    assert create_arg_list.ndf_positions[0].position == 8
+    assert create_arg_list.ndf_positions[0].function_space == "w1"
+    assert create_arg_list.ndf_positions[1].position == 12
+    assert create_arg_list.ndf_positions[1].function_space == "w2"
+    assert create_arg_list.ndf_positions[2].position == 16
+    assert create_arg_list.ndf_positions[2].function_space == "w3"
 
 # Class DynKernelArguments start
 
@@ -4420,7 +4447,7 @@ def test_dynpsy_gen_container_routines(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
     # Manually add a new top-level routine
-    psy.invokes.invoke_list[0].schedule.root.addchild(
+    psy.invokes.invoke_list[0].schedule.ancestor(Container).addchild(
             Routine.create("new_routine"))
 
     # Search the routine in the code_gen output
