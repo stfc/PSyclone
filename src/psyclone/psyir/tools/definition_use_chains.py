@@ -459,9 +459,10 @@ class DefinitionUseChain:
                         self._defsout.append(defs_out)
                     return
                 # If its parent is an inquiry function then its neither
-                # a read nor write.
+                # a read nor write if its the first argument.
                 if (isinstance(reference.parent, IntrinsicCall) and
-                        reference.parent.is_inquiry):
+                        reference.parent.is_inquiry and
+                        reference.parent.arguments[0] is reference):
                     continue
                 if isinstance(reference, CodeBlock):
                     # CodeBlocks only find symbols, so we can only do as good
@@ -712,9 +713,10 @@ class DefinitionUseChain:
                 if abs_pos < self._start_point or abs_pos >= stop_position:
                     continue
                 # If its parent is an inquiry function then its neither
-                # a read nor write.
+                # a read nor write if its the first argument.
                 if (isinstance(reference.parent, IntrinsicCall) and
-                        reference.parent.is_inquiry):
+                        reference.parent.is_inquiry and
+                        reference.parent.arguments[0] is reference):
                     continue
                 if isinstance(reference, CodeBlock):
                     # CodeBlocks only find symbols, so we can only do as good

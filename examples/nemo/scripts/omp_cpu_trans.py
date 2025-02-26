@@ -77,8 +77,10 @@ def trans(psyir):
     '''
     # TODO Remove
     scalartrans = ScalarizationTrans()
+    loops = subroutine.walk(Loop)
+    loops.reverse()
     for subroutine in psyir.walk(Routine):
-        for loop in subroutine.walk(Loop):
+        for loop in loops:
             scalartrans.apply(loop)
 
     # If the environemnt has ONLY_FILE defined, only process that one file and

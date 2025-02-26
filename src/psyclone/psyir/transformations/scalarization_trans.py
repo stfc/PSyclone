@@ -42,6 +42,7 @@ from psyclone.core import VariablesAccessInfo, Signature, SymbolicMaths
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Call, CodeBlock, Literal, \
         IfBlock, Loop, Node, Range, Reference, Routine, StructureReference
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 
@@ -198,9 +199,28 @@ class ScalarizationTrans(LoopTrans):
 
     @staticmethod
     def _get_index_values_from_indices(
-            node: Node, indices: List[Node]) -> Tuple[bool, List[Node]]:
+            node: ArrayMixin, indices: List[Node]) -> Tuple[bool, List[Node]]:
         '''
-        TODO
+        Compute a list of index values for a given node. Looks at loop bounds
+        and range declarations to attempt to convert loop variables to an
+        explicit range, i.e. an access like
+        >>> do i = 1, 100
+        array(i) = ...
+        end do
+
+        the returned list would contain a range object for [1:100].
+
+        If the computed indexes contains a non-unit stride, or an index is
+        not a Range, Reference or Literal then this function will return
+        True as the first element of the returned tuple, and the list of
+        indices will be incomplete.
+
+        :param node: The node to compute index values for.
+        :param indices: the list of indexes to have values computed.
+
+        :returns: a tuple containing a bool value set to True if any of the
+                  index values are not computed, and a list of the computed
+                  index values.
         '''
         index_values = []
         has_complex_index = False
@@ -262,8 +282,6 @@ class ScalarizationTrans(LoopTrans):
         :returns: whether the value computed in the loop containing
                   sig is read from after the loop.
         '''
-        # FIXME remove
-        # routine_var_accesses = None
         # Find the last access of the signature
         last_access = var_accesses[sig].all_accesses[-1].node
         # Compute the indices used in this loop. We know that all of the
@@ -347,40 +365,6 @@ class ScalarizationTrans(LoopTrans):
                         == SymbolicMaths.Fuzzy.TRUE or
                         sm.equal(next_index.start, orig_index.start)):
                     return False
-                # If either of the start of stop points of the original
-                # access range are a reference, we need to make sure that
-                # reference has not been written to between the locations.
-                # FIXME Commented these out at they don't seem needed.
-                # if isinstance(next_index.stop, Reference):
-                #     # Find the containing Routine
-                #     if routine_var_accesses is None:
-                #         routine = loop.ancestor(Routine)
-                #         routine_var_accesses = VariablesAccessInfo(
-                #                 nodes=routine
-                #         )
-                #     stop_sig = Signature(next_index.stop.symbol.name)
-                #     if not routine_var_accesses[stop_sig].is_read_only():
-                #         stop_savi = routine_var_accesses[stop_sig]
-                #         for access in stop_savi.all_write_accesses:
-                #             pos = access.node.abs_position
-                #             if (pos > loop.abs_position and
-                #                     pos < next_access.abs_position):
-                #                 return False
-                # if isinstance(next_index.start, Reference):
-                #     # Find the containing Routine
-                #     if routine_var_accesses is None:
-                #         routine = loop.ancestor(Routine)
-                #         routine_var_accesses = VariablesAccessInfo(
-                #                 nodes=routine
-                #         )
-                #     start_sig = Signature(next_index.start.symbol.name)
-                #     if not routine_var_accesses[start_sig].is_read_only():
-                #         start_savi = routine_var_accesses[start_sig]
-                #         for access in start_savi.all_write_accesses:
-                #             pos = access.node.abs_position
-                #             if (pos > loop.abs_position and
-                #                     pos < next_access.abs_position):
-                #                 return False
 
         return True
 
