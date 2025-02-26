@@ -128,6 +128,9 @@ class KernelModuleInlineTrans(Transformation):
 
         parent_container = node.ancestor(Container)
 
+        if kname == "tab_2d_1d":
+            import pdb; pdb.set_trace()            
+
         # Check that the associated Routine isn't already present in the
         # Container. Strictly speaking, we should check that the interface of
         # any existing Routine matches that required by the Call but for now
@@ -152,6 +155,12 @@ class KernelModuleInlineTrans(Transformation):
                 f"{self.name} failed to retrieve PSyIR for {kern_or_call} "
                 f"'{kname}' due to: {error}"
             ) from error
+
+        cscope_sym =  parent_container.symbol_table.lookup(kname,
+                                                           otherwise=None)
+        if isinstance(cscope_sym, RoutineSymbol) and not cscope_sym.is_import:
+            raise TransformationError(
+                "ARPDBG: We've probably already done this routine")
 
         # We do not support kernels that use symbols representing data
         # declared in their own parent module (we would need to add new imports
@@ -430,16 +439,21 @@ class KernelModuleInlineTrans(Transformation):
         # implementation.
         caller_name, code_to_inline = (
             KernelModuleInlineTrans._get_psyir_to_inline(node))
+        # Create a copy of the code we're going to inline to avoid altering
+        # the original.
+        ancestor = code_to_inline.ancestor(Container)
+        index_list = code_to_inline.path_from(ancestor)
+        new_cntr = ancestor.copy()
+        code_to_inline = new_cntr
+        for index in index_list:
+            code_to_inline = code_to_inline.children[index]
         callee_name = code_to_inline.name
-
-        try:
-            existing_symbol = node.scope.symbol_table.lookup(callee_name)
-        except KeyError:
-            existing_symbol = None
 
         self._prepare_code_to_inline(code_to_inline)
 
         container = node.ancestor(Container)
+        existing_symbol = node.scope.symbol_table.lookup(callee_name,
+                                                         otherwise=None)
         if not existing_symbol:
             # If it doesn't exist already, module-inline the subroutine by
             # inserting the relevant code into the tree.
@@ -460,11 +474,18 @@ class KernelModuleInlineTrans(Transformation):
                                [existing_symbol])
                 existing_symbol.interface = DefaultModuleInterface()
                 existing_symbol.visibility = Symbol.Visibility.PRIVATE
-                if remove_csym:
+                if csym.wildcard_import:
+                    ctable.new_symbol(f"old_{callee_name}",
+                                      symbol_type=RoutineSymbol,
+                                      interface=ImportInterface(
+                                          csym, orig_name=existing_symbol.name))
+                elif remove_csym:
                     ctable.remove(csym)
                 code_to_inline = code_to_inline.detach()
                 # Set the routine's symbol to the existing_symbol
                 code_to_inline.symbol = existing_symbol
+                if existing_symbol.name in container.symbol_table:
+                    del container.symbol_table._symbols[existing_symbol.name]
                 container.addchild(code_to_inline)
             elif existing_symbol.is_unresolved:
                 # We didn't previously know where it came from.
@@ -508,14 +529,15 @@ class KernelModuleInlineTrans(Transformation):
             table = routine_symbol.find_symbol_table(node)
             if (not isinstance(container, FileContainer) and
                     table.node is not container):
-                # Set the visibility of the symbol to always be private.
-                sym = container.symbol_table.lookup(routine_symbol.name)
-                sym.visibility = Symbol.Visibility.PRIVATE
                 # Force removal of the routine_symbol if its also present in
                 # the Routine's symbol table.
-                table.lookup(routine_symbol.name)
                 norm_name = table._normalize(routine_symbol.name)
                 table._symbols.pop(norm_name)
+
+            calling_routine = node.ancestor(Routine)
+            for call in calling_routine.walk(Call):
+                if call.routine.symbol.name == routine_symbol.name:
+                    call.routine.symbol = routine_symbol
 
         # We only modify the kernel call name after the equality check to
         # ensure the apply will succeed and we don't leave with an inconsistent

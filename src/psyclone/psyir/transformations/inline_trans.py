@@ -247,7 +247,7 @@ class InlineTrans(Transformation):
 
         if routine.return_symbol:
             # This is a function
-            assignment = node.ancestor(Statement)
+            assignment = node.ancestor(Statement, excluding=Call)
             parent = assignment.parent
             idx = assignment.position-1
             for child in new_stmts:
@@ -626,9 +626,9 @@ class InlineTrans(Transformation):
         :param bool options["force"]: whether or not to ignore any CodeBlocks
             in the candidate routine. Default is False.
 
-        :raises TransformationError: if the supplied node is not a Call or is
-            an IntrinsicCall or call to a PSyclone-generated routine.
-        :raises TransformationError: if the routine has a return value.
+        :raises TransformationError: if the supplied node is not a Call, is
+            an IntrinsicCall or a call to a PSyclone-generated or ELEMENTAL
+            routine.
         :raises TransformationError: if the routine body contains a Return
             that is not the first or last statement.
         :raises TransformationError: if the routine body contains a CodeBlock
@@ -696,6 +696,11 @@ class InlineTrans(Transformation):
             # An empty routine is fine.
             return
 
+        if node.is_elemental:
+            raise TransformationError(
+                f"Routine '{name}' is elemental and inlining such routines is "
+                f"not supported.")
+
         return_stmts = routine.walk(Return)
         if return_stmts:
             if len(return_stmts) > 1 or not isinstance(routine.children[-1],
@@ -715,16 +720,35 @@ class InlineTrans(Transformation):
                 f"the code may safely be inlined despite this then use "
                 "`options={'force': True}` to override.)")
 
-        # At the moment, we can't inline a routine that allocates memory as
-        # we don't support adding any deallocates (that the compiler would
-        # add automatically at the end of the routine).
-        intrinsics = routine.walk(IntrinsicCall)
-        for intr in intrinsics:
-            if intr.intrinsic == IntrinsicCall.Intrinsic.ALLOCATE:
-                raise TransformationError(
-                    f"Routine '{name}' contains one or more ALLOCATE "
-                    f"statements ('{intr.debug_string().strip()}'). Inlining "
-                    f"such a routine is not supported.")
+        # At the moment, we can't inline a routine that allocates memory that
+        # is local to it as we don't support adding any deallocates (that the
+        # compiler would add automatically at the end of the routine).
+        for intr in routine.walk(IntrinsicCall):
+            if intr.intrinsic != IntrinsicCall.Intrinsic.ALLOCATE:
+                continue
+            for sym in [ref.symbol for ref in intr.walk(Reference,
+                                                        stop_type=Reference)]:
+                intr.scope.symbol_table.lookup(sym.name, scope_limit=routine,
+                                               otherwise=None)
+                if sym:
+                    raise TransformationError(
+                        f"Routine '{name}' contains an ALLOCATE for local "
+                        f"variable '{sym.name}'. Inlining such a routine is "
+                        f"not supported.")
+
+        if routine.return_symbol and not routine.return_symbol.is_import:
+            table = node.scope.symbol_table
+            sym = table.lookup(routine.return_symbol.name, otherwise=None)
+            if sym:
+                table = sym.find_symbol_table(node)
+                try:
+                    table.rename_symbol(sym, table.next_available_name(
+                        f"inlined_{sym.name}"), dry_run=True)
+                except SymbolError as err:
+                    raise TransformationError(
+                        f"Cannot inline function '{routine.name}' because we "
+                        f"cannot rename its return value at the callsite: "
+                        f"{err}") from err
 
         # Support for routines with named arguments is not yet implemented.
         # TODO #924.
