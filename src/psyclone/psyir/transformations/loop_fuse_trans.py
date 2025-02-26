@@ -42,7 +42,7 @@ class for all API-specific loop fusion transformations.
 
 from psyclone.core import SymbolicMaths
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.psyir.nodes import Reference
+from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -197,6 +197,21 @@ class LoopFuseTrans(LoopTrans):
 
         # Add loop contents of node2 to node1
         node1.loop_body.children.extend(node2.loop_body.pop_all_children())
+
+        # We need to remove all leftover references because lfric is compiled
+        # with '-Werror=unused-variable'
+        routine = node1.ancestor(Routine)
+        if routine:
+            remaining_syms = [r.symbol for r in routine.walk(Reference)]
+            del_syms = [r.symbol for r in node2.start_expr.walk(Reference) +
+                        node2.stop_expr.walk(Reference)]
+            for rsym in del_syms:
+                if rsym not in remaining_syms:
+                    if rsym.is_automatic:
+                        symtab = rsym.find_symbol_table(node1)
+                        # TODO #898: Implement symbol removal
+                        # pylint: disable=protected-access
+                        symtab._symbols.pop(rsym.name)
 
 
 # For automatic documentation generation
