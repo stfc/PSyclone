@@ -408,7 +408,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         directive = self._directive([node.detach()], num_collapsable_loops)
 
         if nowait:
-            #TODO
+            # FIXME
             pass
 
         # Add the loop directive as a child of the node's parent
