@@ -109,7 +109,8 @@ def test_check_access():
     with pytest.raises(ValueError) as info:
         ScalarArrayArgMetadata.check_access("invalid")
     assert ("The 'access descriptor' metadata should be a recognised value "
-            "(one of ['gh_read', 'gh_sum']) but found 'invalid'." in str(info.value))
+            "(one of ['gh_read', 'gh_sum']) but found 'invalid'."
+            in str(info.value))
 
 
 # def test_get_array_ndims():
@@ -118,7 +119,7 @@ def test_check_access():
 
 #     '''
 #     fparser_tree = ScalarArrayArgMetadata.create_fparser2(
-#         "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 3)", Fortran2003.Part_Ref)
+#       "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 3)", Fortran2003.Part_Ref)
 #     vector_length = ScalarArrayArgMetadata.get_array_ndims(fparser_tree)
 #     assert vector_length == "3"
 
@@ -137,7 +138,7 @@ def test_check_access():
 
 #     with pytest.raises(ValueError) as info:
 #         array_arg.array_ndims = "0"
-#     assert ("The number of dimensions of a scalar array should be an integer "
+#     assert ("The number of dimensions of a scalar array should be an integer"
 #             "greater than or equal to 1 but found 0." in str(info.value))
 
 #     array_arg.array_ndims = "3"
