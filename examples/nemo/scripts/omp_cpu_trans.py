@@ -77,9 +77,9 @@ def trans(psyir):
     '''
     # TODO Remove
     scalartrans = ScalarizationTrans()
-    loops = subroutine.walk(Loop)
-    loops.reverse()
     for subroutine in psyir.walk(Routine):
+        loops = subroutine.walk(Loop)
+        loops.reverse()
         for loop in loops:
             scalartrans.apply(loop)
 
