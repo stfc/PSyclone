@@ -41,5 +41,5 @@ needed to provide a FILES_TO_SKIP list. '''
 FILES_TO_SKIP = []
 
 
-def trans(psyir):
+def trans():
     ''' Don't do any changes. '''

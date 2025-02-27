@@ -97,12 +97,8 @@ jobs:
         make -j 4 passthrough
         make -j 4 compile-passthrough
         make run-passthrough |& tee output.txt
-        # Check the output is as expected for the first 6 digits (if not exit with error message)
-        tail -n 1 output.txt | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
-        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
-        tail -n 1 output.txt | grep -q "|U|_max:  0.458515" || (echo "Error: '|U|_max:  0.458515' not found!" & false)
-        tail -n 1 output.txt | grep -q "S_min:  0.482686" || (echo "Error: 'S_min:  0.482686' not found!" & false)
-        tail -n 1 output.txt | grep -q "S_max:  0.407622" || (echo "Error: 'S_max:  0.407622' not found!" & false)
+        # Check for full numerical reproducibility with KGO results
+        diff <(make -s output-passthrough)  KGOs/run.stat.nemo4.splitz12.nvhpc.10steps
 
     # PSyclone, compile and run MetOffice NEMO with OpenMP for GPUs
     - name: NEMO MetOffice OpenMP for GPU

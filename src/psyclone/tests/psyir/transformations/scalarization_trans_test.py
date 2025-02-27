@@ -43,6 +43,7 @@ from psyclone.tests.utilities import Compile
 
 
 def test_scalararizationtrans_is_local_array(fortran_reader):
+    '''Test the _is_local_array function in the ScalarizationTrans.'''
     code = '''function test(a) result(x)
        use mymod, only: arr, atype
        integer :: i
@@ -113,6 +114,7 @@ def test_scalararizationtrans_is_local_array(fortran_reader):
 
 
 def test_scalarizationtrans_have_same_unmodified_index(fortran_reader):
+    '''Test the _have_same_unmodified_index function of ScalarizationTrans.'''
     code = '''subroutine test()
        integer :: i
        integer :: k
@@ -161,6 +163,8 @@ def test_scalarizationtrans_have_same_unmodified_index(fortran_reader):
 
 
 def test_scalarizationtrans_check_first_access_is_write(fortran_reader):
+    '''Test the _check_first_access_is_write function of
+    ScalarizationTrans.'''
     code = '''subroutine test()
        integer :: i
        integer :: k
@@ -216,6 +220,7 @@ def test_scalarizationtrans_check_first_access_is_write(fortran_reader):
 
 
 def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
+    '''Test the _value_unused_after_loop function of ScalarizationTrans.'''
     code = '''subroutine test()
         integer :: i
         integer :: k

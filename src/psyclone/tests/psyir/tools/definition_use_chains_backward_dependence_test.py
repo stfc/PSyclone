@@ -692,7 +692,7 @@ def test_definition_use_chains_backward_accesses_nonassign_reference_in_loop(
 def test_definition_use_chains_backward_accesses_empty_schedules(
     fortran_reader,
 ):
-    '''Coverage to handle the case where we have empty schedules inside
+    '''Test the case where we have empty schedules inside
     various type of code.'''
     code = """
     subroutine x()
@@ -723,7 +723,7 @@ def test_definition_use_chains_backward_accesses_empty_schedules(
 def test_definition_use_chains_backward_accesses_inquiry_func(
     fortran_reader,
 ):
-    '''Coverave to handle the case where we have an inquiry function
+    '''Test the case where we have an inquiry function
     accessing the symbol of interest.'''
     code = """
     subroutine x()

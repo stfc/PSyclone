@@ -50,7 +50,9 @@ from psyclone.psyir.transformations.loop_trans import LoopTrans
 class ScalarizationTrans(LoopTrans):
     '''This transformation takes a Loop and converts any array accesses
     to scalar if the results of the loop are unused, and the initial value
-    is unused. For example:
+    is unused. For example in the following snippet the value of a(i)
+    is only used inside the loop, so can be turned into a scalar, wheras
+    the values of b(i) are used in the following loop so are kept as an array:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
@@ -204,9 +206,10 @@ class ScalarizationTrans(LoopTrans):
         Compute a list of index values for a given node. Looks at loop bounds
         and range declarations to attempt to convert loop variables to an
         explicit range, i.e. an access like
-        >>> do i = 1, 100
-        array(i) = ...
-        end do
+        .. code-block:: fortran
+            do i = 1, 100
+            array(i) = ...
+            end do
 
         the returned list would contain a range object for [1:100].
 

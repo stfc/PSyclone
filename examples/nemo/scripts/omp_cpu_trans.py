@@ -44,9 +44,6 @@ from utils import (
     PRIVATISATION_ISSUES)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
-# TODO Remove
-from psyclone.psyir.transformations import ScalarizationTrans
-from psyclone.psyir.nodes import Loop
 
 # Enable the insertion of profiling hooks during the transformation script
 PROFILING_ENABLED = False
@@ -75,14 +72,6 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    # TODO Remove
-    scalartrans = ScalarizationTrans()
-    for subroutine in psyir.walk(Routine):
-        loops = subroutine.walk(Loop)
-        loops.reverse()
-        for loop in loops:
-            scalartrans.apply(loop)
-
     # If the environemnt has ONLY_FILE defined, only process that one file and
     # nothing else. This is useful for file-by-file exhaustive tests.
     only_do_file = os.environ.get('ONLY_FILE', False)
@@ -106,7 +95,8 @@ def trans(psyir):
                 hoist_local_arrays=False,
                 convert_array_notation=True,
                 convert_range_loops=True,
-                hoist_expressions=False
+                hoist_expressions=False,
+                scalarize_loops=False
         )
 
         if psyir.name not in PARALLELISATION_ISSUES:

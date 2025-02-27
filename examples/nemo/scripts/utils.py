@@ -44,7 +44,7 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
-    Reference2ArrayRangeTrans)
+    Reference2ArrayRangeTrans, ScalarizationTrans)
 from psyclone.transformations import TransformationError
 
 
@@ -283,6 +283,7 @@ def normalise_loops(
         loopify_array_intrinsics: bool = True,
         convert_range_loops: bool = True,
         hoist_expressions: bool = True,
+        scalarize_loops: bool = False,
         ):
     ''' Normalise all loops in the given schedule so that they are in an
     appropriate form for the Parallelisation transformations to analyse
@@ -299,6 +300,8 @@ def normalise_loops(
         loops.
     :param bool hoist_expressions: whether to hoist bounds and loop invariant
         statements out of the loop nest.
+    :param scalarize_loops: whether to attempt to convert arrays to scalars
+        where possible, default is False.
     '''
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
@@ -338,6 +341,16 @@ def normalise_loops(
                 explicit_loops.apply(assignment)
             except TransformationError:
                 pass
+
+    if scalarize_loops:
+        # Apply scalarization to every loop. Execute this in reverse order
+        # as sometimes we can scalarize earlier loops if following loops
+        # have already been scalarized.
+        loops = schedule.walk(Loop)
+        loops.reverse()
+        scalartrans = ScalarizationTrans()
+        for loop in loops:
+            scalartrans.apply(loop)
 
     if hoist_expressions:
         # First hoist all possible expressions
