@@ -726,11 +726,13 @@ class InlineTrans(Transformation):
         for intr in routine.walk(IntrinsicCall):
             if intr.intrinsic != IntrinsicCall.Intrinsic.ALLOCATE:
                 continue
-            for sym in [ref.symbol for ref in intr.walk(Reference,
-                                                        stop_type=Reference)]:
-                intr.scope.symbol_table.lookup(sym.name, scope_limit=routine,
-                                               otherwise=None)
-                if sym:
+            for arg_name, arg in zip(intr.argument_names, intr.arguments):
+                if arg_name:
+                    continue
+                sym = arg.symbol
+                result = intr.scope.symbol_table.lookup(
+                    sym.name, scope_limit=routine, otherwise=None)
+                if result:
                     raise TransformationError(
                         f"Routine '{name}' contains an ALLOCATE for local "
                         f"variable '{sym.name}'. Inlining such a routine is "

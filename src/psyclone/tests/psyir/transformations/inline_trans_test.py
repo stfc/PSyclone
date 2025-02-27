@@ -712,6 +712,7 @@ def test_validate_allocatable_local_array(fortran_reader):
     '''
     code = '''
     module my_mod
+      integer, dimension(:,:), allocatable :: fine
     contains
       subroutine runner()
         call doit(10)
@@ -719,6 +720,8 @@ def test_validate_allocatable_local_array(fortran_reader):
       subroutine doit(npts)
         integer, intent(in) :: npts
         real, dimension(:), allocatable :: var
+        integer :: ierr
+        allocate(fine(10,10), stat=ierr)
         allocate(var(npts))
         var(:) = 1.0
       end subroutine doit
@@ -728,9 +731,8 @@ def test_validate_allocatable_local_array(fortran_reader):
     call = psyir.walk(Call)[0]
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert ("Routine 'doit' contains one or more ALLOCATE statements "
-            "('ALLOCATE(var(1:npts))'). Inlining such a routine is not "
-            "supported." in str(err.value))
+    assert ("Routine 'doit' contains an ALLOCATE for local variable 'var'. "
+            "Inlining such a routine is not supported." in str(err.value))
 
 
 def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):

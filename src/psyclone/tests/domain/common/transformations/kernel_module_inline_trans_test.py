@@ -663,8 +663,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
-    result = fortran_writer(routine)
+    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routine)
     assert "use external_mod1" in result
     assert "use external_mod2" in result
     assert "not_needed" not in result
@@ -685,8 +685,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
-    result = fortran_writer(routine)
+    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routine)
     assert "use external_mod1, only : a" in result
     assert "use external_mod2, only : b=>var1, c=>var2" in result
     assert "not_needed" not in result
@@ -709,8 +709,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
-    result = fortran_writer(routine)
+    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routine)
     assert "use external_mod1, only : a, d" in result
     assert "use external_mod2, only : b=>var1, c=>var2, var1" in result
     assert "not_needed" not in result
@@ -733,8 +733,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
-    result = fortran_writer(routine)
+    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routine)
     assert "use external_mod1, only : r_def" in result
     assert "use external_mod2, only : my_user_type" in result
     assert "use not_needed" not in result
@@ -754,8 +754,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
-    result = fortran_writer(routine)
+    (new_routine,) = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routine)
     assert "use external_mod1, only : r_def" in result
     assert "use not_needed" not in result
 
@@ -774,8 +774,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
-    result = fortran_writer(routine)
+    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routine)
     assert "use external_mod1, only : my_sub" in result
 
     # Also, if they are inside CodeBlocks
@@ -791,8 +791,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
-    result = fortran_writer(routine)
+    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routine)
     assert "use external_mod1, only : a, b" in result
 
     # Check that symbol shadowing is respected (in this example
@@ -811,8 +811,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
-    result = fortran_writer(routine)
+    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routine)
     assert "use external_mod1, only : c" in result
 
     # Another shadowing example where the local module should be
@@ -829,8 +829,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
-    result = fortran_writer(routine)
+    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routine)
     assert "use external_mod\n" in result
     assert "use external_mod, only : r_def" not in result
 
@@ -845,8 +845,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
-    result = fortran_writer(routine)
+    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routine)
     assert "use external_mod, only : a" in result
 
 
@@ -980,30 +980,6 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     assert "subroutine my_sub" in output
     assert "use my_mod, only : my_other_sub\n" in output
     # We can't test the compilation of this code because of the 'use my_mod.'
-
-    # Check that we raise the expected error if the name of the obtained
-    # subroutine doesn't match that of the caller. It is not
-    # possible to create this situation (because _get_psyir_to_inline
-    # will raise an exception) so we monkeypatch.
-    # TODO #924 - ultimately we should be able to support this.
-    def fake_get_code(node):
-        '''
-        :param node: the routine for which to get PSyIR.
-        :type node: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
-
-        :returns: a fake routine name and the routine PSyIR.
-        :rtype: Tuple(str, :py:class:`psyclone.psyir.nodes.Routine`)
-        '''
-        code_to_inline = node.get_callees()[0]
-        return "broken", code_to_inline
-
-    monkeypatch.setattr(KernelModuleInlineTrans, "_get_psyir_to_inline",
-                        fake_get_code)
-    with pytest.raises(InternalError) as err:
-        intrans.apply(calls[1])
-    assert ("Cannot module-inline call to 'broken' because its name does not "
-            "match that of the callee: 'my_other_sub'. TODO #924."
-            in str(err.value))
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
