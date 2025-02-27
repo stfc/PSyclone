@@ -96,7 +96,7 @@ jobs:
         module load perl/${PERL_VERSION}
         make -j 4 passthrough
         make -j 4 compile-passthrough
-        make run-passthrough |& tee output.txt
+        make run-passthrough
         # Check for full numerical reproducibility with KGO results
         diff <(make -s output-passthrough)  KGOs/run.stat.nemo4.splitz12.nvhpc.10steps
 
