@@ -602,7 +602,10 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                     print(f"Error finding symbol '{sig_str}' in "
                           f"'{module_name}'.")
             else:
-                orig_sym = original_symbol_table.lookup(signature[0])
+                try:
+                    orig_sym = original_symbol_table.lookup(signature[0])
+                except KeyError:
+                    print(f"Error finding symbol '{signature[0]}'")
 
             if orig_sym and orig_sym.is_array and _sym_is_field(orig_sym):
                 # This is a field vector, so add all individual fields

@@ -192,11 +192,11 @@ def test_profile_inside_if1(fortran_reader, fortran_writer):
         "end subroutine inside_if_test\n")
     schedule = psyir.children[0]
     PTRANS.apply(schedule.children[0].if_body[0])
-    gen_code = fortran_writer(psyir).lower()
+    code = fortran_writer(psyir).lower()
     assert ("  if (do_this) then\n"
-            "    call profile_psy_data % prestart(" in gen_code)
+            "    call profile_psy_data % prestart(" in code)
     assert ("    call profile_psy_data % postend\n"
-            "  end if\n" in gen_code)
+            "  end if\n" in code)
 
 
 def test_profile_inside_if2(fortran_reader, fortran_writer):
@@ -217,11 +217,11 @@ def test_profile_inside_if2(fortran_reader, fortran_writer):
         "end subroutine inside_if_test\n")
     schedule = psyir.children[0]
     PTRANS.apply(schedule.children[0].if_body)
-    gen_code = fortran_writer(psyir).lower()
+    code = fortran_writer(psyir).lower()
     assert ("  if (do_this) then\n"
-            "    call profile_psy_data % prestart(" in gen_code)
+            "    call profile_psy_data % prestart(" in code)
     assert ("    call profile_psy_data % postend\n"
-            "  end if\n" in gen_code)
+            "  end if\n" in code)
 
 
 def test_profile_single_line_if(fortran_reader, fortran_writer):
@@ -238,16 +238,16 @@ def test_profile_single_line_if(fortran_reader, fortran_writer):
         "end subroutine one_line_if_test\n")
     schedule = psyir.children[0]
     PTRANS.apply(schedule[0].if_body)
-    gen_code = fortran_writer(psyir).lower()
+    code = fortran_writer(psyir).lower()
     assert (
         "  if (do_this) then\n"
         "    call profile_psy_data % prestart(\"one_line_if_test\", \"r0\", 0,"
-        " 0)\n"
+        " 0)\n\n"
         "    ! psyclone codeblock (unsupported code) reason:\n"
         "    !  - unsupported statement: write_stmt\n"
         "    write(*, *) sto_tmp2(ji)\n"
         "    call profile_psy_data % postend\n"
-        "  end if\n" in gen_code)
+        "  end if\n" in code)
 
 
 def test_profiling_case(fortran_reader, fortran_writer):

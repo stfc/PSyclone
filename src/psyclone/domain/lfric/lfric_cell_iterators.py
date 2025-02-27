@@ -39,12 +39,12 @@
 ''' This module implements the LFRicCellIterators collection which handles
     the requirements of kernels that operator on cells.'''
 
-from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError
-from psyclone.f2pygen import AssignGen, CommentGen, DeclGen
+from psyclone.psyir.nodes import Assignment, Reference
+from psyclone.psyir.symbols import ArgumentInterface
 
 
 class LFRicCellIterators(LFRicCollection):
@@ -66,93 +66,71 @@ class LFRicCellIterators(LFRicCollection):
         # (for invokes) the kernel argument to which each corresponds.
         self._nlayers_names = {}
 
-        if not self._invoke:
-            # We are dealing with a single Kernel so there is only one
-            # 'nlayers' variable and we don't need to store the associated
+        if self._invoke:
+            # Each kernel that operates on either the domain or cell-columns
+            # needs an 'nlayers' obtained from the first field/operator
             # argument.
-            self._nlayers_names[self._symbol_table.find_or_create_tag(
-                "nlayers",
-                symbol_type=LFRicTypes("MeshHeightDataSymbol")).name] = None
-            # We're not generating a PSy layer so we're done here.
-            return
+            for kern in self._invoke.schedule.walk(LFRicKern):
+                if kern.iterates_over != "dof":
+                    arg = kern.arguments.first_field_or_operator
+                    sym = self.symtab.find_or_create_tag(
+                        f"nlayers_{arg.name}",
+                        symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+                    self._nlayers_names[sym.name] = arg
 
-        # Each kernel that operates on either the domain or cell-columns needs
-        # an 'nlayers' obtained from the first field/operator argument.
-        for kern in self._invoke.schedule.walk(LFRicKern):
-            if kern.iterates_over != "dof":
-                arg = kern.arguments.first_field_or_operator
-                sym = self._symbol_table.find_or_create_tag(
-                    f"nlayers_{arg.name}",
-                    symbol_type=LFRicTypes("MeshHeightDataSymbol"))
-                self._nlayers_names[sym.name] = arg
+            first_var = None
+            for var in self._invoke.psy_unique_vars:
+                if not var.is_scalar:
+                    first_var = var
+                    break
+            if not first_var:
+                raise GenerationError(
+                    "Cannot create an Invoke with no field/operator "
+                    "arguments.")
+            self._first_var = first_var
 
-        first_var = None
-        for var in self._invoke.psy_unique_vars:
-            if not var.is_scalar:
-                first_var = var
-                break
-        if not first_var:
-            raise GenerationError(
-                "Cannot create an Invoke with no field/operator arguments.")
-        self._first_var = first_var
-
-    def _invoke_declarations(self, parent):
-        '''
-        Declare entities required for iterating over cells in the Invoke.
-
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("lfric")
-
-        # Declare the number of layers in the mesh for each kernel that
-        # operates on cell-columns or the domain.
-        name_list = list(self._nlayers_names.keys())
-        if name_list:
-            name_list.sort()  # Purely for test reproducibility.
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=name_list))
-
-    def _stub_declarations(self, parent):
+    def stub_declarations(self):
         '''
         Declare entities required for a kernel stub that operates on
         cell-columns.
 
-        :param parent: the f2pygen node representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
         '''
-        api_config = Config.get().api_conf("lfric")
-
+        super().stub_declarations()
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in",
-                               entity_decls=list(self._nlayers_names.keys())))
+            nlayers = self.symtab.find_or_create_tag(
+                "nlayers",
+                symbol_type=LFRicTypes("MeshHeightDataSymbol")
+            )
+            nlayers.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+            self.symtab.append_argument(nlayers)
 
-    def initialise(self, parent):
+    def initialise(self, cursor):
         '''
-        Look-up the number of vertical layers in the mesh for each user-
-        supplied kernel that operates on cell columns.
+        Look-up the number of vertical layers in the mesh in the PSy layer.
 
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         if not self._nlayers_names or not self._invoke:
-            return
+            return cursor
 
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Initialise number of layers"))
-        parent.add(CommentGen(parent, ""))
         # Sort for test reproducibility
         sorted_names = list(self._nlayers_names.keys())
         sorted_names.sort()
+        init_cursor = cursor
         for name in sorted_names:
+            symbol = self.symtab.lookup(name)
             var = self._nlayers_names[name]
-            parent.add(AssignGen(
-                parent, lhs=name,
-                rhs=(f"{var.proxy_name_indexed}%{var.ref_name()}%"
-                     f"get_nlayers()")))
+            stmt = Assignment.create(
+                    lhs=Reference(symbol),
+                    rhs=var.generate_method_call("get_nlayers"))
+            if cursor == init_cursor:
+                stmt.preceding_comment = "Initialise number of layers"
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+        return cursor

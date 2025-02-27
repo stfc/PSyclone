@@ -343,8 +343,10 @@ module test_mod
     ! Comment on assignment 'a = 1'
     ! and second line
     a = 1
+
     ! Comment on call 'call test_sub()'
     call test_sub()
+
     ! Comment on if block 'if (a == 1) then'
     if (a == 1) then
       ! Comment on assignment 'a = 2'
@@ -361,10 +363,12 @@ module test_mod
         ! Comment on 'end if' => CodeBlock
       end if
     end if  ! Inline comment on 'end if'
+
     ! Comment on loop 'do i = 1, 10'
     do i = 1, 10, 1
       ! Comment on assignment 'a = 5'
       a = 5
+
       ! Comment on loop 'do j = 1, 10'
       do j = 1, 10, 1
         ! Comment on assignment 'a = 6'
@@ -373,6 +377,7 @@ module test_mod
       enddo  ! Inline comment on 'end do j = 1, 10'
       ! Comment at end of loop on i => CodeBlock
     enddo  ! Inline comment on 'end do i = 1, 10'
+
     ! Comment on 'do while (a < 10)'
     do while (a < 10)
       ! Comment on assignment 'a = 7'
@@ -418,8 +423,10 @@ module test_mod
     ! Comment on assignment 'a = 1'
     ! and second line
     a = 1
+
     ! Comment on call 'call test_sub()'
     call test_sub()
+
     ! Comment on if block 'if (a == 1) then'
     if (a == 1) then
       ! Comment on assignment 'a = 2'
@@ -433,16 +440,19 @@ module test_mod
         a = 4
       end if
     end if  ! Inline comment on 'end if'
+
     ! Comment on loop 'do i = 1, 10'
     do i = 1, 10, 1
       ! Comment on assignment 'a = 5'
       a = 5
+
       ! Comment on loop 'do j = 1, 10'
       do j = 1, 10, 1
         ! Comment on assignment 'a = 6'
         a = 6
       enddo  ! Inline comment on 'end do j = 1, 10'
     enddo  ! Inline comment on 'end do i = 1, 10'
+
     ! Comment on 'do while (a < 10)'
     do while (a < 10)
       ! Comment on assignment 'a = 7'
