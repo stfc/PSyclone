@@ -64,7 +64,7 @@ NOT_PERFORMANT = [
 ]
 
 # If routine names contain these substrings then we do not profile them
-PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm",
+PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
                     # These are small functions that the addition of profiling
                     # prevents from being in-lined (and then breaks any attempt
                     # to create OpenACC regions with calls to them)
@@ -150,18 +150,13 @@ NEMO_FUNCTIONS = [
 # functions, the following subroutines contains known statement functions
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
-# These files change the results from baseline when psyclone processes them
-PASSTHROUGH_ISSUES = []
-
 # These files change the results from the baseline when psyclone adds
 # parallelisation dirctives
 PARALLELISATION_ISSUES = [
-    "ldfc1d_c2d.f90",
-    "tramle.f90",
-    "dynspg_ts.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
 ]
 
 PRIVATISATION_ISSUES = [
+    "tramle.f90",  # Wrong runtime results
     "ldftra.f90",  # Wrong runtime results
 ]
 

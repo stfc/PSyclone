@@ -47,6 +47,32 @@
 	16) PR #2857 for 2854. Excludes character assignments from ACC KERNELS
 	regions to avoid issues in NEMO.
 
+	17) PR #2829 for #2826. Adds a --config command-line argument to the
+	PSyAD script (to replicate that for psyclone).
+
+	18) PR #2280 for #2723. Add support for depencency analysis involving
+	array ranges.
+
+	19) PR #2885. Update integration test dependencies.
+
+	20) PR #2799 for #2779. Implement split finite-element order for
+	function spaces in the LFRic API and update Adjoint tests to use it.
+
+	21) PR #2883 for #2875. Fix issues cannonicalising WHEREs with elemental
+	functions.
+
+	22) PR #2890 for #2399. PSyKE: adds support for partially-written
+	fields.`
+
+	23) PR #2901 for #2900. Fixes the LFRic integration tests and updates
+	the versions of LFRic core and apps used therein.
+
+	24) PR #2865 for #2864. Enable split finite-element order and
+	anisotropic quadrature points in the LFRic API.
+
+	25) PR #2859 for #2787. Fixes the NEMO integration tests and updates
+	the version of NVHPC used by them.
+
 release 3.0.0 6th of December 2024
 
 	1) PR #2477 for #2463. Add support for Fortran Namelist statements.
