@@ -292,7 +292,7 @@ def test_stencil_args_unique_1(dist_mem, tmpdir):
         "    f2_stencil_size_1 => f2_stencil_map%get_stencil_sizes()")
     assert output6 in result
     output7 = (
-        "      call testkern_stencil_xory1d_code(nlayers_f1, "
+        "      call testkern_stencil_xory1d_code(nlayers_f1_1, "
         "f1_data, f2_data, f2_stencil_size_1(cell), nlayers_f1, "
         "f2_stencil_dofmap(:,:,cell), f3_data, f4_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "

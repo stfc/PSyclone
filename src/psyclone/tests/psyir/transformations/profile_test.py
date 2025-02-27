@@ -394,8 +394,7 @@ def test_profile_kernels_dynamo0p3(fortran_writer):
     _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
-    # Convert the invoke to code, and remove all new lines, to make
-    # regex matching easier
+    # Convert the invoke to code
     code = fortran_writer(invoke.schedule)
 
     # Check that the variables are different

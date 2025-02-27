@@ -38,7 +38,7 @@
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import (
     OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
-    OMPTeamsLoopDirective, OMPTeamsDistributeParallelDoDirective,
+    OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
     OMPScheduleClause)
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
