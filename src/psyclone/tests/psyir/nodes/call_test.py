@@ -1319,11 +1319,14 @@ end module some_mod'''
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_call_get_callees_unresolved(fortran_reader, tmpdir, monkeypatch):
+def test_call_get_callees_unresolved(fortran_reader, tmpdir, monkeypatch,
+                                     config_instance):
     '''
     Test that get_callees() raises the expected error if the called routine
     is unresolved.
     '''
+    # Ensure that include_paths in the Config object is empty.
+    config_instance.include_paths = []
     code = '''
 subroutine top()
   call bottom()

@@ -41,7 +41,9 @@ import os
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine, Loop
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import (
+    Assignment, Call, IntrinsicCall, Reference, Routine, Loop)
 from psyclone.psyir.symbols import (
     AutomaticInterface, DataSymbol, UnresolvedType)
 from psyclone.psyir.transformations import (
@@ -701,6 +703,36 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer):
     # assert Compile(tmpdir).string_compiles(output)
 
 
+def test_validate_allocatable_local_array(fortran_reader):
+    '''
+    Test that we refuse to inline a call to a routine with a local, allocatable
+    array. Currently this would result in errors as the array would no longer
+    be deallocated at the end of the inlined code.
+
+    '''
+    code = '''
+    module my_mod
+    contains
+      subroutine runner()
+        call doit(10)
+      end subroutine runner
+      subroutine doit(npts)
+        integer, intent(in) :: npts
+        real, dimension(:), allocatable :: var
+        allocate(var(npts))
+        var(:) = 1.0
+      end subroutine doit
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    call = psyir.walk(Call)[0]
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Routine 'doit' contains one or more ALLOCATE statements "
+            "('ALLOCATE(var(1:npts))'). Inlining such a routine is not "
+            "supported." in str(err.value))
+
+
 def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
     '''
     Check that the apply() method works correctly when an array slice is
@@ -1224,8 +1256,8 @@ def test_apply_callsite_rename(fortran_reader, fortran_writer):
     inline_trans.apply(call)
     output = fortran_writer(psyir)
     assert ("  subroutine run_it()\n"
-            "    use kinds_mod, only : i_def, r_def\n"
             "    use a_mod, only : a_clash\n"
+            "    use kinds_mod, only : i_def, r_def\n"
             "    integer :: i\n"
             "    integer :: a_clash_1\n\n"
             "    a_clash_1 = 2\n"
@@ -1261,8 +1293,8 @@ def test_apply_callsite_rename_container(fortran_reader, fortran_writer):
     inline_trans.apply(call)
     output = fortran_writer(psyir)
     assert ("  subroutine run_it()\n"
-            "    use kinds_mod, only : i_def, r_def\n"
             "    use a_mod, only : a_clash\n"
+            "    use kinds_mod, only : i_def, r_def\n"
             "    integer :: i\n"
             "    integer :: a_mod_1\n\n"
             "    a_mod_1 = 2\n"
@@ -1271,9 +1303,40 @@ def test_apply_callsite_rename_container(fortran_reader, fortran_writer):
             "    i = i * a_mod_1\n" in output)
 
 
+def test_apply_internal_error(fortran_reader, monkeypatch):
+    '''
+    Test that we raise the expected error in apply if we find a situation that
+    should have been caught by validate.
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    use some_mod, only: a_clash\n"
+        "    integer :: i\n"
+        "    i = 10\n"
+        "    call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    use other_mod, only: a_clash\n"
+        "    integer :: idx\n"
+        "    idx = idx + trouble\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    monkeypatch.setattr(inline_trans, "validate", lambda _a, _b: None)
+    with pytest.raises(InternalError) as err:
+        inline_trans.apply(call)
+    assert ("Error copying routine symbols to call site. This should have "
+            "been caught" in str(err.value))
+
+
 def test_validate_non_local_import(fortran_reader):
-    '''Test that we reject the case where the routine to be
-    inlined accesses a symbol from an import in its parent container.'''
+    '''Test that we accept the case where the routine to be
+    inlined accesses a symbol from an import in its parent container and that
+    symbol is the same one as is in scope at the call site.'''
     code = (
         "module test_mod\n"
         "  use some_mod, only: trouble\n"
@@ -1291,10 +1354,7 @@ def test_validate_non_local_import(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
-    assert ("Routine 'sub' cannot be inlined because it accesses variable "
-            "'trouble' from its parent container." in str(err.value))
+    inline_trans.validate(call)
 
 
 def test_apply_shared_routine_call(fortran_reader):
@@ -1781,7 +1841,9 @@ def test_validate_static_var(fortran_reader):
 @pytest.mark.parametrize("code_body", ["idx = idx + 5_i_def",
                                        "real, parameter :: pi = 3_wp\n"
                                        "idx = idx + 1\n"])
-def test_validate_unresolved_precision_sym(fortran_reader, code_body):
+@pytest.mark.parametrize("use_stmt", ["", "use some_mod"])
+def test_validate_unresolved_precision_sym(fortran_reader, code_body,
+                                           use_stmt):
     '''Test that a routine that uses an unresolved precision symbol is
     rejected. We test when the precision symbol appears in an executable
     statement and when it appears in a constant initialisation.'''
@@ -1795,6 +1857,7 @@ def test_validate_unresolved_precision_sym(fortran_reader, code_body):
         f"    call sub(i)\n"
         f"  end subroutine run_it\n"
         f"  subroutine sub(idx)\n"
+        f"    {use_stmt}\n"
         f"    integer, intent(inout) :: idx\n"
         f"    {code_body}\n"
         f"  end subroutine sub\n"
@@ -1802,15 +1865,16 @@ def test_validate_unresolved_precision_sym(fortran_reader, code_body):
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
     call = psyir.walk(Call)[0]
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
-    if "_wp" in code_body:
-        var_name = "wp"
+    if use_stmt:
+        # There is a module import within the called routine and therefore
+        # we don't know which module any unresolved symbols come from.
+        with pytest.raises(TransformationError) as err:
+            inline_trans.validate(call)
+        assert ("routine 'sub' contains accesses to '" in str(err.value))
     else:
-        var_name = "i_def"
-    assert (f"Routine 'sub' cannot be inlined because it accesses variable "
-            f"'{var_name}' and this cannot be found in any of the containers "
-            f"directly imported into its symbol table" in str(err.value))
+        # There is only one module import and it is common to the target
+        # routine and the call site.
+        inline_trans.validate(call)
 
 
 def test_validate_resolved_precision_sym(fortran_reader, monkeypatch,
@@ -1848,13 +1912,10 @@ def test_validate_resolved_precision_sym(fortran_reader, monkeypatch,
         ''')
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    # First subroutine accesses i_def from parent Container.
+    # First subroutine accesses i_def from parent Container which means it
+    # is the same symbol in scope at the call site so that's OK.
     calls = psyir.walk(Call)
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(calls[0])
-    assert ("Routine 'sub' cannot be inlined because it accesses variable "
-            "'i_def' and this cannot be found in any of the containers "
-            "directly imported into its symbol table." in str(err.value))
+    inline_trans.validate(calls[0])
     # Second subroutine imports i_def directly into its own SymbolTable and
     # so is OK to inline.
     inline_trans.validate(calls[1])
@@ -1908,10 +1969,7 @@ def test_validate_non_local_symbol(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
-    assert ("Routine 'sub' cannot be inlined because it accesses variable "
-            "'trouble' from its parent container" in str(err.value))
+    inline_trans.validate(call)
 
 
 def test_validate_wrong_number_args(fortran_reader):
@@ -1962,11 +2020,7 @@ def test_validate_unresolved_import(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
-    assert ("Routine 'sub' cannot be inlined because it accesses variable "
-            "'trouble' and this cannot be found in any of the containers "
-            "directly imported into its symbol table." in str(err.value))
+    inline_trans.validate(call)
 
 
 def test_validate_unresolved_array_dim(fortran_reader):
@@ -1993,11 +2047,7 @@ def test_validate_unresolved_array_dim(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
-    assert ("Routine 'sub' cannot be inlined because it accesses variable "
-            "'some_size' and this cannot be found in any of the containers "
-            "directly imported into its symbol table" in str(err.value))
+    inline_trans.validate(call)
 
 
 def test_validate_array_reshape(fortran_reader):
@@ -2164,6 +2214,58 @@ SUB_IN_MODULE = (
     f"end module inline_mod\n")
 
 
+def test_validate_call_within_routine(fortran_reader):
+    '''
+    Check that validate raises the expected error if the call is not within
+    a Routine.
+    '''
+    psyir = fortran_reader.psyir_from_source(CALL_IN_SUB_USE)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call.detach())
+    assert ("Routine 'sub' cannot be inlined because the call site ('call "
+            "sub(a)') is not inside a Routine" in str(err.value))
+
+
+def test_validate_automatic_array_sized_by_arg(fortran_reader):
+    '''
+    Check that validate raises the expected error if the dimension of an
+    automatic array is passed by argument and is written to before the call
+    (because this means we can't simply move the declaration of the array
+    into the table at the call site.)
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real, dimension(10) :: var = 0.0\n"
+        "  integer :: ndim\n"
+        "  ndim = 5\n"
+        "  call sub(var, ndim)\n"
+        "end subroutine main\n"
+        "subroutine sub(x, ilen)\n"
+        "  real, dimension(ilen), intent(inout) :: x\n"
+        "  integer, intent(in) :: ilen\n"
+        "  real, dimension(ilen*2) :: work\n"
+        "  x(:) = x(:) + 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Cannot inline routine 'sub' because one or more of its "
+            "declarations depends on 'ilen' which is passed by argument and "
+            "is assigned to before the call ('ndim = 5')" in str(err.value))
+    # Without the preceding write to ndim, validate() is happy.
+    assign = psyir.walk(Assignment)[0]
+    assign.detach()
+    inline_trans.validate(call)
+
+
 def test_apply_merges_symbol_table_with_routine(fortran_reader):
     '''
     Check that the apply method merges the inlined function's symbol table to
@@ -2237,4 +2339,46 @@ end subroutine sub
 '''
     output = fortran_writer(psyir)
     assert expected in output
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmpdir):
+    '''
+    Check that any automatic variables have their dimensioning symbols updated
+    when inlined.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main()\n"
+        "  real, dimension(10, 10) :: var = 0.0\n"
+        "  call sub(var, 10)\n"
+        "end subroutine main\n"
+        "subroutine sub(x, ilen)\n"
+        "  integer, intent(in) :: ilen\n"
+        "  real, dimension(ilen, ilen), intent(inout) :: x\n"
+        "  real, dimension(ilen, ilen) :: work\n"
+        "  type nasty\n"
+        "    integer, dimension(ilen+1) :: flag\n"
+        "  end type nasty\n"
+        "  type(nasty) :: oh_deary_me\n"
+        "  work = 2.0\n"
+        "  x(:,:) = x(:,:) + work(:,:)\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    main = psyir.children[0].find_routine_psyir("main")
+    assert "ilen" not in main.symbol_table
+    output = fortran_writer(psyir)
+    assert '''\
+    type :: nasty
+      integer, dimension(10 + 1) :: flag
+    end type nasty''' in output
+    assert "real, dimension(10,10) :: work" in output
+    assert "type(nasty) :: oh_deary_me" in output
     assert Compile(tmpdir).string_compiles(output)

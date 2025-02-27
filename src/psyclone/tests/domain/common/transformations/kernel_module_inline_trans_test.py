@@ -64,6 +64,97 @@ def test_module_inline_constructor_and_str():
             "call into the Container of the call site.")
 
 
+def test_check_data_accesses(config_instance):
+    '''
+    Tests for the check_data_accesses() method.
+    '''
+    trans = KernelModuleInlineTrans()
+    _, invoke = get_invoke("single_invoke_three_kernels_with_use.f90",
+                           "gocean", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    kcall = schedule.walk(CodedKern)[1]
+    config_instance.include_paths = []
+    with pytest.raises(TransformationError) as err:
+        trans.check_data_accesses(kcall, kcall.get_kernel_schedule(), "Kernel")
+    assert ("Kernel 'kernel_with_use2_code' contains accesses to 'go_wp' which"
+            " is unresolved. It is being brought into scope from one of "
+            "['argument_mod', 'grid_mod', 'kernel_mod', 'kind_params_mod']"
+            in str(err.value))
+    # Now try where there's only a single wildcard import so we know the origin
+    # of the symbol.
+    kcall0 = schedule.walk(CodedKern)[0]
+    ksched = kcall0.get_kernel_schedule()
+    ctable = ksched.ancestor(Container).symbol_table
+    # To do this, we manually remove all ContainerSymbols apart from the one
+    # from which 'go_wp' is imported.
+    for sym in ctable.wildcard_imports():
+        if sym.name != "kind_params_mod":
+            ctable._symbols.pop(sym.name)
+
+    trans.check_data_accesses(kcall0, ksched, "Kernel")
+    table = ksched.symbol_table
+    assert (table.lookup("go_wp").interface.container_symbol.name ==
+            "kind_params_mod")
+
+
+def test_check_data_accesses_indirect_import(monkeypatch):
+    '''
+    Test the case where a symbol cannot be resolved because it is imported
+    indirectly.
+
+    '''
+    _, invoke = get_invoke("single_invoke_three_kernels_with_use.f90",
+                           "gocean", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    kcall = schedule.walk(CodedKern)[1]
+    ksched = kcall.get_kernel_schedule()
+    # Monkeypatch SymbolTable.resolve_imports() so that it does nothing. This
+    # then exercises the code path where we quietly fail to resolve a symbol.
+    monkeypatch.setattr(ksched.symbol_table, "resolve_imports",
+                        lambda container_symbols=None,
+                        symbol_target=None: None)
+    with pytest.raises(TransformationError) as err:
+        KernelModuleInlineTrans.check_data_accesses(kcall, ksched, "Kernel")
+    assert ("Kernel 'kernel_with_use2_code' contains accesses to 'go_wp' "
+            "which is unresolved" in str(err.value))
+    assert ("Failed to resolve the type of Symbol 'go_wp'. It is probably an "
+            "indirect import." in str(err.value))
+
+
+def test_check_data_accesses_import_clash(fortran_reader):
+    '''
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+      use my_kernel_mod, only: a_routine
+    contains
+      subroutine call_it()
+
+        if(.TRUE.)then
+          call a_routine()
+        end if
+      end subroutine call_it
+    end module my_mod
+    ''')
+    rt_psyir = fortran_reader.psyir_from_source('''\
+    subroutine a_routine()
+      use other_mod, only: a_clash
+    end subroutine a_routine
+    ''')
+    kern_call = psyir.walk(Call)[0]
+    csym = ContainerSymbol("money")
+    kern_call.scope.symbol_table.add(csym)
+    kern_call.scope.symbol_table.add(Symbol("a_clash",
+                                            interface=ImportInterface(csym)))
+    sched = rt_psyir.children[0]
+    with pytest.raises(TransformationError) as err:
+        KernelModuleInlineTrans.check_data_accesses(kern_call, sched, "Call")
+    assert ("One or more symbols from routine 'a_routine' cannot be added to "
+            "the table at the call site" in str(err.value))
+    assert ("This table has an import of 'a_clash' via interface" in
+            str(err.value))
+
+
 def test_validate_inline_error_if_not_kernel(fortran_reader):
     ''' Test that the inline transformation fails if the object being
     passed is not a kernel or a Call or if it is an IntrinsicCall.'''
@@ -250,7 +341,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
         contains
         subroutine compute_cv_code()
             real :: external_mod
-            real(kind=r_def) :: a
+            real :: a
             a = external_mod + 1
         end subroutine compute_cv_code
     end module my_mod
@@ -273,7 +364,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
         contains
         subroutine compute_cv_code()
             real :: external_mod
-            real(kind=r_def) :: a
+            real :: a
             a = external_mod + 1
         end subroutine compute_cv_code
     end module my_mod
@@ -295,7 +386,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
         contains
         subroutine compute_cv_code()
             use external_mod
-            real(kind=r_def) :: a
+            real :: a
             a = external_mod + 1
         end subroutine compute_cv_code
     end module my_mod
@@ -341,12 +432,14 @@ def test_validate_local_routine(fortran_reader):
             "already present in the Container." in str(err.value))
 
 
-def test_validate_fail_to_get_psyir(fortran_reader):
+def test_validate_fail_to_get_psyir(fortran_reader, config_instance):
     '''
     Test that the validate() method raises the expected error if the
     PSyIR for the called routine cannot be found.
 
     '''
+    # Ensure no include paths are set.
+    config_instance.include_paths = []
     intrans = KernelModuleInlineTrans()
     code = '''\
     module a_mod
@@ -913,6 +1006,7 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
             in str(err.value))
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
                                  monkeypatch):
     '''
@@ -957,4 +1051,62 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
     # Now that we've 'privatised' the target of the call, the code can be
     # compiled standalone.
     output = fortran_writer(prog_psyir)
+    assert "use my_mod" not in output
     assert Compile(tmpdir).string_compiles(output)
+
+
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_mod_inline_from_wildcard_import(fortran_reader, fortran_writer,
+                                         tmpdir, monkeypatch):
+    '''
+    Test that we can perform module inlining for the case where the routine
+    is accessed via a wildcard import. This is complicated by the need to
+    preserve the original wildcard import while avoiding a clash with the
+    newly-inlined copy of the routine.
+
+    '''
+    # Create the module containing the subroutine definition, write it to
+    # file and set the search path so that PSyclone can find it.
+    path = str(tmpdir)
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
+
+    with open(os.path.join(path, "my_mod.f90"),
+              "w", encoding="utf-8") as mfile:
+        mfile.write('''\
+    module my_mod
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = 1.0
+      end subroutine my_sub
+    end module my_mod
+    ''')
+
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    program my_prog
+      use my_mod
+      integer :: old_my_sub
+      real, dimension(10) :: a, b
+      call my_sub(a)
+      call my_sub(b)
+    end program my_prog
+    '''
+    prog_psyir = fortran_reader.psyir_from_source(code)
+    calls = prog_psyir.walk(Call)
+    intrans.apply(calls[0])
+    output = fortran_writer(prog_psyir)
+    # Wildcard import is preserved but the original routine is renamed
+    # to avoid a clash. This renaming avoids clashing with any pre-existing
+    # symbols.
+    assert "use my_mod, old_my_sub_1=>my_sub" in output
+    assert "call my_sub" in output
+    assert ('''end program my_prog
+subroutine my_sub(arg)''' in output)
+    # We can't compile this because of the use statement.
+    # Apply the transformation to the second call. This should be rejected
+    # since there is no longer an import of the RoutineSymbol.
+    with pytest.raises(TransformationError) as err:
+        intrans.apply(calls[1])
+    assert ("a Routine with that name is already present in the Container"
+            in str(err.value))
