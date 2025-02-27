@@ -1,3 +1,7 @@
+   1) PR #2563 for #2499. Adds ScalarisationTrans.
+
+release 3.1.0 26th of February 2025
+
 	1) PR #2827. Update Zenodo with release 3.0.0 and update link in
 	README.md.
 

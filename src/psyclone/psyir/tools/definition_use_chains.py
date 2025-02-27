@@ -250,16 +250,20 @@ class DefinitionUseChain:
                         .abs_position
                         + 1
                     )
-                    # We make a copy of the reference to have a detached
-                    # node to avoid handling the special cases based on
-                    # the parents of the reference.
-                    chain = DefinitionUseChain(
-                        self._reference.copy(),
-                        body,
-                        start_point=ancestor.abs_position,
-                        stop_point=sub_stop_point,
-                    )
-                    chains.insert(0, chain)
+                    # If we have a basic block with no children then skip it,
+                    # e.g. for an if block with no code before the else
+                    # statement.
+                    if len(body) > 0:
+                        # We make a copy of the reference to have a detached
+                        # node to avoid handling the special cases based on
+                        # the parents of the reference.
+                        chain = DefinitionUseChain(
+                            self._reference.copy(),
+                            body,
+                            start_point=ancestor.abs_position,
+                            stop_point=sub_stop_point,
+                        )
+                        chains.insert(0, chain)
                     # If its a while loop, create a basic block for the while
                     # condition.
                     if isinstance(ancestor, WhileLoop):
@@ -300,6 +304,11 @@ class DefinitionUseChain:
             # Now add all the other standardly handled basic_blocks to the
             # list of chains.
             for block in basic_blocks:
+                # If we have a basic block with no children then skip it,
+                # e.g. for an if block with no code before the else
+                # statement.
+                if len(block) == 0:
+                    continue
                 chain = DefinitionUseChain(
                     self._reference,
                     block,
@@ -449,6 +458,12 @@ class DefinitionUseChain:
                     if defs_out is not None:
                         self._defsout.append(defs_out)
                     return
+                # If its parent is an inquiry function then its neither
+                # a read nor write if its the first argument.
+                if (isinstance(reference.parent, IntrinsicCall) and
+                        reference.parent.is_inquiry and
+                        reference.parent.arguments[0] is reference):
+                    continue
                 if isinstance(reference, CodeBlock):
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
@@ -525,9 +540,7 @@ class DefinitionUseChain:
                             if defs_out is None:
                                 self._uses.append(reference)
                     elif reference.ancestor(Call):
-                        # It has a Call ancestor so assume read/write access
-                        # for now.
-                        # We can do better for IntrinsicCalls realistically.
+                        # Otherwise we assume read/write access for now.
                         if defs_out is not None:
                             self._killed.append(defs_out)
                         defs_out = reference
@@ -699,6 +712,12 @@ class DefinitionUseChain:
                 abs_pos = reference.abs_position
                 if abs_pos < self._start_point or abs_pos >= stop_position:
                     continue
+                # If its parent is an inquiry function then its neither
+                # a read nor write if its the first argument.
+                if (isinstance(reference.parent, IntrinsicCall) and
+                        reference.parent.is_inquiry and
+                        reference.parent.arguments[0] is reference):
+                    continue
                 if isinstance(reference, CodeBlock):
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
@@ -784,9 +803,7 @@ class DefinitionUseChain:
                             if defs_out is None:
                                 self._uses.append(reference)
                     elif reference.ancestor(Call):
-                        # It has a Call ancestor so assume read/write access
-                        # for now.
-                        # We can do better for IntrinsicCalls realistically.
+                        # Otherwise we assume read/write access for now.
                         if defs_out is not None:
                             self._killed.append(defs_out)
                         defs_out = reference
@@ -835,6 +852,11 @@ class DefinitionUseChain:
             # Now add all the other standardly handled basic_blocks to the
             # list of chains.
             for block in basic_blocks:
+                # If we have a basic block with no children then skip it,
+                # e.g. for an if block with no code before the else
+                # statement.
+                if len(block) == 0:
+                    continue
                 chain = DefinitionUseChain(
                     self._reference,
                     block,
@@ -874,14 +896,18 @@ class DefinitionUseChain:
                         ).abs_position
                     else:
                         sub_start_point = self._reference.abs_position
-                    chain = DefinitionUseChain(
-                        self._reference.copy(),
-                        body,
-                        start_point=sub_start_point,
-                        stop_point=sub_stop_point,
-                    )
-                    chains.append(chain)
-                    control_flow_nodes.append(ancestor)
+                    # If we have a basic block with no children then skip it,
+                    # e.g. for an if block with no code before the else
+                    # statement.
+                    if len(body) > 0:
+                        chain = DefinitionUseChain(
+                            self._reference.copy(),
+                            body,
+                            start_point=sub_start_point,
+                            stop_point=sub_stop_point,
+                        )
+                        chains.append(chain)
+                        control_flow_nodes.append(ancestor)
                     # If its a while loop, create a basic block for the while
                     # condition.
                     if isinstance(ancestor, WhileLoop):
