@@ -33,17 +33,17 @@
 # ----------------------------------------------------------------------------
 # Author: A. B. G. Chalk, STFC Daresbury Lab
 
-'''This module tests the scalarization transformation.
+'''This module tests the scalarisation transformation.
 '''
 
 from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.transformations import ScalarizationTrans
+from psyclone.psyir.transformations import ScalarisationTrans
 from psyclone.tests.utilities import Compile
 
 
 def test_scalararizationtrans_is_local_array(fortran_reader):
-    '''Test the _is_local_array function in the ScalarizationTrans.'''
+    '''Test the _is_local_array function in the ScalarisationTrans.'''
     code = '''function test(a) result(x)
        use mymod, only: arr, atype
        integer :: i
@@ -71,15 +71,15 @@ def test_scalararizationtrans_is_local_array(fortran_reader):
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
-    assert not ScalarizationTrans._is_local_array(keys[1],
+    assert not ScalarisationTrans._is_local_array(keys[1],
                                                   var_accesses)
     # Test a
     assert var_accesses[keys[2]].var_name == "a"
-    assert not ScalarizationTrans._is_local_array(keys[2],
+    assert not ScalarisationTrans._is_local_array(keys[2],
                                                   var_accesses)
     # Test local
     assert var_accesses[keys[3]].var_name == "local"
-    assert ScalarizationTrans._is_local_array(keys[3],
+    assert ScalarisationTrans._is_local_array(keys[3],
                                               var_accesses)
 
     # Test b - the RHS of the assignment is a codeblock so we do not
@@ -87,34 +87,34 @@ def test_scalararizationtrans_is_local_array(fortran_reader):
     # local array test can fail. Also we can't safely transform the
     # CodeBlock anyway.
     assert var_accesses[keys[4]].var_name == "b"
-    assert not ScalarizationTrans._is_local_array(keys[4],
+    assert not ScalarisationTrans._is_local_array(keys[4],
                                                   var_accesses)
 
     # Test x - the return value is not classed as a local array.
     assert var_accesses[keys[5]].var_name == "x"
-    assert not ScalarizationTrans._is_local_array(keys[5],
+    assert not ScalarisationTrans._is_local_array(keys[5],
                                                   var_accesses)
 
-    # Test custom - we don't scalarize derived types.
+    # Test custom - we don't scalarise derived types.
     assert var_accesses[keys[6]].var_name == "custom%type"
-    assert not ScalarizationTrans._is_local_array(keys[6],
+    assert not ScalarisationTrans._is_local_array(keys[6],
                                                   var_accesses)
-    # Test custom2 - we don't scalarize derived types.
+    # Test custom2 - we don't scalarise derived types.
     assert var_accesses[keys[7]].var_name == "custom2%typeb"
-    assert not ScalarizationTrans._is_local_array(keys[7],
+    assert not ScalarisationTrans._is_local_array(keys[7],
                                                   var_accesses)
 
     # Test filter behaviour same as used in the transformation
     local_arrays = filter(
-            lambda sig: ScalarizationTrans._is_local_array(sig, var_accesses),
+            lambda sig: ScalarisationTrans._is_local_array(sig, var_accesses),
             var_accesses)
     local_arrays = list(local_arrays)
     assert len(local_arrays) == 1
     assert local_arrays[0].var_name == "local"
 
 
-def test_scalarizationtrans_have_same_unmodified_index(fortran_reader):
-    '''Test the _have_same_unmodified_index function of ScalarizationTrans.'''
+def test_scalarisationtrans_have_same_unmodified_index(fortran_reader):
+    '''Test the _have_same_unmodified_index function of ScalarisationTrans.'''
     code = '''subroutine test()
        integer :: i
        integer :: k
@@ -136,25 +136,25 @@ def test_scalarizationtrans_have_same_unmodified_index(fortran_reader):
     keys = list(var_accesses.keys())
     # Test a
     assert var_accesses[keys[1]].var_name == "a"
-    assert ScalarizationTrans._have_same_unmodified_index(keys[1],
+    assert ScalarisationTrans._have_same_unmodified_index(keys[1],
                                                           var_accesses)
     # Test b (differeing indices)
     assert var_accesses[keys[2]].var_name == "b"
-    assert not ScalarizationTrans._have_same_unmodified_index(keys[2],
+    assert not ScalarisationTrans._have_same_unmodified_index(keys[2],
                                                               var_accesses)
     # Test c (k is modified)
     assert var_accesses[keys[3]].var_name == "c"
-    assert not ScalarizationTrans._have_same_unmodified_index(keys[3],
+    assert not ScalarisationTrans._have_same_unmodified_index(keys[3],
                                                               var_accesses)
     # Test filter behaviour same as used in the transformation
     local_arrays = filter(
-            lambda sig: ScalarizationTrans._is_local_array(sig, var_accesses),
+            lambda sig: ScalarisationTrans._is_local_array(sig, var_accesses),
             var_accesses)
     local_arrays = list(local_arrays)
     assert len(local_arrays) == 3
 
     unmodified_indices = filter(
-            lambda sig: ScalarizationTrans._have_same_unmodified_index(
+            lambda sig: ScalarisationTrans._have_same_unmodified_index(
                 sig, var_accesses),
             local_arrays)
     unmodified_indices = list(unmodified_indices)
@@ -162,9 +162,9 @@ def test_scalarizationtrans_have_same_unmodified_index(fortran_reader):
     assert unmodified_indices[0].var_name == "a"
 
 
-def test_scalarizationtrans_check_first_access_is_write(fortran_reader):
+def test_scalarisationtrans_check_first_access_is_write(fortran_reader):
     '''Test the _check_first_access_is_write function of
-    ScalarizationTrans.'''
+    ScalarisationTrans.'''
     code = '''subroutine test()
        integer :: i
        integer :: k
@@ -183,44 +183,44 @@ def test_scalarizationtrans_check_first_access_is_write(fortran_reader):
     keys = list(var_accesses.keys())
     # Test a
     assert var_accesses[keys[1]].var_name == "a"
-    assert ScalarizationTrans._check_first_access_is_write(keys[1],
+    assert ScalarisationTrans._check_first_access_is_write(keys[1],
                                                            node,
                                                            var_accesses)
     # Test b (differeing indices)
     assert var_accesses[keys[2]].var_name == "b"
-    assert not ScalarizationTrans._check_first_access_is_write(keys[2],
+    assert not ScalarisationTrans._check_first_access_is_write(keys[2],
                                                                node,
                                                                var_accesses)
     # Test c (k is modified)
     assert var_accesses[keys[3]].var_name == "c"
-    assert ScalarizationTrans._check_first_access_is_write(keys[3],
+    assert ScalarisationTrans._check_first_access_is_write(keys[3],
                                                            node,
                                                            var_accesses)
 
     # Test filter behaviour same as used in the transformation
     local_arrays = filter(
-            lambda sig: ScalarizationTrans._is_local_array(sig, var_accesses),
+            lambda sig: ScalarisationTrans._is_local_array(sig, var_accesses),
             var_accesses)
     local_arrays = list(local_arrays)
     assert len(local_arrays) == 3
 
     unmodified_indices = filter(
-            lambda sig: ScalarizationTrans._have_same_unmodified_index(
+            lambda sig: ScalarisationTrans._have_same_unmodified_index(
                 sig, var_accesses),
             local_arrays)
     unmodified_indices = list(unmodified_indices)
     assert len(unmodified_indices) == 3
 
     first_write_arrays = filter(
-            lambda sig: ScalarizationTrans._check_first_access_is_write(
+            lambda sig: ScalarisationTrans._check_first_access_is_write(
                 sig, node, var_accesses),
             unmodified_indices)
     first_write_arrays = list(first_write_arrays)
     assert len(first_write_arrays) == 2
 
 
-def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
-    '''Test the _value_unused_after_loop function of ScalarizationTrans.'''
+def test_scalarisationtrans_value_unused_after_loop(fortran_reader):
+    '''Test the _value_unused_after_loop function of ScalarisationTrans.'''
     code = '''subroutine test()
         integer :: i
         integer :: k
@@ -242,12 +242,12 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
-    assert ScalarizationTrans._value_unused_after_loop(keys[1],
+    assert ScalarisationTrans._value_unused_after_loop(keys[1],
                                                        node.loop_body,
                                                        var_accesses)
     # Test b
     assert var_accesses[keys[2]].var_name == "b"
-    assert not ScalarizationTrans._value_unused_after_loop(keys[2],
+    assert not ScalarisationTrans._value_unused_after_loop(keys[2],
                                                            node.loop_body,
                                                            var_accesses)
 
@@ -276,16 +276,16 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
-    assert ScalarizationTrans._value_unused_after_loop(keys[1],
+    assert ScalarisationTrans._value_unused_after_loop(keys[1],
                                                        node.loop_body,
                                                        var_accesses)
     # Test b
     assert var_accesses[keys[2]].var_name == "b"
-    assert ScalarizationTrans._value_unused_after_loop(keys[2],
+    assert ScalarisationTrans._value_unused_after_loop(keys[2],
                                                        node.loop_body,
                                                        var_accesses)
     # Test we don't ignore array next_access if they're in an if statement
-    # that is an ancestor of the loop we're scalarizing
+    # that is an ancestor of the loop we're scalarising
     code = '''subroutine test()
         integer :: i
         integer :: k
@@ -309,12 +309,12 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
-    assert ScalarizationTrans._value_unused_after_loop(keys[1],
+    assert ScalarisationTrans._value_unused_after_loop(keys[1],
                                                        node.loop_body,
                                                        var_accesses)
     # Test b
     assert var_accesses[keys[2]].var_name == "b"
-    assert ScalarizationTrans._value_unused_after_loop(keys[2],
+    assert ScalarisationTrans._value_unused_after_loop(keys[2],
                                                        node.loop_body,
                                                        var_accesses)
 
@@ -344,12 +344,12 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
-    assert ScalarizationTrans._value_unused_after_loop(keys[1],
+    assert ScalarisationTrans._value_unused_after_loop(keys[1],
                                                        node.loop_body,
                                                        var_accesses)
     # Test b
     assert var_accesses[keys[2]].var_name == "b"
-    assert not ScalarizationTrans._value_unused_after_loop(keys[2],
+    assert not ScalarisationTrans._value_unused_after_loop(keys[2],
                                                            node.loop_body,
                                                            var_accesses)
 
@@ -379,7 +379,7 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     keys = list(var_accesses.keys())
     # Test b
     assert var_accesses[keys[2]].var_name == "b"
-    assert not ScalarizationTrans._value_unused_after_loop(keys[2],
+    assert not ScalarisationTrans._value_unused_after_loop(keys[2],
                                                            node.loop_body,
                                                            var_accesses)
 
@@ -412,17 +412,17 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
-    assert not ScalarizationTrans._value_unused_after_loop(keys[1],
+    assert not ScalarisationTrans._value_unused_after_loop(keys[1],
                                                            node.loop_body,
                                                            var_accesses)
     # Test b
     assert var_accesses[keys[2]].var_name == "b"
-    assert not ScalarizationTrans._value_unused_after_loop(keys[2],
+    assert not ScalarisationTrans._value_unused_after_loop(keys[2],
                                                            node.loop_body,
                                                            var_accesses)
     # Test c
     assert var_accesses[keys[3]].var_name == "c"
-    assert not ScalarizationTrans._value_unused_after_loop(keys[3],
+    assert not ScalarisationTrans._value_unused_after_loop(keys[3],
                                                            node.loop_body,
                                                            var_accesses)
 
@@ -452,7 +452,7 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
-    assert not ScalarizationTrans._value_unused_after_loop(keys[1],
+    assert not ScalarisationTrans._value_unused_after_loop(keys[1],
                                                            node.loop_body,
                                                            var_accesses)
 
@@ -484,11 +484,11 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
-    assert not ScalarizationTrans._value_unused_after_loop(keys[1],
+    assert not ScalarisationTrans._value_unused_after_loop(keys[1],
                                                            node.loop_body,
                                                            var_accesses)
 
-    # Test having a non-unit stride prevents scalarization
+    # Test having a non-unit stride prevents scalarisation
     code = '''subroutine test()
         use my_mod
         integer :: i
@@ -509,11 +509,11 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
-    assert not ScalarizationTrans._value_unused_after_loop(keys[1],
+    assert not ScalarisationTrans._value_unused_after_loop(keys[1],
                                                            node.loop_body,
                                                            var_accesses)
 
-    # Test having a loop bound as a structure element prevents scalarization
+    # Test having a loop bound as a structure element prevents scalarisation
     code = '''subroutine test()
         use my_mod
         integer :: i
@@ -534,12 +534,12 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
-    assert not ScalarizationTrans._value_unused_after_loop(keys[1],
+    assert not ScalarisationTrans._value_unused_after_loop(keys[1],
                                                            node.loop_body,
                                                            var_accesses)
 
     # Test having an index as a reference to a non-loop variable prevents
-    # scalarization
+    # scalarisation
     code = '''subroutine test()
         use my_mod
         integer :: i
@@ -560,12 +560,12 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
-    assert not ScalarizationTrans._value_unused_after_loop(keys[1],
+    assert not ScalarisationTrans._value_unused_after_loop(keys[1],
                                                            node.loop_body,
                                                            var_accesses)
 
     # Test that the next access having a non-unit stride prevents
-    # scalarization
+    # scalarisation
     code = '''subroutine test()
         use my_mod
         integer :: i
@@ -586,11 +586,11 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
-    assert not ScalarizationTrans._value_unused_after_loop(keys[1],
+    assert not ScalarisationTrans._value_unused_after_loop(keys[1],
                                                            node.loop_body,
                                                            var_accesses)
 
-    # Test that the next access being a Reference allows scalarization
+    # Test that the next access being a Reference allows scalarisation
     code = '''subroutine test()
         use my_mod
         integer :: i
@@ -609,11 +609,11 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
-    assert ScalarizationTrans._value_unused_after_loop(keys[1],
+    assert ScalarisationTrans._value_unused_after_loop(keys[1],
                                                        node.loop_body,
                                                        var_accesses)
 
-    # Test that having a scalar array index doesn't prevent scalarization
+    # Test that having a scalar array index doesn't prevent scalarisation
     code = '''subroutine test()
         use my_mod
         integer :: i
@@ -632,13 +632,13 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
-    assert ScalarizationTrans._value_unused_after_loop(keys[1],
+    assert ScalarisationTrans._value_unused_after_loop(keys[1],
                                                        node.loop_body,
                                                        var_accesses)
 
 
-def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
-    ''' Test the application of the scalarization transformation.'''
+def test_scalarisation_trans_apply(fortran_reader, fortran_writer, tmpdir):
+    ''' Test the application of the scalarisation transformation.'''
     code = '''subroutine test()
          integer :: i
          integer :: k
@@ -658,7 +658,7 @@ def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
          end do
      end subroutine
     '''
-    strans = ScalarizationTrans()
+    strans = ScalarisationTrans()
     psyir = fortran_reader.psyir_from_source(code)
 
     loop = psyir.children[0].children[0]
@@ -710,7 +710,7 @@ def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
          end do
      end subroutine
     '''
-    strans = ScalarizationTrans()
+    strans = ScalarisationTrans()
     psyir = fortran_reader.psyir_from_source(code)
 
     loop = psyir.children[0].children[0]
@@ -742,9 +742,9 @@ def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(out)
 
 
-def test_scalarization_trans_apply_routinesymbol(fortran_reader,
+def test_scalarisation_trans_apply_routinesymbol(fortran_reader,
                                                  fortran_writer, tmpdir):
-    ''' Test the application of the scalarization transformation doesn't work
+    ''' Test the application of the scalarisation transformation doesn't work
     when applied on an array with a RoutineSymbol as an index.'''
     code = '''subroutine test
         integer, dimension(3) :: j
@@ -755,7 +755,7 @@ def test_scalarization_trans_apply_routinesymbol(fortran_reader,
             deallocate(k)
         end do
     end subroutine test'''
-    strans = ScalarizationTrans()
+    strans = ScalarisationTrans()
     psyir = fortran_reader.psyir_from_source(code)
     strans.apply(psyir.children[0].children[0])
     correct = '''subroutine test()
@@ -775,10 +775,10 @@ end subroutine test
     assert Compile(tmpdir).string_compiles(out)
 
 
-def test_scalarization_trans_noscalarize(fortran_reader, fortran_writer):
+def test_scalarisation_trans_noscalarise(fortran_reader, fortran_writer):
     '''
-    Test that the scalarization transformation won't scalarize some patterns
-    we expect to not be scalarized.
+    Test that the scalarisation transformation won't scalarise some patterns
+    we expect to not be scalarised.
     '''
     code = '''
     subroutine test
@@ -795,7 +795,7 @@ def test_scalarization_trans_noscalarize(fortran_reader, fortran_writer):
     arr(:,:,1) = 0.0
     end subroutine
     '''
-    strans = ScalarizationTrans()
+    strans = ScalarisationTrans()
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     for loop in loops:
@@ -818,7 +818,7 @@ def test_scalarization_trans_noscalarize(fortran_reader, fortran_writer):
     arr(:,:,3:5) = 0.0
     end subroutine
     '''
-    strans = ScalarizationTrans()
+    strans = ScalarisationTrans()
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     for loop in loops:
@@ -849,7 +849,7 @@ def test_scalarization_trans_noscalarize(fortran_reader, fortran_writer):
     end do
     end subroutine
     '''
-    strans = ScalarizationTrans()
+    strans = ScalarisationTrans()
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     strans.apply(loops[0])
@@ -879,7 +879,7 @@ def test_scalarization_trans_noscalarize(fortran_reader, fortran_writer):
     end do
     end subroutine
     '''
-    strans = ScalarizationTrans()
+    strans = ScalarisationTrans()
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     strans.apply(loops[0])
@@ -908,7 +908,7 @@ def test_scalarization_trans_noscalarize(fortran_reader, fortran_writer):
     end do
     end subroutine
     '''
-    strans = ScalarizationTrans()
+    strans = ScalarisationTrans()
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     strans.apply(loops[0])
@@ -937,7 +937,7 @@ def test_scalarization_trans_noscalarize(fortran_reader, fortran_writer):
     end do
     end subroutine
     '''
-    strans = ScalarizationTrans()
+    strans = ScalarisationTrans()
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     strans.apply(loops[0])
@@ -964,7 +964,7 @@ def test_scalarization_trans_noscalarize(fortran_reader, fortran_writer):
     end do
     end subroutine
     '''
-    strans = ScalarizationTrans()
+    strans = ScalarisationTrans()
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     strans.apply(loops[1])

@@ -47,7 +47,7 @@ from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 
 
-class ScalarizationTrans(LoopTrans):
+class ScalarisationTrans(LoopTrans):
     '''This transformation takes a Loop and converts any array accesses
     to scalar if the results of the loop are unused, and the initial value
     is unused. For example in the following snippet the value of a(i)
@@ -56,7 +56,7 @@ class ScalarizationTrans(LoopTrans):
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.psyir.transformations import ScalarizationTrans
+    >>> from psyclone.psyir.transformations import ScalarisationTrans
     >>> from psyclone.psyir.nodes import Loop
     >>> code = """program test
     ... integer :: i,j
@@ -72,7 +72,7 @@ class ScalarizationTrans(LoopTrans):
     ... end do
     ... end program"""
     >>> psyir = FortranReader().psyir_from_source(code)
-    >>> scalarise = ScalarizationTrans()
+    >>> scalarise = ScalarisationTrans()
     >>> scalarise.apply(psyir.walk(Loop)[0])
     >>> print(FortranWriter()(psyir))
     program test
@@ -120,7 +120,7 @@ class ScalarizationTrans(LoopTrans):
         base_symbol = var_accesses[signature].all_accesses[0].node.symbol
         if not base_symbol.is_automatic:
             return False
-        # If its a derived type then we don't scalarize.
+        # If its a derived type then we don't scalarise.
         if isinstance(var_accesses[signature].all_accesses[0].node,
                       StructureReference):
             return False
@@ -146,14 +146,14 @@ class ScalarizationTrans(LoopTrans):
                   the code region.
         '''
         array_indices = None
-        scalarizable = True
+        scalarisable = True
         for access in var_accesses[signature].all_accesses:
             if array_indices is None:
                 array_indices = access.component_indices
             # For some reason using == on the component_lists doesn't work
             # so we use [:] notation.
             elif array_indices[:] != access.component_indices[:]:
-                scalarizable = False
+                scalarisable = False
                 break
             # For each index, we need to check they're not written to in
             # the loop.
@@ -164,16 +164,16 @@ class ScalarizationTrans(LoopTrans):
                 # References
                 for ref in index.walk(Reference):
                     # This Reference could be the symbol for a Call or
-                    # IntrinsicCall, which we don't allow to scalarize
+                    # IntrinsicCall, which we don't allow to scalarise
                     if isinstance(ref.symbol, RoutineSymbol):
-                        scalarizable = False
+                        scalarisable = False
                         break
                     sig, _ = ref.get_signature_and_indices()
                     if var_accesses[sig].is_written():
-                        scalarizable = False
+                        scalarisable = False
                         break
 
-        return scalarizable
+        return scalarisable
 
     @staticmethod
     def _check_first_access_is_write(signature: Signature,
@@ -229,8 +229,8 @@ class ScalarizationTrans(LoopTrans):
         has_complex_index = False
         for index in indices:
             # If the index is an array or structure and there are any more
-            # accesses to the signature we're trying to scalarize, then we
-            # should not scalarize.
+            # accesses to the signature we're trying to scalarise, then we
+            # should not scalarise.
             if (type(index) is not Range and type(index) is not Reference and
                     type(index) is not Literal):
                 has_complex_index = True
@@ -296,7 +296,7 @@ class ScalarizationTrans(LoopTrans):
 
         # Compute the indices ranges.
         has_complex_index, index_values = \
-            ScalarizationTrans._get_index_values_from_indices(
+            ScalarisationTrans._get_index_values_from_indices(
                         last_access, indices
             )
 
@@ -307,7 +307,7 @@ class ScalarizationTrans(LoopTrans):
                 continue
 
             # If we have a next_access outside of the loop and have a complex
-            # index then we do not scalarize this at the moment.
+            # index then we do not scalarise this at the moment.
             if has_complex_index:
                 return False
 
@@ -332,15 +332,15 @@ class ScalarizationTrans(LoopTrans):
             # or more of the array.
             next_indices = next_access.indices
             next_complex_index, next_values = \
-                ScalarizationTrans._get_index_values_from_indices(
+                ScalarisationTrans._get_index_values_from_indices(
                             next_access, next_indices
                 )
             # If we can't compute the indices of the next access then we
-            # cannot scalarize
+            # cannot scalarise
             if next_complex_index:
                 return False
             # Check the indices of next_access are greater than or equal to
-            # that of the potential scalarization.
+            # that of the potential scalarisation.
             for i in range(len(next_values)):
                 # If the next index is a full range we can skip it as it must
                 # cover the previous access
@@ -358,7 +358,7 @@ class ScalarizationTrans(LoopTrans):
                 sm = SymbolicMaths.get()
                 # Need to check that next_index stop point is >= orig_index.
                 # If its not then this can't cover the full range so we can
-                # return False to not Scalarize this.
+                # return False to not Scalarise this.
                 if not (sm.greater_than(next_index.stop, orig_index.stop)
                         == SymbolicMaths.Fuzzy.TRUE or
                         sm.equal(next_index.stop, orig_index.stop)):
@@ -374,22 +374,22 @@ class ScalarizationTrans(LoopTrans):
     def apply(self, node: Loop, options: Optional[Dict[str, Any]] = None) \
             -> None:
         '''
-        Apply the scalarization transformation to a loop.
+        Apply the scalarisation transformation to a loop.
         All of the array accesses that are identified as being able to be
-        scalarized will be transformed by this transformation.
+        scalarised will be transformed by this transformation.
 
-        An array access will be scalarized if:
+        An array access will be scalarised if:
         1. All accesses to the array use the same indexing statement.
         2. All References contained in the indexing statement are not modified
         inside of the loop (loop variables are ok).
         3. The array symbol is either not accessed again or is written to
         as its next access. If the next access is inside a conditional
         that is not an ancestor of the input loop, then PSyclone will
-        assume that we cannot scalarize that value instead of attempting to
+        assume that we cannot scalarise that value instead of attempting to
         understand the control flow.
         4. The array symbol is a local variable.
 
-        :param node: the supplied loop to apply scalarization to.
+        :param node: the supplied loop to apply scalarisation to.
         :param options: a dictionary with options for transformations.
 
         '''
@@ -401,9 +401,9 @@ class ScalarizationTrans(LoopTrans):
         # first access is a write
         # Then, for each symbol still meeting this criteria, we need to find
         # the next access outside of this loop. If its inside an ifblock that
-        # is not an ancestor of this loop then we refuse to scalarize for
-        # simplicity. Otherwise if its a read we can't scalarize safely.
-        # If its a write then this symbol can be scalarized.
+        # is not an ancestor of this loop then we refuse to scalarise for
+        # simplicity. Otherwise if its a read we can't scalarise safely.
+        # If its a write then this symbol can be scalarised.
 
         var_accesses = VariablesAccessInfo(nodes=node.loop_body)
 
@@ -411,11 +411,11 @@ class ScalarizationTrans(LoopTrans):
         # that index is only read inside the loop.
         potential_targets = filter(
                 lambda sig:
-                ScalarizationTrans._is_local_array(sig, var_accesses),
+                ScalarisationTrans._is_local_array(sig, var_accesses),
                 var_accesses)
         potential_targets = filter(
                 lambda sig:
-                ScalarizationTrans._have_same_unmodified_index(sig,
+                ScalarisationTrans._have_same_unmodified_index(sig,
                                                                var_accesses),
                 potential_targets)
 
@@ -423,7 +423,7 @@ class ScalarizationTrans(LoopTrans):
         # that aren't.
         potential_targets = filter(
                 lambda sig:
-                ScalarizationTrans._check_first_access_is_write(sig,
+                ScalarisationTrans._check_first_access_is_write(sig,
                                                                 node,
                                                                 var_accesses),
                 potential_targets)
@@ -431,13 +431,13 @@ class ScalarizationTrans(LoopTrans):
         # Check the values written to these arrays are not used after this loop
         finalised_targets = filter(
                 lambda sig:
-                ScalarizationTrans._value_unused_after_loop(sig,
+                ScalarisationTrans._value_unused_after_loop(sig,
                                                             node,
                                                             var_accesses),
                 potential_targets)
 
         routine_table = node.ancestor(Routine).symbol_table
-        # For each finalised target we can replace them with a scalarized
+        # For each finalised target we can replace them with a scalarised
         # symbol
         for target in finalised_targets:
             target_accesses = var_accesses[target].all_accesses

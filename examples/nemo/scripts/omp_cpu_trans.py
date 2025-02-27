@@ -96,7 +96,7 @@ def trans(psyir):
                 convert_array_notation=True,
                 convert_range_loops=True,
                 hoist_expressions=False,
-                scalarize_loops=False
+                scalarise_loops=False
         )
 
         if psyir.name not in PARALLELISATION_ISSUES:
