@@ -72,7 +72,6 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-
     # If the environemnt has ONLY_FILE defined, only process that one file and
     # nothing else. This is useful for file-by-file exhaustive tests.
     only_do_file = os.environ.get('ONLY_FILE', False)
@@ -96,7 +95,8 @@ def trans(psyir):
                 hoist_local_arrays=False,
                 convert_array_notation=True,
                 convert_range_loops=True,
-                hoist_expressions=False
+                hoist_expressions=False,
+                scalarise_loops=False
         )
 
         if psyir.name not in PARALLELISATION_ISSUES:
