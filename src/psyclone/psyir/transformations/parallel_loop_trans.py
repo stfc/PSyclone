@@ -115,7 +115,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                         # FIXME What if we're before the loop but the previous
                         # one wasn't.
                         pass
-                       
+
                 assert False
 
         # FIXME if this loop is contained inside a loop the closest foward

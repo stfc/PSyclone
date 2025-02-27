@@ -1905,6 +1905,7 @@ def test_following(fortran_reader):
     assert routines[1] in loops[1].following(same_routine_scope=False,
                                              include_children=False)
 
+
 def test_is_descendent_of(fortran_reader):
     '''Test the is_descendent_of function of the Node class'''
     code = """
