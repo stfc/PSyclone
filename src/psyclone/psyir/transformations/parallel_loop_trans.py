@@ -114,6 +114,9 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     elif abs_position < loop_position:
                         # FIXME What if we're before the loop but the previous
                         # one wasn't.
+                        # Then we need to check if they have a common ancestor
+                        # loop. If so, we hit the next access first
+                        # otherwise we hit the previous one.
                         pass
 
                 assert False
