@@ -40,7 +40,7 @@
 class for all API-specific loop fusion transformations.
 '''
 
-from psyclone.core import SymbolicMaths
+from psyclone.core import SymbolicMaths, VariablesAccessInfo
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.tools import DependencyTools
@@ -199,14 +199,20 @@ class LoopFuseTrans(LoopTrans):
         node1.loop_body.children.extend(node2.loop_body.pop_all_children())
 
         # We need to remove all leftover references because lfric is compiled
-        # with '-Werror=unused-variable'
+        # with '-Werror=unused-variable'. Since we have fused loops, we only
+        # need to look at the symbols appearing in the loop control of the
+        # second loop, as these are the ones that have been detached.
         routine = node1.ancestor(Routine)
         if routine:
-            remaining_syms = [r.symbol for r in routine.walk(Reference)]
-            del_syms = [r.symbol for r in node2.start_expr.walk(Reference) +
-                        node2.stop_expr.walk(Reference)]
-            for rsym in del_syms:
-                if rsym not in remaining_syms:
+            remaining_names = {sig.var_name for sig in
+                               VariablesAccessInfo(routine).all_signatures}
+            del_names = {sig.var_name for sig in
+                         VariablesAccessInfo(node2.start_expr).all_signatures +
+                         VariablesAccessInfo(node2.stop_expr).all_signatures +
+                         VariablesAccessInfo(node2.step_expr).all_signatures}
+            for name in del_names:
+                if name not in remaining_names:
+                    rsym = node1.scope.symbol_table.lookup(name)
                     if rsym.is_automatic:
                         symtab = rsym.find_symbol_table(node1)
                         # TODO #898: Implement symbol removal
