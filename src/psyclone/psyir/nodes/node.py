@@ -1770,26 +1770,6 @@ class Node():
         for child in self.children:
             child.replace_symbols_using(table)
 
-    def is_ancestor(self, other) -> bool:
-        '''
-        TODO
-        '''
-        parent = self.parent
-        # If no parent this is False
-        if not parent:
-            return False
-        # Computing the depth every time is unecessary and somewhat
-        # expensive.
-        parent_depth = parent.depth
-        other_depth = other.depth
-        # Find the ancestor at the same depth as other
-        while parent_depth > other_depth:
-            parent_depth = parent_depth - 1
-            parent = parent.parent
-
-        return parent is other
-
-
     def update_parent_symbol_table(self, new_parent):
         '''
         Specify how this node must update its parent's symbol table (if it has
@@ -1801,6 +1781,23 @@ class Node():
         :type new_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
         '''
+
+    def is_descendent_of(self, potential_ancestor) -> bool:
+        '''
+        Checks if this node is a descendant of the `potential_ancestor` node.
+
+        :param potential_ancestor: The Node to check whether its an ancestor
+                                   of self.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: whether potential_ancestor is an ancestor of this node.
+        '''
+        current_node = self
+        while (current_node is not potential_ancestor and
+               current_node.parent is not None):
+            current_node = current_node.parent
+
+        return current_node is potential_ancestor
 
 
 # For automatic documentation generation

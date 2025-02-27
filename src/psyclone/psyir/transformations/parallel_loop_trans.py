@@ -106,6 +106,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                         # 3. inside a loop with lower depth than the previous
                         # closest that is also an ancestor of node and before
                         # loop and after closest.
+                        pass
                     elif (abs_position < closest_position and
                           abs_position > loop_position):
                         closest = access
@@ -113,6 +114,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     elif abs_position < loop_position:
                         # FIXME What if we're before the loop but the previous
                         # one wasn't.
+                        pass
                        
                 assert False
 
