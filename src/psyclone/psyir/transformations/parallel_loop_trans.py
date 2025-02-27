@@ -39,13 +39,14 @@
 ''' This module provides the ParallelLoopTrans transformation.'''
 
 import abc
+from typing import Union
 from collections.abc import Iterable
 
 from psyclone import psyGen
-from psyclone.core import Signature
+from psyclone.core import VariablesAccessInfo, Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import Loop, Reference, Call, Routine
+from psyclone.psyir.nodes import Call, Loop, Node, Reference, Routine
 from psyclone.psyir.symbols import AutomaticInterface
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -64,6 +65,62 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
     # The types of node that must be excluded from the section of PSyIR
     # being transformed.
     excluded_node_types = (nodes.Return, psyGen.HaloExchange, nodes.CodeBlock)
+
+    def _find_next_dependency(self, node: Loop) -> Union[Node, None]:
+        '''TODO'''
+        var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+        writes = []
+        for signature in var_accesses.all_signatures:
+            if var_accesses.is_written(signature):
+                writes.append(signature)
+
+        loop_position = node.abs_position
+        closest = None
+        closest_position = None
+        # Now we have all the writes we want to find the closest
+        # forward dependency.
+        for signature in writes:
+            accesses = var_accesses[signature].all_accesses
+            last_access = accesses[-1].node
+            next_accesses = last_access.next_accesses()
+            for access in next_accesses:
+                # If its inside node then we should skip it.
+                if access.is_ancestor(node):
+                    continue
+                # Otherwise find the abs_position
+                abs_position = access.abs_position
+                if not closest:
+                    closest = access
+                    closest_position = abs_position
+                else:
+                    # If its closer then its the closest.
+                    # Closest here is complex since if we have a parent loop
+                    # we need to consider that.
+                    if closest_position < loop_position:
+                        # If the closest is before the loop we're inside an
+                        # ancestor loop. In this case another node is only
+                        # closer if its :
+                        # 1. before the previous closest and has the same loop
+                        # as an ancestor
+                        # 2. after the loop but also inside the same ancestor.
+                        # 3. inside a loop with lower depth than the previous
+                        # closest that is also an ancestor of node and before
+                        # loop and after closest.
+                    elif (abs_position < closest_position and
+                          abs_position > loop_position):
+                        closest = access
+                        closest_position = abs_position
+                    elif abs_position < loop_position:
+                        # FIXME What if we're before the loop but the previous
+                        # one wasn't.
+                       
+                assert False
+
+        # FIXME if this loop is contained inside a loop the closest foward
+        # dependency might be itself - need to solve this and refuse to nowait
+        # if so.
+        assert False
+        return closest
 
     @abc.abstractmethod
     def _directive(self, children, collapse=None):

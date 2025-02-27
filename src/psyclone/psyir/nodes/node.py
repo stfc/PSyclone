@@ -1770,6 +1770,26 @@ class Node():
         for child in self.children:
             child.replace_symbols_using(table)
 
+    def is_ancestor(self, other) -> bool:
+        '''
+        TODO
+        '''
+        parent = self.parent
+        # If no parent this is False
+        if not parent:
+            return False
+        # Computing the depth every time is unecessary and somewhat
+        # expensive.
+        parent_depth = parent.depth
+        other_depth = other.depth
+        # Find the ancestor at the same depth as other
+        while parent_depth > other_depth:
+            parent_depth = parent_depth - 1
+            parent = parent.parent
+
+        return parent is other
+
+
     def update_parent_symbol_table(self, new_parent):
         '''
         Specify how this node must update its parent's symbol table (if it has

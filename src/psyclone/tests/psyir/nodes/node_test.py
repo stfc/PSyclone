@@ -1904,3 +1904,27 @@ def test_following(fortran_reader):
     assert routines[1] not in loops[1].following(include_children=False)
     assert routines[1] in loops[1].following(same_routine_scope=False,
                                              include_children=False)
+
+def test_is_ancestor(fortran_reader):
+    code = """
+    subroutine a()
+    integer :: i, j, k
+    i = 1
+    do i = 1, 100
+      j = j + 1
+    end do
+    end subroutine
+    """
+
+    psyir = fortran_reader.psyir_from_source(code)
+    one = Literal("1", INTEGER_TYPE)
+    assert not one.is_ancestor(psyir)
+
+    routine = psyir.children[0]
+    loop = psyir.walk(Loop)[0]
+    assert loop.is_ancestor(routine)
+    assign1 = routine.children[0]
+    assign2 = loop.loop_body.children[0]
+    assert not assign1.is_ancestor(loop)
+    assert assign2.is_ancestor(loop)
+    assert assign2.is_ancestor(routine)
