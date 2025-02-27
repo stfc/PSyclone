@@ -4160,9 +4160,7 @@ class LFRicHaloExchange(HaloExchange):
         '''
         _, known = self.required()
         runtime_check = not known
-        field_id = self._field.name
-        if self.vector_index:
-            field_id += f"({self.vector_index})"
+        field_id = self._field.name_indexed
         return (f"{self.coloured_name(colour)}[field='{field_id}', "
                 f"type='{self._compute_stencil_type()}', "
                 f"depth={self._compute_halo_depth().debug_string()}, "
@@ -5440,15 +5438,12 @@ class DynKernelArgument(KernelArgument):
         # already set up)
         self._complete_init(arg_info)
 
-    def generate_method_call(self, method, function_space=None,
-                             use_proxy=True):
+    def generate_method_call(self, method, function_space=None):
         '''
         Generate a PSyIR call to the given method of this object.
 
         :param str method: name of the method to generate a call to.
         :param Optional[str] function_space: name of the function space.
-        :param bool use_proxy: if we generate the call by using the proxy
-            as the base.
 
         :returns: the generated call.
         :rtype: :py:class:`psyclone.psyir.nodes.Call`
@@ -5457,10 +5452,8 @@ class DynKernelArgument(KernelArgument):
         # Go through invoke.schedule in case the link has bee updated
         symtab = self._call.ancestor(InvokeSchedule).invoke.schedule\
             .symbol_table
-        if use_proxy:
-            symbol = symtab.lookup(self.proxy_name)
-        else:
-            symbol = symtab.lookup(self.name)
+        # Use the proxy variable as derived type base
+        symbol = symtab.lookup(self.proxy_name)
 
         if self._vector_size > 1:
             # For a field vector, just call the specified method on the first

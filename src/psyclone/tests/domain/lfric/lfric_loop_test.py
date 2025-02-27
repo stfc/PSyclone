@@ -857,6 +857,47 @@ def test_dof_loop_independent_iterations(monkeypatch, dist_mem):
     assert loop.independent_iterations()
 
 
+def test_upper_bound_fortran_invalid_bound():
+    ''' Tests we raise an exception in the LFRicLoop:_upper_bound_fortran()
+    method when 'cell_halo', 'dof_halo' or 'inner' are used.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    my_loop = psy.invokes.invoke_list[0].schedule.children[0]
+    for option in ["cell_halo", "dof_halo", "inner"]:
+        my_loop.set_upper_bound(option, halo_depth=1)
+        with pytest.raises(GenerationError) as excinfo:
+            _ = my_loop.upper_bound_psyir()
+            assert (
+                f"'{option}' is not a valid loop upper bound for sequential/"
+                f"shared-memory code" in str(excinfo.value))
+
+
+def test_upper_bound_fortran_invalid_within_colouring(monkeypatch):
+    ''' Tests we raise an exception in the LFRicLoop:_upper_bound_fortran()
+    method if an invalid value is provided.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    my_loop = psy.invokes.invoke_list[0].schedule.children[0]
+    monkeypatch.setattr(my_loop, "_upper_bound_name", value="invalid")
+    with pytest.raises(GenerationError) as excinfo:
+        _ = my_loop.upper_bound_psyir()
+    assert (
+        "Unsupported upper bound name 'invalid' found" in str(excinfo.value))
+    # Pretend the loop is over colours and does not contain a kernel
+    monkeypatch.setattr(my_loop, "_upper_bound_name", value="ncolours")
+    monkeypatch.setattr(my_loop, "walk", lambda x: [])
+    with pytest.raises(InternalError) as excinfo:
+        _ = my_loop.upper_bound_psyir()
+    assert ("Failed to find a kernel within a loop over colours"
+            in str(excinfo.value))
+
+
 def test_upper_bound_psyir_inner(monkeypatch):
     ''' Check that we get the correct Fortran generated if a loop's upper
     bound is 'inner'. There are no transformations that allow this

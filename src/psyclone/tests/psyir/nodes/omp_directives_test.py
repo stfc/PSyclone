@@ -1225,6 +1225,9 @@ def test_omp_taskwait_validate_global_constraints():
     assert ("OMPTaskwaitDirective must be inside an OMP parallel region but "
             "could not find an ancestor OMPParallelDirective node"
             in str(excinfo.value))
+    parallel = OMPParallelDirective.create(children=[taskwait.detach()])
+    schedule.addchild(parallel, 0)
+    taskwait.validate_global_constraints()
 
 
 def test_omp_taskwait_clauses():
@@ -1254,6 +1257,12 @@ def test_omp_taskloop_init():
         OMPTaskloopDirective(grainsize=32, num_tasks=32)
     assert ("OMPTaskloopDirective must not have both grainsize and "
             "numtasks clauses specified.") in str(excinfo.value)
+    tl1 = OMPTaskloopDirective(grainsize=32)
+    assert tl1.walk(OMPGrainsizeClause)
+    assert not tl1.walk(OMPNumTasksClause)
+    tl2 = OMPTaskloopDirective(num_tasks=32)
+    assert not tl2.walk(OMPGrainsizeClause)
+    assert tl2.walk(OMPNumTasksClause)
 
 
 @pytest.mark.parametrize("nogroup", [False, True])
