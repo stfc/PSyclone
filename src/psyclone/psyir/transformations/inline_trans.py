@@ -701,6 +701,17 @@ class InlineTrans(Transformation):
                 f"Routine '{name}' is elemental and inlining such routines is "
                 f"not supported.")
 
+        # We only inline a Call if the target routine is already within the
+        # same Container. If it isn't, KernelModuleInlineTrans should be used
+        # as this performs various checks to make sure it's safe to bring the
+        # routine in.
+        if not routine.ancestor(Container, shared_with=node):
+            raise TransformationError(
+                f"Routine '{name}' is not in the same Container as the call "
+                f"site and therefore cannot be inlined. (Try using "
+                f"KernelModuleInlineTrans to bring the routine into the same "
+                f"Container first.)")
+
         return_stmts = routine.walk(Return)
         if return_stmts:
             if len(return_stmts) > 1 or not isinstance(routine.children[-1],
