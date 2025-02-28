@@ -635,7 +635,7 @@ class KernelModuleInlineTrans(Transformation):
                             # is a detached copy.)
                             if routine != code_to_inline:
                                 raise TransformationError(
-                                    f"Cannot inline subroutine '{node.name}'"
+                                    f"Cannot inline routine '{routine.name}'"
                                     f" because another, different, subroutine "
                                     f"with the same name already exists and "
                                     f"versioning of module-inlined subroutines"

@@ -318,7 +318,7 @@ def test_validate_name_clashes():
     schedule.parent.addchild(Routine.create("ru_code"))
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(coded_kern)
-    assert ("Cannot inline subroutine 'ru_code' because another, different, "
+    assert ("Cannot inline routine 'ru_code' because another, different, "
             "subroutine with the same name already exists and versioning of "
             "module-inlined subroutines is not implemented "
             "yet.") in str(err.value)

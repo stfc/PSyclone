@@ -1801,7 +1801,8 @@ class SymbolTable():
                     # matching symbol must have the appropriate interface
                     # referring to this c_symbol
                     if not c_symbol.wildcard_import:
-                        if (not outer_sym.is_import or
+                        if (not (outer_sym.is_import or
+                                 outer_sym.is_unresolved) or
                                 interface.container_symbol is not c_symbol):
                             continue  # It doesn't come from this import
 
@@ -1895,17 +1896,20 @@ class SymbolTable():
 
                 # Need to check whether this symbol itself depends on other
                 # symbols (in its precision, shape or initial value).
-                from psyclone.core import VariablesAccessInfo
-                vai = VariablesAccessInfo()
-                outer_sym.reference_accesses(vai)
-                for sig in vai.all_signatures:
-                    # It does - if they're not already in scope then also add
-                    # them to this table with the same interface as the
-                    # imported symbol.
-                    dep_sym = self.lookup(sig.var_name, otherwise=None)
-                    if not dep_sym:
-                        self.add(Symbol(sig.var_name,
-                                        interface=outer_sym.interface.copy()))
+                if c_symbol.wildcard_import:
+                    from psyclone.core import VariablesAccessInfo
+                    vai = VariablesAccessInfo()
+                    outer_sym.reference_accesses(vai)
+                    for sig in vai.all_signatures:
+                        # It does - if they're not already in scope then also
+                        # add them to this table with the same interface as the
+                        # imported symbol.
+                        if not self.lookup(sig.var_name, otherwise=None):
+                            self.add(
+                                Symbol(
+                                    sig.var_name,
+                                    interface=ImportInterface(
+                                        outer_sym.interface.container_symbol)))
 
                 if symbol_target:
                     # If we were looking just for this symbol we don't need
