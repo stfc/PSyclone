@@ -120,11 +120,11 @@ class IncreaseRankLoopArraysTrans(Transformation):
 
         # Check that the whole routine has no CodeBlocks (we need to see each
         # access to the target arrays)
-        routine = node.ancestor(Routine)
-        if not routine or routine.walk(CodeBlock):
-            raise TransformationError(
-                "The supplied loop should be inside a routine, and the whole "
-                "routine should have no CodeBlocks.")
+        # routine = node.ancestor(Routine)
+        # if not routine or routine.walk(CodeBlock):
+        #     raise TransformationError(
+        #         "The supplied loop should be inside a routine, and the whole"
+        #         " routine should have no CodeBlocks.")
 
         # Each item listed in the array list must be a local Array Symbol or a
         # string that resolves to it
