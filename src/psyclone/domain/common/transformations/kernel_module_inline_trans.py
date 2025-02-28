@@ -45,14 +45,13 @@ and move it to psyir/transformations/.
 from typing import Union
 
 from psyclone.core import VariablesAccessInfo
-from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
+    ContainerSymbol, DataSymbol, DataTypeSymbol,
     ImportInterface, RoutineSymbol, Symbol, SymbolError)
 from psyclone.psyir.nodes import (
-    Call, Container, FileContainer, Routine, ScopingNode, IntrinsicCall)
+    Call, Container, Routine, ScopingNode, IntrinsicCall)
 
 
 class KernelModuleInlineTrans(Transformation):
@@ -133,15 +132,14 @@ class KernelModuleInlineTrans(Transformation):
         # any existing Routine matches that required by the Call but for now
         # we live with the possibility of a false positive resulting in a
         # refusal to module inline.
-        if routine_sym and not routine_sym.is_import:
-            for routine in parent_container.walk(Routine, stop_type=Routine):
-                if routine.name.lower() == kname.lower():
-                    raise TransformationError(
-                        f"{kern_or_call} '{kname}' cannot be module inlined "
-                        f"into Container '{parent_container.name}' because "
-                        f"there is no explicit import of it ('USE ..., ONLY: "
-                        f"{kname}' in Fortran) and a Routine with that name "
-                        f"is already present in the Container.")
+        for routine in node.root.walk(Routine, stop_type=Routine):
+            if routine.name.lower() == kname.lower():
+                raise TransformationError(
+                    f"{kern_or_call} '{kname}' cannot be module inlined "
+                    f"into Container '{parent_container.name}' because "
+                    f"there is no explicit import of it ('USE ..., ONLY: "
+                    f"{kname}' in Fortran) and a Routine with that name "
+                    f"is already present in the Container.")
 
         # Check that the PSyIR  of the routine/kernel can be retrieved.
         try:
@@ -152,12 +150,6 @@ class KernelModuleInlineTrans(Transformation):
                 f"{self.name} failed to retrieve PSyIR for {kern_or_call} "
                 f"'{kname}' due to: {error}"
             ) from error
-
-        #cscope_sym =  parent_container.symbol_table.lookup(kname,
-        #                                                   otherwise=None)
-        #if isinstance(cscope_sym, RoutineSymbol) and not cscope_sym.is_import:
-        #    raise TransformationError(
-        #        "ARPDBG: We've probably already done this routine")
 
         # We do not support kernels that use symbols representing data
         # declared in their own parent module (we would need to add new imports
@@ -170,7 +162,7 @@ class KernelModuleInlineTrans(Transformation):
         for scope in kernel_schedule.walk(ScopingNode):
             for symbol in scope.symbol_table.symbols:
                 for mod in symtab.containersymbols:
-                    if (symbol.name == mod.name and
+                    if (symbol.name.lower() == mod.name.lower() and
                             not isinstance(symbol, ContainerSymbol)):
                         raise TransformationError(
                             f"{kern_or_call} '{kname}' cannot be module-"
@@ -528,7 +520,7 @@ class KernelModuleInlineTrans(Transformation):
                 local_sym = local_table.lookup(routine.symbol.name,
                                                otherwise=None)
                 if (not local_sym or local_sym is not routine.symbol or
-                        local_sym.is_import):
+                        (local_sym.is_import or local_sym.is_unresolved)):
                     # This routine is not module-inlined.
                     break
             else:
@@ -538,7 +530,7 @@ class KernelModuleInlineTrans(Transformation):
                     node.module_inline = True
                 return
 
-        if local_sym and local_sym.is_import:
+        if local_sym and (local_sym.is_import or local_sym.is_unresolved):
             # Double check that this import is not shadowing a routine we've
             # already module-inlined.
             table = local_sym.find_symbol_table(node)
@@ -619,6 +611,7 @@ class KernelModuleInlineTrans(Transformation):
                     container.addchild(code_to_inline)
                     sym = ctable.lookup(code_to_inline.name)
                     sym.visibility = Symbol.Visibility.PRIVATE
+                    node.routine.symbol = sym
                 else:
                     # The routine symbol already exists, and we know from the
                     # validation that it's a Routine. Now check if they are
