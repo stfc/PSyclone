@@ -875,6 +875,43 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
+def test_module_inline_lfric_multi_kern(tmpdir, monkeypatch, annexed,
+                                        dist_mem):
+    '''Tests that correct results are obtained when a kernel is inlined
+    into the psy-layer in the LFRic API. This is a more complex example with
+    two invokes that call two different kernels.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("lfric")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    psy, invoke = get_invoke("3.1_multi_functions_multi_invokes.f90", "lfric",
+                             name="invoke_0", dist_mem=dist_mem)
+    invoke_list = invoke.invokes.invoke_list
+    inline_trans = KernelModuleInlineTrans()
+    # Module-inline the kernels in the first invoke.
+    for call in invoke_list[0].schedule.walk(CodedKern):
+        inline_trans.apply(call)
+    gen = str(psy.gen).lower()
+    # check that the subroutine has been inlined
+    assert 'subroutine testkern_code(' in gen
+    assert 'subroutine testkern_qr_code(' in gen
+    # check that the associated psy "use" does not exist. The first kernel
+    # is only called from the first invoke so should have gone.
+    assert 'use testkern_mod' not in gen
+    # The second kernel is still being called from the second invoke.
+    assert count_lines(gen, "use testkern_qr_mod") == 1
+    # And it is valid code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+    # Now repeat for the second invoke.
+    for call in invoke_list[1].schedule.walk(CodedKern):
+        inline_trans.apply(call)
+    gen = str(psy.gen).lower()
+    assert 'use testkern_mod' not in gen
+    assert 'use testkern_qr_mod' not in gen
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
 def test_module_inline_with_interfaces(tmpdir):
     ''' Test the module-inlining when the kernel points to an interface, we
     use an LFRic mixed-precision kernel as an example of this.

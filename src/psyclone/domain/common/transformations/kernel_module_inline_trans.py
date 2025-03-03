@@ -622,8 +622,11 @@ class KernelModuleInlineTrans(Transformation):
                     sym.visibility = Symbol.Visibility.PRIVATE
                     # All Calls in the same scope to a routine of the same
                     # name must refer to the same Symbol.
+                    target_name = sym.name.lower()
                     for call in node.ancestor(Routine).walk(Call):
-                        call.routine.symbol = sym
+                        name = call.routine.symbol.name.lower()
+                        if name == target_name:
+                            call.routine.symbol = sym
                 else:
                     # The routine symbol already exists, and we know from the
                     # validation that it's a Routine. Now check if they are
