@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 ''' pytest tests for the parallel_loop_trans module. '''
 
@@ -617,3 +618,123 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
         trans.apply(loop, {"privatise_arrays": 3})
     assert ("The 'privatise_arrays' option must be a bool but got an object "
             "of type int" in str(err.value))
+
+
+def test_parallel_loop_trans_find_next_dependency(fortran_reader):
+    '''
+        Test the _find_next_dependency function in the ParallelLoopTrans
+        class.
+    '''
+    # Create an instance
+    paratrans = ParaTrans()
+    # First test easy case.
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i
+
+        do i = 1, 100
+           a(i) = i
+        end do
+
+        do i = 1, 100
+           a(i) = i
+        end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    result = psyir.walk(Loop)[1].loop_body.children[0].lhs
+    assert paratrans._find_next_dependency(loop) is result
+
+    # Test when we have a loop in a loop and the next access is prior.
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i, j
+        do j = 1, 100
+            a(j) = j
+            do i = 1, 100
+               a(i) = a(i) + i
+            end do
+        end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[1]
+    result = psyir.walk(Loop)[0].loop_body.children[0].lhs
+    assert paratrans._find_next_dependency(loop) is result
+
+    # Test when we have a loop in a loop and an access after outside all of
+    # the loops that the next access found it the prior one
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i, j
+        do j = 1, 100
+            a(j) = j
+            do i = 1, 100
+               a(i) = a(i) + i
+            end do
+        end do
+        a(1) = 1
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[1]
+    result = psyir.walk(Loop)[0].loop_body.children[0].lhs
+    assert paratrans._find_next_dependency(loop) is result
+
+    # Test that an access after inside the same ancestor loop is the
+    # next access.
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i, j
+        do j = 1, 100
+            a(j) = j
+            do i = 1, 100
+               a(i) = a(i) + i
+            end do
+            a(1) = 1
+        end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[1]
+    result = psyir.walk(Loop)[0].loop_body.children[2].lhs
+    assert paratrans._find_next_dependency(loop) is result
+
+    # Test that if the loop is in a loop and the next access is outside
+    # the ancestor loop, we get False.
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i, j
+        do j = 1, 100
+            do i = 1, 100
+               a(i) = a(i) + i
+            end do
+        end do
+        a(1) = 1
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[1]
+    result = False
+    assert paratrans._find_next_dependency(loop) is result
+
+    # Test that if there is no followup access we get True
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i, j
+        do i = 1, 100
+           a(i) = a(i) + i
+        end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    result = True
+    assert paratrans._find_next_dependency(loop) is result

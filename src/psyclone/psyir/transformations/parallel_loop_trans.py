@@ -66,7 +66,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
     # being transformed.
     excluded_node_types = (nodes.Return, psyGen.HaloExchange, nodes.CodeBlock)
 
-    def _find_next_dependency(self, node: Loop) -> Union[Node, None]:
+    def _find_next_dependency(self, node: Loop) -> Union[Node, bool]:
         '''TODO'''
         var_accesses = VariablesAccessInfo(nodes=node.loop_body)
         writes = []
@@ -83,9 +83,11 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             accesses = var_accesses[signature].all_accesses
             last_access = accesses[-1].node
             next_accesses = last_access.next_accesses()
+            # next_accesses always appear in the order of
+            # nodes before loop followed by nodes after loop.
             for access in next_accesses:
                 # If its inside node then we should skip it.
-                if access.is_ancestor(node):
+                if access.is_descendent_of(node):
                     continue
                 # Otherwise find the abs_position
                 abs_position = access.abs_position
@@ -106,25 +108,49 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                         # 3. inside a loop with lower depth than the previous
                         # closest that is also an ancestor of node and before
                         # loop and after closest.
-                        pass
+                        # Find the loop ancestor of access that is an ancestor
+                        # of node
+                        anc_loop = access.ancestor(Loop)
+                        while anc_loop is not None:
+                            if node.is_descendent_of(anc_loop):
+                                break
+                            anc_loop = anc_loop.ancestor(Loop)
+                        # Find the loop ancestor of closest that is an ancestor
+                        # of node.
+                        close_loop = closest.ancestor(Loop)
+                        while anc_loop is not None:
+                            if node.is_descendent_of(anc_loop):
+                                break
+                            close_loop = anc_loop.ancestor(Loop)
+                        if (abs_position < closest_position and 
+                            and_loop and anc_loop is close_loop):
+                            closest = access
+                            closest_position = abs_position
+                            continue
+                        if (abs_position > loop_position and
+                            access.ancestor(Loop) is node.ancestor(Loop)):
+                            closest = access
+                            closest_position = abs_position
+                            continue
+                        if (abs_position < loop_position and
+                            abs_position > closest_position and anc_loop and
+                            anc_loop.depth > close_loop.depth):
+                            closest = access
+                            closest_position = abs_position
                     elif (abs_position < closest_position and
                           abs_position > loop_position):
                         closest = access
                         closest_position = abs_position
-                    elif abs_position < loop_position:
-                        # FIXME What if we're before the loop but the previous
-                        # one wasn't.
-                        # Then we need to check if they have a common ancestor
-                        # loop. If so, we hit the next access first
-                        # otherwise we hit the previous one.
-                        pass
-
-                assert False
-
-        # FIXME if this loop is contained inside a loop the closest foward
-        # dependency might be itself - need to solve this and refuse to nowait
-        # if so.
-        assert False
+        
+        # If this loop is contained inside a loop the closest foward
+        # dependency might be itself. So if closest is not within the ancestor loop of
+        # node then we can't do nowait, so return False.
+        node_ancestor = node.ancestor(Loop)
+        if node_ancestor:
+            if not closest.is_descendent_of(node_ancestor):
+                return False
+        if not closest:
+            return True
         return closest
 
     @abc.abstractmethod
