@@ -515,8 +515,6 @@ class KernelModuleInlineTrans(Transformation):
         interface_sym = None  # TODO #2716
         codes_to_inline = [code_to_inline]
         local_table = node.scope.symbol_table
-        # validate() guarantees that we must have a parent Container.
-        local_container = node.ancestor(Container)
 
         if interface_sym:
             local_sym = local_table.lookup(interface_sym.name, otherwise=None)
