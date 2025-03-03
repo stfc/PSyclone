@@ -133,8 +133,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                             closest_position = abs_position
                             continue
                         if (abs_position < loop_position and
-                                abs_position > closest_position and anc_loop and
-                                anc_loop.depth > close_loop.depth):
+                                abs_position > closest_position and anc_loop
+                                and anc_loop.depth > close_loop.depth):
                             closest = access
                             closest_position = abs_position
                     elif (abs_position < closest_position and
