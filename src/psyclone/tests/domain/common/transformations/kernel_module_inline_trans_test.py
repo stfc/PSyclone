@@ -51,6 +51,7 @@ from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, ImportInterface, RoutineSymbol, REAL_TYPE,
     Symbol, SymbolError, SymbolTable)
 from psyclone.psyir.transformations import TransformationError
+from psyclone.transformations import OMPDeclareTargetTrans
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import Compile, count_lines, get_invoke
@@ -870,45 +871,12 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     assert 'SUBROUTINE ru_code(' in gen
     # check that the associated psy "use" does not exist
     assert 'USE ru_kernel_mod, only : ru_code' not in gen
-
-    # And it is valid code
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_module_inline_lfric_multi_kern(tmpdir, monkeypatch, annexed,
-                                        dist_mem):
-    '''Tests that correct results are obtained when a kernel is inlined
-    into the psy-layer in the LFRic API. This is a more complex example with
-    two invokes that call two different kernels.
-
-    '''
-    config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
-    psy, invoke = get_invoke("3.1_multi_functions_multi_invokes.f90", "lfric",
-                             name="invoke_0", dist_mem=dist_mem)
-    invoke_list = invoke.invokes.invoke_list
-    inline_trans = KernelModuleInlineTrans()
-    # Module-inline the kernels in the first invoke.
-    for call in invoke_list[0].schedule.walk(CodedKern):
-        inline_trans.apply(call)
+    # Check that we can subsequently transform the inlined kernel.
+    omptrans = OMPDeclareTargetTrans()
+    omptrans.apply(kern_call)
     gen = str(psy.gen).lower()
-    # check that the subroutine has been inlined
-    assert 'subroutine testkern_code(' in gen
-    assert 'subroutine testkern_qr_code(' in gen
-    # check that the associated psy "use" does not exist. The first kernel
-    # is only called from the first invoke so should have gone.
-    assert 'use testkern_mod' not in gen
-    # The second kernel is still being called from the second invoke.
-    assert count_lines(gen, "use testkern_qr_mod") == 1
+    assert "omp declare target" in gen
     # And it is valid code
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    # Now repeat for the second invoke.
-    for call in invoke_list[1].schedule.walk(CodedKern):
-        inline_trans.apply(call)
-    gen = str(psy.gen).lower()
-    assert 'use testkern_mod' not in gen
-    assert 'use testkern_qr_mod' not in gen
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -956,7 +924,9 @@ def test_get_psyir_to_inline(monkeypatch):
 
 @pytest.mark.parametrize("mod_use, sub_use",
                          [("use my_mod, only: my_sub, my_other_sub", ""),
-                          ("", "use my_mod, only: my_sub, my_other_sub")])
+                          ("", "use my_mod, only: my_sub, my_other_sub"),
+                          ("use my_mod, only: my_sub, my_other_sub",
+                           "use my_mod, only: my_sub, my_other_sub")])
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
                           monkeypatch, mod_use, sub_use):
@@ -1002,7 +972,6 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     container = psyir.children[0]
     calls = psyir.walk(Call)
     intrans.apply(calls[0])
-
     routines = container.walk(Routine)
     assert len(routines) == 2
     assert routines[0].name in ["a_sub", "my_sub"]

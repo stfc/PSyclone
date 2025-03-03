@@ -552,7 +552,10 @@ class KernelModuleInlineTrans(Transformation):
                 # local symbol and update the call to point to the outer one.
                 self._rm_imported_symbol(local_sym.name, table)
                 node.routine.symbol = outer_sym
-                return
+                if not (outer_sym.is_import or outer_sym.is_unresolved):
+                    # The outer symbol is local to this Container so there's
+                    # nothing else to do.
+                    return
 
         updated_routines = self._prepare_code_to_inline(codes_to_inline)
         # Update the Kernel to point to the updated PSyIR.
