@@ -122,29 +122,29 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                             if node.is_descendent_of(anc_loop):
                                 break
                             close_loop = anc_loop.ancestor(Loop)
-                        if (abs_position < closest_position and 
-                            and_loop and anc_loop is close_loop):
+                        if (abs_position < closest_position and
+                                anc_loop and anc_loop is close_loop):
                             closest = access
                             closest_position = abs_position
                             continue
                         if (abs_position > loop_position and
-                            access.ancestor(Loop) is node.ancestor(Loop)):
+                                access.ancestor(Loop) is node.ancestor(Loop)):
                             closest = access
                             closest_position = abs_position
                             continue
                         if (abs_position < loop_position and
-                            abs_position > closest_position and anc_loop and
-                            anc_loop.depth > close_loop.depth):
+                                abs_position > closest_position and anc_loop and
+                                anc_loop.depth > close_loop.depth):
                             closest = access
                             closest_position = abs_position
                     elif (abs_position < closest_position and
                           abs_position > loop_position):
                         closest = access
                         closest_position = abs_position
-        
+
         # If this loop is contained inside a loop the closest foward
-        # dependency might be itself. So if closest is not within the ancestor loop of
-        # node then we can't do nowait, so return False.
+        # dependency might be itself. So if closest is not within the ancestor
+        # loop of node then we can't do nowait, so return False.
         node_ancestor = node.ancestor(Loop)
         if node_ancestor:
             if not closest.is_descendent_of(node_ancestor):
