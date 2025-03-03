@@ -59,7 +59,7 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Directive, Literal, Loop, Node,
+    Call, CodeBlock, Container, Directive, Literal, Loop, Node,
     OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
@@ -414,15 +414,17 @@ class MarkRoutineForGPUMixin:
                     f"Failed to create PSyIR for kernel '{node.name}'. "
                     f"Cannot transform such a kernel.") from error
 
-            # Check that it's not a mixed-precision kernel (which will have
-            # more than one Routine implementing it). We can't transform
-            # these at the moment because we can't correctly manipulate their
-            # metadata - TODO #1946.
-            routines = kernel_schedule.root.walk(Routine)
-            if len(routines) > 1:
-                raise TransformationError(
-                    f"Cannot apply {self.name} to kernel '{node.name}' as "
-                    f"it has multiple implementations - TODO #1946")
+            if not node.ancestor(Container, shared_with=kernel_schedule):
+                # The KernelSchedule to be transformed has not been inlined
+                # into the Container of the call-site. Therefore we can
+                # Check that it's not a mixed-precision kernel (which will have
+                # more than one Routine implementing it). We can't transform
+                # these at the moment because we can't correctly manipulate
+                # their metadata - TODO #1946.
+                if len(kernel_schedule.root.walk(Routine)) > 1:
+                    raise TransformationError(
+                        f"Cannot apply {self.name} to kernel '{node.name}' as "
+                        f"it has multiple implementations - TODO #1946")
 
             k_or_r = "Kernel"
         else:
