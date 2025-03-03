@@ -317,10 +317,10 @@ def test_validate_name_clashes():
     schedule.parent.addchild(Routine.create("ru_code"))
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(coded_kern)
-    assert ("Cannot inline routine 'ru_code' because another, different, "
-            "subroutine with the same name already exists and versioning of "
-            "module-inlined subroutines is not implemented "
-            "yet.") in str(err.value)
+    assert ("Kernel 'ru_code' cannot be module inlined into Container "
+            "'multikernel_invokes_7_psy' because a *different* routine with "
+            "that name already exists and versioning of module-inlined "
+            "subroutines is not implemented yet.") in str(err.value)
 
 
 def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
@@ -426,9 +426,8 @@ def test_validate_local_routine(fortran_reader):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("routine 'do_something' cannot be module inlined into Container "
-            "'my_mod' because there is no explicit import of it ('USE ..., "
-            "ONLY: do_something' in Fortran) and a Routine with that name is "
-            "already present in the Container." in str(err.value))
+            "'my_mod' because a *different* routine with that name already "
+            "exists and versioning" in str(err.value))
 
 
 def test_validate_fail_to_get_psyir(fortran_reader, config_instance):
@@ -1078,10 +1077,11 @@ def test_mod_inline_from_wildcard_import(fortran_reader, fortran_writer,
     assert "call my_sub" in output
     assert ('''end program my_prog
 subroutine my_sub(arg)''' in output)
+    # Two calls in the same scope to a routine of the same name must be to
+    # the same RoutineSymbol
+    new_calls = prog_psyir.walk(Call)
+    assert new_calls[0].routine.symbol is new_calls[1].routine.symbol
+    # Apply the transformation to the second call. This should silently
+    # pass as there's nothing to do.
+    intrans.apply(calls[1])
     # We can't compile this because of the use statement.
-    # Apply the transformation to the second call. This should be rejected
-    # since there is no longer an import of the RoutineSymbol.
-    with pytest.raises(TransformationError) as err:
-        intrans.apply(calls[1])
-    assert ("a Routine with that name is already present in the Container"
-            in str(err.value))
