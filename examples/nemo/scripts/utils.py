@@ -263,6 +263,7 @@ def inline_calls(schedule):
             except TransformationError as err:
                 print(f"Module inline of '{name}' failed:\n{err}")
                 continue
+        continue  # ARPDBG - skip actual inlining for testing.
         try:
             options = {}
             if name in ignore_codeblocks:
