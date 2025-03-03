@@ -422,22 +422,22 @@ class LFRicArgDescriptor(Descriptor):
                     f"'{rev_access_mapping[self._access_type]}' for "
                     f"'{self._function_space1.lower()}' in '{arg_type}'.")
             # Fields on continuous function spaces
-            if self._function_space1.lower() in fld_cont_spaces:
-                if operates_on == "domain":
-                    raise ParseError(
-                        f"In the LFRic API, kernels that operate on the domain"
-                        f" only accept field arguments on discontinuous "
-                        f"function spaces but found "
-                        f"'{self._function_space1.lower()}' in '{arg_type}'")
+            # if self._function_space1.lower() in fld_cont_spaces:
+            #     if operates_on == "domain":
+            #         raise ParseError(
+            #             f"In the LFRic API, kernels that operate on the domain"
+            #             f" only accept field arguments on discontinuous "
+            #             f"function spaces but found "
+            #             f"'{self._function_space1.lower()}' in '{arg_type}'")
 
-                if self._access_type not in field_cont_accesses:
-                    raise ParseError(
-                        f"In the LFRic API, allowed accesses for fields on "
-                        f"continuous function spaces that are arguments to "
-                        f"kernels that operate on cell-columns are "
-                        f"{fld_cont_acc_msg}, but found "
-                        f"'{rev_access_mapping[self._access_type]}' for "
-                        f"'{self._function_space1.lower()}' in '{arg_type}'.")
+            #     if self._access_type not in field_cont_accesses:
+            #         raise ParseError(
+            #             f"In the LFRic API, allowed accesses for fields on "
+            #             f"continuous function spaces that are arguments to "
+            #             f"kernels that operate on cell-columns are "
+            #             f"{fld_cont_acc_msg}, but found "
+            #             f"'{rev_access_mapping[self._access_type]}' for "
+            #             f"'{self._function_space1.lower()}' in '{arg_type}'.")
         # Raise an InternalError for an invalid value of operates-on
         else:
             raise InternalError(

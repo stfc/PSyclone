@@ -642,15 +642,15 @@ class LFRicKernMetadata(KernelType):
         const = LFRicConstants()
         # A kernel which operates on the 'domain' is currently restricted
         # to only accepting scalar and field arguments.
-        valid_arg_types = const.VALID_SCALAR_NAMES + const.VALID_FIELD_NAMES
-        for arg in self._arg_descriptors:
-            if arg.argument_type not in valid_arg_types:
-                raise ParseError(
-                    f"In the LFRic API a kernel that operates on "
-                    f"'{self.iterates_over}' is only permitted to accept "
-                    f"scalar and field arguments but the metadata for kernel "
-                    f"'{self.name}' includes an argument of type "
-                    f"'{arg.argument_type}'")
+        # valid_arg_types = const.VALID_SCALAR_NAMES + const.VALID_FIELD_NAMES
+        # for arg in self._arg_descriptors:
+        #     if arg.argument_type not in valid_arg_types:
+        #         raise ParseError(
+        #             f"In the LFRic API a kernel that operates on "
+        #             f"'{self.iterates_over}' is only permitted to accept "
+        #             f"scalar and field arguments but the metadata for kernel "
+        #             f"'{self.name}' includes an argument of type "
+        #             f"'{arg.argument_type}'")
 
     def _validate_no_evaluator(self, need_evaluator):
         '''
