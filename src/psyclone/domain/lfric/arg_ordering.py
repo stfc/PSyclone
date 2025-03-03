@@ -202,6 +202,14 @@ class ArgOrdering:
         from psyclone.domain.lfric import LFRicTypes
         if tag is None:
             tag = name
+        else:
+            # If it has a tag, first try to look up for it
+            try:
+                sym = self._symtab.lookup_with_tag(tag)
+                self.psyir_append(Reference(sym))
+                return sym
+            except KeyError:
+                pass
         sym = self._symtab.find_or_create(
                 name, tag=tag, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())

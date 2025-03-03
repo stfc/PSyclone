@@ -106,8 +106,7 @@ def zero_reduction_variables(red_call_list):
                 first = False
 
 
-def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
-                include_literals=True):
+def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
     '''
     Return all arguments in the supplied list that are of type
     arg_types and with access in arg_accesses. If these are not set
@@ -122,8 +121,6 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
         :py:class:`psyclone.core.access_type.AccessType`
     :param arg_meshes: list of meshes that arguments must be on.
     :type arg_meshes: list of str
-    :param bool include_literals: whether or not to include literal arguments \
-                                  in the returned list.
 
     :returns: list of kernel arguments matching the requirements.
     :rtype: list of :py:class:`psyclone.parse.kernel.Descriptor`
@@ -139,11 +136,6 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
                 continue
         if arg_meshes:
             if argument.mesh not in arg_meshes:
-                continue
-        if not include_literals:
-            # We're not including literal arguments so skip this argument
-            # if it is literal.
-            if argument.is_literal:
                 continue
         arguments.append(argument)
     return arguments

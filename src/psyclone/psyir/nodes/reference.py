@@ -102,10 +102,18 @@ class Reference(DataNode):
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.assignment import Assignment
+        from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
         parent = self.parent
         if isinstance(parent, Assignment):
             if parent.lhs is self:
                 return False
+
+        # If we have an intrinsic call parent then we need to check if its
+        # an inquiry. Inquiry functions don't read from their first argument.
+        if isinstance(parent, IntrinsicCall):
+            if parent.arguments[0] is self and parent.is_inquiry:
+                return False
+
         # All references other than LHS of assignments represent a read. This
         # can be improved in the future by looking at Call intents.
         return True

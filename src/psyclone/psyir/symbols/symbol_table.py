@@ -286,7 +286,12 @@ class SymbolTable():
 
         # Prepare the new tag dict
         for tag, symbol in self._tags.items():
-            new_st._tags[tag] = new_st.lookup(symbol.name)
+            try:
+                new_st._tags[tag] = new_st.lookup(symbol.name)
+            except KeyError:
+                # TODO 898: If the lookup fails it means that the symbol was
+                # removed from the symbol table but not the tags dictionary
+                pass
 
         # Update any references to Symbols within Symbols (initial values,
         # precision etc.)
