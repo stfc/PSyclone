@@ -518,31 +518,19 @@ class KernelModuleInlineTrans(Transformation):
         caller_name, code_to_inline = (
             KernelModuleInlineTrans._get_psyir_to_inline(node))
         callee_name = code_to_inline.name
-        interface_sym = None  # TODO #2716
         codes_to_inline = [code_to_inline]
         local_table = node.scope.symbol_table
 
-        if interface_sym:
-            local_sym = local_table.lookup(interface_sym.name, otherwise=None)
-            if interface_sym is local_sym and not local_sym.is_import:
-                # Interface symbol is already local so nothing to do.
-                if isinstance(node, CodedKern):
-                    node.module_inline = True
-                # TODO #11 - log this.
-                return
+        for routine in codes_to_inline:
+            local_sym = local_table.lookup(caller_name, otherwise=None)
+            if (not local_sym or local_sym is not routine.symbol or
+                    (local_sym.is_import or local_sym.is_unresolved)):
+                # This routine is not module-inlined.
+                break
         else:
-            for routine in codes_to_inline:
-                local_sym = local_table.lookup(caller_name, otherwise=None)
-                if (not local_sym or local_sym is not routine.symbol or
-                        (local_sym.is_import or local_sym.is_unresolved)):
-                    # This routine is not module-inlined.
-                    break
-            else:
-                # All routines are module-inlined so there's nothing to do.
-                # TODO #11 - log this.
-                if isinstance(node, CodedKern):
-                    node.module_inline = True
-                return
+            # All routines are module-inlined so there's nothing to do.
+            # TODO #11 - log this.
+            return
 
         if local_sym and (local_sym.is_import or local_sym.is_unresolved):
             # Double check that this import is not shadowing a routine we've
@@ -569,10 +557,6 @@ class KernelModuleInlineTrans(Transformation):
             # TODO - add setter for these properties to Kern?
             # pylint: disable=protected-access
             node._kern_schedule = updated_routines[0]
-            if interface_sym:
-                node._interface_symbol = (
-                    updated_routines[0].scope.symbol_table.lookup(
-                        interface_sym.name))
             if callee_name != caller_name:
                 node.name = callee_name
 
@@ -657,12 +641,6 @@ class KernelModuleInlineTrans(Transformation):
                                     f"with the same name already exists and "
                                     f"versioning of module-inlined subroutines"
                                     f" is not implemented yet.")
-
-        if interface_sym:
-            self._rm_imported_symbol(interface_sym.name, local_table)
-            if interface_sym.name not in container.symbol_table:
-                container.symbol_table.add(interface_sym)
-                interface_sym.replace_symbols_using(container.symbol_table)
 
         # Set the module-inline flag to avoid generating the kernel imports
         # TODO #1823. If the kernel imports were generated at PSy-layer

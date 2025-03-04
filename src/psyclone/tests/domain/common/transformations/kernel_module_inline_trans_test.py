@@ -626,9 +626,9 @@ def test_module_inline_apply_same_kernel(tmpdir):
     psy, invoke = get_invoke("test14_module_inline_same_kernel.f90",
                              "gocean", idx=0)
     schedule = invoke.schedule
-    kern_call = schedule.coded_kernels()[0]
+    kern_calls = schedule.coded_kernels()
     inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(kern_call)
+    inline_trans.apply(kern_calls[0])
     gen = str(psy.gen)
     # check that the subroutine has been inlined
     assert 'SUBROUTINE compute_cu_code(' in gen
@@ -638,6 +638,11 @@ def test_module_inline_apply_same_kernel(tmpdir):
     count = count_lines(gen, "SUBROUTINE compute_cu_code(")
     assert count == 1, "Expecting subroutine to be inlined once"
     assert GOceanBuild(tmpdir).code_compiles(psy)
+    # Calling the transformation on a second call to the same kernel
+    # should have no effect.
+    inline_trans.apply(kern_calls[1])
+    gen2 = str(psy.gen)
+    assert gen2 == gen
 
 
 def test_module_inline_apply_bring_in_non_local_symbols(
@@ -851,11 +856,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
 
 def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     '''Tests that correct results are obtained when a kernel is inlined
-    into the psy-layer in the LFRic API. All previous tests
-    use GOcean for testing.
-
-    We also test when annexed is False and True as it affects how many halo
-    exchanges are generated.
+    into the psy-layer in the LFRic API.
 
     '''
     config = Config.get()
@@ -924,6 +925,7 @@ def test_get_psyir_to_inline(monkeypatch):
 
 def test_rm_imported_symbol():
     '''
+    Tests for the _rm_imported_symbols() utility method.
     '''
     intrans = KernelModuleInlineTrans()
     table = SymbolTable()
@@ -1126,3 +1128,61 @@ subroutine my_sub(arg)''' in output)
     # pass as there's nothing to do.
     intrans.apply(calls[1])
     # We can't compile this because of the use statement.
+
+
+def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader):
+    '''
+    '''
+    # Create the module containing the subroutine definition, write it to
+    # file and set the search path so that PSyclone can find it.
+    path = str(tmpdir)
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
+
+    with open(os.path.join(path, "my_mod.f90"),
+              "w", encoding="utf-8") as mfile:
+        mfile.write('''\
+    module my_mod
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = 1.0
+      end subroutine my_sub
+    end module my_mod
+    ''')
+
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    module this_mod
+      implicit none
+      use my_mod, only: my_sub
+    contains
+      subroutine do_it()
+        use my_mod
+        integer :: old_my_sub
+        real, dimension(10) :: a
+        call my_sub(a)
+      end subroutine do_it
+      subroutine and_again()
+        use my_mod, only: my_sub
+        real, dimension(10) :: b
+        call my_sub(b)
+      end subroutine and_again
+    end module this_mod
+    '''
+    prog_psyir = fortran_reader.psyir_from_source(code)
+    container = prog_psyir.children[0]
+    calls = prog_psyir.walk(Call)
+    intrans.apply(calls[0])
+    do_it = container.find_routine_psyir("do_it")
+    assert (do_it.walk(Call)[0].routine.symbol is
+            container.symbol_table.lookup("my_sub"))
+    # Call in second subroutine still refers to imported Symbol in local table.
+    again = container.find_routine_psyir("and_again")
+    assert (again.walk(Call)[0].routine.symbol is
+            again.symbol_table.lookup("my_sub", scope_limit=again))
+    # Apply the transformation to the call in the second routine.
+    intrans.apply(calls[1])
+    # Now it should refer to the top-level, inlined RoutineSymbol.
+    assert calls[1].routine.symbol is container.symbol_table.lookup("my_sub")
+    assert "my_mod" not in again.symbol_table
+    assert len(container.walk(Routine)) == 3
