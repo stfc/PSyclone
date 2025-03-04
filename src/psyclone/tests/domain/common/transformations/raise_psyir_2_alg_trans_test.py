@@ -329,18 +329,17 @@ def test_arg_error(fortran_reader, arg):
 
     '''
     code = (
-        "subroutine alg()\n"
-        "  use kern_mod\n"
-        "  use field_mod, only : r2d_field\n"
-        "  type(r2d_field) :: field\n")
-    if arg == "alg(field)":
+        f"subroutine alg1()\n"
+        f"  use kern_mod\n"
+        f"  use field_mod, only : r2d_field\n"
+        f"  type(r2d_field) :: field\n"
         # Persuade the PSyIR that `alg` is a RoutineSymbol.
-        code += f"call {arg}\n"
-    code += (f"  call invoke({arg})\n"
-             f"end subroutine alg\n")
+        f"  call alg(field)\n"
+        f"  call invoke({arg})\n"
+        f"end subroutine alg1\n")
 
     psyir = fortran_reader.psyir_from_source(code)
-    call = psyir.walk(Call)[-1]
+    call = psyir.walk(Call)[1]
     invoke_trans = RaisePSyIR2AlgTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(call)
