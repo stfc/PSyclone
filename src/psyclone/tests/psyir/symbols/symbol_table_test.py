@@ -1424,6 +1424,10 @@ def test_wildcard_imports():
     csym.wildcard_import = True
     assert container_table.wildcard_imports() == set([csym.name])
     assert sched_table.wildcard_imports() == set([csym.name])
+    # Limiting the scope for the search
+    assert sched_table.wildcard_imports(scope_limit=sched_table.node) == set()
+    assert (sched_table.wildcard_imports(scope_limit=container_table.node)
+            == set([csym.name]))
 
 
 def test_view():

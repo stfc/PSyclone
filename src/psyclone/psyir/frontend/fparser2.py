@@ -283,8 +283,7 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
         mynode = location.parent
         while mynode is not None:
             if mynode is scope_limit:
-                # The scope_limit node is an ancestor of the
-                # supplied node.
+                # The scope_limit node is an ancestor of the supplied node.
                 break
             mynode = mynode.parent
         else:
@@ -298,6 +297,8 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
     shadowing = False
     table = location.scope.symbol_table
     while table:
+        # By default, `lookup` looks in all ancestor scopes. However, we need
+        # to allow for wildcard imports as we work our way up.
         sym = table.lookup(name, scope_limit=table.node,
                            otherwise=None)
         if sym:
@@ -312,13 +313,13 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
         if table.wildcard_imports(scope_limit=table.node):
             # There's a wildcard import into this scope so we stop
             # searching and create an unresolved symbol (below). This is
-            # permitted to shadown a declaration in an outer scope because
+            # permitted to shadow a declaration in an outer scope because
             # it may be a different entity (coming from the import).
             shadowing = True
             break
         table = table.parent_symbol_table(scope_limit)
 
-    # find the closest ancestor symbol table attached to a Routine or
+    # Find the closest ancestor symbol table attached to a Routine or
     # Container node. We don't want to add to a Schedule node as in
     # some situations PSyclone assumes symbols are declared within
     # Routine or Container symbol tables due to its Fortran provenance
