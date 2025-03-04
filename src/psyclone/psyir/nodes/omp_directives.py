@@ -241,6 +241,45 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
         return "omp taskwait"
 
 
+class OMPBarrierDirective(OMPStandaloneDirective):
+    '''
+    Class representing an OpenMP BARRIER directive in the PSyIR.
+
+    '''
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPBarrier is not enclosed
+                                 within some OpenMP parallel region.
+
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). As a Parallel Child
+        # directive, we must have an OMPParallelDirective as an ancestor
+        # somewhere back up the tree.
+        if not self.ancestor(OMPParallelDirective,
+                             excluding=OMPParallelDoDirective):
+            raise GenerationError(
+                "OMPBarrierDirective must be inside an OMP parallel region "
+                "but could not find an ancestor OMPParallelDirective node")
+
+        super().validate_global_constraints()
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp barrier". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+
+        '''
+        return "omp barrier"
+
+
 class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
     '''
     Abstract class representing OpenMP serial regions, e.g.
@@ -1925,13 +1964,17 @@ class OMPDoDirective(OMPRegionDirective):
                                   run-reproducible OpenMP reductions (if not
                                   specified the value is provided by the
                                   PSyclone Config file).
+    :param nowait: whether or not to add a nowait clause onto this directive.
+        Default is False.
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
     '''
     _directive_string = "do"
 
-    def __init__(self, omp_schedule="none", collapse=None, reprod=None,
+    def __init__(self, omp_schedule: str = "none",
+                 collapse: int = None, reprod: bool = None,
+                 nowait: bool = False,
                  **kwargs):
 
         super().__init__(**kwargs)
@@ -1943,6 +1986,7 @@ class OMPDoDirective(OMPRegionDirective):
         self._omp_schedule = omp_schedule
         self._collapse = None
         self.collapse = collapse  # Use setter with error checking
+        self.nowait = nowait
 
     def __eq__(self, other):
         '''
@@ -1961,6 +2005,31 @@ class OMPDoDirective(OMPRegionDirective):
         is_eq = is_eq and self.collapse == other.collapse
 
         return is_eq
+
+    @property
+    def nowait(self) -> bool:
+        '''
+        :returns: whether this directive has a nowait clause.
+        '''
+        return self._nowait
+
+    @nowait.setter
+    def nowait(self, value: bool):
+        '''
+        Sets whether this directive should have a nowait clause attached.
+
+        :param value: whether this directive should have a nowait clause
+                      attached.
+
+        :raises TypeError: if value is not a bool.
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"The {type(self).__name__} nowait clause must be a bool, "
+                f"but value '{value}' has been given."
+            )
+        self._nowait = value
+
 
     @property
     def collapse(self):
@@ -2764,4 +2833,4 @@ __all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPSerialDirective", "OMPTaskloopDirective", "OMPTargetDirective",
            "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective",
            "OMPLoopDirective", "OMPDeclareTargetDirective",
-           "OMPAtomicDirective", "OMPSimdDirective"]
+           "OMPAtomicDirective", "OMPSimdDirective", "OMPBarrierDirective"]

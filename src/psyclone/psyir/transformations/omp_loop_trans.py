@@ -37,9 +37,12 @@
 
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import (
+    Directive, Loop, Schedule,
     Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
     OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
-    OMPScheduleClause)
+    OMPScheduleClause, OMPBarrierDirective, OMPTaskwaitDirective,
+    OMPParallelDirective,
+)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
@@ -51,6 +54,13 @@ MAP_STR_TO_LOOP_DIRECTIVES = {
     "teamsdistributeparalleldo": OMPTeamsDistributeParallelDoDirective,
     "teamsloop": OMPTeamsLoopDirective,
     "loop": OMPLoopDirective
+}
+
+#: Mapping from simple string to corresponding barrier type.
+MAP_STR_TO_BARRIER_DIRECTIVE = {
+    "do": OMPBarrierDirective,
+    "teamsloop": OMPTaskwaitDirective,
+    "loop": OMPBarrierDirective,
 }
 #: List containing the valid names for OMP directives.
 VALID_OMP_DIRECTIVES = list(MAP_STR_TO_LOOP_DIRECTIVES.keys())
@@ -130,6 +140,67 @@ class OMPLoopTrans(ParallelLoopTrans):
 
     def __str__(self):
         return "Adds an OpenMP directive to parallelise the target loop"
+
+    def _add_asynchronicity(self, node: Loop, instance: Directive):
+        '''
+        TODO
+        '''
+        # If we have a Parallel Do directive we can't add an asynchronous
+        # clause.
+        if isinstance(instance, (OMPParallelDoDirective,
+                                 OMPTeamsDistributeParallelDoDirective)):
+            return
+        # Otherwise find the next dependency.
+        next_depend = self._find_next_dependency(node)
+        # If find_next_dependency returns False, then this loop is its own
+        # next dependency so we can't add an asynchronous clause.
+        if not next_depend:
+            return
+
+        barrier_type = MAP_STR_TO_BARRIER_DIRECTIVE[self.omp_directive]
+        # If find next_dependency returns True there is no follow up
+        # dependency, so we just need a barrier at the end of the containing
+        # Routine.
+        if next_depend is True:
+            # Add nowait to the instance.
+            instance.nowait = True
+            # Add a barrier to the end of the containing Routine if there
+            # isn't one already.
+            containing_routine = node.ancestor((Routine, OMPParallelDirective))
+            # Check barrier that corresponds to self.omp_directive and add the
+            # correct barrier type
+            if not isinstance(containing_routine.children[-1], barrier_type):
+                containing_routine.addchild(barrier_type())
+            return
+
+        # Otherwise we have the next dependency and we need to find where the
+        # correct place to place the preceding barrier is. Need to find a
+        # guaranteed control flow path to place it.
+
+        # If next_depend is in the same schedule as the loop then we can just
+        # add the barrier immediately before it.
+        if next_depend.ancestor(Schedule) is node.ancestor(Schedule):
+            sched = next_depend.ancestor(Schedule)
+            sched.addchild(next_depend.position, barrier_type())
+            instance.nowait = True
+            return
+
+        # Otherwise we need to find the highest schedule containing both.
+        sched = next_depend.ancestor(Schedule)
+        routine = node.ancestor(Routine)
+        while sched.has_ancestor(routine):
+            if node.has_ancestor(sched):
+                # Get the path from sched to next_depend
+                path = next_depend.path_from(sched)
+                # The last element of path is the ancestor of next_depend
+                # that is in sched, so we add the barrier there.
+                sched.addchild(path[-1].position, barrier_type())
+                instance.nowait = True
+                return
+            sched = sched.ancestor(Schedule)
+
+        # If we didn't find anywhere to put the barrier then we just don't
+        # add the nowait.
 
     @property
     def omp_directive(self):

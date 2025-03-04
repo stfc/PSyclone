@@ -59,7 +59,7 @@ from psyclone.psyir.nodes import (
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause,
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective,
     OMPAtomicDirective, OMPFirstprivateClause, OMPSimdDirective,
-    StructureReference, IfBlock, OMPTeamsLoopDirective)
+    StructureReference, IfBlock, OMPTeamsLoopDirective, OMPBarrierDirective)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, SymbolTable, ArrayType, RoutineSymbol,
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, StructureType,
@@ -1353,8 +1353,32 @@ def test_omp_master_nested_validate_global_constraints(monkeypatch):
             "region") in str(excinfo.value)
 
 
+def test_ompbarrier_strings():
+    ''' Test the begin_string method of the OMPBarrierDirective.'''
+    barrier = OMPBarrierDirective()
+
+    assert barrier.begin_string() == "omp barrier"
+
+
+def test_omp_barrier_validate_global_constraints():
+    ''' Test the validate_global_constraints method of the OMPBarrier
+        directive '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    barrier = OMPBarrierDirective()
+    schedule.addchild(barrier, 0)
+    with pytest.raises(GenerationError) as excinfo:
+        barrier.validate_global_constraints()
+    assert ("OMPBarrierDirective must be inside an OMP parallel region but "
+            "could not find an ancestor OMPParallelDirective node"
+            in str(excinfo.value))
+
+
 def test_omptaskwait_strings():
-    ''' Test the begin_string and method of the OMPTaskwait directive '''
+    ''' Test the begin_string method of the OMPTaskwait directive '''
     taskwait = OMPTaskwaitDirective()
 
     assert taskwait.begin_string() == "omp taskwait"
