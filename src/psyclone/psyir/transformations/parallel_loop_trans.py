@@ -46,8 +46,9 @@ from psyclone import psyGen
 from psyclone.core import VariablesAccessInfo, Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import (Call, Directive, Loop, Node, Reference,
-    Routine)
+from psyclone.psyir.nodes import (
+        Call, Directive, Loop, Node, Reference, Routine
+)
 from psyclone.psyir.symbols import AutomaticInterface
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -69,7 +70,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
     def _add_asynchronocity(self, node: Loop, instance: Directive):
         ''' Function to enable child classes to handle adding asynchronicity
-        (e.g. nowait or dynamic queue choices) as part of the transformation. '''
+        (e.g. nowait or dynamic queue choices) as part of the transformation.
+        '''
         pass
 
     def _find_next_dependency(self, node: Loop) -> Union[Node, bool]:

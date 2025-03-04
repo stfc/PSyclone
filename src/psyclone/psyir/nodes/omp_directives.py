@@ -2030,7 +2030,6 @@ class OMPDoDirective(OMPRegionDirective):
             )
         self._nowait = value
 
-
     @property
     def collapse(self):
         '''
