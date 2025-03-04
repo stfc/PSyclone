@@ -1132,6 +1132,10 @@ subroutine my_sub(arg)''' in output)
 
 def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader):
     '''
+    Test that Symbols are managed correctly when doing a module import for a
+    call in one subroutine when there is a separate import and call in a second
+    routine.
+
     '''
     # Create the module containing the subroutine definition, write it to
     # file and set the search path so that PSyclone can find it.
@@ -1186,3 +1190,45 @@ def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader):
     assert calls[1].routine.symbol is container.symbol_table.lookup("my_sub")
     assert "my_mod" not in again.symbol_table
     assert len(container.walk(Routine)) == 3
+
+
+def test_no_import_when_existing_routine(tmpdir, monkeypatch, fortran_reader):
+    '''
+    '''
+    path = str(tmpdir)
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
+
+    with open(os.path.join(path, "my_mod.f90"),
+              "w", encoding="utf-8") as mfile:
+        mfile.write('''\
+    module my_mod
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = 1.0
+      end subroutine my_sub
+    end module my_mod
+    ''')
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    module this_mod
+      implicit none
+    contains
+      subroutine do_it()
+        use my_mod
+        integer :: old_my_sub
+        real, dimension(10) :: a
+        call my_sub(a)
+      end subroutine do_it
+      subroutine my_sub()
+        use my_mod, only: my_sub
+        real, dimension(10) :: b
+        b = 1.0
+      end subroutine my_sub
+    end module this_mod
+    '''
+    prog_psyir = fortran_reader.psyir_from_source(code)
+    calls = prog_psyir.walk(Call)
+    with pytest.raises(TransformationError) as err:
+        intrans.apply(calls[0])
+    assert "oh dear" in str(err.value)
