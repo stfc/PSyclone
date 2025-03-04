@@ -147,8 +147,10 @@ class OMPLoopTrans(ParallelLoopTrans):
         '''
         # If we have a Parallel Do directive we can't add an asynchronous
         # clause.
-        if isinstance(instance, (OMPParallelDoDirective,
-                                 OMPTeamsDistributeParallelDoDirective)):
+        # Needs to be explicit type check as most of these inherit from
+        # OMPParallelDo
+        if (type(instance) is OMPParallelDoDirective or
+                type(instance) is OMPTeamsDistributeParallelDoDirective):
             return
         # Otherwise find the next dependency.
         next_depend = self._find_next_dependency(node)
