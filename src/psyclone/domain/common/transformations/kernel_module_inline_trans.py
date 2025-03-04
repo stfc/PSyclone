@@ -325,21 +325,6 @@ class KernelModuleInlineTrans(Transformation):
                 all_symbols.add(
                     code_to_inline.symbol_table.lookup(sig.var_name))
 
-    #        for scope in code_to_inline.walk(ScopingNode):
-    #            for symbol in scope.symbol_table.symbols:
-    #                all_symbols.add(symbol)
-    #        for reference in code_to_inline.walk(Reference):
-    #            all_symbols.add(reference.symbol)
-    #        for literal in code_to_inline.walk(Literal):
-    #            # Literals may reference symbols in their precision
-    #            if isinstance(literal.datatype.precision, Symbol):
-    #                all_symbols.add(literal.datatype.precision)
-    #        for caller in code_to_inline.walk(Call):
-    #            all_symbols.add(caller.routine.symbol)
-    #        for cblock in code_to_inline.walk(CodeBlock):
-    #            for name in cblock.get_symbol_names():
-    #                all_symbols.add(cblock.scope.symbol_table.lookup(name))
-
             # Decide which symbols need to be brought inside the subroutine
             symbols_to_bring_in = set()
             for symbol in all_symbols:
@@ -620,27 +605,6 @@ class KernelModuleInlineTrans(Transformation):
                         name = call.routine.symbol.name.lower()
                         if name == target_name:
                             call.routine.symbol = sym
-                else:
-                    # The routine symbol already exists, and we know from the
-                    # validation that it's a Routine. Now check if they are
-                    # exactly the same.
-                    for routine in container.walk(Routine, stop_type=Routine):
-                        if routine.name.lower() == code_to_inline.name.lower():
-                            # This TransformationError happens here and not in
-                            # the validation because it needs the
-                            # symbols_to_bring_in applied to effectively
-                            # compare both versions.  This will be fixed when
-                            # module-inlining versioning is implemented.  (It
-                            # is OK to fail here because we have not yet made
-                            # any modifications to the tree - code_to_inline
-                            # is a detached copy.)
-                            if routine != code_to_inline:
-                                raise TransformationError(
-                                    f"Cannot inline routine '{routine.name}'"
-                                    f" because another, different, subroutine "
-                                    f"with the same name already exists and "
-                                    f"versioning of module-inlined subroutines"
-                                    f" is not implemented yet.")
 
         # Set the module-inline flag to avoid generating the kernel imports
         # TODO #1823. If the kernel imports were generated at PSy-layer
