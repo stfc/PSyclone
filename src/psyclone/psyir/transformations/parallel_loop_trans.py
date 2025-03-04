@@ -126,17 +126,17 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                         # Find the loop ancestor of closest that is an ancestor
                         # of node.
                         close_loop = closest.ancestor(Loop)
-                        while anc_loop is not None:
-                            if node.is_descendent_of(anc_loop):
+                        while close_loop is not None:
+                            if node.is_descendent_of(close_loop):
                                 break
-                            close_loop = anc_loop.ancestor(Loop)
+                            close_loop = close_loop.ancestor(Loop)
                         if (abs_position < closest_position and
                                 anc_loop and anc_loop is close_loop):
                             closest = access
                             closest_position = abs_position
                             continue
                         if (abs_position > loop_position and
-                                access.ancestor(Loop) is node.ancestor(Loop)):
+                                anc_loop is close_loop):
                             closest = access
                             closest_position = abs_position
                             continue

@@ -738,3 +738,35 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop = psyir.walk(Loop)[0]
     result = True
     assert paratrans._find_next_dependency(loop) is result
+
+    # Test that we find the correct access to handle nested loops.
+    # Make sure we use all the "find ancestor loop of loop" code.
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i, j
+        do i = 1, 100
+            do j = 1, 100
+                a(j) = 1
+            end do
+            do j = 1, 100
+                a(j) = a(j) + i
+            end do
+            do j = 1, 100
+                a(j) = a(j) + i
+            end do
+        end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[2]
+    result = psyir.walk(Loop)[3].loop_body.children[0].lhs
+    assert paratrans._find_next_dependency(loop) is result
+
+
+def test_parallel_loop_trans_add_asynchronicity():
+    '''Test the _add_asynchronicity function of the parallel loop trans.'''
+    # Create an instance
+    paratrans = ParaTrans()
+    # Default implementation does nothing.
+    paratrans._add_asynchronocity(None, None)

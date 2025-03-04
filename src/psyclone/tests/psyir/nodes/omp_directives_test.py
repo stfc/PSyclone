@@ -1391,6 +1391,17 @@ def test_omp_barrier_validate_global_constraints():
     assert ("OMPBarrierDirective must be inside an OMP parallel region but "
             "could not find an ancestor OMPParallelDirective node"
             in str(excinfo.value))
+    # Valid case.
+    barrier = OMPBarrierDirective()
+    parallel = OMPParallelDirective()
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    parallel.children[0].addchild(barrier)
+    schedule.addchild(parallel)
+    barrier.validate_global_constraints()
 
 
 def test_omptaskwait_strings():
