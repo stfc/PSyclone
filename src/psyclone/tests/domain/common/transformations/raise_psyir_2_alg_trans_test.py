@@ -329,10 +329,10 @@ def test_arg_error(fortran_reader, arg):
 
     '''
     code = (
-        f"subroutine alg()\n"
-        f"  use kern_mod\n"
-        f"  use field_mod, only : r2d_field\n"
-        f"  type(r2d_field) :: field\n")
+        "subroutine alg()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : r2d_field\n"
+        "  type(r2d_field) :: field\n")
     if arg == "alg(field)":
         # Persuade the PSyIR that `alg` is a RoutineSymbol.
         code += f"call {arg}\n"
