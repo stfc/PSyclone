@@ -1650,7 +1650,7 @@ def test_omp_loop_directive_constructor_and_strings():
     assert omploop.begin_string() == "omp loop nowait"
 
 
-def test_omp_teamsloop_nowait_setter():
+def test_omp_loop_nowait_setter():
     ''' Test the nowait property setter on OMPLoopDirective.'''
     ompdo = OMPLoopDirective()
     ompdo.nowait = True
