@@ -2532,7 +2532,8 @@ class OMPTeamsLoopDirective(OMPParallelDoDirective):
         :rtype: str
 
         '''
-        string = f"omp {self._directive_string}"
+        # Inherit the begin string from the super class implementation.
+        string = super().begin_string()
         if self.nowait:
             string += " nowait"
         return string

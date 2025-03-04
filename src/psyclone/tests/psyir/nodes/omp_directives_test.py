@@ -407,6 +407,22 @@ def test_ompdo_constructor():
     assert ompdo.reprod
     assert str(ompdo) == "OMPDoDirective[omp_schedule=dynamic,collapse=4]"
 
+    # Constructor with nowait parameter
+    ompdo = OMPDoDirective(nowait=True)
+    assert ompdo.nowait
+    assert ompdo.begin_string() == "omp do nowait"
+
+
+def test_omp_do_directive_nowait_setter():
+    ''' Test the OMPDoDirective nowait property setter.'''
+    ompdo = OMPDoDirective()
+    ompdo.nowait = True
+
+    with pytest.raises(TypeError) as err:
+        ompdo.nowait = "string"
+    assert ("The OMPDoDirective nowait clause must be a bool, but value "
+            "'string' has been given." in str(err.value))
+
 
 def test_omp_do_directive_collapse_getter_and_setter():
     ''' Test the OMPDODirective collapse property setter and getter.'''
@@ -1353,7 +1369,7 @@ def test_omp_master_nested_validate_global_constraints(monkeypatch):
             "region") in str(excinfo.value)
 
 
-def test_ompbarrier_strings():
+def test_omp_barrier_strings():
     ''' Test the begin_string method of the OMPBarrierDirective.'''
     barrier = OMPBarrierDirective()
 
@@ -1597,6 +1613,21 @@ def test_omp_teamsloop_directive_constructor_and_strings():
     assert omploop.end_string() == "omp end teams loop"
     assert str(omploop) == "OMPTeamsLoopDirective[collapse=4]"
 
+    omploop = OMPTeamsLoopDirective(nowait=True)
+    assert omploop.nowait
+    assert omploop.begin_string() == "omp teams loop nowait"
+
+
+def test_omp_teamsloop_nowait_setter():
+    ''' Test the nowait property setter on OMPTeamsLoopDirective.'''
+    ompdo = OMPTeamsLoopDirective()
+    ompdo.nowait = True
+
+    with pytest.raises(TypeError) as err:
+        ompdo.nowait = "string"
+    assert ("The OMPTeamsLoopDirective nowait clause must be a bool, "
+            "but value 'string' has been given." in str(err.value))
+
 
 # Test OMPLoopDirective
 
@@ -1613,6 +1644,21 @@ def test_omp_loop_directive_constructor_and_strings():
     assert omploop.begin_string() == "omp loop collapse(4)"
     assert omploop.end_string() == "omp end loop"
     assert str(omploop) == "OMPLoopDirective[collapse=4]"
+
+    omploop = OMPLoopDirective(nowait=True)
+    assert omploop.nowait
+    assert omploop.begin_string() == "omp loop nowait"
+
+
+def test_omp_teamsloop_nowait_setter():
+    ''' Test the nowait property setter on OMPLoopDirective.'''
+    ompdo = OMPLoopDirective()
+    ompdo.nowait = True
+
+    with pytest.raises(TypeError) as err:
+        ompdo.nowait = "string"
+    assert ("The OMPLoopDirective nowait clause must be a bool, "
+            "but value 'string' has been given." in str(err.value))
 
 
 def test_omp_loop_directive_collapse_getter_and_setter():
