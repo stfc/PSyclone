@@ -578,7 +578,6 @@ class SymbolTable():
         if key in self._symbols:
             raise KeyError(f"Symbol table already contains a symbol with "
                            f"name '{new_symbol.name}'.")
-
         if tag:
             if tag in self.get_tags():
                 raise KeyError(
@@ -1873,7 +1872,7 @@ class SymbolTable():
         # Re-insert modified symbol
         self.add(symbol)
 
-    def wildcard_imports(self):
+    def wildcard_imports(self, scope_limit=None):
         '''
         Searches this symbol table and then up through any parent symbol
         tables for a ContainerSymbol that has a wildcard import.
@@ -1889,7 +1888,8 @@ class SymbolTable():
             for sym in current_table.containersymbols:
                 if sym.wildcard_import:
                     wildcards.add(sym.name)
-            current_table = current_table.parent_symbol_table()
+            current_table = current_table.parent_symbol_table(
+                scope_limit=scope_limit)
         return wildcards
 
     def view(self):

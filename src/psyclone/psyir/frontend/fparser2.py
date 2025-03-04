@@ -295,17 +295,28 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
                 f"_find_or_create_unresolved_symbol() is not an ancestor of "
                 f"this node '{location}'.")
 
-    try:
-        sym = location.scope.symbol_table.lookup(name, scope_limit=scope_limit)
-        if "symbol_type" in kargs:
-            expected_type = kargs.pop("symbol_type")
-            if not isinstance(sym, expected_type):
-                # The caller specified a sub-class so we need to
-                # specialise the existing symbol.
-                sym.specialise(expected_type, **kargs)
-        return sym
-    except KeyError:
-        pass
+    shadowing = False
+    table = location.scope.symbol_table
+    while table:
+        sym = table.lookup(name, scope_limit=table.node,
+                           otherwise=None)
+        if sym:
+            if "symbol_type" in kargs:
+                expected_type = kargs.pop("symbol_type")
+                if not isinstance(sym, expected_type):
+                    # The caller specified a sub-class so we need to
+                    # specialise the existing symbol.
+                    sym.specialise(expected_type, **kargs)
+            return sym
+
+        if table.wildcard_imports(scope_limit=table.node):
+            # There's a wildcard import into this scope so we stop
+            # searching and create an unresolved symbol (below). This is
+            # permitted to shadown a declaration in an outer scope because
+            # it may be a different entity (coming from the import).
+            shadowing = True
+            break
+        table = table.parent_symbol_table(scope_limit)
 
     # find the closest ancestor symbol table attached to a Routine or
     # Container node. We don't want to add to a Schedule node as in
@@ -325,7 +336,7 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
     # declaration may be hidden (perhaps in a codeblock), or it may be
     # imported with a wildcard import.
     return symbol_table.new_symbol(
-        name, interface=UnresolvedInterface(), **kargs)
+        name, interface=UnresolvedInterface(), shadowing=shadowing, **kargs)
 
 
 def _find_or_create_psyclone_internal_cmp(node):
@@ -5158,6 +5169,7 @@ class Fparser2Reader():
         # fparser2 is fixed.
         if str(node.items[0]).lower() == "null" and node.items[1] is None:
             return self._intrinsic_handler(node, parent)
+
         self.process_nodes(parent=call, nodes=[node.items[0]])
         routine = call.children[0]
         # If it's a plain reference, promote the symbol to a RoutineSymbol
