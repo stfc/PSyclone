@@ -39,13 +39,11 @@
 
 '''
 
-import os
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
-from psyclone.configuration import Config
 from psyclone.errors import GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
