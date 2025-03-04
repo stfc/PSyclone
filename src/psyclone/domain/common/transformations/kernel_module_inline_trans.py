@@ -460,14 +460,20 @@ class KernelModuleInlineTrans(Transformation):
         # pylint:disable-next=protected-access
         actual_table._symbols.pop(symbol.name)
         if csym.wildcard_import:
-            # The Routine is brought into scope via a wildcard
-            # import. We have to rename it on import to avoid
-            # a clash with the newly inlined Routine.
-            ctable.new_symbol(
-                f"old_{symbol.name}",
-                symbol_type=RoutineSymbol,
-                interface=ImportInterface(
-                    csym, orig_name=symbol.name))
+            # The Routine is brought into scope via a wildcard import. We have
+            # to rename it on import to avoid a clash with the newly inlined
+            # Routine.
+            for isym in ctable.symbols_imported_from(csym):
+                if isym.interface.orig_name.lower() == symbol.name.lower():
+                    # We already have a suitable import so we don't need
+                    # another one.
+                    break
+            else:
+                ctable.new_symbol(
+                    f"old_{symbol.name}",
+                    symbol_type=RoutineSymbol,
+                    interface=ImportInterface(
+                        csym, orig_name=symbol.name))
         elif remove_csym:
             actual_table.remove(csym)
 

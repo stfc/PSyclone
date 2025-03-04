@@ -43,7 +43,6 @@ setval_* generically.
 '''
 import os
 import sys
-from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.nodes import Directive, Loop, Routine
 from psyclone.psyir.transformations import (
@@ -77,7 +76,6 @@ def trans(psyir):
     otrans = Dynamo0p3OMPLoopTrans()
     const = LFRicConstants()
     cpu_parallel = OMPParallelTrans()
-    modinline_trans = KernelModuleInlineTrans()
 
     if OFFLOAD_DIRECTIVES == "omp":
         # Use OpenMP offloading
@@ -139,13 +137,6 @@ def trans(psyir):
             if loop.iteration_space.endswith("cell_column"):
                 if offload:
                     for kern in loop.kernels():
-                        # First, attempt to module-inline the kernel.
-                        try:
-                            modinline_trans.apply(kern)
-                        except TransformationError as err:
-                            print(
-                                f"Failed to module-inline '{kern.name}' due "
-                                f"to:\n{err.value}")
                         try:
                             gpu_annotation_trans.apply(kern)
                         except TransformationError as err:
