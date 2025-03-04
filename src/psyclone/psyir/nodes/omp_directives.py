@@ -192,28 +192,6 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
     Class representing an OpenMP TASKWAIT directive in the PSyIR.
 
     '''
-    def validate_global_constraints(self):
-        '''
-        Perform validation checks that can only be done at code-generation
-        time.
-
-        :raises GenerationError: if this OMPTaskwait is not enclosed
-                                 within some OpenMP parallel region.
-
-        '''
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). As a Parallel Child
-        # directive, we must have an OMPParallelDirective as an ancestor
-        # somewhere back up the tree.
-        if not self.ancestor(OMPParallelDirective,
-                             excluding=OMPParallelDoDirective):
-            raise GenerationError(
-                "OMPTaskwaitDirective must be inside an OMP parallel region "
-                "but could not find an ancestor OMPParallelDirective node")
-
-        super().validate_global_constraints()
-
     def gen_code(self, parent):
         '''Generate the fortran OMP Taskwait Directive and any associated
         code

@@ -1426,23 +1426,6 @@ def test_omptaskwait_gencode():
     assert "!$omp taskwait\n" in str(temporary_module.root)
 
 
-def test_omp_taskwait_validate_global_constraints():
-    ''' Test the validate_global_constraints method of the OMPTaskwait
-        directive '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    taskwait = OMPTaskwaitDirective()
-    schedule.addchild(taskwait, 0)
-    with pytest.raises(GenerationError) as excinfo:
-        taskwait.validate_global_constraints()
-    assert ("OMPTaskwaitDirective must be inside an OMP parallel region but "
-            "could not find an ancestor OMPParallelDirective node"
-            in str(excinfo.value))
-
-
 def test_omp_taskwait_clauses():
     ''' Test the clauses property of the OMPTaskwait directive. '''
     omp_taskwait = OMPTaskwaitDirective()
