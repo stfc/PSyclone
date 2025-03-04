@@ -221,12 +221,15 @@ def test_arg_declaration_error(fortran_reader):
         "  use field_mod, only : field_type\n"
         "  type(field_type) :: field\n"
         "  real(kind=r_def) :: value\n"
+        # Not valid Fortran but it persuades the PSyIR that setval_c is a
+        # RoutineSymbol which is what this test requires.
+        "  call setval_c(field, value)\n"
         "  call invoke(setval_c(field, value))\n"
         "end subroutine setval_c\n")
     psyir = fortran_reader.psyir_from_source(code)
     invoke_trans = RaisePSyIR2LFRicAlgTrans()
     with pytest.raises(TransformationError) as info:
-        invoke_trans.validate(psyir.children[0][0])
+        invoke_trans.validate(psyir.children[0][1])
     assert ("The invoke call argument 'setval_c' has been used as a routine "
             "name. This is not allowed." in str(info.value))
 
