@@ -639,7 +639,7 @@ class LFRicKernMetadata(KernelType):
         :raises ParseError: if any argument descriptors are not field or
                             scalar types.
         '''
-        const = LFRicConstants()
+        # const = LFRicConstants()
         # A kernel which operates on the 'domain' is currently restricted
         # to only accepting scalar and field arguments.
         # valid_arg_types = const.VALID_SCALAR_NAMES + const.VALID_FIELD_NAMES
@@ -648,7 +648,8 @@ class LFRicKernMetadata(KernelType):
         #         raise ParseError(
         #             f"In the LFRic API a kernel that operates on "
         #             f"'{self.iterates_over}' is only permitted to accept "
-        #             f"scalar and field arguments but the metadata for kernel "
+        #             f"scalar and field arguments but the metadata for "
+        #             f"kernel "
         #             f"'{self.name}' includes an argument of type "
         #             f"'{arg.argument_type}'")
 

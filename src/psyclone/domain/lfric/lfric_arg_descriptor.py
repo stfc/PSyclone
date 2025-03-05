@@ -384,19 +384,19 @@ class LFRicArgDescriptor(Descriptor):
         # Note that although WRITE is permitted for fields on continuous
         # function spaces, kernels that specify this must guarantee to write
         # the same value to any given shared entity, independent of iteration.
-        field_cont_accesses = [AccessType.READ, AccessType.WRITE,
-                               AccessType.INC, AccessType.READINC]
+        # field_cont_accesses = [AccessType.READ, AccessType.WRITE,
+        #                        AccessType.INC, AccessType.READINC]
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
         rev_access_mapping = api_config.get_reverse_access_mapping()
         # Create a list of allowed accesses for use in error messages
         fld_disc_acc_msg = [rev_access_mapping[acc] for acc in
                             field_disc_accesses]
-        fld_cont_acc_msg = [rev_access_mapping[acc] for acc in
-                            field_cont_accesses]
+        # fld_cont_acc_msg = [rev_access_mapping[acc] for acc in
+        #                     field_cont_accesses]
         # Joint lists of valid function spaces for continuous fields
-        fld_cont_spaces = (const.CONTINUOUS_FUNCTION_SPACES +
-                           const.VALID_ANY_SPACE_NAMES)
+        # fld_cont_spaces = (const.CONTINUOUS_FUNCTION_SPACES +
+        #                    const.VALID_ANY_SPACE_NAMES)
 
         # Check accesses for kernels that operate on DoFs
         if operates_on == "dof":
@@ -425,7 +425,8 @@ class LFRicArgDescriptor(Descriptor):
             # if self._function_space1.lower() in fld_cont_spaces:
             #     if operates_on == "domain":
             #         raise ParseError(
-            #             f"In the LFRic API, kernels that operate on the domain"
+            #             f"In the LFRic API, kernels that operate on the "
+            #             f"domain"
             #             f" only accept field arguments on discontinuous "
             #             f"function spaces but found "
             #             f"'{self._function_space1.lower()}' in '{arg_type}'")
@@ -437,7 +438,8 @@ class LFRicArgDescriptor(Descriptor):
             #             f"kernels that operate on cell-columns are "
             #             f"{fld_cont_acc_msg}, but found "
             #             f"'{rev_access_mapping[self._access_type]}' for "
-            #             f"'{self._function_space1.lower()}' in '{arg_type}'.")
+            #             f"'{self._function_space1.lower()}' in "
+            #             f"'{arg_type}'.")
         # Raise an InternalError for an invalid value of operates-on
         else:
             raise InternalError(
