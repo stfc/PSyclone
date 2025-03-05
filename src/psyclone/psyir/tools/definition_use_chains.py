@@ -234,11 +234,7 @@ class DefinitionUseChain:
             ):
                 # Check if there is an ancestor Loop/WhileLoop.
                 ancestor = self._reference.ancestor((Loop, WhileLoop))
-                if ancestor is not None:
-                    next_ancestor = ancestor.ancestor((Loop, WhileLoop))
-                    while next_ancestor is not None:
-                        ancestor = next_ancestor
-                        next_ancestor = ancestor.ancestor((Loop, WhileLoop))
+                while ancestor is not None:
                     # Create a basic block for the ancestor Loop.
                     body = ancestor.loop_body.children[:]
                     control_flow_nodes.insert(0, ancestor)
@@ -276,6 +272,7 @@ class DefinitionUseChain:
                             stop_point=sub_stop_point,
                         )
                         chains.insert(0, chain)
+                    ancestor = ancestor.ancestor((Loop, WhileLoop))
 
                 # Check if there is an ancestor Assignment.
                 ancestor = self._reference.ancestor(Assignment)
@@ -877,11 +874,7 @@ class DefinitionUseChain:
             ):
                 # Check if there is an ancestor Loop/WhileLoop.
                 ancestor = self._reference.ancestor((Loop, WhileLoop))
-                if ancestor is not None:
-                    next_ancestor = ancestor.ancestor((Loop, WhileLoop))
-                    while next_ancestor is not None:
-                        ancestor = next_ancestor
-                        next_ancestor = ancestor.ancestor((Loop, WhileLoop))
+                while ancestor is not None:
                     # Create a basic block for the ancestor Loop.
                     body = ancestor.loop_body.children[:]
                     # Find the stop point - this needs to be the last node
@@ -920,6 +913,7 @@ class DefinitionUseChain:
                             stop_point=sub_stop_point,
                         )
                         chains.append(chain)
+                    ancestor = ancestor.ancestor((Loop, WhileLoop))
 
                 # Check if there is an ancestor Assignment.
                 ancestor = self._reference.ancestor(Assignment)

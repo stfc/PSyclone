@@ -38,10 +38,11 @@ forward_accesses routine.'''
 
 import pytest
 from psyclone.psyir.nodes import (
-    Routine,
-    IfBlock,
-    Reference,
     Assignment,
+    IfBlock,
+    Loop,
+    Reference,
+    Routine,
     Node,
     WhileLoop,
 )
@@ -599,10 +600,11 @@ def test_definition_use_chain_foward_accesses_nested_loop_example(
     chains = DefinitionUseChain(loops[1].loop_body.children[0].rhs.children[1])
     reaches = chains.find_forward_accesses()
     # Results should be A = A + 3 and the a < i condition
-    assert len(reaches) == 3
     assert reaches[0] is loops[0].condition.children[0]
     assert reaches[1] is loops[0].loop_body.children[0].rhs.children[0]
     assert reaches[2] is loops[0].loop_body.children[0].lhs
+    assert reaches[3] is loops[1].loop_body.children[0].rhs.children[1]
+    assert len(reaches) == 4
 
 
 def test_definition_use_chain_find_forward_accesses_structure_example(
@@ -990,3 +992,33 @@ def test_definition_use_chains_backward_accesses_inquiry_func(
     chains = DefinitionUseChain(routine.children[0].lhs)
     reaches = chains.find_forward_accesses()
     assert len(reaches) == 0
+
+
+def test_definition_use_chains_multiple_ancestor_loops(
+    fortran_reader,
+):
+    '''Test the case where we have multiple ancestor loops
+    with accesses.'''
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i, j, k
+        do i = 1, 100
+            a(i) = 1
+            do j = 1, 100
+                a(j) = 2
+                do k = 1, 100
+                  a(k) = 3
+                end do
+            end do
+        end do
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    chains = DefinitionUseChain(loops[2].loop_body.children[0].lhs)
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 3
+    assert reaches[0] is loops[0].loop_body.children[0].lhs
+    assert reaches[1] is loops[1].loop_body.children[0].lhs
+    assert reaches[2] is loops[2].loop_body.children[0].lhs
