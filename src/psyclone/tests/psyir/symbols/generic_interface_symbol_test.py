@@ -170,17 +170,24 @@ def test_gis_replace_symbols_using():
     '''
     ash = RoutineSymbol("ash")
     holly = RoutineSymbol("holly")
-    coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False)])
+    birch = RoutineSymbol("birch")
+    coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False),
+                                                 (birch, True)])
     table = SymbolTable()
     for rinfo in coppice.routines:
-        assert rinfo.symbol in [ash, holly]
+        assert rinfo.symbol in [ash, holly, birch]
     ashling = ash.copy()
     table.add(ashling)
+    # Test when the replacement symbol is currently just a Symbol. It should
+    # be converted into a RoutineSymbol (in place).
+    birch = Symbol("birch")
+    table.add(birch)
     coppice.replace_symbols_using(table)
     for rinfo in coppice.routines:
-        assert rinfo.symbol in [ashling, holly]
+        assert rinfo.symbol in [ashling, holly, birch]
+        assert isinstance(rinfo.symbol, RoutineSymbol)
     newholly = holly.copy()
     table.add(newholly)
     coppice.replace_symbols_using(table)
     for rinfo in coppice.routines:
-        assert rinfo.symbol in [ashling, newholly]
+        assert rinfo.symbol in [ashling, newholly, birch]
