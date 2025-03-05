@@ -90,6 +90,10 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         for signature in writes:
             accesses = var_accesses[signature].all_accesses
             last_access = accesses[-1].node
+            # FIXME REMOVE?
+            from psyclone.psyir.nodes.array_mixin import ArrayMixin
+            if not isinstance(last_access, ArrayMixin):
+                continue
             next_accesses = last_access.next_accesses()
             # next_accesses always appear in the order of
             # nodes before loop followed by nodes after loop.
