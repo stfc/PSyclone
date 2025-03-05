@@ -611,7 +611,7 @@ end subroutine x"""
   integer, dimension(100) :: arr
   integer, dimension(100) :: arr2
 
-  !$omp parallel default(shared), private(i)
+  !$omp parallel default(shared), private(i,j)
   !$omp do schedule(auto)
   do i = 1, 100, 1
     j = i + i
