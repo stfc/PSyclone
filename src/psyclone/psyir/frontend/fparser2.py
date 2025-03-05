@@ -228,7 +228,7 @@ def _first_type_match(nodelist, typekind):
 
 
 def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
-                                      **kargs):
+                                      **kargs) -> Symbol:
     '''Returns the symbol with the given 'name' from a symbol table
     associated with the 'location' node or one of its ancestors. If a
     symbol is found then the type of the existing symbol is compared
@@ -257,9 +257,11 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
         searched.
     :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or
         `NoneType`
+    :param kargs: arguments to pass on when either specialising an
+        existing symbol or creating a new one.
+    :type kargs: unwrapped dict
 
     :returns: the matching symbol.
-    :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
     :raises TypeError: if the supplied scope_limit is not a Node.
     :raises ValueError: if the supplied scope_limit node is not an
@@ -294,7 +296,6 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
                 f"_find_or_create_unresolved_symbol() is not an ancestor of "
                 f"this node '{location}'.")
 
-    shadowing = False
     table = location.scope.symbol_table
     while table:
         # By default, `lookup` looks in all ancestor scopes. However, we need
@@ -315,7 +316,7 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
             # searching and create an unresolved symbol (below). This is
             # permitted to shadow a declaration in an outer scope because
             # it may be a different entity (coming from the import).
-            shadowing = True
+            kargs["shadowing"] = True
             break
         table = table.parent_symbol_table(scope_limit)
 
@@ -337,7 +338,7 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
     # declaration may be hidden (perhaps in a codeblock), or it may be
     # imported with a wildcard import.
     return symbol_table.new_symbol(
-        name, interface=UnresolvedInterface(), shadowing=shadowing, **kargs)
+        name, interface=UnresolvedInterface(), **kargs)
 
 
 def _find_or_create_psyclone_internal_cmp(node):
