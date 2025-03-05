@@ -143,7 +143,7 @@ def trans(psyir):
                             inline_trans.apply(kern)
                         except TransformationError as err:
                             print(f"Failed to module-inline '{kern.name}' due "
-                                  "to:\n{err.value}")
+                                  f"to:\n{err.value}")
                         try:
                             gpu_annotation_trans.apply(kern)
                         except TransformationError as err:

@@ -944,11 +944,6 @@ class ArrayType(DataType):
                 # This dimension is specified with an ArrayType.Extent
                 # so no need to copy.
                 new_shape.append(dim)
-        if (isinstance(self.datatype, Symbol) and
-                not isinstance(self.datatype, DataTypeSymbol)):
-            # The type is given by a Symbol but it's not a DataTypeSymbol
-            # so specialise it in place.
-            self.datatype.specialise(DataTypeSymbol)
         return ArrayType(self.datatype, new_shape)
 
     def replace_symbols_using(self, table):
