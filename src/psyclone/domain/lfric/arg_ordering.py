@@ -360,8 +360,9 @@ class ArgOrdering:
         # argument is already contained in the argument list).
         self._generate_called = True
         if self._kern.arguments.has_operator():
-            # All operator types require the cell index to be provided
-            self.cell_position(var_accesses=var_accesses)
+            if self._kern.iterates_over != "domain":
+                # All operator types require the cell index to be provided
+                self.cell_position(var_accesses=var_accesses)
         # Pass the number of layers in the mesh unless this kernel is
         # applying a CMA operator or doing a CMA matrix-matrix calculation
         if self._kern.cma_operation not in ["apply", "matrix-matrix"]:
