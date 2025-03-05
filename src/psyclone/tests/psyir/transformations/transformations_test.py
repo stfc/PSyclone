@@ -628,9 +628,7 @@ end subroutine x"""
   !$omp end parallel
 
 end subroutine x"""
-    print(out)
     assert correct in out
-
 
 
 def test_ifblock_children_region():
