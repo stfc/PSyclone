@@ -161,6 +161,7 @@ def trans(psyir):
         if (
             subroutine.name.lower().startswith("sign_") or
             subroutine.name.lower() == "solfrac" or
+            subroutine.name.startswith("psyclone_cmp") or
             (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
         ):
             try:

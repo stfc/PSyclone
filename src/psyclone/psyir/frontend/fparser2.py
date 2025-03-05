@@ -404,6 +404,9 @@ def _find_or_create_psyclone_internal_cmp(node):
                     )
             container.symbol_table.add(symbol)
             symbol = container.symbol_table.lookup(name_interface)
+            # symbol._is_available_on_device = True
+            symbol.is_pure = True
+
             # Add the appropriate tag to find it regardless of the name
             container.symbol_table.tags_dict['psyclone_internal_cmp'] = symbol
             return symbol

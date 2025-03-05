@@ -110,8 +110,18 @@ class Symbol(CommentableMixin):
         # The following attributes have a setter method (with error checking)
         self._visibility = None
         self._interface = None
+        self._is_available_on_device = False
 
         self._process_arguments(visibility=visibility, interface=interface)
+
+    @property
+    def is_available_on_device(self):
+        '''
+        :returns: whether this call is available on an accelerated device.
+        :rtype: bool
+
+        '''
+        return self._is_available_on_device
 
     def _process_arguments(self, visibility=None, interface=None):
         ''' Process the visibility and interface arguments of the constructor

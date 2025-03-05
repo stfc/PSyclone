@@ -393,7 +393,7 @@ class Call(Statement, DataNode):
         :rtype: bool
 
         '''
-        return False
+        return self.routine.symbol.is_available_on_device
 
     @property
     def argument_names(self):
