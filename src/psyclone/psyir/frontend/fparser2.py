@@ -296,10 +296,26 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
                 f"_find_or_create_unresolved_symbol() is not an ancestor of "
                 f"this node '{location}'.")
 
+    # In Fortran, no import can clash with the name of a parent Routine.
+    # Therefore, if the name we've been given corresponds to the name of the
+    # enclosing Routine (or its RESULT if it is a function) then it *must*
+    # refer to that and cannot be brought in by an import.
+    parent_scope = location.ancestor(Routine)
+    if parent_scope:
+        if (parent_scope.return_symbol and
+                parent_scope.return_symbol.name.lower() == name.lower()):
+            # The PSyIR canonicalises functions such that they always have
+            # a RESULT clause. As such, according to the Fortan standard, any
+            # reference to the name specified in the RESULT clause is to the
+            # DataSymbol.
+            return parent_scope.return_symbol
+        if parent_scope.name.lower() == name.lower():
+            return parent_scope.symbol
+
     table = location.scope.symbol_table
     while table:
         # By default, `lookup` looks in all ancestor scopes. However, we need
-        # to allow for wildcard imports as we work our way up.
+        # to check for wildcard imports as we work our way up.
         sym = table.lookup(name, scope_limit=table.node,
                            otherwise=None)
         if sym:
@@ -316,6 +332,8 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
             # searching and create an unresolved symbol (below). This is
             # permitted to shadow a declaration in an outer scope because
             # it may be a different entity (coming from the import).
+            # TODO #2915 - it may be that we've already resolved all symbols
+            # from this import but currently we have no way of recording that.
             kargs["shadowing"] = True
             break
         table = table.parent_symbol_table(scope_limit)
@@ -5424,7 +5442,7 @@ class Fparser2Reader():
 
             if isinstance(node, Fortran2003.Function_Subprogram):
                 # Check whether this function-stmt has a suffix containing
-                # 'RETURNS'
+                # 'RESULT'
                 suffix = stmt.children[3]
                 if suffix:
                     # Although the suffix can, in principle, contain a proc-
