@@ -46,6 +46,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 import inspect
 import copy
+from typing import Set
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -859,7 +860,7 @@ class SymbolTable():
         except SymbolError as err:
             raise SymbolError(
                 f"Cannot merge {other_table.view()} with {self.view()} due to "
-                f"unresolvable name clashes.") from err
+                f"unresolvable name clashes: {err.value}") from err
 
         # Deal with any Container symbols first.
         self._add_container_symbols_from_table(other_table)
@@ -1872,14 +1873,20 @@ class SymbolTable():
         # Re-insert modified symbol
         self.add(symbol)
 
-    def wildcard_imports(self, scope_limit=None):
+    def wildcard_imports(self, scope_limit=None) -> Set[str]:
         '''
         Searches this symbol table and then up through any parent symbol
         tables for a ContainerSymbol that has a wildcard import.
 
+        :param scope_limit: optional Node which limits the search to the
+            symbol tables of the nodes within the given scope.
+            If it is None (the default), the whole scope (all symbol tables
+            in ancestor nodes) is searched, otherwise ancestors of the
+            scope_limit node are not searched.
+        :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+
         :returns: the name(s) of containers which have wildcard imports
             into the current scope.
-        :rtype: set[str]
 
         '''
         wildcards = set()
