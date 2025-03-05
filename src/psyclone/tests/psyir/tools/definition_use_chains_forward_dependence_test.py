@@ -46,6 +46,7 @@ from psyclone.psyir.nodes import (
     Node,
     WhileLoop,
 )
+from psyclone.transformations import OMPParallelTrans
 from psyclone.psyir.symbols import (
     DataSymbol,
     INTEGER_TYPE,
@@ -173,6 +174,24 @@ end subroutine foo"""
     # control flow.
     duc3 = DefinitionUseChain(reference, control_flow_region=block3)
     assert not duc3.is_basic_block
+
+    # Test that regiondirectives (e.g. OMPParallelDirective) don't count.
+    code = """subroutine x
+    integer :: i
+    integer, dimension(100) :: arr
+
+    do i = 1, 100
+        arr(i) = i
+    end do
+    end subroutine
+    """
+    par_trans = OMPParallelTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    par_trans.apply(psyir.walk(Routine)[0].children[:])
+    reference = psyir.walk(Reference)[0]
+    parallel = psyir.walk(Routine)[0].children[0]
+    duc = DefinitionUseChain(reference, control_flow_region=[parallel])
+    assert not duc.is_basic_block
 
 
 def test_definition_use_chain_compute_forward_uses(fortran_reader):
@@ -354,6 +373,16 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
     assert blocks[1][0] is ifblock2.if_body.children[1].condition
     assert blocks[2] == ifblock2.if_body.children[1].loop_body.children[:]
     assert blocks[3][0] is ifblock2.if_body.children[2]
+
+    # Find the basic blocks for a RegionDirective
+    par_trans = OMPParallelTrans()
+    par_trans.apply(psyir.walk(Routine)[0].children[:])
+    cfn, blocks = duc._find_basic_blocks([routine.children[0]])
+    assert len(cfn) == 1
+    assert cfn[0] is None
+    assert len(blocks) == 1
+    assert len(blocks[0]) == 1
+    assert blocks[0][0] is routine.children[0].children[0]
 
 
 def test_definition_use_chain_find_forward_accesses_basic_example(

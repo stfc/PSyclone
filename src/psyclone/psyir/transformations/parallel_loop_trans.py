@@ -68,7 +68,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
     # being transformed.
     excluded_node_types = (nodes.Return, psyGen.HaloExchange, nodes.CodeBlock)
 
-    def _add_asynchronocity(self, node: Loop, instance: Directive):
+    def _add_asynchronicity(self, node: Loop, instance: Directive):
         ''' Function to enable child classes to handle adding asynchronicity
         (e.g. nowait or dynamic queue choices) as part of the transformation.
         '''
@@ -502,8 +502,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         # to get the type of directive we require.
         directive = self._directive([node.detach()], num_collapsable_loops)
 
-        if nowait:
-            self._add_asynchronocity(node, directive)
-
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
+
+        if nowait:
+            self._add_asynchronicity(node, directive)

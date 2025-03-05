@@ -52,6 +52,7 @@ from psyclone.psyir.nodes import (
     Loop,
     Node,
     Reference,
+    RegionDirective,
     Return,
     Routine,
     Schedule,
@@ -181,9 +182,9 @@ class DefinitionUseChain:
         """
         # A basic block is a scope without any control flow nodes inside.
         # In PSyclone, possible control flow nodes are IfBlock, Loop
-        # and WhileLoop.
+        # and WhileLoop, along with RegionDirectives.
         for node in self._scope:
-            c_f_nodes = node.walk((IfBlock, Loop, WhileLoop))
+            c_f_nodes = node.walk((IfBlock, Loop, WhileLoop, RegionDirective))
             if len(c_f_nodes) > 0:
                 return False
         return True
@@ -313,7 +314,6 @@ class DefinitionUseChain:
                     stop_point=self._stop_point,
                 )
                 chains.append(chain)
-
             for i, chain in enumerate(chains):
                 # Compute the defsout, killed and reaches for the block.
                 chain.find_forward_accesses()
@@ -647,6 +647,20 @@ class DefinitionUseChain:
                 if node.else_body and not in_if_body:
                     control_flow_nodes.append(node)
                     basic_blocks.append(node.else_body.children[:])
+            elif isinstance(node, RegionDirective):
+                # Add any current block to the list of blocks.
+                if len(current_block) > 0:
+                    basic_blocks.append(current_block)
+                    control_flow_nodes.append(None)
+                    current_block = []
+                # TODO #2751 if directives are optional we should be more
+                # careful.
+                # We add a basic block for each of the parts of the
+                # RegionDirective. We don't need to do anything with the
+                # control flow storing for now.
+                # This assumes that data in clauses is inquiry for now.
+                control_flow_nodes.append(None)
+                basic_blocks.append([node.dir_body])
             else:
                 # This is a basic node, add it to the current block
                 current_block.append(node)

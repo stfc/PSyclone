@@ -410,7 +410,7 @@ def test_ompdo_constructor():
     # Constructor with nowait parameter
     ompdo = OMPDoDirective(nowait=True)
     assert ompdo.nowait
-    assert ompdo.begin_string() == "omp do nowait"
+    assert ompdo.end_string() == "omp end do nowait"
 
 
 def test_omp_do_directive_nowait_setter():

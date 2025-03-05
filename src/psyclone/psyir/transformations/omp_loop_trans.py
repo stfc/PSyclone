@@ -169,10 +169,11 @@ class OMPLoopTrans(ParallelLoopTrans):
             # Add a barrier to the end of the containing Routine if there
             # isn't one already.
             containing_routine = node.ancestor((Routine, OMPParallelDirective))
+            containing_schedule = containing_routine.walk(Schedule)[0]
             # Check barrier that corresponds to self.omp_directive and add the
             # correct barrier type
-            if not isinstance(containing_routine.children[-1], barrier_type):
-                containing_routine.addchild(barrier_type())
+            if not isinstance(containing_schedule.children[-1], barrier_type):
+                containing_schedule.addchild(barrier_type())
             return
 
         # Otherwise we have the next dependency and we need to find where the
@@ -183,20 +184,20 @@ class OMPLoopTrans(ParallelLoopTrans):
         # add the barrier immediately before it.
         if next_depend.ancestor(Schedule) is node.ancestor(Schedule):
             sched = next_depend.ancestor(Schedule)
-            sched.addchild(next_depend.position, barrier_type())
+            sched.addchild(barrier_type(), next_depend.position)
             instance.nowait = True
             return
 
         # Otherwise we need to find the highest schedule containing both.
         sched = next_depend.ancestor(Schedule)
         routine = node.ancestor(Routine)
-        while sched.has_ancestor(routine):
-            if node.has_ancestor(sched):
+        while sched.is_descendent_of(routine):
+            if node.is_descendent_of(sched):
                 # Get the path from sched to next_depend
                 path = next_depend.path_from(sched)
-                # The last element of path is the ancestor of next_depend
-                # that is in sched, so we add the barrier there.
-                sched.addchild(path[-1].position, barrier_type())
+                # The first element of path is the position of the ancestor
+                # of next_depend that is in sched, so we add the barrier there.
+                sched.addchild(barrier_type(), path[0])
                 instance.nowait = True
                 return
             sched = sched.ancestor(Schedule)

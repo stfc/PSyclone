@@ -2243,8 +2243,6 @@ class OMPDoDirective(OMPRegionDirective):
             string += f" schedule({self.omp_schedule})"
         if self._collapse:
             string += f" collapse({self._collapse})"
-        if self.nowait:
-            string += " nowait"
         return string
 
     def end_string(self):
@@ -2256,7 +2254,10 @@ class OMPDoDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        return f"omp end {self._directive_string}"
+        string = f"omp end {self._directive_string}"
+        if self.nowait:
+            string += " nowait"
+        return string
 
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):

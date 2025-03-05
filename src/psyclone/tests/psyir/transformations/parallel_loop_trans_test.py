@@ -813,4 +813,4 @@ def test_parallel_loop_trans_add_asynchronicity():
     # Create an instance
     paratrans = ParaTrans()
     # Default implementation does nothing.
-    paratrans._add_asynchronocity(None, None)
+    paratrans._add_asynchronicity(None, None)
