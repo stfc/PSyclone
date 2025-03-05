@@ -250,6 +250,30 @@ def test_paralooptrans_apply_collapse(fortran_reader, fortran_writer):
             in fortran_writer(test_loop.parent.parent))
 
 
+def test_paralooptrans_apply_nowait(fortran_reader, fortran_writer):
+    ''' Test the 'nowait' option. '''
+    trans = ParaTrans()
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer :: i, j, k
+          real :: var(10,10,10) = 1
+
+          do i = 1, 10
+            do j = 1, 10
+              do k = 1, 10
+                var(i,j,k) = var(i, j, k) + 1
+              end do
+            end do
+          end do
+        end subroutine my_sub''')
+
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"nowait": True})
+    # On the base class nowait does nothing.
+    assert ("!$omp parallel do"
+            in fortran_writer(test_loop.parent.parent))
+
+
 def test_paralooptrans_collapse_options(fortran_reader, fortran_writer):
     '''
     Test the 'collapse' option, also in combination with the 'force' and

@@ -118,6 +118,10 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                         # loop and after closest.
                         # Find the loop ancestor of access that is an ancestor
                         # of node
+                        # N.B. accesses will always appear in abs_position
+                        # order so we don't need to consider cases where
+                        # abs_position < closest_position since it cannot
+                        # happen.
                         anc_loop = access.ancestor(Loop)
                         while anc_loop is not None:
                             if node.is_descendent_of(anc_loop):
@@ -130,11 +134,6 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                             if node.is_descendent_of(close_loop):
                                 break
                             close_loop = close_loop.ancestor(Loop)
-                        if (abs_position < closest_position and
-                                anc_loop and anc_loop is close_loop):
-                            closest = access
-                            closest_position = abs_position
-                            continue
                         if (abs_position > loop_position and
                                 anc_loop is close_loop):
                             closest = access
