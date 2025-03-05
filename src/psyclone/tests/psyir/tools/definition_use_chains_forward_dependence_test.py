@@ -1014,7 +1014,6 @@ def test_definition_use_chains_multiple_ancestor_loops(
         end do
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
     loops = psyir.walk(Loop)
     chains = DefinitionUseChain(loops[2].loop_body.children[0].lhs)
     reaches = chains.find_forward_accesses()
