@@ -39,13 +39,16 @@
 ''' This module provides the ParallelLoopTrans transformation.'''
 
 import abc
+from typing import Union
 from collections.abc import Iterable
 
 from psyclone import psyGen
-from psyclone.core import Signature
+from psyclone.core import VariablesAccessInfo, Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import Loop, Reference, Call, Routine
+from psyclone.psyir.nodes import (
+        Call, Directive, Loop, Node, Reference, Routine
+)
 from psyclone.psyir.symbols import AutomaticInterface
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -64,6 +67,102 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
     # The types of node that must be excluded from the section of PSyIR
     # being transformed.
     excluded_node_types = (nodes.Return, psyGen.HaloExchange, nodes.CodeBlock)
+
+    def _add_asynchronicity(self, node: Loop, instance: Directive):
+        ''' Function to enable child classes to handle adding asynchronicity
+        (e.g. nowait or dynamic queue choices) as part of the transformation.
+        '''
+        pass
+
+    def _find_next_dependency(self, node: Loop) -> Union[Node, bool]:
+        '''TODO'''
+        var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+        writes = []
+        for signature in var_accesses.all_signatures:
+            if var_accesses.is_written(signature):
+                writes.append(signature)
+
+        loop_position = node.abs_position
+        closest = None
+        closest_position = None
+        # Now we have all the writes we want to find the closest
+        # forward dependency.
+        for signature in writes:
+            accesses = var_accesses[signature].all_accesses
+            last_access = accesses[-1].node
+            # FIXME REMOVE?
+            from psyclone.psyir.nodes.array_mixin import ArrayMixin
+            if not isinstance(last_access, ArrayMixin):
+                continue
+            next_accesses = last_access.next_accesses()
+            # next_accesses always appear in the order of
+            # nodes before loop followed by nodes after loop.
+            for access in next_accesses:
+                # If its inside node then we should skip it.
+                if access.is_descendent_of(node):
+                    continue
+                # Otherwise find the abs_position
+                abs_position = access.abs_position
+                if not closest:
+                    closest = access
+                    closest_position = abs_position
+                else:
+                    # If its closer then its the closest.
+                    # Closest here is complex since if we have a parent loop
+                    # we need to consider that.
+                    if closest_position < loop_position:
+                        # If the closest is before the loop we're inside an
+                        # ancestor loop. In this case another node is only
+                        # closer if its :
+                        # 1. before the previous closest and has the same loop
+                        # as an ancestor
+                        # 2. after the loop but also inside the same ancestor.
+                        # 3. inside a loop with lower depth than the previous
+                        # closest that is also an ancestor of node and before
+                        # loop and after closest.
+                        # Find the loop ancestor of access that is an ancestor
+                        # of node
+                        # N.B. accesses will always appear in abs_position
+                        # order so we don't need to consider cases where
+                        # abs_position < closest_position since it cannot
+                        # happen.
+                        anc_loop = access.ancestor(Loop)
+                        while anc_loop is not None:
+                            if node.is_descendent_of(anc_loop):
+                                break
+                            anc_loop = anc_loop.ancestor(Loop)
+                        # Find the loop ancestor of closest that is an ancestor
+                        # of node.
+                        close_loop = closest.ancestor(Loop)
+                        while close_loop is not None:
+                            if node.is_descendent_of(close_loop):
+                                break
+                            close_loop = close_loop.ancestor(Loop)
+                        if (abs_position > loop_position and
+                                anc_loop is close_loop):
+                            closest = access
+                            closest_position = abs_position
+                            continue
+                        if (abs_position < loop_position and
+                                abs_position > closest_position and anc_loop
+                                and anc_loop.depth > close_loop.depth):
+                            closest = access
+                            closest_position = abs_position
+                    elif (abs_position < closest_position and
+                          abs_position > loop_position):
+                        closest = access
+                        closest_position = abs_position
+
+        # If this loop is contained inside a loop the closest foward
+        # dependency might be itself. So if closest is not within the ancestor
+        # loop of node then we can't do nowait, so return False.
+        node_ancestor = node.ancestor(Loop)
+        if node_ancestor:
+            if not closest.is_descendent_of(node_ancestor):
+                return False
+        if not closest:
+            return True
+        return closest
 
     @abc.abstractmethod
     def _directive(self, children, collapse=None):
@@ -308,6 +407,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :param bool options["sequential"]: whether this is a sequential loop.
         :param bool options["verbose"]: whether to report the reasons the
             validate and collapse steps have failed.
+        :param bool options["nowait"]: whether to add a nowait clause and a
+            corresponding barrier to enable asynchronous execution.
 
         '''
         if not options:
@@ -319,6 +420,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         ignore_dep_analysis = options.get("force", False)
         list_of_names = options.get("ignore_dependencies_for", [])
         privatise_arrays = options.get("privatise_arrays", False)
+        nowait = options.get("nowait", False)
         list_of_signatures = [Signature(name) for name in list_of_names]
         dtools = DependencyTools()
 
@@ -406,3 +508,6 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
+
+        if nowait:
+            self._add_asynchronicity(node, directive)
