@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArrayType, UnresolvedType, INTEGER_TYPE,
-    StructureType, SymbolError, UnknownInterface, UnsupportedType)
+    StructureType, SymbolError, UnsupportedType)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
