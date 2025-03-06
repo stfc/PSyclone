@@ -588,7 +588,6 @@ class SymbolTable():
         if key in self._symbols:
             raise KeyError(f"Symbol table already contains a symbol with "
                            f"name '{new_symbol.name}'.")
-
         if tag:
             if tag in self.get_tags():
                 raise KeyError(
@@ -922,7 +921,7 @@ class SymbolTable():
         except SymbolError as err:
             raise SymbolError(
                 f"Cannot merge {other_table.view()} with {self.view()} due to "
-                f"unresolvable name clashes.") from err
+                f"unresolvable name clashes: {err.value}") from err
 
         # Deal with any Container symbols first.
         self._add_container_symbols_from_table(other_table)
@@ -2054,10 +2053,17 @@ class SymbolTable():
         for sym in self.symbols:
             sym.reference_accesses(access_info)
 
-    def wildcard_imports(self) -> List[ContainerSymbol]:
+    def wildcard_imports(self, scope_limit=None) -> List[ContainerSymbol]:
         '''
         Searches this symbol table and then up through any parent symbol
         tables for ContainerSymbols that have a wildcard import.
+
+        :param scope_limit: optional Node which limits the search to the
+            symbol tables of the nodes within the given scope.
+            If it is None (the default), the whole scope (all symbol tables
+            in ancestor nodes) is searched, otherwise ancestors of the
+            scope_limit node are not searched.
+        :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: the ContainerSymbols which have wildcard imports
             into the current scope.
@@ -2069,7 +2075,8 @@ class SymbolTable():
             for sym in current_table.containersymbols:
                 if sym.wildcard_import and sym.name.lower() not in wildcards:
                     wildcards[sym.name.lower()] = sym
-            current_table = current_table.parent_symbol_table()
+            current_table = current_table.parent_symbol_table(
+                scope_limit=scope_limit)
         return list(wildcards.values())
 
     def view(self):

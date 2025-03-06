@@ -228,7 +228,7 @@ def _first_type_match(nodelist, typekind):
 
 
 def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
-                                      **kargs):
+                                      **kargs) -> Symbol:
     '''Returns the symbol with the given 'name' from a symbol table
     associated with the 'location' node or one of its ancestors. If a
     symbol is found then the type of the existing symbol is compared
@@ -257,9 +257,11 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
         searched.
     :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or
         `NoneType`
+    :param kargs: arguments to pass on when either specialising an
+        existing symbol or creating a new one.
+    :type kargs: unwrapped dict
 
     :returns: the matching symbol.
-    :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
     :raises TypeError: if the supplied scope_limit is not a Node.
     :raises ValueError: if the supplied scope_limit node is not an
@@ -283,8 +285,7 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
         mynode = location.parent
         while mynode is not None:
             if mynode is scope_limit:
-                # The scope_limit node is an ancestor of the
-                # supplied node.
+                # The scope_limit node is an ancestor of the supplied node.
                 break
             mynode = mynode.parent
         else:
@@ -295,19 +296,49 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
                 f"_find_or_create_unresolved_symbol() is not an ancestor of "
                 f"this node '{location}'.")
 
-    try:
-        sym = location.scope.symbol_table.lookup(name, scope_limit=scope_limit)
-        if "symbol_type" in kargs:
-            expected_type = kargs.pop("symbol_type")
-            if not isinstance(sym, expected_type):
-                # The caller specified a sub-class so we need to
-                # specialise the existing symbol.
-                sym.specialise(expected_type, **kargs)
-        return sym
-    except KeyError:
-        pass
+    # In Fortran, no import can clash with the name of a parent Routine.
+    # Therefore, if the name we've been given corresponds to the name of the
+    # enclosing Routine (or its RESULT if it is a function) then it *must*
+    # refer to that and cannot be brought in by an import.
+    parent_scope = location.ancestor(Routine)
+    if parent_scope:
+        if (parent_scope.return_symbol and
+                parent_scope.return_symbol.name.lower() == name.lower()):
+            # The PSyIR canonicalises functions such that they always have
+            # a RESULT clause. As such, according to the Fortan standard, any
+            # reference to the name specified in the RESULT clause is to the
+            # DataSymbol.
+            return parent_scope.return_symbol
+        if parent_scope.name.lower() == name.lower():
+            return parent_scope.symbol
 
-    # find the closest ancestor symbol table attached to a Routine or
+    table = location.scope.symbol_table
+    while table:
+        # By default, `lookup` looks in all ancestor scopes. However, we need
+        # to check for wildcard imports as we work our way up.
+        sym = table.lookup(name, scope_limit=table.node,
+                           otherwise=None)
+        if sym:
+            if "symbol_type" in kargs:
+                expected_type = kargs.pop("symbol_type")
+                if not isinstance(sym, expected_type):
+                    # The caller specified a sub-class so we need to
+                    # specialise the existing symbol.
+                    sym.specialise(expected_type, **kargs)
+            return sym
+
+        if table.wildcard_imports(scope_limit=table.node):
+            # There's a wildcard import into this scope so we stop
+            # searching and create an unresolved symbol (below). This is
+            # permitted to shadow a declaration in an outer scope because
+            # it may be a different entity (coming from the import).
+            # TODO #2915 - it may be that we've already resolved all symbols
+            # from this import but currently we have no way of recording that.
+            kargs["shadowing"] = True
+            break
+        table = table.parent_symbol_table(scope_limit)
+
+    # Find the closest ancestor symbol table attached to a Routine or
     # Container node. We don't want to add to a Schedule node as in
     # some situations PSyclone assumes symbols are declared within
     # Routine or Container symbol tables due to its Fortran provenance
@@ -5158,6 +5189,7 @@ class Fparser2Reader():
         # fparser2 is fixed.
         if str(node.items[0]).lower() == "null" and node.items[1] is None:
             return self._intrinsic_handler(node, parent)
+
         self.process_nodes(parent=call, nodes=[node.items[0]])
         routine = call.children[0]
         # If it's a plain reference, promote the symbol to a RoutineSymbol
@@ -5410,7 +5442,7 @@ class Fparser2Reader():
 
             if isinstance(node, Fortran2003.Function_Subprogram):
                 # Check whether this function-stmt has a suffix containing
-                # 'RETURNS'
+                # 'RESULT'
                 suffix = stmt.children[3]
                 if suffix:
                     # Although the suffix can, in principle, contain a proc-
