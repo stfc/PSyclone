@@ -329,20 +329,17 @@ def test_arg_error(fortran_reader, arg):
 
     '''
     code = (
-        f"subroutine alg1()\n"
+        f"subroutine alg()\n"
         f"  use kern_mod\n"
         f"  use field_mod, only : r2d_field\n"
         f"  type(r2d_field) :: field\n"
-        # Persuade the PSyIR that `alg` is a RoutineSymbol.
-        f"  call alg(field)\n"
         f"  call invoke({arg})\n"
-        f"end subroutine alg1\n")
+        f"end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
-    call = psyir.walk(Call)[1]
     invoke_trans = RaisePSyIR2AlgTrans()
     with pytest.raises(TransformationError) as info:
-        invoke_trans.validate(call)
+        invoke_trans.validate(psyir.children[0][0])
     if arg == "alg(field)":
         assert ("Error in RaisePSyIR2AlgTrans transformation. The invoke "
                 "call argument 'alg' has been used as a routine name. This "
