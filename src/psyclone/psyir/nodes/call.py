@@ -42,6 +42,7 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.container import Container
+from psyclone.psyir.nodes.file_container import FileContainer
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
@@ -500,10 +501,9 @@ class Call(Statement, DataNode):
             # as a child of a FileContainer (if the PSyIR contains a
             # FileContainer). Note, if the PSyIR does contain a
             # FileContainer, it will be the root node of the PSyIR.
-            for routine in self.root.children:
-                if (isinstance(routine, Routine) and
-                        routine.name.lower() == rsym.name.lower()):
-                    return [routine]
+            psyir = self.root.find_routine_psyir(rsym.name)
+            if psyir:
+                return [psyir]
 
             # Now check for any wildcard imports and see if they can
             # be used to resolve the symbol.
@@ -608,6 +608,11 @@ class Call(Statement, DataNode):
                     routines.append(psyir)
             if routines:
                 return routines
+
+        if isinstance(container, FileContainer):
+            psyir = container.find_routine_psyir(rsym.name)
+            if psyir:
+                return [psyir]
 
         raise SymbolError(
             f"Failed to find a Routine named '{rsym.name}' in "

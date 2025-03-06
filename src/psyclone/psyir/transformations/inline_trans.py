@@ -42,8 +42,8 @@ from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
-    CodeBlock, Container, IntrinsicCall, Literal, Loop, Node, Range, Routine,
-    Reference, Return, ScopingNode, Statement, StructureMember,
+    CodeBlock, Container, FileContainer, IntrinsicCall, Literal, Loop, Node,
+    Range, Routine, Reference, Return, ScopingNode, Statement, StructureMember,
     StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
@@ -701,16 +701,20 @@ class InlineTrans(Transformation):
                 f"Routine '{name}' is elemental and inlining such routines is "
                 f"not supported.")
 
-        # We only inline a Call if the target routine is already within the
-        # same Container. If it isn't, KernelModuleInlineTrans should be used
-        # as this performs various checks to make sure it's safe to bring the
-        # routine in.
-        if not routine.ancestor(Container, shared_with=node):
-            raise TransformationError(
-                f"Routine '{name}' is not in the same Container as the call "
-                f"site and therefore cannot be inlined. (Try using "
-                f"KernelModuleInlineTrans to bring the routine into the same "
-                f"Container first.)")
+        # We only inline a Call that is within a Container (not a
+        # FileContainer) if the target routine is already within the same
+        # Container. If it isn't, KernelModuleInlineTrans should be used as
+        # this performs various checks to make sure it's safe to bring in the
+        # routine.
+        callsite_contr = node.ancestor(Container, excluding=FileContainer)
+        if callsite_contr:
+            # The call site is within a Container.
+            if callsite_contr is not routine.ancestor(Container):
+                raise TransformationError(
+                    f"Routine '{name}' is not in the same Container as the "
+                    f"call site ('{callsite_contr.name}') and therefore cannot"
+                    f" be inlined. (Try using KernelModuleInlineTrans to bring"
+                    f" the routine into the same Container first.)")
 
         return_stmts = routine.walk(Return)
         if return_stmts:

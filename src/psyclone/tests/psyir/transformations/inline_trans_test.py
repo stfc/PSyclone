@@ -41,6 +41,7 @@ import os
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     Assignment, Call, IntrinsicCall, Reference, Routine, Loop)
@@ -701,38 +702,6 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer):
     # TODO #2053 - we can't compile this code because the *input* isn't
     # valid Fortran (see earlier).
     # assert Compile(tmpdir).string_compiles(output)
-
-
-def test_validate_allocatable_local_array(fortran_reader):
-    '''
-    Test that we refuse to inline a call to a routine with a local, allocatable
-    array. Currently this would result in errors as the array would no longer
-    be deallocated at the end of the inlined code.
-
-    '''
-    code = '''
-    module my_mod
-      integer, dimension(:,:), allocatable :: fine
-    contains
-      subroutine runner()
-        call doit(10)
-      end subroutine runner
-      subroutine doit(npts)
-        integer, intent(in) :: npts
-        real, dimension(:), allocatable :: var
-        integer :: ierr
-        allocate(fine(10,10), stat=ierr)
-        allocate(var(npts))
-        var(:) = 1.0
-      end subroutine doit
-    end module my_mod'''
-    psyir = fortran_reader.psyir_from_source(code)
-    inline_trans = InlineTrans()
-    call = psyir.walk(Call)[0]
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
-    assert ("Routine 'doit' contains an ALLOCATE for local variable 'var'. "
-            "Inlining such a routine is not supported." in str(err.value))
 
 
 def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
@@ -1575,9 +1544,12 @@ def test_apply_raw_subroutine(
         f"  x = 2.0*x\n"
         f"end subroutine sub\n")
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Call)[0]
+    call = psyir.walk(Call)[0]
+    if start:
+        modinline_trans = KernelModuleInlineTrans()
+        modinline_trans.apply(call)
     inline_trans = InlineTrans()
-    inline_trans.apply(routine)
+    inline_trans.apply(call)
     output = fortran_writer(psyir)
     expected = (
         f"{indent}subroutine run_it()\n"
@@ -1619,9 +1591,11 @@ def test_apply_container_subroutine(
         f"  end subroutine run_it\n"
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Call)[0]
+    call = psyir.walk(Call)[0]
+    modinline_trans = KernelModuleInlineTrans()
+    modinline_trans.apply(call)
     inline_trans = InlineTrans()
-    inline_trans.apply(routine)
+    inline_trans.apply(call)
     output = fortran_writer(psyir)
     assert (
         "    real :: a\n\n"
@@ -1683,6 +1657,100 @@ def test_validate_calls_find_routine(fortran_reader):
             "looked at any routines in the same source file and attempted to "
             "resolve the wildcard imports from ['some_mod']. However, failed "
             "to find the source for ['some_mod']" in str(err.value))
+
+
+def test_validate_allocatable_local_array(fortran_reader):
+    '''
+    Test that we refuse to inline a call to a routine with a local, allocatable
+    array. Currently this would result in errors as the array would no longer
+    be deallocated at the end of the inlined code.
+
+    '''
+    code = '''
+    module my_mod
+      integer, dimension(:,:), allocatable :: fine
+    contains
+      subroutine runner()
+        call doit(10)
+      end subroutine runner
+      subroutine doit(npts)
+        integer, intent(in) :: npts
+        real, dimension(:), allocatable :: var
+        integer :: ierr
+        allocate(fine(10,10), stat=ierr)
+        allocate(var(npts))
+        var(:) = 1.0
+      end subroutine doit
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    call = psyir.walk(Call)[0]
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Routine 'doit' contains an ALLOCATE for local variable 'var'. "
+            "Inlining such a routine is not supported." in str(err.value))
+
+
+def test_validate_no_elemental_routine(fortran_reader):
+    '''
+    Check that validate() raises the expected error if the target routine
+    is elemental.
+    '''
+    code = '''
+    module my_mod
+    contains
+      subroutine runner()
+        integer, dimension(10,10) :: var
+        var = flush_to_zero(var)
+      end subroutine runner
+      elemental integer function flush_to_zero(x)
+        integer, intent(in) :: x
+        if(x < 0)then
+          flush_to_zero = 0
+        else
+          flush_to_zero = x
+        end if
+      end function flush_to_zero
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    call = psyir.walk(Call)[0]
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Routine 'flush_to_zero' is elemental and inlining such routines "
+            "is not supported." in str(err.value))
+
+
+def test_validate_routine_in_same_container(fortran_reader):
+    '''
+    Check that validate() raises the expected error if the target routine is
+    not already in the same Container as the call site.
+    '''
+    code = (
+        "module test_mod\n"
+        "use other_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    integer :: i\n"
+        "    i = 10\n"
+        "    call sub(i)\n"
+        "  end subroutine run_it\n"
+        "end module test_mod\n"
+        "module other_mod\n"
+        "contains\n"
+        "  subroutine sub(idx)\n"
+        "    integer :: idx\n"
+        "    idx = idx + 3\n"
+        "  end subroutine sub\n"
+        "end module other_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(psyir.walk(Call)[0])
+    assert ("Routine 'sub' is not in the same Container as the call site "
+            "('test_mod') and therefore cannot be inlined. (Try using "
+            "KernelModuleInlineTrans to bring the routine into the same "
+            "Container first." in str(err.value))
 
 
 def test_validate_return_stmt(fortran_reader):
