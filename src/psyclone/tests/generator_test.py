@@ -1020,7 +1020,6 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
         "  use field_mod, only : field_type\n"
         "  type(field_type) :: field\n"
         "  real(kind=r_def) :: value\n"
-        "  call setval_c(field, value)\n"
         "  call invoke(setval_c(field, value))\n"
         "end subroutine setval_c\n"
         "end module setval_c_mod\n")
