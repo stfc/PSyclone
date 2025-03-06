@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-PSyclone Reference Guide
-########################
+Reference Guide
+###############
 
 Welcome to the PSyclone Reference Guide. This consists of auto-generated
 API documentation produced using both the :ref:`AutoAPI Sphinx plugin <autoapi>`

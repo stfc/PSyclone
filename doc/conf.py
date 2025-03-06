@@ -21,11 +21,16 @@
 import os
 import sys
 
-docs_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+docs_dir = os.path.dirname(os.path.abspath(__file__))
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here.
 sys.path.insert(0, os.path.join(docs_dir, "_ext"))
+
+# A simple function interface_example.py is included in this directory to
+# show proper sphinx documentation of code. In order to find this file,
+# the current directory must be added to Python's system path:
+sys.path.insert(0, os.path.abspath('developer_guide'))
 
 # -- General configuration ----------------------------------------------------
 
@@ -36,14 +41,22 @@ needs_sphinx = '1.8'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 # The definition of 'apilinks' is in PSyclone/doc/_ext/apilinks.py.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
-              'sphinx.ext.intersphinx', 'sphinx.ext.coverage',
-              'sphinx.ext.imgmath', 'sphinx.ext.viewcode',
-              'sphinxcontrib.bibtex', 'sphinx_tabs.tabs',
-              'sphinx_autodoc_typehints',
-              'apilinks',
-              ]
-bibtex_bibfiles = ['../bibliography/references.bib']
+extensions = [
+    'apilinks',
+    'autoapi.sphinx',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.coverage',
+    'sphinx.ext.doctest',
+    'sphinx.ext.githubpages',
+    'sphinx.ext.imgmath',
+    'sphinx.ext.inheritance_diagram',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.viewcode',
+    'sphinx_autodoc_typehints',
+    'sphinx_tabs.tabs',
+    'sphinxcontrib.bibtex',
+]
+bibtex_bibfiles = ['bibliography/references.bib']
 
 # GITHUB_PR_NUMBER is set in .github/workflows/python-package.yml when
 # running the document-testing job.
@@ -99,7 +112,7 @@ project_copyright = '2017-2025, STFC Daresbury Laboratory'
 # We are in the doc/user_guide directory but need to read version.py from
 # src/psyclone
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-BASE_PATH = os.path.dirname(os.path.dirname(BASE_PATH))
+BASE_PATH = os.path.dirname(BASE_PATH)  # Go up one level
 with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py"),
           encoding="utf-8") as f:
     # pylint: disable-next=exec-used
@@ -149,12 +162,28 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'pydata_sphinx_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-# html_theme_options = {}
+html_theme_options = {
+  "external_links": [
+      {"name": "Changelog", "url": "https://github.com/stfc/PSyclone/releases"},
+  ],
+    "icon_links": [
+        {
+            # Label for this link
+            "name": "GitHub",
+            # URL where the link will redirect
+            "url": "https://github.com/stfc/psyclone",  # required
+            # Icon class (if "type": "fontawesome"), or path to local image (if "type": "local")
+            "icon": "fa-brands fa-github",
+            # The type of image to be used (see below for details)
+            "type": "fontawesome",
+        }
+   ]
+}
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
@@ -168,7 +197,7 @@ html_theme = 'sphinx_rtd_theme'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-# html_logo = None
+html_logo = "logo/psyclone_v1.0_small.png"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32

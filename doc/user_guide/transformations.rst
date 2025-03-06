@@ -879,7 +879,7 @@ Below is an example of a PSyclone script that uses a ``GOOpenCLTrans`` with
 multiple InvokeSchedule and kernel-specific optimization options.
 
 
-.. literalinclude:: ../../examples/gocean/eg3/ocl_trans.py
+.. literalinclude:: ../../../examples/gocean/eg3/ocl_trans.py
     :language: python
     :linenos:
     :pyobject: trans
