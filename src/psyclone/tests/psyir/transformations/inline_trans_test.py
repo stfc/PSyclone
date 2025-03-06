@@ -44,7 +44,7 @@ from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
-    Assignment, Call, IntrinsicCall, Reference, Routine, Loop)
+    Assignment, Call, CodeBlock, IntrinsicCall, Loop, Reference, Routine)
 from psyclone.psyir.symbols import (
     AutomaticInterface, DataSymbol, UnresolvedType)
 from psyclone.psyir.transformations import (
@@ -2309,22 +2309,39 @@ def test_validate_automatic_array_sized_by_arg(fortran_reader):
         "module test_mod\n"
         "contains\n"
         "subroutine main\n"
-        "  real, dimension(10) :: var = 0.0\n"
-        "  integer :: ndim\n"
+        "  real, dimension(10, 10) :: var = 0.0\n"
+        "  integer :: ndim, mdim\n"
         "  ndim = 5\n"
-        "  call sub(var, ndim)\n"
+        "  write(*,*) ndim\n"
+        "  call sub(var, ndim, func(ndim))\n"
         "end subroutine main\n"
-        "subroutine sub(x, ilen)\n"
-        "  real, dimension(ilen), intent(inout) :: x\n"
-        "  integer, intent(in) :: ilen\n"
+        "subroutine sub(x, ilen, jlen)\n"
+        "  real, dimension(ilen, jlen), intent(inout) :: x\n"
+        "  integer, intent(in) :: ilen, jlen\n"
         "  real, dimension(ilen*2) :: work\n"
-        "  x(:) = x(:) + 1.0\n"
+        "  x(:,:) = x(:,:) + 1.0\n"
         "end subroutine sub\n"
+        "integer function func(x)\n"
+        "  integer, intent(in) :: x\n"
+        "  func = x\n"
+        "end function func\n"
         "end module test_mod\n"
     )
     psyir = fortran_reader.psyir_from_source(code)
-    call = psyir.walk(Call)[0]
+    for call in psyir.walk(Call):
+        if call.routine.symbol.name == "sub":
+            break
     inline_trans = InlineTrans()
+    # Should fail because ilen is accessed in a CodeBlock.
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Cannot inline routine 'sub' because one or more of its "
+            "declarations depends on 'ilen' which is passed by argument and "
+            "may be written to before the call ('! PSyclone CodeBlock"
+            in str(err.value))
+    # Remove the CodeBlock so the Assignment is found.
+    cblock = psyir.walk(CodeBlock)[0]
+    cblock.detach()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because one or more of its "
@@ -2410,6 +2427,38 @@ end subroutine sub
     output = fortran_writer(psyir)
     assert expected in output
     assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_function_result_clash(fortran_reader, fortran_writer):
+    '''
+    Check that the transformation succeeds when inlining a function
+    and the 'result' variable has to be renamed.
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    use some_mod, only: x\n"
+        "    real :: a,b,c\n"
+        "    a = func(b)\n"
+        "    c = func(a)\n"
+        "  end subroutine run_it\n"
+        "  real function func(b) result(x)\n"
+        "    real :: b\n"
+        "    x = 2.0\n"
+        "  end function\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    output = fortran_writer(psyir)
+    assert ('''\
+    real :: inlined_x_1
+
+    inlined_x_1 = 2.0
+    a = inlined_x_1
+    c = func(a)''' in output)
 
 
 def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmpdir):

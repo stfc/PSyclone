@@ -753,20 +753,6 @@ class InlineTrans(Transformation):
                         f"variable '{sym.name}'. Inlining such a routine is "
                         f"not supported.")
 
-        if routine.return_symbol and not routine.return_symbol.is_import:
-            table = node.scope.symbol_table
-            sym = table.lookup(routine.return_symbol.name, otherwise=None)
-            if sym:
-                table = sym.find_symbol_table(node)
-                try:
-                    table.rename_symbol(sym, table.next_available_name(
-                        f"inlined_{sym.name}"), dry_run=True)
-                except SymbolError as err:
-                    raise TransformationError(
-                        f"Cannot inline function '{routine.name}' because we "
-                        f"cannot rename its return value at the callsite: "
-                        f"{err}") from err
-
         # Support for routines with named arguments is not yet implemented.
         # TODO #924.
         for arg in node.argument_names:
@@ -906,54 +892,54 @@ class InlineTrans(Transformation):
                             f"with a non-unit stride: "
                             f"'{actual_arg.debug_string()}' (TODO #1646)"))
 
-            # Check for dependencies within the SymbolTable of the target
-            # routine. If any of these are used to dimension a local
-            # (automatic) array, are passed by argument and are written
-            # to before the call then we can't perform inlining.
-            for asym in routine.symbol_table.automatic_datasymbols:
-                vai = VariablesAccessInfo()
-                asym.reference_accesses(vai)
-                for sig in vai.all_signatures:
-                    sym = routine_table.lookup(sig.var_name)
-                    if sym not in routine_table.argument_list:
-                        # This dependency is not an argument to the routine.
+        # Check for dependencies within the SymbolTable of the target
+        # routine. If any of these are used to dimension a local
+        # (automatic) array, are passed by argument and are written
+        # to before the call then we can't perform inlining.
+        for asym in routine.symbol_table.automatic_datasymbols:
+            vai = VariablesAccessInfo()
+            asym.reference_accesses(vai)
+            for sig in vai.all_signatures:
+                sym = routine_table.lookup(sig.var_name)
+                if sym not in routine_table.argument_list:
+                    # This dependency is not an argument to the routine.
+                    continue
+                actual_arg = node.arguments[
+                    routine_table.argument_list.index(sym)]
+                if not isinstance(actual_arg, Reference):
+                    # The corresponding actual argument is not a Reference
+                    # so cannot be modified prior to the call.
+                    continue
+                # What form does the dependence take?
+                for prev in actual_arg.previous_accesses():
+                    if prev is node or prev.parent is node:
+                        # Skip the Call itself and any other arguments to
+                        # the call.
                         continue
-                    actual_arg = node.arguments[
-                        routine_table.argument_list.index(sym)]
-                    if not isinstance(actual_arg, Reference):
-                        # The corresponding actual argument is not a Reference
-                        # so cannot be modified prior to the call.
-                        continue
-                    # What form does the dependence take?
-                    for prev in actual_arg.previous_accesses():
-                        if prev is node or prev.parent is node:
-                            # Skip the Call itself and any other arguments to
-                            # the call.
-                            continue
-                        exprn = prev.ancestor(Statement, include_self=True)
-                        stmt = exprn.debug_string().strip()
-                        if isinstance(prev, (CodeBlock, Call, Kern, Loop)):
+                    exprn = prev.ancestor(Statement, include_self=True)
+                    stmt = exprn.debug_string().strip()
+                    if isinstance(prev, (CodeBlock, Call, Kern, Loop)):
+                        raise TransformationError(
+                            f"Cannot inline routine '{routine.name}' "
+                            f"because one or more of its declarations "
+                            f"depends on '{sym.name}' which is passed by "
+                            f"argument and may be written to before the "
+                            f"call ('{stmt}').")
+                    if isinstance(prev, Reference):
+                        if prev.is_write:
                             raise TransformationError(
                                 f"Cannot inline routine '{routine.name}' "
                                 f"because one or more of its declarations "
-                                f"depends on '{sym.name}' which is passed by "
-                                f"argument and may be written to before the "
-                                f"call ('{stmt}').")
-                        if isinstance(prev, Reference):
-                            if prev.is_write:
-                                raise TransformationError(
-                                    f"Cannot inline routine '{routine.name}' "
-                                    f"because one or more of its declarations "
-                                    f"depends on '{sym.name}' which is passed "
-                                    f"by argument and is assigned to before "
-                                    f"the call ('{stmt}').")
-                            continue
+                                f"depends on '{sym.name}' which is passed "
+                                f"by argument and is assigned to before "
+                                f"the call ('{stmt}').")
+                        continue
 
-                        raise InternalError(
-                            f"Unexpected node type ({type(prev).__name__}) "
-                            f"returned from Reference.previous_accesses(). "
-                            f"Expected a Call, CodeBlock, Kern, Loop or "
-                            f"Reference.")
+                    raise InternalError(
+                        f"Unexpected node type ({type(prev).__name__}) "
+                        f"returned from Reference.previous_accesses(). "
+                        f"Expected a Call, CodeBlock, Kern, Loop or "
+                        f"Reference.")
 
 
 # For AutoAPI auto-documentation generation.
