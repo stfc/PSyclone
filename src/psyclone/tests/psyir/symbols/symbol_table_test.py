@@ -916,7 +916,7 @@ def test_merge_container_syms():
         tab1.merge(tab4)
     err_txt = str(err.value)
     assert "Cannot merge Symbol Table:" in err_txt
-    assert "due to unresolvable name clashes." in err_txt
+    assert "due to unresolvable name clashes" in err_txt
 
 
 def test_merge_same_routine_symbol(fortran_reader):
