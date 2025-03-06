@@ -44,7 +44,8 @@ from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
-    Assignment, Call, CodeBlock, IntrinsicCall, Loop, Reference, Routine)
+    Assignment, Call, CodeBlock, IntrinsicCall, Loop, Reference, Routine,
+    Statement)
 from psyclone.psyir.symbols import (
     AutomaticInterface, DataSymbol, UnresolvedType)
 from psyclone.psyir.transformations import (
@@ -2298,7 +2299,7 @@ def test_validate_call_within_routine(fortran_reader):
             "sub(a)') is not inside a Routine" in str(err.value))
 
 
-def test_validate_automatic_array_sized_by_arg(fortran_reader):
+def test_validate_automatic_array_sized_by_arg(fortran_reader, monkeypatch):
     '''
     Check that validate raises the expected error if the dimension of an
     automatic array is passed by argument and is written to before the call
@@ -2310,21 +2311,19 @@ def test_validate_automatic_array_sized_by_arg(fortran_reader):
         "contains\n"
         "subroutine main\n"
         "  real, dimension(10, 10) :: var = 0.0\n"
-        "  integer :: ndim, mdim\n"
+        "  integer :: ndim, mdim, zdim\n"
         "  ndim = 5\n"
+        "  ! A read access to ndim is fine.\n"
+        "  zdim = ndim + mdim\n"
         "  write(*,*) ndim\n"
-        "  call sub(var, ndim, func(ndim))\n"
+        "  call sub(var, ndim, ndim)\n"
         "end subroutine main\n"
         "subroutine sub(x, ilen, jlen)\n"
         "  real, dimension(ilen, jlen), intent(inout) :: x\n"
         "  integer, intent(in) :: ilen, jlen\n"
-        "  real, dimension(ilen*2) :: work\n"
+        "  real, dimension(ilen*2, jlen) :: work\n"
         "  x(:,:) = x(:,:) + 1.0\n"
         "end subroutine sub\n"
-        "integer function func(x)\n"
-        "  integer, intent(in) :: x\n"
-        "  func = x\n"
-        "end function func\n"
         "end module test_mod\n"
     )
     psyir = fortran_reader.psyir_from_source(code)
@@ -2351,6 +2350,13 @@ def test_validate_automatic_array_sized_by_arg(fortran_reader):
     assign = psyir.walk(Assignment)[0]
     assign.detach()
     inline_trans.validate(call)
+    # Break Reference.previous_accesses() to exercise the InternalError.
+    monkeypatch.setattr(call.arguments[1], "previous_accesses",
+                        lambda: [Statement()])
+    with pytest.raises(InternalError) as err:
+        inline_trans.validate(call)
+    assert ("Unexpected node type (Statement) returned from Reference."
+            "previous_accesses()" in str(err.value))
 
 
 def test_apply_merges_symbol_table_with_routine(fortran_reader):

@@ -776,7 +776,7 @@ class InlineTrans(Transformation):
                         f"'{sym.datatype.declaration}'")
                 # We don't inline symbols that have an UnknownInterface, as we
                 # don't know how they are brought into this scope.
-                if isinstance(sym.interface, UnknownInterface):
+                if sym.is_unknown_interface:
                     raise TransformationError(
                         f"Routine '{routine.name}' cannot be inlined because "
                         f"it contains a Symbol '{sym.name}' with an "
