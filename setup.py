@@ -166,7 +166,8 @@ if __name__ == '__main__':
                           'graphviz'],
         extras_require={
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx-tabs",
-                    "sphinx_rtd_theme", "sphinx-autodoc-typehints", "autoapi"],
+                    "pydata-sphinx-theme", "sphinx-autodoc-typehints",
+                    "autoapi"],
             'test': ["flake8", "pylint", "pytest-cov", "pytest-xdist"],
         },
         include_package_data=True,
