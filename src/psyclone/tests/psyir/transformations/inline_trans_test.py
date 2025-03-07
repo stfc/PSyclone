@@ -268,7 +268,7 @@ def test_apply_gocean_kern(fortran_reader, fortran_writer, monkeypatch):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(psyir.walk(Call)[0])
-    if ("actual argument 'cu_fld' corresponding to an array formal "
+    if ("actual argument 'cu_fld%data' corresponding to an array formal "
             "argument ('cu') is unknown" in str(err.value)):
         pytest.xfail(
             "TODO #924 - extend validation to attempt to resolve type of "
@@ -932,8 +932,8 @@ def test_apply_struct_array(fortran_reader, fortran_writer, tmpdir,
         with pytest.raises(TransformationError) as err:
             inline_trans.apply(psyir.walk(Call)[0])
         assert ("Routine 'sub' cannot be inlined because the type of the "
-                "actual argument 'micah' corresponding to an array formal "
-                "argument ('x') is unknown." in str(err.value))
+                "actual argument 'micah%grids(:)' corresponding to an array "
+                "formal argument ('x') is unknown." in str(err.value))
     else:
         inline_trans.apply(psyir.walk(Call)[0])
         output = fortran_writer(psyir)
