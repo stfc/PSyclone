@@ -681,6 +681,39 @@ end module some_mod'''
     assert result == [psyir.walk(Routine)[1]]
 
 
+def test_call_get_callees_local_file_container(fortran_reader):
+    '''
+    Test that get_callees() succeeds when the called routine is within
+    the parent FileContainer.
+    '''
+    code = '''
+subroutine upper()
+  write(*,*) "hello"
+end subroutine upper
+
+module some_mod
+  implicit none
+contains
+  subroutine top()
+    integer :: x = 0
+    call upper()
+    call bottom(x)
+  end subroutine top
+end module some_mod
+
+subroutine bottom(luggage)
+    integer, intent(inout) :: luggage
+    luggage = luggage + 1
+end subroutine bottom'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    result = call.get_callees()
+    assert result == [psyir.walk(Routine)[0]]
+    call = psyir.walk(Call)[1]
+    result = call.get_callees()
+    assert result == [psyir.walk(Routine)[2]]
+
+
 def test_call_get_callee_1_simple_match(fortran_reader):
     '''
     Check that the right routine has been found for a single routine

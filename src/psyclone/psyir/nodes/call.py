@@ -42,7 +42,6 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.container import Container
-from psyclone.psyir.nodes.file_container import FileContainer
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
@@ -599,20 +598,22 @@ class Call(Statement, DataNode):
                 f"UnsupportedFortranType:\n{rsym.datatype.declaration}\n"
                 f"Cannot get the PSyIR of such a routine.")
 
-        if isinstance(container, Container):
+        # At this point, we should have found the PSyIR tree containing the
+        # routine - we just need to locate it. It may be in a Container or
+        # it may be in the parent FileContainer.
+        cursor = container
+        while isinstance(cursor, Container):
             routines = []
-            for name in container.resolve_routine(rsym.name):
-                psyir = container.find_routine_psyir(
+            for name in cursor.resolve_routine(rsym.name):
+                psyir = cursor.find_routine_psyir(
                     name, allow_private=can_be_private)
                 if psyir:
                     routines.append(psyir)
             if routines:
                 return routines
-
-        if isinstance(container, FileContainer):
-            psyir = container.find_routine_psyir(rsym.name)
-            if psyir:
-                return [psyir]
+            if not cursor.parent:
+                break
+            cursor = cursor.parent
 
         raise SymbolError(
             f"Failed to find a Routine named '{rsym.name}' in "
