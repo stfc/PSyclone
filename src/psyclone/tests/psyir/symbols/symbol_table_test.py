@@ -2841,6 +2841,75 @@ end module gold'''
             "CodeBlock:\nWRITE(*, *) my_var" in str(err.value))
 
 
+def test_import_symbol_from_wildcard(fortran_reader):
+    '''
+    Tests for the _import_symbols_from() method for a wildcard import.
+    '''
+    code = '''
+    module my_mod
+      use other_mod, only: indirect
+      implicit none
+      integer :: iflag, jflag
+      real, private :: not_this
+      integer, private, parameter :: idim = 4
+      real, dimension(idim) :: zarray
+    end module my_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    cntr = psyir.children[0]
+    table = symbols.SymbolTable()
+    csym = symbols.ContainerSymbol("my_mod", wildcard_import=True)
+    table.add(csym)
+    imported = table._import_symbols_from(csym, cntr)
+    assert len(imported) == 4
+    sym_names = [sym.name for sym in imported]
+    assert "iflag" in sym_names
+    iflag = table.lookup("iflag")
+    assert isinstance(iflag, symbols.DataSymbol)
+    assert iflag.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
+    assert "jflag" in sym_names
+    assert "indirect" in sym_names
+    indi = table.lookup("indirect")
+    assert indi.is_import
+    # At the import site, "indirect" is being imported from "my_mod".
+    assert indi.interface.container_symbol.name == "my_mod"
+    # TODO how should the shape of the imported array be defined?
+    # zarray = table.lookup("zarray")
+
+
+def test_import_symbol_from_specific(fortran_reader):
+    '''
+    Tests for the _import_symbols_from() method for specific (and renamed)
+    imported symbols.
+    '''
+    code = '''
+    module my_mod
+      integer :: iflag, jflag
+      real, private :: not_this
+    end module my_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    cntr = psyir.children[0]
+    csym = symbols.ContainerSymbol("my_mod")
+    table = symbols.SymbolTable()
+    table.add(csym)
+    orig_iflag = symbols.Symbol("iflag",
+                                interface=symbols.ImportInterface(csym))
+    table.add(orig_iflag)
+    # Import "jflag" as "ensign"
+    table.add(
+        symbols.Symbol("ensign",
+                       interface=symbols.ImportInterface(csym,
+                                                         orig_name="jflag")))
+    table._import_symbols_from(csym, cntr)
+    assert table.lookup("iflag") is orig_iflag
+    # Existing symbol should have been updated
+    assert isinstance(orig_iflag, symbols.DataSymbol)
+    ensign = table.lookup("ensign")
+    assert isinstance(ensign, symbols.DataSymbol)
+    assert ensign.interface.container_symbol is csym
+
+
 # resolve_imports
 
 @pytest.mark.usefixtures("clear_module_manager_instance")

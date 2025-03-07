@@ -46,7 +46,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 import inspect
 import copy
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Set, Union
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -1681,10 +1681,28 @@ class SymbolTable():
                         f"Couldn't copy '{imported_var}' into the SymbolTable."
                         f" The tag '{tag}' is already used by another symbol.")
 
-    def _import_symbols_from(self, csymbol, container, symbol_target=None):
+    def _import_symbols_from(self, csymbol: ContainerSymbol,
+                             container,
+                             symbol_target: Optional[Symbol] = None
+                             ) -> Set[Symbol]:
         '''
+        Imports symbols from the supplied Container into this table. If
+        `target_symbol` is specified then only that symbol is imported.
+        Otherwise, this method imports all symbols named in the import
+        (i.e. if it corresponds to a USE xx, Only: yy) or, if it
+        is a wildcard import, all public symbols in the source Container.
+
+        :param csymbol: the ContainerSymbol from which to import.
+        :param container: the PSyIR of the Container from which to import.
+        :type container: :py:class:`psyclone.psyir.nodes.ContainerNode`
+        :param symbol_target: optional, single symbol to attempt to import.
+
+        :returns: the Symbols that have been added to this table.
+
         '''
-        imported_names = dict()
+        # Set holding all Symbols that we succeed in importing.
+        imported_names = {}
+        # Map from symbol name in source container to name at import site.
         imported_symbols = set()
         if not csymbol.wildcard_import:
             # The import from this Container is for certain, specific
@@ -1709,7 +1727,7 @@ class SymbolTable():
                 # process the nested external container.
                 continue
 
-            # If we are just resolving a single specific symbol we don't
+            # If we are just resolving a single specific symbol then we don't
             # need to process this symbol unless the name matches.
             if symbol_target and not self._has_same_name(
                     imported_sym, symbol_target):
@@ -1718,31 +1736,25 @@ class SymbolTable():
             norm_name = self._normalize(imported_sym.name)
 
             if (not csymbol.wildcard_import and
-                    norm_name not in imported_names.keys()):
+                    norm_name not in imported_names):
                 # This symbol is not being imported.
                 continue
 
+            # Allow for symbol renaming on import:
+            #   orig_name is the name of the symbol in the src Container;
+            #   local_name is the name it has at the import site.
             if imported_names and norm_name != imported_names[norm_name]:
                 orig_name = norm_name
                 local_name = imported_names[norm_name]
             else:
                 orig_name = None
                 local_name = norm_name
-            if local_name in self:
-                # This Symbol matches the name of a symbol in the current
-                # table
-                outer_sym = self.lookup(local_name)
-                interface = outer_sym.interface
-                visibility = outer_sym.visibility
 
-                # If the import statement is not a wildcard import, the
-                # matching symbol must have the appropriate interface
-                # referring to this c_symbol
-                if not csymbol.wildcard_import:
-                    if (not (outer_sym.is_import or
-                             outer_sym.is_unresolved) or
-                            interface.container_symbol is not csymbol):
-                        continue  # It doesn't come from this import
+            if local_name in self:
+                # This Symbol matches the name of a symbol at the import site.
+                local_sym = self.lookup(local_name)
+                interface = local_sym.interface
+                visibility = local_sym.visibility
 
                 # Found a match, update the interface if necessary or raise
                 # an error if it is an ambiguous match
@@ -1763,36 +1775,34 @@ class SymbolTable():
                 # If the external symbol is a subclass of the local
                 # symbol_match, copy the external symbol properties,
                 # otherwise ignore this step.
-                if isinstance(imported_sym, type(outer_sym)):
+                if isinstance(imported_sym, type(local_sym)):
                     # pylint: disable=unidiomatic-typecheck
-                    if type(imported_sym) is not type(outer_sym):
+                    if type(imported_sym) is not type(local_sym):
                         if isinstance(imported_sym, TypedSymbol):
                             # All TypedSymbols have a mandatory datatype
                             # argument
-                            outer_sym.specialise(
+                            local_sym.specialise(
                                 type(imported_sym),
                                 datatype=imported_sym.datatype)
                         else:
-                            outer_sym.specialise(type(imported_sym))
+                            local_sym.specialise(type(imported_sym))
 
-                    outer_sym.copy_properties(imported_sym)
+                    local_sym.copy_properties(imported_sym)
                     # Restore the interface and visibility as these are
                     # local (not imported) properties
-                    outer_sym.interface = interface
-                    outer_sym.visibility = visibility
+                    local_sym.interface = interface
+                    local_sym.visibility = visibility
             else:
                 # This table did not already contain a symbol with this
                 # name.
                 if csymbol.wildcard_import:
                     # This symbol is PUBLIC and inside a wildcard import,
                     # so it needs to be declared in the symbol table.
-                    outer_sym = imported_sym.copy()
-                    outer_sym.interface = ImportInterface(csymbol)
-                    outer_sym.visibility = self.default_visibility
-                    self.add(outer_sym)
-                else:
-                    outer_sym = imported_sym
-            imported_symbols.add(outer_sym)
+                    local_sym = imported_sym.copy()
+                    local_sym.interface = ImportInterface(csymbol)
+                    local_sym.visibility = self.default_visibility
+                    self.add(local_sym)
+            imported_symbols.add(local_sym)
         return imported_symbols
 
     def _update_with_resolved_symbol(self, symbol):
