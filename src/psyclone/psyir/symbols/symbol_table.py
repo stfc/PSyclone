@@ -1805,8 +1805,14 @@ class SymbolTable():
             imported_symbols.add(local_sym)
         return imported_symbols
 
-    def _update_with_resolved_symbol(self, symbol):
+    def _update_with_resolved_symbol(self, symbol: Symbol):
         '''
+        Given a newly-resolved symbol, walk down through the scopes below
+        the scope associated with this table and replace any instances of
+        a symbols that are now known to be this symbol.
+
+        :param symbol: the Symbol that has been resolved.
+
         '''
         norm_name = self._normalize(symbol.name)
         # Import here to avoid circular dependencies
@@ -1824,12 +1830,17 @@ class SymbolTable():
             if not test_symbol or not test_symbol.is_unresolved:
                 # Either this table doesn't contain a symbol with the
                 # same name as the imported one or it does but it is
-                # resolved so we ignore it.
+                # resolved (and thus shadows this one) so we ignore it.
                 continue
-            # Check whether there are any wildcard imports that could
-            # be bringing this symbol into scope.
-            # TODO use scope_limit=self.node here.
-            wildcard_imports = symbol_table.wildcard_imports()
+            # Check whether there are any wildcard imports in this scope
+            # or a parent one that could be bringing this symbol into scope.
+            # First, get all wildcard imports into the current scope, up to
+            # and including the scope where the new import is.
+            wildcard_imports = symbol_table.wildcard_imports(
+                scope_limit=self.node)
+            # We can ignore any wildcard imports in the scope where the new
+            # import is (i.e. this SymbolTable) as a symbol of the same name
+            # can't be imported from more than one location.
             if not all(csym in self.containersymbols for
                        csym in wildcard_imports):
                 # There are wildcard imports so we can't be certain of
@@ -1838,10 +1849,13 @@ class SymbolTable():
 
             # We want to replace the local symbol with the newly
             # imported one in the outer scope (`isym`).
+            # Update any references to it within the SymbolTable itself.
             symbol_table._replace_symbol_refs(test_symbol, symbol)
+            # Then update any references in the associated PSyIR tree.
             new_table = SymbolTable()
             new_table.add(symbol)
             self.node.replace_symbols_using(new_table)
+            # Finally, we can remove the local symbol.
             symbol_table.remove(test_symbol)
 
     def resolve_imports(self, container_symbols=None, symbol_target=None):
@@ -2055,13 +2069,17 @@ class SymbolTable():
         that any Symbols appearing in precision specifications, array shapes,
         initialisation expressions or routine interfaces are captured.
 
+        N.B. imported Symbols are skipped since their properties are not a
+        part of this table.
+
         :param var_accesses: VariablesAccessInfo instance that stores the
             information about variable accesses.
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         for sym in self.symbols:
-            sym.reference_accesses(access_info)
+            if not sym.is_import:
+                sym.reference_accesses(access_info)
 
     def wildcard_imports(self, scope_limit=None) -> List[ContainerSymbol]:
         '''

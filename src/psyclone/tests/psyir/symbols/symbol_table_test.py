@@ -2874,7 +2874,10 @@ def test_import_symbol_from_wildcard(fortran_reader):
     # At the import site, "indirect" is being imported from "my_mod".
     assert indi.interface.container_symbol.name == "my_mod"
     # TODO how should the shape of the imported array be defined?
-    # zarray = table.lookup("zarray")
+    zarray = table.lookup("zarray")
+    ubound = zarray.datatype.shape[0].upper.symbol
+    assert ubound.name == "idim"
+    assert "idim" not in table
 
 
 def test_import_symbol_from_specific(fortran_reader):
