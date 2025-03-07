@@ -289,13 +289,6 @@ class KernelModuleInlineTrans(Transformation):
         The provided routines are copied so that the original PSyIR is left
         unmodified.
 
-        TODO #2271 will improve this method and could potentially
-        avoid the need for debug_string() within get_kernel_schedule()
-        in dynamo0p3.py. Sergi suggests that we may be missing the
-        traversal of the declaration init expressions here and that
-        might solve the problem. I'm not so sure and explain why in
-        get_kernel_schedule() but still referencing this issue.
-
         :param code_to_inline: the routine(s) to module-inline.
         :type code_to_inline: list[:py:class:`psyclone.psyir.node.Routine`]
 
@@ -412,7 +405,7 @@ class KernelModuleInlineTrans(Transformation):
         return (caller_name, routines[0])
 
     @staticmethod
-    def _rm_imported_symbol(name, table):
+    def _rm_imported_routine_symbol(name, table):
         '''
         If the named symbol is in the supplied table (or an ancestor) *and* is
         an import then it is removed. If the Container from which it was being
@@ -428,17 +421,18 @@ class KernelModuleInlineTrans(Transformation):
         if not symbol or not symbol.is_import:
             return
 
-        # The RoutineSymbol is in the table (or an outer scope) and is
+        # The symbol is in the table (or an outer scope) and is
         # imported. We therefore remove it and potentially the ContainerSymbol
         # from which it is imported.
         csym = symbol.interface.container_symbol
-
+        # Find the table containing the symbol we're going to remove.
         actual_table = (symbol.find_symbol_table(table.node) if
                         symbol.name not in table else table)
+        # Find the table containing the ContainerSymbol from which
+        # the symbol is imported.
         ctable = (csym.find_symbol_table(table.node) if
                   csym.name not in table else table)
-        # ARPDBG use ctable here??
-        remove_csym = actual_table.symbols_imported_from(csym) == [symbol]
+        remove_csym = ctable.symbols_imported_from(csym) == [symbol]
         # We have to force the removal as there will be calls that reference
         # this Symbol. (These calls will subsequently be updated to refer to
         # the Symbol of the inlined routine.)
@@ -531,7 +525,7 @@ class KernelModuleInlineTrans(Transformation):
             if outer_sym:
                 # It is shadowing an outer symbol so we need to remove this
                 # local symbol and update the call to point to the outer one.
-                self._rm_imported_symbol(local_sym.name, table)
+                self._rm_imported_routine_symbol(local_sym.name, table)
                 node.routine.symbol = outer_sym
                 routine_container = codes_to_inline[0].ancestor(Container)
                 if (not (outer_sym.is_import or outer_sym.is_unresolved) and

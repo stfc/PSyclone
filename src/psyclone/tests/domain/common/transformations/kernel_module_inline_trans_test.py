@@ -923,22 +923,22 @@ def test_get_psyir_to_inline(monkeypatch):
             str(err.value))
 
 
-def test_rm_imported_symbol():
+def test_rm_imported_routine_symbol():
     '''
-    Tests for the _rm_imported_symbols() utility method.
+    Tests for the _rm_imported_routine_symbol() utility method.
     '''
     intrans = KernelModuleInlineTrans()
     table = SymbolTable()
     # Does nothing if the named symbol cannot be found
-    intrans._rm_imported_symbol("missing", table)
+    intrans._rm_imported_routine_symbol("missing", table)
     # ...or is not an import.
     here = table.new_symbol("here")
-    intrans._rm_imported_symbol("here", table)
+    intrans._rm_imported_routine_symbol("here", table)
     assert "here" in table
     csym = table.new_symbol("from_here", symbol_type=ContainerSymbol)
     # Update the symbol so that it is imported from a Container.
     here.interface = ImportInterface(csym)
-    intrans._rm_imported_symbol("here", table)
+    intrans._rm_imported_routine_symbol("here", table)
     # Both it and the Container should have been removed.
     assert "here" not in table
     assert "from_here" not in table
@@ -946,7 +946,7 @@ def test_rm_imported_symbol():
     csym = table.new_symbol("from_here", symbol_type=ContainerSymbol)
     csym.wildcard_import = True
     here = table.new_symbol("here", interface=ImportInterface(csym))
-    intrans._rm_imported_symbol("here", table)
+    intrans._rm_imported_routine_symbol("here", table)
     # Only the Symbol should have been removed (not the ContainerSymbol).
     assert "here" not in table
     assert "from_here" in table
@@ -955,7 +955,7 @@ def test_rm_imported_symbol():
     assert table.lookup("old_here").interface.orig_name == "here"
     # Repeat - we should not get another imported symbol.
     here = table.new_symbol("here", interface=ImportInterface(csym))
-    intrans._rm_imported_symbol("here", table)
+    intrans._rm_imported_routine_symbol("here", table)
     assert len(table.symbols_imported_from(csym)) == 1
 
 

@@ -231,9 +231,14 @@ def inline_calls(schedule):
 
       1. Find the source of the routine being called.
       2. Insert that source into the same Container as the call site.
-      3. Replace the call to the routine with the body of the routine.
 
     where each step is dependent upon the success of the previous one.
+
+    Ideally (#924), this would then be followed by:
+
+      3. Replace the call to the routine with the body of the routine.
+
+    but currently this functionality is not robust enough for use here.
 
     TODO #924 - this could be InlineAllCallsTrans.apply(schedule,
                                                         excluding={})
@@ -263,7 +268,11 @@ def inline_calls(schedule):
             except TransformationError as err:
                 print(f"Module inline of '{name}' failed:\n{err}")
                 continue
-        continue  # ARPDBG - skip actual inlining for testing.
+
+        # TODO #924 - SKIP ACTUAL INLINING FOR NOW. Currently this causes
+        # failures when processing NEMO and this needs further work.
+        continue
+
         try:
             options = {}
             if name in ignore_codeblocks:

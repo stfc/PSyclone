@@ -129,7 +129,6 @@ class ScopingNode(Node):
         # Reorganise the symbol table construction to occur before we add
         # the children.
         self._symbol_table = other.symbol_table.deep_copy(self)
-        # ARPDBG self._symbol_table._node = self  # Associate to self
 
         # Remove symbols corresponding to Routines that are contained in this
         # ScopingNode. These symbols will be added automatically by the Routine
