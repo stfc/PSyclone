@@ -42,7 +42,7 @@ from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import Kern, PSyFactory
 from psyclone.psyir.nodes import Call, CodeBlock, Loop
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations import InlineTrans, TransformationError
 from psyclone.transformations import OMPParallelTrans, \
     OMPSingleTrans
 from psyclone.psyir.transformations import OMPTaskTrans
@@ -189,14 +189,16 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     assert len(my_test.walk(Call, Kern)) == 0
 
 
-# This test relies on inline functionality not yet supported
-@pytest.mark.xfail
-def test_omptask_inline_kernels():
+def test_omptask_inline_kernels(monkeypatch):
     '''Test the _inline_kernels functionality up to inlining of Call nodes.'''
-    _, invoke = get_invoke("single_invoke.f90", "gocean", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean",
+                           dist_mem=False, idx=0)
     taskt = OMPTaskTrans()
     schedule = invoke.schedule
-    # Cover the _inline_kernels code
+    # Currently the InlineTrans validation will reject the GOcean kernel call
+    # because it can't determine the type of `fld%data` being passed in. We
+    # therefore monkeypatch the validate() method to get round this.
+    monkeypatch.setattr(InlineTrans, "validate", lambda _1, _2, _3: None)
     taskt._inline_kernels(schedule.children[0])
     assert not schedule.walk(Kern)
 

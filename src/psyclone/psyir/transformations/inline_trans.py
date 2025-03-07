@@ -849,7 +849,7 @@ class InlineTrans(Transformation):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because "
                     f"the type of the actual argument "
-                    f"'{actual_arg.symbol.name}' corresponding to an array"
+                    f"'{actual_arg.debug_string()}' corresponding to an array"
                     f" formal argument ('{formal_arg.name}') is unknown.")
 
             formal_rank = 0
