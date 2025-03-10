@@ -40,67 +40,6 @@ Modules
 This section describes the functionality of the various Python modules
 that make up PSyclone.
 
-Module: f2pygen
-===============
-
-.. warning::
-   The f2pygen functionality has been superseded by the development of
-   the PSyIR and will be removed entirely in a future release.
-
-`f2pygen` provides functionality for generating Fortran code from
-scratch and supports the addition of a use statement to an existing
-parse tree.
-
-Variable Declarations
----------------------
-
-Three different classes are provided to support the creation of
-variable declarations (for intrinsic, character and derived-type
-variables). An example of their use might be:
-
->>> from psyclone.f2pygen import (ModuleGen, SubroutineGen, DeclGen,
-... CharDeclGen, TypeDeclGen)
->>> module = ModuleGen(name="testmodule")
->>> sub = SubroutineGen(module, name="testsubroutine")
->>> module.add(sub)
->>> sub.add(DeclGen(sub, datatype="integer", entity_decls=["my_int"]))
->>> sub.add(CharDeclGen(sub, length="10", entity_decls=["my_char"]))
->>> sub.add(TypeDeclGen(sub, datatype="field_type", entity_decls=["ufld"]))
->>> gen = str(module.root)
->>> print(gen)
-  MODULE testmodule
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE testsubroutine()
-      TYPE(field_type) ufld
-      CHARACTER(LEN=10) my_char
-      INTEGER my_int
-    END SUBROUTINE testsubroutine
-  END MODULE testmodule
-
-The full interface to each of these classes is detailed below:
-
-.. autoclass:: psyclone.f2pygen.DeclGen
-    :members:
-    :noindex:
-
-.. autoclass:: psyclone.f2pygen.CharDeclGen
-    :members:
-    :noindex:
-
-.. autoclass:: psyclone.f2pygen.TypeDeclGen
-    :members:
-    :noindex:
-
-Adding code
------------
-
-`f2pygen` supports the addition of use statements to an existing
-`fparser1` parse tree:
-
-.. autofunction:: psyclone.f2pygen.adduse
-
-
 .. _dev_configuration:
 
 Module: configuration
@@ -252,7 +191,7 @@ Module: dynamo0p3
 =================
 
 Specialises various classes from the ``psyclone.psyGen`` module
-in order to support the Dynamo 0.3 API.
+in order to support the LFRic API.
 
 When constructing the Fortran subroutine for either an Invoke or
 Kernel stub (see :ref:`stub-generation`), there are various groups of
@@ -265,15 +204,15 @@ sub-class of the ``LFRicCollection`` abstract class:
    :private-members:
    :noindex:
 
-(A single base class is used for both Invokes and Kernel stubs since it
-allows the code dealing with variable declarations to be shared.)
+A single ``LFRicCollection`` class is used for both Invokes and Kernel stubs
+since it allows the code dealing with variable declarations to be shared.
 A concrete sub-class of ``LFRicCollection`` must provide an
-implementation of the ``_invoke_declarations`` method. If the
+implementation of the ``invoke_declarations`` method. If the
 quantities associated with the collection require initialisation
 within the PSy layer then the ``initialise`` method must also be
 implemented. If stub-generation is to be supported for kernels that
 make use of the collection type then an implementation must also be
-provided for ``_stub_declarations.``
+provided for ``stub_declarations``.
 
 Although instances of (sub-classes of) ``LFRicCollection`` handle all
 declarations and initialisation, there remains the problem of

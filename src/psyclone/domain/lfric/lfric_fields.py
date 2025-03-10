@@ -48,7 +48,10 @@ from collections import OrderedDict
 from psyclone import psyGen
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants
 from psyclone.errors import InternalError
-from psyclone.f2pygen import DeclGen, TypeDeclGen
+from psyclone.psyir.nodes import Reference
+from psyclone.psyir.symbols import (
+    ArgumentInterface, DataSymbol, ScalarType, ArrayType, UnresolvedType,
+    ImportInterface)
 
 
 class LFRicFields(LFRicCollection):
@@ -57,7 +60,7 @@ class LFRicFields(LFRicCollection):
     or Kernel stub.
 
     '''
-    def _invoke_declarations(self, parent):
+    def invoke_declarations(self):
         '''
         Add field-related declarations to the PSy-layer routine.
         Note: PSy layer in LFRic does not modify the field objects. Hence,
@@ -65,14 +68,11 @@ class LFRicFields(LFRicCollection):
         is only pointed to from the field object and is thus not a part of
         the object).
 
-        :param parent: the node in the f2pygen AST representing the PSy-layer
-                       routine to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
         :raises InternalError: for unsupported intrinsic types of field
                                argument data.
 
         '''
+        super().invoke_declarations()
         # Create dict of all field arguments for checks
         const = LFRicConstants()
         fld_args = self._invoke.unique_declarations(
@@ -115,32 +115,25 @@ class LFRicFields(LFRicCollection):
         # they contain a pointer to the data that is modified.
         for fld_type, fld_mod in field_datatype_map:
             args = field_datatype_map[(fld_type, fld_mod)]
-            arg_list = [arg.declaration_name for arg in args]
-            parent.add(TypeDeclGen(parent, datatype=fld_type,
-                                   entity_decls=arg_list,
-                                   intent="in"))
-            (self._invoke.invokes.psy.
-             infrastructure_modules[fld_mod].add(fld_type))
+            for arg in args:
+                arg_symbol = self.symtab.lookup(arg.name)
+                arg_symbol.interface.access = ArgumentInterface.Access.READ
 
-    def _stub_declarations(self, parent):
+    def stub_declarations(self):
         '''
         Add field-related declarations to a Kernel stub.
-
-        :param parent: the node in the f2pygen AST representing the Kernel
-                       stub to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         :raises InternalError: for an unsupported data type of field
                                argument data.
 
         '''
+        super().stub_declarations()
         const = LFRicConstants()
 
         fld_args = psyGen.args_filter(
             self._kernel.args, arg_types=const.VALID_FIELD_NAMES)
         for fld in fld_args:
             undf_name = fld.function_space.undf_name
-            fld_dtype = fld.intrinsic_type
             fld_kind = fld.precision
 
             # Check for invalid descriptor data type
@@ -152,22 +145,39 @@ class LFRicFields(LFRicCollection):
                     f"'{fld.declaration_name}'. Supported types are "
                     f"{const.VALID_FIELD_DATA_TYPES}.")
 
+            # Create the PSyIR DataType
+            kind_sym = self.symtab.find_or_create(
+                fld_kind, symbol_type=DataSymbol, datatype=UnresolvedType(),
+                interface=ImportInterface(
+                    self.symtab.lookup("constants_mod")))
+            if fld.intrinsic_type == "real":
+                intr = ScalarType(ScalarType.Intrinsic.REAL, kind_sym)
+            elif fld.intrinsic_type == "integer":
+                intr = ScalarType(ScalarType.Intrinsic.INTEGER, kind_sym)
+
+            undf_sym = self.symtab.find_or_create(undf_name)
+            datatype = ArrayType(intr, [Reference(undf_sym)])
+
+            if fld.intent == "in":
+                intent = ArgumentInterface.Access.READ
+            elif fld.intent == "inout":
+                intent = ArgumentInterface.Access.READWRITE
+
             if fld.vector_size > 1:
                 for idx in range(1, fld.vector_size+1):
                     text = (fld.name + "_" +
                             fld.function_space.mangled_name +
                             "_v" + str(idx))
-                    parent.add(
-                        DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
-                                dimension=undf_name,
-                                intent=fld.intent, entity_decls=[text]))
+                    arg = self.symtab.find_or_create(
+                        text, symbol_type=DataSymbol, datatype=datatype)
+                    arg.interface = ArgumentInterface(intent)
+                    self.symtab.append_argument(arg)
             else:
-                parent.add(
-                    DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
-                            intent=fld.intent,
-                            dimension=undf_name,
-                            entity_decls=[fld.name + "_" +
-                                          fld.function_space.mangled_name]))
+                name = fld.name + "_" + fld.function_space.mangled_name
+                arg = self.symtab.find_or_create(
+                    name, symbol_type=DataSymbol, datatype=datatype)
+                arg.interface = ArgumentInterface(intent)
+                self.symtab.append_argument(arg)
 
 
 # ---------- Documentation utils -------------------------------------------- #
