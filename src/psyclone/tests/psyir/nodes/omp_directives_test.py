@@ -984,6 +984,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
             type(my_type) :: mt1, mt2
             real, dimension(10) :: array
             mt1%scalar1 = 3
+            mt2%scalar1 = 3
             do i = 1, 10
                if (i .eq. 4) then
                   mt2%field1%scalar1 = array(i)
@@ -994,7 +995,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
         end subroutine''')
     omptrans = OMPParallelTrans()
     routine = psyir.walk(Routine)[0]
-    omptrans.apply(routine.children)
+    omptrans.apply(routine.children[2])
     directive = psyir.walk(OMPParallelDirective)[0]
     pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 2
@@ -1012,6 +1013,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
             integer :: i, scalar1
             type(my_type) :: mt1
             real, dimension(10) :: array
+            mt1%another_scalar = 3
             do i = 1, 10
                if (i .eq. 4) then
                   mt1%scalar1 = 3
@@ -1021,7 +1023,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
         end subroutine''')
     omptrans = OMPParallelTrans()
     routine = psyir.walk(Routine)[0]
-    omptrans.apply(routine.children)
+    omptrans.apply(routine.children[1])
     directive = psyir.walk(OMPParallelDirective)[0]
     pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 1
@@ -4790,3 +4792,39 @@ ndf_w3, undf_w3, map_w3(:,cell))
       !
       CALL f1_proxy%set_dirty()
     """ in code
+
+
+def test_firstprivate_with_uninitialised(fortran_reader, fortran_writer):
+    ''' Check that guaranteed uninitialised symbols do not end on
+    firstprivate clauses. '''
+    code = '''
+    module test
+        integer :: a
+    contains
+        subroutine my_subroutine(b, cond)
+            integer, intent(inout) :: b, cond
+            integer :: c = 1, d, i, result
+            integer :: not_initialised
+
+            d = 1
+
+            do i = 10, 10, 1
+                if(cond < 1) then
+                    a = 1
+                    b = 1
+                    c = 1
+                    d = 1
+                    not_initialised = 1
+                    result = a + b + c + d + not_initialised
+                endif
+            end do
+        end subroutine
+    end module
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelLoopTrans()
+    loops = psyir.walk(Loop)
+    ptrans.apply(loops[0])
+    output = fortran_writer(psyir)
+    assert "private(i,not_initialised)" in output
+    assert "firstprivate(a,b,c,d)" in output

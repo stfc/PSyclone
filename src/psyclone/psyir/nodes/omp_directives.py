@@ -57,6 +57,7 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.if_block import IfBlock
@@ -74,7 +75,7 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.while_loop import WhileLoop
-from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType, DataSymbol
+from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType, DataSymbol, Symbol
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -1574,6 +1575,25 @@ class OMPParallelDirective(OMPRegionDirective):
                                   "data sharing attribute in its default "
                                   "clause is not 'shared'.")
 
+        def symbol_guaranteed_uninitialised(symbol: Symbol) -> bool:
+            ''' Check if we can guarantee that the symbol is uninitialised by
+            checking that it is a local-automatic symbol that has not been used
+            before the directive.
+
+            :param symbol: the symbol to check.
+            :param loop: the loop of interest.
+            '''
+            if not symbol.is_automatic:
+                return False
+            for node in self.preceding():
+                if isinstance(node, (Loop, WhileLoop, CodeBlock)):
+                    # If there is looping, looking at preceding is not enough
+                    return False
+                if isinstance(node, Reference):
+                    if node.symbol is symbol:
+                        return False
+            return True
+
         # TODO #598: Improve the handling of scalar variables, there are
         # remaining issues when we have accesses after the parallel region
         # of variables that we currently declare as private. We could use
@@ -1612,12 +1632,10 @@ class OMPParallelDirective(OMPRegionDirective):
             if (isinstance(symbol, DataSymbol) and
                     isinstance(self.dir_body[0], Loop) and
                     symbol in self.dir_body[0].explicitly_private_symbols):
-                if any(ref.symbol is symbol for ref in self.preceding()
-                       if isinstance(ref, Reference)):
-                    # If it's used before the loop, make it firstprivate
-                    fprivate.add(symbol)
-                else:
+                if symbol_guaranteed_uninitialised(symbol):
                     private.add(symbol)
+                else:
+                    fprivate.add(symbol)
                 continue
 
             # All arrays not explicitly marked as threadprivate are shared
@@ -1695,8 +1713,10 @@ class OMPParallelDirective(OMPRegionDirective):
                         limit=loop_ancestor,
                         include_self=True)
                     if conditional_write:
-                        fprivate.add(symbol)
-                        break
+                        if not symbol_guaranteed_uninitialised(symbol):
+                            # If it is not uninitialised make it firstprivate
+                            fprivate.add(symbol)
+                            break
 
                     # Already found the first write and decided if it is
                     # shared, private or firstprivate. We can stop looking.
