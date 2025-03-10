@@ -127,8 +127,6 @@ class ReplaceReferenceByLiteralTrans(Transformation):
     <BLANKLINE>
 
     '''
-    _ERROR_MSG_ONLY_INITVAL = ()
-
     def __init__(self) -> None:
         super().__init__()
         # Dictionary with Literal values of the corresponding symbol
