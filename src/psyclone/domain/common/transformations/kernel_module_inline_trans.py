@@ -127,7 +127,7 @@ class KernelModuleInlineTrans(Transformation):
 
         parent_container = node.ancestor(Container)
 
-        # Check that the PSyIR  of the routine/kernel can be retrieved.
+        # Check that the PSyIR of the routine/kernel can be retrieved.
         try:
             _, kernel_schedule = (
                 KernelModuleInlineTrans._get_psyir_to_inline(node))
@@ -527,9 +527,7 @@ class KernelModuleInlineTrans(Transformation):
                 # local symbol and update the call to point to the outer one.
                 self._rm_imported_routine_symbol(local_sym.name, table)
                 node.routine.symbol = outer_sym
-                routine_container = codes_to_inline[0].ancestor(Container)
-                if (not (outer_sym.is_import or outer_sym.is_unresolved) and
-                        routine_container is parent_container):
+                if not (outer_sym.is_import or outer_sym.is_unresolved):
                     # The outer symbol is local to this Container so there's
                     # nothing else to do.
                     return
