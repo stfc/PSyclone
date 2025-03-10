@@ -173,7 +173,7 @@ all your kernels. You can use the following command line:
              -opsy time_step_alg_mod_psy.f90 time_step_alg_mod.x90
 
 The flag `-nodm` disables distributes memory processing. We need
-to specify which PSyclone API we are using (`gocean1.0`, which is
+to specify which PSyclone API we are using (`gocean`, which is
 the 2D finite difference one based on dl_esm_inf). Then the output
 filename for the algorithm layer (`-oalg`) and the psy layer files
 (`-opsy`) and the input filename.

@@ -82,7 +82,7 @@ This subroutines takes the name of the configuration file to use
 from the first and only command line parameter. It will read
 the grid size from the configuration file. The grid size is then
 used to initialise the ``dl_esm_inf`` grid object. This happens
-in three steps:
+in four steps:
 1. Initialise the parallelisation subsystem with a call to 
    ``parallel_init``.
 2. Create an Arakawa-C grid by constructing the grid object
@@ -112,7 +112,7 @@ array can then be used to initialise the actual field with this value.
 
 While this could be combined in one step, this implementation will later
 allow us to use distributed memory without additional change, since
-the ``rd2_field`` constructor will take care of the data distribution.
+the ``r2d_field`` constructor will take care of the data distribution.
 
 
 ### The main program: ``gol.f90``

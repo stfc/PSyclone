@@ -33,17 +33,6 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-'''A simple transformation script for the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
-
-Once you have PSyclone installed, this script may be used by doing:
-
- >>> psyclone -s ./omp_levels_trans.py traldf_iso.F90
-
-This should produce a lot of output, ending with generated
-Fortran.
-'''
 
 from psyclone.transformations import MoveTrans, TransformationError
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
@@ -64,9 +53,9 @@ def trans(psyir):
     # First inline all kernels:
     inline = InlineTrans()
     for call in psyir.walk(Call):
-        if call.routine.name != "output_field":
+        if call.routine.name != #TODO: not for output_field
             print("Inlining", call.routine)
-            inline.apply(call)
+            TODO appy inlining
 
     # Study the output code - and find a way to add openmp - ideally
     # by using `openmp parallel` only once around all loops.
