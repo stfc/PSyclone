@@ -174,7 +174,8 @@ class ReplaceReferenceByLiteralTrans(Transformation):
 
                     message = (
                         f"{self.name}: only "
-                        + "supports symbols which have a Literal as their initial value but "
+                        + "supports symbols which have a Literal"
+                        + " as their initial value but "
                         + f"'{sym_name}' is assigned "
                         + f"a {type(sym.initial_value)}"
                     )

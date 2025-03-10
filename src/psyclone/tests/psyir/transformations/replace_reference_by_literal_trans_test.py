@@ -220,7 +220,8 @@ contains
     rbbl = ReplaceReferenceByLiteralTrans()
     rbbl.apply(routine_foo)
     written_code = fortran_writer(routine_foo.ancestor(Container))
-    assert "! ReplaceReferenceByLiteralTrans: Symbol already found 'a'" in written_code
+    assert "! ReplaceReferenceByLiteralTrans: Symbol already found 'a'"\
+        in written_code
     assert "integer, parameter :: x = a" in written_code
     assert "integer, parameter :: a = 2" in written_code
     assert "integer, parameter :: y = a" in written_code
@@ -288,7 +289,8 @@ def test_rrbl_constant_var_as_arg_to_subroutine_call(
     rbbl = ReplaceReferenceByLiteralTrans()
     rbbl.apply(routine_foo)
     written_code = fortran_writer(routine_foo.ancestor(Container))
-    pytest.xfail("Replacing call argument by constant parameter value is not yet supported")
+    pytest.xfail("Replacing call argument by constant"
+                 " parameter value is not yet supported")
     assert "call swap_add(x, 24, y, 12)" in written_code
 
 
@@ -316,7 +318,8 @@ def test_rrbl_same_constant_data_symbol_twice(fortran_reader, fortran_writer):
     rbbl = ReplaceReferenceByLiteralTrans()
     rbbl.apply(routine_foo)
     written_code = fortran_writer(routine_foo.ancestor(Container))
-    assert "! ReplaceReferenceByLiteralTrans: Symbol already found" in written_code
+    assert "! ReplaceReferenceByLiteralTrans: Symbol already found"\
+        in written_code
     assert "integer, dimension(10,a) :: array" in written_code
 
 
@@ -336,7 +339,8 @@ def test_rrbl_write_fortran_comment_warning_about_symbol_found(
     rbbl.apply(routine_foo)
     rbbl._update_param_table(rbbl._param_table, routine_foo.symbol_table)
     written_code = fortran_writer(routine_foo.ancestor(Container))
-    assert "! ReplaceReferenceByLiteralTrans: Symbol already found" in written_code
+    assert "! ReplaceReferenceByLiteralTrans: Symbol already found"\
+        in written_code
 
 
 def test_rrbl_code_not_transformed_because_involves_more_than_just_literal(
@@ -411,4 +415,8 @@ def test_rrbl_annotating_fortran_code_because_more_than_just_literal(
     rbbl.apply(routine_foo)
     written_code = fortran_writer(routine_foo.ancestor(Container))
     assert "x = 15 + b" in written_code
-    assert f"{rbbl.name}: only supports " + "symbols which have a Literal as their initial value" in written_code
+    msg = (f"{rbbl.name}: only supports "
+            + "symbols which have a Literal as"
+            + " their initial value")
+    index = written_code.find(rbbl.name)
+    assert msg == written_code[index:index+len(msg)]
