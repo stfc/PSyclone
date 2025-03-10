@@ -415,8 +415,7 @@ def test_rrbl_annotating_fortran_code_because_more_than_just_literal(
     rbbl.apply(routine_foo)
     written_code = fortran_writer(routine_foo.ancestor(Container))
     assert "x = 15 + b" in written_code
-    msg = (f"{rbbl.name}: only supports "
-            + "symbols which have a Literal as"
-            + " their initial value")
+    msg = f"{rbbl.name}: only supports symbols which have a Literal as"
+    " their initial value"
     index = written_code.find(rbbl.name)
     assert msg == written_code[index:index+len(msg)]
