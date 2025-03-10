@@ -101,6 +101,7 @@ def trans(psyir):
     # file-by-file exhaustive tests.
     only_do_file = os.environ.get('ONLY_FILE', False)
     if only_do_file and psyir.name not in (only_do_file,
+                                           "sbc_phy.f90",
                                            "lib_fortran.f90",
                                            "solfrac_mod.f90"):
         return
