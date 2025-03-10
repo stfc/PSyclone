@@ -523,14 +523,17 @@ class KernelModuleInlineTrans(Transformation):
                 outer_sym = outer_table.lookup(local_sym.name,
                                                otherwise=None)
             if outer_sym:
-                # It is shadowing an outer symbol so we need to remove this
-                # local symbol and update the call to point to the outer one.
-                self._rm_imported_routine_symbol(local_sym.name, table)
-                node.routine.symbol = outer_sym
-                if not (outer_sym.is_import or outer_sym.is_unresolved):
-                    # The outer symbol is local to this Container so there's
-                    # nothing else to do.
-                    return
+                outer_table = outer_sym.find_symbol_table(table.node.parent)
+                if not isinstance(outer_table.node, FileContainer):
+                    # It is shadowing an outer symbol that is in a Container
+                    # (not a FileContainer) so we need to remove this local
+                    # symbol and update the call to point to the outer one.
+                    self._rm_imported_routine_symbol(local_sym.name, table)
+                    node.routine.symbol = outer_sym
+                    if not (outer_sym.is_import or outer_sym.is_unresolved):
+                        # The outer symbol is local to this Container so there's
+                        # nothing else to do.
+                        return
 
         updated_routines = self._prepare_code_to_inline(codes_to_inline)
         # Update the Kernel to point to the updated PSyIR.
