@@ -231,9 +231,14 @@ def inline_calls(schedule):
 
       1. Find the source of the routine being called.
       2. Insert that source into the same Container as the call site.
-      3. Replace the call to the routine with the body of the routine.
 
     where each step is dependent upon the success of the previous one.
+
+    Ideally (#924), this would then be followed by:
+
+      3. Replace the call to the routine with the body of the routine.
+
+    but currently this functionality is not robust enough for use here.
 
     TODO #924 - this could be InlineAllCallsTrans.apply(schedule,
                                                         excluding={})
@@ -242,14 +247,13 @@ def inline_calls(schedule):
     :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
 
     '''
-    excluding = ["ctl_stop", "ctl_warn", "eos", "iom_", "hist", "mpi_",
-                 "timing_", "oasis_"]
+    excluding = ["ctl_nam", "ctl_stop", "ctl_warn", "prt_ctl", "eos",
+                 "iom_", "hist", "mpi_", "timing_", "oasis_"]
     ignore_codeblocks = ["bdy_dyn3d_frs", "bdy_dyn3d_spe", "bdy_dyn3d_zro",
                          "bdy_dyn3d_zgrad"]
     mod_inline_trans = KernelModuleInlineTrans()
     inline_trans = InlineTrans()
-    all_calls = schedule.walk(Call)
-    for call in all_calls:
+    for call in schedule.walk(Call):
         if isinstance(call, IntrinsicCall):
             continue
         rsym = call.routine.symbol
@@ -257,13 +261,18 @@ def inline_calls(schedule):
         if any(name.startswith(excl_name) for excl_name in excluding):
             print(f"Inlining of routine '{name}' is disabled.")
             continue
-        if rsym.is_import:
+        if rsym.is_import or rsym.is_unresolved:
             try:
                 mod_inline_trans.apply(call)
                 print(f"Module-inlined routine '{name}'")
             except TransformationError as err:
                 print(f"Module inline of '{name}' failed:\n{err}")
                 continue
+
+        # TODO #924 - SKIP ACTUAL INLINING FOR NOW. Currently this causes
+        # failures when processing NEMO and this needs further work.
+        continue
+
         try:
             options = {}
             if name in ignore_codeblocks:

@@ -437,7 +437,7 @@ class Call(Statement, DataNode):
     def __str__(self):
         return self.node_str(False)
 
-    def copy(self):
+    def copy(self, new_parent=None):
         '''Return a copy of this node. This is a bespoke implementation for
         a Call node that ensures that any internal id's are
         consistent before and after copying.
@@ -450,7 +450,7 @@ class Call(Statement, DataNode):
         # before copying.
         self._reconcile()
         # copy
-        new_copy = super().copy()
+        new_copy = super().copy(new_parent=new_parent)
         # Fix invalid id's in _argument_names after copying.
         # pylint: disable=protected-access
         new_list = []
@@ -500,10 +500,9 @@ class Call(Statement, DataNode):
             # as a child of a FileContainer (if the PSyIR contains a
             # FileContainer). Note, if the PSyIR does contain a
             # FileContainer, it will be the root node of the PSyIR.
-            for routine in self.root.children:
-                if (isinstance(routine, Routine) and
-                        routine.name.lower() == rsym.name.lower()):
-                    return [routine]
+            psyir = self.root.find_routine_psyir(rsym.name)
+            if psyir:
+                return [psyir]
 
             # Now check for any wildcard imports and see if they can
             # be used to resolve the symbol.
@@ -599,15 +598,22 @@ class Call(Statement, DataNode):
                 f"UnsupportedFortranType:\n{rsym.datatype.declaration}\n"
                 f"Cannot get the PSyIR of such a routine.")
 
-        if isinstance(container, Container):
+        # At this point, we should have found the PSyIR tree containing the
+        # routine - we just need to locate it. It may be in a Container or
+        # it may be in the parent FileContainer.
+        cursor = container
+        while isinstance(cursor, Container):
             routines = []
-            for name in container.resolve_routine(rsym.name):
-                psyir = container.find_routine_psyir(
+            for name in cursor.resolve_routine(rsym.name):
+                psyir = cursor.find_routine_psyir(
                     name, allow_private=can_be_private)
                 if psyir:
                     routines.append(psyir)
             if routines:
                 return routines
+            if not cursor.parent:
+                break
+            cursor = cursor.parent
 
         raise SymbolError(
             f"Failed to find a Routine named '{rsym.name}' in "

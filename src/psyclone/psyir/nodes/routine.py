@@ -227,7 +227,8 @@ class Routine(Schedule, CommentableMixin):
             # whether the scope already has a Routine or CodeBlock
             # with this name and error if so.
             try:
-                sym = new_parent.symbol_table.lookup(self.name)
+                sym = new_parent.symbol_table.lookup(self.name,
+                                                     scope_limit=new_parent)
                 # If the found symbol is not the symbol used to initialise
                 # this Routine then we raise an error, as we won't be able
                 # to add it to the parent.

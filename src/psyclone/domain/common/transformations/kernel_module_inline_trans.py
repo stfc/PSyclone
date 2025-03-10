@@ -42,17 +42,16 @@ TODO #2683 - rename this to {Privatise,Copy,Move}RoutineToLocalContainerTrans
 and move it to psyir/transformations/.
 
 '''
+from typing import Union
 
 from psyclone.core import VariablesAccessInfo
-from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
-    RoutineSymbol, Symbol)
+    ContainerSymbol, DataSymbol, DataTypeSymbol,
+    ImportInterface, RoutineSymbol, Symbol, SymbolError)
 from psyclone.psyir.nodes import (
-    Container, Reference, Routine, ScopingNode,
-    Literal, CodeBlock, Call, IntrinsicCall)
+    Call, Container, FileContainer, Routine, ScopingNode, IntrinsicCall)
 
 
 class KernelModuleInlineTrans(Transformation):
@@ -128,22 +127,7 @@ class KernelModuleInlineTrans(Transformation):
 
         parent_container = node.ancestor(Container)
 
-        # Check that the associated Routine isn't already present in the
-        # Container. Strictly speaking, we should check that the interface of
-        # any existing Routine matches that required by the Call but for now
-        # we live with the possibility of a false positive resulting in a
-        # refusal to module inline.
-        if routine_sym and not routine_sym.is_import:
-            for routine in parent_container.walk(Routine, stop_type=Routine):
-                if routine.name.lower() == kname.lower():
-                    raise TransformationError(
-                        f"{kern_or_call} '{kname}' cannot be module inlined "
-                        f"into Container '{parent_container.name}' because "
-                        f"there is no explicit import of it ('USE ..., ONLY: "
-                        f"{kname}' in Fortran) and a Routine with that name "
-                        f"is already present in the Container.")
-
-        # Check that the PSyIR  of the routine/kernel can be retrieved.
+        # Check that the PSyIR of the routine/kernel can be retrieved.
         try:
             _, kernel_schedule = (
                 KernelModuleInlineTrans._get_psyir_to_inline(node))
@@ -156,24 +140,7 @@ class KernelModuleInlineTrans(Transformation):
         # We do not support kernels that use symbols representing data
         # declared in their own parent module (we would need to add new imports
         # from this module at the call site, and we don't do this yet).
-        # TODO #2424 - this suffers from the limitation that
-        # VariablesAccessInfo does not work with nested scopes. (e.g. 2
-        # different symbols with the same name but declared in different,
-        # nested scopes will be assumed to be the same symbol).
-        vai = VariablesAccessInfo(kernel_schedule)
-        table = kernel_schedule.symbol_table
-        for sig in vai.all_signatures:
-            symbol = table.lookup(sig.var_name, otherwise=None)
-            if not symbol:
-                raise TransformationError(
-                    f"{kern_or_call} '{kname}' contains accesses to "
-                    f"'{sig.var_name}' but the origin of this signature is "
-                    f"unknown.")
-            if not symbol.is_import and symbol.name not in table:
-                raise TransformationError(
-                    f"{kern_or_call} '{kname}' contains accesses to "
-                    f"'{symbol.name}' which is declared in the callee "
-                    f"module scope. Cannot inline such a {kern_or_call}.")
+        self.check_data_accesses(node, kernel_schedule, kern_or_call)
 
         # We can't transform subroutines that shadow top-level symbol module
         # names, because we won't be able to bring this into the subroutine
@@ -181,7 +148,7 @@ class KernelModuleInlineTrans(Transformation):
         for scope in kernel_schedule.walk(ScopingNode):
             for symbol in scope.symbol_table.symbols:
                 for mod in symtab.containersymbols:
-                    if (symbol.name == mod.name and
+                    if (symbol.name.lower() == mod.name.lower() and
                             not isinstance(symbol, ContainerSymbol)):
                         raise TransformationError(
                             f"{kern_or_call} '{kname}' cannot be module-"
@@ -200,82 +167,200 @@ class KernelModuleInlineTrans(Transformation):
                 f"exists and changing the name of module-inlined "
                 f"subroutines is not supported yet.")
 
+        # Check that the associated Routine isn't already present in the
+        # Container. Strictly speaking, we should check that the interface of
+        # any existing Routine matches that required by the Call but for now
+        # we live with the possibility of a false positive resulting in a
+        # refusal to module inline.
+        for routine in parent_container.walk(Routine, stop_type=Routine):
+            if routine.name.lower() == kname.lower():
+                # Compare the routine to be inlined with the one that
+                # is already present.
+                (new_rt, ) = self._prepare_code_to_inline([kernel_schedule])
+                if routine == new_rt:
+                    # It's the same so we can proceed (although all we need to
+                    # do is update the RoutineSymbol referenced by the Call.)
+                    return
+                raise TransformationError(
+                    f"{kern_or_call} '{kname}' cannot be module inlined "
+                    f"into Container '{parent_container.name}' because "
+                    f"a *different* routine with that name "
+                    f"already exists and versioning of module-inlined "
+                    f"subroutines is not implemented yet.")
+
     @staticmethod
-    def _prepare_code_to_inline(code_to_inline):
+    def check_data_accesses(call: Union[CodedKern, Call],
+                            schedule: Routine,
+                            kern_or_call: str):
+        '''
+        Check for unresolved symbols or for any accessed from the Container
+        containing the target routine.
+
+        :param call: the node representing the call to the routine that is to
+            be inlined.
+        :param schedule: the PSyIR schedule of the routine to be inlined.
+        :param kern_or_call: text appropriate to whether we have a PSyKAl
+            Kernel or a generic routine.
+
+        :raises TransformationError: if there is an access to an unresolved
+            symbol.
+        :raises TransformationError: if there is an access to a symbol that is
+            declared in the Container (module) holding the target routine.
+
+        '''
+        # TODO #2424 - this suffers from the limitation that
+        # VariablesAccessInfo does not work with nested scopes. (e.g. 2
+        # different symbols with the same name but declared in different,
+        # nested scopes will be assumed to be the same symbol).
+        vai = VariablesAccessInfo(schedule)
+        table = schedule.symbol_table
+        name = schedule.name
+        for sig in vai.all_signatures:
+            symbol = table.lookup(sig.var_name, otherwise=None)
+            if not symbol:
+                raise TransformationError(
+                    f"{kern_or_call} '{name}' contains accesses to "
+                    f"'{sig.var_name}' but the origin of this signature is "
+                    f"unknown.")
+            if symbol.is_unresolved:
+                routine_wildcards = table.wildcard_imports()
+                try:
+                    # If there's more than one Container with a wildcard import
+                    # this will raise a ValueError.
+                    (csym,) = routine_wildcards
+                    # Now we know the origin of this symbol we can update it.
+                    symbol.interface = ImportInterface(csym)
+                except (ValueError, KeyError):
+                    try:
+                        # We have more than one wildcard import.
+                        table.resolve_imports(
+                            container_symbols=routine_wildcards,
+                            symbol_target=symbol)
+                        if symbol.is_unresolved:
+                            # Symbol is still not resolved (must be an indirect
+                            # import) so we give up.
+                            raise KeyError(
+                                f"Failed to resolve the type of Symbol "
+                                f"'{symbol.name}'. It is probably an indirect "
+                                f"import.")
+                    except KeyError as err:
+                        raise TransformationError(
+                            f"{kern_or_call} '{name}' contains accesses to "
+                            f"'{symbol.name}' which is unresolved. It is being"
+                            f" brought into scope from one of "
+                            f"{[sym.name for sym in routine_wildcards]}. "
+                            f"Original error was: {err}") from err
+            if not symbol.is_import and symbol.name not in table:
+                sym_at_call_site = call.scope.symbol_table.lookup(
+                    sig.var_name, otherwise=None)
+                if sym_at_call_site is not symbol:
+                    raise TransformationError(
+                        f"{kern_or_call} '{name}' contains accesses to "
+                        f"'{symbol.name}' which is declared in the callee "
+                        f"module scope. Cannot inline such a {kern_or_call}.")
+
+        # We can't handle a clash between (apparently) different symbols that
+        # share a name but are imported from different containers.
+        routine_arg_list = schedule.symbol_table.argument_list[:]
+        callsite_scopes = []
+        cursor = call
+        while cursor.ancestor(ScopingNode):
+            callsite_scopes.append(cursor.ancestor(ScopingNode))
+            cursor = cursor.ancestor(ScopingNode)
+        for scope in schedule.walk(ScopingNode):
+            scope_table = scope.symbol_table
+            for callsite_scope in callsite_scopes:
+                table = callsite_scope.symbol_table
+                try:
+                    table.check_for_clashes(
+                        scope_table,
+                        symbols_to_skip=routine_arg_list)
+                except SymbolError as err:
+                    raise TransformationError(
+                        f"One or more symbols from routine '{name}' "
+                        f"cannot be added to the table at the call site. "
+                        f"Error was: {err}") from err
+
+    @staticmethod
+    def _prepare_code_to_inline(routines_to_inline):
         '''Prepare the PSyIR tree to inline by bringing in to the subroutine
         all referenced symbols so that the implementation is self contained.
 
-        TODO #2271 will improve this method and could potentially
-        avoid the need for debug_string() within get_kernel_schedule()
-        in dynamo0p3.py. Sergi suggests that we may be missing the
-        traversal of the declaration init expressions here and that
-        might solve the problem. I'm not so sure and explain why in
-        get_kernel_schedule() but still referencing this issue.
+        The provided routines are copied so that the original PSyIR is left
+        unmodified.
 
-        :param code_to_inline: the subroutine to module-inline.
-        :type code_to_inline: :py:class:`psyclone.psyir.node.Routine`
+        :param code_to_inline: the routine(s) to module-inline.
+        :type code_to_inline: list[:py:class:`psyclone.psyir.node.Routine`]
+
+        :returns: the updated routine(s) to module-inline.
+        :rtype: list[:py:class:`psyclone.psyir.node.Routine`]
 
         '''
         # pylint: disable=too-many-branches
-        source_container = code_to_inline.ancestor(Container)
+        orig_container = routines_to_inline[0].ancestor(Container)
+        # Since we will be detaching Routines, we work with a copy of
+        # the Container that encapsulates them.
+        source_container = orig_container.copy()
+        new_routines = dict()
+        for routine in source_container.walk(Routine):
+            new_routines[routine.name] = routine
 
-        # First make a set with all symbols used inside the subroutine
-        all_symbols = set()
-        for scope in code_to_inline.walk(ScopingNode):
-            for symbol in scope.symbol_table.symbols:
-                all_symbols.add(symbol)
-        for reference in code_to_inline.walk(Reference):
-            all_symbols.add(reference.symbol)
-        for literal in code_to_inline.walk(Literal):
-            # Literals may reference symbols in their precision
-            if isinstance(literal.datatype.precision, Symbol):
-                all_symbols.add(literal.datatype.precision)
-        for caller in code_to_inline.walk(Call):
-            all_symbols.add(caller.routine.symbol)
-        for cblock in code_to_inline.walk(CodeBlock):
-            for name in cblock.get_symbol_names():
-                all_symbols.add(cblock.scope.symbol_table.lookup(name))
+        copied_routines = []
+        for orig_routine in routines_to_inline:
+            code_to_inline = new_routines[orig_routine.name]
+            copied_routines.append(code_to_inline)
 
-        # Then decide which symbols need to be brought inside the subroutine
-        symbols_to_bring_in = set()
-        for symbol in all_symbols:
-            if symbol.is_unresolved or symbol.is_import:
-                # This symbol is already in the symbol table, but adding it
-                # to the 'symbols_to_bring_in' will make the next step bring
-                # into the subroutine all modules that it could come from.
-                symbols_to_bring_in.add(symbol)
-            if isinstance(symbol, DataSymbol):
-                # DataTypes can reference other symbols
-                if isinstance(symbol.datatype, DataTypeSymbol):
-                    symbols_to_bring_in.add(symbol.datatype)
-                elif hasattr(symbol.datatype, 'precision'):
-                    if isinstance(symbol.datatype.precision, Symbol):
-                        symbols_to_bring_in.add(symbol.datatype.precision)
+            vai = VariablesAccessInfo(code_to_inline)
 
-        # Bring the selected symbols inside the subroutine
-        for symbol in symbols_to_bring_in:
-            if symbol.name not in code_to_inline.symbol_table:
-                code_to_inline.symbol_table.add(symbol)
-            # And when necessary the modules where they come from
-            if symbol.is_unresolved:
-                # We don't know where this comes from, we need to bring
-                # in all top-level imports with wildcard imports
-                for mod in source_container.symbol_table.containersymbols:
-                    if mod.wildcard_import:
-                        if mod.name not in code_to_inline.symbol_table:
-                            code_to_inline.symbol_table.add(mod)
-                        else:
-                            code_to_inline.symbol_table.lookup(mod.name).\
-                                wildcard_import = True
-            elif symbol.is_import:
-                module_symbol = symbol.interface.container_symbol
-                if module_symbol.name not in code_to_inline.symbol_table:
-                    code_to_inline.symbol_table.add(module_symbol)
-                else:
-                    # If it already exists, we know its a container (from the
-                    # validation) so we just need to point to it
-                    symbol.interface.container_symbol = \
-                        code_to_inline.symbol_table.lookup(module_symbol.name)
+            # First make a set with all symbols used inside the subroutine
+            all_symbols = set()
+            for sig in vai.all_signatures:
+                all_symbols.add(
+                    code_to_inline.symbol_table.lookup(sig.var_name))
+
+            # Decide which symbols need to be brought inside the subroutine
+            symbols_to_bring_in = set()
+            for symbol in all_symbols:
+                if symbol.is_unresolved or symbol.is_import:
+                    # This symbol is already in the symbol table, but adding it
+                    # to the 'symbols_to_bring_in' will make the next step
+                    # bring into the subroutine all modules that it could come
+                    # from.
+                    symbols_to_bring_in.add(symbol)
+                if isinstance(symbol, DataSymbol):
+                    # DataTypes can reference other symbols
+                    if isinstance(symbol.datatype, DataTypeSymbol):
+                        symbols_to_bring_in.add(symbol.datatype)
+                    elif hasattr(symbol.datatype, 'precision'):
+                        if isinstance(symbol.datatype.precision, Symbol):
+                            symbols_to_bring_in.add(symbol.datatype.precision)
+
+            # Bring the selected symbols inside the subroutine
+            for symbol in symbols_to_bring_in:
+                if symbol.name not in code_to_inline.symbol_table:
+                    code_to_inline.symbol_table.add(symbol)
+                # And when necessary the modules where they come from
+                if symbol.is_unresolved:
+                    # We don't know where this comes from, we need to bring
+                    # in all top-level imports with wildcard imports
+                    for mod in source_container.symbol_table.containersymbols:
+                        if mod.wildcard_import:
+                            if mod.name not in code_to_inline.symbol_table:
+                                code_to_inline.symbol_table.add(mod)
+                            else:
+                                code_to_inline.symbol_table.lookup(mod.name).\
+                                    wildcard_import = True
+                elif symbol.is_import:
+                    module_symbol = symbol.interface.container_symbol
+                    if module_symbol.name not in code_to_inline.symbol_table:
+                        code_to_inline.symbol_table.add(module_symbol)
+                    else:
+                        # If it already exists, we know its a container (from
+                        # the validation) so we just need to point to it
+                        symbol.interface.container_symbol = \
+                            code_to_inline.symbol_table.lookup(
+                                module_symbol.name)
+        return copied_routines
 
     @staticmethod
     def _get_psyir_to_inline(node):
@@ -319,11 +404,69 @@ class KernelModuleInlineTrans(Transformation):
                     f"{[rout.name for rout in routines]}. TODO #924")
         return (caller_name, routines[0])
 
+    @staticmethod
+    def _rm_imported_routine_symbol(name, table):
+        '''
+        If the named symbol is in the supplied table (or an ancestor) *and* is
+        an import then it is removed. If the Container from which it was being
+        imported no longer has any imports associated with it then the
+        ContainerSymbol is also removed.
+
+        :param str name: the name of the symbol to remove.
+        :param table: the symbol table from which to search for the symbol.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        symbol = table.lookup(name, otherwise=None)
+        if not symbol or not symbol.is_import:
+            return
+
+        # The symbol is in the table (or an outer scope) and is
+        # imported. We therefore remove it and potentially the ContainerSymbol
+        # from which it is imported.
+        csym = symbol.interface.container_symbol
+        # Find the table containing the symbol we're going to remove.
+        actual_table = (symbol.find_symbol_table(table.node) if
+                        symbol.name not in table else table)
+        # Find the table containing the ContainerSymbol from which
+        # the symbol is imported.
+        ctable = (csym.find_symbol_table(table.node) if
+                  csym.name not in table else table)
+        remove_csym = ctable.symbols_imported_from(csym) == [symbol]
+        # We have to force the removal as there will be calls that reference
+        # this Symbol. (These calls will subsequently be updated to refer to
+        # the Symbol of the inlined routine.)
+        # pylint:disable-next=protected-access
+        actual_table._symbols.pop(symbol.name)
+        if csym.wildcard_import:
+            # The Routine is brought into scope via a wildcard import. We have
+            # to rename it on import to avoid a clash with the newly inlined
+            # Routine.
+            for isym in ctable.symbols_imported_from(csym):
+                if isym.interface.orig_name.lower() == symbol.name.lower():
+                    # We already have a suitable import so we don't need
+                    # another one.
+                    break
+            else:
+                ctable.new_symbol(
+                    f"old_{symbol.name}",
+                    symbol_type=RoutineSymbol,
+                    interface=ImportInterface(
+                        csym, orig_name=symbol.name))
+        elif remove_csym:
+            actual_table.remove(csym)
+
     def apply(self, node, options=None):
         ''' Bring the kernel subroutine into this Container.
 
-        :param node: the kernel to module-inline.
-        :type node: :py:class:`psyclone.psyGen.CodedKern`
+        NOTE: when applying this transformation to a Kernel in a PSyKAl invoke,
+        *all* Kernels of that name in that invoke are marked as inlined.
+        Similarly, when applied to a Call to a Routine in a particular scope,
+        all Calls to a routine of that name in that scope are updated.
+
+        :param node: the Kernel or Call to module-inline.
+        :type node: :py:class:`psyclone.psyGen.CodedKern` |
+                    :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -334,6 +477,10 @@ class KernelModuleInlineTrans(Transformation):
             of the caller.
 
         '''
+        if isinstance(node, CodedKern) and node.module_inline:
+            # This PSyKal Kernel is already module inlined.
+            return
+
         if not options:
             options = {}
 
@@ -350,92 +497,128 @@ class KernelModuleInlineTrans(Transformation):
         caller_name, code_to_inline = (
             KernelModuleInlineTrans._get_psyir_to_inline(node))
         callee_name = code_to_inline.name
+        codes_to_inline = [code_to_inline]
+        local_table = node.scope.symbol_table
 
-        try:
-            existing_symbol = node.scope.symbol_table.lookup(callee_name)
-        except KeyError:
-            existing_symbol = None
+        for routine in codes_to_inline:
+            local_sym = local_table.lookup(caller_name, otherwise=None)
+            if (not local_sym or local_sym is not routine.symbol or
+                    (local_sym.is_import or local_sym.is_unresolved)):
+                # This routine is not module-inlined.
+                break
+        else:
+            # All routines are module-inlined so there's nothing to do.
+            # TODO #11 - log this.
+            return
 
-        self._prepare_code_to_inline(code_to_inline)
+        if local_sym and (local_sym.is_import or local_sym.is_unresolved):
+            # Double check that this import is not shadowing a routine we've
+            # already module-inlined.
+            table = local_sym.find_symbol_table(node)
+            outer_sym = None
+            if table.node.parent:
+                outer_table = table.node.parent.scope.symbol_table
+                outer_sym = outer_table.lookup(local_sym.name,
+                                               otherwise=None)
+            if outer_sym:
+                outer_table = outer_sym.find_symbol_table(table.node.parent)
+                if not isinstance(outer_table.node, FileContainer):
+                    # It is shadowing an outer symbol that is in a Container
+                    # (not a FileContainer) so we need to remove this local
+                    # symbol and update the call to point to the outer one.
+                    self._rm_imported_routine_symbol(local_sym.name, table)
+                    node.routine.symbol = outer_sym
+                    if not (outer_sym.is_import or outer_sym.is_unresolved):
+                        # The outer symbol is local to this Container so
+                        # there's nothing else to do.
+                        return
+
+        updated_routines = self._prepare_code_to_inline(codes_to_inline)
+        # Update the Kernel to point to the updated PSyIR.
+        if isinstance(node, CodedKern):
+            # TODO - add setter for these properties to Kern?
+            # pylint: disable=protected-access
+            node._kern_schedule = updated_routines[0]
+            if callee_name != caller_name:
+                node.name = callee_name
 
         container = node.ancestor(Container)
-        if not existing_symbol:
-            # If it doesn't exist already, module-inline the subroutine by
-            # inserting the relevant code into the tree.
-            # We need to set the visibility of the routine's symbol to
-            # be private.
-            code_to_inline.symbol.visibility = Symbol.Visibility.PRIVATE
-            node.ancestor(Container).addchild(code_to_inline.detach())
-        else:
-            if existing_symbol.is_import:
-                # The RoutineSymbol is in the table but that is because it is
-                # imported. We must therefore update its interface and
-                # potentially remove the ContainerSymbol (from which it is
-                # imported) altogether.
-                csym = existing_symbol.interface.container_symbol
-                # The import of the routine symbol may be in an outer scope.
-                ctable = csym.find_symbol_table(node)
-                remove_csym = (ctable.symbols_imported_from(csym) ==
-                               [existing_symbol])
-                existing_symbol.interface = DefaultModuleInterface()
-                existing_symbol.visibility = Symbol.Visibility.PRIVATE
-                if remove_csym:
-                    ctable.remove(csym)
-                code_to_inline = code_to_inline.detach()
-                # Set the routine's symbol to the existing_symbol
-                code_to_inline.symbol = existing_symbol
-                container.addchild(code_to_inline)
+        for code_to_inline in updated_routines:
+            existing_symbol = node.scope.symbol_table.lookup(
+                code_to_inline.name, otherwise=None)
+            if not existing_symbol:
+                # If it doesn't exist already, module-inline the subroutine by
+                # inserting the relevant code into the tree.
+                # We need to set the visibility of the routine's symbol to
+                # be private.
+                code_to_inline.symbol.visibility = Symbol.Visibility.PRIVATE
+                container.addchild(code_to_inline.detach())
             else:
-                # The routine symbol already exists, and we know from the
-                # validation that it's a Routine. Now check if they are
-                # exactly the same.
-                for routine in container.walk(Routine, stop_type=Routine):
-                    if routine.name == caller_name:
-                        # This TransformationError happens here and not in the
-                        # validation because it needs the symbols_to_bring_in
-                        # applied to effectively compare both versions.
-                        # This will be fixed when module-inlining versioning is
-                        # implemented.
-                        # (It is OK to fail here because we have not yet made
-                        # any modifications to the tree - code_to_inline is a
-                        # detached copy.)
-                        if routine != code_to_inline:
-                            raise TransformationError(
-                                f"Cannot inline subroutine '{caller_name}' "
-                                f"because another, different, subroutine with "
-                                f"the same name already exists and versioning "
-                                f"of module-inlined subroutines is not "
-                                f"implemented yet.")
-            # Finally, ensure that the RoutineSymbol for the inlined routine is
-            # in the correct symbol table.
-            routine_symbol = existing_symbol
-            table = routine_symbol.find_symbol_table(node)
-            if table.node is not container:
-                # Set the visibility of the symbol to always be private.
-                sym = container.symbol_table.lookup(routine_symbol.name)
-                sym.visibility = Symbol.Visibility.PRIVATE
-                # Force removal of the routine_symbol if its also present in
-                # the Routine's symbol table.
-                table.lookup(routine_symbol.name)
-                norm_name = table._normalize(routine_symbol.name)
-                table._symbols.pop(norm_name)
+                if existing_symbol.is_import or existing_symbol.is_unresolved:
+                    # The RoutineSymbol is in the table but that is
+                    # because it is imported. We must therefore update
+                    # its interface and potentially remove the
+                    # ContainerSymbol (from which it is imported)
+                    # altogether.
+                    if existing_symbol.is_unresolved:
+                        # Since we've found the source, we now know where it
+                        # comes from.
+                        cntr = code_to_inline.ancestor(Container,
+                                                       excluding=FileContainer)
+                        if cntr:
+                            cntr_name = cntr.name
+                            csym = node.scope.symbol_table.lookup(cntr_name)
+                            ctable = csym.find_symbol_table(node)
+                        else:
+                            # The routine is in the FileContainer containing
+                            # the callsite so is not imported from a Container.
+                            csym = None
+                    else:
+                        csym = existing_symbol.interface.container_symbol
+                        # The import of the routine symbol may be in an
+                        # outer scope.
+                        ctable = csym.find_symbol_table(node)
 
-        # We only modify the kernel call name after the equality check to
-        # ensure the apply will succeed and we don't leave with an inconsistent
-        # tree.
-        if callee_name != caller_name:
-            if isinstance(node, CodedKern):
-                node.name = callee_name
-            else:
-                # TODO #924 - we can't currently resolve a subroutine if its
-                # name doesn't match that in the caller (as will be the case
-                # if it's being called via an Interface in Fortran). This
-                # should have been picked-up in validate() so this is just a
-                # safety check.
-                raise InternalError(
-                    f"Cannot module-inline call to '{caller_name}' because its"
-                    f" name does not match that of the callee: "
-                    f"'{callee_name}'. TODO #924.")
+                    if container.symbol_table.lookup(code_to_inline.name,
+                                                     scope_limit=container,
+                                                     otherwise=None):
+                        # Have to remove Symbol as adding the Routine into
+                        # the Container will insert it again.
+                        container.symbol_table._symbols.pop(
+                            existing_symbol.name)
+                    if csym:
+                        # The target routine is imported from a Container so we
+                        # have to remove the imported Symbol and potentially
+                        # the import too (i.e. the ContainerSymbol).
+                        remove_csym = (ctable.symbols_imported_from(csym) ==
+                                       [existing_symbol])
+                        if ctable.lookup(code_to_inline.name, otherwise=None):
+                            ctable._symbols.pop(existing_symbol.name)
+                        if csym.wildcard_import:
+                            # The Routine is brought into scope via a wildcard
+                            # import. We have to rename it on import to avoid
+                            # a clash with the newly inlined Routine.
+                            # TODO - check we haven't already done this.
+                            ctable.new_symbol(
+                                f"old_{existing_symbol.name}",
+                                symbol_type=RoutineSymbol,
+                                interface=ImportInterface(
+                                    csym, orig_name=existing_symbol.name))
+                        elif remove_csym:
+                            ctable.remove(csym)
+                    # Inline the code. This will automatically add the
+                    # associated RoutineSymbol into the Container.
+                    code_to_inline = code_to_inline.detach()
+                    container.addchild(code_to_inline)
+                    sym = container.symbol_table.lookup(code_to_inline.name)
+                    sym.visibility = Symbol.Visibility.PRIVATE
+                    # All Calls in the same scope to a routine of the same
+                    # name must refer to the same Symbol.
+                    target_name = sym.name.lower()
+                    for call in node.ancestor(Routine).walk(Call):
+                        name = call.routine.symbol.name.lower()
+                        if name == target_name:
+                            call.routine.symbol = sym
 
         # Set the module-inline flag to avoid generating the kernel imports
         # TODO #1823. If the kernel imports were generated at PSy-layer
