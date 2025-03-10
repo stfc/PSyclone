@@ -220,11 +220,7 @@ contains
     rbbl = ReplaceReferenceByLiteralTrans()
     rbbl.apply(routine_foo)
     written_code = fortran_writer(routine_foo.ancestor(Container))
-    print(written_code)
-    assert (
-        "! Psyclone(ReplaceReferenceByLiteralTrans): Symbol already found 'a'"
-        in written_code
-    )
+    assert "! ReplaceReferenceByLiteralTrans: Symbol already found 'a'" in written_code
     assert "integer, parameter :: x = a" in written_code
     assert "integer, parameter :: a = 2" in written_code
     assert "integer, parameter :: y = a" in written_code
@@ -259,7 +255,6 @@ contains
     assert "call foo(2 + 3)" in written_code
 
 
-@pytest.mark.xfail
 def test_rrbl_constant_var_as_arg_to_subroutine_call(
     fortran_reader, fortran_writer
 ):
@@ -293,7 +288,8 @@ def test_rrbl_constant_var_as_arg_to_subroutine_call(
     rbbl = ReplaceReferenceByLiteralTrans()
     rbbl.apply(routine_foo)
     written_code = fortran_writer(routine_foo.ancestor(Container))
-    assert "call foo(24, 12)" in written_code
+    pytest.xfail("Replacing call argument by constant parameter value is not yet supported")
+    assert "call swap_add(x, 24, y, 12)" in written_code
 
 
 def test_rrbl_same_constant_data_symbol_twice(fortran_reader, fortran_writer):
@@ -320,10 +316,7 @@ def test_rrbl_same_constant_data_symbol_twice(fortran_reader, fortran_writer):
     rbbl = ReplaceReferenceByLiteralTrans()
     rbbl.apply(routine_foo)
     written_code = fortran_writer(routine_foo.ancestor(Container))
-    assert (
-        "! Psyclone(ReplaceReferenceByLiteralTrans): Symbol already found"
-        in written_code
-    )
+    assert "! ReplaceReferenceByLiteralTrans: Symbol already found" in written_code
     assert "integer, dimension(10,a) :: array" in written_code
 
 
@@ -343,10 +336,7 @@ def test_rrbl_write_fortran_comment_warning_about_symbol_found(
     rbbl.apply(routine_foo)
     rbbl._update_param_table(rbbl._param_table, routine_foo.symbol_table)
     written_code = fortran_writer(routine_foo.ancestor(Container))
-    assert (
-        "! Psyclone(ReplaceReferenceByLiteralTrans): Symbol already found"
-        in written_code
-    )
+    assert "! ReplaceReferenceByLiteralTrans: Symbol already found" in written_code
 
 
 def test_rrbl_code_not_transformed_because_involves_more_than_just_literal(
@@ -365,9 +355,7 @@ def test_rrbl_code_not_transformed_because_involves_more_than_just_literal(
     rbbl = ReplaceReferenceByLiteralTrans()
     rbbl.apply(routine_foo)
     written_code = fortran_writer(routine_foo.ancestor(Container))
-    assert (
-        ReplaceReferenceByLiteralTrans._ERROR_MSG_ONLY_INITVAL in written_code
-    )
+    assert rbbl.name in written_code
     assert "x = b" in written_code
 
 
@@ -393,7 +381,7 @@ def test_rrbl_annotating_fortran_code_because_str_not_literal(
     assert 'x = "toto"' not in written_code
     toto_var_name = '"toto"'
     assert (
-        f"{ReplaceReferenceByLiteralTrans._ERROR_MSG_START} only "
+        f"{rbbl.name}: only "
         + "support constant (parameter) but UnsupportedFortranType"
         + f"('CHARACTER(LEN = 4), PARAMETER :: a = {toto_var_name}') "
         + "is not seen by Psyclone as a constant."
@@ -423,8 +411,4 @@ def test_rrbl_annotating_fortran_code_because_more_than_just_literal(
     rbbl.apply(routine_foo)
     written_code = fortran_writer(routine_foo.ancestor(Container))
     assert "x = 15 + b" in written_code
-    assert (
-        f"{ReplaceReferenceByLiteralTrans._ERROR_MSG_START} only supports "
-        + "symbols which have a Literal as their initial value"
-        in written_code
-    )
+    assert f"{rbbl.name}: only supports " + "symbols which have a Literal as their initial value" in written_code

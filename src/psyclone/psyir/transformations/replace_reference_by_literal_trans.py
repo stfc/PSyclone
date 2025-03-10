@@ -127,11 +127,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
     <BLANKLINE>
 
     '''
-    _ERROR_MSG_START: str = "Psyclone(ReplaceReferenceByLiteralTrans):"
-    _ERROR_MSG_ONLY_INITVAL = (
-        f"{_ERROR_MSG_START} only "
-        + "supports symbols which have a Literal as their initial value but "
-    )
+    _ERROR_MSG_ONLY_INITVAL = ()
 
     def __init__(self) -> None:
         super().__init__()
@@ -165,7 +161,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                 sym_name = sym.name
                 if param_table.get(sym_name):
                     message = (
-                        f"{ReplaceReferenceByLiteralTrans._ERROR_MSG_START}"
+                        f"{self.name}:"
                         + f" Symbol already found '{sym_name}'."
                         + " A conflict is possible."
                         + "To avoid replacing the symbol with the wrong value,"
@@ -177,7 +173,8 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                 if not isinstance(sym.initial_value, Literal):
 
                     message = (
-                        ReplaceReferenceByLiteralTrans._ERROR_MSG_ONLY_INITVAL
+                        f"{self.name}: only "
+                        + "supports symbols which have a Literal as their initial value but "
                         + f"'{sym_name}' is assigned "
                         + f"a {type(sym.initial_value)}"
                     )
@@ -189,7 +186,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                 if isinstance(sym.datatype, UnsupportedFortranType):
                     if "PARAMETER" in sym.datatype.declaration:
                         message = (
-                            ReplaceReferenceByLiteralTrans._ERROR_MSG_START
+                            f"{self.name}:"
                             + " only support constant (parameter) but "
                             + f"{sym.datatype} is not seen by "
                             + "Psyclone as a constant."
@@ -210,7 +207,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         :param param_table: map of parameters to Literal values.
 
         :return: the new shape with any references to constants replaced by
-        their Literal values.
+                 their Literal values.
         """
         new_shape = []
         for dim in current_shape:
