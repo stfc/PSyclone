@@ -1,4 +1,9 @@
-#!/usr/bin/env python3 
+#!/usr/bin/env python3
+
+'''A simple PSyclone program that shows the usage of SymPy to
+modify Fortran expression. It first simplifies an expression,
+and then also adds the derivative of an expression to the code.
+'''
 
 from sympy import diff, simplify
 
@@ -6,7 +11,6 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
-from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes import Assignment, Reference
 
 code = """
@@ -25,21 +29,6 @@ writer = FortranWriter()
 # Use the reader to convert source code to PSyIR
 psyir = reader.psyir_from_source(code)
 
-# Get and print variable access info:
-# -----------------------------------
-# Use VariablesAccessInfo to get all info of the psyir
-var_info = VariablesAccessInfo(psyir)
-print("Variable Access Info - Summary:")
-print(var_info)
-print("-------------------------------")
-for signature in var_info:
-   print(signature, ":", var_info[signature])
-   for access in var_info[signature].all_accesses:
-      print(f"Type: {access.access_type} - location {access.location} - "
-            f"node {access.node}")
-print("-------------------------------")
-
-
 # Simplify the assignment
 # -----------------------
 
@@ -53,8 +42,8 @@ sympy_writer = SymPyWriter()
 math_expr = sympy_writer(assign.rhs)
 
 # Use SymPy function to simplify RHS (de-facto, SymPy will already
-# have simplified the expression when converting it, but with more
-# complex operation this would be required)
+# have simplified this expression when converting it, but with more
+# complex expressions this call is required)
 simple_sympy = simplify(math_expr)
 
 # Now convert back to PSyIR. The reader needs the writer
@@ -73,9 +62,8 @@ symbol_table = assign.scope.symbol_table
 simple_psyir = sympy_reader.psyir_from_expression(simple_sympy, symbol_table)
 
 # Replace the old expression with the new expression using
-# `replace_with`
+# `replace_with` on the rhs of the assignment
 assign.rhs.replace_with(simple_psyir)
-
 
 # Differentiation the second assignment
 # -------------------------------------
@@ -86,20 +74,32 @@ assign = psyir.walk(Assignment)[1]
 # Walk the rhs for a reference that has the name 'x' (in this case
 # all References will have the name 'x'.
 for ref in assign.rhs.walk(Reference):
-   if ref.name == "x":
-      break
+    if ref.name == "x":
+        break
+else:
+    raise RuntimeError("Could not find access to 'x'.")
 
 # Convert both the rhs and the symbol to SymPy. This can be done in one
 # step (making sure that all symbols will match up)
 math_expr, x = sympy_writer([assign.rhs, ref])
 
-# Differentiate. You can also use sympy.Symbol('x') as second parameter
+# Differentiate. You could also use sympy.Symbol('x') as second parameter
 derived_sympy = diff(math_expr, x)
 
 # Convert back (see above) and replace in the right-hand-side
 derived_psyir = sympy_reader.psyir_from_expression(derived_sympy, symbol_table)
-assign.rhs.replace_with(derived_psyir)
 
+# Create a copy of the original assignment statement ...
+assign_copy = assign.copy()
+
+# which is then appended to the program
+assign.parent.children.append(assign_copy)
+
+# Now insert the derivate as the rhs of the copy of the assignment statement:
+assign_copy.rhs.replace_with(derived_psyir)
+
+# And add a nice comment
+assign_copy.preceding_comment = "The derivative is:"
 
 # Output results
 # --------------
