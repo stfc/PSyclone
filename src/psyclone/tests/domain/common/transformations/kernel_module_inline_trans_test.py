@@ -39,7 +39,6 @@
 
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
-import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
@@ -1020,6 +1019,9 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     assert "subroutine a_sub" in output
     assert "subroutine my_sub" in output
     assert "use my_mod, only : my_other_sub\n" in output
+    intrans.apply(calls[0])
+    output2 = fortran_writer(psyir)
+    assert output2 == output
     # We can't test the compilation of this code because of the 'use my_mod.'
 
 
