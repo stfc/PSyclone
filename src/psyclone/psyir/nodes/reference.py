@@ -40,7 +40,7 @@
 ''' This module contains the implementation of the Reference node.'''
 
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import Symbol
@@ -102,10 +102,18 @@ class Reference(DataNode):
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.assignment import Assignment
+        from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
         parent = self.parent
         if isinstance(parent, Assignment):
             if parent.lhs is self:
                 return False
+
+        # If we have an intrinsic call parent then we need to check if its
+        # an inquiry. Inquiry functions don't read from their first argument.
+        if isinstance(parent, IntrinsicCall):
+            if parent.arguments[0] is self and parent.is_inquiry:
+                return False
+
         # All references other than LHS of assignments represent a read. This
         # can be improved in the future by looking at Call intents.
         return True
@@ -233,34 +241,18 @@ class Reference(DataNode):
             return UnresolvedType()
         return self.symbol.datatype
 
-    def previous_access(self):
+    def previous_accesses(self):
         '''
-        :returns: the previous reference to the same symbol.
-        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :returns: the nodes accessing the same symbol directly before this
+                  reference. It can be multiple nodes if the control flow
+                  diverges and there are multiple possible accesses.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.routine import Routine
-        # The scope is as far as the Routine that contains this
-        # Reference.
-        routine = self.ancestor(Routine)
-        # Handle the case when this is a subtree without an ancestor
-        # Routine
-        if routine is None:
-            routine = self.root
-        var_access = VariablesAccessInfo(nodes=routine)
-        signature, _ = self.get_signature_and_indices()
-        all_accesses = var_access[signature].all_accesses
-        index = -1
-        # Find my position in the VariablesAccesInfo
-        for i, access in enumerate(all_accesses):
-            if access.node is self:
-                index = i
-                break
-
-        if index > 0:
-            return all_accesses[index-1].node
-        return None
+        from psyclone.psyir.tools import DefinitionUseChain
+        chain = DefinitionUseChain(self)
+        return chain.find_backward_accesses()
 
     def next_accesses(self):
         '''

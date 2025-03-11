@@ -69,34 +69,58 @@ module read_kernel_data_mod
 
         procedure :: ReadScalarChar
         procedure :: ReadArray1dChar
+        procedure :: ReadArray1dCharNonAlloc
         procedure :: ReadArray2dChar
+        procedure :: ReadArray2dCharNonAlloc
         procedure :: ReadArray3dChar
+        procedure :: ReadArray3dCharNonAlloc
         procedure :: ReadArray4dChar
+        procedure :: ReadArray4dCharNonAlloc
         procedure :: ReadScalarInt
         procedure :: ReadArray1dInt
+        procedure :: ReadArray1dIntNonAlloc
         procedure :: ReadArray2dInt
+        procedure :: ReadArray2dIntNonAlloc
         procedure :: ReadArray3dInt
+        procedure :: ReadArray3dIntNonAlloc
         procedure :: ReadArray4dInt
+        procedure :: ReadArray4dIntNonAlloc
         procedure :: ReadScalarLong
         procedure :: ReadArray1dLong
+        procedure :: ReadArray1dLongNonAlloc
         procedure :: ReadArray2dLong
+        procedure :: ReadArray2dLongNonAlloc
         procedure :: ReadArray3dLong
+        procedure :: ReadArray3dLongNonAlloc
         procedure :: ReadArray4dLong
+        procedure :: ReadArray4dLongNonAlloc
         procedure :: ReadScalarLogical
         procedure :: ReadArray1dLogical
+        procedure :: ReadArray1dLogicalNonAlloc
         procedure :: ReadArray2dLogical
+        procedure :: ReadArray2dLogicalNonAlloc
         procedure :: ReadArray3dLogical
+        procedure :: ReadArray3dLogicalNonAlloc
         procedure :: ReadArray4dLogical
+        procedure :: ReadArray4dLogicalNonAlloc
         procedure :: ReadScalarReal
         procedure :: ReadArray1dReal
+        procedure :: ReadArray1dRealNonAlloc
         procedure :: ReadArray2dReal
+        procedure :: ReadArray2dRealNonAlloc
         procedure :: ReadArray3dReal
+        procedure :: ReadArray3dRealNonAlloc
         procedure :: ReadArray4dReal
+        procedure :: ReadArray4dRealNonAlloc
         procedure :: ReadScalarDouble
         procedure :: ReadArray1dDouble
+        procedure :: ReadArray1dDoubleNonAlloc
         procedure :: ReadArray2dDouble
+        procedure :: ReadArray2dDoubleNonAlloc
         procedure :: ReadArray3dDouble
+        procedure :: ReadArray3dDoubleNonAlloc
         procedure :: ReadArray4dDouble
+        procedure :: ReadArray4dDoubleNonAlloc
 
         !> The generic interface for reading the value of variables.
         !! This is not part of the official PSyData API, but is used in
@@ -132,6 +156,31 @@ module read_kernel_data_mod
             ReadArray2dDouble, &
             ReadArray3dDouble, &
             ReadArray4dDouble
+        generic, public :: ReadVariableNonAlloc => &
+            ReadArray1dCharNonAlloc, &
+            ReadArray2dCharNonAlloc, &
+            ReadArray3dCharNonAlloc, &
+            ReadArray4dCharNonAlloc, &
+            ReadArray1dIntNonAlloc, &
+            ReadArray2dIntNonAlloc, &
+            ReadArray3dIntNonAlloc, &
+            ReadArray4dIntNonAlloc, &
+            ReadArray1dLongNonAlloc, &
+            ReadArray2dLongNonAlloc, &
+            ReadArray3dLongNonAlloc, &
+            ReadArray4dLongNonAlloc, &
+            ReadArray1dLogicalNonAlloc, &
+            ReadArray2dLogicalNonAlloc, &
+            ReadArray3dLogicalNonAlloc, &
+            ReadArray4dLogicalNonAlloc, &
+            ReadArray1dRealNonAlloc, &
+            ReadArray2dRealNonAlloc, &
+            ReadArray3dRealNonAlloc, &
+            ReadArray4dRealNonAlloc, &
+            ReadArray1dDoubleNonAlloc, &
+            ReadArray2dDoubleNonAlloc, &
+            ReadArray3dDoubleNonAlloc, &
+            ReadArray4dDoubleNonAlloc
 
     end type ReadKernelDataType
 
@@ -245,7 +294,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dChar(this, name, value)
 
@@ -285,6 +334,49 @@ contains
 
     end subroutine ReadArray1dChar
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 1D array of character(*)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 1D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray1dCharNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        character(*), dimension(:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray1dCharNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise the whole array with "".
+        value = ""
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray1dCharNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -294,7 +386,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dChar(this, name, value)
 
@@ -338,6 +430,60 @@ contains
 
     end subroutine ReadArray2dChar
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 2D array of character(*)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 2D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray2dCharNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        character(*), dimension(:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray2dCharNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray2dCharNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise the whole array with "".
+        value = ""
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray2dCharNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -347,7 +493,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dChar(this, name, value)
 
@@ -395,6 +541,71 @@ contains
 
     end subroutine ReadArray3dChar
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 3D array of character(*)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 3D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray3dCharNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        character(*), dimension(:,:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2,dim_size3
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray3dCharNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray3dCharNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size3))
+        if (size(value, 3) .ne. dim_size3) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 3", &
+                            " in ReadArray3dCharNonAlloc."
+            write(stderr,*) "Declared as ", size(value,3), &
+                            " in file as", dim_size3
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise the whole array with "".
+        value = ""
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray3dCharNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -404,7 +615,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dChar(this, name, value)
 
@@ -456,6 +667,82 @@ contains
 
     end subroutine ReadArray4dChar
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 4D array of character(*)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 4D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray4dCharNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        character(*), dimension(:,:,:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2,dim_size3,dim_size4
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray4dCharNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray4dCharNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size3))
+        if (size(value, 3) .ne. dim_size3) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 3", &
+                            " in ReadArray4dCharNonAlloc."
+            write(stderr,*) "Declared as ", size(value,3), &
+                            " in file as", dim_size3
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%4"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size4))
+        if (size(value, 4) .ne. dim_size4) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 4", &
+                            " in ReadArray4dCharNonAlloc."
+            write(stderr,*) "Declared as ", size(value,4), &
+                            " in file as", dim_size4
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise the whole array with "".
+        value = ""
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray4dCharNonAlloc
+
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the value of a scalar integer(kind=int32)
@@ -492,7 +779,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dInt(this, name, value)
 
@@ -535,6 +822,52 @@ contains
 
     end subroutine ReadArray1dInt
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 1D array of integer(kind=int32)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 1D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray1dIntNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        integer(kind=int32), dimension(:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray1dIntNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray1dIntNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -544,7 +877,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dInt(this, name, value)
 
@@ -591,6 +924,63 @@ contains
 
     end subroutine ReadArray2dInt
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 2D array of integer(kind=int32)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 2D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray2dIntNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        integer(kind=int32), dimension(:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray2dIntNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray2dIntNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray2dIntNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -600,7 +990,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dInt(this, name, value)
 
@@ -651,6 +1041,74 @@ contains
 
     end subroutine ReadArray3dInt
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 3D array of integer(kind=int32)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 3D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray3dIntNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        integer(kind=int32), dimension(:,:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2,dim_size3
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray3dIntNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray3dIntNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size3))
+        if (size(value, 3) .ne. dim_size3) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 3", &
+                            " in ReadArray3dIntNonAlloc."
+            write(stderr,*) "Declared as ", size(value,3), &
+                            " in file as", dim_size3
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray3dIntNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -660,7 +1118,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dInt(this, name, value)
 
@@ -715,6 +1173,85 @@ contains
 
     end subroutine ReadArray4dInt
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 4D array of integer(kind=int32)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 4D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray4dIntNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        integer(kind=int32), dimension(:,:,:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2,dim_size3,dim_size4
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray4dIntNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray4dIntNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size3))
+        if (size(value, 3) .ne. dim_size3) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 3", &
+                            " in ReadArray4dIntNonAlloc."
+            write(stderr,*) "Declared as ", size(value,3), &
+                            " in file as", dim_size3
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%4"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size4))
+        if (size(value, 4) .ne. dim_size4) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 4", &
+                            " in ReadArray4dIntNonAlloc."
+            write(stderr,*) "Declared as ", size(value,4), &
+                            " in file as", dim_size4
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray4dIntNonAlloc
+
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the value of a scalar integer(kind=int64)
@@ -751,7 +1288,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dLong(this, name, value)
 
@@ -794,6 +1331,52 @@ contains
 
     end subroutine ReadArray1dLong
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 1D array of integer(kind=int64)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 1D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray1dLongNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        integer(kind=int64), dimension(:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray1dLongNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray1dLongNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -803,7 +1386,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dLong(this, name, value)
 
@@ -850,6 +1433,63 @@ contains
 
     end subroutine ReadArray2dLong
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 2D array of integer(kind=int64)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 2D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray2dLongNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        integer(kind=int64), dimension(:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray2dLongNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray2dLongNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray2dLongNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -859,7 +1499,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dLong(this, name, value)
 
@@ -910,6 +1550,74 @@ contains
 
     end subroutine ReadArray3dLong
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 3D array of integer(kind=int64)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 3D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray3dLongNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        integer(kind=int64), dimension(:,:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2,dim_size3
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray3dLongNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray3dLongNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size3))
+        if (size(value, 3) .ne. dim_size3) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 3", &
+                            " in ReadArray3dLongNonAlloc."
+            write(stderr,*) "Declared as ", size(value,3), &
+                            " in file as", dim_size3
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray3dLongNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -919,7 +1627,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dLong(this, name, value)
 
@@ -974,6 +1682,85 @@ contains
 
     end subroutine ReadArray4dLong
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 4D array of integer(kind=int64)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 4D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray4dLongNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        integer(kind=int64), dimension(:,:,:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2,dim_size3,dim_size4
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray4dLongNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray4dLongNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size3))
+        if (size(value, 3) .ne. dim_size3) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 3", &
+                            " in ReadArray4dLongNonAlloc."
+            write(stderr,*) "Declared as ", size(value,3), &
+                            " in file as", dim_size3
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%4"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size4))
+        if (size(value, 4) .ne. dim_size4) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 4", &
+                            " in ReadArray4dLongNonAlloc."
+            write(stderr,*) "Declared as ", size(value,4), &
+                            " in file as", dim_size4
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray4dLongNonAlloc
+
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the value of a scalar Logical(kind=4)
@@ -1012,7 +1799,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dLogical(this, name, value)
 
@@ -1064,6 +1851,61 @@ contains
 
     end subroutine ReadArray1dLogical
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 1D array of Logical(kind=4)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 1D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray1dLogicalNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        Logical(kind=4), dimension(:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1
+        integer        :: ierr
+        integer, dimension(:), allocatable :: tmp
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray1dLogicalNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! We cannot read logical directly, so read an int array.
+        ! Allocate enough space to store the values to be read:
+        allocate(tmp(dim_size1), Stat=ierr)
+        if (ierr /= 0) then
+            write(stderr,*) "Cannot allocate int-array for ", name, &
+                            " of size ", dim_size1, &
+                            " in ReadArray1dLogical."
+            stop
+        endif
+        retval = CheckError(nf90_get_var(this%ncid, varid, tmp))
+        ! Then convert each '1' in this array to .true., everything else
+        ! to .false.
+        value = tmp == 1
+        deallocate(tmp)
+
+    end subroutine ReadArray1dLogicalNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -1073,7 +1915,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dLogical(this, name, value)
 
@@ -1129,6 +1971,72 @@ contains
 
     end subroutine ReadArray2dLogical
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 2D array of Logical(kind=4)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 2D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray2dLogicalNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        Logical(kind=4), dimension(:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2
+        integer        :: ierr
+        integer, dimension(:,:), allocatable :: tmp
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray2dLogicalNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray2dLogicalNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! We cannot read logical directly, so read an int array.
+        ! Allocate enough space to store the values to be read:
+        allocate(tmp(dim_size1,dim_size2), Stat=ierr)
+        if (ierr /= 0) then
+            write(stderr,*) "Cannot allocate int-array for ", name, &
+                            " of size ", dim_size1,dim_size2, &
+                            " in ReadArray2dLogical."
+            stop
+        endif
+        retval = CheckError(nf90_get_var(this%ncid, varid, tmp))
+        ! Then convert each '1' in this array to .true., everything else
+        ! to .false.
+        value = tmp == 1
+        deallocate(tmp)
+
+    end subroutine ReadArray2dLogicalNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -1138,7 +2046,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dLogical(this, name, value)
 
@@ -1198,6 +2106,83 @@ contains
 
     end subroutine ReadArray3dLogical
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 3D array of Logical(kind=4)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 3D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray3dLogicalNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        Logical(kind=4), dimension(:,:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2,dim_size3
+        integer        :: ierr
+        integer, dimension(:,:,:), allocatable :: tmp
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray3dLogicalNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray3dLogicalNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size3))
+        if (size(value, 3) .ne. dim_size3) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 3", &
+                            " in ReadArray3dLogicalNonAlloc."
+            write(stderr,*) "Declared as ", size(value,3), &
+                            " in file as", dim_size3
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! We cannot read logical directly, so read an int array.
+        ! Allocate enough space to store the values to be read:
+        allocate(tmp(dim_size1,dim_size2,dim_size3), Stat=ierr)
+        if (ierr /= 0) then
+            write(stderr,*) "Cannot allocate int-array for ", name, &
+                            " of size ", dim_size1,dim_size2,dim_size3, &
+                            " in ReadArray3dLogical."
+            stop
+        endif
+        retval = CheckError(nf90_get_var(this%ncid, varid, tmp))
+        ! Then convert each '1' in this array to .true., everything else
+        ! to .false.
+        value = tmp == 1
+        deallocate(tmp)
+
+    end subroutine ReadArray3dLogicalNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -1207,7 +2192,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dLogical(this, name, value)
 
@@ -1271,6 +2256,94 @@ contains
 
     end subroutine ReadArray4dLogical
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 4D array of Logical(kind=4)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 4D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray4dLogicalNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        Logical(kind=4), dimension(:,:,:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2,dim_size3,dim_size4
+        integer        :: ierr
+        integer, dimension(:,:,:,:), allocatable :: tmp
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray4dLogicalNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray4dLogicalNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size3))
+        if (size(value, 3) .ne. dim_size3) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 3", &
+                            " in ReadArray4dLogicalNonAlloc."
+            write(stderr,*) "Declared as ", size(value,3), &
+                            " in file as", dim_size3
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%4"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size4))
+        if (size(value, 4) .ne. dim_size4) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 4", &
+                            " in ReadArray4dLogicalNonAlloc."
+            write(stderr,*) "Declared as ", size(value,4), &
+                            " in file as", dim_size4
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! We cannot read logical directly, so read an int array.
+        ! Allocate enough space to store the values to be read:
+        allocate(tmp(dim_size1,dim_size2,dim_size3,dim_size4), Stat=ierr)
+        if (ierr /= 0) then
+            write(stderr,*) "Cannot allocate int-array for ", name, &
+                            " of size ", dim_size1,dim_size2,dim_size3,dim_size4, &
+                            " in ReadArray4dLogical."
+            stop
+        endif
+        retval = CheckError(nf90_get_var(this%ncid, varid, tmp))
+        ! Then convert each '1' in this array to .true., everything else
+        ! to .false.
+        value = tmp == 1
+        deallocate(tmp)
+
+    end subroutine ReadArray4dLogicalNonAlloc
+
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the value of a scalar real(kind=real32)
@@ -1307,7 +2380,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dReal(this, name, value)
 
@@ -1350,6 +2423,52 @@ contains
 
     end subroutine ReadArray1dReal
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 1D array of real(kind=real32)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 1D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray1dRealNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        real(kind=real32), dimension(:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray1dRealNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray1dRealNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -1359,7 +2478,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dReal(this, name, value)
 
@@ -1406,6 +2525,63 @@ contains
 
     end subroutine ReadArray2dReal
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 2D array of real(kind=real32)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 2D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray2dRealNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        real(kind=real32), dimension(:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray2dRealNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray2dRealNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray2dRealNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -1415,7 +2591,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dReal(this, name, value)
 
@@ -1466,6 +2642,74 @@ contains
 
     end subroutine ReadArray3dReal
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 3D array of real(kind=real32)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 3D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray3dRealNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        real(kind=real32), dimension(:,:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2,dim_size3
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray3dRealNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray3dRealNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size3))
+        if (size(value, 3) .ne. dim_size3) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 3", &
+                            " in ReadArray3dRealNonAlloc."
+            write(stderr,*) "Declared as ", size(value,3), &
+                            " in file as", dim_size3
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray3dRealNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -1475,7 +2719,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dReal(this, name, value)
 
@@ -1530,6 +2774,85 @@ contains
 
     end subroutine ReadArray4dReal
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 4D array of real(kind=real32)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 4D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray4dRealNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        real(kind=real32), dimension(:,:,:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2,dim_size3,dim_size4
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray4dRealNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray4dRealNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size3))
+        if (size(value, 3) .ne. dim_size3) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 3", &
+                            " in ReadArray4dRealNonAlloc."
+            write(stderr,*) "Declared as ", size(value,3), &
+                            " in file as", dim_size3
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%4"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size4))
+        if (size(value, 4) .ne. dim_size4) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 4", &
+                            " in ReadArray4dRealNonAlloc."
+            write(stderr,*) "Declared as ", size(value,4), &
+                            " in file as", dim_size4
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray4dRealNonAlloc
+
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the value of a scalar real(kind=real64)
@@ -1566,7 +2889,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dDouble(this, name, value)
 
@@ -1609,6 +2932,52 @@ contains
 
     end subroutine ReadArray1dDouble
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 1D array of real(kind=real64)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 1D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray1dDoubleNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        real(kind=real64), dimension(:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray1dDoubleNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray1dDoubleNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -1618,7 +2987,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dDouble(this, name, value)
 
@@ -1665,6 +3034,63 @@ contains
 
     end subroutine ReadArray2dDouble
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 2D array of real(kind=real64)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 2D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray2dDoubleNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        real(kind=real64), dimension(:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray2dDoubleNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray2dDoubleNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray2dDoubleNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -1674,7 +3100,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dDouble(this, name, value)
 
@@ -1725,6 +3151,74 @@ contains
 
     end subroutine ReadArray3dDouble
 
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 3D array of real(kind=real64)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 3D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray3dDoubleNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        real(kind=real64), dimension(:,:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2,dim_size3
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray3dDoubleNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray3dDoubleNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size3))
+        if (size(value, 3) .ne. dim_size3) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 3", &
+                            " in ReadArray3dDoubleNonAlloc."
+            write(stderr,*) "Declared as ", size(value,3), &
+                            " in file as", dim_size3
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray3dDoubleNonAlloc
+
 
 
     ! -------------------------------------------------------------------------
@@ -1734,7 +3228,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dDouble(this, name, value)
 
@@ -1788,6 +3282,85 @@ contains
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
 
     end subroutine ReadArray4dDouble
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 4D array of real(kind=real64)
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A 4D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray4dDoubleNonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        real(kind=real64), dimension(:,:,:,:), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2,dim_size3,dim_size4
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        if (size(value, 1) .ne. dim_size1) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 1", &
+                            " in ReadArray4dDoubleNonAlloc."
+            write(stderr,*) "Declared as ", size(value,1), &
+                            " in file as", dim_size1
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        if (size(value, 2) .ne. dim_size2) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 2", &
+                            " in ReadArray4dDoubleNonAlloc."
+            write(stderr,*) "Declared as ", size(value,2), &
+                            " in file as", dim_size2
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size3))
+        if (size(value, 3) .ne. dim_size3) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 3", &
+                            " in ReadArray4dDoubleNonAlloc."
+            write(stderr,*) "Declared as ", size(value,3), &
+                            " in file as", dim_size3
+        endif
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%4"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size4))
+        if (size(value, 4) .ne. dim_size4) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank 4", &
+                            " in ReadArray4dDoubleNonAlloc."
+            write(stderr,*) "Declared as ", size(value,4), &
+                            " in file as", dim_size4
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray4dDoubleNonAlloc
 
 
 end module read_kernel_data_mod

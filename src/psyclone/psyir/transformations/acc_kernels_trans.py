@@ -50,6 +50,8 @@ from psyclone.psyir.nodes import (
     Call, CodeBlock, Literal, Loop, Node,
     PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
 from psyclone.psyir.symbols import INTEGER_TYPE, UnsupportedFortranType
+from psyclone.psyir.transformations.arrayassignment2loops_trans import (
+    ArrayAssignment2LoopsTrans)
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -103,6 +105,11 @@ class ACCKernelsTrans(RegionTrans):
             with an int or PSyIR expression.
         :type options["async_queue"]:
             Union[bool, :py:class:`psyclone.psyir.nodes.DataNode`]
+        :param bool options["allow_string"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
+        :param bool options["verbose"]: log the reason the validation failed,
+            at the moment with a comment in the provided PSyIR node.
 
         '''
         # Ensure we are always working with a list of nodes, even if only
@@ -185,9 +192,9 @@ class ACCKernelsTrans(RegionTrans):
 
     def validate(
                 self,
-                nodes: List[Node],
+                nodes: Union[Node, List[Node]],
                 options: Dict[str, Any] = {}
-            ):
+            ) -> None:
         # pylint: disable=signature-differs
         '''
         Check that we can safely enclose the supplied node or list of nodes
@@ -209,6 +216,11 @@ class ACCKernelsTrans(RegionTrans):
             with an int or PSyIR expression.
         :type options["async_queue"]:
             Union[bool, :py:class:`psyclone.psyir.nodes.DataNode`]
+        :param bool options["allow_string"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
+        :param bool options["verbose"]: log the reason the validation failed,
+            at the moment with a comment in the provided PSyIR node.
 
         :raises NotImplementedError: if the supplied Nodes belong to
             a GOInvokeSchedule.
@@ -218,8 +230,13 @@ class ACCKernelsTrans(RegionTrans):
             a routine that is not available on the accelerator.
         :raises TransformationError: if there are no Loops within the
             proposed region and options["disable_loop_check"] is not True.
+        :raises TransformationError: if any assignments in the region contain a
+            character type child and options["allow_string"] is not True.
 
         '''
+        if not options:
+            options = {}
+
         # Ensure we are always working with a list of nodes, even if only
         # one was supplied via the `nodes` argument.
         node_list = self.get_node_list(nodes)
@@ -265,6 +282,17 @@ class ACCKernelsTrans(RegionTrans):
                         f"Assumed-size character variables cannot be enclosed "
                         f"in an OpenACC region but found "
                         f"'{stmt.debug_string()}'")
+            # Check there are no character assignments in the region as these
+            # cause various problems with (at least) NVHPC <= 24.5
+            if not options.get("allow_string", False):
+                message = (
+                    f"{self.name} does not permit assignments involving "
+                    f"character variables by default (use the 'allow_string' "
+                    f"option to include them)")
+                for assign in node.walk(Assignment):
+                    ArrayAssignment2LoopsTrans.validate_no_char(
+                        assign, message, options)
+
             # Check that any called routines are supported on the device.
             for icall in node.walk(Call):
                 if not icall.is_available_on_device():
