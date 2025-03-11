@@ -107,39 +107,39 @@ def test_psy_gen_halo_kernel(dist_mem, tmpdir, fortran_writer):
     single kernel with operates_on=halo_cell_column. '''
     psy, _ = get_invoke("1.4_into_halos_invoke.f90", TEST_API,
                         dist_mem=dist_mem, idx=0)
-    gen_code = str(psy.gen).lower()
+    code = str(psy.gen).lower()
 
     # A halo kernel needs to look up the last halo column in the mesh.
     # Therefore we require a mesh object.
     if dist_mem:
-        assert "integer, intent(in) :: hdepth" in gen_code
+        assert "integer(kind=i_def), intent(in) :: hdepth" in code
 
-        assert "type(mesh_type), pointer :: mesh => null()" in gen_code
-        assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code
+        assert "type(mesh_type), pointer :: mesh => null()" in code
+        assert "mesh => f1_proxy%vspace%get_mesh()" in code
         # Loop must be over halo cells only
-        assert "loop0_start = mesh%get_last_edge_cell()+1" in gen_code
+        assert "loop0_start = mesh%get_last_edge_cell() + 1" in code
         assert ("loop0_stop = mesh%get_last_halo_cell(hdepth)"
-                in gen_code)
+                in code)
 
-        assert ("      do cell = loop0_start, loop0_stop, 1\n"
-                "        call testkern_halo_only_code(nlayers_f1, a, "
+        assert ("    do cell = loop0_start, loop0_stop, 1\n"
+                "      call testkern_halo_only_code(nlayers_f1, a, "
                 "f1_data, f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
                 "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
                 "undf_w3, map_w3(:,cell))"
-                in gen_code)
+                in code)
 
         # Check for appropriate set-dirty/clean calls. Outermost halo remains
         # dirty because field being updated is on continuous function space.
-        assert ("      call f1_proxy%set_dirty()\n"
-                "      call f1_proxy%set_clean(hdepth - 1)" in gen_code)
+        assert ("    call f1_proxy%set_dirty()\n"
+                "    call f1_proxy%set_clean(hdepth - 1)" in code)
     else:
         # No distributed memory so no halo region => no halo depths passed
         # from Alg layer.
         assert (" subroutine invoke_0_testkern_halo_only_type"
-                "(a, f1, f2, m1, m2)" in gen_code)
-        assert "integer, intent(in) :: hdepth" not in gen_code
+                "(a, f1, f2, m1, m2)" in code)
+        assert "integer, intent(in) :: hdepth" not in code
         # Kernel is not called.
-        assert "call testkern_halo_only_code( " not in gen_code
+        assert "call testkern_halo_only_code( " not in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -170,33 +170,30 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
     '''
     psy, _ = get_invoke("1.4.1_into_halos_plus_domain_invoke.f90",
                         TEST_API, dist_mem=dist_mem, idx=0)
-    gen_code = str(psy.gen).lower()
+    code = str(psy.gen).lower()
 
     if dist_mem:
-        assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code
+        assert "mesh => f1_proxy%vspace%get_mesh()" in code
 
-    assert "integer(kind=i_def) ncell_2d_no_halos" in gen_code
+    assert "integer(kind=i_def) :: ncell_2d_no_halos" in code
 
     expected = ""
     if dist_mem:
         expected += (
-            "      end do\n"
-            "      !\n"
-            "      ! set halos dirty/clean for fields modified in the above "
-            "loop\n"
-            "      !\n"
-            "      call f1_proxy%set_dirty()\n"
-            "      call f1_proxy%set_clean(hdepth - 1)\n"
-            "      !\n")
+            "    enddo\n"
+            "\n"
+            "    ! set halos dirty/clean for fields modified in the above "
+            "loop(s)\n"
+            "    call f1_proxy%set_dirty()\n"
+            "    call f1_proxy%set_clean(hdepth - 1)\n")
     expected += (
-        "      call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, a, "
+        "    call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, a, "
         "f1_data, ndf_w3, undf_w3, map_w3)\n")
-    assert expected in gen_code
+    assert expected in code
     if dist_mem:
-        assert ("      ! set halos dirty/clean for fields modified in the "
-                "above kernel\n"
-                "      !\n"
-                "      call f1_proxy%set_dirty()\n" in gen_code)
+        assert ("    ! set halos dirty/clean for fields modified in the "
+                "above loop(s)\n"
+                "    call f1_proxy%set_dirty()\n" in code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -210,33 +207,31 @@ def test_psy_gen_halo_kernel_discontinuous_space(dist_mem, tmpdir):
     '''
     psy, _ = get_invoke("1.4.2_multi_into_halos_invoke.f90",
                         TEST_API, dist_mem=dist_mem, idx=0)
-    gen_code = str(psy.gen).lower()
+    code = str(psy.gen).lower()
     if dist_mem:
-        assert "integer, intent(in) :: hdepth, other_depth" in gen_code
+        assert "integer(kind=i_def), intent(in) :: hdepth" in code
+        assert "integer(kind=i_def), intent(in) :: other_depth" in code
 
         # The halo-only kernel updates a field on a continuous function space
         # and thus leaves the outermost halo cell dirty.
         assert '''call testkern_halo_only_code(nlayers_f1, a, f1_data,\
  f2_data, m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, \
 map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))
-      end do
-      !
-      ! set halos dirty/clean for fields modified in the above loop
-      !
-      call f1_proxy%set_dirty()
-      call f1_proxy%set_clean(hdepth - 1)''' in gen_code
+    enddo
+
+    ! set halos dirty/clean for fields modified in the above loop(s)
+    call f1_proxy%set_dirty()
+    call f1_proxy%set_clean(hdepth - 1)''' in code
 
         # testkern_code is a 'normal' kernel and thus leaves all halo cells
         # dirty.
         assert '''call testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data,\
  m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), \
 ndf_w3, undf_w3, map_w3(:,cell))
-      end do
-      !
-      ! set halos dirty/clean for fields modified in the above loop
-      !
-      call f1_proxy%set_dirty()
-      !''' in gen_code
+    enddo
+
+    ! set halos dirty/clean for fields modified in the above loop(s)
+    call f1_proxy%set_dirty()''' in code
 
         # testkern_halo_and_owned_code operates in the halo for a field on a
         # discontinuous function space and therefore the halo is left clean to
@@ -244,22 +239,22 @@ ndf_w3, undf_w3, map_w3(:,cell))
         assert '''call testkern_halo_and_owned_code(nlayers_f1, \
 a, f1_data, f2_data, m1_data, m2_data, ndf_w3, undf_w3, map_w3(:,cell), \
 ndf_w2, undf_w2, map_w2(:,cell))
-      end do
-      !
-      ! set halos dirty/clean for fields modified in the above loop
-      !
-      call f1_proxy%set_dirty()
-      call f1_proxy%set_clean(other_depth)''' in gen_code
+    enddo
+
+    ! set halos dirty/clean for fields modified in the above loop(s)
+    call f1_proxy%set_dirty()
+    call f1_proxy%set_clean(other_depth)''' in code
     else:
         # No distributed memory.
         # => no halo depths to pass from Algorithm layer.
-        assert "integer, intent(in) :: hdepth, other_depth" not in gen_code
+        assert "integer(kind=i_def), intent(in) :: hdepth" not in code
+        assert "integer(kind=i_def), intent(in) :: other_depth" not in code
         # => no halos so no need to call a kernel which only operates on
         #    halo cells.
-        assert "call testkern_halo_only_code(" not in gen_code
+        assert "call testkern_halo_only_code(" not in code
         # However, a kernel that operates on owned *and* halo cells must still
         # be called.
-        assert "call testkern_halo_and_owned_code(nlayers_f1, a" in gen_code
+        assert "call testkern_halo_and_owned_code(nlayers_f1, a" in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -272,26 +267,23 @@ def test_psy_gen_halo_kernel_literal_depths(dist_mem, tmpdir):
     '''
     psy, _ = get_invoke("1.4.3_literal_depth_into_halos_invoke.f90",
                         TEST_API, dist_mem=dist_mem, idx=0)
-    gen_code = str(psy.gen).lower()
+    code = str(psy.gen).lower()
     if dist_mem:
         # Make sure we aren't attempting to specify literal values in the
         # argument list to the PSy-layer routine.
-        assert "subroutine invoke_0(a, f1, f2, m1, m2, hdepth)" in gen_code
+        assert "subroutine invoke_0(a, f1, f2, m1, m2, hdepth)" in code
         # First kernel operates into the halo to a depth of '2' but updates a
         # field on a continuous function space so only the level-1 halo is
         # left clean.
         assert '''call f1_proxy%set_dirty()
-      call f1_proxy%set_clean(1)
-      !''' in gen_code
+    call f1_proxy%set_clean(1)''' in code
         assert '''call f1_proxy%set_dirty()
-      call f1_proxy%set_clean(hdepth)
-      !''' in gen_code
+    call f1_proxy%set_clean(hdepth)''' in code
         assert '''call f1_proxy%set_dirty()
-      call f1_proxy%set_clean(5)
-      !''' in gen_code
+    call f1_proxy%set_clean(5)''' in code
     else:
-        assert "call testkern_halo_only_code(" not in gen_code
-        assert "call testkern_halo_and_owned_code(nlayers_f1, a" in gen_code
+        assert "call testkern_halo_only_code(" not in code
+        assert "call testkern_halo_and_owned_code(nlayers_f1, a" in code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 

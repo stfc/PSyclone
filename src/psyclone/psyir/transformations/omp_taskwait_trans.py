@@ -37,7 +37,6 @@
 ''' This module provides the OMPTaskwaitTrans transformation that can be
 applied to an OMPParallelDirective to satisfy any task-based dependencies
 created by OpenMP Taskloops.'''
-from __future__ import absolute_import, print_function
 
 from psyclone.core import VariablesAccessInfo
 from psyclone.errors import LazyString, InternalError
@@ -203,14 +202,14 @@ class OMPTaskwaitTrans(Transformation):
         The forward dependency is never a child of taskloop, and must have
         abs_position > taskloop.abs_position
 
-        :param taskloop: the taskloop node for which to find the \
-                         forward_dependence.
+        :param taskloop: the taskloop node for which to find the
+            forward_dependence.
         :type taskloop: :py:class:`psyclone.psyir.nodes.OMPTaskloopDirective`
         :param root: the tree in which to search for the forward_dependence.
         :type root: :py:class:`psyclone.psyir.nodes.OMPParallelDirective`
 
         :returns: the forward_dependence of taskloop.
-        :rtype: :py:class:`psyclone.f2pygen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         # Check supplied the correct type for root

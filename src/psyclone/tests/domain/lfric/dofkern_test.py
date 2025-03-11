@@ -151,18 +151,18 @@ def test_upper_bounds(monkeypatch, annexed, dist_mem, tmpdir):
 
     # Distributed memory
     if annexed and dist_mem:
-        expected = ("      loop0_start = 1\n"
-                    "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()"
+        expected = ("    loop0_start = 1\n"
+                    "    loop0_stop = f1_proxy%vspace%get_last_dof_annexed()"
                     )
     elif not annexed and dist_mem:
-        expected = ("      loop0_start = 1\n"
-                    "      loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
+        expected = ("    loop0_start = 1\n"
+                    "    loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
                     )
 
     # Shared memory
     elif not dist_mem:
-        expected = ("      loop0_start = 1\n"
-                    "      loop0_stop = undf_w1"
+        expected = ("    loop0_start = 1\n"
+                    "    loop0_stop = undf_w1"
                     )
 
     assert expected in code
@@ -183,7 +183,7 @@ def test_indexed_field_args(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    expected = ("CALL testkern_dofs_code(f1_data(df), f2_data(df), "
+    expected = ("call testkern_dofs_code(f1_data(df), f2_data(df), "
                 "f3_data(df), f4_data(df), field_vec_1_data(df), "
                 "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)")
 
@@ -257,44 +257,43 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     # generated
 
     # Use statements
-    output = (
-        "      USE testkern_mod, ONLY: testkern_code\n"
-        "      USE testkern_dofs_mod, ONLY: testkern_dofs_code\n"
-        )
+    assert "    use testkern_mod, only : testkern_code\n" in code
+    assert "    use testkern_dofs_mod, only : testkern_dofs_code\n" in code
     if dist_mem:
         # Check mesh_mod is added to use statements
-        output += ("      USE mesh_mod, ONLY: mesh_type\n")
-    assert output in code
+        assert "    use mesh_mod, only : mesh_type\n" in code
 
     # Consistent declarations
-    output = (
-        "      REAL(KIND=r_def), intent(in) :: scalar_arg, a\n"
-        "      TYPE(field_type), intent(in) :: f1, f2, f3, f4, "
-        "field_vec(3), m1, m2\n"
-        "      INTEGER(KIND=i_def) cell\n"
-        "      INTEGER(KIND=i_def) df\n"
-        "      INTEGER(KIND=i_def) loop2_start, loop2_stop\n"
-        "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
-        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers_f1\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: field_vec_1_data =>"
-        " null(), field_vec_2_data => null(), field_vec_3_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f4_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f3_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
-        )
-    assert output in code
+    assert """
+    type(field_type), intent(in) :: f1
+    type(field_type), intent(in) :: f2
+    type(field_type), intent(in) :: f3
+    type(field_type), intent(in) :: f4
+    type(field_type), dimension(3), intent(in) :: field_vec
+    real(kind=r_def), intent(in) :: scalar_arg
+    real(kind=r_def), intent(in) :: a
+    type(field_type), intent(in) :: m1
+    type(field_type), intent(in) :: m2
+    """ in code
+    assert """
+    real(kind=r_def), pointer, dimension(:) :: f1_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f2_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f3_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f4_data => null()
+    real(kind=r_def), pointer, dimension(:) :: field_vec_1_data => null()
+    real(kind=r_def), pointer, dimension(:) :: field_vec_2_data => null()
+    real(kind=r_def), pointer, dimension(:) :: field_vec_3_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m1_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m2_data => null()
+    """ in code
 
     # Check that dof kernel is called correctly
     output = (
-        "      DO df = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_dofs_code(f1_data(df), f2_data(df), "
+        "    do df = loop0_start, loop0_stop, 1\n"
+        "      call testkern_dofs_code(f1_data(df), f2_data(df), "
         "f3_data(df), f4_data(df), field_vec_1_data(df), "
         "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)\n"
-        "      END DO\n"
+        "    enddo\n"
     )
     assert output in code
 
@@ -304,69 +303,65 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
         if not annexed:
             # Check f1 field has halo exchange performed when annexed == False
             output = (
-                "      DO df = loop0_start, loop0_stop, 1\n"
-                "        CALL testkern_dofs_code(f1_data(df), f2_data(df), "
+                "    do df = loop0_start, loop0_stop, 1\n"
+                "      call testkern_dofs_code(f1_data(df), f2_data(df), "
                 "f3_data(df), f4_data(df), field_vec_1_data(df), "
                 "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)\n"
-                "      END DO\n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !\n"
-                "      CALL f1_proxy%halo_exchange(depth=1)\n"
+                "    enddo\n"
+                "\n"
+                "    ! Set halos dirty/clean for fields modified in the "
+                "above loop(s)\n"
+                "    call f1_proxy%set_dirty()\n"
+                "    call f1_proxy%halo_exchange(depth=1)\n"
                 )
         else:
             # Check f1 field is set dirty but no halo exchange is performed
             output = (
-                "      DO df = loop0_start, loop0_stop, 1\n"
-                "        CALL testkern_dofs_code(f1_data(df), f2_data(df), "
+                "    do df = loop0_start, loop0_stop, 1\n"
+                "      call testkern_dofs_code(f1_data(df), f2_data(df), "
                 "f3_data(df), f4_data(df), field_vec_1_data(df), "
                 "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)\n"
-                "      END DO\n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !\n"
+                "    enddo\n"
+                "\n"
+                "    ! Set halos dirty/clean for fields modified in the "
+                "above loop(s)\n"
+                "    call f1_proxy%set_dirty()\n"
                 )
         # This should be present in all distributed memory cases:
         # Check halos are set dirty/clean for modified fields in dof
         # kernel (above) and happen before the next kernel (cell_column)
         common_halo_exchange_code = (
-                "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-                "        CALL f2_proxy%halo_exchange(depth=1)\n"
-                "      END IF\n"
-                "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
-                "        CALL m1_proxy%halo_exchange(depth=1)\n"
-                "      END IF\n"
-                "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
-                "        CALL m2_proxy%halo_exchange(depth=1)\n"
-                "      END IF\n"
-                "      DO cell = loop1_start, loop1_stop, 1\n"
-                "        CALL testkern_code"
+                "    if (f2_proxy%is_dirty(depth=1)) then\n"
+                "      call f2_proxy%halo_exchange(depth=1)\n"
+                "    end if\n"
+                "    if (m1_proxy%is_dirty(depth=1)) then\n"
+                "      call m1_proxy%halo_exchange(depth=1)\n"
+                "    end if\n"
+                "    if (m2_proxy%is_dirty(depth=1)) then\n"
+                "      call m2_proxy%halo_exchange(depth=1)\n"
+                "    end if\n"
+                "    do cell = loop1_start, loop1_stop, 1\n"
+                "      call testkern_code"
                 )
         output += common_halo_exchange_code     # Append common
         assert output in code
 
     # Check cell-column kern is called correctly
     output = (
-        "      DO cell = loop1_start, loop1_stop, 1\n"
-        "        CALL testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, "
+        "    do cell = loop1_start, loop1_stop, 1\n"
+        "      call testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, "
         "m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
-        "      END DO\n"
+        "    enddo\n"
     )
     assert output in code
 
     # Check built-in is called correctly
     output = (
-        "      DO df = loop2_start, loop2_stop, 1\n"
-        "        ! Built-in: inc_aX_plus_Y (real-valued fields)\n"
-        "        f1_data(df) = 0.5_r_def * f1_data(df) + f2_data(df)\n"
-        "      END DO\n"
+        "    do df = loop2_start, loop2_stop, 1\n"
+        "      ! Built-in: inc_aX_plus_Y (real-valued fields)\n"
+        "      f1_data(df) = 0.5_r_def * f1_data(df) + f2_data(df)\n"
+        "    enddo\n"
     )
     assert output in code
 
