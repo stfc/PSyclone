@@ -437,6 +437,10 @@ class KernelModuleInlineTrans(Transformation):
             # The Routine is brought into scope via a wildcard import. We have
             # to rename it on import to avoid a clash with the newly inlined
             # Routine.
+            # TODO #2846 - if the same Routine is also brought into scope
+            # through some other wildcard import then this renaming doesn't
+            # help. The only solution to this is to rename the module-inlined
+            # Routine (or proceed to fully inline it).
             KernelModuleInlineTrans._rename_import(ctable, csym, symbol.name)
             # pylint:disable-next=protected-access
             actual_table._symbols.pop(symbol.name)
