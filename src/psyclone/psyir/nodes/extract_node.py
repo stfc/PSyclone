@@ -89,6 +89,12 @@ class ExtractNode(PSyDataNode):
     # The default prefix to add to the PSyData module name and PSyDataType
     _default_prefix = "extract"
 
+    # This dictionary keeps track of region+module names that are already
+    # used. For each key (which is module_name+"|"+region_name) it contains
+    # how many regions with that name have been created. This number will
+    # then be added as an index to create unique region identifiers.
+    _used_kernel_names = {}
+
     def __init__(self, ast=None, children=None, parent=None, options=None):
         super().__init__(ast=ast, children=children,
                          parent=parent, options=options)
@@ -313,13 +319,14 @@ class ExtractNode(PSyDataNode):
             if not isinstance(name, tuple) or not len(name) == 2 or \
                not name[0] or not isinstance(name[0], str) or \
                not name[1] or not isinstance(name[1], str):
-                raise InternalError(
+                raise ValueError(
                     "Error in PSyDataTrans. The name must be a "
                     "tuple containing two non-empty strings.")
             # pylint: enable=too-many-boolean-expressions
             # Valid PSyData names have been provided by the user.
             return name
 
+        from psyclone.psyGen import InvokeSchedule, Kern
         invoke = nodes[0].ancestor(InvokeSchedule).invoke
         module_name = invoke.invokes.psy.name
 
@@ -337,8 +344,8 @@ class ExtractNode(PSyDataNode):
         # Add a region index to ensure uniqueness when there are
         # multiple regions in an invoke.
         key = module_name + "|" + region_name
-        idx = PSyDataTrans._used_kernel_names.get(key, 0)
-        PSyDataTrans._used_kernel_names[key] = idx + 1
+        idx = self._used_kernel_names.get(key, 0)
+        self._used_kernel_names[key] = idx + 1
         region_name += f"-r{idx}"
         return (module_name, region_name)
 

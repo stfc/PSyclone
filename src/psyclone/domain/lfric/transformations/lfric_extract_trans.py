@@ -42,7 +42,6 @@ transformation.
 
 from psyclone.domain.lfric import LFRicExtractDriverCreator, LFRicLoop
 from psyclone.psyir.nodes import ExtractNode
-from psyclone.psyir.tools import CallTreeUtils
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
@@ -148,7 +147,6 @@ class LFRicExtractTrans(ExtractTrans):
             new_node._driver_creator = LFRicExtractDriverCreator()
         return
 
-
         # The PSyData transformation needs to pass this object to
         # the corresponding PSyData node, so add it to the option arguments.
-        my_options["read_write_info"] = read_write_info
+        # my_options["read_write_info"] = read_write_info
