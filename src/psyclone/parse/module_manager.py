@@ -377,8 +377,6 @@ class ModuleManager:
 
     def get_all_module_infos(self) -> List[ModuleInfo]:
         """
-        Return a list of all module infos
-
         :returns: list of all module infos.
         """
         return list(self._modules.values())
@@ -470,7 +468,7 @@ class ModuleManager:
         indent: str = "",
     ) -> List[ModuleInfo]:
         """This function collects all modules which are recursively used
-        by the specified module bane. It returns a list of module infos in the
+        by the specified module name. It returns a list of module infos in the
         order of dependencies, i.e. a module which is used by another module
         is listed before the module which uses it.
 
@@ -489,7 +487,6 @@ class ModuleManager:
 
         :returns: a list of all modules used by the specified module in
             order of dependencies.
-
         """
 
         # List of module infos which still need to be traversed.
@@ -564,9 +561,12 @@ class ModuleManager:
 
         return ret_module_info_list
 
-    def get_all_dependencies_recursively(self, all_mods):
+    def get_all_dependencies_recursively(
+            self,
+            all_mod_names
+    ):
         '''This function collects recursively all module dependencies
-        for any of the modules in the ``all_mods`` set. I.e. it will
+        for any of the modules in the ``all_mod_names`` set. I.e. it will
         add all modules used by any module listed in ``all_mods``,
         and any modules used by the just added modules etc. In the end,
         it will return a dictionary that for each module lists which
@@ -581,11 +581,11 @@ class ModuleManager:
         be ignored (i.e. not listed in any dependencies).
         # TODO 2120: allow a choice to abort or ignore.
 
-        :param set[str] all_mods: the set of all modules for which to collect
-            module dependencies.
+        :param set[str] all_mod_names: the set of all module names for which to
+            collect module dependencies.
 
         :returns: a dictionary with all modules that are required (directly
-            or indirectly) for the modules in ``all_mods``.
+            or indirectly) for the modules in ``all_mod_names``.
         :rtype: dict[str, set[str]]
 
         '''
@@ -594,7 +594,7 @@ class ModuleManager:
         module_dependencies = {}
 
         # Work on a copy to avoid modifying the caller's set:
-        todo = all_mods.copy()
+        todo = all_mod_names.copy()
 
         # This set contains module that could not be found (to avoid
         # adding them to the todo list again
