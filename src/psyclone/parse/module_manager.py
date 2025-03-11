@@ -607,19 +607,19 @@ class ModuleManager:
         return module_dependencies[module_info_name]
 
     # -------------------------------------------------------------------------
-    def sort_modules(self, module_dependencies):
+    def sort_modules(
+        self, module_dependencies: Dict[str, Set[str]]
+    ) -> List[str]:
         '''This function sorts the given dependencies so that all
         dependencies of a module are before any module that
         needs it. Input is a dictionary that contains all modules to
         be sorted as keys, and the value for each module is the set
         of dependencies that the module depends on.
 
-        :param module_dependencies: the list of modules required as keys, \
+        :param module_dependencies: the list of modules required as keys,
             with all their dependencies as value.
-        :type module_dependencies: dict[str, set[str]]
 
         :returns: the sorted list of modules.
-        :rtype: list[str]
 
         '''
         result = []
