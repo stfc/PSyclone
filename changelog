@@ -1,3 +1,8 @@
+   3) PR #2828 - adds a new ReplaceReferenceByLiteralTrans transformation.   
+
+   2) PR #2914 for #2913. Consider unresolved imports when deciding scoping
+   location of fparser2 symbols.
+   
    1) PR #2563 for #2499. Adds ScalarisationTrans.
 
 release 3.1.0 26th of February 2025
