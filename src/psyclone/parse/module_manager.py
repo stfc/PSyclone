@@ -306,7 +306,7 @@ class ModuleManager:
 
     def create_all_psyir_nodes(self, verbose: bool = False) -> None:
         """
-        Routine to load the psyir nodes of all files added
+        Routine to create the psyir nodes of all files added
         to the module manager
 
         :param verbose: If `True`, print verbose information
@@ -385,8 +385,6 @@ class ModuleManager:
 
     def get_all_file_infos(self) -> List[FileInfo]:
         """
-        Return a list of all FileInfo objects
-
         :returns: List of all FileInfo objects.
         """
         return list(self._filepath_to_file_info.values())
