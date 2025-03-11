@@ -1585,10 +1585,15 @@ class OMPParallelDirective(OMPRegionDirective):
             '''
             if not symbol.is_automatic:
                 return False
+            if self.ancestor((Loop, WhileLoop)):
+                # If there is looping, looking at preceding is not enough
+                return False
             for node in self.preceding():
-                if isinstance(node, (Loop, WhileLoop, CodeBlock)):
-                    # If there is looping, looking at preceding is not enough
-                    return False
+                if isinstance(node, CodeBlock):
+                    lname = symbol.name.lower()
+                    names = [n.lower() for n in node.get_symbol_names()]
+                    if lname in names:
+                        return False
                 if isinstance(node, Reference):
                     if node.symbol is symbol:
                         return False
