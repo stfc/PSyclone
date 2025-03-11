@@ -94,7 +94,7 @@ class ModuleManager:
             self,
             cache_active: bool = None,
             cache_path: str = None
-        ):
+    ):
         """
         Set up the module manager. Module manager is actually a singleton
         and should not be created directly. Use `ModuleManager.get()`
@@ -513,7 +513,6 @@ class ModuleManager:
                 todo_module_info = self.get_module_info(
                     todo_module_name
                 )
-                assert type(todo_module_info) is ModuleInfo
             except (ModuleNotFoundError, FileNotFoundError):
                 if verbose:
                     print(f"{indent}- Module '{todo_module_name}' not found")

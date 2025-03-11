@@ -372,9 +372,9 @@ def test_mod_manager_add_files_and_more():
     #
     # Test various other functions
     #
-    mod_man.load_all_source_codes()
-    mod_man.load_all_fparser_trees()
-    mod_man.load_all_psyir_nodes()
+    mod_man.load_all_source_files()
+    mod_man.create_all_fparser_trees()
+    mod_man.create_all_psyir_nodes()
     mod_man.get_all_file_infos()
     mod_man.load_all_module_infos(verbose=True)
     mod_man.get_all_module_infos()
@@ -461,13 +461,16 @@ def test_mod_manager_get_all_rec_used_mod_infos():
     for mod_info in mod_man.get_all_module_infos():
         print(mod_info.name)
 
-    mod_man.get_all_recursively_used_module_infos("d", verbose=True)
+    mod_man.get_all_recursively_used_module_infos_for_module_info_name(
+        "d", verbose=True
+    )
 
 
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
 def test_mod_manager_get_all_rec_used_mod_infos_missing_a(capsys):
     '''
-    Make particular check for get_all_recursively_used_module_infos():
+    Make particular check for
+    get_all_recursively_used_module_infos_for_module_info_name():
     - Create files for modules 'c' and 'b'
     - Dependency of modules is c -> b -> a
     - This will follow some paths in the control flow
@@ -491,7 +494,8 @@ def test_mod_manager_get_all_rec_used_mod_infos_missing_a(capsys):
 
     # These are soft errors that don't raise Exceptions
 
-    mod_man.get_all_recursively_used_module_infos("c", verbose=True)
+    mod_man.get_all_recursively_used_module_infos_for_module_info_name(
+        "c", verbose=True)
 
     out, _ = capsys.readouterr()
     assert "Module 'a' not found" in out
@@ -500,7 +504,8 @@ def test_mod_manager_get_all_rec_used_mod_infos_missing_a(capsys):
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
 def test_mod_manager_get_all_rec_used_mod_infos_missing_a_ver2(capsys):
     '''
-    Make particular check for get_all_recursively_used_module_infos():
+    Make particular check for
+    get_all_recursively_used_module_infos_for_module_info_name():
     - Create files for modules 'c' and 'b'
     - Dependency of modules is c -> b -> a
     - This will follow some particular paths in the control flow
@@ -523,7 +528,8 @@ def test_mod_manager_get_all_rec_used_mod_infos_missing_a_ver2(capsys):
 
     # These are soft errors that don't raise Exceptions
 
-    mod_man.get_all_recursively_used_module_infos("c", verbose=True)
+    mod_man.get_all_recursively_used_module_infos_for_module_info_name(
+        "c", verbose=True)
 
     out, _ = capsys.readouterr()
     assert "Module 'a' not found" in out
@@ -547,7 +553,8 @@ def test_mod_manager_get_all_rec_used_mod_infos_missing_b(capsys):
     mod_man.load_all_module_infos(verbose=True)
 
     # These are soft errors that don't raise Exceptions
-    mod_man.get_all_recursively_used_module_infos("c", verbose=True)
+    mod_man.get_all_recursively_used_module_infos_for_module_info_name(
+        "c", verbose=True)
 
     out, _ = capsys.readouterr()
     assert "Module 'b' not found" in out
@@ -563,7 +570,8 @@ def test_mod_manager_get_all_rec_used_mod_infos_missing_first_module(capsys):
     mod_man = ModuleManager.get()
 
     # These are soft errors that don't raise Exceptions
-    mod_man.get_all_recursively_used_module_infos("c", verbose=True)
+    mod_man.get_all_recursively_used_module_infos_for_module_info_name(
+        "c", verbose=True)
 
     out, _ = capsys.readouterr()
     assert "Module 'c' not found" in out
@@ -590,7 +598,8 @@ def test_mod_manager_get_all_rec_used_mod_infos_ignore_module(capsys):
     mod_man.load_all_module_infos()
 
     # These are soft errors that don't raise Exceptions
-    mod_man.get_all_recursively_used_module_infos("c", verbose=True)
+    mod_man.get_all_recursively_used_module_infos_for_module_info_name(
+        "c", verbose=True)
 
     out, _ = capsys.readouterr()
     assert "Module 'c' found" in out
