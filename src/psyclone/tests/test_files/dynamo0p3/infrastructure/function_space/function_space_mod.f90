@@ -655,8 +655,11 @@ contains
 
     ! Set up the fractional levels (for diagnostic output) for this fs
 
-    call levels_setup( self%mesh, self%get_nlayers(), &
-                       self%fs, self%fractional_levels )
+    call levels_setup( self%mesh,          &
+                       self%get_nlayers(), &
+                       self%ndof_cell,     &
+                       self%nodal_coords,  &
+                       self%fractional_levels )
 
     if (allocated(dofmap)) deallocate (dofmap)
 

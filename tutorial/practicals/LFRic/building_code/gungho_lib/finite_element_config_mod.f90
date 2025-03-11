@@ -63,7 +63,8 @@ module finite_element_config_mod
   integer(i_def), public, protected :: coordinate_order
   integer(i_def), public, protected :: element_order_h
   integer(i_def), public, protected :: element_order_v
-  integer(i_def), public, protected :: nqp_exact
+  integer(i_def), public, protected :: nqp_h_exact
+  integer(i_def), public, protected :: nqp_v_exact
   logical(l_def), public, protected :: rehabilitate
   logical(l_def), public, protected :: vorticity_in_w1
 
@@ -207,7 +208,8 @@ contains
     coordinate_order = imdi
     element_order_h = imdi
     element_order_v = imdi
-    nqp_exact = imdi
+    nqp_h_exact = imdi
+    nqp_v_exact = imdi
     rehabilitate = .false.
     vorticity_in_w1 = .false.
 
@@ -240,9 +242,11 @@ contains
          any([element_order_h] == rmdi) .or. &
          any([element_order_v] == imdi) .or. &
          any([element_order_v] == rmdi) ) then
-      nqp_exact = imdi
+      nqp_h_exact = imdi
+      nqp_v_exact = imdi
     else
-      nqp_exact = MAX(element_order_h, element_order_v) + 3
+      nqp_h_exact = element_order_h + 3
+      nqp_v_exact = element_order_v + 3
     end if
 
     namelist_loaded = .true.
@@ -300,7 +304,8 @@ contains
     coordinate_order = imdi
     element_order_h = imdi
     element_order_v = imdi
-    nqp_exact = imdi
+    nqp_h_exact = imdi
+    nqp_v_exact = imdi
     rehabilitate = .false.
     vorticity_in_w1 = .false.
 
