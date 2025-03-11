@@ -1,5 +1,5 @@
 <p align="left">
-  <img width="460" src="doc/logo/psyclone_v1.0.png">
+  <img width="460" src="doc/logo/psyclone_logo_light_theme.png">
 </p>
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11190457.svg)](https://doi.org/10.5281/zenodo.11190457)

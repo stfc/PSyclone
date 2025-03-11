@@ -97,3 +97,11 @@ Reference Guide
     :maxdepth: 2
 
     reference_guide/source/index
+    
+Bibliography
+---------------
+
+.. toctree::
+    :maxdepth: 2
+
+    bibliography/zz_bibliography

@@ -134,7 +134,7 @@ installed) and Gnu Make are also required.
 
 The majority of wrapper libraries use `Jinja
 <https://pypi.org/project/Jinja/>`_ templates to create PSyData-derived
-classes (please refer to :ref:`dev_guide:psy_data` and :ref:`dev_guide:jinja`
+classes (please refer to :ref:`devguide_psy_data` and :ref:`jinja`
 for full details about the PSyData API).
 
 Compilation of ``extract``, ``value_range_check``, ``read_only`` and some of the
@@ -179,7 +179,7 @@ applications can be configured with the variables ``LFRIC_INF_DIR`` and
 ``GOCEAN_INF_DIR``, respectively. Their default values are set to relative
 paths to the locations of these libraries in the PSyclone repository. The
 dl_esm_inf library is provided as a Git submodule of the PSyclone
-project (see :ref:`dev_guide:dev-installation` in the Developers' Guide
+project (see :ref:`dev-installation` in the Developers' Guide
 for details on working with submodules) and a pared-down version of LFRic
 infrastructure is also available in the PSyclone repository (please refer
 to the ``README.md`` documentation of relevant wrapper libraries). However,

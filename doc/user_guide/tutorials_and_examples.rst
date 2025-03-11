@@ -252,7 +252,7 @@ is included which will use PSyclone to generate the PSy code and
 transformed kernels and then compile the application. This compilation
 requires that the `dl_esm_inf library <https://github.com/stfc/dl_esm_inf>`_
 be installed/available - it is provided as a Git submodule of the PSyclone
-project (see :ref:`dev_guide:dev-installation` in the Developers' Guide
+project (see :ref:`dev-installation` in the Developers' Guide
 for details on working with submodules).
 
 The supplied ``Makefile`` also provides a second, ``profile`` target which
@@ -707,7 +707,7 @@ reduce its depth by one) in certain circumstances, whereas a
 
 A kernel with a ``GH_WRITE`` access for a continuous field must guarantee to
 write the same value to a given shared DoF, independent of which cell
-is being updated. As :ref:`described <dev_guide:iterators_continuous>`
+is being updated. As :ref:`described <iterators_continuous>`
 in the Developer Guide, this means that annexed DoFs are computed
 correctly without the need to iterate into the L1 halo and thus can
 remove the need for halo exchanges on those fields that are read.

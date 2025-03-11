@@ -12,7 +12,6 @@ Developer Guide
    psykal
    module_manager
    APIs
-   modules
    dependency
    sympy
    transformations

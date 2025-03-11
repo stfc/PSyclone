@@ -1935,7 +1935,7 @@ operates_on                    Data passed for each field/operator argument
 ============================== =======================================================
 
 (For a description of the concepts of 'owned' and 'halo' cells please see the
-:ref:`dev_guide:lfric-developers`.)
+:ref:`lfric-developers`.)
 
 procedure
 #########

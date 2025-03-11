@@ -143,6 +143,7 @@ look for associated kernel files can be provided and a particular
 maximum line length can be specified.
 
 .. autoclass:: psyclone.parse.algorithm.Parser
+	:no-index:
 
 Once an instance of the `Parser()` class is created and configured
 with required values for the optional arguments, then the parse method
