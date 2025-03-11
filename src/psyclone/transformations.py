@@ -2517,21 +2517,20 @@ class ACCEnterDataTrans(Transformation):
         '''
         return "ACCEnterDataTrans"
 
-    def apply(self, sched: Schedule, options: Optional[Dict[str, Any]] = {}):
-        # pylint: disable=arguments-renamed
+    def apply(self, node: Schedule, options: Optional[Dict[str, Any]] = {}):
         '''Adds an OpenACC "enter data" directive to the invoke associated
         with the supplied Schedule. Any fields accessed by OpenACC kernels
         within this schedule will be added to this data region in
         order to ensure they remain on the target device.
 
-        :param sched: schedule to which to add an "enter data" directive.
+        :param node: schedule to which to add an "enter data" directive.
         :param options: a dictionary with options for transformations.
-
-        The available options are :
-         - async_queue : Permit to force using the given async stream if
-                         not False.
+        :param options["async_queue"]: force the transformation to use the
+            specified async stream if not False.
+        :type options["async_queue"]: Union[bool, int]
 
         '''
+        sched = node
         # Ensure that the proposed transformation is valid
         self.validate(sched, options)
 
