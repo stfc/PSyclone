@@ -39,8 +39,9 @@
 
 ''' PSyIR nodes package module '''
 
-from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
-                                              ACCCopyOutClause)
+from psyclone.psyir.nodes.acc_clauses import (
+    ACCAsyncQueueClause, ACCCopyClause, ACCCopyInClause,
+    ACCCopyOutClause)
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.array_of_structures_reference import (
     ArrayOfStructuresReference)

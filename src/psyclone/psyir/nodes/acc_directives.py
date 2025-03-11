@@ -363,9 +363,6 @@ class ACCEnterDataDirective(ACCStandaloneDirective, ACCAsyncMixin):
         # options
         options = f" copyin({sym_list})"
 
-        # async
-        options += self._build_async_string()
-
         return f"acc enter data{options}"
 
     def data_on_device(self, parent: Node):
