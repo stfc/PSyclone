@@ -433,28 +433,46 @@ class KernelModuleInlineTrans(Transformation):
         ctable = (csym.find_symbol_table(table.node) if
                   csym.name not in table else table)
         remove_csym = ctable.symbols_imported_from(csym) == [symbol]
-        # We have to force the removal as there will be calls that reference
-        # this Symbol. (These calls will subsequently be updated to refer to
-        # the Symbol of the inlined routine.)
-        # pylint:disable-next=protected-access
-        actual_table._symbols.pop(symbol.name)
         if csym.wildcard_import:
             # The Routine is brought into scope via a wildcard import. We have
             # to rename it on import to avoid a clash with the newly inlined
             # Routine.
-            for isym in ctable.symbols_imported_from(csym):
-                if isym.interface.orig_name.lower() == symbol.name.lower():
-                    # We already have a suitable import so we don't need
-                    # another one.
-                    break
-            else:
-                ctable.new_symbol(
-                    f"old_{symbol.name}",
-                    symbol_type=RoutineSymbol,
-                    interface=ImportInterface(
-                        csym, orig_name=symbol.name))
+            KernelModuleInlineTrans._rename_import(ctable, csym, symbol.name)
+            # pylint:disable-next=protected-access
+            actual_table._symbols.pop(symbol.name)
         elif remove_csym:
+            # We have to force the removal as there will be calls that
+            # reference this Symbol. (These calls will subsequently be updated
+            # to refer to the Symbol of the inlined routine.)
+            # pylint:disable-next=protected-access
+            actual_table._symbols.pop(symbol.name)
             actual_table.remove(csym)
+        else:
+            # pylint:disable-next=protected-access
+            actual_table._symbols.pop(symbol.name)
+
+    @staticmethod
+    def _rename_import(table, csym, name):
+        '''
+        Adds a new RoutineSymbol imported from `table` with its original name
+        set to be the supplied name while having an auto-generated actual name.
+        If there is already such a Symbol then this routine does nothing.
+
+        :param table:
+        '''
+        for isym in table.symbols_imported_from(csym):
+            if (isym.interface.orig_name and
+                    isym.interface.orig_name.lower() == name.lower()):
+                # We already have a suitable import so we don't need
+                # another one.
+                return
+
+        table.new_symbol(
+            f"old_{name}",
+            symbol_type=RoutineSymbol,
+            interface=ImportInterface(
+                csym, orig_name=name))
+
 
     def apply(self, node, options=None):
         ''' Bring the kernel subroutine into this Container.
@@ -542,83 +560,75 @@ class KernelModuleInlineTrans(Transformation):
             if callee_name != caller_name:
                 node.name = callee_name
 
+        # The Container into which we will inline the Routine(s).
         container = node.ancestor(Container)
+
         for code_to_inline in updated_routines:
-            existing_symbol = node.scope.symbol_table.lookup(
-                code_to_inline.name, otherwise=None)
-            if not existing_symbol:
+
+            # Does the Container already have this Routine?
+            sym_in_ctr = container.symbol_table.lookup(code_to_inline.name,
+                                                       scope_limit=container,
+                                                       otherwise=None)
+            if not sym_in_ctr:
                 # If it doesn't exist already, module-inline the subroutine by
                 # inserting the relevant code into the tree.
                 # We need to set the visibility of the routine's symbol to
                 # be private.
                 code_to_inline.symbol.visibility = Symbol.Visibility.PRIVATE
                 container.addchild(code_to_inline.detach())
-            else:
-                if existing_symbol.is_import or existing_symbol.is_unresolved:
-                    # The RoutineSymbol is in the table but that is
-                    # because it is imported. We must therefore update
-                    # its interface and potentially remove the
-                    # ContainerSymbol (from which it is imported)
-                    # altogether.
-                    if existing_symbol.is_unresolved:
-                        # Since we've found the source, we now know where it
-                        # comes from.
-                        cntr = code_to_inline.ancestor(Container,
-                                                       excluding=FileContainer)
-                        if cntr:
-                            cntr_name = cntr.name
-                            csym = node.scope.symbol_table.lookup(cntr_name)
-                            ctable = csym.find_symbol_table(node)
-                        else:
-                            # The routine is in the FileContainer containing
-                            # the callsite so is not imported from a Container.
-                            csym = None
-                    else:
-                        csym = existing_symbol.interface.container_symbol
-                        # The import of the routine symbol may be in an
-                        # outer scope.
-                        ctable = csym.find_symbol_table(node)
+                continue
 
-                    if container.symbol_table.lookup(code_to_inline.name,
-                                                     scope_limit=container,
-                                                     otherwise=None):
-                        # Have to remove Symbol as adding the Routine into
-                        # the Container will insert it again.
-                        container.symbol_table._symbols.pop(
-                            existing_symbol.name)
-                    if csym:
-                        # The target routine is imported from a Container so we
-                        # have to remove the imported Symbol and potentially
-                        # the import too (i.e. the ContainerSymbol).
-                        remove_csym = (ctable.symbols_imported_from(csym) ==
-                                       [existing_symbol])
-                        if ctable.lookup(code_to_inline.name, otherwise=None):
-                            ctable._symbols.pop(existing_symbol.name)
-                        if csym.wildcard_import:
-                            # The Routine is brought into scope via a wildcard
-                            # import. We have to rename it on import to avoid
-                            # a clash with the newly inlined Routine.
-                            # TODO - check we haven't already done this.
-                            ctable.new_symbol(
-                                f"old_{existing_symbol.name}",
-                                symbol_type=RoutineSymbol,
-                                interface=ImportInterface(
-                                    csym, orig_name=existing_symbol.name))
-                        elif remove_csym:
-                            ctable.remove(csym)
+            if sym_in_ctr.is_import:
+                # The RoutineSymbol is imported into the table. We must
+                # therefore update its interface and potentially remove the
+                # ContainerSymbol (from which it is imported) altogether.
+                self._rm_imported_routine_symbol(sym_in_ctr.name,
+                                                 container.symbol_table)
+                # Inline the code. This will automatically add the
+                # associated RoutineSymbol into the Container.
+                code_to_inline = code_to_inline.detach()
+                container.addchild(code_to_inline)
+                sym = container.symbol_table.lookup(code_to_inline.name)
+                sym.visibility = Symbol.Visibility.PRIVATE
+
+            elif sym_in_ctr.is_unresolved:
+                # The Symbol in the Container scope is unresolved. However,
+                # we've found the source so we now know where it comes from.
+                cntr = code_to_inline.ancestor(Container,
+                                               excluding=FileContainer)
+                if cntr:
+                    cntr_name = cntr.name
+                    cntr_sym = container.symbol_table.lookup(cntr_name)
+                    # Now we have a ContainerSymbol, we can change the
+                    # interface of sym_in_ctr and proceed in exactly the
+                    # same way as if it had been resolved originally.
+                    sym_in_ctr.interface = ImportInterface(cntr_sym)
+                    self._rm_imported_routine_symbol(sym_in_ctr.name,
+                                                     container.symbol_table)
                     # Inline the code. This will automatically add the
                     # associated RoutineSymbol into the Container.
                     code_to_inline = code_to_inline.detach()
                     container.addchild(code_to_inline)
                     sym = container.symbol_table.lookup(code_to_inline.name)
                     sym.visibility = Symbol.Visibility.PRIVATE
-                    # All Calls in the same scope to a routine of the same
-                    # name must refer to the same Symbol.
-                    target_name = sym.name.lower()
-                    for call in node.ancestor(Routine).walk(Call):
-                        name = call.routine.symbol.name.lower()
-                        if name == target_name:
-                            call.routine.symbol = sym
+                else:
+                    # The routine is in the FileContainer containing
+                    # the callsite so is not imported from a Container.
+                    pass
+            else:
+                # The Routine is present in the Container.
+                sym = sym_in_ctr
+            # All Calls in the same scope to a routine of the same
+            # name must refer to the same Symbol.
+            target_name = sym.name.lower()
+            for call in node.ancestor(Routine).walk(Call):
+                name = call.routine.symbol.name.lower()
+                if name == target_name:
+                    call.routine.symbol = sym
+            # All Calls that referred to this Symbol must also be updated.
+            for call in container.walk(Call):
+                if call.routine.symbol is sym_in_ctr:
+                    call.routine.symbol = sym
 
         # Set the module-inline flag to avoid generating the kernel imports
         # TODO #1823. If the kernel imports were generated at PSy-layer

@@ -54,7 +54,8 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import OMPDeclareTargetTrans
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import Compile, count_lines, get_invoke
+from psyclone.tests.utilities import (Compile, count_lines, get_invoke,
+                                      make_external_module)
 
 
 def test_module_inline_constructor_and_str():
@@ -123,6 +124,9 @@ def test_check_data_accesses_indirect_import(monkeypatch):
 
 def test_check_data_accesses_import_clash(fortran_reader):
     '''
+    Check that check_data_accesses() spots a clash with an imported
+    Symbol.
+
     '''
     psyir = fortran_reader.psyir_from_source('''\
     module my_mod
@@ -357,7 +361,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
             "subroutine shadows the symbol name of the module container "
             "'external_mod'." in str(err.value))
 
-    # Repeat the same with a wildcard imports
+    # Repeat the same with a wildcard import
     psyir = fortran_reader.psyir_from_source('''
     module my_mod
         use external_mod
@@ -987,12 +991,8 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     '''
     # Create the module containing the subroutine definition, write it to
     # file and set the search path so that PSyclone can find it.
-    path = str(tmpdir)
-    monkeypatch.setattr(Config.get(), '_include_paths', [path])
-
-    with open(os.path.join(path, "my_mod.f90"),
-              "w", encoding="utf-8") as mfile:
-        mfile.write('''\
+    make_external_module(monkeypatch, fortran_reader, "my_mod",
+                         '''\
     module my_mod
     contains
       subroutine my_sub(arg)
@@ -1031,14 +1031,10 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
     without an enclosing module).
 
     '''
-    # Create the module containing the subroutine definition, write it to
-    # file and set the search path so that PSyclone can find it.
-    path = str(tmpdir)
-    monkeypatch.setattr(Config.get(), '_include_paths', [path])
-
-    with open(os.path.join(path, "my_mod.f90"),
-              "w", encoding="utf-8") as mfile:
-        mfile.write('''\
+    # Create the module containing the subroutine definition and add it to the
+    # ModuleManager.
+    make_external_module(monkeypatch, fortran_reader, "my_mod",
+                         '''\
     module my_mod
     contains
       subroutine my_sub(arg)
@@ -1074,7 +1070,7 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_inline_from_wildcard_import(fortran_reader, fortran_writer,
-                                         tmpdir, monkeypatch):
+                                         monkeypatch):
     '''
     Test that we can perform module inlining for the case where the routine
     is accessed via a wildcard import. This is complicated by the need to
@@ -1084,12 +1080,8 @@ def test_mod_inline_from_wildcard_import(fortran_reader, fortran_writer,
     '''
     # Create the module containing the subroutine definition, write it to
     # file and set the search path so that PSyclone can find it.
-    path = str(tmpdir)
-    monkeypatch.setattr(Config.get(), '_include_paths', [path])
-
-    with open(os.path.join(path, "my_mod.f90"),
-              "w", encoding="utf-8") as mfile:
-        mfile.write('''\
+    make_external_module(monkeypatch, fortran_reader, "my_mod",
+                         '''\
     module my_mod
     contains
       subroutine my_sub(arg)
@@ -1130,21 +1122,17 @@ subroutine my_sub(arg)''' in output)
     # We can't compile this because of the use statement.
 
 
-def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader):
+def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader,
+                                   fortran_writer):
     '''
     Test that Symbols are managed correctly when doing a module import for a
     call in one subroutine when there is a separate import and call in a second
     routine.
 
     '''
-    # Create the module containing the subroutine definition, write it to
-    # file and set the search path so that PSyclone can find it.
-    path = str(tmpdir)
-    monkeypatch.setattr(Config.get(), '_include_paths', [path])
-
-    with open(os.path.join(path, "my_mod.f90"),
-              "w", encoding="utf-8") as mfile:
-        mfile.write('''\
+    # Create the module containing the subroutine definition.
+    make_external_module(monkeypatch, fortran_reader, "my_mod",
+                         '''\
     module my_mod
     contains
       subroutine my_sub(arg)
@@ -1190,3 +1178,4 @@ def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader):
     assert calls[1].routine.symbol is container.symbol_table.lookup("my_sub")
     assert "my_mod" not in again.symbol_table
     assert len(container.walk(Routine)) == 3
+    assert Compile(tmpdir).string_compiles(fortran_writer(prog_psyir))
