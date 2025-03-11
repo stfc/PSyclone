@@ -20,7 +20,7 @@ example is rather complex and it is not expected that it can
 be finished in the typical time of a single hands-on session.
 
 
-Use the inlining transformation to bring all the loops together
+## Use the inlining transformation to bring all the loops together
 
 All subroutines calls except output_field need to be inlined. You
 can use the ``walk`` method to find all ``Call``s, and the name
@@ -59,13 +59,13 @@ assignments (even though they are identical) have been changed.
 The immediate problem to do additional code optimisations is that still the
 loops are not next to each other.
 
-Use the Move transformation to move the scalar assignments to the top
+## Use the Move transformation to move the scalar assignments to the top
 
 Before any loop fusion can be done, the loops must be next to each other,
 which means that the scalar assignments must all be moved to the top. This
 can be done with the Move transformation.
 
-Loop Fusion with a twist
+## Loop Fusion with a twist
 Still, even though the loops are now next to each other, loop fusion still
 does not work:
 
@@ -112,7 +112,7 @@ After this, the loop will look like:
 
 After this step, you can finally fuse the loop.
 
-Optional steps:
+## Optional steps:
 
 Apply OpenMP parallelisation, and then loop tiling. The order in the latter is important,
 after loop tiling the dependency analysis of PSyclone will not be able to detect if
