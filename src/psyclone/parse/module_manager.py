@@ -38,9 +38,8 @@ which module is contained in which file (including full location). '''
 
 
 import copy
-from collections import OrderedDict
 from difflib import SequenceMatcher
-from typing import Dict, Iterable, List, Set, Union
+from typing import Dict, Iterable, List, Set, Union, OrderedDict
 import os
 import re
 
