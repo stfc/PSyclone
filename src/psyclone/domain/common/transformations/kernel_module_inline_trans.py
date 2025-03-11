@@ -487,12 +487,6 @@ class KernelModuleInlineTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the called Routine cannot be brought
-            into this Container because of a name clash with another Routine.
-        :raises NotImplementedError: if node is a Call (rather than a
-            CodedKern) and the name of the called routine does not match that
-            of the caller.
-
         '''
         if isinstance(node, CodedKern) and node.module_inline:
             # This PSyKal Kernel is already module inlined.
@@ -531,8 +525,15 @@ class KernelModuleInlineTrans(Transformation):
             return
 
         # Deal with the RoutineSymbol that is in scope at the call site.
+        sym_in_ctr = None
         if local_sym and (local_sym.is_import or local_sym.is_unresolved):
             local_table = local_sym.find_symbol_table(node)
+            # It may be that the RoutineSymbol is in fact only declared
+            # in the Container. If that's the case then we need to keep a
+            # reference to it so that we can update other Calls to it at the
+            # end of this method.
+            if isinstance(local_table.node, Container):
+                sym_in_ctr = local_sym
             if local_sym.is_unresolved:
                 # If it's currently unresolved then we first update its
                 # interface prior to removing it.
@@ -583,19 +584,24 @@ class KernelModuleInlineTrans(Transformation):
         for code_to_inline in updated_routines:
 
             # Does the Container already have this Routine?
-            sym_in_ctr = container.symbol_table.lookup(code_to_inline.name,
-                                                       scope_limit=container,
-                                                       otherwise=None)
+            if not sym_in_ctr:
+                # We only update sym_in_ctr if it hasn't already been set
+                # earlier when updating the 'local' symbol.
+                sym_in_ctr = container.symbol_table.lookup(
+                    code_to_inline.name,
+                    scope_limit=container,
+                    otherwise=None)
+
             if not sym_in_ctr:
                 # If it doesn't exist already, module-inline the subroutine by
                 # inserting the relevant code into the tree.
                 # We need to set the visibility of the routine's symbol to
                 # be private.
-                code_to_inline.symbol.visibility = Symbol.Visibility.PRIVATE
+                sym = code_to_inline.symbol
+                sym.visibility = Symbol.Visibility.PRIVATE
                 container.addchild(code_to_inline.detach())
-                continue
 
-            if sym_in_ctr.is_import:
+            elif sym_in_ctr.is_import:
                 # The RoutineSymbol is imported into the table. We must
                 # therefore update its interface and potentially remove the
                 # ContainerSymbol (from which it is imported) altogether.
@@ -614,6 +620,8 @@ class KernelModuleInlineTrans(Transformation):
                 cntr = code_to_inline.ancestor(Container,
                                                excluding=FileContainer)
                 if cntr:
+                    # The symbol comes from a Container (not a FileContainer)
+                    # and so needs an import interface.
                     cntr_name = cntr.name
                     cntr_sym = container.symbol_table.lookup(cntr_name)
                     # Now we have a ContainerSymbol, we can change the
@@ -628,15 +636,11 @@ class KernelModuleInlineTrans(Transformation):
                     container.addchild(code_to_inline)
                     sym = container.symbol_table.lookup(code_to_inline.name)
                     sym.visibility = Symbol.Visibility.PRIVATE
-                else:
-                    # The routine is in the FileContainer containing
-                    # the callsite so is not imported from a Container.
-                    pass
             else:
                 # The Routine is present in the Container.
                 sym = sym_in_ctr
-            # All Calls in the same scope to a routine of the same
-            # name must refer to the same Symbol.
+            # All Calls to a routine of the same name in the same scope as the
+            # target node must refer to the same Symbol.
             target_name = sym.name.lower()
             for call in node.ancestor(Routine).walk(Call):
                 name = call.routine.symbol.name.lower()

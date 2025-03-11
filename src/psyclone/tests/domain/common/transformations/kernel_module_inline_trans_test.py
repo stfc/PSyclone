@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import (
     Container, Routine, CodeBlock, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, ImportInterface, RoutineSymbol, REAL_TYPE,
-    Symbol, SymbolError, SymbolTable)
+    Symbol, SymbolError, SymbolTable, UnresolvedInterface)
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import OMPDeclareTargetTrans
 from psyclone.tests.gocean_build import GOceanBuild
@@ -1019,6 +1019,7 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     assert "subroutine a_sub" in output
     assert "subroutine my_sub" in output
     assert "use my_mod, only : my_other_sub\n" in output
+    # Check that repeating the transformation does nothing.
     intrans.apply(calls[0])
     output2 = fortran_writer(psyir)
     assert output2 == output
@@ -1181,3 +1182,103 @@ def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader,
     assert "my_mod" not in again.symbol_table
     assert len(container.walk(Routine)) == 3
     assert Compile(tmpdir).string_compiles(fortran_writer(prog_psyir))
+
+
+def test_mod_inline_all_calls_updated(monkeypatch, fortran_reader):
+    '''
+    Check that all Calls to a RoutineSymbol in scope at the Container level
+    are updated by the transformation.
+
+    '''
+    # Create the module containing the subroutine definition.
+    make_external_module(monkeypatch, fortran_reader, "my_mod",
+                         '''\
+    module my_mod
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = 1.0
+      end subroutine my_sub
+    end module my_mod
+    ''')
+
+    intrans = KernelModuleInlineTrans()
+    # The named import of the routine ensures the RoutineSymbol is in
+    # the table of the Container.
+    code = '''\
+    module this_mod
+      use my_mod, only: my_sub
+    contains
+      subroutine do_it()
+        real, dimension(10) :: a
+        call my_sub(a)
+      end subroutine do_it
+      subroutine and_again()
+        real, dimension(10) :: b
+        call my_sub(b)
+      end subroutine and_again
+    end module this_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.children[0]
+    calls = container.walk(Call)
+    rt_sym0 = container.symbol_table.lookup("my_sub")
+    for call in calls:
+        assert call.routine.symbol is rt_sym0
+    intrans.apply(calls[0])
+    # Since all calls previously referenced the same symbol, they should now
+    # all reference the new one.
+    rt_sym1 = container.symbol_table.lookup("my_sub")
+    assert rt_sym0 is not rt_sym1
+    for call in calls:
+        assert call.routine.symbol is rt_sym1
+
+
+def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
+    '''
+    Test that module inlining proceeeds successfully when the parent
+    Container happens to contain an unresolved RoutineSymbol representing
+    the target Routine. In the usual scheme of things this should never
+    happen as the frontend will put an unresolved Symbol in the table that
+    is most local to its use.
+
+    '''
+    # Create the module containing the subroutine definition.
+    make_external_module(monkeypatch, fortran_reader, "my_mod",
+                         '''\
+    module my_mod
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = 1.0
+      end subroutine my_sub
+    end module my_mod
+    ''')
+
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    module this_mod
+      use my_mod
+    contains
+      subroutine do_it()
+        use my_mod
+        integer :: old_my_sub
+        real, dimension(10) :: a
+        call my_sub(a)
+      end subroutine do_it
+    end module this_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.children[0]
+    # As explained above, we wouldn't normally have an unresolved Symbol for
+    # the Routine in the Container scope in this situation so we artificially
+    # add one.
+    container.symbol_table.new_symbol("my_sub", symbol_type=RoutineSymbol,
+                                      interface=UnresolvedInterface())
+    calls = container.walk(Call)
+    intrans.apply(calls[0])
+    new_rt = container.symbol_table.lookup("my_sub")
+    assert not (new_rt.is_import or new_rt.is_unresolved)
+    ctr_sym = container.symbol_table.lookup("my_mod")
+    (isym,) = container.symbol_table.symbols_imported_from(ctr_sym)
+    assert isym.interface.orig_name == "my_sub"
