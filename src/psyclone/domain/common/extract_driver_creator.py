@@ -500,7 +500,7 @@ class ExtractDriverCreator(BaseDriverCreator):
         # The validation of the extract transform guarantees that all nodes
         # in the node list have the same parent.
         schedule_copy = nodes[0].parent.copy()
-        schedule_copy.lower_to_language_level()
+        # schedule_copy.lower_to_language_level()
         self.import_modules(program, schedule_copy)
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
                                     writer)
