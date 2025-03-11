@@ -108,7 +108,7 @@ access to the PSyIR of the ``Container`` representing the module:
 
 .. automethod:: psyclone.parse.ModuleInfo.get_psyir
 
-However, it also provides methods (``get_used_modules``,
+However, it also provides methods (``get_used_module_names``,
 ``get_used_symbols_from_modules``) for interrogating the parse tree which
 can be useful if it is not possible to represent this in PSyIR.
 
@@ -124,7 +124,7 @@ which prints the filenames of all modules used in ``tl_testkern_mod``:
 
     testkern_info = mod_manager.get_module_info("tl_testkern_mod")
 
-    used_mods = testkern_info.get_used_modules()
+    used_mods = testkern_info.get_used_module_names()
     # Sort the modules so we get a reproducible output ordering
     used_mods_list = sorted(list(used_mods))
     for module_name in used_mods_list:
