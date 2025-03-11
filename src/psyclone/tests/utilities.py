@@ -49,6 +49,7 @@ import pytest
 from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
+from psyclone.parse import ModuleInfo, FileInfo, ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import Invoke, PSyFactory, PSy
 from psyclone.errors import PSycloneError
@@ -628,3 +629,24 @@ def check_links(parent, children):
     for index, child in enumerate(children):
         assert child.parent is parent
         assert parent.children[index] is child
+
+
+def make_external_module(monkeypatch,
+                         fortran_reader,
+                         mod_name: str,
+                         code: str):
+    '''
+    Utility to add an 'external' module into the ModuleManager. This saves us
+    from having to create and then search for a specific module file.
+
+    :param monkeypatch: the monkeypatch fixture to use.
+    :param fortran_reader: the FortranReader fixture to use.
+    :param mod_name: the name of the module to create.
+    :param code: the Fortran source for the module.
+
+    '''
+    minfo = ModuleInfo(mod_name, FileInfo(f"{mod_name}.f90"))
+    cntr = fortran_reader.psyir_from_source(code).children[0]
+    minfo._psyir_container_node = cntr
+    mman = ModuleManager.get()
+    monkeypatch.setitem(mman._modules, mod_name, minfo)
