@@ -37,12 +37,12 @@
 which module is contained in which file (including full location). '''
 
 
-from collections import OrderedDict
 import copy
+from collections import OrderedDict
 from difflib import SequenceMatcher
+from typing import Dict, Iterable, List, Set, Union
 import os
 import re
-from typing import List, Iterable, Union
 
 from psyclone.errors import InternalError
 from psyclone.parse.file_info import FileInfo
@@ -375,13 +375,15 @@ class ModuleManager:
 
             self._filepath_to_module_info[filepath] = module_info_in_file
 
-    def get_all_module_infos(self) -> List[ModuleInfo]:
+    @property
+    def all_module_infos(self) -> List[ModuleInfo]:
         """
         :returns: list of all module infos.
         """
         return list(self._modules.values())
 
-    def get_all_file_infos(self) -> List[FileInfo]:
+    @property
+    def all_file_infos(self) -> List[FileInfo]:
         """
         :returns: List of all FileInfo objects.
         """
@@ -461,113 +463,13 @@ class ModuleManager:
 
         return [name.lower() for name in mod_names]
 
-    def get_all_recursively_used_module_infos_for_module_info_name(
-        self,
-        module_info_name: str,
-        verbose: bool = False,
-        indent: str = "",
-    ) -> List[ModuleInfo]:
-        """This function collects all modules which are recursively used
-        by the specified module name. It returns a list of module infos in the
-        order of dependencies, i.e. a module which is used by another module
-        is listed before the module which uses it.
-
-        The differences to `get_all_dependencies_recursively` are as follows:
-        - A list of ModuleInfos is returned in the same order as the
-            dependencies are found.
-        - The input is a single module name, not a set of modules.
-        - It is for a specific module info name rather than for all modules.
-
-        :param module_info_name: the module info name for which to collect
-            all recursively used modules.
-        :param verbose: whether to print some information about
-            the modules being processed.
-        :param indent: Prefix used as indentation for each line of
-            verbose output.
-
-        :returns: a list of all modules used by the specified module in
-            order of dependencies.
-        """
-
-        # List of module infos which still need to be traversed.
-        # We start with the current module
-        todo_module_name_list: List[str] = [module_info_name]
-
-        # List of modules infos in order of uses.
-        # After a module info was processed from the TODO list,
-        # it's added to the list of modules returned to the caller.
-        ret_module_info_list: List[ModuleInfo] = list()
-
-        while len(todo_module_name_list) > 0:
-            #
-            # Step 1) fetch element from the TODO list
-            #
-
-            # Get first element
-            todo_module_name = todo_module_name_list.pop(0)
-
-            try:
-                todo_module_info = self.get_module_info(
-                    todo_module_name
-                )
-            except (ModuleNotFoundError, FileNotFoundError):
-                if verbose:
-                    print(f"{indent}- Module '{todo_module_name}' not found")
-                continue
-
-            if verbose:
-                print(f"{indent}- Module '{todo_module_name}' found")
-
-            # Add to return list of modules
-            ret_module_info_list.append(todo_module_info)
-
-            #
-            # Step 2) Determine used modules and iterate over them
-            #
-
-            # Determine list of module names
-            used_module_name_list = todo_module_info.get_used_modules()
-
-            for used_module_name in used_module_name_list:
-                try:
-                    used_module_info: ModuleInfo = self.get_module_info(
-                        used_module_name
-                    )
-
-                    # Could be also in ignore list which then just
-                    # returns 'None'
-                    if used_module_info is None:
-                        continue
-
-                except (ModuleNotFoundError, FileNotFoundError):
-                    if verbose:
-                        print(
-                            f"{indent}- Module '{used_module_name}' not found"
-                        )
-                    continue
-
-                # If module is already in the todo list,
-                # do nothing since it will be processed
-                if used_module_info.name in todo_module_name_list:
-                    continue
-
-                # If module is already in the output list,
-                # do nothing since it has been already processed
-                if used_module_info in ret_module_info_list:
-                    continue
-
-                # It's not yet on any list, hence, add it to the todo list
-                todo_module_name_list.append(used_module_info.name)
-
-        return ret_module_info_list
-
     def get_all_dependencies_recursively(
             self,
-            all_mod_names
-    ):
+            all_mod_names: List[str],
+    ) -> OrderedDict[str, List[str]]:
         '''This function collects recursively all module dependencies
         for any of the modules in the ``all_mod_names`` set. I.e. it will
-        add all modules used by any module listed in ``all_mods``,
+        add all modules used by any module listed in ``all_mod_names``,
         and any modules used by the just added modules etc. In the end,
         it will return a dictionary that for each module lists which
         modules it depends on. This dictionary will be complete,
@@ -581,24 +483,23 @@ class ModuleManager:
         be ignored (i.e. not listed in any dependencies).
         # TODO 2120: allow a choice to abort or ignore.
 
-        :param set[str] all_mod_names: the set of all module names for which to
-            collect module dependencies.
+        :param all_mod_names: the set of all module names for which
+            to collect module dependencies.
 
-        :returns: a dictionary with all modules that are required (directly
-            or indirectly) for the modules in ``all_mod_names``.
-        :rtype: dict[str, set[str]]
-
+        :returns: an ordered dictionary with all modules that are required
+            (directly or indirectly) for the modules in ``all_mod_names``.
         '''
+
         # This contains the mapping from each module name to the
         # list of the dependencies and is returned as result:
-        module_dependencies = {}
+        module_dependencies = OrderedDict()
 
         # Work on a copy to avoid modifying the caller's set:
         todo = all_mod_names.copy()
 
         # This set contains module that could not be found (to avoid
         # adding them to the todo list again
-        not_found = set()
+        not_found = list()
 
         while todo:
             # Pick one (random) module to handle (convert to lowercase
@@ -609,16 +510,15 @@ class ModuleManager:
             if module in self.ignores():
                 continue
             try:
-                mod_deps = self.get_module_info(module).get_used_modules()
-                # Convert to set since we continue with a set
-                mod_deps = set(mod_deps)
+                mod_deps = self.get_module_info(module).get_used_module_names()
+                mod_deps = list(mod_deps)
             except (FileNotFoundError, ModuleInfoError):
                 if module not in not_found:
                     # We don't have any information about this module,
                     # ignore it.
                     # TODO 2120: allow a choice to abort or ignore.
                     print(f"Could not find module '{module}'.")
-                    not_found.add(module)
+                    not_found.append(module)
                     # Remove this module as dependencies from any other
                     # module in our todo list, so the final result will
                     # only contain known modules
@@ -628,20 +528,83 @@ class ModuleManager:
                 continue
 
             # Remove all dependencies which we don't know anything about:
-            mod_deps = mod_deps.difference(not_found)
+            mod_deps = [x for x in mod_deps if x not in not_found]
 
             # Add the dependencies of `module` to the result dictionary:
             module_dependencies[module] = mod_deps
 
             # Remove all dependencies from the list of new dependencies
             # of `module` that have already been handled:
-            new_deps = mod_deps.difference(module_dependencies.keys())
+            module_dependencies_keys = module_dependencies.keys()
+            new_deps = [x for x in mod_deps
+                        if x not in module_dependencies_keys]
 
-            # Then add these really new modules to the list of modules
+            # Then append these really new modules to the list of modules
             # that still need to be handled
-            todo |= new_deps
+            for dep in new_deps:
+                if dep not in todo:
+                    todo.append(dep)
 
         return module_dependencies
+
+    def get_all_dependencies_recursively_DEPRECATED(
+            self,
+            all_mod_names: Set[str]
+    ) -> Dict[str, Set[str]]:
+        """
+        This function collects recursively all module dependencies
+        for any of the modules in the ``all_mod_names`` set.
+        See ``get_all_dependencies_recursively`` for more information.
+
+        This function exists for legacy reasons, taking sets as input and also
+        using sets as output. But sets don't allow for reproducible runs which
+        is the reason why this is declared to be deprecated.
+
+        :param all_mod_names: the set of all module names for which to
+            collect module dependencies.
+
+        :returns: a dictionary with all module names as keys that are required
+            (directly or indirectly) for the modules in ``all_mod_names``.
+        """
+        module_dependencies: OrderedDict[str, List[str]] = \
+            self.get_all_dependencies_recursively(
+                list(all_mod_names)
+            )
+
+        module_dependencies_retval = dict()
+        for module_name, mod_name_list in module_dependencies.items():
+            module_dependencies_retval[module_name] = set(mod_name_list)
+
+        return module_dependencies_retval
+
+    def get_all_dependencies_recursively_for_module_name(
+        self,
+        module_info_name: str
+    ) -> List[str]:
+        """This function collects all modules which are recursively used
+        by the specified module name. It returns a list of module names in
+        the order of dependencies, i.e. a module which is used by another
+        module is listed before the module which uses it.
+
+        See ``get_all_dependencies_recursively`` for more information.
+
+        :param module_info_name: the module info name for which to collect
+            all recursively used modules.
+
+        :returns: a list of all module names used by the specified module in
+            order of dependencies.
+        """
+
+        module_dependencies: OrderedDict[str, List[str]] = \
+            self.get_all_dependencies_recursively(
+                [module_info_name]
+            )
+
+        if module_info_name not in module_dependencies:
+            print(f"Could not find module '{module_info_name}'.")
+            return None
+
+        return module_dependencies[module_info_name]
 
     # -------------------------------------------------------------------------
     def sort_modules(self, module_dependencies):
@@ -698,9 +661,9 @@ class ModuleManager:
                 # dependencies, the best we can do in this case - and
                 # it's better to provide all modules (even if they cannot)
                 # be sorted, than missing some.
-                all_mods_sorted = sorted((mod for mod in todo.keys()),
-                                         key=lambda x: len(todo[x]))
-                mod = all_mods_sorted[0]
+                all_mod_names_sorted = sorted((mod for mod in todo.keys()),
+                                              key=lambda x: len(todo[x]))
+                mod = all_mod_names_sorted[0]
 
             # Add the current module to the result and remove it from
             # the todo list.

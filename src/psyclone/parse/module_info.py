@@ -206,7 +206,7 @@ class ModuleInfo:
             self._map_module_name_to_used_symbols[mod_name] = all_symbols
 
     # ------------------------------------------------------------------------
-    def get_used_modules(self) -> List[str]:
+    def get_used_module_names(self) -> List[str]:
         '''This function returns a set of all modules `used` in this
         module. Fortran `intrinsic` modules will be ignored. The information
         is based on the fparser parse tree of the module (since fparser can
@@ -214,7 +214,6 @@ class ModuleInfo:
         pre-processor directives).
 
         :returns: a set with all imported module names.
-        :rtype: set[str]
 
         '''
         if self._used_module_names is None:
@@ -362,5 +361,5 @@ class ModuleInfo:
         retstr = ""
         retstr += f"{indent}- name: '{self.name}'\n"
         retstr += (f"{indent}- used_module_names:"
-                   f" {self.get_used_modules()}\n")
+                   f" {self.get_used_module_names()}\n")
         return retstr

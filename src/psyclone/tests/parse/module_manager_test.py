@@ -227,7 +227,7 @@ def test_mod_manager_get_module_info():
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
-def test_mod_manager_get_all_dependencies_recursively(capsys):
+def test_mod_manager_get_all_dependencies_recursively_DEPRECATED(capsys):
     '''Tests that dependencies are correctly collected recursively. We use
     the standard directory and file setup (see mod_man_test_setup_directories)
     tmp/d1/a_mod.f90       : no dependencies
@@ -242,7 +242,7 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
-    all_d = mod_man.get_all_dependencies_recursively({"d_mod"})
+    all_d = mod_man.get_all_dependencies_recursively_DEPRECATED({"d_mod"})
     assert len(all_d.keys()) == 4
     assert all_d["a_mod"] == set()
     assert all_d["b_mod"] == set()
@@ -250,13 +250,13 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
     assert all_d["d_mod"] == set(("c_mod", ))
 
     # Test ignoring of unknown modules, in this case NetCDF
-    all_e = mod_man.get_all_dependencies_recursively({"e_mod"})
+    all_e = mod_man.get_all_dependencies_recursively_DEPRECATED({"e_mod"})
     assert len(all_e.keys()) == 1
     assert all_e["e_mod"] == set()
     out, _ = capsys.readouterr()
     assert "Could not find module 'netcdf'" in out
 
-    all_c = mod_man.get_all_dependencies_recursively({"c_mod"})
+    all_c = mod_man.get_all_dependencies_recursively_DEPRECATED({"c_mod"})
     assert "a_mod" in all_c
     assert "b_mod" in all_c
     assert "c_mod" in all_c
@@ -264,7 +264,7 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
     # Instruct the module manager to ignore a_mod, which means
     # it should only have b_mod and c_mod in its dependencies:
     mod_man.add_ignore_module("a_mod")
-    all_c = mod_man.get_all_dependencies_recursively({"c_mod"})
+    all_c = mod_man.get_all_dependencies_recursively_DEPRECATED({"c_mod"})
     assert "a_mod" not in all_c
     assert "b_mod" in all_c
     assert "c_mod" in all_c
@@ -375,9 +375,11 @@ def test_mod_manager_add_files_and_more():
     mod_man.load_all_source_files()
     mod_man.create_all_fparser_trees()
     mod_man.create_all_psyir_nodes()
-    mod_man.get_all_file_infos()
+    dummy = mod_man.all_file_infos
+    assert dummy is not None
     mod_man.load_all_module_infos(verbose=True)
-    mod_man.get_all_module_infos()
+    dummy = mod_man.all_module_infos
+    assert dummy is not None
 
     # Should raise an error that the first module to be processed
     # was already processed
@@ -458,19 +460,17 @@ def test_mod_manager_get_all_rec_used_mod_infos():
     mod_man.add_files("d_b.f90")
     mod_man.load_all_module_infos(verbose=True)
 
-    for mod_info in mod_man.get_all_module_infos():
+    for mod_info in mod_man.all_module_infos:
         print(mod_info.name)
 
-    mod_man.get_all_recursively_used_module_infos_for_module_info_name(
-        "d", verbose=True
-    )
+    mod_man.get_all_dependencies_recursively_for_module_name("d")
 
 
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
 def test_mod_manager_get_all_rec_used_mod_infos_missing_a(capsys):
     '''
     Make particular check for
-    get_all_recursively_used_module_infos_for_module_info_name():
+    get_all_dependencies_recursively_for_module_name():
     - Create files for modules 'c' and 'b'
     - Dependency of modules is c -> b -> a
     - This will follow some paths in the control flow
@@ -494,18 +494,17 @@ def test_mod_manager_get_all_rec_used_mod_infos_missing_a(capsys):
 
     # These are soft errors that don't raise Exceptions
 
-    mod_man.get_all_recursively_used_module_infos_for_module_info_name(
-        "c", verbose=True)
+    mod_man.get_all_dependencies_recursively_for_module_name("c")
 
     out, _ = capsys.readouterr()
-    assert "Module 'a' not found" in out
+    assert "Could not find module 'a'." in out
 
 
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
 def test_mod_manager_get_all_rec_used_mod_infos_missing_a_ver2(capsys):
     '''
     Make particular check for
-    get_all_recursively_used_module_infos_for_module_info_name():
+    get_all_dependencies_recursively_for_module_name():
     - Create files for modules 'c' and 'b'
     - Dependency of modules is c -> b -> a
     - This will follow some particular paths in the control flow
@@ -528,11 +527,10 @@ def test_mod_manager_get_all_rec_used_mod_infos_missing_a_ver2(capsys):
 
     # These are soft errors that don't raise Exceptions
 
-    mod_man.get_all_recursively_used_module_infos_for_module_info_name(
-        "c", verbose=True)
+    mod_man.get_all_dependencies_recursively_for_module_name("c")
 
     out, _ = capsys.readouterr()
-    assert "Module 'a' not found" in out
+    assert "Could not find module 'a'." in out
 
 
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
@@ -553,11 +551,10 @@ def test_mod_manager_get_all_rec_used_mod_infos_missing_b(capsys):
     mod_man.load_all_module_infos(verbose=True)
 
     # These are soft errors that don't raise Exceptions
-    mod_man.get_all_recursively_used_module_infos_for_module_info_name(
-        "c", verbose=True)
+    mod_man.get_all_dependencies_recursively_for_module_name("c")
 
     out, _ = capsys.readouterr()
-    assert "Module 'b' not found" in out
+    assert "Could not find module 'b'." in out
 
 
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
@@ -570,36 +567,7 @@ def test_mod_manager_get_all_rec_used_mod_infos_missing_first_module(capsys):
     mod_man = ModuleManager.get()
 
     # These are soft errors that don't raise Exceptions
-    mod_man.get_all_recursively_used_module_infos_for_module_info_name(
-        "c", verbose=True)
+    mod_man.get_all_dependencies_recursively_for_module_name("c")
 
     out, _ = capsys.readouterr()
-    assert "Module 'c' not found" in out
-
-
-@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
-def test_mod_manager_get_all_rec_used_mod_infos_ignore_module(capsys):
-    '''
-    Make particular check for get_all_recursively_used_module_infos():
-    - This will trigger one particular execution path if
-      `add_ignore_module` is used
-    '''
-    mod_man = ModuleManager.get()
-
-    with open("b.f90", "w", encoding="utf-8") as f_out:
-        f_out.write("module b\nend")   # Just an empty file
-
-    with open("c_b.f90", "w", encoding="utf-8") as f_out:
-        f_out.write("module c\nuse b\nend")   # Just an empty file
-
-    mod_man.add_files("b.f90")
-    mod_man.add_files("c_b.f90")
-    mod_man.add_ignore_module("b")
-    mod_man.load_all_module_infos()
-
-    # These are soft errors that don't raise Exceptions
-    mod_man.get_all_recursively_used_module_infos_for_module_info_name(
-        "c", verbose=True)
-
-    out, _ = capsys.readouterr()
-    assert "Module 'c' found" in out
+    assert "Could not find module 'c'." in out
