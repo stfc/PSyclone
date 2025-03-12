@@ -520,10 +520,9 @@ def add_profile_region(nodes):
                 # of a single statement
                 return
             if isinstance(nodes[0], IfBlock) and \
-               "was_single_stmt" in nodes[0].annotations and \
-               isinstance(nodes[0].if_body[0], CodeBlock):
+               "was_single_stmt" in nodes[0].annotations:
                 # We also don't put single statements consisting of
-                # 'IF(condition) CALL blah()' inside profiling regions
+                # 'IF(condition) statement' inside profiling regions
                 return
         try:
             ProfileTrans().apply(nodes)
