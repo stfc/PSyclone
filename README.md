@@ -1,6 +1,8 @@
-<p align="left">
-  <img width="460" src="doc/logo/psyclone_logo_light_theme.png">
-</p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="doc/logo/psyclone_logo_dark_theme.png">
+  <source media="(prefers-color-scheme: light)" srcset="doc/logo/psyclone_logo_light_theme.png">
+  <img alt="PSyclone logo" width="460" src="doc/logo/psyclone_logo_light_theme.png">
+</picture>
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11190457.svg)](https://doi.org/10.5281/zenodo.11190457)
 ![Build Status](https://github.com/stfc/PSyclone/workflows/PSyclone%20tests%20and%20examples/badge.svg)
