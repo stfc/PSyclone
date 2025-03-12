@@ -4164,6 +4164,26 @@ def test_rc_no_halo_kernels():
             "operates on 'halo_cell_column'" in str(err.value))
 
 
+def test_rc_no_set_random(monkeypatch):
+    '''
+    Test that Dynamo0p3RedundantComputationTrans refuses to transform the
+    LFRic built-in that generates pseudo-random numbers.
+    '''
+    _, invoke = get_invoke("15.7.4_setval_random_builtin.f90",
+                           TEST_API, idx=0, dist_mem=True)
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = invoke.schedule.walk(LFRicLoop)[0]
+    with pytest.raises(TransformationError) as err:
+        rc_trans.validate(loop)
+    assert ("to kernel 'setval_random' because it generates pseudo-random "
+            "data which cannot be done redundantly" in str(err.value))
+    monkeypatch.setattr(loop.loop_body[0], "_name", "setop_random_")
+    with pytest.raises(TransformationError) as err:
+        rc_trans.validate(loop)
+    assert ("to kernel 'setop_random_' because it generates pseudo-random "
+            "data which cannot be done redundantly" in str(err.value))
+
+
 def test_rc_invalid_depth():
     ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied depth is less than 1. '''

@@ -49,8 +49,9 @@ import abc
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
-                                   LFRicInvokeSchedule, LFRicKern, LFRicLoop)
+from psyclone.domain.lfric import (
+    KernCallArgList, LFRicConstants,
+    LFRicInvokeSchedule, LFRicKern, LFRicLoop)
 from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
@@ -1819,8 +1820,12 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
       parallelisation transformations (e.g. for OpenMP) to the loop in
       question and will raise an exception if this is not the case.
 
-    * This transformation can not be applied to a loop containing a
+    * This transformation cannot be applied to a loop containing a
       reduction and will again raise an exception if this is the case.
+
+    * This transformation cannot be applied to loops containing either
+      the setval_random or setop_random builtins since they generate
+      pseudo-random data which cannot be done redundantly.
 
     * This transformation can only be used to add redundant
       computation to a loop, not to remove it.
@@ -1837,52 +1842,52 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         '''Perform various checks to ensure that it is valid to apply the
         RedundantComputation transformation to the supplied node
 
-        :param node: the supplied node on which we are performing\
+        :param node: the supplied node on which we are performing
                      validity checks
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param int options["depth"]: the depth of the stencil if the value \
+        :param int options["depth"]: the depth of the stencil if the value
                      is provided and None if not.
 
-        :raises TransformationError: if the parent of the loop is a\
+        :raises TransformationError: if the parent of the loop is a
             :py:class:`psyclone.psyir.nodes.Directive`.
-        :raises TransformationError: if the parent of the loop is not a\
-            :py:class:`psyclone.psyir.nodes.Loop` or a\
+        :raises TransformationError: if the parent of the loop is not a
+            :py:class:`psyclone.psyir.nodes.Loop` or a
             :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
-        :raises TransformationError: if the parent of the loop is a\
-            :py:class:`psyclone.psyir.nodes.Loop` but the original loop does\
+        :raises TransformationError: if the parent of the loop is a
+            :py:class:`psyclone.psyir.nodes.Loop` but the original loop does
             not iterate over 'colour'.
-        :raises TransformationError: if the parent of the loop is a\
+        :raises TransformationError: if the parent of the loop is a
             :py:class:`psyclone.psyir.nodes.Loop` but the parent does not
             iterate over 'colours'.
-        :raises TransformationError: if the parent of the loop is a\
-            :py:class:`psyclone.psyir.nodes.Loop` but the parent's parent is\
+        :raises TransformationError: if the parent of the loop is a
+            :py:class:`psyclone.psyir.nodes.Loop` but the parent's parent is
             not a :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
-        :raises TransformationError: if this transformation is applied\
+        :raises TransformationError: if this transformation is applied
             when distributed memory is not switched on.
-        :raises TransformationError: if the loop does not iterate over\
+        :raises TransformationError: if the loop does not iterate over
             cells, dofs or colour.
         :raises TransformationError: if the loop contains a kernel that
-            operates on halo cells.
-        :raises TransformationError: if the transformation is setting the\
-            loop to the maximum halo depth but the loop already computes\
+            operates on halo cells or computes pseudo-random data.
+        :raises TransformationError: if the transformation is setting the
+            loop to the maximum halo depth but the loop already computes
             to the maximum halo depth.
-        :raises TransformationError: if the transformation is setting the\
-            loop to the maximum halo depth but the loop contains a stencil\
-            access (as this would result in the field being accessed\
+        :raises TransformationError: if the transformation is setting the
+            loop to the maximum halo depth but the loop contains a stencil
+            access (as this would result in the field being accessed
             beyond the halo depth).
-        :raises TransformationError: if the supplied depth value is not an\
+        :raises TransformationError: if the supplied depth value is not an
             integer.
-        :raises TransformationError: if the supplied depth value is less\
+        :raises TransformationError: if the supplied depth value is less
             than 1.
-        :raises TransformationError: if the supplied depth value is not\
-            greater than 1 when a continuous loop is modified as this is\
+        :raises TransformationError: if the supplied depth value is not
+            greater than 1 when a continuous loop is modified as this is
             the minimum valid value.
-        :raises TransformationError: if the supplied depth value is not\
-            greater than the existing depth value, as we should not need\
+        :raises TransformationError: if the supplied depth value is not
+            greater than the existing depth value, as we should not need
             to undo existing transformations.
-        :raises TransformationError: if a depth value has been supplied\
+        :raises TransformationError: if a depth value has been supplied
             but the loop has already been set to the maximum halo depth.
 
         '''
@@ -1950,6 +1955,14 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                     f"Cannot apply the {self.name} transformation to kernels "
                     f"that operate on halo cells but kernel '{kern.name}' "
                     f"operates on '{kern.iterates_over}'.")
+            # setval_random is a Builtin but setop_random_* is not. They
+            # are only used for testing adjointed kernels.
+            if ("setop_random" in kern.name.lower() or
+                    "setval_random" in kern.name.lower()):
+                raise TransformationError(
+                    f"Cannot apply the {self.name} transformation to kernel "
+                    f"'{kern.name}' because it generates pseudo-random data "
+                    f"which cannot be done redundantly.")
 
         # We don't currently support the application of transformations to
         # loops containing inter-grid kernels
