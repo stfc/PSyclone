@@ -33,7 +33,7 @@
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-.. _introduction:
+.. _psyad_introduction:
 
 Introduction
 ============

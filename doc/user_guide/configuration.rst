@@ -81,7 +81,7 @@ As a last resort, the location
 is searched in case PSyclone was installed in editable mode.
 
 Note that for developers a slightly different configuration handling
-is implemented, see :ref:`dev_configuration` for details.
+is implemented, see :ref:`dev-configuration` for details.
 
 Options
 -------

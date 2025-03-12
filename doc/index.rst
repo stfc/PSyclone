@@ -96,7 +96,7 @@ Reference Guide
 .. toctree::
     :maxdepth: 2
 
-    reference_guide/source/index
+    ref_guide
     
 Bibliography
 ---------------

@@ -64,7 +64,7 @@ domain-specific classes (using the ``RaisePSyIR2LFRicKernelTrans`` and
 GOcean API's, respectively). These classes allow the metadata to be
 simply read when generating psy-layer code, but also to be simply
 modified if required (e.g. when generating adjoint code - see the
-:ref:`user guide <psyad_user_guide:introduction>` for more
+:ref:`user guide <psyad_introduction>` for more
 details). As with existing code, these domain-specific classes can be
 'lowered' to produce generic PSyIR and PSyclone's back-ends used to
 output the resultant metadata and code.
@@ -386,7 +386,7 @@ was generated from the source code with pyreverse and edited with inkscape.
     :align: center
 
 The InvokeSchedule can currently contain nodes of type: **Loop**,
-**Kernel**, **Built-in** (see the :ref:`built-ins` section),
+**Kernel**, **Built-in** (see the :ref:`psykal-built-ins` section),
 **Directive** (of various types), **HaloExchange**, or
 **GlobalSum** (the latter two are only used if distributed memory is
 supported and is switched on; see the :ref:`psykal_usage`
