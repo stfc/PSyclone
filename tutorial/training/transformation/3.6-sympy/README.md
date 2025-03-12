@@ -49,6 +49,27 @@ The solution directory contains a program ``dataflow.py``, which uses this
 information to create graphviz code to show a dataflow diagram. It is
 a small wrapper around the VariableAccessInformation class.
 
+Given the example code:
+
+	subroutine foo(a, b)
+	real, intent(inout) :: a
+	real, intent(inout) :: b
+	real :: c, d, e, f
+	c = a + 1.0
+	e = a**2
+	f = cos(e)
+	d = c + 2.0
+	c = d * a
+	b = c + d
+	call bar(c, b)
+	b = b + c
+	end subroutine foo
+
+it will create the following graph:
+
+![Dataflow graph](dataflow.svg "Dataflow graph of the given subroutine")
+
+
 ## Using SymPy
 
 The last example uses the program ``sympy_test.py``. It allows you
