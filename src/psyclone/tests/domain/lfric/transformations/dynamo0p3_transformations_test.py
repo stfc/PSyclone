@@ -64,7 +64,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (
     OMPParallelTrans, Dynamo0p3ColourTrans, Dynamo0p3OMPLoopTrans,
-    DynamoOMPParallelLoopTrans, MoveTrans, Dynamo0p3RedundantComputationTrans,
+    DynamoOMPParallelLoopTrans, MoveTrans, LFRicRedundantComputationTrans,
     Dynamo0p3AsyncHaloExchangeTrans, Dynamo0p3KernelConstTrans,
     ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans)
 
@@ -4096,82 +4096,82 @@ def test_move_fail():
 
 def test_rc_str():
     '''Test the str method and name property of the
-    Dynamo0p3RedundantComputationTrans class. '''
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    LFRicRedundantComputationTrans class. '''
+    rc_trans = LFRicRedundantComputationTrans()
     rc_name = str(rc_trans)
     assert rc_name == "Change iteration space to perform redundant computation"
 
 
 def test_rc_node_not_loop():
-    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    '''Test that LFRicRedundantComputationTrans raises an exception if the
     node argument is not a loop. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[0])
-    assert ("Target of Dynamo0p3RedundantComputationTrans transformation must "
+    assert ("Target of LFRicRedundantComputationTrans transformation must "
             "be a sub-class of Loop but got \'LFRicHaloExchange\'" in
             str(excinfo.value))
 
 
 def test_rc_invalid_loop(monkeypatch):
-    ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    ''' Test that LFRicRedundantComputationTrans raises an exception if the
     supplied loop does not iterate over cells or dofs. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[4]
     # set the loop to a type that should raise an exception
     monkeypatch.setattr(loop, "loop_type", value="colours")
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
-    assert ("In the Dynamo0p3RedundantComputation transformation apply "
+    assert ("In the LFRicRedundantComputation transformation apply "
             "method the loop type must be one of '' (cell-columns), 'dof' or "
             "'colour', but found 'colours'") in str(excinfo.value)
 
 
 def test_rc_nodm():
-    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if
+    '''Test that LFRicRedundantComputationTrans raises an exception if
     distributed memory is not set. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
-    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
+    assert ("In the LFRicRedundantComputation transformation apply method "
             "distributed memory must be switched on") in str(excinfo.value)
 
 
 def test_rc_no_halo_kernels():
     '''
-    Test that Dynamo0p3RedundantComputationTrans refuses to transform a kernel
+    Test that LFRicRedundantComputationTrans refuses to transform a kernel
     that operates on halo cells.
 
     '''
     _, invoke = get_invoke("1.4.1_into_halos_plus_domain_invoke.f90",
                            TEST_API, idx=0, dist_mem=True)
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = invoke.schedule.walk(LFRicLoop)[0]
     with pytest.raises(TransformationError) as err:
         rc_trans.validate(loop)
-    assert ("Dynamo0p3RedundantComputationTrans transformation to kernels that"
+    assert ("LFRicRedundantComputationTrans transformation to kernels that"
             " operate on halo cells but kernel 'testkern_halo_only_code' "
             "operates on 'halo_cell_column'" in str(err.value))
 
 
 def test_rc_no_set_random(monkeypatch):
     '''
-    Test that Dynamo0p3RedundantComputationTrans refuses to transform the
+    Test that LFRicRedundantComputationTrans refuses to transform the
     LFRic built-in that generates pseudo-random numbers.
     '''
     _, invoke = get_invoke("15.7.4_setval_random_builtin.f90",
                            TEST_API, idx=0, dist_mem=True)
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = invoke.schedule.walk(LFRicLoop)[0]
     with pytest.raises(TransformationError) as err:
         rc_trans.validate(loop)
@@ -4185,30 +4185,30 @@ def test_rc_no_set_random(monkeypatch):
 
 
 def test_rc_invalid_depth():
-    ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    ''' Test that LFRicRedundantComputationTrans raises an exception if the
     supplied depth is less than 1. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[4]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": 0})
-    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
+    assert ("In the LFRicRedundantComputation transformation apply method "
             "the supplied depth is less than 1") in str(excinfo.value)
 
 
 def test_rc_invalid_depth_continuous():
-    ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    ''' Test that LFRicRedundantComputationTrans raises an exception if the
     supplied depth equals 1 when modifying a continuous field. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[4]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": 1})
-    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
+    assert ("In the LFRicRedundantComputation transformation apply method "
             "the supplied depth (1) must be greater than the existing halo "
             "depth (1)") in str(excinfo.value)
 
@@ -4224,7 +4224,7 @@ def test_rc_continuous_depth():
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[4]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
@@ -4249,7 +4249,7 @@ def test_rc_continuous_no_depth():
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[4]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4283,7 +4283,7 @@ def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
     psy, invoke = get_invoke("1_single_invoke_w3.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     if annexed:
         # there are no halo exchange calls
         index = 0
@@ -4319,7 +4319,7 @@ def test_rc_discontinuous_no_depth(monkeypatch, annexed):
     psy, invoke = get_invoke("1_single_invoke_w3.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     if annexed:
         # there are no halo exchange calls
         index = 0
@@ -4350,7 +4350,7 @@ def test_rc_all_discontinuous_depth(tmpdir):
     psy, invoke = get_invoke("1_single_invoke_wtheta.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
@@ -4373,7 +4373,7 @@ def test_rc_all_discontinuous_no_depth(tmpdir):
     psy, invoke = get_invoke("1_single_invoke_w2v.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4396,7 +4396,7 @@ def test_rc_all_discontinuous_vector_depth(tmpdir):
     psy, invoke = get_invoke("1_single_invoke_w3_only_vector.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
@@ -4422,7 +4422,7 @@ def test_rc_all_discontinuous_vector_no_depth(tmpdir):
     psy, invoke = get_invoke("1_single_invoke_wtheta_only_vector.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4450,7 +4450,7 @@ def test_rc_all_disc_prev_depend_depth(tmpdir):
     psy, invoke = get_invoke("4.12_multikernel_invokes_w2v.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[1]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
@@ -4475,7 +4475,7 @@ def test_rc_all_disc_prev_depend_no_depth():
     psy, invoke = get_invoke("4.12_multikernel_invokes_w2v.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[1]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4499,7 +4499,7 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir):
     psy, invoke = get_invoke("8.2.1_multikernel_invokes_w3_vector.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[1]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
@@ -4526,7 +4526,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir):
     psy, invoke = get_invoke("8.2.1_multikernel_invokes_w3_vector.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[1]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4553,7 +4553,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
     psy, invoke = get_invoke("8.2.2_multikernel_invokes_wtheta_vector.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[1]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4587,7 +4587,7 @@ def test_rc_dofs_depth():
     psy, invoke = get_invoke("15.1.2_inc_X_plus_Y_builtin.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
@@ -4611,7 +4611,7 @@ def test_rc_dofs_no_depth():
     psy, invoke = get_invoke("15.1.2_inc_X_plus_Y_builtin.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4638,7 +4638,7 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
     psy, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     if annexed:
         index = 4
     else:
@@ -4683,7 +4683,7 @@ def test_rc_dofs_no_depth_prev_dep():
     psy, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[5]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4758,7 +4758,7 @@ def test_rc_vector_depth(tmpdir):
     psy, invoke = get_invoke("8_vector_field.f90", TEST_API, idx=0,
                              dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[5]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
@@ -4784,7 +4784,7 @@ def test_rc_vector_no_depth(tmpdir):
     psy, invoke = get_invoke("8_vector_field.f90", TEST_API, idx=0,
                              dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[5]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4811,7 +4811,7 @@ def test_rc_no_halo_decrease():
     psy, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # First, change the size of the f2 halo exchange to 3 by performing
     # redundant computation in the first loop
     loop = schedule.children[4]
@@ -4857,7 +4857,7 @@ def test_rc_updated_dependence_analysis():
     assert not f2_field.backward_dependence()
     # set our loop to redundantly compute to the level 2 halo. This
     # introduces a new halo exchange
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 2})
     previous_field = f2_field.backward_dependence()
@@ -4879,7 +4879,7 @@ def test_rc_no_loop_decrease():
     _, invoke = get_invoke("1_single_invoke_w2v.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # first set our loop to redundantly compute to the level 2 halo
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 2})
@@ -4929,7 +4929,7 @@ def test_rc_remove_halo_exchange(tmpdir, monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     #
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 1})
     result = str(psy.gen)
@@ -4967,7 +4967,7 @@ def test_rc_max_remove_halo_exchange(tmpdir):
     # of depth 1
     assert "CALL f3_proxy%halo_exchange(depth=1)" in result
     assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[4]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -5008,7 +5008,7 @@ def test_rc_continuous_halo_remove():
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     result = str(psy.gen)
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     f3_inc_hex = schedule.children[2]
     f3_inc_loop = schedule.children[4]
     f3_read_hex = schedule.children[7]
@@ -5059,7 +5059,7 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     result = str(psy.gen)
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     f4_write_loop = schedule.children[5]
     f4_read_loop = schedule.children[9]
     assert "CALL f4_proxy%halo_exchange(depth=1)" in result
@@ -5102,7 +5102,7 @@ def test_rc_reader_halo_remove():
     result = str(psy.gen)
     assert "CALL f2_proxy%halo_exchange(depth=1)" in result
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Redundant computation to avoid halo exchange for f2
     rc_trans.apply(schedule.children[1], {"depth": 2})
@@ -5130,7 +5130,7 @@ def test_rc_vector_reader_halo_remove():
     assert "is_dirty" not in result
     assert "halo_exchange" not in result
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Redundant computation for first loop
     rc_trans.apply(schedule.children[0], {"depth": 1})
@@ -5159,7 +5159,7 @@ def test_rc_vector_reader_halo_readwrite():
     assert "is_dirty" not in result
     assert "halo_exchange" not in result
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Redundant computation for first loop: both fields have
     # read dependencies for all three components
@@ -5200,7 +5200,7 @@ def test_stencil_rc_max_depth_1(monkeypatch):
     attempts to compute redundantly into the halo to the maximum depth
     then the stencil will access beyond the halo bounds. This is
     therefore not allowed and exceptions are raised in the
-    Dynamo0p3RedundantComputationTrans transformation and in
+    LFRicRedundantComputationTrans transformation and in
     _compute_single_halo_info. This test checks these exceptions are
     raised correctly.
 
@@ -5209,10 +5209,10 @@ def test_stencil_rc_max_depth_1(monkeypatch):
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     loop = schedule[4]
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
-    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
+    assert ("In the LFRicRedundantComputation transformation apply method "
             "the loop contains field 'f2' with a stencil access in kernel "
             "'testkern_stencil_code', so it is invalid to set redundant "
             "computation to maximum depth" in str(excinfo.value))
@@ -5235,7 +5235,7 @@ def test_rc_invalid_depth_type():
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     loop = schedule.children[4]
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": "2"})
     assert (f"the supplied depth should be an integer but found "
@@ -5265,7 +5265,7 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
         move_trans = MoveTrans()
         move_trans.apply(schedule.children[7], schedule.children[6])
     # make the first loop redundantly compute to halo level 3
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[index], {"depth": 3})
     # try to fuse the loops. This should fail as the depths are different
     if annexed:
@@ -5305,7 +5305,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
                            TEST_API, idx=0, dist_mem=True)
     # First test for f1 readwrite to read dependency
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[0], {"depth": 3})
     f_trans = LFRicLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
@@ -5358,7 +5358,7 @@ def test_rc_max_w_to_r_continuous_known_halo(monkeypatch, annexed):
     r_loop = schedule.children[index2]
 
     # make both the writer and reader loops use the full halo
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(w_loop)
     rc_trans.apply(r_loop)
 
@@ -5401,7 +5401,7 @@ def test_red_comp_w_to_n_r_clean_gt_cleaned(tmpdir):
     # make the writer loop write redundantly into the level 1 halo. We
     # now make the level one halo clean but we still definitely need a
     # halo exchange as one of the readers reads the halo to level 2
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(w_loop, {"depth": 1})
 
     # the halo exchange should be both required and known to be needed
@@ -5461,7 +5461,7 @@ def test_rc_no_directive():
     otrans.apply(schedule[4].loop_body[0])
 
     # Create a redundant computation transformation and apply this to the loop
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(
             schedule[4].loop_body[0].dir_body[0], {"depth": 1})
@@ -5483,7 +5483,7 @@ def test_rc_wrong_parent(monkeypatch):
     # Make the parent of the loop a halo exchange
     monkeypatch.setattr(schedule.children[4], "_parent", schedule.children[0])
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[4], {"depth": 1})
@@ -5522,7 +5522,7 @@ def test_rc_parent_loop_colour(monkeypatch):
     # InvokeSchedule (we use halo exchange in this case)
     monkeypatch.setattr(schedule.children[4], "_parent", schedule.children[0])
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
@@ -5535,7 +5535,7 @@ def test_rc_parent_loop_colour(monkeypatch):
     # exception is encountered before the previous one.
     monkeypatch.setattr(schedule.children[4], "_loop_type", "cells")
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
@@ -5548,7 +5548,7 @@ def test_rc_parent_loop_colour(monkeypatch):
     monkeypatch.setattr(schedule.children[4].loop_body[0], "_loop_type",
                         "cells")
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
@@ -5578,7 +5578,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
     monkeypatch.setattr(schedule.children[4].loop_body[0], "_loop_type",
                         "invalid")
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Switch off validation
     monkeypatch.setattr(rc_trans, "validate",
@@ -5608,7 +5608,7 @@ def test_rc_colour_no_loop_decrease():
     # Colour the loop
     ctrans.apply(schedule.children[4])
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # First set our loop to redundantly compute to the level 2 halo
     loop = schedule.children[4].loop_body[0]
     rc_trans.apply(loop, {"depth": 2})
@@ -5645,7 +5645,7 @@ def test_rc_colour(tmpdir):
     ctrans.apply(schedule.children[4])
 
     # Create our redundant computation transformation
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the colour loop
     rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 2})
 
@@ -5694,7 +5694,7 @@ def test_rc_max_colour(tmpdir):
     ctrans.apply(schedule.children[4])
 
     # Create our redundant computation transformation
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the colour loop out to the full
     # halo depth
     rc_trans.apply(schedule.children[4].loop_body[0])
@@ -5761,7 +5761,7 @@ def test_rc_then_colour(tmpdir):
     ctrans = Dynamo0p3ColourTrans()
 
     # Create our redundant computation transformation
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Apply redundant computation to the loop, out to the level-3 halo
     rc_trans.apply(schedule.children[4], {"depth": 3})
@@ -5817,7 +5817,7 @@ def test_rc_then_colour2(tmpdir):
     ctrans = Dynamo0p3ColourTrans()
 
     # Create our redundant computation transformation
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Apply redundant computation to the loop to the full halo depth
     rc_trans.apply(schedule[4])
@@ -5868,7 +5868,7 @@ def test_loop_fuse_then_rc(tmpdir):
     ftrans.apply(schedule.children[4], schedule.children[5])
 
     # Create our redundant computation transformation
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Apply redundant computation to the loop
     rc_trans.apply(schedule.children[4])
@@ -6038,7 +6038,7 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
         w_loop_idx = 2
         r_loop_idx = 5
     ctrans = Dynamo0p3ColourTrans()
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Begin with a loop which modifies the continuous field f1
     # followed by a loop which modifies the continuous field f3 to the
@@ -6125,7 +6125,7 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
     else:
         r_loop_idx = 5
     ctrans = Dynamo0p3ColourTrans()
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Begin with a loop which modifies the continuous field f1 to the
     # maximum depth followed by a loop which modifies the continuous
@@ -6210,7 +6210,7 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
     w_loop_idx = 2
     r_loop_idx = 5
     ctrans = Dynamo0p3ColourTrans()
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Begin with a loop which modifies the continuous field f1 to the
     # maximum depth followed by a loop which modifies the continuous
@@ -6287,7 +6287,7 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
     else:
         r_loop_idx = 4
     ctrans = Dynamo0p3ColourTrans()
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # We then apply redundant computation so that the loop which
     # modifies the continuous field f1 does so to depth=2. The code
@@ -6545,7 +6545,7 @@ def test_intergrid_err(dist_mem):
 
     if dist_mem:
         # Cannot apply redundant computation unless DM is enabled
-        rc_trans = Dynamo0p3RedundantComputationTrans()
+        rc_trans = LFRicRedundantComputationTrans()
         with pytest.raises(TransformationError) as excinfo:
             rc_trans.apply(loops[2], {"depth": 2})
             assert expected_err in str(excinfo.value)
@@ -7048,7 +7048,7 @@ def test_rc_remove_async_halo_exchange(monkeypatch, tmpdir):
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 1})
     result = str(psy.gen)
@@ -7087,7 +7087,7 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
     # Make it so that halo exchanges are required to depth 2 for
     # fields m1, m2, f1 and f2. m2 will have a set clean for depth 1
     # after the last loop.
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[2]
     rc_trans.apply(loop, {"depth": 2})
 
@@ -7133,7 +7133,7 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
     # increase depth of redundant computation. We do this to all loops
     # to remove halo exchanges for f1 and f2 just because we can :-)
     # Check depths and set clean are still generated correctly for m2
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     for index in [7, 1, 3]:
         loop = schedule.children[index]
         rc_trans.apply(loop, {"depth": 3})
@@ -7187,7 +7187,7 @@ def test_vector_halo_exchange_remove():
     # computation. If they are removed correctly then the two loops
     # will be adjacent to each other and will follow 3 haloexchange
     # calls.
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[3], {"depth": 2})
     assert len(schedule.children) == 5
     for index in [0, 1, 2]:
@@ -7206,7 +7206,7 @@ def test_vector_async_halo_exchange(tmpdir):
 
     # Create vector halo exchanges after the first loop by performing
     # redundant computation.
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[4], {"depth": 2})
     # make all f1 vector halo exchanges asynchronous before the first
     # loop and one of them before the second loop, then check depths
@@ -7240,7 +7240,7 @@ def test_vector_async_halo_exchange(tmpdir):
     # computation. If they are removed correctly then the two loops
     # will be adjacent to each other and will follow 6 haloexchange
     # start and end calls.
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[6], {"depth": 2})
 
     assert len(schedule.children) == 8
@@ -7265,7 +7265,7 @@ def test_async_halo_exchange_nomatch1():
 
     # create vector halo exchanges after the first loop by performing
     # redundant computation
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[4], {"depth": 2})
 
     # make the first vector component of the halo exchange for f1

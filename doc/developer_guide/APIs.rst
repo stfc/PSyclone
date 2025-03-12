@@ -929,7 +929,7 @@ Modifying the Schedule
 ----------------------
 
 Transformations modify the schedule. At the moment only one of these
-transformations - the ``Dynamo0p3RedundantComputationTrans`` class in
+transformations - the ``LFRicRedundantComputationTrans`` class in
 ``transformations.py`` - affects halo exchanges. This transformation can
 mean there is a requirement for new halo exchanges, it can mean
 existing halo exchanges are no longer required and it can mean that
@@ -938,7 +938,7 @@ the properties of a halo exchange (e.g. depth) can change.
 The redundant computation transformation is applied to a loop in a
 schedule. When this is done the ``update_halo_exchanges()`` method for
 that loop is called - see the ``apply()`` method in
-``Dynamo0p3RedundantComputationTrans``.
+``LFRicRedundantComputationTrans``.
 
 The first thing that the ``update_halo_exchanges()`` method does is call
 the ``create_halo_exchanges()`` method to add in any new halo exchanges

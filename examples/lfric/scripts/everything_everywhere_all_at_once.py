@@ -49,7 +49,7 @@ from psyclone.psyGen import InvokeSchedule
 from psyclone.transformations import Dynamo0p3ColourTrans, \
                                      Dynamo0p3OMPLoopTrans, \
                                      OMPParallelTrans, \
-                                     Dynamo0p3RedundantComputationTrans, \
+                                     LFRicRedundantComputationTrans, \
                                      Dynamo0p3AsyncHaloExchangeTrans, \
                                      MoveTrans, \
                                      TransformationError
@@ -69,7 +69,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    rtrans = Dynamo0p3RedundantComputationTrans()
+    rtrans = LFRicRedundantComputationTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = Dynamo0p3OMPLoopTrans()
     oregtrans = OMPParallelTrans()

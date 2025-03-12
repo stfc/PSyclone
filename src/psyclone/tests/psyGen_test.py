@@ -74,7 +74,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (Dynamo0p3RedundantComputationTrans,
+from psyclone.transformations import (LFRicRedundantComputationTrans,
                                       Dynamo0p3KernelConstTrans,
                                       Dynamo0p3OMPLoopTrans,
                                       Dynamo0p3ColourTrans, OMPParallelTrans)
@@ -1985,7 +1985,7 @@ def test_find_w_args_multiple_deps_error(monkeypatch, annexed, tmpdir):
         index = 1
     else:
         index = 4
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[index], {"depth": 2})
     del schedule.children[index]
     loop = schedule.children[index+2]
@@ -2061,7 +2061,7 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
         index = 1
     else:
         index = 4
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[index], {"depth": 2})
     loop = schedule.children[index+3]
     kernel = loop.loop_body[0]

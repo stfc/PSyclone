@@ -49,7 +49,7 @@ from psyclone.psyir.transformations import (
     ACCKernelsTrans, TransformationError, OMPTargetTrans)
 from psyclone.transformations import (
     Dynamo0p3ColourTrans, Dynamo0p3OMPLoopTrans,
-    Dynamo0p3RedundantComputationTrans, OMPParallelTrans,
+    LFRicRedundantComputationTrans, OMPParallelTrans,
     ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans,
     OMPDeclareTargetTrans, OMPLoopTrans)
 
@@ -71,7 +71,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    rtrans = Dynamo0p3RedundantComputationTrans()
+    rtrans = LFRicRedundantComputationTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = Dynamo0p3OMPLoopTrans()
     const = LFRicConstants()

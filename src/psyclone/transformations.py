@@ -1810,7 +1810,7 @@ class MoveTrans(Transformation):
             location.parent.children.insert(location_index+1, my_node)
 
 
-class Dynamo0p3RedundantComputationTrans(LoopTrans):
+class LFRicRedundantComputationTrans(LoopTrans):
     '''This transformation allows the user to modify a loop's bounds so
     that redundant computation will be performed. Redundant
     computation can result in halo exchanges being modified, new halo
@@ -1906,46 +1906,46 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         dir_node = node.ancestor(Directive)
         if dir_node:
             raise TransformationError(
-                f"In the Dynamo0p3RedundantComputation transformation apply "
+                f"In the LFRicRedundantComputation transformation apply "
                 f"method the supplied loop is sits beneath a directive of "
                 f"type {type(dir_node)}. Redundant computation must be applied"
                 f" before directives are added.")
         if not (isinstance(node.parent, LFRicInvokeSchedule) or
                 isinstance(node.parent.parent, Loop)):
             raise TransformationError(
-                f"In the Dynamo0p3RedundantComputation transformation "
+                f"In the LFRicRedundantComputation transformation "
                 f"apply method the parent of the supplied loop must be the "
                 f"LFRicInvokeSchedule, or a Loop, but found "
                 f"{type(node.parent)}")
         if isinstance(node.parent.parent, Loop):
             if node.loop_type != "colour":
                 raise TransformationError(
-                    f"In the Dynamo0p3RedundantComputation transformation "
+                    f"In the LFRicRedundantComputation transformation "
                     f"apply method, if the parent of the supplied Loop is "
                     f"also a Loop then the supplied Loop must iterate over "
                     f"'colour', but found '{node.loop_type}'")
             if node.parent.parent.loop_type != "colours":
                 raise TransformationError(
-                    f"In the Dynamo0p3RedundantComputation transformation "
+                    f"In the LFRicRedundantComputation transformation "
                     f"apply method, if the parent of the supplied Loop is "
                     f"also a Loop then the parent must iterate over "
                     f"'colours', but found '{node.parent.parent.loop_type}'")
             if not isinstance(node.parent.parent.parent, LFRicInvokeSchedule):
                 raise TransformationError(
-                    f"In the Dynamo0p3RedundantComputation transformation "
+                    f"In the LFRicRedundantComputation transformation "
                     f"apply method, if the parent of the supplied Loop is "
                     f"also a Loop then the parent's parent must be the "
                     f"LFRicInvokeSchedule, but found {type(node.parent)}")
         if not Config.get().distributed_memory:
             raise TransformationError(
-                "In the Dynamo0p3RedundantComputation transformation apply "
+                "In the LFRicRedundantComputation transformation apply "
                 "method distributed memory must be switched on")
 
         # loop must iterate over cell-column, dof or colour. Note, an
         # empty loop_type iterates over cell-columns.
         if node.loop_type not in ["", "dof", "colour"]:
             raise TransformationError(
-                f"In the Dynamo0p3RedundantComputation transformation apply "
+                f"In the LFRicRedundantComputation transformation apply "
                 f"method the loop type must be one of '' (cell-columns), 'dof'"
                 f" or 'colour', but found '{node.loop_type}'")
 
@@ -1976,14 +1976,14 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if not node.upper_bound_halo_depth:
                     raise TransformationError(
-                        "In the Dynamo0p3RedundantComputation transformation "
+                        "In the LFRicRedundantComputation transformation "
                         "apply method the loop is already set to the maximum "
                         "halo depth so this transformation does nothing")
                 for call in node.kernels():
                     for arg in call.arguments.args:
                         if arg.stencil:
                             raise TransformationError(
-                                f"In the Dynamo0p3RedundantComputation "
+                                f"In the LFRicRedundantComputation "
                                 f"transformation apply method the loop "
                                 f"contains field '{arg.name}' with a stencil "
                                 f"access in kernel '{call.name}', so it is "
@@ -1992,12 +1992,12 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         else:
             if not isinstance(depth, int):
                 raise TransformationError(
-                    f"In the Dynamo0p3RedundantComputation transformation "
+                    f"In the LFRicRedundantComputation transformation "
                     f"apply method the supplied depth should be an integer but"
                     f" found type '{type(depth)}'")
             if depth < 1:
                 raise TransformationError(
-                    "In the Dynamo0p3RedundantComputation transformation "
+                    "In the LFRicRedundantComputation transformation "
                     "apply method the supplied depth is less than 1")
 
             if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
@@ -2006,13 +2006,13 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                         upper_bound = int(node.upper_bound_halo_depth.value)
                         if upper_bound >= depth:
                             raise TransformationError(
-                                f"In the Dynamo0p3RedundantComputation "
+                                f"In the LFRicRedundantComputation "
                                 f"transformation apply method the supplied "
                                 f"depth ({depth}) must be greater than the "
                                 f"existing halo depth ({upper_bound})")
                 else:
                     raise TransformationError(
-                        "In the Dynamo0p3RedundantComputation transformation "
+                        "In the LFRicRedundantComputation transformation "
                         "apply method the loop is already set to the maximum "
                         "halo depth so can't be set to a fixed value")
 
@@ -2050,7 +2050,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         else:
             raise TransformationError(
                 f"Unsupported loop_type '{loop.loop_type}' found in "
-                f"Dynamo0p3Redundant ComputationTrans.apply()")
+                f"{self.name}.apply()")
         # Add/remove halo exchanges as required due to the redundant
         # computation
         loop.update_halo_exchanges()
@@ -3005,7 +3005,7 @@ __all__ = [
    "Dynamo0p3ColourTrans",
    "Dynamo0p3KernelConstTrans",
    "Dynamo0p3OMPLoopTrans",
-   "Dynamo0p3RedundantComputationTrans",
+   "LFRicRedundantComputationTrans",
    "DynamoOMPParallelLoopTrans",
    "GOceanOMPLoopTrans",
    "GOceanOMPParallelLoopTrans",
