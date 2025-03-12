@@ -25,10 +25,20 @@ Running PSyclone with the OpenMP transformation script:
 
 
 ## Hands-on
-Use the 
 
+Finish the ``omp_colour_transformation.py`` script to first apply colouring
+where required. Then apply OpenMP to all loops, but in case that a loop is
+coloured, the OMP directive must be applied to the first child.
 
-    Mesh has           5 layers.
-    20240917233109.668+1000:INFO : Min/max minmax of field_3 =   0.80000000E+01  0.80000000E+01
-
-Now finish `openmp.py` to add OpenMP parallelisation. 
+The code create should now look like this:
+    DO colour = loop2_start, loop2_stop, 1
+       !$omp parallel do default(shared), private(cell),
+                         schedule(static)
+       DO cell = loop3_start, last_edge_cell_all_  &
+                 colours(colour), 1
+          CALL summation_w0_to_w0_code(nlayers_field_3,
+               field_3_data, field_0_data, ndf_w0, undf_w0,
+               map_w0(:,cmap(colour,cell)))
+       END DO
+       !$omp end parallel do
+    END DO

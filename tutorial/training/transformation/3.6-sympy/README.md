@@ -77,3 +77,17 @@ to convert a Fortran expression to a SymPy expression, which can be
 e.g. modified, or used to compute a derivative, and then re-inserted
 into the Fortran code. This example shows how to add new nodes,
 including comments.
+
+The example code contains the two assignments:
+
+    b = a(j + 2*i - j - i, j*3 - 2*j)*a(i,j)  + 5*b - b - 3*b - 3.14_8
+    b = 3*x*x - 2*x - 1
+
+The example program will explicitly simplify the fist assignment. Then it
+will take the right-hand-side of the second assignment (``3*x*x - 2*x - 1``),
+compute its derivative, and insert it as an additional assignment to the end:
+
+    b = b + a(i,j) ** 2 - 3.14
+    b = 3 * x * x - 2 * x - 1
+    ! The derivative is:
+    b = 6 * x - 2
