@@ -455,10 +455,12 @@ def insert_explicit_loop_parallelism(
             # And if successful, the region directive on top.
             if region_directive_trans:
                 region_directive_trans.apply(loop.parent.parent)
-        except TransformationError:
+        except TransformationError as err:
             # This loop cannot be transformed, proceed to next loop.
             # The parallelisation restrictions will be explained with a comment
             # associted to the loop in the generated output.
+            if not loop.preceding_comment:
+                loop.append_preceding_comment(str(err.value))
             continue
 
 
