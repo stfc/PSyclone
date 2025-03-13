@@ -389,9 +389,9 @@ def test_file_info_source_with_bugs(tmpdir):
         file_info.get_psyir(verbose=True)
 
 
-def test_file_info_cachefile_not_accessible(tmpdir):
+def test_file_info_cachefile_not_writable(tmpdir):
     """
-    Check if cachefile is not accessible
+    Test for a cachefile that is not writable (can't be created).
 
     """
     filename = os.path.join(tmpdir, "testfile_e.f90")
@@ -405,44 +405,24 @@ def test_file_info_cachefile_not_accessible(tmpdir):
 
     file_info: FileInfo = FileInfo(filename, cache_active=True)
 
-    # Set buggy cache file
-    file_info._cache_path = "/I_DONT_EXIST/FILE/cache.psycache"
+    # Overwrite the path of the cache file to one which
+    # can't be simply created (non-existing path)
+    file_info._cache_path = "/I_DONT_EXIST_PATH/FILE/cache.psycache"
 
+    # If only the source code is requested, this won't
+    # raise any errors since no cache is used for this,
+    # but it just returns the source code.
     source_code = file_info.get_source_code(verbose=True)
     assert source_code == SOURCE_DUMMY
 
+    # If the psyir, hence, fparser tree is requested, creating
+    # the cache will fail, but the psyir node itself will
+    # still be returned.
     psyir_node = file_info.get_psyir(verbose=True)
     assert isinstance(psyir_node, Node)
 
 
-def test_file_info_cachefile_not_writable(tmpdir):
-    '''
-    Check if cachefile is not writable.
-    This should not raise any errors!
-    '''
-
-    filename = os.path.join(tmpdir, "testfile_e.f90")
-
-    try:
-        os.remove(filename)
-    except FileNotFoundError:
-        pass
-    with open(filename, "w", encoding='utf-8') as fout:
-        fout.write(SOURCE_DUMMY)
-
-    file_info: FileInfo = FileInfo(filename, cache_active=True)
-
-    # Set buggy cache file
-    file_info._cache_path = "/I_DONT_EXIST/FILE/cache.psycache"
-
-    source_code = file_info.get_source_code(verbose=True)
-    assert source_code == SOURCE_DUMMY
-
-    psyir_node = file_info.get_psyir(verbose=True)
-    assert isinstance(psyir_node, Node)
-
-
-def test_file_info_cachefile_pickle_load_exception(tmpdir, monkeypatch):
+def test_file_info_cachefile_pickle_load_exception(tmpdir):
     """
     Check pickle exceptions work
 

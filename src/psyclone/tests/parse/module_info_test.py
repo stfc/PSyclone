@@ -491,29 +491,6 @@ def test_minfo_get_fparser_tree_missing_file():
             " not found:" in str(einfo.value))
 
 
-def test_module_info_get_routine_name(tmpdir, monkeypatch):
-    '''Tests for get_routine_name(...).'''
-    filepath = os.path.join(tmpdir, "my_mod.f90")
-    with open(filepath, "w", encoding="utf-8") as fout:
-        fout.write('''
-module my_mod
-  contains
-real function myfunc1()
-  myfunc1 = 42.0
-end function myfunc1
-end module my_mod''')
-
-    module_info: ModuleInfo = ModuleInfo("my_mod", FileInfo(filepath))
-
-    module_info.get_routine_by_name("myfunc1")
-
-    with pytest.raises(ModuleInfoError) as einfo:
-        module_info.get_routine_by_name("myfunc1_DOESNT_EXIT")
-
-    assert ("ModuleInfoError: Subroutine 'myfunc1_DOESNT_EXIT'"
-            " not found" in str(einfo.value))
-
-
 def test_minfo_type_errors():
     """
     Trigger type errors in constructor of module info

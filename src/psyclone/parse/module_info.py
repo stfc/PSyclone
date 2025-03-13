@@ -48,7 +48,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, PSycloneError, GenerationError
-from psyclone.psyir.nodes import Container, Routine
+from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import Symbol
 from psyclone.parse import FileInfo, FileInfoFParserError
 
@@ -323,33 +323,6 @@ class ModuleInfo:
             return container.symbol_table.lookup(name)
         except KeyError:
             return None
-
-    def get_routine_by_name(
-        self,
-        routine_name: str,
-        trigger_exception: bool = True
-    ) -> Routine:
-        """Return the routine with the given name.
-        This only searches in the current module and doesn't look up
-        routines in other modules.
-
-        :param routine_name: Name of the routine in this module.
-        :param trigger_exception: Whether an exception should be triggered
-            or not if the routine is not found. If it is not found,
-            None is returned.
-        """
-        routine_found: Routine = None
-
-        for routine in self.get_psyir().walk(Routine):
-            routine: Routine
-            if routine.name.lower() == routine_name.lower():
-                routine_found = routine
-
-        if trigger_exception:
-            if routine_found is None:
-                raise ModuleInfoError(f"Subroutine '{routine_name}' not found")
-
-        return routine_found
 
     def view_tree(self, indent=""):
         """

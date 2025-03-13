@@ -506,7 +506,7 @@ class FileInfo:
             self,
             verbose: bool = False,
             indent: str = ""
-            ) -> FileContainer:
+    ) -> FileContainer:
         """Returns the psyclone FileContainer of the file.
 
         :param verbose: Produce some verbose output

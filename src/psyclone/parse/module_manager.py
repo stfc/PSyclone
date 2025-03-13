@@ -50,12 +50,17 @@ from psyclone.psyir.nodes import Container, Node, Routine
 
 
 class ModuleManager:
-    '''This class implements a singleton that manages module
-    dependencies.
+    """
+    This class implements a singleton that manages module
+    dependencies. It should not be created directly.
+    Use `ModuleManager.get()` instead.
 
-    :param use_caching: Whether to use (`True`) or
+    :param cache_active: Whether to use (`True`) or
         disable (`False`) caching
-    '''
+    :param cache_path: Path to the cache directory. If `None`, the
+        cache file will be created in the same directory as the source
+        file with a new file ending `.psycache`.
+    """
 
     # Class variable to store the singleton instance
     _instance = None
@@ -399,8 +404,8 @@ class ModuleManager:
 
         :raises FileNotFoundError: if the module_name is not found in
             either the cached data nor in the search path.
-        """
 
+        """
         mod_lower = module_name.lower()
 
         if mod_lower in self._ignore_modules:
@@ -545,65 +550,6 @@ class ModuleManager:
                     todo.append(dep)
 
         return module_dependencies
-
-    def get_all_dependencies_recursively_DEPRECATED(
-            self,
-            all_mod_names: Set[str]
-    ) -> Dict[str, Set[str]]:
-        """
-        This function collects recursively all module dependencies
-        for any of the modules in the ``all_mod_names`` set.
-        See ``get_all_dependencies_recursively`` for more information.
-
-        This function exists for legacy reasons, taking sets as input and also
-        using sets as output. But sets don't allow for reproducible runs which
-        is the reason why this is declared to be deprecated.
-
-        :param all_mod_names: the set of all module names for which to
-            collect module dependencies.
-
-        :returns: a dictionary with all module names as keys that are required
-            (directly or indirectly) for the modules in ``all_mod_names``.
-        """
-        module_dependencies: OrderedDict[str, List[str]] = \
-            self.get_all_dependencies_recursively(
-                list(all_mod_names)
-            )
-
-        module_dependencies_retval = dict()
-        for module_name, mod_name_list in module_dependencies.items():
-            module_dependencies_retval[module_name] = set(mod_name_list)
-
-        return module_dependencies_retval
-
-    def get_all_dependencies_recursively_for_module_name(
-        self,
-        module_info_name: str
-    ) -> List[str]:
-        """This function collects all modules which are recursively used
-        by the specified module name. It returns a list of module names in
-        the order of dependencies, i.e. a module which is used by another
-        module is listed before the module which uses it.
-
-        See ``get_all_dependencies_recursively`` for more information.
-
-        :param module_info_name: the module info name for which to collect
-            all recursively used modules.
-
-        :returns: a list of all module names used by the specified module in
-            order of dependencies.
-        """
-
-        module_dependencies: OrderedDict[str, List[str]] = \
-            self.get_all_dependencies_recursively(
-                [module_info_name]
-            )
-
-        if module_info_name not in module_dependencies:
-            print(f"Could not find module '{module_info_name}'.")
-            return None
-
-        return module_dependencies[module_info_name]
 
     # -------------------------------------------------------------------------
     def sort_modules(
