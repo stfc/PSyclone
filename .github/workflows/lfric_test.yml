@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2024, Science and Technology Facilities Council.
+# Copyright (c) 2023-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,8 +46,9 @@ jobs:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     env:
-      LFRIC_APPS_REV: 3269
-      PYTHON_VERSION: 3.13.0
+      LFRIC_APPS_REV: 7536
+      LFRIC_CORE_REV: 52054
+      PYTHON_VERSION: 3.13.2
 
     steps:
     - uses: actions/checkout@v3
@@ -74,110 +75,6 @@ jobs:
         # pip install external/fparser
         pip install .[test]
 
-    # PSyclone, compile and run MetOffice gungho_model on GPU
-    - name: LFRic GungHo with OpenMP offload
-      run: |
-        # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%nvhpc
-        source .runner_venv/bin/activate
-        export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        # The LFRic source must be patched to workaround bugs in the NVIDIA
-        # compiler's namelist handling.
-        rm -rf ${HOME}/LFRic/gpu_build
-        mkdir -p ${HOME}/LFRic/gpu_build
-        cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV} ${HOME}/LFRic/gpu_build/lfric_apps
-        cp -r ${HOME}/LFRic/lfric_core_50869 ${HOME}/LFRic/gpu_build/lfric
-        cd ${HOME}/LFRic/gpu_build
-        patch -p1 < ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_${LFRIC_APPS_REV}_nvidia.patch
-        # Update the compiler definitions to build for GPU
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/nvfortran_acc.mk lfric/infrastructure/build/fortran/nvfortran.mk
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/nvc++.mk lfric/infrastructure/build/cxx/.
-        # Update the PSyclone commands to ensure transformed kernels are written
-        # to working directory.
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk lfric/infrastructure/build/psyclone/.
-        # Update dependencies.sh to point to our patched lfric core.
-        sed -i -e 's/export lfric_core_sources=.*$/export lfric_core_sources\=\/home\/gh_runner\/LFRic\/gpu_build\/lfric/' lfric_apps/dependencies.sh
-        export LFRIC_DIR=${HOME}/LFRic/gpu_build/lfric_apps
-        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
-        cd ${LFRIC_DIR}
-        # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
-        mkdir -p ${OPT_DIR}
-        cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
-        # Clean previous version and compile again
-        rm -rf applications/gungho_model/working
-        LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -a gungho_model -p psyclone-test
-        cd applications/gungho_model/example
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its.nml configuration.nml
-        mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its_checksums.txt gungho_model-checksums.txt
-        cat timer.txt
-        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
-        export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
-        echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_omp_performance_history
-        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
-          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-          --password ${{ secrets.MONGODB_PASSWORD }} \
-          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-          ci_test: "LFRic OpenMP offloading", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
-          compiler:"spack-nvhpc-24.5", date: new Date(), elapsed_time: '"$VAR_TIME"',
-          num_of_halo_exchanges: '"$VAR_HALOS"'})'
-
-    # PSyclone, compile and run MetOffice gungho_model on GPU
-    - name: LFRic GungHo with OpenACC offload
-      run: |
-        # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%nvhpc
-        source .runner_venv/bin/activate
-        export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        # The LFRic source must be patched to workaround bugs in the NVIDIA
-        # compiler's namelist handling.
-        rm -rf ${HOME}/LFRic/gpu_build
-        mkdir -p ${HOME}/LFRic/gpu_build
-        cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV} ${HOME}/LFRic/gpu_build/lfric_apps
-        cp -r ${HOME}/LFRic/lfric_core_50869 ${HOME}/LFRic/gpu_build/lfric
-        cd ${HOME}/LFRic/gpu_build
-        patch -p1 < ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_${LFRIC_APPS_REV}_nvidia.patch
-        # Update the compiler definitions to build for GPU
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/nvfortran_acc.mk lfric/infrastructure/build/fortran/nvfortran.mk
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/nvc++.mk lfric/infrastructure/build/cxx/.
-        # Update the PSyclone commands to ensure transformed kernels are written
-        # to working directory.
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk lfric/infrastructure/build/psyclone/.
-        # Update dependencies.sh to point to our patched lfric core.
-        sed -i -e 's/export lfric_core_sources=.*$/export lfric_core_sources\=\/home\/gh_runner\/LFRic\/gpu_build\/lfric/' lfric_apps/dependencies.sh
-        export LFRIC_DIR=${HOME}/LFRic/gpu_build/lfric_apps
-        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
-        cd ${LFRIC_DIR}
-        # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
-        mkdir -p ${OPT_DIR}
-        cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
-        # Clean previous version and compile again
-        rm -rf applications/gungho_model/working
-        LFRIC_OFFLOAD_DIRECTIVES=acc ./build/local_build.py -a gungho_model -p psyclone-test
-        cd applications/gungho_model/example
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its.nml configuration.nml
-        mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its_checksums.txt gungho_model-checksums.txt
-        cat timer.txt
-        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
-        export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
-        echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_acc_performance_history
-        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
-          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-          --password ${{ secrets.MONGODB_PASSWORD }} \
-          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-          ci_test: "LFRic OpenACC", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
-          compiler:"spack-nvhpc-24.5", date: new Date(), elapsed_time: '"$VAR_TIME"',
-          num_of_halo_exchanges: '"$VAR_HALOS"'})'
-
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks
     - name: LFRic passthrough (with DistributedMemory)
       run: |
@@ -194,13 +91,12 @@ jobs:
         ./build/local_build.py -a gungho_model -v
         # Run
         cd applications/gungho_model/example
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its.nml configuration.nml
-        mpirun -n 6 ../bin/gungho_model configuration.nml |& tee output.txt
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its_checksums.txt gungho_model-checksums.txt
+        rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
+        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
-        export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
-        echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_passthrough_performance_history
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
@@ -208,10 +104,105 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic Passthrough with DM", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
-          compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"',
-          num_of_halo_exchanges: '"$VAR_HALOS"'})'
+          compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
-    # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 OpenMP threads
+    # PSyclone, compile and run MetOffice gungho_model on GPU
+    - name: LFRic GungHo with OpenMP offload
+      run: |
+        # Set up environment
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment%nvhpc
+        source .runner_venv/bin/activate
+        export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        # The LFRic source must be patched to workaround bugs in the NVIDIA
+        # compiler's namelist handling.
+        rm -rf ${HOME}/LFRic/gpu_build
+        mkdir -p ${HOME}/LFRic/gpu_build
+        cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV} ${HOME}/LFRic/gpu_build/lfric_apps
+        cp -r ${HOME}/LFRic/lfric_core_${LFRIC_CORE_REV} ${HOME}/LFRic/gpu_build/lfric
+        cd ${HOME}/LFRic/gpu_build
+        patch -p1 < ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_nvidia.patch
+        # Update dependencies.sh to point to our patched lfric core.
+        sed -i -e 's/export lfric_core_sources=.*$/export lfric_core_sources\=\/home\/gh_runner\/LFRic\/gpu_build\/lfric/' lfric_apps/dependencies.sh
+        export LFRIC_DIR=${HOME}/LFRic/gpu_build/lfric_apps
+        cd ${LFRIC_DIR}
+        # Update the PSyclone commands to ensure transformed kernels are written
+        # to working directory.
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk ../lfric/infrastructure/build/psyclone/.
+        # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
+        mkdir -p ${OPT_DIR}
+        cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
+        # Clean previous version and compile again
+        rm -rf applications/gungho_model/working
+        LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -a gungho_model -p psyclone-test
+        cd applications/gungho_model/example
+        rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
+        export OMP_NUM_THREADS=1
+        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
+        cat timer.txt
+        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "LFRic OpenMP offloading", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
+          compiler:"spack-nvhpc-24.5", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+
+    # PSyclone, compile and run MetOffice gungho_model on GPU
+    - name: LFRic GungHo with OpenACC offload
+      run: |
+        # Set up environment
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment%nvhpc
+        source .runner_venv/bin/activate
+        export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        # The LFRic source must be patched to workaround bugs in the NVIDIA
+        # compiler's namelist handling.
+        rm -rf ${HOME}/LFRic/gpu_build
+        mkdir -p ${HOME}/LFRic/gpu_build
+        cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV} ${HOME}/LFRic/gpu_build/lfric_apps
+        cp -r ${HOME}/LFRic/lfric_core_${LFRIC_CORE_REV} ${HOME}/LFRic/gpu_build/lfric
+        cd ${HOME}/LFRic/gpu_build
+        patch -p1 < ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_nvidia.patch
+        # Update dependencies.sh to point to our patched lfric core.
+        sed -i -e 's/export lfric_core_sources=.*$/export lfric_core_sources\=\/home\/gh_runner\/LFRic\/gpu_build\/lfric/' lfric_apps/dependencies.sh
+        export LFRIC_DIR=${HOME}/LFRic/gpu_build/lfric_apps
+        cd ${LFRIC_DIR}
+        # Update the PSyclone commands to ensure transformed kernels are written
+        # to working directory.
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk ../lfric/infrastructure/build/psyclone/.
+        # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
+        mkdir -p ${OPT_DIR}
+        cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
+        # Clean previous version and compile again
+        rm -rf applications/gungho_model/working
+        LFRIC_OFFLOAD_DIRECTIVES=acc ./build/local_build.py -a gungho_model -p psyclone-test
+        cd applications/gungho_model/example
+        rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
+        export OMP_NUM_THREADS=1
+        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
+        cat timer.txt
+        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "LFRic OpenACC", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
+          compiler:"spack-nvhpc-24.5", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+
+    # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 mpi ranks each with 2 OpenMP threads
     - name: LFRic with all transformations
       run: |
         # Set up environment
@@ -221,9 +212,9 @@ jobs:
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
-        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
         cd ${LFRIC_DIR}
         # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
         mkdir -p applications/gungho_model/optimisation/psyclone-test
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
@@ -231,14 +222,13 @@ jobs:
         ./build/local_build.py -a gungho_model -p psyclone-test -v
         # Run
         cd applications/gungho_model/example
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its.nml configuration.nml
-        export OMP_NUM_THREADS=6
-        mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its_checksums.txt gungho_model-checksums.txt
+        rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
+        export OMP_NUM_THREADS=2
+        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
-        export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
-        echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_optimised_performance_history
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
@@ -246,5 +236,4 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic all transformations", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
-          system: "GlaDos", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"',
-          num_of_halo_exchanges: '"$VAR_HALOS"'})'
+          system: "GlaDos", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"'})'

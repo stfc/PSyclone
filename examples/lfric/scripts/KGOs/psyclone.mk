@@ -42,11 +42,11 @@ $$(SOURCE_DIR)/psy/$$(notdir $$*)_psy.f90 $(WORKING_DIR)/%_psy.f90
 $(WORKING_DIR)/%.f90 $(WORKING_DIR)/%_psy.f90: \
 $(WORKING_DIR)/%.x90 $$(OPTIMISATION_PATH)/$$*.py | $$(dir $$@)
 	$(call MESSAGE,PSyclone - local optimisation,$(subst $(SOURCE_DIR)/,,$<))
-	$QPYTHONPATH=$(LFRIC_BUILD)/psyclone:$$PYTHONPATH psyclone -api dynamo0.3 \
+	$QPYTHONPATH=$(LFRIC_BUILD)/psyclone:$$PYTHONPATH psyclone -api lfric \
 	           -l all -d $(WORKING_DIR) \
 	           --config $(PSYCLONE_CONFIG_FILE) \
 	           -s $(OPTIMISATION_PATH)/$*.py \
-                   -okern $(WORKING_DIR) \
+	           -okern $(WORKING_DIR) \
 	           -oalg $(WORKING_DIR)/$*.f90 \
 	           -opsy $(WORKING_DIR)/$*_psy.f90 $<
 
@@ -55,11 +55,11 @@ $(WORKING_DIR)/%.x90 $$(OPTIMISATION_PATH)/$$*.py | $$(dir $$@)
 $(WORKING_DIR)/%.f90 $(WORKING_DIR)/%_psy.f90: \
 $(WORKING_DIR)/%.x90 $(OPTIMISATION_PATH)/global.py | $$(dir $$@)
 	$(call MESSAGE,PSyclone - global optimisation,$(subst $(SOURCE_DIR)/,,$<))
-	$QPYTHONPATH=$(LFRIC_BUILD)/psyclone:$$PYTHONPATH psyclone -api dynamo0.3 \
+	$QPYTHONPATH=$(LFRIC_BUILD)/psyclone:$$PYTHONPATH psyclone -api lfric \
 	           -l all -d $(WORKING_DIR) \
 	           --config $(PSYCLONE_CONFIG_FILE) \
 	           -s $(OPTIMISATION_PATH)/global.py \
-                   -okern $(WORKING_DIR) \
+	           -okern $(WORKING_DIR) \
 	           -oalg  $(WORKING_DIR)/$*.f90 \
 	           -opsy $(WORKING_DIR)/$*_psy.f90 $<
 
@@ -68,10 +68,10 @@ $(WORKING_DIR)/%.x90 $(OPTIMISATION_PATH)/global.py | $$(dir $$@)
 $(WORKING_DIR)/%.f90 $(WORKING_DIR)/%_psy.f90: \
 $(WORKING_DIR)/%.x90 | $$(dir $$@)
 	$(call MESSAGE,PSyclone,$(subst $(SOURCE_DIR)/,,$<))
-	$QPYTHONPATH=$(LFRIC_BUILD)/psyclone:$$PYTHONPATH psyclone -api dynamo0.3 \
+	$QPYTHONPATH=$(LFRIC_BUILD)/psyclone:$$PYTHONPATH psyclone -api lfric \
 	           -l all -d $(WORKING_DIR) \
 	           --config $(PSYCLONE_CONFIG_FILE) \
-                   -okern $(WORKING_DIR) \
+	           -okern $(WORKING_DIR) \
 	           -oalg  $(WORKING_DIR)/$*.f90 \
 	           -opsy $(WORKING_DIR)/$*_psy.f90 $<
 

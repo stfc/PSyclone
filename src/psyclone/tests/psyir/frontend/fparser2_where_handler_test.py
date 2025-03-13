@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -570,7 +570,6 @@ end subroutine sub
 
 
 @pytest.mark.usefixtures("parser")
-@pytest.mark.xfail(reason="#1960 Can't handle array-reduction intrinsics")
 def test_where_with_array_reduction_intrinsic():
     ''' Test that a WHERE containing an array-reduction intrinsic is handled
     correctly. Currently it is not supported. This will be fixed in #1960.
@@ -1014,3 +1013,224 @@ def test_non_array_ref_intrinsic_transformation_error(fortran_reader):
     references = psyir.walk(Reference)
     # The d should not have been transformed into an array.
     assert not isinstance(references[7], ArrayReference)
+
+
+def test_elemental_intrinsic_to_loop(fortran_reader, fortran_writer):
+    '''
+    Tests that if we have an elemental intrinsic (like ABS) that we
+    expand the where into a loop.
+    '''
+    code = '''
+    program where_test
+    implicit none
+    real, dimension(100) :: a, b
+
+    where(abs(a) < 2)
+        b = a
+    end where
+    end program
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    correct = '''program where_test
+  real, dimension(100) :: a
+  real, dimension(100) :: b
+  integer :: widx1
+
+  do widx1 = 1, 100, 1
+    if (ABS(a(widx1)) < 2) then
+      b(widx1) = a(widx1)
+    end if
+  enddo
+
+end program where_test'''
+    out = fortran_writer(psyir)
+    assert correct in out
+
+    # Test a case with both an intrinsic and non-intrinsic
+    code = '''
+    program where_test
+    implicit none
+    real, dimension(100) :: a, b
+
+    where(dot_product(a,a(:)) + abs(a) < 2)
+        b = a
+    end where
+    end program
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    out = fortran_writer(psyir)
+    assert isinstance(psyir.children[0].children[0], Loop)
+    correct = '''do widx1 = 1, 100, 1
+    if (DOT_PRODUCT(a, a(:)) + ABS(a(widx1)) < 2) then
+      b(widx1) = a(widx1)
+    end if
+  enddo'''
+    assert correct in out
+
+
+def test_elemental_function_to_loop(fortran_reader, fortran_writer):
+    '''
+    Tests that if we have an elemental function that we expand the where
+    into a loop.
+    '''
+    code = '''
+    module mymod
+    contains
+    real elemental function x(i)
+       real :: i
+       x = i + 1.5
+    end function
+    subroutine where_test
+    implicit none
+    real, dimension(100) :: a, b
+
+    where(x(a) < 2)
+        b = a
+    end where
+    end subroutine
+    end module'''
+    psyir = fortran_reader.psyir_from_source(code)
+    correct = '''  subroutine where_test()
+    real, dimension(100) :: a
+    real, dimension(100) :: b
+    integer :: widx1
+
+    do widx1 = 1, 100, 1
+      if (x(a(widx1)) < 2) then
+        b(widx1) = a(widx1)
+      end if
+    enddo
+
+  end subroutine where_test'''
+    out = fortran_writer(psyir)
+    assert correct in out
+
+    # Test the behaviour if we have a non-elemental function.
+    code = '''
+    module mymod
+    contains
+    real function x(i)
+       real, dimension(*) :: i
+       x = sum(i) + 1.5
+    end function
+    subroutine where_test
+    implicit none
+    real, dimension(100) :: a, b
+
+    where(x(a(:)) + abs(a) < 2)
+        b = a
+    end where
+    end subroutine
+    end module'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0].children[1].children[0], Loop)
+    correct = '''do widx1 = 1, 100, 1
+      if (x(a(:)) + ABS(a(widx1)) < 2) then
+        b(widx1) = a(widx1)
+      end if
+    enddo'''
+    out = fortran_writer(psyir)
+    assert correct in out
+
+    # Test the behaviour if we have a non-elemental and elemental
+    # functions in the where.
+    code = '''
+    module mymod
+    contains
+    real function x(i)
+       real, dimension(*) :: i
+       x = sum(i) + 1.5
+    end function
+    real elemental function y(i)
+       real :: i
+       y = i + 1.5
+    end function
+    subroutine where_test
+    implicit none
+    real, dimension(100) :: a, b
+
+    where(x(a(:)) + y(a) < 2)
+        b = a
+    end where
+    end subroutine
+    end module'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0].children[2].children[0], Loop)
+    correct = '''do widx1 = 1, 100, 1
+      if (x(a(:)) + y(a(widx1)) < 2) then
+        b(widx1) = a(widx1)
+      end if
+    enddo'''
+    out = fortran_writer(psyir)
+    assert correct in out
+
+    # Imported function has unknown elemental status. Only the import error
+    # is testable at the moment.
+    code = '''
+    subroutine test
+    use mod, only: somefunc
+    real, dimension(100) :: a, b
+    where(somefunc(a) < 2)
+        b = a
+    end where
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0].children[0], CodeBlock)
+    correct = '''! PSyclone CodeBlock (unsupported code) reason:
+  !  - PSyclone doesn't yet support reference to imported \
+symbols inside WHERE clauses.
+  WHERE (somefunc(a) < 2)
+    b = a
+  END WHERE'''
+    out = fortran_writer(psyir)
+    assert correct in out
+
+    code = '''
+    subroutine test
+    use mod
+    real, dimension(100) :: a, b
+    where(somefunc(a) < 2)
+        b = a
+    end where
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0].children[0], CodeBlock)
+    correct = '''! PSyclone CodeBlock (unsupported code) reason:
+  !  - PSyclone doesn't yet support reference to imported \
+symbols inside WHERE clauses.
+  WHERE (somefunc(a) < 2)
+    b = a
+  END WHERE'''
+    out = fortran_writer(psyir)
+    assert correct in out
+
+
+def test_array_syntax_to_indexed_unknown_elemental(fortran_reader):
+    # Check we get a codeblock if we have an function of unknown elemental
+    # status.
+    code = '''
+    module mymod
+    contains
+    real function x(i)
+       real, dimension(*) :: i
+       x = sum(i) + 1.5
+    end function
+    subroutine where_test
+    implicit none
+    real, dimension(100) :: a, b
+
+    if(x(a(:)) + abs(a) < 2) then
+        b = a
+    end if
+    end subroutine
+    end module'''
+    psyir = fortran_reader.psyir_from_source(code)
+    calls = psyir.walk(Call)
+    # Override the call to x symbol to be None elemental type
+    calls[1].routine.symbol.is_elemental = None
+    ifblock = psyir.walk(IfBlock)[0]
+    parser = fortran_reader._processor
+    with pytest.raises(NotImplementedError) as excinfo:
+        parser._array_syntax_to_indexed(ifblock, ["i"])
+    assert ("Found a function call inside a where clause with unknown "
+            "elemental status: x(a(:)" in str(excinfo.value))

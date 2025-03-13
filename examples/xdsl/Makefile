@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,10 +39,10 @@ EXAMPLES=$(sort $(wildcard eg*))
 include ../top_level.mk
 
 transform:
-        @echo "No transformation supported for xdsl"
+	@echo "No transformation supported for xdsl"
 
 compile: transform
-        @echo "No compilation supported for xdsl"
+	@echo "No compilation supported for xdsl"
 
 run: compile
-        @echo "No run targets for xdsl"
+	@echo "No run targets for xdsl"

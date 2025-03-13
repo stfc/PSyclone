@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,7 @@ from psyclone.psyir.nodes import (
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause,
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective,
     OMPAtomicDirective, OMPFirstprivateClause, OMPSimdDirective,
-    StructureReference, IfBlock)
+    StructureReference, IfBlock, OMPTeamsLoopDirective)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, SymbolTable, ArrayType, RoutineSymbol,
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, StructureType,
@@ -694,15 +694,17 @@ def test_directiveinfer_sharing_attributes_lfric():
 def test_infer_sharing_attributes_with_explicitly_private_symbols(
         fortran_reader):
     ''' Tests the infer_sharing_attributes() method when some of the loops have
-    explictly declared private symbols.
+    explictly declared private symbols. Also test that non-data accesses to
+    array symbols are ignored.
     '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
             integer :: i, j, scalar1, scalar2
-            real, dimension(10) :: array
+            real, dimension(10) :: array, array2
             do j = 1, 10
-               do i = 1, 10
-                   array(i) = scalar2
+               do i = 1, size(array, 1)
+                   ! Access to array2 is type information rather than data
+                   array(i) = scalar2 * size(array2, 1)
                enddo
             enddo
         end subroutine''')
@@ -1553,6 +1555,23 @@ def test_omp_declare_target_directive_validate_global_constraints():
     assert ("A OMPDeclareTargetDirective must be the first child (index 0) of "
             "a Routine but found one as child 1 of a Routine."
             in str(err.value))
+
+
+# Test OMPTeamsLoopDirective
+
+def test_omp_teamsloop_directive_constructor_and_strings():
+    ''' Test the OMPTeamsLoopDirective constructor and its output strings.'''
+    omploop = OMPTeamsLoopDirective()
+    assert omploop.begin_string() == "omp teams loop"
+    assert omploop.end_string() == "omp end teams loop"
+    assert str(omploop) == "OMPTeamsLoopDirective[]"
+    assert omploop.collapse is None
+
+    omploop = OMPTeamsLoopDirective(collapse=4)
+    assert omploop.collapse == 4
+    assert omploop.begin_string() == "omp teams loop collapse(4)"
+    assert omploop.end_string() == "omp end teams loop"
+    assert str(omploop) == "OMPTeamsLoopDirective[collapse=4]"
 
 
 # Test OMPLoopDirective

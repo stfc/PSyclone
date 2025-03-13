@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -774,7 +774,7 @@ class PSyDataNode(Statement):
                 argument_str += ",".join([str(arg) for arg in argument_list])
                 argument_str += ")"
 
-            ParserFactory().create(std="f2008")
+            ParserFactory().create(std=Config.get().fortran_standard)
             reader = FortranStringReader(
                 f"CALL {typename}%{methodname}{argument_str}")
             # Tell the reader that the source is free format

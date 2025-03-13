@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council
+# Copyright (c) 2019-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -208,9 +208,8 @@ if __name__ == "__main__":
     result = writer(psyir_tree)
     print(result)
 
-    # Write out the code as C. At the moment NaryOperator, Routine
-    # and Container are not supported in the C backend so the full example
-    # can't be output.
+    # Write out the code as C. At the moment Routine and Container are not
+    # supported in the C backend so the full example can't be output.
     writer = CWriter()
     result = writer(psyir_tree.children[0].children[0].children[3])
     print(result)

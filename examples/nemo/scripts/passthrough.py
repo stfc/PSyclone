@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,9 @@
 
 ''' Process Nemo code with PSyclone but don't do any changes. This file is only
 needed to provide a FILES_TO_SKIP list. '''
-from utils import PASSTHROUGH_ISSUES
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = PASSTHROUGH_ISSUES
+FILES_TO_SKIP = []
 
 
 def trans(_):

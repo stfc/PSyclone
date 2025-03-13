@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2019-2020 Met Office. All rights reserved.
+! (C) Crown copyright 2019-2025 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
@@ -9,7 +9,7 @@
 
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020-2024, Science and Technology Facilities Council
+! Copyright (c) 2020-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Modified by J. Henrichs, Bureau of Meteorology
+!             J. Dendy, Met Office
 
 !
 !> @brief A module containing the abstract type that is the parent to all
@@ -99,9 +100,12 @@ module field_parent_mod
     !> Return the id of the mesh used by this field
     !> @return mesh_id The id of the mesh object associated with the field
     procedure, public :: get_mesh_id
-    !> Returns the order of the FEM elements
-    !> @return elem Element order of this field
-    procedure, public :: get_element_order
+    !> Returns the order of the FEM elements in the horizontal direction
+    !> @return elem_h Element order of this field in the horizontal direction
+    procedure, public :: get_element_order_h
+    !> Returns the order of the FEM elements in the vertical direction
+    !> @return elem_v Element order of this field in the vertical direction
+    procedure, public :: get_element_order_v
     !> Returns the name of the field
     !> @return field name
     procedure, public :: get_name
@@ -333,17 +337,29 @@ contains
     return
   end function get_mesh_id
 
-  ! Function to get element order from the field.
-  function get_element_order(self) result(elem)
+  ! Function to get horizontal element order from the field.
+  function get_element_order_h(self) result(elem_h)
     implicit none
 
     class (field_parent_type) :: self
-    integer(i_def) :: elem
+    integer(i_def) :: elem_h
 
-    elem = self%vspace%get_element_order()
+    elem_h = self%vspace%get_element_order_h()
 
     return
-  end function get_element_order
+  end function get_element_order_h
+
+  ! Function to get vertical element order from the field.
+  function get_element_order_v(self) result(elem_v)
+    implicit none
+
+    class (field_parent_type) :: self
+    integer(i_def) :: elem_v
+
+    elem_v = self%vspace%get_element_order_v()
+
+    return
+  end function get_element_order_v
 
   !> Returns the name of the field
   function get_name(self) result(name)

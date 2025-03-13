@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -263,6 +263,39 @@ class SymbolicMaths:
 
         # We have some sort of symbolic result
         result = diff_val.is_positive
+        if result is None:
+            return SymbolicMaths.Fuzzy.MAYBE
+        if result:
+            return SymbolicMaths.Fuzzy.TRUE
+        return SymbolicMaths.Fuzzy.FALSE
+
+    @staticmethod
+    def less_than(exp1, exp2, all_variables_positive=None):
+        '''
+        Determines whether exp1 is, or might be, numerically less than exp2.
+
+        :param exp1: the first expression for the comparison.
+        :type exp1: :py:class:`psyclone.psyir.nodes.Node`
+        :param exp1: the second expression for the comparison.
+        :type exp1: :py:class:`psyclone.psyir.nodes.Node`
+        :param Optional[bool] all_variables_positive: whether or not to assume
+            that all variables appearing in either expression are positive
+            definite. Default is not to make this assumption.
+
+        :returns: whether exp1 is, or might be, numerically less than exp2.
+        :rtype: :py:class:`psyclone.core.symbolic_maths.Fuzzy`
+
+        '''
+        diff_val = SymbolicMaths._subtract(
+            exp1, exp2,
+            all_variables_positive=all_variables_positive)
+        if isinstance(diff_val, core.numbers.Integer):
+            if diff_val.is_zero or diff_val.is_positive:
+                return SymbolicMaths.Fuzzy.FALSE
+            return SymbolicMaths.Fuzzy.TRUE
+
+        # We have some sort of symbolic result
+        result = diff_val.is_negative
         if result is None:
             return SymbolicMaths.Fuzzy.MAYBE
         if result:

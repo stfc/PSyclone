@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council.
+# Copyright (c) 2018-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,6 +55,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 # Test code with explicit NEMO-style do loop
 EXPLICIT_DO = ("program explicit_do\n"
+               "  use kinds_mod, only: r_def\n"
                "  REAL :: r\n"
                "  INTEGER :: ji, jj, jk\n"
                "  INTEGER, PARAMETER :: jpi=3, jpj=5, jpk=7\n"
@@ -62,7 +63,7 @@ EXPLICIT_DO = ("program explicit_do\n"
                "  DO jk = 1, jpk\n"
                "     DO jj = 1, jpj\n"
                "        DO ji = 1, jpi\n"
-               "           umask(ji,jj,jk) = ji*jj*jk/r\n"
+               "           umask(ji,jj,jk) = 3.0_r_def - ji*jj*jk/r\n"
                "        END DO\n"
                "     END DO\n"
                "  END DO\n"

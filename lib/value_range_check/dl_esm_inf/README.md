@@ -57,7 +57,7 @@ The ``Makefile`` will compile the ``dl_esm_inf`` infrastructure library,
 ``lib_fd.a``, if required, with the previously selected compiler flags.
 
 Similar to compilation of the [examples](
-https://psyclone.readthedocs.io/en/latest/examples.html#compilation), the
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples.html#compilation), the
 compiled wrapper library can be removed by running ``make clean``. To also
 remove the compiled infrastructure library it is necessary to run
 ``make allclean`` (this is especially important if changing compilers
@@ -81,7 +81,7 @@ $(F90)  ... -L$(PSYDATA_LIB_DIR)/value_range_check/dl_esm_inf -l_value_range_che
 
 BSD 3-Clause License
 
-Copyright (c) 2024, Science and Technology Facilities Council.
+Copyright (c) 2024-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

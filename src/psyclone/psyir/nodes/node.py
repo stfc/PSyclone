@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1781,6 +1781,23 @@ class Node():
         :type new_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
         '''
+
+    def is_descendent_of(self, potential_ancestor) -> bool:
+        '''
+        Checks if this node is a descendant of the `potential_ancestor` node.
+
+        :param potential_ancestor: The Node to check whether its an ancestor
+                                   of self.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: whether potential_ancestor is an ancestor of this node.
+        '''
+        current_node = self
+        while (current_node is not potential_ancestor and
+               current_node.parent is not None):
+            current_node = current_node.parent
+
+        return current_node is potential_ancestor
 
 
 # For automatic documentation generation

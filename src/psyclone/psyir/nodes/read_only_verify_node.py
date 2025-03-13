@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -89,7 +89,8 @@ class ReadOnlyVerifyNode(PSyDataNode):
         from psyclone.psyir.tools import ReadWriteInfo
         ctu = CallTreeUtils()
         read_write_info = ReadWriteInfo()
-        ctu.get_input_parameters(read_write_info, self, options=self.options)
+        ctu.get_input_parameters(read_write_info, self,
+                                 include_non_data_accesses=True)
         options = {'pre_var_list': read_write_info.read_list,
                    'post_var_list': read_write_info.read_list}
 
