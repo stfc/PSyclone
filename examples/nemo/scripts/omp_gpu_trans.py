@@ -39,8 +39,8 @@ directives into Nemo code. '''
 
 import os
 from utils import (
-    insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, PARALLELISATION_ISSUES,
+    add_profiling, inline_calls, insert_explicit_loop_parallelism,
+    normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
     NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
 from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import OMPTargetTrans
@@ -155,6 +155,7 @@ def trans(psyir):
                 convert_range_loops=True,
                 hoist_expressions=True
         )
+        inline_calls(subroutine)
 
         # These are functions that are called from inside parallel regions,
         # annotate them with 'omp declare target'

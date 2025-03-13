@@ -59,7 +59,7 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Directive, Literal, Loop, Node,
+    Call, CodeBlock, Container, Directive, Literal, Loop, Node,
     OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
@@ -2876,17 +2876,11 @@ class KernelImportsToArguments(Transformation):
                 f"kernels but found the following implementations for kernel "
                 f"'{node.name}': {[kern.name for kern in kernels]}")
 
+        from psyclone.domain.common.transformations import (
+            KernelModuleInlineTrans)
         for kernel in kernels:
-            symtab = kernel.symbol_table
-            for container in symtab.containersymbols:
-                if container.wildcard_import:
-                    raise TransformationError(
-                        f"Kernel '{node.name}' has a wildcard import of "
-                        f"symbols from container '{container.name}'. This is "
-                        f"not supported.")
-
-        # TODO #649. Check for variables accessed by the kernel but declared
-        # in an outer scope.
+            KernelModuleInlineTrans.check_data_accesses(node, kernel,
+                                                        "Kernel")
 
     def apply(self, node, options=None):
         '''
@@ -2900,7 +2894,6 @@ class KernelImportsToArguments(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-
         self.validate(node, options)
 
         _, kernels = node.get_kernel_schedule()
@@ -2914,17 +2907,23 @@ class KernelImportsToArguments(Transformation):
         # TODO #11: When support for logging is added, we could warn the user
         # if no imports are found in the kernel.
         for imported_var in kernel.symbol_table.imported_symbols[:]:
-            count_imported_vars_removed += 1
 
             # Resolve the data type information if it is not available
-            # pylint: disable=unidiomatic-typecheck
+            updated_sym = imported_var
+            # pylint: disable-next=unidiomatic-typecheck
             if (type(imported_var) is Symbol or
                     isinstance(imported_var.datatype, UnresolvedType)):
                 updated_sym = imported_var.resolve_type()
                 # If we have a new symbol then we must update the symbol table
                 if updated_sym is not imported_var:
                     kernel.symbol_table.swap(imported_var, updated_sym)
-            # pylint: enable=unidiomatic-typecheck
+
+            if updated_sym in kernel.symbol_table.precision_datasymbols:
+                # Symbols specifying compile-time precision can't be passed
+                # as arguments.
+                continue
+
+            count_imported_vars_removed += 1
 
             # Copy the imported symbol into the InvokeSchedule SymbolTable
             invoke_symtab.copy_external_import(

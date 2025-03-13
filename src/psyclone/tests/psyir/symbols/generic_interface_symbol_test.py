@@ -37,8 +37,9 @@
 ''' This module contains pytest tests for GenericInterfaceSymbol.'''
 
 import pytest
-from psyclone.psyir.symbols import (GenericInterfaceSymbol, INTEGER_TYPE,
-                                    RoutineSymbol, SymbolTable, Symbol)
+from psyclone.psyir.symbols import (
+    ContainerSymbol, GenericInterfaceSymbol, ImportInterface, INTEGER_TYPE,
+    RoutineSymbol, SymbolTable, Symbol, UnresolvedInterface)
 
 
 def test_gis_constructor():
@@ -139,6 +140,29 @@ def test_gis_copy():
     assert holly in rsyms
 
 
+def test_gis_copy_properties():
+    '''
+    Test the copy_properties() method of GenericInterfaceSymbol.
+    '''
+    ash = RoutineSymbol("ash")
+    holly = RoutineSymbol("holly")
+    coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False)])
+    oak = RoutineSymbol("oak")
+    new_sym = GenericInterfaceSymbol("spinney", [(oak, True)],
+                                     interface=UnresolvedInterface())
+    new_sym.copy_properties(coppice)
+    assert ([info.symbol.name for info in new_sym.routines] ==
+            [info.symbol.name for info in coppice.routines])
+    # Check that if the interface symbol has an import interface then so do
+    # its constituent RoutineSymbols.
+    csym = ContainerSymbol("woodland")
+    coppice2 = GenericInterfaceSymbol("coppice2", [(ash, True)],
+                                      interface=ImportInterface(csym))
+    new_sym.copy_properties(coppice2)
+    for info in new_sym.routines:
+        assert info.symbol.interface.container_symbol is csym
+
+
 def test_gis_replace_symbols_using():
     '''Test that replace_symbols_using() correctly updates symbols referred
     to by a GenericInterfaceSymbol.
@@ -146,17 +170,24 @@ def test_gis_replace_symbols_using():
     '''
     ash = RoutineSymbol("ash")
     holly = RoutineSymbol("holly")
-    coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False)])
+    birch = RoutineSymbol("birch")
+    coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False),
+                                                 (birch, True)])
     table = SymbolTable()
     for rinfo in coppice.routines:
-        assert rinfo.symbol in [ash, holly]
+        assert rinfo.symbol in [ash, holly, birch]
     ashling = ash.copy()
     table.add(ashling)
+    # Test when the replacement symbol is currently just a Symbol. It should
+    # be converted into a RoutineSymbol (in place).
+    birch = Symbol("birch")
+    table.add(birch)
     coppice.replace_symbols_using(table)
     for rinfo in coppice.routines:
-        assert rinfo.symbol in [ashling, holly]
+        assert rinfo.symbol in [ashling, holly, birch]
+        assert isinstance(rinfo.symbol, RoutineSymbol)
     newholly = holly.copy()
     table.add(newholly)
     coppice.replace_symbols_using(table)
     for rinfo in coppice.routines:
-        assert rinfo.symbol in [ashling, newholly]
+        assert rinfo.symbol in [ashling, newholly, birch]

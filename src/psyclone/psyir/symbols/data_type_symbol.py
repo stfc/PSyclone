@@ -127,6 +127,31 @@ class DataTypeSymbol(Symbol):
         super(DataTypeSymbol, self).copy_properties(symbol_in)
         self._datatype = symbol_in.datatype
 
+    def reference_accesses(self, access_info):
+        '''
+        Update the supplied VariablesAccessInfo with information on the symbols
+        referenced by the definition of this Symbol.
+
+        :param access_info: the object in which to accumulate access
+                            information.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        '''
+        super().reference_accesses(access_info)
+        self.datatype.reference_accesses(self, access_info)
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        super().replace_symbols_using(table)
+        self.datatype.replace_symbols_using(table)
+
 
 # For automatic documentation generation
 __all__ = ['DataTypeSymbol']

@@ -41,11 +41,11 @@ import pytest
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InvokeSchedule
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
-    CHARACTER_TYPE, Symbol
-from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import KernelImportsToArguments, \
-    TransformationError
+from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE, INTEGER_TYPE,
+                                    CHARACTER_TYPE, Symbol)
+from psyclone.tests.utilities import get_invoke, make_external_module
+from psyclone.transformations import (KernelImportsToArguments,
+                                      TransformationError)
 
 API = "gocean"
 
@@ -94,17 +94,13 @@ def test_kernelimportstoargumentstrans_no_wildcard_import():
     ''' Check that the transformation rejects kernels with wildcard
     imports. '''
     trans = KernelImportsToArguments()
-    path = os.path.join(BASEPATH, "gocean1p0")
-    _, invoke_info = parse(os.path.join(
-        path, "single_invoke_kern_with_unqualified_use.f90"),
-                           api=API)
-    psy = PSyFactory(API).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    kernel = invoke.schedule.coded_kernels()[0]
+    psy, invoke_info = get_invoke(
+        "single_invoke_kern_with_unqualified_use.f90", idx=0, api=API)
+    kernel = invoke_info.schedule.coded_kernels()[0]
     with pytest.raises(TransformationError) as err:
         trans.apply(kernel)
-    assert ("'kernel_with_use_code' has a wildcard import of symbols from "
-            "container 'model_mod'" in str(err.value))
+    assert ("'kernel_with_use_code' contains accesses to 'rdt' which is "
+            "unresolved" in str(err.value))
 
 
 def test_kernelimportstoargumentstrans_no_polymorphic(monkeypatch):
@@ -218,11 +214,7 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch):
     trans = KernelImportsToArguments()
 
     # Construct a testing InvokeSchedule
-    _, invoke_info = parse(os.path.join(BASEPATH, "gocean1p0",
-                                        "single_invoke_kern_with_use.f90"),
-                           api=API)
-    psy = PSyFactory(API).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    psy, invoke = get_invoke("single_invoke_kern_with_use.f90", idx=0, api=API)
     kernel = invoke.schedule.coded_kernels()[0]
 
     # Monkeypatch resolve_type to avoid module searching and importing
@@ -375,34 +367,31 @@ def test_kernelimportstoarguments_noimports(fortran_writer):
     # no imports were found.
 
 
-def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch):
+def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch,
+                                                         fortran_reader):
     ''' Check the KernelImportsToArguments transformation with a symbol name
     clash produces the expected error.'''
+    make_external_module(monkeypatch, fortran_reader, "model_mod", """\
+    module model_mod
+    use kind_params_mod
+    real(go_wp), parameter :: rdt = 1.0
+    real(go_wp) :: magic
+    real(go_wp) :: cbfr
+    end module model_mod""")
 
     trans = KernelImportsToArguments()
     # Construct a testing InvokeSchedule
-    _, invoke_info = parse(os.path.join(BASEPATH, "gocean1p0",
-                                        "single_invoke_kern_with_use.f90"),
-                           api=API)
-    psy = PSyFactory(API).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("single_invoke_kern_with_use.f90", idx=0, api=API)
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monkeypatch Symbol.resolve_type to avoid module searching and
-    # importing in this test. In this case we assume the symbol is a
-    # DataSymbol of REAL type.
-    def create_real(variable):
-        return DataSymbol(variable.name, REAL_TYPE,
-                          interface=variable.interface)
-    monkeypatch.setattr(Symbol, "resolve_type", create_real)
-
-    # Add 'rdt' into the symbol table
+    # Add 'rdt' into the symbol table of this Invoke.
     kernel.ancestor(InvokeSchedule).symbol_table.add(
         DataSymbol("rdt", REAL_TYPE))
 
     # Test transforming a single kernel
     with pytest.raises(KeyError) as err:
         trans.apply(kernel)
-    assert ("Couldn't copy 'rdt: DataSymbol<Scalar<REAL, UNDEFINED>, "
-            "Import(container='model_mod')>' into the SymbolTable. The name "
-            "'rdt' is already used by another symbol." in str(err.value))
+    assert ("Couldn't copy 'rdt: DataSymbol<Scalar<REAL, go_wp: "
+            in str(err.value))
+    assert (" into the SymbolTable. The name 'rdt' is already used by another "
+            "symbol." in str(err.value))

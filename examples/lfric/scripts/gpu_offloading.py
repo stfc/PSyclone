@@ -125,7 +125,6 @@ def trans(psyir):
     otrans = Dynamo0p3OMPLoopTrans()
     const = LFRicConstants()
     cpu_parallel = OMPParallelTrans()
-    mod_inline_trans = KernelModuleInlineTrans()
 
     if OFFLOAD_DIRECTIVES == "omp":
         # Use OpenMP offloading
@@ -189,7 +188,6 @@ def trans(psyir):
                 if offload:
                     for kern in loop.kernels():
                         try:
-                            mod_inline_trans.apply(kern)
                             _inline_calls(kern)
                             # At this point we would like to fully inline the
                             # kernel but InlineTrans does not accept a

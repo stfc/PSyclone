@@ -187,6 +187,27 @@ class GenericInterfaceSymbol(RoutineSymbol):
                           visibility=self.visibility,
                           interface=self.interface.copy())
 
+    def copy_properties(self, symbol_in: RoutineSymbol):
+        '''
+        Copies the properties of the supplied Symbol into this one.
+
+        :param symbol_in: the Symbol to copy properties from.
+
+        '''
+        super().copy_properties(symbol_in)
+        # We must add information on the routines which this interface
+        # can bind to.
+        new_values = []
+        for info in symbol_in.routines:
+            new_sym = info.symbol.copy()
+            if self.is_import:
+                # If this interface symbol is imported then the Routines it
+                # wraps must also be in scope in that same Container. Note that
+                # they may (and probably will) be private to that Container.
+                new_sym.interface = self.interface
+            new_values.append((new_sym, info.from_container))
+        self.routines = new_values
+
     def replace_symbols_using(self, table):
         '''
         Replace any Symbols referred to by this object with those in the
@@ -202,10 +223,28 @@ class GenericInterfaceSymbol(RoutineSymbol):
         for routine in self.routines:
             try:
                 new_rt = table.lookup(routine.symbol.name)
+                if not isinstance(new_rt, RoutineSymbol):
+                    new_rt.specialise(RoutineSymbol)
             except KeyError:
                 new_rt = routine.symbol
             new_routines.append((new_rt, routine.from_container))
         self.routines = new_routines
+
+    def reference_accesses(self, access_info):
+        '''
+        Update the supplied VariablesAccessInfo with information on the symbols
+        referenced by the definition of this Symbol.
+
+        :param access_info: the object in which to accumulate access
+                            information.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        '''
+        super().reference_accesses(access_info)
+
+        from psyclone.core import AccessType, Signature
+        for rt_info in self.routines:
+            access_info.add_access(Signature(rt_info.symbol.name),
+                                   AccessType.TYPE_INFO, self)
 
 
 # For Sphinx AutoAPI documentation generation

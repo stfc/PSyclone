@@ -90,6 +90,15 @@ class DataType(metaclass=abc.ABCMeta):
 
         '''
 
+    def reference_accesses(self, sym: Symbol, access_info):
+        '''
+        Get all symbols referenced in this datatype.
+
+        :param sym: the Symbol that this datatype is for.
+        :param access_info: instance in which to store access info.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
     @property
     def is_allocatable(self) -> Union[bool, None]:
         '''
@@ -305,6 +314,27 @@ class UnsupportedFortranType(UnsupportedType):
             return self.partial_datatype.intrinsic
         return None
 
+    def reference_accesses(self, sym: Symbol, access_info):
+        '''
+        Get all symbols referenced in this datatype.
+
+        :param sym: the Symbol that this datatype is for.
+        :param access_info: instance in which to store access info.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
+        super().reference_accesses(sym, access_info)
+
+        if self.partial_datatype:
+            if isinstance(self.partial_datatype, DataTypeSymbol):
+                from psyclone.core.signature import Signature
+                from psyclone.core.access_type import AccessType
+                access_info.add_access(
+                    Signature(self.partial_datatype.name),
+                    AccessType.TYPE_INFO, self)
+            else:
+                self.partial_datatype.reference_accesses(sym, access_info)
+
     @property
     def is_allocatable(self) -> Union[bool, None]:
         '''If we have enough information in the partial_datatype,
@@ -467,6 +497,25 @@ class ScalarType(DataType):
             except KeyError:
                 pass
 
+    def reference_accesses(self, sym, access_info):
+        '''
+        Get all symbols referenced in this datatype.
+
+        :param sym: the Symbol that this datatype is for.
+        :param access_info: instance in which to store access info.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
+        super().reference_accesses(sym, access_info)
+
+        if isinstance(self.precision, Symbol):
+            from psyclone.core.signature import Signature
+            from psyclone.core.access_type import AccessType
+
+            access_info.add_access(
+                Signature(self.precision.name),
+                AccessType.TYPE_INFO, sym)
+
 
 class ArrayType(DataType):
     '''Describes an array datatype. Can be an array of intrinsic types (e.g.
@@ -515,6 +564,12 @@ class ArrayType(DataType):
             :rtype: :py:class:`psyclone.psyir.symbols.ArrayType.Extent`
             '''
             return copy.copy(self)
+
+        def reference_accesses(self, _):
+            '''
+            An Extent cannot contain any variable accesses so there's nothing
+            to do.
+            '''
 
     @dataclass(frozen=True)
     class ArrayBounds:
@@ -935,6 +990,29 @@ class ArrayType(DataType):
                 if isinstance(bnd, Node):
                     bnd.replace_symbols_using(table)
 
+    def reference_accesses(self, sym, access_info):
+        '''
+        Get all symbols referenced in this datatype.
+
+        :param sym: the Symbol that this datatype is for.
+        :param access_info: instance in which to store access info.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
+        super().reference_accesses(sym, access_info)
+
+        if isinstance(self.precision, Symbol):
+            from psyclone.core.signature import Signature
+            from psyclone.core.access_type import AccessType
+            access_info.add_access(
+                Signature(self.precision.name),
+                AccessType.TYPE_INFO, sym)
+
+        for dim in self.shape:
+            if isinstance(dim, ArrayType.ArrayBounds):
+                dim.lower.reference_accesses(access_info)
+                dim.upper.reference_accesses(access_info)
+
 
 class StructureType(DataType):
     '''
@@ -977,6 +1055,7 @@ class StructureType(DataType):
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
         '''
         new = StructureType()
+
         for name, component in self.components.items():
             new.add(name, component.datatype, component.visibility,
                     component.initial_value, component.preceding_comment,
@@ -1137,9 +1216,8 @@ class StructureType(DataType):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        # Since ComponentType is a namedtuple it is immutable therefore we
-        # must construct new ones.
-        new_components = OrderedDict()
+        # Since ComponentType is a frozen dataclass it is immutable, therefore
+        # we must construct new ones.
         for component in self.components.values():
             if isinstance(component.datatype, DataTypeSymbol):
                 try:
@@ -1153,10 +1231,32 @@ class StructureType(DataType):
                 component.initial_value.replace_symbols_using(table)
             # Construct the new ComponentType
             key_name = component.name.lower()
-            new_components[key_name] = StructureType.ComponentType(
-                component.name, new_type, component.visibility,
-                component.initial_value)
-        self._components = new_components
+            self.add(key_name, new_type, component.visibility,
+                     component.initial_value,
+                     preceding_comment=component.preceding_comment,
+                     inline_comment=component.inline_comment)
+
+    def reference_accesses(self, sym, access_info):
+        '''
+        Get all symbols referenced in this datatype.
+
+        :param sym: the Symbol that this datatype is for.
+        :param access_info: instance in which to store access info.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
+        super().reference_accesses(sym, access_info)
+        for cmpt in self.components.values():
+            if isinstance(cmpt.datatype, DataTypeSymbol):
+                from psyclone.core.signature import Signature
+                from psyclone.core.access_type import AccessType
+                access_info.add_access(
+                    Signature(cmpt.datatype.name),
+                    AccessType.TYPE_INFO, sym)
+            else:
+                cmpt.datatype.reference_accesses(sym, access_info)
+            if cmpt.initial_value:
+                cmpt.initial_value.reference_accesses(access_info)
 
 
 # Create common scalar datatypes
