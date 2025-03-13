@@ -625,7 +625,7 @@ uses `SymPy` internally to compare expressions symbolically.
     :members:
 
 
-.. note:: PSyclone provides :ref:`replace_induction_variable_trans`,
+.. note:: PSyclone provides :ref_guide:`ReplaceInductionVariableTrans psyclone.psyir.transformations.replace_induction_variables_trans.html#psyclone.psyir.transformations.replace_induction_variables_trans.ReplaceInductionVariablesTrans`,
           a transformation that can be very useful to improve the ability of
           the dependency analysis to provide useful information. It is
           recommended to run this transformation on a copy of the tree, since

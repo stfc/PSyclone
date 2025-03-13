@@ -165,7 +165,7 @@ if __name__ == '__main__':
                           'jsonschema', 'sympy', "Jinja2", 'termcolor',
                           'graphviz'],
         extras_require={
-            'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx-tabs",
+            'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_design",
                     "pydata-sphinx-theme", "sphinx-autodoc-typehints",
                     "autoapi"],
             'test': ["flake8", "pylint", "pytest-cov", "pytest-xdist"],

@@ -50,9 +50,9 @@ wish to test a specific branch of PSyclone from the GitHub repository
 please see the
 :ref:`Installation section in the Developer Guide <dev-installation>`.
 
-.. tabs::
+.. tab-set::
 
-  .. tab:: From PyPI:
+  .. tab-item:: From PyPI:
 
     For a system-wide installation use:
 
@@ -77,7 +77,7 @@ please see the
     in its own ``virtual environment`` we recommend reading the
     `Python Packaging User Guide <https://packaging.python.org/en/latest/tutorials/installing-packages/>`_.
 
-  .. tab:: From Spack:
+  .. tab-item:: From Spack:
 
     To install psyclone to your loaded Spack installation use:
 
@@ -89,7 +89,7 @@ please see the
     For more information about how to use Spack we recommend reading the
     `Spack documentation <https://spack-tutorial.readthedocs.io/>`_.
 
-  .. tab:: From Source:
+  .. tab-item:: From Source:
 
     To download and install a specific PSyclone release (where ``X.Y.Z`` is the release version)
     from source, use:
