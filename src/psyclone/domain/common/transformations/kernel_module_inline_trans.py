@@ -196,7 +196,7 @@ class KernelModuleInlineTrans(Transformation):
                 if outer_sym and outer_sym.is_modulevar:
                     raise TransformationError(
                         f"{kern_or_call} '{kname}' contains accesses to "
-                        f"'{symbol.name}' which is declared in the callee "
+                        f"'{outer_sym.name}' which is declared in the callee "
                         f"module scope. Cannot inline such a {kern_or_call}.")
 
                 raise TransformationError(
