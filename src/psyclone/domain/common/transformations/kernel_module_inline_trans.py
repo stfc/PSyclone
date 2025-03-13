@@ -44,12 +44,10 @@ and move it to psyir/transformations/.
 '''
 
 from psyclone.core import VariablesAccessInfo
-from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
-    RoutineSymbol, Symbol)
+    ContainerSymbol, DataSymbol, DataTypeSymbol, RoutineSymbol, Symbol)
 from psyclone.psyir.nodes import (
     Container, Reference, Routine, ScopingNode,
     Literal, CodeBlock, Call, IntrinsicCall)

@@ -180,9 +180,11 @@ def test_validate_no_inline_global_var(parser):
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
     block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
-    kernels[0].get_kernel_schedule().pop_all_children()
-    kernels[0].get_kernel_schedule().addchild(block)
-    table = kernels[0].get_kernel_schedule().symbol_table
+    _, kschedules = kernels[0].get_kernel_schedule()
+    ksched = kschedules[0]
+    ksched.pop_all_children()
+    ksched.addchild(block)
+    table = ksched.symbol_table
     # Remove symbols that refer to 'go_wp' in outer scope.
     table._symbols.pop("field_old")
     table._symbols.pop("field_new")
@@ -435,7 +437,7 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
     # Put a new, different symbol (with the same name) into the table of the
     # parent Container.
     routine.parent.scope.symbol_table.add(DataSymbol("a", REAL_TYPE))
-    monkeypatch.setattr(kern_call, "_kern_schedule", routine)
+    monkeypatch.setattr(kern_call, "_kern_schedules", [routine])
 
     # The transformation should succeed (because the symbol named 'a' is
     # actually local to the routine. However, the dependence analysis thinks it
