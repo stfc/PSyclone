@@ -46,9 +46,9 @@ applies the inline tranformation.
     from psyclone.transformations import KernelModuleInlineTrans
     from psyclone.gocean1p0 import GOKern
 
-    def trans(psy):
+    def trans(psyir):
         '''
-        Take the supplied psy object, and apply module inlining.
+        Take the supplied psyir object, and apply module inlining.
     
         :param psy: the PSy layer to transform.
         :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -59,13 +59,9 @@ applies the inline tranformation.
         '''
         inline = KernelModuleInlineTrans()
     
-        invoke = psy.invokes.get("invoke_compute")
-        schedule = invoke.schedule
-        # Take the first kernel
-        kern = schedule[0]    
-        inline.apply(kern)
-    
-        return psy
+        for subroutine in psyir.kernels:
+            if subroutine.name == "invoke_compute":
+                inline.apply(subroutine)    
 
 If you now invoke PSyclone with the additional parameter
 `-s inline.py`, the script will be invoked by PSyclone,

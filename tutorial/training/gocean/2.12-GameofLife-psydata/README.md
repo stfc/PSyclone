@@ -191,6 +191,14 @@ options argument - if a driver should be created (default is
 False), and a tuple containing a module and region name. While
 PSyclone will create names for you, they are often not intuitive,
 so you have an option to specify a module and region name to use.
+
+The following line enables the creation of a driver program, and also
+defines the module- and region-name:
+
+    ... apply(..., options={"create_driver": True,
+                            "region_name": ("timestep", "myinvoke")})
+                            })
+
 Typically you might want to extract more than one kernel at a time
 (I often use it for any kernel in an application, e.g. for LFRic's
 gungho application over 1500 kernels are created, though only around
@@ -199,10 +207,6 @@ all kernels becomes impossible. PSyclone will add region and invoke
 numbers if required to make sure unique names are created. Initially,
 do not specify a name to get used of the automatic PSyclone naming
 scheme. 
-Options to a transformation are specified by adding a dictionary
-as follows:
-
-    ... apply(..., options={"create_driver": True })
 
 In the PSyclone script `extraction.py`, add the required parameter
 in the options dictionary when calling `apply`. The code can be
@@ -229,7 +233,7 @@ and any written variable is considered an output, and so will be stored
 in the file. As they do not need to have input values, only the
 output values are stored in the fields `die_post` and `born_post`.
 
-The output values of any variable (i.e. the ones with s `post` attached
+The output values of any variable (i.e. the ones with a `post` attached
 to the names) will be used to verify the computation of the kernel.
 
 The driver program is called `driver-psy_time_step_alg_mod-invoke_compute-r0.F90`
@@ -251,17 +255,6 @@ a sequence of reading in the data from the file, you will see:
     call compare('j', j, j_post)
     call compare('neighbours', neighbours, neighbours_post)
     call compare_summary()
-
-
-
-    ... apply(..., options={"create_driver": True,
-                            "region_name": ("timestep", "myinvoke")})
-                            })
-
-
-
-
-
 
 
 The nested loops are the psy-layer code that calls the kernel. Notice
@@ -287,7 +280,7 @@ need to be tested.
 Note that the extraction transformation can be applied to a list of
 kernels at the same time (as long as they are consecutive), and the
 driver will call all kernels. Result checking though will only happen
-after each kernels have ben called, not after each individual kernel.
+after all kernels have been called, not after each individual kernel.
 
 There are two additional restrictions:
 1) If a kernel is called multiple times, the NetCDF file will be
