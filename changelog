@@ -1,3 +1,12 @@
+   3) PR #2828 - adds a new ReplaceReferenceByLiteralTrans transformation.   
+
+   2) PR #2914 for #2913. Consider unresolved imports when deciding scoping
+   location of fparser2 symbols.
+   
+   1) PR #2563 for #2499. Adds ScalarisationTrans.
+
+release 3.1.0 26th of February 2025
+
 	1) PR #2827. Update Zenodo with release 3.0.0 and update link in
 	README.md.
 
@@ -25,6 +34,61 @@
 	practices.
 
 	9) PR #2842 for #2841. Update all copyright date ranges for 2025.
+
+	10) PR #2810. Adds caching of the fparser2 parse tree to FileInfo. Is
+	disabled by default.
+
+	11) PR #2814 for #2704. Adds backward accesses capabilities to the
+	DefinitionUseChain tool.
+
+	12) PR #2509 for #2394. Adds support for logical and character types
+	to the PSyData tooling.
+
+	13) PR #2862 for #2858. Change to PSyIR frontend and backend to ensure
+	existing parentheses in expressions are preserved.
+
+	14) PR #2825 for #2278 and #2849. Signatures AccessType now indentifies
+	INQUIRY and TYPE_INFO, for inquiry intrinsic accesses and precision symbols.
+
+	15) PR #2855 for #2853. Allows the Fortran standard used by fparser to
+	be set in the config file and ensure it is used consistently.
+
+	16) PR #2857 for 2854. Excludes character assignments from ACC KERNELS
+	regions to avoid issues in NEMO.
+
+	17) PR #2829 for #2826. Adds a --config command-line argument to the
+	PSyAD script (to replicate that for psyclone).
+
+	18) PR #2280 for #2723. Add support for depencency analysis involving
+	array ranges.
+
+	19) PR #2885. Update integration test dependencies.
+
+	20) PR #2799 for #2779. Implement split finite-element order for
+	function spaces in the LFRic API and update Adjoint tests to use it.
+
+	21) PR #2883 for #2875. Fix issues cannonicalising WHEREs with elemental
+	functions.
+
+	22) PR #2890 for #2399. PSyKE: adds support for partially-written
+	fields.`
+
+	23) PR #2901 for #2900. Fixes the LFRic integration tests and updates
+	the versions of LFRic core and apps used therein.
+
+	24) PR #2865 for #2864. Enable split finite-element order and
+	anisotropic quadrature points in the LFRic API.
+
+	25) PR #2859 for #2787. Fixes the NEMO integration tests and updates
+	the version of NVHPC used by them.
+
+	26) PR #2897 for #2892. Extends LFRic user-supplied kernels that
+	operate on dofs to accept field-vector arguments.
+
+	27) PR #2899 for #2889. Adds support for non-allocatable arrays to
+	kernel extraction.
+
+	28) #2744 update version number prior to release.
 
 release 3.0.0 6th of December 2024
 

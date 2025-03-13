@@ -34,6 +34,7 @@
 .. Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 ..             A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 ..             I. Kavcic, Met Office
+..             J. Dendy, Met Office
 
 .. _transformations:
 
@@ -216,7 +217,7 @@ process, optional parameters for the transformation are also
 provided this way. A simple example::
 
     kctrans = Dynamo0p3KernelConstTrans()
-    kctrans.apply(kernel, {"element_order": 0, "quadrature": True})
+    kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0, "quadrature": True})
 
 The same ``options`` dictionary will be used when calling ``validate``.
 
@@ -287,19 +288,19 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.AllArrayAccess2LoopTrans
     :members: apply
     :noindex:
-  
+
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ArrayAccess2LoopTrans
     :members: apply
     :noindex:
-  
+
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ArrayAssignment2LoopsTrans
     :members: apply
     :noindex:
-  
+
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ChunkLoopTrans
@@ -568,6 +569,13 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.ScalarisationTrans
+      :members: apply
+      :noindex:
+
+####
+
+
 Algorithm-layer
 ---------------
 
@@ -802,7 +810,7 @@ PSyclone supports OpenMP Tasking, through the `OMPTaskloopTrans` and
 transformations can be applied to loops, whilst the `OMPTaskwaitTrans`
 operator is applied to an OpenMP Parallel Region, and computes the dependencies
 caused by Taskloops, and adds OpenMP Taskwait statements to satisfy those
-dependencies. An example of using OpenMP tasking is available in 
+dependencies. An example of using OpenMP tasking is available in
 `PSyclone/examples/nemo/eg1/openmp_taskloop_trans.py`.
 
 OpenCL
