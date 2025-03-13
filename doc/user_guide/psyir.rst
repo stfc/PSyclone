@@ -396,26 +396,34 @@ from all symbol tables.
 The ``SymbolTable`` has the following interface:
 
 .. autoclass:: psyclone.psyir.symbols.SymbolTable
+    :no-index:
 
 Where each element is a ``Symbol`` with an immutable name:
 
 .. autoclass:: psyclone.psyir.symbols.Symbol
+    :no-index:
 
 There are several ``Symbol`` sub-classes to represent different
 labeled entities in the PSyIR. At the moment the available symbols
 are:
 
 - .. autoclass:: psyclone.psyir.symbols.ContainerSymbol
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.DataSymbol
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.DataTypeSymbol
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.IntrinsicSymbol
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.RoutineSymbol
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.GenericInterfaceSymbol
+    :no-index:
 
 See the reference guide for the full API documentation of the
 :ref_guide:`SymbolTable psyclone.psyir.symbols.html#psyclone.psyir.symbols.SymbolTable`
@@ -430,22 +438,31 @@ Interfaces are:
 
 
 - .. autoclass:: psyclone.psyir.symbols.AutomaticInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.DefaultModuleInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.ImportInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.ArgumentInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.StaticInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.CommonBlockInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.UnresolvedInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.UnknownInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.PreprocessorInterface
+    :no-index:
 
 
 Creating PSyIR

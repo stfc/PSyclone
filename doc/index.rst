@@ -42,7 +42,6 @@ PSyclone Documentation
 PSyclone is a source-to-source Fortran compiler designed to programmatically
 optimise, parallelise and instrument HPC applications via user-provided
 transformation scripts.
-
 By encapsulating the performance-portability aspects (e.g. whether to
 parallelise with OpenMP or OpenACC), these scripts enable a separation of
 concerns between the scientific implementation and the optimisation choices.
@@ -66,42 +65,37 @@ directly-addressed MPI applications such as the
     :hidden:
     :caption: Table of Contents
 
-User Guide
-----------
-
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
+    :hidden:
+    :caption: User Guide
 
     user_guide/index
 	
-PSyAD
-----------
-
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
+    :hidden:
+    :caption: PSyAD
 
     psyad/index
 	
-Developer Guide
----------------
-
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
+    :hidden:
+    :caption: Developer Guide
 
     developer_guide/index
 	
-Reference Guide
----------------
-
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
+    :hidden:
+    :caption: Reference Guide
 
-    ref_guide
+    reference_guide/index.rst
     
-Bibliography
----------------
-
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
+    :hidden:
+    :caption: Bibliography
 
     bibliography/zz_bibliography
