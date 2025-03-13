@@ -47,7 +47,8 @@ from psyclone.core import VariablesAccessInfo
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, DataTypeSymbol, RoutineSymbol, Symbol)
+    ContainerSymbol, DataSymbol, DataTypeSymbol, RoutineSymbol, Symbol,
+    SymbolError)
 from psyclone.psyir.nodes import (
     Container, Reference, Routine, ScopingNode,
     Literal, CodeBlock, Call, IntrinsicCall)
@@ -175,19 +176,33 @@ class KernelModuleInlineTrans(Transformation):
         # different symbols with the same name but declared in different,
         # nested scopes will be assumed to be the same symbol).
         vai = VariablesAccessInfo(kernel_schedule)
-        table = kernel_schedule.symbol_table
+        rt_table = kernel_schedule.symbol_table
         for sig in vai.all_signatures:
-            symbol = table.lookup(sig.var_name, otherwise=None)
+            access = vai[sig].all_accesses[0]
+            try:
+                # The 'node' associated with an access may be a Symbol (if
+                # the access is part of a symbol definition) or an
+                # orphaned Node (e.g. within an initialisation expression).
+                table = access.node.scope.symbol_table
+            except (SymbolError, AttributeError):
+                table = rt_table
+            symbol = table.lookup(sig.var_name, otherwise=None,
+                                  scope_limit=kernel_schedule)
             if not symbol:
+                # The corresponding Symbol was not found within the scope
+                # of the target Routine.
+                outer_sym = kernel_schedule.symbol_table.lookup(sig.var_name,
+                                                                otherwise=None)
+                if outer_sym and outer_sym.is_modulevar:
+                    raise TransformationError(
+                        f"{kern_or_call} '{kname}' contains accesses to "
+                        f"'{symbol.name}' which is declared in the callee "
+                        f"module scope. Cannot inline such a {kern_or_call}.")
+
                 raise TransformationError(
                     f"{kern_or_call} '{kname}' contains accesses to "
                     f"'{sig.var_name}' but the origin of this signature is "
                     f"unknown.")
-            if not symbol.is_import and symbol.name not in table:
-                raise TransformationError(
-                    f"{kern_or_call} '{kname}' contains accesses to "
-                    f"'{symbol.name}' which is declared in the callee "
-                    f"module scope. Cannot inline such a {kern_or_call}.")
 
         # We can't transform subroutines that shadow top-level symbol module
         # names, because we won't be able to bring this into the subroutine
