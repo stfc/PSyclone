@@ -98,6 +98,7 @@ class OMPTaskTrans(ParallelLoopTrans):
         kintrans = KernelModuleInlineTrans()
         cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()
+
         for kern in kerns:
             kintrans.validate(kern)
             cond_trans.validate(kern.get_kernel_schedule())
@@ -112,6 +113,7 @@ class OMPTaskTrans(ParallelLoopTrans):
             # Skip over intrinsic calls as we can't inline them
             if isinstance(call, IntrinsicCall):
                 continue
+            kintrans.apply(call)
             intrans.validate(call)
 
     def _directive(self, children, collapse=None):
@@ -159,7 +161,9 @@ class OMPTaskTrans(ParallelLoopTrans):
         intrans = InlineTrans()
         for kern in kerns:
             kintrans.apply(kern)
-            cond_trans.apply(kern.get_kernel_schedule())
+            _, schedules = kern.get_kernel_schedule()
+            for sched in schedules:
+                cond_trans.apply(sched)
             kern.lower_to_language_level()
 
         calls = node.walk(Call)

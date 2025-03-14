@@ -302,9 +302,14 @@ class Container(ScopingNode, CommentableMixin):
         :raises TypeError: if the Symbol with the supplied name is not a
             RoutineSymbol, GenericInterfaceSymbol or imported Symbol.
         '''
-        try:
-            rsym = self.symbol_table.lookup(name)
-        except KeyError:
+        rsym = self.symbol_table.lookup(name, otherwise=None)
+        if not rsym:
+            # TODO for some reason, a module-inlined KernelSchedule does not
+            # have a corresponding entry in a symbol table so we double check
+            # here...
+            for routine in self.walk(Routine):
+                if routine.name.lower() == name.lower():
+                    return [name]
             return []
         if isinstance(rsym, GenericInterfaceSymbol):
             return [rt.symbol.name.lower() for rt in rsym.routines]

@@ -227,7 +227,8 @@ class Routine(Schedule, CommentableMixin):
             # whether the scope already has a Routine or CodeBlock
             # with this name and error if so.
             try:
-                sym = new_parent.symbol_table.lookup(self.name)
+                sym = new_parent.symbol_table.lookup(self.name,
+                                                     scope_limit=new_parent)
                 # If the found symbol is not the symbol used to initialise
                 # this Routine then we raise an error, as we won't be able
                 # to add it to the parent.
@@ -267,7 +268,8 @@ class Routine(Schedule, CommentableMixin):
             # replace_with, which is handled here.
             if sym is self._symbol:
                 try:
-                    new_parent.symbol_table.lookup(self._symbol.name)
+                    new_parent.symbol_table.lookup(self._symbol.name,
+                                                   scope_limit=new_parent)
                 except KeyError:
                     new_parent.symbol_table.add(self._symbol)
         elif self.symbol_table:

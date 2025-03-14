@@ -1499,7 +1499,8 @@ def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     assert rtrans.name == "ACCRoutineTrans"
     rtrans.apply(kern)
     # Check that there is a acc routine directive in the kernel
-    code = fortran_writer(kern.get_kernel_schedule())
+    _, schedules = kern.get_kernel_schedule()
+    code = fortran_writer(schedules[0])
     assert "!$acc routine seq\n" in code
 
     # If the kernel schedule is not accessible, the transformation fails
@@ -1522,16 +1523,16 @@ def test_accroutinetrans_with_routine(fortran_writer):
     assert isinstance(kern, GOKern)
     rtrans = ACCRoutineTrans()
     assert rtrans.name == "ACCRoutineTrans"
-    routine = kern.get_kernel_schedule()
-    rtrans.apply(routine)
+    _, routines = kern.get_kernel_schedule()
+    rtrans.apply(routines[0])
     # Check that there is a acc routine directive in the routine
-    code = fortran_writer(routine)
+    code = fortran_writer(routines[0])
     assert "!$acc routine seq\n" in code
 
     # Even if applied multiple times the Directive is only there once
-    previous_num_children = len(routine.children)
-    rtrans.apply(routine)
-    assert previous_num_children == len(routine.children)
+    previous_num_children = len(routines[0].children)
+    rtrans.apply(routines[0])
+    assert previous_num_children == len(routines[0].children)
 
 
 def test_accroutinetrans_with_invalid_node():
