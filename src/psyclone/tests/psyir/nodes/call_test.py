@@ -43,13 +43,13 @@ from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import GenerationError
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import (
-    ArrayReference, Assignment, BinaryOperation, Call, CodeBlock, Literal,
+    ArrayReference, BinaryOperation, Call, Literal,
     Node, Reference, Routine, Schedule)
 from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
     ArrayType, INTEGER_TYPE, DataSymbol, NoType, RoutineSymbol, REAL_TYPE,
-    SymbolError, UnsupportedFortranType)
+    SymbolError)
 
 
 class SpecialCall(Call):
