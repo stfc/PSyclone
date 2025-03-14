@@ -1458,47 +1458,6 @@ end module my_mod
     assert callees[1].name == "ibottom"
 
 
-def test_call_get_callees_unsupported_type(fortran_reader):
-    '''
-    Check that get_callees() raises the expected error when the called routine
-    is of UnsupportedFortranType. This is hard to achieve so we have to
-    manually construct some aspects of the test case.
-
-    '''
-    code = '''
-module my_mod
-  integer, target :: value
-contains
-  subroutine top()
-    integer :: luggage
-    luggage = bottom()
-  end subroutine top
-  function bottom() result(fval)
-    integer, pointer :: fval
-    fval => value
-  end function bottom
-end module my_mod
-'''
-    psyir = fortran_reader.psyir_from_source(code)
-    container = psyir.children[0]
-    routine = container.find_routine_psyir("bottom")
-    rsym = container.symbol_table.lookup(routine.name)
-    # Ensure the type of this RoutineSymbol is UnsupportedFortranType.
-    rsym.datatype = UnsupportedFortranType("integer, pointer :: fval")
-    assign = container.walk(Assignment)[0]
-    # Currently `bottom()` gets matched by fparser2 as a structure constructor
-    # and the fparser2 frontend leaves this as a CodeBlock (TODO #2429) so
-    # replace it with a Call. Once #2429 is fixed the next two lines can be
-    # removed.
-    assert isinstance(assign.rhs, CodeBlock)
-    assign.rhs.replace_with(Call.create(rsym))
-    call = psyir.walk(Call)[0]
-    with pytest.raises(NotImplementedError) as err:
-        _ = call.get_callees()
-    assert ("RoutineSymbol 'bottom' exists in Container 'my_mod' but is of "
-            "UnsupportedFortranType" in str(err.value))
-
-
 def test_call_get_callees_file_container(fortran_reader):
     '''
     Check that get_callees works if the called routine happens to be in file
@@ -1554,8 +1513,9 @@ end module my_mod
     call = top_routine.walk(Call)[0]
     with pytest.raises(SymbolError) as err:
         _ = call.get_callees()
-    assert ("Failed to find a Routine named 'bottom' in code:\n'subroutine "
-            "top()" in str(err.value))
+    assert ("The RoutineSymbol for Routine 'bottom' is marked as being local "
+            "but failed to find the corresponding implementation in code:\n'"
+            "subroutine top()" in str(err.value))
 
 
 def test_call_get_callees_wildcard_import_local_container(fortran_reader):
@@ -1758,7 +1718,8 @@ end module some_mod'''
     call = psyir.walk(Call)[1]
     with pytest.raises(SymbolError) as err:
         _ = call.get_callees()
-    assert ("Failed to find a Routine named 'my_func' in Container "
+    assert ("The RoutineSymbol for Routine 'my_func' is marked as being local "
+            "but failed to find the corresponding implementation in Container "
             "'some_mod'" in str(err.value))
 
 

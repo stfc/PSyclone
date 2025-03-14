@@ -567,22 +567,47 @@ class Call(Statement, DataNode):
             return f"code:\n'{out_lines[0]}\n...\n{last_line}'"
 
         rsym = self.routine.symbol
-        if rsym.is_unresolved:
+        if rsym.is_unresolved or rsym.is_modulevar:
 
             # Check for any "raw" Routines, i.e. ones that are not
             # in a Container.  Such Routines would exist in the PSyIR
             # as a child of a FileContainer (if the PSyIR contains a
             # FileContainer). Note, if the PSyIR does contain a
             # FileContainer, it will be the root node of the PSyIR.
-            psyir = self.root.find_routine_psyir(rsym.name)
-            if psyir:
-                return [psyir]
+            container = None
+            if rsym.is_modulevar:
+                # Take care here in case the Routine is an orphan.
+                table = rsym.find_symbol_table(self)
+                if table:
+                    container = table.node
+            else:
+                container = self.root
+            if container:
+                routines = []
+                for name in container.resolve_routine(rsym.name):
+                    # Since we're looking in the local Container, the target
+                    # is permitted to be private.
+                    psyir = container.find_routine_psyir(name,
+                                                         allow_private=True)
+                    if psyir:
+                        routines.append(psyir)
+                if routines:
+                    return routines
+
+            if rsym.is_modulevar:
+                root_node = container if container else self.root
+                raise SymbolError(
+                    f"The RoutineSymbol for Routine '{rsym.name}' is "
+                    f"marked as being local but failed to find the "
+                    f"corresponding implementation in "
+                    f"{_location_txt(root_node)}")
 
             # Now check for any wildcard imports and see if they can
             # be used to resolve the symbol.
             wildcard_names = []
             containers_not_found = []
             current_table = self.scope.symbol_table
+            callee_name = rsym.name.lower()
             while current_table:
                 for container_symbol in current_table.containersymbols:
                     if container_symbol.wildcard_import:
@@ -598,7 +623,13 @@ class Call(Statement, DataNode):
                             continue
                         routines = []
                         for name in container.resolve_routine(rsym.name):
-                            psyir = container.find_routine_psyir(name)
+                            # If 'name' doesn't match callee_name then we are
+                            # dealing with an interface. Routines referenced
+                            # by an interface may be private to the host
+                            # container.
+                            psyir = container.find_routine_psyir(
+                                name,
+                                allow_private=(name.lower() != callee_name))
                             if psyir:
                                 routines.append(psyir)
                         if routines:
@@ -668,15 +699,6 @@ class Call(Statement, DataNode):
                 cursor = imported_sym
             rsym = cursor
             root_node = container
-
-        if isinstance(rsym.datatype, UnsupportedFortranType):
-            # TODO #924 - an UnsupportedFortranType here typically indicates
-            # that the target is actually an interface.
-            raise NotImplementedError(
-                f"RoutineSymbol '{rsym.name}' exists in "
-                f"{_location_txt(root_node)} but is of "
-                f"UnsupportedFortranType:\n{rsym.datatype.declaration}\n"
-                f"Cannot get the PSyIR of such a routine.")
 
         # At this point, we should have found the PSyIR tree containing the
         # routine - we just need to locate it. It may be in a Container or

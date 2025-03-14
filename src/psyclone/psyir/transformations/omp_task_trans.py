@@ -161,7 +161,9 @@ class OMPTaskTrans(ParallelLoopTrans):
         intrans = InlineTrans()
         for kern in kerns:
             kintrans.apply(kern)
-            cond_trans.apply(kern.get_kernel_schedule())
+            _, schedules = kern.get_kernel_schedule()
+            for sched in schedules:
+                cond_trans.apply(sched)
             kern.lower_to_language_level()
 
         calls = node.walk(Call)
