@@ -35,8 +35,6 @@
 
 .. highlight:: fortran
 
-.. _devguide_psy_data:
-
 .. testsetup::
 
     import os
@@ -45,6 +43,8 @@
     # Define SOURCE_FILE to point to an existing gocean 1.0 file.
     SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
         "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+
+.. _devguide_psy_data:
 
 PSyData API
 ===========
