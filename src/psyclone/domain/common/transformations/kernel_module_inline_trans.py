@@ -557,7 +557,8 @@ class KernelModuleInlineTrans(Transformation):
             # in the Container. If that's the case then we need to keep a
             # reference to it so that we can update other Calls to it at the
             # end of this method.
-            if isinstance(local_table.node, Container):
+            if (isinstance(local_table.node, Container) and
+                    not isinstance(local_table.node, FileContainer)):
                 sym_in_ctr = local_sym
             if local_sym.is_unresolved:
                 # If it's currently unresolved then we first update its
@@ -571,8 +572,12 @@ class KernelModuleInlineTrans(Transformation):
                     # interface of sym_in_ctr and proceed in exactly the
                     # same way as if it had been resolved originally.
                     local_sym.interface = ImportInterface(cntr_sym)
-
-            # We need to remove this local symbol.
+                else:
+                    # The routine to be inlined must be in the outer
+                    # FileContainer so we just need to remove the local
+                    # symbol.
+                    local_table._symbols.pop(local_sym.name)
+            # We need to remove this (imported) local symbol.
             self._rm_imported_routine_symbol(local_sym.name, local_table)
             # Double check that this import is not shadowing a routine we've
             # already module-inlined.

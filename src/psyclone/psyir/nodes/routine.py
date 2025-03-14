@@ -268,7 +268,8 @@ class Routine(Schedule, CommentableMixin):
             # replace_with, which is handled here.
             if sym is self._symbol:
                 try:
-                    new_parent.symbol_table.lookup(self._symbol.name)
+                    new_parent.symbol_table.lookup(self._symbol.name,
+                                                   scope_limit=new_parent)
                 except KeyError:
                     new_parent.symbol_table.add(self._symbol)
         elif self.symbol_table:
