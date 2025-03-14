@@ -476,28 +476,6 @@ def test_validate_fail_to_get_psyir(fortran_reader, config_instance):
             in str(err.value))
 
 
-def test_rm_imported_symbol():
-    '''
-    Tests for the _rm_imported_symbol() utility method.
-
-    '''
-    table = SymbolTable()
-    csym = ContainerSymbol("ankh")
-    table.add(csym)
-    moist_sym = DataSymbol("moist", REAL_TYPE,
-                           interface=ImportInterface(csym))
-    table.add(moist_sym)
-    local_sym = DataSymbol("local", REAL_TYPE)
-    table.add(local_sym)
-    KernelModuleInlineTrans._rm_imported_symbol("moist", table)
-    assert "moist" not in table
-    # Container has been removed too.
-    assert "ankh" not in table
-    # If the symbol is not imported then it is left unchanged.
-    KernelModuleInlineTrans._rm_imported_symbol("local", table)
-    assert "local" in table
-
-
 def test_validate_nested_scopes(fortran_reader, monkeypatch):
     '''
     Test that validate() works correctly when two symbols in nested scopes
@@ -994,28 +972,6 @@ def test_module_inline_with_interfaces(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_get_psyir_to_inline(monkeypatch):
-    '''
-    Test that _get_psyir_to_inline() raises the expected error if more than
-    one potential routine implementation is found.
-
-    '''
-    sym = RoutineSymbol("my_sym")
-    rout = Routine.create("my_sym", SymbolTable(), [])
-    node = Call.create(sym)
-    # For simplicity we just monkeypatch Call.get_callees() so that it appears
-    # to return more than one Routine.
-    monkeypatch.setattr(node, "get_callees", lambda: [rout, rout])
-    with pytest.raises(TransformationError) as err:
-        KernelModuleInlineTrans._get_psyir_to_inline(node)
-    # The duplicated symbol name below is purely a result of the monkeypatch
-    # - in reality these names will come from a generic interface and be
-    # different.
-    assert ("The target of the call to 'my_sym' cannot be inserted because "
-            "multiple implementations were found: ['my_sym', 'my_sym']." in
-            str(err.value))
-
-
 def test_rm_imported_routine_symbol():
     '''
     Tests for the _rm_imported_routine_symbol() utility method.
@@ -1052,11 +1008,12 @@ def test_rm_imported_routine_symbol():
     assert len(table.symbols_imported_from(csym)) == 1
 
 
-@pytest.mark.parametrize("mod_use, sub_use",
-                         [("use my_mod, only: my_sub, my_other_sub", ""),
-                          ("", "use my_mod, only: my_sub, my_other_sub"),
-                          ("use my_mod, only: my_sub, my_other_sub",
-                           "use my_mod, only: my_sub, my_other_sub")])
+@pytest.mark.parametrize(
+    "mod_use, sub_use",
+    [("use my_mod, only: my_sub, my_other_sub, my_interface", ""),
+     ("", "use my_mod, only: my_sub, my_other_sub, my_interface"),
+     ("use my_mod, only: my_sub, my_other_sub, my_interface",
+      "use my_mod, only: my_sub, my_other_sub, my_interface")])
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
                           monkeypatch, mod_use, sub_use):
