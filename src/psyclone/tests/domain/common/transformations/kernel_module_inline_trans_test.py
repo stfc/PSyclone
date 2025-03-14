@@ -39,7 +39,6 @@
 
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
-import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
@@ -51,7 +50,7 @@ from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, ImportInterface, RoutineSymbol, REAL_TYPE,
     Symbol, SymbolError, SymbolTable)
 from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import OMPDeclareTargetTrans
+from psyclone.transformations import ACCRoutineTrans, OMPDeclareTargetTrans
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import (Compile, count_lines, get_invoke,
@@ -75,8 +74,9 @@ def test_check_data_accesses(config_instance):
     schedule = invoke.schedule
     kcall = schedule.walk(CodedKern)[1]
     config_instance.include_paths = []
+    _, kschedules = kcall.get_kernel_schedule()
     with pytest.raises(TransformationError) as err:
-        trans.check_data_accesses(kcall, kcall.get_kernel_schedule(), "Kernel")
+        trans.check_data_accesses(kcall, kschedules[0], "Kernel")
     assert ("Kernel 'kernel_with_use2_code' contains accesses to 'go_wp' which"
             " is unresolved. It is being brought into scope from one of "
             "['argument_mod', 'grid_mod', 'kernel_mod', 'kind_params_mod']"
@@ -84,7 +84,7 @@ def test_check_data_accesses(config_instance):
     # Now try where there's only a single wildcard import so we know the origin
     # of the symbol.
     kcall0 = schedule.walk(CodedKern)[0]
-    ksched = kcall0.get_kernel_schedule()
+    _, (ksched,) = kcall0.get_kernel_schedule()
     ctable = ksched.ancestor(Container).symbol_table
     # To do this, we manually remove all ContainerSymbols apart from the one
     # from which 'go_wp' is imported.
@@ -108,7 +108,7 @@ def test_check_data_accesses_indirect_import(monkeypatch):
                            "gocean", idx=0, dist_mem=False)
     schedule = invoke.schedule
     kcall = schedule.walk(CodedKern)[1]
-    ksched = kcall.get_kernel_schedule()
+    _, (ksched,) = kcall.get_kernel_schedule()
     # Monkeypatch SymbolTable.resolve_imports() so that it does nothing. This
     # then exercises the code path where we quietly fail to resolve a symbol.
     monkeypatch.setattr(ksched.symbol_table, "resolve_imports",

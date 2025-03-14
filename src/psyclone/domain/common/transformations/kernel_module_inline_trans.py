@@ -119,8 +119,6 @@ class KernelModuleInlineTrans(Transformation):
                 f"psyGen.CodedKern or psyir.nodes.Call but got "
                 f"'{type(node).__name__}'")
 
-        parent_container = node.ancestor(Container)
-
         # Check that the PSyIR of the routine/kernel can be retrieved.
         try:
             kernels, _ = KernelModuleInlineTrans._get_psyir_to_inline(node)
@@ -190,6 +188,7 @@ class KernelModuleInlineTrans(Transformation):
         # any existing Routine matches that required by the Call but for now
         # we live with the possibility of a false positive resulting in a
         # refusal to module inline.
+        parent_container = node.ancestor(Container)
         for routine in parent_container.walk(Routine, stop_type=Routine):
             if routine.name.lower() == kname.lower():
                 # Compare the routine to be inlined with the one that
