@@ -519,7 +519,6 @@ class KernelModuleInlineTrans(Transformation):
             interface=ImportInterface(
                 csym, orig_name=name))
 
-
     def apply(self, node, options=None):
         ''' Bring the kernel/subroutine into this Container.
 

@@ -59,7 +59,7 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Container, Directive, Literal, Loop, Node,
+    Call, CodeBlock, Directive, Literal, Loop, Node,
     OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
