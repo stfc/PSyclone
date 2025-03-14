@@ -561,7 +561,7 @@ class KernelModuleInlineTrans(Transformation):
                 sym_in_ctr = local_sym
             if local_sym.is_unresolved:
                 # If it's currently unresolved then we first update its
-                # interface prior to removing it.
+                # interface to simplify removing it.
                 cntr = codes_to_inline[0].ancestor(Container,
                                                    excluding=FileContainer)
                 if cntr:
@@ -610,9 +610,10 @@ class KernelModuleInlineTrans(Transformation):
         for code_to_inline in updated_routines:
 
             # Does the Container already have this Routine?
-            if not sym_in_ctr:
+            if not sym_in_ctr or interface_sym:
                 # We only update sym_in_ctr if it hasn't already been set
-                # earlier when updating the 'local' symbol.
+                # earlier when updating the 'local' symbol or if that symbol
+                # was in fact an interface.
                 sym_in_ctr = container.symbol_table.lookup(
                     code_to_inline.name,
                     scope_limit=container,

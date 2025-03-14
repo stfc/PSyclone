@@ -1071,7 +1071,14 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     assert "subroutine a_sub" in output
     assert "subroutine my_sub" in output
     assert "use my_mod, only : my_interface, my_other_sub\n" in output
-    # We can't test the compilation of this code because of the 'use my_mod.'
+
+    # Module inline the target of the second call.
+    intrans.apply(calls[1])
+    # Local copy of routine must be private and in Container symbol table.
+    rsym = container.symbol_table.lookup("my_other_sub")
+    assert rsym.visibility == Symbol.Visibility.PRIVATE
+    output = fortran_writer(psyir)
+    assert "use my_mod, only : my_interface\n" in output
 
     # Finally, inline the call to the interface. This should then remove all
     # imports from 'my_mod'.
