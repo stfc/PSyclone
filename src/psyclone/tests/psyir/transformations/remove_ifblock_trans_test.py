@@ -97,6 +97,38 @@ def test_ribt_remove_trivial_ifblock(fortran_reader, fortran_writer):
     assert "x = 5" not in out_routine
 
 
+def test_ribt_remove_trivial_ifblock_after_replace_ref_by_lit(fortran_reader, fortran_writer):
+    """Tests remove trivial ifblock."""
+    source = """program test
+                logical, parameter :: cond1=.TRUE., cond2 = .FALSE.
+                integer ::x 
+                if(cond1)then
+                    x = 3
+                else
+                    x =4
+                endif
+                if(cond)then
+                    x = 5
+                else
+                    x =6
+                endif
+                end program test"""
+    psyir = fortran_reader.psyir_from_source(source)
+    # The first child is the assignment to 'invariant'
+    routine = psyir.walk(Routine)[0]
+    from psyclone.psyir.transformations import 
+
+    trans = REp
+    ribt = RemoveIfBlockTrans()
+    ribt.apply(routine)
+    out_routine = fortran_writer(routine)
+
+    assert "x = 3" in out_routine
+    assert "x = 6" in out_routine
+    assert "x = 4" not in out_routine
+    assert "x = 5" not in out_routine
+
+
 # ----------------------------------------------------------------------------
 def test_ribt_boolean_expr_involving_int_comparison(fortran_reader, fortran_writer):
     """Tests ifblock that cannot be removed."""
@@ -162,7 +194,7 @@ def test_ribt_from_json(fortran_reader, fortran_writer):
 # ----------------------------------------------------------------------------
 def test_ribt_cmplx_boolean_expr(fortran_reader, fortran_writer):
     """"""
-    source = f"""program test
+    source = """program test
                 integer :: x
                 logical :: b1
                 logical, parameter b2 = .FALSE.
@@ -192,7 +224,7 @@ def test_ribt_cmplx_boolean_expr(fortran_reader, fortran_writer):
 
 def test_ribt_too_cmplx_boolean_expr(fortran_reader, fortran_writer):
     """"""
-    source = f"""program test
+    source = """program test
                 integer :: x
                 logical :: b1
                 logical, parameter b2 = .FALSE.
