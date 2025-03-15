@@ -110,17 +110,6 @@ class RemoveIfBlockTrans(Transformation):
             else:
                 if_block.detach()
 
-    def _evaluate(self, condition: Node) -> bool:
-        from psyclone.psyir.frontend.sympy_reader import SymPyReader
-        from psyclone.psyir.backend.sympy_writer import SymPyWriter
-        import sympy
-
-        expr_sympy = SymPyWriter(condition)
-        new_expr = sympy.simplify(expr_sympy)
-        psyir_expr: Node = SymPyReader(new_expr)
-        print(psyir_expr.debug_string())
-        return True
-
     def _eliminate_ifblock_if_const_condition(self, if_block: IfBlock):
         """Eliminate if-block if conditions are constant booleans.
         :rtype: None
@@ -133,7 +122,9 @@ class RemoveIfBlockTrans(Transformation):
             else:
                 self.if_else_replace(if_block, is_true=False)
         else:
-            is_true = self._evaluate(condition)
+            from psyclone.psyir.tools.evaluate_conditions import EvaluateConditions
+            evaluate_condition = EvaluateCondition()
+            is_true =evaluate_condition.evaluate(condition)
             self.if_else_replace(if_block, is_true)
 
     def apply(self, node: Routine, options=None):
