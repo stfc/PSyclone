@@ -39,12 +39,15 @@
 ''' This module provides the ACCKernelsTrans transformation. '''
 
 import re
+from typing import List, Union
 
 from psyclone import psyGen
 from psyclone.psyir.nodes import (
-    ACCKernelsDirective, Assignment, Call, CodeBlock, Loop, PSyDataNode,
-    Reference, Return, Routine, Statement, WhileLoop)
+    ACCKernelsDirective, Assignment, Call, CodeBlock, Loop,
+    Node, PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
 from psyclone.psyir.symbols import UnsupportedFortranType
+from psyclone.psyir.transformations.arrayassignment2loops_trans import (
+    ArrayAssignment2LoopsTrans)
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -74,12 +77,12 @@ class ACCKernelsTrans(RegionTrans):
     excluded_node_types = (CodeBlock, Return, PSyDataNode,
                            psyGen.HaloExchange, WhileLoop)
 
-    def apply(self, node, options=None):
+    def apply(self, node: Union[Node, List[Node]], options: dict = None):
         '''
         Enclose the supplied list of PSyIR nodes within an OpenACC
         Kernels region.
 
-        :param node: a node or list of nodes in the PSyIR to enclose.
+        :param node: the node(s) in the PSyIR to enclose.
         :type node: :py:class:`psyclone.psyir.nodes.Node` |
                     list[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
@@ -88,6 +91,11 @@ class ACCKernelsTrans(RegionTrans):
             region should have the 'default present' attribute (indicating
             that data is already on the accelerator). When using managed
             memory this option should be False.
+        :param bool options["allow_string"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
+        :param bool options["verbose"]: log the reason the validation failed,
+            at the moment with a comment in the provided PSyIR node.
 
         '''
         # Ensure we are always working with a list of nodes, even if only
@@ -110,7 +118,8 @@ class ACCKernelsTrans(RegionTrans):
 
         parent.children.insert(start_index, directive)
 
-    def validate(self, nodes, options=None):
+    def validate(self, nodes: Union[Node, List[Node]],
+                 options: dict = None) -> None:
         # pylint: disable=signature-differs
         '''
         Check that we can safely enclose the supplied node or list of nodes
@@ -124,6 +133,11 @@ class ACCKernelsTrans(RegionTrans):
         :param bool options["disable_loop_check"]: whether to disable the
             check that the supplied region contains 1 or more loops. Default
             is False (i.e. the check is enabled).
+        :param bool options["allow_string"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
+        :param bool options["verbose"]: log the reason the validation failed,
+            at the moment with a comment in the provided PSyIR node.
 
         :raises NotImplementedError: if the supplied Nodes belong to
             a GOInvokeSchedule.
@@ -133,8 +147,13 @@ class ACCKernelsTrans(RegionTrans):
             a routine that is not available on the accelerator.
         :raises TransformationError: if there are no Loops within the
             proposed region and options["disable_loop_check"] is not True.
+        :raises TransformationError: if any assignments in the region contain a
+            character type child and options["allow_string"] is not True.
 
         '''
+        if not options:
+            options = {}
+
         # Ensure we are always working with a list of nodes, even if only
         # one was supplied via the `nodes` argument.
         node_list = self.get_node_list(nodes)
@@ -180,6 +199,17 @@ class ACCKernelsTrans(RegionTrans):
                         f"Assumed-size character variables cannot be enclosed "
                         f"in an OpenACC region but found "
                         f"'{stmt.debug_string()}'")
+            # Check there are no character assignments in the region as these
+            # cause various problems with (at least) NVHPC <= 24.5
+            if not options.get("allow_string", False):
+                message = (
+                    f"{self.name} does not permit assignments involving "
+                    f"character variables by default (use the 'allow_string' "
+                    f"option to include them)")
+                for assign in node.walk(Assignment):
+                    ArrayAssignment2LoopsTrans.validate_no_char(
+                        assign, message, options)
+
             # Check that any called routines are supported on the device.
             for icall in node.walk(Call):
                 if not icall.is_available_on_device():

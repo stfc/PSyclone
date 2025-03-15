@@ -482,6 +482,41 @@ end subroutine test'''
     assert expected in fortran_writer(psyir)
 
 
+def test_validate_array_of_struct(fortran_reader):
+    '''
+    Test that validate() spots the use of an array variable within
+    an intrinsic call.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''
+   module lbcnfd
+     use lib_mpp
+   contains
+   SUBROUTINE lbc_nfd_dp( ptab, cd_nat, psgn, kfld )
+      TYPE(PTR_4d_dp),  DIMENSION(:), INTENT(inout) ::   ptab
+      CHARACTER(len=1), DIMENSION(:), INTENT(in   ) ::   cd_nat
+      REAL(dp),  DIMENSION(:), INTENT(in   ) ::   psgn
+      INTEGER                       , INTENT(in   ) ::   kfld
+      integer :: jf
+      integer :: ipi
+      integer :: ij2
+
+    do jf = 1, kfld, 1
+      ipi = SIZE(ptab(jf)%pt4d, 1)
+    end do
+    end subroutine lbc_nfd_dp
+    end module lbcnfd
+        '''
+    )
+    loop = psyir.walk(Loop)[0]
+    hoist_trans = HoistTrans()
+    with pytest.raises(TransformationError) as err:
+        hoist_trans.validate(loop.loop_body[0])
+    assert ("The statement 'ipi = SIZE(ptab(jf)%pt4d, 1)' can't be hoisted as "
+            "it reads variable 'jf'" in str(err.value))
+
+
 def test_str():
     '''Test the hoist transformation's str method return the
     expected results.

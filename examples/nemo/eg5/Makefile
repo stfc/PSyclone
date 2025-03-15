@@ -95,7 +95,7 @@ kernels: extract_kernels.py
 	$(PSYCLONE) -l all -s ./extract_kernels.py -o psy.f90 ../code/tra_adv.F90
 
 $(EXTRACT_DIR)/$(LIB_NAME):
-	make -C $(EXTRACT_DIR)
+	${MAKE} -C $(EXTRACT_DIR)
 
 # Compilation uses the 'kernels' transformed code
 psy.f90: kernels
@@ -103,3 +103,6 @@ psy.o:  $(EXTRACT_DIR)/$(LIB_NAME)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
+
+allclean: clean
+	${MAKE} -C ${EXTRACT_DIR} allclean

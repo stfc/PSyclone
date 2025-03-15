@@ -32,6 +32,7 @@
 # -----------------------------------------------------------------------------
 # Author: S. Siso, STFC Daresbury Lab
 # Modifications: A. R. Porter, N. Nobre and R. W. Ford, STFC Daresbury Lab
+#                J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module provides the PSyIR Fortran front-end.'''
@@ -84,7 +85,8 @@ class FortranReader():
                  last_comments_as_codeblocks: bool = False,
                  resolve_modules: Union[bool, List[str]] = False):
         if not self._parser:
-            self._parser = ParserFactory().create(std="f2008")
+            std = Config.get().fortran_standard
+            self._parser = ParserFactory().create(std=std)
         self._free_form = free_form
         if ignore_comments and not ignore_directives:
             raise ValueError(

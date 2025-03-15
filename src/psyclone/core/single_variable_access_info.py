@@ -153,6 +153,14 @@ class AccessInfo():
         return self._access_type
 
     @property
+    def is_data_access(self) -> bool:
+        '''
+        :returns: whether or not this access is to the data associated with
+                  a signature (i.e. is not just an inquiry-type access).
+        '''
+        return self._access_type not in AccessType.non_data_accesses()
+
+    @property
     def location(self):
         ''':returns: the location information for this access.\
         Please see the Developers' Guide for more information.
@@ -208,39 +216,51 @@ class SingleVariableAccessInfo():
         '''
         return str(self._signature)
 
-    def is_written(self):
-        ''':returns: True if this variable is written (at least once).
-        :rtype: bool
+    def is_called(self) -> bool:
+        '''
+        :returns: whether or not any accesses of this variable
+                  represent a call.
+        '''
+        return any(info.access_type == AccessType.CALL for
+                   info in self._accesses)
+
+    def is_written(self) -> bool:
+        '''
+        :returns: True if this variable is written (at least once).
         '''
         return any(access_info.access_type in
                    AccessType.all_write_accesses()
                    for access_info in self._accesses)
 
-    def is_written_first(self):
-        ''':returns: True if this variable is written in the first access \
-            (which indicates that this variable is not an input variable \
-            for a kernel).
-
-        :rtype: bool
+    def is_written_first(self) -> bool:
         '''
-        return len(self._accesses) > 0 and \
-            (self._accesses[0].access_type == AccessType.WRITE)
+        :returns: True if this variable is written in the first data access
+            (which indicates that this variable is not an input variable
+            for a kernel).
+        '''
+        for acc in self._accesses:
+            if acc.access_type in AccessType.non_data_accesses():
+                continue
+            if acc.access_type != AccessType.WRITE:
+                return False
+            return True
+        return False
 
-    def is_read_only(self):
-        '''Checks if this variable is always read, and never
-        written.
+    def is_read_only(self) -> bool:
+        '''Checks if this variable is always read, and never written.
 
         :returns: True if this variable is read only.
-        :rtype: bool
         '''
-        return all(access_info.access_type == AccessType.READ
+        access_types = AccessType.non_data_accesses() + [AccessType.READ]
+        return all(access_info.access_type in access_types
                    for access_info in self._accesses)
 
-    def is_read(self):
-        ''':returns: True if this variable is read (at least once).
-        :rtype: bool
+    def is_read(self) -> bool:
         '''
-        return any(access_info.access_type in AccessType.all_read_accesses()
+        :returns: True if this variable is read (at least once).
+        '''
+        read_accesses = AccessType.all_read_accesses()
+        return any(access_info.access_type in read_accesses
                    for access_info in self._accesses)
 
     def has_read_write(self):
@@ -251,6 +271,16 @@ class SingleVariableAccessInfo():
         '''
         return any(access_info.access_type == AccessType.READWRITE
                    for access_info in self._accesses)
+
+    def has_data_access(self) -> bool:
+        '''
+        :returns: True if there is an access of the data associated with this
+            signature (as opposed to a call or an inquiry), False otherwise.
+        '''
+        for info in self._accesses:
+            if info.access_type not in AccessType.non_data_accesses():
+                return True
+        return False
 
     def __getitem__(self, index):
         ''':return: the access information for the specified index.
@@ -310,19 +340,33 @@ class SingleVariableAccessInfo():
         This function is then called to change the assigned-to variable
         on the LHS to from READ to WRITE. Since the LHS is stored in a separate
         SingleVariableAccessInfo class, it is guaranteed that there is only
-        one entry for the variable.
+        one READ entry for the variable (although there maybe INQUIRY accesses
+        for array bounds).
+
+        :raises InternalError: if there is an access that is not READ or
+                               INQUIRY or there is > 1 READ access.
         '''
-        if len(self._accesses) != 1:
-            raise InternalError(f"Variable '{self._signature}' had "
-                                f"{len(self._accesses)} accesses listed, "
-                                "not one in change_read_to_write.")
+        read_access = None
+        for acc in self._accesses:
 
-        if self._accesses[0].access_type != AccessType.READ:
-            raise InternalError(f"Trying to change variable "
-                                f"'{self._signature}' to 'WRITE' "
-                                "which does not have 'READ' access.")
+            if acc.access_type == AccessType.READ:
+                if read_access:
+                    raise InternalError(
+                        f"Trying to change variable '{self._signature}' to "
+                        f"'WRITE' but it has more than one 'READ' access.")
+                read_access = acc
 
-        self._accesses[0].change_read_to_write()
+            elif acc.access_type not in AccessType.non_data_accesses():
+                raise InternalError(
+                    f"Variable '{self._signature}' has a '{acc.access_type}' "
+                    f"access. change_read_to_write() expects only inquiry "
+                    f"accesses and a single 'READ' access.")
+
+        if not read_access:
+            raise InternalError(
+                f"Trying to change variable '{self._signature}' to 'WRITE' but"
+                f" it does not have a 'READ' access.")
+        read_access.change_read_to_write()
 
     def is_array(self, index_variable=None):
         '''Checks if the variable is used as an array, i.e. if it has

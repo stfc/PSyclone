@@ -569,14 +569,13 @@ def test_call_tree_utils_inout_parameters_generic(fortran_reader):
     # inside the ubound/lbound function calls.
     read_write_info = ReadWriteInfo()
     ctu.get_input_parameters(read_write_info, loops,
-                             options={'COLLECT-ARRAY-SHAPE-READS': True})
+                             include_non_data_accesses=True)
     input_set = set(sig for _, sig in read_write_info.set_of_all_used_vars)
     assert input_set == set([Signature("b"), Signature("c"),
                              Signature("jpj"), Signature("dummy")])
 
-    read_write_info = ctu.\
-        get_in_out_parameters(loops,
-                              options={'COLLECT-ARRAY-SHAPE-READS': True})
+    read_write_info = ctu.get_in_out_parameters(loops,
+                                                include_non_data_accesses=True)
     output_set = set(read_write_info.signatures_read)
     assert output_set == set([Signature("b"), Signature("c"),
                               Signature("jpj"), Signature("dummy")])

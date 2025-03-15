@@ -1323,9 +1323,6 @@ class Kern(Statement):
     def iterates_over(self):
         return self._iterates_over
 
-    def local_vars(self):
-        raise NotImplementedError("Kern.local_vars should be implemented")
-
     def gen_code(self, parent):
         raise NotImplementedError("Kern.gen_code should be implemented")
 
@@ -1576,8 +1573,9 @@ class CodedKern(Kern):
             return self._fp2_ast
         # Use the fparser1 AST to generate Fortran source
         fortran = self._module_code.tofortran()
-        # Create an fparser2 Fortran2008 parser
-        my_parser = parser.ParserFactory().create(std="f2008")
+        # Create an fparser2 Fortran parser
+        std = Config.get().fortran_standard
+        my_parser = parser.ParserFactory().create(std=std)
         # Parse that Fortran using our parser
         reader = FortranStringReader(fortran)
         self._fp2_ast = my_parser(reader)
@@ -1815,14 +1813,6 @@ class InlinedKern(Kern):
         '''
         return position == 0 and isinstance(child, Schedule)
 
-    @abc.abstractmethod
-    def local_vars(self):
-        '''
-        :returns: list of the variable (names) that are local to this kernel \
-                  (and must therefore be e.g. threadprivate if doing OpenMP)
-        :rtype: list of str
-        '''
-
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
         to generate coloured output in a terminal that supports it.
@@ -1866,12 +1856,6 @@ class BuiltIn(Kern):
         ''' Set-up the state of this BuiltIn call '''
         name = call.ktype.name
         super(BuiltIn, self).__init__(parent, call, name, arguments)
-
-    def local_vars(self):
-        '''Variables that are local to this built-in and therefore need to be
-        made private when parallelising using OpenMP or similar. By default
-        builtin's do not have any local variables so set to nothing'''
-        return []
 
 
 class Arguments():

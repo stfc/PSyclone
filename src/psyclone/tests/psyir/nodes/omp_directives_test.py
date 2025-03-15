@@ -694,15 +694,17 @@ def test_directiveinfer_sharing_attributes_lfric():
 def test_infer_sharing_attributes_with_explicitly_private_symbols(
         fortran_reader):
     ''' Tests the infer_sharing_attributes() method when some of the loops have
-    explictly declared private symbols.
+    explictly declared private symbols. Also test that non-data accesses to
+    array symbols are ignored.
     '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
             integer :: i, j, scalar1, scalar2
-            real, dimension(10) :: array
+            real, dimension(10) :: array, array2
             do j = 1, 10
-               do i = 1, 10
-                   array(i) = scalar2
+               do i = 1, size(array, 1)
+                   ! Access to array2 is type information rather than data
+                   array(i) = scalar2 * size(array2, 1)
                enddo
             enddo
         end subroutine''')

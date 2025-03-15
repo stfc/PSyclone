@@ -150,8 +150,8 @@ def test_validate_no_inline_global_var(parser):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kernels[0])
     assert ("Kernel 'kernel_with_global_code' contains accesses to 'alpha' "
-            "which is declared in the same module scope. Cannot inline such a "
-            "Kernel." in str(err.value))
+            "which is declared in the callee module scope. Cannot inline such "
+            "a Kernel." in str(err.value))
 
     # Check that the issue is also reported if the symbol is inside a
     # Codeblock
@@ -166,8 +166,8 @@ def test_validate_no_inline_global_var(parser):
 
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kernels[0])
-    assert ("'kernel_with_global_code' contains accesses to 'alpha' in a "
-            "CodeBlock that is declared in the same module scope. Cannot "
+    assert ("'kernel_with_global_code' contains accesses to 'alpha' which is "
+            "declared in the callee module scope. Cannot "
             "inline such a Kernel." in str(err.value))
 
     # Check that a symbol of unknown origin within a CodeBlock is caught.
@@ -179,10 +179,15 @@ def test_validate_no_inline_global_var(parser):
     block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
     kernels[0].get_kernel_schedule().pop_all_children()
     kernels[0].get_kernel_schedule().addchild(block)
+    table = kernels[0].get_kernel_schedule().symbol_table
+    # Remove symbols that refer to 'go_wp' in outer scope.
+    table._symbols.pop("field_old")
+    table._symbols.pop("field_new")
+    table._symbols.pop("field")
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kernels[0])
     assert ("Kernel 'kernel_with_global_code' contains accesses to 'unknown' "
-            "in a CodeBlock but the origin of this symbol is unknown" in
+            "but the origin of this signature is unknown" in
             str(err.value))
 
     # But make sure that an IntrinsicCall routine name is not considered
@@ -366,6 +371,54 @@ def test_validate_fail_to_get_psyir(fortran_reader):
             " search path is set to []. Searching for external routines that "
             "are only resolved at link time is not supported."
             in str(err.value))
+
+
+def test_validate_nested_scopes(fortran_reader, monkeypatch):
+    '''
+    Test that validate() works correctly when two symbols in nested scopes
+    have a name clash.
+
+    TODO #2424 - this xfails at the moment because VariablesAccessInfo does not
+    support nested scopes.
+
+    '''
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
+                           idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    kern_call = schedule.children[1].loop_body[0].loop_body[0]
+
+    # Manually set the kernel to the desired problematic code
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod
+        contains
+        subroutine compute_cv_code()
+            integer :: i
+            do i = 1, 10
+              a(i) = i
+            end do
+        end subroutine compute_cv_code
+    end module my_mod
+    ''')
+    routine = psyir.walk(Routine)[0]
+    # Move the definition of 'a' into the table associated with the loop.
+    sym = routine.symbol_table.lookup("a")
+    routine[0].loop_body.symbol_table.add(sym)
+    del routine.symbol_table._symbols["a"]
+    # Put a new, different symbol (with the same name) into the table of the
+    # parent Container.
+    routine.parent.scope.symbol_table.add(DataSymbol("a", REAL_TYPE))
+    monkeypatch.setattr(kern_call, "_kern_schedule", routine)
+
+    # The transformation should succeed (because the symbol named 'a' is
+    # actually local to the routine. However, the dependence analysis thinks it
+    # clashes with the symbol of the same name in the module scope.
+    intrans = KernelModuleInlineTrans()
+    try:
+        intrans.validate(kern_call)
+    except TransformationError:
+        pytest.xfail(reason="TODO #2424 - VariablesAccessInfo does not support"
+                     " nested scopes")
 
 
 def test_module_inline_apply_transformation(tmpdir, fortran_writer):

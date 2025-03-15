@@ -2877,6 +2877,20 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     assert a_2.visibility == symbols.Symbol.Visibility.PRIVATE
 
 
+def test_resolve_imports_missing_container(monkeypatch):
+    '''
+    Test that a clean failure to get Container PSyIR does not cause problems.
+    '''
+    table = symbols.SymbolTable()
+    csym = symbols.ContainerSymbol("a_mod")
+    # Monkeypatch the find_container_psyir() method of this ContainerSymbol
+    # so that it returns None.
+    monkeypatch.setattr(csym, "find_container_psyir", lambda local_node: None)
+    table.add(csym)
+    # Resolving imports should run without problems.
+    table.resolve_imports()
+
+
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_different_capitalization(
         fortran_reader, tmpdir, monkeypatch):

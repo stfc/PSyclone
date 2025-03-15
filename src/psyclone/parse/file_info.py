@@ -412,10 +412,11 @@ class FileInfo:
                 return self._fparser_tree
 
         try:
+            config = Config.get()
             reader = FortranStringReader(
-                source_code, include_dirs=Config.get().include_paths
+                source_code, include_dirs=config.include_paths
             )
-            parser = ParserFactory().create(std="f2008")
+            parser = ParserFactory().create(std=config.fortran_standard)
             self._fparser_tree = parser(reader)
 
         except Exception as err:
