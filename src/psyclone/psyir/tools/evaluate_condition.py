@@ -1,5 +1,5 @@
 
-class EvaluateConditions:
+class EvaluateCondition:
     def _evaluate_literal(self, psyir_node: nodes.Literal, is_not: bool = False) -> BooleanValue:
         value: bool = Utils.get_boolean_value_from_literal(psyir_node)
         ## is_not XOR LiteralValue
@@ -92,7 +92,7 @@ class EvaluateConditions:
         else:
             raise TransformationError("Not in namelist not parameter table.")
 
-    def _evaluate_single_reference(self, psyir_node: nodes.Reference, is_not: bool = False) -> Union[int,BooleanVal ue:]
+    def _evaluate_single_reference(self, psyir_node: nodes.Reference, is_not: bool = False) -> Union[int,BooleanValue]
         assert isinstance(psyir_node, nodes.Reference)
         try:
             value: Union[bool, int] = self._evaluate_reference_as_known_bool_or_int(psyir_node)

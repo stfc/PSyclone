@@ -122,7 +122,7 @@ class RemoveIfBlockTrans(Transformation):
             else:
                 self.if_else_replace(if_block, is_true=False)
         else:
-            from psyclone.psyir.tools.evaluate_conditions import EvaluateConditions
+            from psyclone.psyir.tools.evaluate_condition import EvaluateConditions
             evaluate_condition = EvaluateCondition()
             is_true =evaluate_condition.evaluate(condition)
             self.if_else_replace(if_block, is_true)

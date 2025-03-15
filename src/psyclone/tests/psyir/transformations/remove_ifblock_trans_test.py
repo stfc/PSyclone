@@ -133,7 +133,7 @@ def test_ribt_boolean_expr_involving_int_comparison(fortran_reader, fortran_writ
 
 
 # ----------------------------------------------------------------------------
-def test_ribt_from_json(fortran_reader, fortran_writer, nemo_example_files_abspath):
+def test_ribt_from_json(fortran_reader, fortran_writer):
     """Tests removing ifblock with condition in json file"""
     source = """program test
                 integer i
@@ -147,9 +147,7 @@ def test_ribt_from_json(fortran_reader, fortran_writer, nemo_example_files_abspa
                 end program test"""
     psyir = fortran_reader.psyir_from_source(source)
     routine = psyir.walk(Routine)[0]
-    import os
-
-    json_file_abspath = os.path.join(nemo_example_files_abspath, "./dummy_namelist.nml")
+    json_file_abspath = None
     ribt = RemoveIfBlockTrans(json_file_abspath)
     out_before = fortran_writer(psyir)
     ribt.apply(routine)
