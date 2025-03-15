@@ -37,7 +37,8 @@
 known to be constant for the whole runtime execution."""
 
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import IfBlock, Routine, Node
+from psyclone.psyir.nodes import IfBlock, Routine, Node, Literal
+
 from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError,
@@ -116,13 +117,15 @@ class RemoveIfBlockTrans(Transformation):
         """
 
         condition = if_block.condition
-        if condition.datatype.intrinsic is ScalarType.Intrinsic.BOOLEAN:
+        if condition.datatype.intrinsic is ScalarType.Intrinsic.BOOLEAN and isinstance(condition, Literal):
             if condition.value == "true":
                 self.if_else_replace(if_block, is_true=True)
             else:
                 self.if_else_replace(if_block, is_true=False)
         else:
-            from psyclone.psyir.tools.evaluate_condition import EvaluateConditions
+            raise NotImplementedError
+            from psyclone.psyir.tools.evaluate_condition import EvaluateCondition
+
             evaluate_condition = EvaluateCondition()
             is_true =evaluate_condition.evaluate(condition)
             self.if_else_replace(if_block, is_true)
