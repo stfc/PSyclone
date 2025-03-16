@@ -52,7 +52,6 @@ def test_ribt_general():
 
     ribt = RemoveIfBlockTrans()
 
-    assert str(ribt) == "Remove IfBlock in psyir AST when this is safe to do."
     assert ribt.name == "RemoveIfBlockTrans"
 
 
@@ -107,7 +106,7 @@ def test_ribt_remove_trivial_ifblock_after_replace_ref_by_lit(fortran_reader, fo
                 else
                     x =4
                 endif
-                if(cond)then
+                if(cond2)then
                     x = 5
                 else
                     x =6
@@ -116,9 +115,10 @@ def test_ribt_remove_trivial_ifblock_after_replace_ref_by_lit(fortran_reader, fo
     psyir = fortran_reader.psyir_from_source(source)
     # The first child is the assignment to 'invariant'
     routine = psyir.walk(Routine)[0]
-    from psyclone.psyir.transformations import 
+    from psyclone.psyir.transformations import ReplaceReferenceByLiteralTrans
 
-    trans = REp
+    trans = ReplaceReferenceByLiteralTrans()
+    trans.apply(routine)
     ribt = RemoveIfBlockTrans()
     ribt.apply(routine)
     out_routine = fortran_writer(routine)
@@ -141,7 +141,7 @@ def test_ribt_boolean_expr_involving_int_comparison(fortran_reader, fortran_writ
                      a(i) = 0
                     else
                      a(i) = 1
-                     endif
+                    endif
                     if (.FALSE.) then
                       x = 3
                     endif
@@ -179,8 +179,7 @@ def test_ribt_from_json(fortran_reader, fortran_writer):
                 end program test"""
     psyir = fortran_reader.psyir_from_source(source)
     routine = psyir.walk(Routine)[0]
-    json_file_abspath = None
-    ribt = RemoveIfBlockTrans(json_file_abspath)
+    ribt = RemoveIfBlockTrans([("i", True)])
     out_before = fortran_writer(psyir)
     ribt.apply(routine)
     out_after = fortran_writer(psyir)

@@ -1,4 +1,10 @@
+from psyclone.psyir import nodes
+
 class EvaluateCondition:
+
+    def __init__(self, known_variables) -> None:
+        self._known_variables: dict[str, bool] = known_variables
+
     def _evaluate_literal(self, psyir_node: nodes.Literal, is_not: bool = False) -> BooleanValue:
         value: bool = Utils.get_boolean_value_from_literal(psyir_node)
         ## is_not XOR LiteralValue
