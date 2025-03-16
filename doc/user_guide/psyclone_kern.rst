@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified by I. Kavcic and L. Turner, Met Office
+.. Modified by I. Kavcic, L. Turner and J. Dendy, Met Office
 
 PSyclone Kernel Tools
 =====================
@@ -558,14 +558,15 @@ gives the following algorithm layer code:
       use mesh_mod, only : mesh_type
       use simple_mod, only : simple_type
       use constants_mod, only : i_def, r_def
-      integer(kind=i_def), parameter :: element_order = 1_i_def
+      integer(kind=i_def), parameter :: element_order_h = 1_i_def
+      integer(kind=i_def), parameter :: element_order_v = 1_i_def
       type(mesh_type), pointer, intent(in) :: mesh
       type(field_type), dimension(3), intent(in), optional :: chi
       type(field_type), intent(in), optional :: panel_id
       TYPE(function_space_type), POINTER :: vector_space_w1_ptr
       type(field_type) :: field_1
 
-      vector_space_w1_ptr => function_space_collection % get_fs(mesh, element_order, w1)
+      vector_space_w1_ptr => function_space_collection % get_fs(mesh, element_order_h, element_order_v, w1)
       call field_1 % initialise(vector_space=vector_space_w1_ptr, name='field_1')
       call invoke(setval_c(field_1, 1.0_r_def), simple_type(field_1))
 

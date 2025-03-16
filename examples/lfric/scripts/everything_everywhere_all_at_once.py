@@ -55,7 +55,7 @@ from psyclone.transformations import Dynamo0p3ColourTrans, \
                                      TransformationError
 
 ENABLE_REDUNDANT_COMPUTATION = True
-ENABLE_ASYNC_HALOS = True
+ENABLE_ASYNC_HALOS = False  # TODO #2903: Async fails with FFSL
 ENABLE_OMP_COLOURING = True
 ENABLE_INTRINSIC_INLINING = True
 # LFRicLoopFuseTrans and DynKernelConstTrans could also be included but there

@@ -916,7 +916,7 @@ def test_merge_container_syms():
         tab1.merge(tab4)
     err_txt = str(err.value)
     assert "Cannot merge Symbol Table:" in err_txt
-    assert "due to unresolvable name clashes." in err_txt
+    assert "due to unresolvable name clashes" in err_txt
 
 
 def test_merge_same_routine_symbol(fortran_reader):
@@ -1424,6 +1424,10 @@ def test_wildcard_imports():
     csym.wildcard_import = True
     assert container_table.wildcard_imports() == set([csym.name])
     assert sched_table.wildcard_imports() == set([csym.name])
+    # Limiting the scope for the search
+    assert sched_table.wildcard_imports(scope_limit=sched_table.node) == set()
+    assert (sched_table.wildcard_imports(scope_limit=container_table.node)
+            == set([csym.name]))
 
 
 def test_view():

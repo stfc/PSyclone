@@ -39,6 +39,7 @@
 ! -----------------------------------------------------------------------------
 ! Modified by: I. Kavcic, Met Office
 !              A. R. Porter, STFC Daresbury Laboratory
+!              J. Dendy, Met Office
 
 !>@brief Computes the advective increment of the prognostic equations
 module advective_inc_alg_mod
@@ -47,7 +48,9 @@ module advective_inc_alg_mod
   use constants_mod,                  only: r_def, i_def
 
   ! Configuration and restart/checkpoint options
-  use finite_element_config_mod,      only: element_order, wtheta_on
+  use finite_element_config_mod,      only: element_order_h, element_order_v, &
+                                            wtheta_on,                        &
+                                            nqp_h_exact, nqp_v_exact
   use runtime_constants_mod,          only: get_coordinates,                &
                                             get_inverse_lumped_mass_matrix, &
                                             theta_space_id
@@ -113,9 +116,11 @@ contains
 
       case(transport_operators_fem)
         ! Use project u.grad(theta) into the theta function space
-        qr = quadrature_xyoz_type(element_order+3, quadrature_rule)
+        qr = quadrature_xyoz_type(element_order_h+3, element_order_h+3, &
+                                  element_order_v+3, quadrature_rule)
+
         ! Quadrature rule on lateral faces only
-        qrf = quadrature_face_type(nqp_exact, .true., .false., &
+        qrf = quadrature_face_type(nqp_h_exact, nqp_v_exact, .true., .false., &
                                    reference_element, quadrature_rule)
 
         call invoke( setval_c(rtheta, 0.0_r_def) )

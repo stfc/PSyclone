@@ -576,8 +576,7 @@ class FortranWriter(LanguageWriter):
         datatype = gen_datatype(symbol.datatype, symbol.name)
         result += f"{self._nindent}{datatype}"
 
-        if ArrayType.Extent.DEFERRED in array_shape:
-            # A 'deferred' array extent means this is an allocatable array
+        if array_shape and symbol.datatype.is_allocatable:
             result += ", allocatable"
 
         # Specify Fortran attributes

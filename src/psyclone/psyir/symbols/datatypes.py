@@ -90,6 +90,13 @@ class DataType(metaclass=abc.ABCMeta):
 
         '''
 
+    @property
+    def is_allocatable(self) -> Union[bool, None]:
+        '''
+        :returns: whether this DataType is allocatable. In the base class
+            set this to be always False.'''
+        return False
+
 
 class UnresolvedType(DataType):
     # pylint: disable=too-few-public-methods
@@ -97,6 +104,13 @@ class UnresolvedType(DataType):
 
     def __str__(self):
         return "UnresolvedType"
+
+    @property
+    def is_allocatable(self) -> Union[bool, None]:
+        '''
+        :returns: whether this DataType is allocatable. In case of an
+            UnresolvedType we don't know.'''
+        return None
 
 
 class NoType(DataType):
@@ -289,6 +303,22 @@ class UnsupportedFortranType(UnsupportedType):
         '''
         if self.partial_datatype:
             return self.partial_datatype.intrinsic
+        return None
+
+    @property
+    def is_allocatable(self) -> Union[bool, None]:
+        '''If we have enough information in the partial_datatype,
+        determines whether this data type is allocatable or not.
+        If it is unknown, it will return None. Note that atm PSyclone
+        only supports the allocatable attribute for **arrays**.
+        # TODO #2898 If we support non-array allocatable types, the
+        test for arrays can be removed
+
+        :returns: whether this UnsupportedFortranType is known to be
+            allocatable.'''
+        if (self.partial_datatype and
+                isinstance(self.partial_datatype, ArrayType)):
+            return self.partial_datatype.is_allocatable
         return None
 
 
@@ -611,6 +641,14 @@ class ArrayType(DataType):
             int or :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return self._precision
+
+    @property
+    def is_allocatable(self) -> bool:
+        '''
+        :returns: whether this array is allocatable or not.
+        '''
+        # A 'deferred' array extent means this is an allocatable array
+        return ArrayType.Extent.DEFERRED in self.shape
 
     @property
     def shape(self):

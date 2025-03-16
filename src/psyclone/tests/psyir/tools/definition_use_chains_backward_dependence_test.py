@@ -687,3 +687,58 @@ def test_definition_use_chains_backward_accesses_nonassign_reference_in_loop(
     assert reaches[0] is routine.children[1].loop_body.children[1].children[1]
     assert reaches[1] is routine.children[1].loop_body.children[0].lhs
     assert reaches[2] is routine.children[0].lhs
+
+
+def test_definition_use_chains_backward_accesses_empty_schedules(
+    fortran_reader,
+):
+    '''Test the case where we have empty schedules inside
+    various type of code.'''
+    code = """
+    subroutine x()
+    integer :: a, i
+    a = 1
+    do i = 1, 100
+    end do
+    if(.TRUE.) then
+    else
+    endif
+    do while(.FALSE.)
+    end do
+    a = a + a
+    end subroutine x
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(
+            routine.children[4].lhs
+    )
+    reaches = chains.find_backward_accesses()
+    assert len(reaches) == 3
+    assert reaches[0] is routine.children[4].rhs.children[1]
+    assert reaches[1] is routine.children[4].rhs.children[0]
+    assert reaches[2] is routine.children[0].lhs
+
+
+def test_definition_use_chains_backward_accesses_inquiry_func(
+    fortran_reader,
+):
+    '''Test the case where we have an inquiry function
+    accessing the symbol of interest.'''
+    code = """
+    subroutine x()
+    use some_mod, only: func
+    integer, dimension(100) :: a
+    integer :: b
+
+    b = func(lbound(a))
+    a = 1
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(
+            routine.children[1].lhs
+    )
+    reaches = chains.find_backward_accesses()
+    assert len(reaches) == 0
