@@ -35,6 +35,7 @@
 
 """Module providing a transformation that removes IfBlock if the condition is
 known to be constant for the whole runtime execution."""
+from typing import Dict, Optional, Union
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import IfBlock, Routine, Node, Literal
@@ -44,14 +45,12 @@ from psyclone.psyir.transformations.transformation_error import (
     TransformationError,
 )
 
-from typing import Dict, Optional
-
 
 class RemoveIfBlockTrans(Transformation):
 
-    def __init__(self, dict_of_bool: Optional[dict[str, bool]] = None) -> None:
+    def __init__(self, dict_of_bool: Optional[dict[str, Union[bool, int]]] = None) -> None:
         super().__init__()
-        self._known_variables: Dict[str, bool] = dict_of_bool or {}
+        self._known_variables: dict[str, Union[bool, int]] = dict_of_bool or {}
 
     def _if_else_replace(self, main_schedule, if_block, if_body_schedule):
         """This code is extracted from Martin Schreiber MR#2801.

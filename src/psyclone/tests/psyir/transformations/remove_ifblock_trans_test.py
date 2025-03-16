@@ -199,7 +199,7 @@ def test_ribt_cmplx_boolean_expr(fortran_reader, fortran_writer):
                 logical, parameter b2 = .FALSE.
                 x = -1
                 b1 = .FALSE.
-                if (x + 3 - 2 .AND. b1 == b2) then
+                if ((x + 3 - 2) .AND. (b1 .EQ. b2)) then
                     y = 0
                 else
                     y = 1
@@ -224,9 +224,9 @@ def test_ribt_cmplx_boolean_expr(fortran_reader, fortran_writer):
 def test_ribt_too_cmplx_boolean_expr(fortran_reader, fortran_writer):
     """"""
     source = """program test
-                integer :: x
+                integer :: x,y
                 logical :: b1
-                logical, parameter b2 = .FALSE.
+                logical, parameter:: b2 = .FALSE.
                 x = 0 - 1
                 b1 = .FALSE.
                 if (x + 3 - 2 .AND. b1 == b2) then
@@ -242,7 +242,7 @@ def test_ribt_too_cmplx_boolean_expr(fortran_reader, fortran_writer):
     # None of the statements can be moved, so the output
     # before and after the transformation should be identical:
     out_before = fortran_writer(routine)
-    ribt = RemoveIfBlockTrans()
+    ribt = RemoveIfBlockTrans({"x": -1, "b1": False})
     ribt.apply(routine)
     out_after = fortran_writer(routine)
     assert "if (x + 3 - 2 .AND. b1 == b2)" in out_before

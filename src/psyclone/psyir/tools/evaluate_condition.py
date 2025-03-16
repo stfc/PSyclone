@@ -20,7 +20,7 @@ class BooleanValue(Enum):
 
 class EvaluateCondition:
 
-    def __init__(self, known_variables) -> None:
+    def __init__(self, known_variables: dict[str, bool]) -> None:
         self._known_variables: dict[str, bool] = known_variables
 
     def get_integer_value_from_literal(self, psyir_node: nodes.Literal) -> int:
@@ -143,7 +143,7 @@ class EvaluateCondition:
             assert len(psyir_node.children) == 2
             return self._evaluate_gt(psyir_node.children[0], psyir_node.children[1])
         else:
-            raise Exception("Not supported.")
+            raise NotImplementedError("Not supported.")
 
     def _evaluate_reference_as_known_bool_or_int(self, psyir_node: nodes.Reference) -> Union[bool, int]:
         var_name: str = psyir_node.name
@@ -160,17 +160,17 @@ class EvaluateCondition:
         except EvaluationError:
             return BooleanValue.DYNAMIC
 
-        if isinstance(value, int):
+        if type(value) is int:
             return value
         else:
-            assert isinstance(value, bool)
+            assert type(value) is bool
             ## Exclusive OR (XOR) between .NOT. (true or false) and the Reference
             if is_not != value:
                 return BooleanValue.ALWAYS_TRUE
             else:
                 return BooleanValue.ALWAYS_FALSE
 
-    def rec_evaluate(self, psyir_node: nodes.Node, is_not: bool = False) -> BooleanValue:
+    def rec_evaluate(self, psyir_node: nodes.Node, is_not: bool = False) -> Union[BooleanValue, int]:
         """Evaluate the boolean result of a psyir Reference.
         Either it is unknown, or dynamic (changes within code execution)
         or static: AlwaysTrue or AlwaysFalse
