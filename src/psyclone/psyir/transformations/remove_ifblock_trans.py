@@ -49,29 +49,9 @@ from typing import Dict, Optional
 
 class RemoveIfBlockTrans(Transformation):
 
-    def __init__(self, json_file_abspath: Optional[str] = None) -> None:
+    def __init__(self, dict_of_bool: Optional[dict[str, bool]] = None) -> None:
         super().__init__()
-        self._known_reference_bool: Dict[str, bool] = {}
-        self._known_reference_int: Dict[str, bool] = {}
-        if json_file_abspath is not None:
-            with open(json_file_abspath, "r") as inf:
-                import json
-
-                json_data = json.load(inf)
-                if (
-                    json_data.get("known_reference_bool") is None
-                    or json_data.get("known_reference_int") is None
-                ):
-                    raise TransformationError(
-                        f"Wrong json data content: {json_file_abspath}."
-                    )
-                else:
-                    self._known_reference_bool = json_data[
-                        "known_reference_bool"
-                    ]
-                    self._known_reference_int = json_data[
-                        "known_reference_int"
-                    ]
+        self._known_variables: Dict[str, bool] = dict_of_bool or {}
 
     def _if_else_replace(self, main_schedule, if_block, if_body_schedule):
         """This code is extracted from Martin Schreiber MR#2801.
@@ -111,26 +91,27 @@ class RemoveIfBlockTrans(Transformation):
             else:
                 if_block.detach()
 
-    def _eliminate_ifblock_if_const_condition(self, if_block: IfBlock):
+    def _eliminate_ifblock_if_const_condition(self, if_block: IfBlock) -> None:
         """Eliminate if-block if conditions are constant booleans.
         :rtype: None
         """
 
         condition = if_block.condition
-        if condition.datatype.intrinsic is ScalarType.Intrinsic.BOOLEAN and isinstance(condition, Literal):
+        if isinstance(condition, Literal) and condition.datatype.intrinsic is ScalarType.Intrinsic.BOOLEAN:
             if condition.value == "true":
                 self.if_else_replace(if_block, is_true=True)
             else:
                 self.if_else_replace(if_block, is_true=False)
         else:
-            raise NotImplementedError
             from psyclone.psyir.tools.evaluate_condition import EvaluateCondition
 
-            evaluate_condition = EvaluateCondition()
-            is_true =evaluate_condition.evaluate(condition)
-            self.if_else_replace(if_block, is_true)
+            evaluate_condition = EvaluateCondition(self._known_variables)
+            is_true: bool = evaluate_condition.evaluate(condition)
+            if is_true is not None:
+                self.if_else_replace(if_block, is_true)
 
     def apply(self, node: Routine, options=None):
+        self.validate(node, options)
         for if_block in node.walk(IfBlock):
             self._eliminate_ifblock_if_const_condition(if_block)
 
