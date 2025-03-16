@@ -179,7 +179,7 @@ def test_ribt_from_json(fortran_reader, fortran_writer):
                 end program test"""
     psyir = fortran_reader.psyir_from_source(source)
     routine = psyir.walk(Routine)[0]
-    ribt = RemoveIfBlockTrans([("i", True)])
+    ribt = RemoveIfBlockTrans({"i": True})
     out_before = fortran_writer(psyir)
     ribt.apply(routine)
     out_after = fortran_writer(psyir)
