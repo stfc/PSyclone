@@ -103,12 +103,14 @@ class RemoveIfBlockTrans(Transformation):
             else:
                 self.if_else_replace(if_block, is_true=False)
         else:
-            from psyclone.psyir.tools.evaluate_condition import EvaluateCondition
+            from psyclone.psyir.tools.evaluate_condition import EvaluateCondition, EvaluationError
 
             evaluate_condition = EvaluateCondition(self._known_variables)
-            is_true: bool = evaluate_condition.evaluate(condition)
-            if is_true is not None:
-                self.if_else_replace(if_block, is_true)
+            try:
+                is_true: bool = evaluate_condition.evaluate(condition)
+            except EvaluationError:
+                return None
+            self.if_else_replace(if_block, is_true)
 
     def apply(self, node: Routine, options=None):
         self.validate(node, options)
