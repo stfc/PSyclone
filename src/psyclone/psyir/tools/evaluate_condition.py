@@ -180,6 +180,7 @@ class EvaluateCondition:
         :return: _description_
         :rtype: bool
         """
+        ## FIXME: try to use evaluate_with_sympy
         if isinstance(psyir_node, nodes.Literal):
             return self._evaluate_literal(psyir_node, is_not)
         elif isinstance(psyir_node, nodes.Reference):
@@ -192,6 +193,14 @@ class EvaluateCondition:
             raise TransformationError("Not implemented.")
 
     def evaluate(self, condition: nodes.Node) -> bool:
+        """Walk over all references: if they are all known (Literal, or known variables)
+        use sympy.
+        Otherwise return Unknown.
+
+        :param condition: _description_
+        :raises EvaluationError: _description_
+        :return: _description_
+        """
         error_msg = ""
         try:
             boolean = self.rec_evaluate(condition)
