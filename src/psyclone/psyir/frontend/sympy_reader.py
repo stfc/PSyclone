@@ -124,7 +124,10 @@ class SymPyReader():
         '''
         # Convert the new sympy expression to PSyIR
         reader = FortranReader()
-        return reader.psyir_from_expression(str(sympy_expr), symbol_table)
+        str_sympy_expr = str(sympy_expr)
+        str_sympy_expr = str_sympy_expr.replace("False", ".FALSE.")
+        str_sympy_expr = str_sympy_expr.replace("True", ".TRUE.")
+        return reader.psyir_from_expression(str_sympy_expr, symbol_table)
 
     # -------------------------------------------------------------------------
     # pylint: disable=no-self-argument, too-many-branches

@@ -208,7 +208,7 @@ class EvaluateCondition:
         elif boolean == BooleanValue.ALWAYS_FALSE:
             return False
         else:
-            raise EvaluationError(f"Condition is {type(boolean)}: {error_msg}")
+            raise EvaluationError(f"Condition is {boolean}: {error_msg}")
 
     def evaluate(self, condition: nodes.Node) -> bool:
         """Walk over all references: if they are all known (Literal, or known variables)
@@ -232,8 +232,9 @@ class EvaluateCondition:
     def evaluate_with_sympy(self, condition: nodes.Node) -> bool:
 
         sympy_writer = SymPyWriter()
-        expr_sympy = sympy_writer([condition])[0]
-        new_expr = sympy.simplify(expr_sympy)
+        
+        expr_sympy = sympy_writer._to_str([condition])#([condition])[0]
+        new_expr = sympy.simplify(expr_sympy[0].replace(".AND." , "and"))
         sympy_reader = SymPyReader(sympy_writer)
 
         psyir_expr: nodes.Node = sympy_reader.psyir_from_expression(new_expr)
