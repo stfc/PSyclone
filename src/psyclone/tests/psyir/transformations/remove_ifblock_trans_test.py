@@ -165,13 +165,13 @@ def test_ribt_boolean_expr_involving_int_comparison(fortran_reader, fortran_writ
 
 
 # ----------------------------------------------------------------------------
-def test_ribt_from_json(fortran_reader, fortran_writer):
-    """Tests removing ifblock with condition in json file"""
+def test_ribt_with_known_variables(fortran_reader, fortran_writer):
+    """Tests removing ifblock with condition in known variables"""
     source = """program test
-                integer i
+                logical :: cond
                 real ::x
-                namelist /MY_NAMELIST/ i !.TRUE.
-                if (i) then
+                namelist /MY_NAMELIST/ cond !.TRUE.
+                if (cond) then
                     x = 2
                 else
                     x = 3
@@ -179,7 +179,7 @@ def test_ribt_from_json(fortran_reader, fortran_writer):
                 end program test"""
     psyir = fortran_reader.psyir_from_source(source)
     routine = psyir.walk(Routine)[0]
-    ribt = RemoveIfBlockTrans({"i": True})
+    ribt = RemoveIfBlockTrans({"cond": True})
     out_before = fortran_writer(psyir)
     ribt.apply(routine)
     out_after = fortran_writer(psyir)
@@ -189,38 +189,6 @@ def test_ribt_from_json(fortran_reader, fortran_writer):
     assert "x = 2" in out_after
     assert "x = 3" not in out_after
 
-
-# ----------------------------------------------------------------------------
-def test_ribt_cmplx_boolean_expr(fortran_reader, fortran_writer):
-    """"""
-    source = """program test
-                integer :: x
-                logical :: b1
-                logical, parameter b2 = .FALSE.
-                x = -1
-                b1 = .FALSE.
-                if ((x + 3 - 2) .AND. (b1 .EQ. b2)) then
-                    y = 0
-                else
-                    y = 1
-                endif
-                end program test"""
-    psyir = fortran_reader.psyir_from_source(source)
-    # The first child is the assignment to 'invariant'
-    routine = psyir.walk(Routine)[0]
-
-    # None of the statements can be moved, so the output
-    # before and after the transformation should be identical:
-    out_before = fortran_writer(routine)
-    ribt = RemoveIfBlockTrans()
-    ribt.apply(routine)
-    out_after = fortran_writer(routine)
-    assert "y = 0" in out_before
-    assert "y = 1" in out_before
-    assert "y = 0" in out_after
-    assert "y = 1" not in out_after
-
-
 def test_ribt_too_cmplx_boolean_expr(fortran_reader, fortran_writer):
     """"""
     source = """program test
@@ -229,7 +197,7 @@ def test_ribt_too_cmplx_boolean_expr(fortran_reader, fortran_writer):
                 logical, parameter:: b2 = .FALSE.
                 x = 0 - 1
                 b1 = .FALSE.
-                if (x + 3 - 2 .AND. b1 == b2) then
+                if ((x + 3 - 2 == 0) .AND. b1 == b2) then
                     y = 0
                 else
                     y = 1
@@ -242,12 +210,16 @@ def test_ribt_too_cmplx_boolean_expr(fortran_reader, fortran_writer):
     # None of the statements can be moved, so the output
     # before and after the transformation should be identical:
     out_before = fortran_writer(routine)
+    from psyclone.psyir.transformations import ReplaceReferenceByLiteralTrans
+    trans = ReplaceReferenceByLiteralTrans()
+    trans.apply(routine)
     ribt = RemoveIfBlockTrans({"x": -1, "b1": False})
     ribt.apply(routine)
     out_after = fortran_writer(routine)
-    assert "if (x + 3 - 2 .AND. b1 == b2)" in out_before
-    assert "if (x + 3 - 2 .AND. b1 == b2)" in out_after
+    assert "if (x + 3 - 2 == 0 .AND. b1 == b2)" in out_before
     assert "y = 0" in out_before
     assert "y = 1" in out_before
+
+    assert "if (x + 3 - 2 == 0 .AND. b1 == b2)" not in out_after
     assert "y = 0" in out_after
-    assert "y = 1" in out_after
+    assert "y = 1" not in out_after
