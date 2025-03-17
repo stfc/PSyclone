@@ -1,8 +1,12 @@
 from enum import Enum
 from typing import Union
+import sympy
+
+from psyclone.psyir.frontend.sympy_reader import SymPyReader
+from psyclone.psyir.backend.sympy_writer import SymPyWriter
 
 from psyclone.psyir import nodes
-from psyclone.psyir.symbols import ScalarType, SymbolTable
+from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -192,18 +196,10 @@ class EvaluateCondition:
         else:
             raise TransformationError("Not implemented.")
 
-    def evaluate(self, condition: nodes.Node) -> bool:
-        """Walk over all references: if they are all known (Literal, or known variables)
-        use sympy.
-        Otherwise return Unknown.
-
-        :param condition: _description_
-        :raises EvaluationError: _description_
-        :return: _description_
-        """
+    def _evaluate_to_bool(self, node: nodes.Node) -> bool:
         error_msg = ""
         try:
-            boolean = self.rec_evaluate(condition)
+            boolean = self.rec_evaluate(node)
         except ValueError as ve:
             error_msg = f"{ve}"
             boolean = BooleanValue.DYNAMIC
@@ -214,15 +210,31 @@ class EvaluateCondition:
         else:
             raise EvaluationError(f"Condition is {type(boolean)}: {error_msg}")
 
-    def evaluate_with_sympy(self, condition: nodes.Node, sym_table: SymbolTable) -> bool:
-        from psyclone.psyir.frontend.sympy_reader import SymPyReader
-        from psyclone.psyir.backend.sympy_writer import SymPyWriter
-        import sympy
+    def evaluate(self, condition: nodes.Node) -> bool:
+        """Walk over all references: if they are all known (Literal, or known variables)
+        use sympy.
+        Otherwise return Unknown.
 
-        expr_sympy = SymPyWriter(condition)
+        :param condition: _description_
+        :raises EvaluationError: _description_
+        :return: _description_
+        """
+        for reference in condition.walk(nodes.Reference):
+            reference: nodes.Reference
+            ref_name = reference.name
+            if ref_name in self._known_variables:
+                value = self._known_variables[ref_name]
+                datatype = reference.datatype
+                new_literal = nodes.Literal(f"{value}".lower(),datatype)
+                reference.replace_with(new_literal)
+        return self.evaluate_with_sympy(condition)
+
+    def evaluate_with_sympy(self, condition: nodes.Node) -> bool:
+
+        sympy_writer = SymPyWriter()
+        expr_sympy = sympy_writer([condition])[0]
         new_expr = sympy.simplify(expr_sympy)
-        reader = SymPyReader(expr_sympy)
+        sympy_reader = SymPyReader(sympy_writer)
 
-        psyir_expr: nodes.Node = reader.psyir_from_expression(new_expr, sym_table)
-        print(psyir_expr.debug_string())
-        return True
+        psyir_expr: nodes.Node = sympy_reader.psyir_from_expression(new_expr)
+        return self._evaluate_to_bool(psyir_expr)
