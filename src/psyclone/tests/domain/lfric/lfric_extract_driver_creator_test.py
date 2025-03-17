@@ -267,11 +267,13 @@ def test_lfric_driver_simple_test():
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
-    psy.gen
+    print(psy.gen)
 
     filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
+    print(driver)
+    # assert False
 
     for line in [
         "if (ALLOCATED(psydata_filename)) then",

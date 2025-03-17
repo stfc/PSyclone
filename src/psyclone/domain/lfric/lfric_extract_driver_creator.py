@@ -61,7 +61,8 @@ from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
-                                    RoutineSymbol, UnsupportedFortranType)
+                                    RoutineSymbol, UnsupportedFortranType,
+                                    AutomaticInterface)
 from psyclone.psyir.transformations import ExtractTrans
 
 
@@ -171,11 +172,12 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         is not a dictionary.
 
     '''
-    def __init__(self):
+    def __init__(self, region_name = None):
         super().__init__()
         # TODO #2069: check if this list can be taken from LFRicConstants
         # TODO #2018: once r_field is defined in the LFRic infrastructure,
         #             it should be added to this list.
+        self._region_name = region_name
         self._all_field_types = ["integer_field_type", "field_type",
                                  "r_bl_field", "r_solver_field_type",
                                  "r_tran_field_type"]
@@ -469,14 +471,14 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # variable and the one storing the expected results have the same
         # type, look up the 'original' variable and declare the _POST variable
         symbol_table = program.symbol_table
-        if module_name:
-            sym = symbol_table.lookup_with_tag(f"{name}@{module_name}")
-        else:
-            if index is not None:
-                sym = symbol_table.lookup_with_tag(f"{name}_{index}_data")
-            else:
-                # If it is not indexed then `name` will already end in "_data"
-                sym = symbol_table.lookup_with_tag(name)
+        sym = symbol_table.lookup(name)
+        # if module_name:
+        #     sym = symbol_table.lookup_with_tag(f"{name}@{module_name}")
+        # else:
+        #     if index is not None:
+        #         sym = symbol_table.lookup_with_tag(f"{name}_{index}_data")
+        #     else:
+        #         # If it is not indexed then `name` will already end in "_data"
 
         # Declare a 'post' variable of the same type and read in its value.
         post_name = sym.name + postfix
@@ -631,7 +633,11 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                     continue
                 name_lit = Literal(tag, CHARACTER_TYPE)
             else:
-                sym = symbol_table.lookup_with_tag(str(signature))
+                sym = orig_sym.copy()
+                sym.interface = AutomaticInterface()
+                symbol_table.add(sym)
+                
+                #symbol_table.lookup_with_tag(str(signature))
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
 
             # TODO #2898: the test for array can be removed if
@@ -906,18 +912,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # The validation of the extract transform guarantees that all nodes
         # in the node list have the same parent.
         invoke_sched = nodes[0].ancestor(InvokeSchedule)
-
-        # The invoke-schedule might have children that are not in the node
-        # list. So get the indices of the nodes for which a driver is to
-        # be created, and then remove all other nodes from the copy.This
-        # needs to be done before potential halo exchange nodes are removed,
-        # to make sure we use the same indices (for e.g. loop boundary
-        # names, which are dependent on the index of the nodes in the tree).
-        # TODO #1731: this might not be required anymore if the loop
-        # boundaries are fixed earlier.
-        all_indices = [node.position for node in nodes]
-
-        schedule_copy = invoke_sched.copy()
+        schedule_copy = Routine.create("name")
+        schedule_copy.children.extend([n.copy() for n in nodes[0].children])
 
         # Halo exchanges are not allowed to be included in an exchange region,
         # so there can never be a HaloExchange node here. But if it should be
@@ -938,32 +934,13 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         original_symbol_table = invoke_sched.symbol_table
         proxy_name_mapping = self._get_proxy_name_mapping(schedule_copy)
 
-        # Now clean up the try: remove nodes in the copy that are not
-        # supposed to be extracted. Any node that should be extract
-        # needs to be lowered, which will fix the loop boundaries
-        # (TODO: #1731 - that might not be required anymore with 1731).
-        # Otherwise, if e.g. the second loop is only extracted, this
-        # loop would switch from using loop1_start/stop to loop0_start/stop
-        # since it is then the first loop (hence we need to do this
-        # backwards to maintain the loop indices). Note that the
-        # input/output list will already contain the loop boundaries,
-        # so we can't simply change them (also, the original indices
-        # will be used when writing the file).
-        children = schedule_copy.children[:]
-        children.reverse()
-        for child in children:
-            if child.position not in all_indices:
-                child.detach()
-            else:
-                child.lower_to_language_level()
-
         # Find all imported routines and add them to the symbol table
         # of the driver, so the driver will have the correct import
         # statements.
         self._import_modules(program.scope.symbol_table, schedule_copy)
         self._add_precision_symbols(program.scope.symbol_table)
-        self._add_all_kernel_symbols(schedule_copy, program_symbol_table,
-                                     proxy_name_mapping, read_write_info)
+        # self._add_all_kernel_symbols(schedule_copy, program_symbol_table,
+        #                              proxy_name_mapping, read_write_info)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,
@@ -1111,6 +1088,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         '''
+        if self._region_name is not None:
+            region_name = self._region_name
         code = self.get_driver_as_string(nodes, read_write_info, prefix,
                                          postfix, region_name, writer=writer)
         fll = FortLineLength()

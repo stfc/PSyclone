@@ -144,7 +144,8 @@ class LFRicExtractTrans(ExtractTrans):
         super().apply(nodes, my_options)
         new_node = nodes[0].ancestor(ExtractNode)
         if my_options.get("create_driver", False):
-            new_node._driver_creator = LFRicExtractDriverCreator()
+            region_name = my_options.get("region_name", None)
+            new_node._driver_creator = LFRicExtractDriverCreator(region_name)
         return
 
         # The PSyData transformation needs to pass this object to
