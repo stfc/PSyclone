@@ -51,7 +51,7 @@ def trans(psyir):
 
     '''
     from psyclone.transformations import \
-        Dynamo0p3RedundantComputationTrans, \
+        LFRicRedundantComputationTrans, \
         Dynamo0p3AsyncHaloExchangeTrans, \
         MoveTrans
 
@@ -63,7 +63,7 @@ def trans(psyir):
     # the grad_p field. This transformation is unnecessary if
     # annexed_dofs is set to True in the config file (although the
     # transformation still works).
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[0], {"depth": 1})
     print(schedule.view())
 

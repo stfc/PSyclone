@@ -59,7 +59,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (Dynamo0p3ColourTrans,
                                       DynamoOMPParallelLoopTrans,
-                                      Dynamo0p3RedundantComputationTrans)
+                                      LFRicRedundantComputationTrans)
 
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
@@ -373,7 +373,7 @@ def test_upper_bound_ncolour(dist_mem):
                 "last_halo_cell_all_colours(colour, 1)")
         # Apply redundant computation to increase the depth of the access
         # to the halo.
-        rtrans = Dynamo0p3RedundantComputationTrans()
+        rtrans = LFRicRedundantComputationTrans()
         rtrans.apply(loops[1])
         assert (loops[1]._upper_bound_fortran() ==
                 "last_halo_cell_all_colours(colour, max_halo_depth_mesh)")

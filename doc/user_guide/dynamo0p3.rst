@@ -3924,7 +3924,7 @@ Transformations
 ---------------
 
 This section describes the LFRic API-specific transformations. In
-cases, excepting **Dynamo0p3RedundantComputationTrans**,
+cases, excepting **LFRicRedundantComputationTrans**,
 **Dynamo0p3AsyncHaloExchangeTrans** and **Dynamo0p3KernelConstTrans**,
 these transformations are specialisations of generic transformations
 described in the :ref:`transformations` section. The difference
@@ -3953,7 +3953,7 @@ are the same. The exception are loops over discontinuous spaces (see
 for which loop fusion is allowed (unless the loop bounds become different
 due to a prior transformation).
 
-The **Dynamo0p3RedundantComputationTrans** and
+The **LFRicRedundantComputationTrans** and
 **Dynamo0p3AsyncHaloExchange** transformations are only valid for the
 LFRic API. This is because this API is currently the only one
 that supports distributed memory.  An example of redundant computation
@@ -4011,6 +4011,6 @@ transformations have not yet been migrated to this directory.
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.Dynamo0p3RedundantComputationTrans
+.. autoclass:: psyclone.transformations.LFRicRedundantComputationTrans
     :members:
     :noindex:
