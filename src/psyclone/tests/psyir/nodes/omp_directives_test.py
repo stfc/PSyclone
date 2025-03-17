@@ -4845,12 +4845,17 @@ def test_firstprivate_with_uninitialised(fortran_reader, fortran_writer):
                     do i = 10, 10, 1
                         if(cond < 1) then
                             a = 1
-                            b = 1
                         endif
-                        result = a + b
+                        result = a
                     end do
                 endif
                 a = 1
+            end do
+            do i = 10, 10, 1
+                if(cond < 1) then
+                    b = 1
+                endif
+                result = b
             end do
         end subroutine
     end module
@@ -4859,5 +4864,7 @@ def test_firstprivate_with_uninitialised(fortran_reader, fortran_writer):
     ptrans = OMPParallelLoopTrans()
     loops = psyir.walk(Loop)
     ptrans.apply(loops[1])
+    ptrans.apply(loops[2])
     output = fortran_writer(psyir)
-    assert "firstprivate(a,b)" in output
+    assert "firstprivate(a)" in output
+    assert "firstprivate(b)" in output
