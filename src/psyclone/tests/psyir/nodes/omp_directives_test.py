@@ -4828,3 +4828,36 @@ def test_firstprivate_with_uninitialised(fortran_reader, fortran_writer):
     output = fortran_writer(psyir)
     assert "private(i,not_initialised)" in output
     assert "firstprivate(a,b,c,d)" in output
+
+    # Check that complex initialised cases, such are Codeblocks and
+    # initialiseations below the loop are caught as a firstprivate
+    code = '''
+    module test
+    contains
+        subroutine my_subroutine(cond)
+            integer, intent(inout) :: cond
+            integer :: a, b, i, j, result
+
+            read(*,*) b
+
+            do j = 1, 10
+                if (j .neq. 1) then
+                    do i = 10, 10, 1
+                        if(cond < 1) then
+                            a = 1
+                            b = 1
+                        endif
+                        result = a + b
+                    end do
+                endif
+                a = 1
+            end do
+        end subroutine
+    end module
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelLoopTrans()
+    loops = psyir.walk(Loop)
+    ptrans.apply(loops[1])
+    output = fortran_writer(psyir)
+    assert "firstprivate(a,b)" in output
