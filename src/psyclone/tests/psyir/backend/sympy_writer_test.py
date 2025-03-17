@@ -98,6 +98,23 @@ def test_sym_writer_boolean():
     lit = Literal("false", BOOLEAN_TYPE)
     assert sympy_writer._to_str(lit) == "False"
 
+@pytest.mark.parametrize("expressions", [(".true. .and. .false.", "True .AND. False"),
+                                         ])
+def  test_sym_writer_boolean_expr(fortran_reader, expressions):
+    '''Test that booleans are written in the way that SymPy accepts.
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                logical :: bool_expr
+                bool_expr = {expressions[0]}
+                end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    lit = psyir.children[0].children[0].rhs
+    assert SymPyWriter()._to_str(lit) == expressions[1]
+    sympy_writer = SymPyWriter()
+    assert sympy_writer([lit]) == expressions[1]
 
 def test_sym_writer_character():
     '''Test that characters are rejected.

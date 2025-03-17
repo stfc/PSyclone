@@ -36,10 +36,13 @@
 
 '''PSyIR frontend to convert a SymPy expression to PSyIR
 '''
-
+from __future__ import annotations
+from typing import Optional, TYPE_CHECKING
 
 from psyclone.psyir.frontend.fortran import FortranReader
 
+if TYPE_CHECKING:
+    from psyclone.psyir.symbols import SymbolTable
 
 class SymPyReader():
     '''This class converts a SymPy expression, that was created by the
@@ -97,7 +100,7 @@ class SymPyReader():
         SymPyReader._upper_bound = sympy_writer.upper_bound
 
     # -------------------------------------------------------------------------
-    def psyir_from_expression(self, sympy_expr, symbol_table):
+    def psyir_from_expression(self, sympy_expr, symbol_table: Optional[SymbolTable] =None):
         '''This function converts a SymPy expression back into PSyIR. It
         converts the SymPy expression into a string, which is then parsed
         by the FortranReader. It relies on the ``print_fortran_array``
