@@ -50,7 +50,6 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.doctest',
     'sphinx.ext.githubpages',
-    'sphinx.ext.imgmath',
     'sphinx.ext.inheritance_diagram',
     'sphinx.ext.viewcode',
     'sphinx_autodoc_typehints',
