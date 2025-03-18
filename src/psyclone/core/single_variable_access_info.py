@@ -189,8 +189,9 @@ class AccessInfo():
             if stmt:
                 text = f"'{stmt.debug_string()}'"
             else:
-                text = f"'{first_access.node.debug_string()}'"
+                text = f"'{self.node.debug_string()}'"
         return text
+
 
 # =============================================================================
 class SingleVariableAccessInfo():

@@ -51,7 +51,7 @@ from typing import Any, List, Optional, Set, Union
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (
-    DataSymbol, ContainerSymbol, DataTypeSymbol, GenericInterfaceSymbol,
+    DataSymbol, ContainerSymbol, DataTypeSymbol,
     ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
 from psyclone.psyir.symbols.datatypes import ScalarType
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
