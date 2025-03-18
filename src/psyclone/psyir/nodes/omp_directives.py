@@ -75,7 +75,7 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType, DataSymbol
+from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
