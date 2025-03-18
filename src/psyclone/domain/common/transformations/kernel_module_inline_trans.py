@@ -193,8 +193,8 @@ class KernelModuleInlineTrans(Transformation):
                             schedule: Routine,
                             kern_or_call: str):
         '''
-        Check for unresolved symbols or for any accessed from the Container
-        containing the target routine.
+        Check for unresolved symbols or for any declared in the parent
+        Container of the target routine.
 
         :param call: the node representing the call to the routine that is to
             be inlined.
@@ -224,32 +224,14 @@ class KernelModuleInlineTrans(Transformation):
                     f"unknown.")
             if symbol.is_unresolved:
                 routine_wildcards = table.wildcard_imports()
-                try:
-                    # If there's more than one Container with a wildcard import
-                    # this will raise a ValueError.
+                if len(routine_wildcards) == 1:
                     (csym,) = routine_wildcards
                     # Now we know the origin of this symbol we can update it.
                     symbol.interface = ImportInterface(csym)
-                except (ValueError, KeyError):
-                    try:
-                        # We have more than one wildcard import.
-                        table.resolve_imports(
-                            container_symbols=routine_wildcards,
-                            symbol_target=symbol)
-                        if symbol.is_unresolved:
-                            # Symbol is still not resolved (must be an indirect
-                            # import) so we give up.
-                            raise KeyError(
-                                f"Failed to resolve the type of Symbol "
-                                f"'{symbol.name}'. It is probably an indirect "
-                                f"import.")
-                    except KeyError as err:
-                        raise TransformationError(
-                            f"{kern_or_call} '{name}' contains accesses to "
-                            f"'{symbol.name}' which is unresolved. It is being"
-                            f" brought into scope from one of "
-                            f"{[sym.name for sym in routine_wildcards]}. "
-                            f"Original error was: {err}") from err
+                else:
+                    # We have more than one wildcard import. This situation is
+                    # handled in _prepare_psyir_to_inline().
+                    continue
             if not symbol.is_import and symbol.name not in table:
                 sym_at_call_site = call.scope.symbol_table.lookup(
                     sig.var_name, otherwise=None)
@@ -443,17 +425,17 @@ class KernelModuleInlineTrans(Transformation):
             # Routine (or proceed to fully inline it).
             KernelModuleInlineTrans._rename_import(ctable, csym, symbol.name)
             # pylint:disable-next=protected-access
-            actual_table._symbols.pop(symbol.name)
+            actual_table._symbols.pop(symbol.name.lower())
         elif remove_csym:
             # We have to force the removal as there will be calls that
             # reference this Symbol. (These calls will subsequently be updated
             # to refer to the Symbol of the inlined routine.)
             # pylint:disable-next=protected-access
-            actual_table._symbols.pop(symbol.name)
+            actual_table._symbols.pop(symbol.name.lower())
             actual_table.remove(csym)
         else:
             # pylint:disable-next=protected-access
-            actual_table._symbols.pop(symbol.name)
+            actual_table._symbols.pop(symbol.name.lower())
 
     @staticmethod
     def _rename_import(table, csym, name):

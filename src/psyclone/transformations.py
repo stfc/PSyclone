@@ -434,24 +434,30 @@ class MarkRoutineForGPUMixin:
 
         # Check that the routine does not access any data that is imported via
         # a 'use' statement.
-        # TODO #2271 - this implementation will not catch symbols from literal
-        # precisions or intialisation expressions.
-        refs = kernel_schedule.walk(Reference)
-        for ref in refs:
-            if ref.symbol.is_import:
+        vai = VariablesAccessInfo()
+        kernel_schedule.reference_accesses(vai)
+        ktable = kernel_schedule.symbol_table
+        for sig in vai.all_signatures:
+            name = sig.var_name
+            first = vai[sig].accesses[0].node
+            if isinstance(first, Symbol):
+                table = ktable
+            else:
+                table = first.scope.symbol_table
+            symbol = table.lookup(name)
+            if symbol.is_import:
                 # resolve_type does nothing if the Symbol type is known.
                 try:
-                    ref.symbol.resolve_type()
+                    symbol.resolve_type()
                 except (SymbolError, FileNotFoundError):
                     # TODO #11 - log that we failed to resolve this Symbol.
                     pass
-                if (isinstance(ref.symbol, DataSymbol) and
-                        ref.symbol.is_constant):
+                if (isinstance(symbol, DataSymbol) and symbol.is_constant):
                     # An import of a compile-time constant is fine.
                     continue
                 raise TransformationError(
                     f"{k_or_r} '{node.name}' accesses the symbol "
-                    f"'{ref.symbol}' which is imported. If this symbol "
+                    f"'{symbol}' which is imported. If this symbol "
                     f"represents data then it must first be converted to a "
                     f"{k_or_r} argument using the KernelImportsToArguments "
                     f"transformation.")
@@ -471,20 +477,6 @@ class MarkRoutineForGPUMixin:
                     f"'{node.name}' because its PSyIR contains one or more "
                     f"CodeBlocks:{cblock_txt}You may use '{option_txt}' to "
                     f"override this check.")
-        else:
-            # Check any accesses within CodeBlocks.
-            # TODO #2271 - this will be handled as part of the checking to be
-            # implemented using the dependence analysis.
-            for cblock in cblocks:
-                names = cblock.get_symbol_names()
-                for name in names:
-                    sym = kernel_schedule.symbol_table.lookup(name)
-                    if sym.is_import:
-                        raise TransformationError(
-                            f"{k_or_r} '{node.name}' accesses the symbol "
-                            f"'{sym.name}' within a CodeBlock and this symbol "
-                            f"is imported. {type(self).__name__} cannot be "
-                            f"applied to such a {k_or_r}.")
 
         calls = kernel_schedule.walk(Call)
         for call in calls:

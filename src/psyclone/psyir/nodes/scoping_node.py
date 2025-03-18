@@ -182,7 +182,10 @@ class ScopingNode(Node):
             information about variable accesses.
 
         '''
-        self._symbol_table.reference_accesses(access_info)
+        # During the updating process when moving a Routine (and its
+        # associated Symbol), it's possible that we won't have a SymbolTable.
+        if self._symbol_table:
+            self._symbol_table.reference_accesses(access_info)
         super().reference_accesses(access_info)
 
     def replace_symbols_using(self, table):
