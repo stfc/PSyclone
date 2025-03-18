@@ -571,8 +571,9 @@ end module my_mod
     assert isinstance(my_sub, symbols.RoutineSymbol)
     with pytest.raises(ValueError) as err:
         table.remove(my_sub)
-    assert ("Cannot remove RoutineSymbol 'my_sub' because it is referenced in "
-            "interface 'whatever'" in str(err))
+    assert ("Cannot remove RoutineSymbol 'my_sub' because it is referenced by "
+            "the definition of Symbol whatever: GenericInterfaceSymbol"
+            in str(err))
 
 
 def test_remove_containersymbols():

@@ -1184,8 +1184,8 @@ class SymbolTable():
 
         '''
         norm_name = SymbolTable._normalize(old_sym.name)
-        from psyclone.core import Signature
-        from psyclone.core.variables_access_info import VariablesAccessInfo
+        # pylint: disable=import-outside-toplevel
+        from psyclone.core import Signature, VariablesAccessInfo
         from psyclone.psyir.nodes import CodeBlock, Literal, Reference
         vai = VariablesAccessInfo()
         self.reference_accesses(vai)
@@ -1242,26 +1242,19 @@ class SymbolTable():
             except KeyError:
                 pass
 
-        # Check for Calls or GenericInterfaceSymbols that reference it.
-        # TODO #2271 - this walk will fail to find some symbols (e.g. in
-        # variable initialisation expressions or CodeBlocks).
+        # Check for any references to it.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Call
-        all_calls = self.node.walk(Call) if self.node else []
-        for call in all_calls:
-            if call.routine.symbol is symbol:
-                raise ValueError(
-                    f"Cannot remove RoutineSymbol '{symbol.name}' "
-                    f"because it is referenced by '{call.debug_string()}'")
-        # Check for any references to it within interfaces.
-        for sym in self._symbols.values():
-            if not isinstance(sym, GenericInterfaceSymbol):
-                continue
-            for rt_info in sym.routines:
-                if rt_info.symbol is symbol:
-                    raise ValueError(
-                        f"Cannot remove RoutineSymbol '{symbol.name}' "
-                        f"because it is referenced in interface '{sym.name}'")
+        from psyclone.core import Signature, VariablesAccessInfo
+        vai = VariablesAccessInfo()
+        if self.node:
+            self.node.reference_accesses(vai)
+        self.reference_accesses(vai)
+        sig = Signature(symbol.name)
+        if sig in vai:
+            first_access = vai[sig].all_accesses[0]
+            raise ValueError(
+                f"Cannot remove RoutineSymbol '{symbol.name}' because it is "
+                f"referenced by {first_access.description}")
 
     def remove(self, symbol):
         '''
