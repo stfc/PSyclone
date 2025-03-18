@@ -74,7 +74,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         '''
         pass
 
-    def _find_next_dependency(self, node: Loop) -> Union[Node, bool]:
+    def _find_next_dependency(self, node: Loop, instance: Directive) \
+            -> Union[Node, bool]:
         '''TODO'''
         var_accesses = VariablesAccessInfo(nodes=node.loop_body)
         writes = []
@@ -90,9 +91,12 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         for signature in writes:
             accesses = var_accesses[signature].all_accesses
             last_access = accesses[-1].node
-            # FIXME REMOVE?
-            from psyclone.psyir.nodes.array_mixin import ArrayMixin
-            if not isinstance(last_access, ArrayMixin):
+            private, firstprivate, need_sync = \
+                    instance.infer_sharing_attributes()
+            sym = last_access.symbol
+            # If the symbol is private or firstprivate then we can
+            # ignore it.
+            if sym in private or sym in firstprivate:
                 continue
             next_accesses = last_access.next_accesses()
             # next_accesses always appear in the order of

@@ -57,6 +57,9 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
+        DataSharingAttributeMixin,
+)
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.if_block import IfBlock
@@ -1285,7 +1288,7 @@ class OMPMasterDirective(OMPSerialDirective):
         return "omp end master"
 
 
-class OMPParallelDirective(OMPRegionDirective):
+class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
     ''' Class representing an OpenMP Parallel directive.
     '''
 
@@ -1590,137 +1593,8 @@ class OMPParallelDirective(OMPRegionDirective):
                                   " the private clause when its default "
                                   "data sharing attribute in its default "
                                   "clause is not 'shared'.")
+        return super().infer_sharing_attributes()
 
-        # TODO #598: Improve the handling of scalar variables, there are
-        # remaining issues when we have accesses after the parallel region
-        # of variables that we currently declare as private. We could use
-        # the DefinitionUseChain to prove that there are no more uses after
-        # the loop.
-        # e.g:
-        # !$omp parallel do <- will set private(ji, my_index)
-        # do ji = 1, jpk
-        #   my_index = ji+1
-        #   array(my_index) = 2
-        # enddo
-        # #end do
-        # call func(my_index) <- my_index has not been updated
-
-        private = set()
-        fprivate = set()
-        need_sync = set()
-
-        # Determine variables that must be private, firstprivate or need_sync
-        var_accesses = VariablesAccessInfo()
-        self.reference_accesses(var_accesses)
-        for signature in var_accesses.all_signatures:
-            if not var_accesses[signature].has_data_access():
-                continue
-            accesses = var_accesses[signature].all_accesses
-            # TODO #2094: var_name only captures the top-level
-            # component in the derived type accessor. If the attributes
-            # only apply to a sub-component, this won't be captured
-            # appropriately.
-            name = signature.var_name
-            symbol = accesses[0].node.scope.symbol_table.lookup(
-                name, otherwise=None)
-
-            # If it is manually marked as a local symbol, add it to private or
-            # firstprivate set
-            if (isinstance(symbol, DataSymbol) and
-                    isinstance(self.dir_body[0], Loop) and
-                    symbol in self.dir_body[0].explicitly_private_symbols):
-                if any(ref.symbol is symbol for ref in self.preceding()
-                       if isinstance(ref, Reference)):
-                    # If it's used before the loop, make it firstprivate
-                    fprivate.add(symbol)
-                else:
-                    private.add(symbol)
-                continue
-
-            # All arrays not explicitly marked as threadprivate are shared
-            if any(accs.is_array() for accs in accesses):
-                continue
-
-            # If a variable is only accessed once, it is either an error
-            # or a shared variable - anyway it is not private
-            if len(accesses) == 1:
-                continue
-
-            # TODO #598: If we only have writes, it must be need_sync:
-            # do ji = 1, jpk
-            #   if ji=3:
-            #      found = .true.
-            # Or lastprivate in order to maintain the serial semantics
-            # do ji = 1, jpk
-            #   found = ji
-
-            # We consider private variables as being the ones that are written
-            # in every iteration of a loop.
-            # If one such scalar is potentially read before it is written, it
-            # will be considered firstprivate.
-            has_been_read = False
-            last_read_position = 0
-            for access in accesses:
-                if access.access_type == AccessType.READ:
-                    has_been_read = True
-                    last_read_position = access.node.abs_position
-
-                if access.access_type == AccessType.WRITE:
-
-                    # Check if the write access is outside a loop. In this case
-                    # it will be marked as shared. This is done because it is
-                    # likely to be re-used later. e.g:
-                    # !$omp parallel
-                    # jpk = 100
-                    # !omp do
-                    # do ji = 1, jpk
-                    loop_ancestor = access.node.ancestor(
-                        (Loop, WhileLoop),
-                        limit=self,
-                        include_self=True)
-                    if not loop_ancestor:
-                        # If we find it at least once outside a loop we keep it
-                        # as shared
-                        break
-
-                    # Otherwise, the assignment to this variable is inside a
-                    # loop (and it will be repeated for each iteration), so
-                    # we declare it as private or need_synch
-                    name = signature.var_name
-                    # TODO #2094: var_name only captures the top-level
-                    # component in the derived type accessor. If the attributes
-                    # only apply to a sub-component, this won't be captured
-                    # appropriately.
-                    symbol = access.node.scope.symbol_table.lookup(name)
-
-                    # If it has been read before we have to check if ...
-                    if has_been_read:
-                        loop_pos = loop_ancestor.loop_body.abs_position
-                        if last_read_position < loop_pos:
-                            # .. it was before the loop, so it is fprivate
-                            fprivate.add(symbol)
-                        else:
-                            # or inside the loop, in which case it needs sync
-                            need_sync.add(symbol)
-                        break
-
-                    # If the write is not guaranteed, we make it firstprivate
-                    # so that in the case that the write doesn't happen we keep
-                    # the original value
-                    conditional_write = access.node.ancestor(
-                        IfBlock,
-                        limit=loop_ancestor,
-                        include_self=True)
-                    if conditional_write:
-                        fprivate.add(symbol)
-                        break
-
-                    # Already found the first write and decided if it is
-                    # shared, private or firstprivate. We can stop looking.
-                    private.add(symbol)
-                    break
-
-        return private, fprivate, need_sync
 
     def validate_global_constraints(self):
         '''
@@ -1928,7 +1802,7 @@ class OMPTaskloopDirective(OMPRegionDirective):
         return "omp end taskloop"
 
 
-class OMPDoDirective(OMPRegionDirective):
+class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
     '''
     Class representing an OpenMP DO directive in the PSyIR.
 

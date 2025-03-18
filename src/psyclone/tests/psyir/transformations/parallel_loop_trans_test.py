@@ -651,6 +651,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     '''
     # Create an instance
     paratrans = ParaTrans()
+    direc = paratrans._directive(None)
     # First test easy case.
     code = """
     subroutine test
@@ -669,7 +670,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[0]
     result = psyir.walk(Loop)[1].loop_body.children[0].lhs
-    assert paratrans._find_next_dependency(loop) is result
+    assert paratrans._find_next_dependency(loop, direc) is result
 
     # Test when we have a loop in a loop and the next access is prior.
     code = """
@@ -687,7 +688,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[1]
     result = psyir.walk(Loop)[0].loop_body.children[0].lhs
-    assert paratrans._find_next_dependency(loop) is result
+    assert paratrans._find_next_dependency(loop, direc) is result
 
     # Test when we have a loop in a loop and an access after outside all of
     # the loops that the next access found it the prior one
@@ -707,7 +708,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[1]
     result = psyir.walk(Loop)[0].loop_body.children[0].lhs
-    assert paratrans._find_next_dependency(loop) is result
+    assert paratrans._find_next_dependency(loop, direc) is result
 
     # Test that an access after inside the same ancestor loop is the
     # next access.
@@ -727,7 +728,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[1]
     result = psyir.walk(Loop)[0].loop_body.children[2].lhs
-    assert paratrans._find_next_dependency(loop) is result
+    assert paratrans._find_next_dependency(loop, direc) is result
 
     # Test that if the loop is in a loop and the next access is outside
     # the ancestor loop, we get False.
@@ -746,7 +747,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[1]
     result = False
-    assert paratrans._find_next_dependency(loop) is result
+    assert paratrans._find_next_dependency(loop, direc) is result
 
     # Test that if there is no followup access we get True
     code = """
@@ -761,7 +762,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[0]
     result = True
-    assert paratrans._find_next_dependency(loop) is result
+    assert paratrans._find_next_dependency(loop, direc) is result
 
     # Test that we find the correct access to handle nested loops.
     # Make sure we use all the "find ancestor loop of loop" code.
@@ -785,7 +786,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[2]
     result = psyir.walk(Loop)[3].loop_body.children[0].lhs
-    assert paratrans._find_next_dependency(loop) is result
+    assert paratrans._find_next_dependency(loop, direc) is result
 
     # Test when there are multiple ancestor loops with accesses.
     code = """
@@ -805,7 +806,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[2]
     result = psyir.walk(Loop)[1].loop_body.children[0].lhs
-    assert paratrans._find_next_dependency(loop) is result
+    assert paratrans._find_next_dependency(loop, direc) is result
 
 
 def test_parallel_loop_trans_add_asynchronicity():

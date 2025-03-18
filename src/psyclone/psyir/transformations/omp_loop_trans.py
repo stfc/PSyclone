@@ -153,7 +153,7 @@ class OMPLoopTrans(ParallelLoopTrans):
                 type(instance) is OMPTeamsDistributeParallelDoDirective):
             return
         # Otherwise find the next dependency.
-        next_depend = self._find_next_dependency(node)
+        next_depend = self._find_next_dependency(node, instance)
         # If find_next_dependency returns False, then this loop is its own
         # next dependency so we can't add an asynchronous clause.
         if not next_depend:
