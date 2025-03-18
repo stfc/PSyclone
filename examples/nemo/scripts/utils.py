@@ -50,7 +50,7 @@ from psyclone.transformations import TransformationError
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
-    "oce", "par_oce", "dom_oce", "phycst", "ice",
+    "oce", "par_oce", "par_kind", "dom_oce", "phycst", "ice",
     "obs_fbm", "flo_oce", "sbc_ice", "wet_dry"
 ]
 
