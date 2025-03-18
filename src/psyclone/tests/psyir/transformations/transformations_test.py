@@ -673,7 +673,6 @@ end subroutine x"""
     assert "nowait" not in out
 
 
-
 def test_ifblock_children_region():
     ''' Check that we reject attempts to transform the conditional part of
     an If statement or to include both the if- and else-clauses in a region
