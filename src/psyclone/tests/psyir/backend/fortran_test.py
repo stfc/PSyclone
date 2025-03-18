@@ -46,8 +46,8 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
     FortranWriter, precedence
 from psyclone.psyir.nodes import (
-    Assignment, Node, CodeBlock, Container, Literal, UnaryOperation,
-    BinaryOperation, Reference, Call, KernelSchedule,
+    ACCEnterDataDirective, Assignment, Node, CodeBlock, Container, Literal,
+    UnaryOperation, BinaryOperation, Reference, Call, KernelSchedule,
     ArrayReference, ArrayOfStructuresReference, Range, StructureReference,
     Schedule, Routine, Return, FileContainer, IfBlock, OMPTaskloopDirective,
     OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
@@ -58,6 +58,7 @@ from psyclone.psyir.symbols import (
     UnresolvedInterface, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
     CHARACTER_TYPE, BOOLEAN_TYPE, REAL_DOUBLE_TYPE, UnresolvedType,
     UnsupportedType, UnsupportedFortranType, DataTypeSymbol, StructureType)
+from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
 
@@ -1951,6 +1952,33 @@ def test_fw_directive_with_clause(fortran_reader, fortran_writer):
   !$omp end taskloop
   !$omp end master
   !$omp end parallel''' in fortran_writer(container)
+
+
+def test_fw_standalonedirective(fortran_reader, fortran_writer):
+    '''
+    Test the handling of a StandaloneDirective with clauses. We use
+    ACCEnterDataDirective with an async clause.
+    '''
+    code = '''\
+        module test_mod
+        contains
+          subroutine a_sub()
+          integer, parameter :: n=20
+          integer :: i
+          real :: a(n)
+          do i=1,n
+            a(i) = 0.0
+          end do
+          end subroutine a_sub
+        end module test_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    ktrans = ACCKernelsTrans()
+    rt0 = psyir.walk(Routine)[0]
+    ktrans.apply(rt0.children[0])
+    edir = ACCEnterDataDirective(async_queue=1)
+    rt0.addchild(edir, index=0)
+    output = fortran_writer(psyir)
+    assert "!$acc enter data copyin(a,i,n) async(1)\n" in output
 
 
 def test_fw_clause(fortran_writer):
