@@ -43,7 +43,7 @@ Effectively it provides an alternative to array privatisation.
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    Loop, Routine, CodeBlock, Reference, ArrayReference)
+    Loop, Reference, ArrayReference)
 from psyclone.psyir.symbols import ArrayType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -112,6 +112,9 @@ class IncreaseRankLoopArraysTrans(Transformation):
         :raises TransformationError: if the supplied node is not a Loop.
 
         '''
+        if options is None:
+            options = {}
+
         # The node should be an assignment
         if not isinstance(node, Loop):
             raise TransformationError(
