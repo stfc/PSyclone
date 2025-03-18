@@ -146,6 +146,8 @@ pygments_style = 'sphinx'
 # a list of builtin themes.
 html_theme = 'pydata_sphinx_theme'
 
+base_url = os.getenv('READTHEDOCS_CANONICAL_URL', '/')
+
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
@@ -157,7 +159,7 @@ html_theme_options = {
     "header_links_before_dropdown": 6,
     "navbar_align": "left",
     "external_links": [
-      {"name": "Doxygen", "url": "/html"},
+      {"name": "Doxygen", "url": base_url+"html"},
     ],
     "icon_links": [
         {
