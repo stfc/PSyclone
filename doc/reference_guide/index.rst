@@ -7,8 +7,8 @@ Reference Guide
 ###############
 
 Welcome to the PSyclone Reference Guide. This consists of auto-generated
-API documentation produced using both the AutoAPI Sphinx plugin (see
-left-hand-side menu), and `the Doxygen-generated page </html/>`_.
+API documentation produced using the AutoAPI Sphinx plugin (see
+left-hand-side menu).
 
 .. toctree::
    :hidden:
