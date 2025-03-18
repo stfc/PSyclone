@@ -77,7 +77,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         assumed shared. How to synchronise the symbols in the third set is
         up to the caller of this method.
 
-		Any variables unspecified are assumed to be shared, and it is the job
+        Any variables unspecified are assumed to be shared, and it is the job
         of the subclass or callee to handle that assumption.
 
         :returns: three set of symbols that classify each of the symbols in

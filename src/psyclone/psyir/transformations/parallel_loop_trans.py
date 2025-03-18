@@ -92,7 +92,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             accesses = var_accesses[signature].all_accesses
             last_access = accesses[-1].node
             private, firstprivate, need_sync = \
-                    instance.infer_sharing_attributes()
+                instance.infer_sharing_attributes()
             sym = last_access.symbol
             # If the symbol is private or firstprivate then we can
             # ignore it.

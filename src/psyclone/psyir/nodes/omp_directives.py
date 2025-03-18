@@ -48,7 +48,7 @@ import itertools
 import sympy
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.core import AccessType
 from psyclone.errors import (GenerationError,
                              UnresolvedDependencyError)
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
@@ -62,7 +62,6 @@ from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
 )
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
-from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.loop import Loop
@@ -76,7 +75,6 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType, DataSymbol
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
@@ -1594,7 +1592,6 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
                                   "data sharing attribute in its default "
                                   "clause is not 'shared'.")
         return super().infer_sharing_attributes()
-
 
     def validate_global_constraints(self):
         '''
