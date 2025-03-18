@@ -180,15 +180,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         # correct place to place the preceding barrier is. Need to find a
         # guaranteed control flow path to place it.
 
-        # If next_depend is in the same schedule as the loop then we can just
-        # add the barrier immediately before it.
-        if next_depend.ancestor(Schedule) is node.ancestor(Schedule):
-            sched = next_depend.ancestor(Schedule)
-            sched.addchild(barrier_type(), next_depend.position)
-            instance.nowait = True
-            return
-
-        # Otherwise we need to find the highest schedule containing both.
+        # Find the deepest schedule in the tree containing both.
         sched = next_depend.ancestor(Schedule)
         routine = node.ancestor(Routine)
         while sched.is_descendent_of(routine):
