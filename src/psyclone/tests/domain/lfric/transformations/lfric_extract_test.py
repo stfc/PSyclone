@@ -356,7 +356,8 @@ def test_single_node_dynamo0p3():
     CALL extract_psy_data % ProvideVariable("cell_post", cell)
     CALL extract_psy_data % ProvideVariable("f1_data_post", f1_data)
     CALL extract_psy_data % PostEnd'''
-    assert output in code
+    print(output)
+    assert output == code
 
 
 def test_node_list_dynamo0p3():
@@ -705,8 +706,11 @@ diff_basis_w0_qr)
 diff_basis_w2_qr)
     CALL extract_psy_data % PreDeclareVariable("e", e)
     CALL extract_psy_data % PreDeclareVariable("istp", istp)
-    CALL extract_psy_data % PreDeclareVariable("loop7_start", loop7_start)
-    CALL extract_psy_data % PreDeclareVariable("loop7_stop", loop7_stop)
+    CALL extract_psy_data % PreDeclareVariable("last_edge_cell_all_colours", \
+last_edge_cell_all_colours)
+    CALL extract_psy_data % PreDeclareVariable("loop4_start", loop4_start)
+    CALL extract_psy_data % PreDeclareVariable("loop4_stop", loop4_stop)
+    CALL extract_psy_data % PreDeclareVariable("loop5_start", loop5_start)
     CALL extract_psy_data % PreDeclareVariable("map_w0", map_w0)
     CALL extract_psy_data % PreDeclareVariable("map_w2", map_w2)
     CALL extract_psy_data % PreDeclareVariable("map_w3", map_w3)
@@ -722,8 +726,6 @@ diff_basis_w2_qr)
     CALL extract_psy_data % PreDeclareVariable("undf_w3", undf_w3)
     CALL extract_psy_data % PreDeclareVariable("weights_xy_qr", weights_xy_qr)
     CALL extract_psy_data % PreDeclareVariable("weights_z_qr", weights_z_qr)
-    CALL extract_psy_data % PreDeclareVariable("cell", cell)
-    CALL extract_psy_data % PreDeclareVariable("colour", colour)
     CALL extract_psy_data % PreDeclareVariable("b_data_post", b_data)
     CALL extract_psy_data % PreDeclareVariable("cell_post", cell)
     CALL extract_psy_data % PreDeclareVariable("colour_post", colour)
@@ -741,8 +743,11 @@ diff_basis_w0_qr)
 diff_basis_w2_qr)
     CALL extract_psy_data % ProvideVariable("e", e)
     CALL extract_psy_data % ProvideVariable("istp", istp)
-    CALL extract_psy_data % ProvideVariable("loop7_start", loop7_start)
-    CALL extract_psy_data % ProvideVariable("loop7_stop", loop7_stop)
+    CALL extract_psy_data % ProvideVariable("last_edge_cell_all_colours", \
+last_edge_cell_all_colours)
+    CALL extract_psy_data % ProvideVariable("loop4_start", loop4_start)
+    CALL extract_psy_data % ProvideVariable("loop4_stop", loop4_stop)
+    CALL extract_psy_data % ProvideVariable("loop5_start", loop5_start)
     CALL extract_psy_data % ProvideVariable("map_w0", map_w0)
     CALL extract_psy_data % ProvideVariable("map_w2", map_w2)
     CALL extract_psy_data % ProvideVariable("map_w3", map_w3)
@@ -758,8 +763,6 @@ diff_basis_w2_qr)
     CALL extract_psy_data % ProvideVariable("undf_w3", undf_w3)
     CALL extract_psy_data % ProvideVariable("weights_xy_qr", weights_xy_qr)
     CALL extract_psy_data % ProvideVariable("weights_z_qr", weights_z_qr)
-    CALL extract_psy_data % ProvideVariable("cell", cell)
-    CALL extract_psy_data % ProvideVariable("colour", colour)
     CALL extract_psy_data % PreEnd
     do colour = loop4_start, loop4_stop, 1
       !$omp parallel do default(shared), private(cell), schedule(static)

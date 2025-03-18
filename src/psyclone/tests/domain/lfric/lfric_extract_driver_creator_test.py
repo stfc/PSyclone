@@ -259,18 +259,21 @@ def test_lfric_driver_simple_test():
     any variable that is provided in the kernel call is also read
     in the driver. '''
 
-    _, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
-                           dist_mem=False, idx=0)
+    psy, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
+                             dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
 
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
+    print(psy.gen)
 
     filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
+    print(driver)
+    # assert False
 
     for line in [
         "if (ALLOCATED(psydata_filename)) then",
