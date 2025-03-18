@@ -630,6 +630,49 @@ end subroutine x"""
 end subroutine x"""
     assert correct in out
 
+    # Check nowait is ignored on OMPParallelDo
+    code = """
+    subroutine x()
+        integer :: i
+        integer, dimension(100) :: arr
+        do i = 1, 100
+            arr(i) = i
+        end do
+        do i = 1, 100
+            arr(i) = i
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    looptrans = OMPLoopTrans(omp_directive="paralleldo")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    looptrans.apply(loops[0], options={"nowait": True})
+    looptrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    assert "nowait" not in out
+
+    # Check nowait is ignored when loop is its own dependency
+    code = """
+    subroutine x()
+        integer :: i, j
+        integer, dimension(100) :: arr
+        do j = 1, 5
+        do i = 1, 100
+            arr(i) = i
+        end do
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    otrans = OMPParallelTrans()
+    looptrans = OMPLoopTrans(omp_directive="do")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    otrans.apply(loops[1])
+    looptrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    assert "nowait" not in out
+
+
 
 def test_ifblock_children_region():
     ''' Check that we reject attempts to transform the conditional part of

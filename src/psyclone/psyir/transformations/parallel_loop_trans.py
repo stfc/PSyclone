@@ -162,6 +162,10 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         # loop of node then we can't do nowait, so return False.
         node_ancestor = node.ancestor(Loop)
         if node_ancestor:
+            # If we didn't find a closest and we have an ancestor Loop, then
+            # the loops next dependency is itself.
+            if not closest:
+                return False
             if not closest.is_descendent_of(node_ancestor):
                 return False
         if not closest:
