@@ -168,6 +168,7 @@ provided to show the available transformations
           the path indicated in the documentation.
 
 .. autoclass:: psyclone.psyGen.TransInfo
+    :no-index:
     :members:
 
 
@@ -251,133 +252,133 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.psyir.transformations.Abs2CodeTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.ACCDataTrans
-    :noindex:
+    :no-index:
     :members: apply
 
 ####
 
 .. autoclass:: psyclone.transformations.ACCEnterDataTrans
-    :noindex:
+    :no-index:
     :members: apply
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ACCKernelsTrans
-    :noindex:
+    :no-index:
     :members: apply
 
 ####
 
 .. autoclass:: psyclone.transformations.ACCLoopTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.ACCParallelTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.AllArrayAccess2LoopTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ArrayAccess2LoopTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ArrayAssignment2LoopsTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ChunkLoopTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.ColourTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.DotProduct2CodeTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.extract_trans.ExtractTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.HoistLocalArraysTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.HoistLoopBoundExprTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.HoistTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.InlineTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.domain.common.transformations.KernelModuleInlineTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.LoopFuseTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.LoopSwapTrans
    :members: apply
-   :noindex:
+   :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.LoopTiling2DTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Matmul2CodeTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 .. note:: This transformation is currently limited to translating the
           matrix vector form of MATMUL to equivalent PSyIR code.
@@ -386,7 +387,7 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.psyir.transformations.Max2CodeTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 .. warning:: This transformation assumes that the MAX Intrinsic acts on
              PSyIR Real scalar data and does not check that this is
@@ -397,13 +398,13 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.psyir.transformations.Maxval2LoopTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Min2CodeTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 .. warning:: This transformation assumes that the MIN Intrinsic acts on
              PSyIR Real scalar data and does not check that this is
@@ -414,7 +415,7 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.psyir.transformations.Minval2LoopTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
@@ -422,32 +423,32 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.transformations.MoveTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.domain.gocean.transformations.GOOpenCLTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.OMPDeclareTargetTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.OMPLoopTrans
     :members: apply, omp_schedule, omp_directive
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.OMPMasterTrans
     :inherited-members:
     :exclude-members: name
-    :noindex:
+    :no-index:
 
 .. note:: PSyclone does not support (distributed-memory) halo swaps or
           global sums within OpenMP master regions.  Attempting to
@@ -463,14 +464,14 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.transformations.OMPParallelLoopTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.OMPParallelTrans
     :inherited-members:
     :exclude-members: name
-    :noindex:
+    :no-index:
 
 .. note:: PSyclone does not support (distributed-memory) halo swaps or
           global sums within OpenMP parallel regions.  Attempting to
@@ -487,7 +488,7 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.transformations.OMPSingleTrans
     :inherited-members:
     :exclude-members: name
-    :noindex:
+    :no-index:
 
 .. note:: PSyclone does not support (distributed-memory) halo swaps or
           global sums within OpenMP single regions.  Attempting to
@@ -503,75 +504,73 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.psyir.transformations.OMPTargetTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.OMPTaskloopTrans
     :members: apply, omp_grainsize, omp_num_tasks
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.OMPTaskTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.OMPTaskwaitTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Product2LoopTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ProfileTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ReadOnlyVerifyTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Reference2ArrayRangeTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
-.. _replace_induction_variable_trans:
-
 .. autoclass:: psyclone.psyir.transformations.ReplaceInductionVariablesTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Sign2CodeTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Sum2LoopTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ScalarisationTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
@@ -709,20 +708,20 @@ applied to either or both the PSy-layer and Kernel-layer PSyIR.
 ####
 
 .. autoclass:: psyclone.transformations.ACCRoutineTrans
-   :noindex:
+   :no-index:
    :members:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.FoldConditionalReturnExpressionsTrans
-   :noindex:
+   :no-index:
    :members:
 
 ####
 
 .. autoclass:: psyclone.transformations.KernelImportsToArguments
     :members: apply
-    :noindex:
+    :no-index:
 
 
 .. note:: This transformation is only supported by the GOcean 1.0 API.

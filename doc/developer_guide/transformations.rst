@@ -52,6 +52,7 @@ PSyclone is able to perform kernel transformations by obtaining the PSyIR
 representation of the kernel with:
 
 .. automethod:: psyclone.psyGen.CodedKern.get_kernel_schedule
+    :no-index:
 
 The result of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 `psyclone.psyir.nodes.KernelSchedule` which is a specialisation of the
@@ -80,10 +81,13 @@ Raising Transformations for the LFRic API
 -----------------------------------------
 
 .. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgTrans
+    :no-index:
 
 .. autoclass:: psyclone.domain.lfric.transformations.RaisePSyIR2LFRicAlgTrans
+    :no-index:
 
 .. autoclass:: psyclone.domain.lfric.transformations.RaisePSyIR2LFRicKernTrans
+    :no-index:
 
 Algorithm Transformations
 =========================
@@ -94,6 +98,7 @@ converts an individual ``AlgorithmInvokeCall`` into a ``Call`` to an
 appropriate subroutine:
 
 .. autoclass:: psyclone.domain.common.transformations.AlgInvoke2PSyCallTrans
+    :no-index:
 
 Algorithm Transformations for the LFRic API
 -------------------------------------------
@@ -103,6 +108,7 @@ to do when transforming an invoke into a call to a PSy layer routine and
 therefore there is a specialised class for this:
 
 .. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgInvoke2PSyCallTrans
+    :no-index:
 
 Kernel Transformations for the GOCean and LFRic APIs
 ----------------------------------------------------
