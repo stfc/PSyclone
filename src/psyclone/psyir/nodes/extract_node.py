@@ -215,11 +215,9 @@ class ExtractNode(PSyDataNode):
 
         if self._driver_creator:
             ctu = CallTreeUtils()
-            my_options = {}
             nodes = self.children
-            region_name = self.get_unique_region_name(nodes, my_options)
-            my_options["region_name"] = region_name
-            my_options["prefix"] = my_options.get("prefix", "extract")
+            region_name_tuple = self.get_unique_region_name(nodes, {})
+            region_name_tuple = (region_name_tuple[0], region_name)
             # Get the input- and output-parameters of the node list
             read_write_info = \
                 ctu.get_in_out_parameters(self.children,
@@ -242,15 +240,14 @@ class ExtractNode(PSyDataNode):
             # that avoid any name clashes
             postfix = self.determine_postfix(read_write_info,
                                              postfix="_post")
-            my_options["post_var_postfix"] = postfix
             # We need to create the driver before inserting the ExtractNode
             # (since some of the visitors used in driver creation do not
             # handle an ExtractNode in the tree)
             self._driver_creator.write_driver(self.children,
                                               read_write_info,
                                               postfix=postfix,
-                                              prefix=my_options["prefix"],
-                                              region_name=region_name)
+                                              prefix="extract",
+                                              region_name=region_name_tuple)
 
         return super().lower_to_language_level(options)
 

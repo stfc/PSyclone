@@ -172,7 +172,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         is not a dictionary.
 
     '''
-    def __init__(self, region_name = None):
+    def __init__(self, region_name=None):
         super().__init__()
         # TODO #2069: check if this list can be taken from LFRicConstants
         # TODO #2018: once r_field is defined in the LFRic infrastructure,
@@ -478,7 +478,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         #     if index is not None:
         #         sym = symbol_table.lookup_with_tag(f"{name}_{index}_data")
         #     else:
-        #         # If it is not indexed then `name` will already end in "_data"
+        #       # If it is not indexed then `name` will already end in "_data"
 
         # Declare a 'post' variable of the same type and read in its value.
         post_name = sym.name + postfix
@@ -636,8 +636,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                 sym = orig_sym.copy()
                 sym.interface = AutomaticInterface()
                 symbol_table.add(sym)
-                
-                #symbol_table.lookup_with_tag(str(signature))
+                # symbol_table.lookup_with_tag(str(signature))
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
 
             # TODO #2898: the test for array can be removed if
@@ -932,7 +931,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         #         parent.children.remove(halo)
 
         original_symbol_table = invoke_sched.symbol_table
-        proxy_name_mapping = self._get_proxy_name_mapping(schedule_copy)
+        # proxy_name_mapping = self._get_proxy_name_mapping(schedule_copy)
 
         # Find all imported routines and add them to the symbol table
         # of the driver, so the driver will have the correct import

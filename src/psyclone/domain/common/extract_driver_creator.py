@@ -359,8 +359,8 @@ class ExtractDriverCreator(BaseDriverCreator):
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
             # in the symbol table (in add_all_kernel_symbols).
-            sig_str = str(signature)
-            sym = symbol_table.lookup_with_tag(sig_str)
+            sig_str = str(signature.var_name)
+            sym = symbol_table.lookup(sig_str)
             name_lit = Literal(sig_str, CHARACTER_TYPE)
             BaseDriverCreator.add_call(program, read_var,
                                        [name_lit, Reference(sym)])
@@ -373,8 +373,8 @@ class ExtractDriverCreator(BaseDriverCreator):
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
             # in the symbol table (in add_all_kernel_symbols).
-            sig_str = str(signature)
-            sym = symbol_table.lookup_with_tag(sig_str)
+            sig_str = str(signature.var_name)
+            sym = symbol_table.lookup(sig_str)
 
             # The variable is written (and maybe read as well)
             # ------------------------------------------------
@@ -518,7 +518,7 @@ class ExtractDriverCreator(BaseDriverCreator):
         output_symbols = self.create_read_in_code(program, psy_data,
                                                   read_write_info, postfix)
         # Copy over all of the executable part of the extracted region
-        all_children = schedule_copy.pop_all_children()
+        all_children = schedule_copy.children[0].pop_all_children()
         for child in all_children:
             program.addchild(child)
 
