@@ -150,3 +150,109 @@ def test_omptargettrans_validate(fortran_reader):
         omptargettrans.validate(loops[2])
     assert ("Nodes of type 'CodeBlock' cannot be enclosed by a OMPTarget"
             "Trans transformation" in str(err.value))
+
+
+def test_omptargetrans_apply_nowait(fortran_reader, fortran_writer):
+    '''Test the behaviour of the OMPTargetTrans apply function is as
+    expected when requesting the nowait option.'''
+    code = """
+    subroutine x()
+        integer :: i
+        integer, dimension(100) :: arr
+        do i = 1, 100
+            arr(i) = i
+        end do
+        do i = 1, 100
+            arr(i) = i
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    targettrans = OMPTargetTrans()
+    targettrans.apply(loops[0], options={"nowait": True})
+    targettrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    correct = """subroutine x()
+  integer :: i
+  integer, dimension(100) :: arr
+
+  !$omp target nowait
+  do i = 1, 100, 1
+    arr(i) = i
+  enddo
+  !$omp end target
+  !$omp taskwait
+  !$omp target nowait
+  do i = 1, 100, 1
+    arr(i) = i
+  enddo
+  !$omp end target
+  !$omp taskwait
+
+end subroutine x
+"""
+    assert correct == out
+
+    code = """
+    subroutine x()
+        integer :: i, j
+        integer, dimension(100) :: arr, arr2
+        do i = 1, 100
+           j = i + i
+            arr(i) = j
+        end do
+        do i = 1, 100
+            j = i + i
+            arr2(i) = j
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    targettrans = OMPTargetTrans()
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    targettrans.apply(loops[0], options={"nowait": True})
+    targettrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    correct = """subroutine x()
+  integer :: i
+  integer :: j
+  integer, dimension(100) :: arr
+  integer, dimension(100) :: arr2
+
+  !$omp target nowait
+  do i = 1, 100, 1
+    j = i + i
+    arr(i) = j
+  enddo
+  !$omp end target
+  !$omp target nowait
+  do i = 1, 100, 1
+    j = i + i
+    arr2(i) = j
+  enddo
+  !$omp end target
+  !$omp taskwait
+
+end subroutine x
+"""
+    assert out == correct
+
+    # Check nowait is ignored when loop is its own dependency
+    code = """
+    subroutine x()
+        integer :: i, j
+        integer, dimension(100) :: arr
+        do j = 1, 5
+        do i = 1, 100
+            arr(i) = i
+        end do
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    targettrans = OMPTargetTrans()
+    targettrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    assert "nowait" not in out

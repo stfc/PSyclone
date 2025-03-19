@@ -40,8 +40,7 @@ from psyclone.psyir.nodes import (
     Directive, Loop, Schedule,
     Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
     OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
-    OMPScheduleClause, OMPBarrierDirective, OMPTaskwaitDirective,
-    OMPParallelDirective,
+    OMPScheduleClause, OMPBarrierDirective, OMPParallelDirective,
 )
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.parallel_loop_trans import \
@@ -59,8 +58,6 @@ MAP_STR_TO_LOOP_DIRECTIVES = {
 #: Mapping from simple string to corresponding barrier type.
 MAP_STR_TO_BARRIER_DIRECTIVE = {
     "do": OMPBarrierDirective,
-    "teamsloop": OMPTaskwaitDirective,
-    "loop": OMPBarrierDirective,
 }
 #: List containing the valid names for OMP directives.
 VALID_OMP_DIRECTIVES = list(MAP_STR_TO_LOOP_DIRECTIVES.keys())

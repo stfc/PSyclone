@@ -2356,7 +2356,7 @@ class OMPTeamsLoopDirective(OMPParallelDoDirective):
         return string
 
 
-class OMPTargetDirective(OMPRegionDirective):
+class OMPTargetDirective(OMPRegionDirective, DataSharingAttributeMixin):
     ''' Class for the !$OMP TARGET directive that offloads the code contained
     in its region into an accelerator device.
     :param nowait: whether or not to add a nowait clause onto this directive.
