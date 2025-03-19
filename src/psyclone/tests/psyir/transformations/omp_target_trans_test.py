@@ -167,7 +167,6 @@ def test_omptargetrans_apply_nowait(fortran_reader, fortran_writer):
         end do
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
     loops = psyir.walk(Loop)
     targettrans = OMPTargetTrans()
     targettrans.apply(loops[0], options={"nowait": True})
@@ -209,7 +208,6 @@ end subroutine x
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     targettrans = OMPTargetTrans()
-    routine = psyir.walk(Routine)[0]
     loops = psyir.walk(Loop)
     targettrans.apply(loops[0], options={"nowait": True})
     targettrans.apply(loops[1], options={"nowait": True})
@@ -250,7 +248,6 @@ end subroutine x
         end do
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
     loops = psyir.walk(Loop)
     targettrans = OMPTargetTrans()
     targettrans.apply(loops[1], options={"nowait": True})
