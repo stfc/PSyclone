@@ -798,7 +798,8 @@ class InlineTrans(Transformation):
         # TODO refactor this functionality
         from psyclone.domain.common.transformations import (
             KernelModuleInlineTrans)
-        KernelModuleInlineTrans.check_data_accesses(node, routine, "routine")
+        KernelModuleInlineTrans.check_data_accesses(node, routine, "routine",
+                                                    permit_unresolved=False)
 
         # Check that the shapes of any formal array arguments are the same as
         # those at the call site.

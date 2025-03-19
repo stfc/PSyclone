@@ -99,7 +99,7 @@ def test_kernelimportstoargumentstrans_no_wildcard_import():
     kernel = invoke_info.schedule.coded_kernels()[0]
     with pytest.raises(TransformationError) as err:
         trans.apply(kernel)
-    assert ("'kernel_with_use_code' contains accesses to 'go_wp' which is "
+    assert ("'kernel_with_use_code' contains accesses to 'rdt' which is "
             "unresolved" in str(err.value))
 
 

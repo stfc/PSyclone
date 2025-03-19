@@ -2879,8 +2879,10 @@ class KernelImportsToArguments(Transformation):
 
         from psyclone.domain.common.transformations import (
             KernelModuleInlineTrans)
-        KernelModuleInlineTrans.check_data_accesses(node, kernel, "Kernel",
-                                                    permit_unresolved=False)
+        KernelModuleInlineTrans.check_data_accesses(
+            node, kernel, "Kernel",
+            permit_unresolved=False,
+            ignore_non_data_accesses=True)
 
     def apply(self, node, options=None):
         '''

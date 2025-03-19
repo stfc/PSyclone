@@ -192,7 +192,8 @@ class KernelModuleInlineTrans(Transformation):
     def check_data_accesses(call: Union[CodedKern, Call],
                             schedule: Routine,
                             kern_or_call: str,
-                            permit_unresolved: bool = True):
+                            permit_unresolved: bool = True,
+                            ignore_non_data_accesses: bool = False):
         '''
         Check for unresolved symbols or for any declared in the parent
         Container of the target routine.
@@ -204,6 +205,8 @@ class KernelModuleInlineTrans(Transformation):
             Kernel or a generic routine.
         :param permit_unresolved: whether or not the presence of unresolved
             symbols will result in an error being raised.
+        :param ignore_non_data_accesses: ignore unresolved symbols if they
+            do not represent data accesses (e.g. provide type information).
 
         :raises TransformationError: if there is an access to an unresolved
             symbol and `permit_unresolved` is False.
@@ -232,10 +235,12 @@ class KernelModuleInlineTrans(Transformation):
                     # Now we know the origin of this symbol we can update it.
                     symbol.interface = ImportInterface(csym)
                 else:
-                    # We have more than one wildcard import.
+                    # We have more than one wildcard import so we don't know
+                    # the origin of this unresolved symbol.
                     if permit_unresolved:
                         continue
-                    if not vai[sig].has_data_access():
+                    if (ignore_non_data_accesses and
+                            not vai[sig].has_data_access()):
                         continue
                     raise TransformationError(
                         f"{kern_or_call} '{name}' contains accesses to "
