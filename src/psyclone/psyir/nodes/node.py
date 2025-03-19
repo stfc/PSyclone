@@ -1624,10 +1624,10 @@ class Node():
         # The subsequent call to _refine_copy() will update any SymbolTable
         # attached to a ScopingNode. For this to work correctly we need to
         # set the parent of this copy to point into the new tree we are
-        # creating.
+        # creating. For the root node of the copy, this will be None (so
+        # that the copy is detached from the original tree).
         # pylint: disable=protected-access
-        if new_parent:
-            new_instance._parent = new_parent
+        new_instance._parent = new_parent
         # and then refine the elements that shouldn't be shallow copied
         new_instance._refine_copy(self)
         return new_instance
