@@ -49,7 +49,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
     support asynchronous additions to parallel or region transformations, e.g.
     OpenMP's nowait clause.'''
 
-    def _add_asynchronicity(self, nodes: Union[Loop,list[Node]],
+    def _add_asynchronicity(self, nodes: Union[Loop, list[Node]],
                             instance: Directive):
         ''' Function to enable child classes to handle adding asynchronicity
         (e.g. nowait or dynamic queue choices) as part of the transformation.
@@ -58,7 +58,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         '''
         pass
 
-    def _find_next_dependency(self, nodes: Union[Loop,list[Node]],
+    def _find_next_dependency(self, nodes: Union[Loop, list[Node]],
                               instance: Directive) -> Union[Node, bool]:
         ''''''
         if isinstance(nodes, Loop):
@@ -71,7 +71,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                 writes.append(signature)
 
         if isinstance(nodes, Loop):
-           loop_position = nodes.abs_position
+            loop_position = nodes.abs_position
         else:
             loop_position = instance.abs_position
         closest = None

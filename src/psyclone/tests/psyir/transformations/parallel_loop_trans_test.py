@@ -671,7 +671,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop = psyir.walk(Loop)[0]
     loop.detach()
     direc.children[0].addchild(loop)
-    psyir.children[0].addchild(direc,0)
+    psyir.children[0].addchild(direc, 0)
     result = psyir.walk(Loop)[1].loop_body.children[0].lhs
     assert paratrans._find_next_dependency(loop, direc) is result
 
@@ -741,7 +741,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop = psyir.walk(Loop)[1]
     loop.detach()
     direc.children[0].addchild(loop)
-    psyir.walk(Loop)[0].loop_body.addchild(direc,1)
+    psyir.walk(Loop)[0].loop_body.addchild(direc, 1)
     result = psyir.walk(Loop)[0].loop_body.children[2].lhs
     assert paratrans._find_next_dependency(loop, direc) is result
 
@@ -811,7 +811,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     direc = paratrans._directive(None)
     loop.detach()
     direc.children[0].addchild(loop)
-    psyir.walk(Loop)[0].loop_body.addchild(direc,1)
+    psyir.walk(Loop)[0].loop_body.addchild(direc, 1)
     result = psyir.walk(Loop)[3].loop_body.children[0].lhs
     assert paratrans._find_next_dependency(loop, direc) is result
 

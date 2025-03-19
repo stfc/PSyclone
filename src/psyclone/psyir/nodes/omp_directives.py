@@ -2359,8 +2359,9 @@ class OMPTeamsLoopDirective(OMPParallelDoDirective):
 class OMPTargetDirective(OMPRegionDirective, DataSharingAttributeMixin):
     ''' Class for the !$OMP TARGET directive that offloads the code contained
     in its region into an accelerator device.
+
     :param nowait: whether or not to add a nowait clause onto this directive.
-        Default is False.
+                   Default is False.
     '''
 
     def __init__(self, nowait: bool = False,
