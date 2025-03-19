@@ -651,7 +651,6 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     '''
     # Create an instance
     paratrans = ParaTrans()
-    direc = paratrans._directive(None)
     # First test easy case.
     code = """
     subroutine test
@@ -668,7 +667,11 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     end subroutine
     """
     psyir = fortran_reader.psyir_from_source(code)
+    direc = paratrans._directive(None)
     loop = psyir.walk(Loop)[0]
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.children[0].addchild(direc,0)
     result = psyir.walk(Loop)[1].loop_body.children[0].lhs
     assert paratrans._find_next_dependency(loop, direc) is result
 
@@ -685,8 +688,12 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
         end do
     end subroutine
     """
+    direc = paratrans._directive(None)
     psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[1]
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Loop)[0].loop_body.addchild(direc)
     result = psyir.walk(Loop)[0].loop_body.children[0].lhs
     assert paratrans._find_next_dependency(loop, direc) is result
 
@@ -706,7 +713,11 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     end subroutine
     """
     psyir = fortran_reader.psyir_from_source(code)
+    direc = paratrans._directive(None)
     loop = psyir.walk(Loop)[1]
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Loop)[0].loop_body.addchild(direc)
     result = psyir.walk(Loop)[0].loop_body.children[0].lhs
     assert paratrans._find_next_dependency(loop, direc) is result
 
@@ -726,7 +737,11 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     end subroutine
     """
     psyir = fortran_reader.psyir_from_source(code)
+    direc = paratrans._directive(None)
     loop = psyir.walk(Loop)[1]
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Loop)[0].loop_body.addchild(direc,1)
     result = psyir.walk(Loop)[0].loop_body.children[2].lhs
     assert paratrans._find_next_dependency(loop, direc) is result
 
@@ -745,7 +760,11 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     end subroutine
     """
     psyir = fortran_reader.psyir_from_source(code)
+    direc = paratrans._directive(None)
     loop = psyir.walk(Loop)[1]
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Loop)[0].loop_body.addchild(direc)
     result = False
     assert paratrans._find_next_dependency(loop, direc) is result
 
@@ -760,7 +779,11 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     end subroutine
     """
     psyir = fortran_reader.psyir_from_source(code)
+    direc = paratrans._directive(None)
     loop = psyir.walk(Loop)[0]
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.children[0].addchild(direc)
     result = True
     assert paratrans._find_next_dependency(loop, direc) is result
 
@@ -785,6 +808,10 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     """
     psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[2]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Loop)[0].loop_body.addchild(direc,1)
     result = psyir.walk(Loop)[3].loop_body.children[0].lhs
     assert paratrans._find_next_dependency(loop, direc) is result
 
@@ -805,6 +832,10 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[2]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Loop)[1].loop_body.addchild(direc)
     result = psyir.walk(Loop)[1].loop_body.children[0].lhs
     assert paratrans._find_next_dependency(loop, direc) is result
 

@@ -40,7 +40,7 @@
 
 from psyclone.psyir.nodes import (
     CodeBlock, OMPTargetDirective, Call, Routine, Reference,
-    OMPTaskwaitDirective, Loop, Directive, Schedule)
+    OMPTaskwaitDirective, Node, Directive, Schedule)
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
@@ -91,11 +91,11 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
     '''
     excluded_node_types = (CodeBlock, )
 
-    def _add_asynchronicity(self, node: Loop, instance: Directive):
+    def _add_asynchronicity(self, nodes: list[Node], instance: Directive):
         '''
         TODO
         '''
-        next_depend = self._find_next_dependency(node, instance)
+        next_depend = self._find_next_dependency(nodes, instance)
 
         # If find_next_dependency returns False, then this loop is its own
         # next dependency so we can't add an asynchronous clause.
@@ -109,7 +109,7 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
             instance.nowait = True
             # Add a barrier to the end of the containing Routine if there
             # isn't one already.
-            containing_routine = node.ancestor(Routine)
+            containing_routine = instance.ancestor(Routine)
             # Check barrier that corresponds to self.omp_directive and add the
             # correct barrier type
             if not isinstance(containing_routine.children[-1],
@@ -123,9 +123,9 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
 
         # Find the deepest schedule in the tree containing both.
         sched = next_depend.ancestor(Schedule)
-        routine = node.ancestor(Routine)
+        routine = instance.ancestor(Routine)
         while sched.is_descendent_of(routine):
-            if node.is_descendent_of(sched):
+            if instance.is_descendent_of(sched):
                 # Get the path from sched to next_depend
                 path = next_depend.path_from(sched)
                 # The first element of path is the position of the ancestor
@@ -206,4 +206,4 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         parent.children.insert(start_index, directive)
 
         if nowait:
-            self._add_asynchronicity(node, directive)
+            self._add_asynchronicity(node_list, directive)

@@ -49,22 +49,31 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
     support asynchronous additions to parallel or region transformations, e.g.
     OpenMP's nowait clause.'''
 
-    def _add_asynchronicity(self, node: Loop, instance: Directive):
+    def _add_asynchronicity(self, nodes: Union[Loop,list[Node]],
+                            instance: Directive):
         ''' Function to enable child classes to handle adding asynchronicity
         (e.g. nowait or dynamic queue choices) as part of the transformation.
+
+        :param node: The Loop
         '''
         pass
 
-    def _find_next_dependency(self, node: Loop, instance: Directive) \
-            -> Union[Node, bool]:
-        '''TODO'''
-        var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    def _find_next_dependency(self, nodes: Union[Loop,list[Node]],
+                              instance: Directive) -> Union[Node, bool]:
+        ''''''
+        if isinstance(nodes, Loop):
+            var_accesses = VariablesAccessInfo(nodes=nodes.loop_body)
+        else:
+            var_accesses = VariablesAccessInfo(nodes=nodes)
         writes = []
         for signature in var_accesses.all_signatures:
             if var_accesses.is_written(signature):
                 writes.append(signature)
 
-        loop_position = node.abs_position
+        if isinstance(nodes, Loop):
+           loop_position = nodes.abs_position
+        else:
+            loop_position = instance.abs_position
         closest = None
         closest_position = None
         # Now we have all the writes we want to find the closest
@@ -83,8 +92,8 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             # next_accesses always appear in the order of
             # nodes before loop followed by nodes after loop.
             for access in next_accesses:
-                # If its inside node then we should skip it.
-                if access.is_descendent_of(node):
+                # If its inside the directive then we should skip it.
+                if access.is_descendent_of(instance):
                     continue
                 # Otherwise find the abs_position
                 abs_position = access.abs_position
@@ -113,14 +122,14 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                         # happen.
                         anc_loop = access.ancestor(Loop)
                         while anc_loop is not None:
-                            if node.is_descendent_of(anc_loop):
+                            if instance.is_descendent_of(anc_loop):
                                 break
                             anc_loop = anc_loop.ancestor(Loop)
                         # Find the loop ancestor of closest that is an ancestor
                         # of node.
                         close_loop = closest.ancestor(Loop)
                         while close_loop is not None:
-                            if node.is_descendent_of(close_loop):
+                            if instance.is_descendent_of(close_loop):
                                 break
                             close_loop = close_loop.ancestor(Loop)
                         if (abs_position > loop_position and
@@ -138,10 +147,10 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                         closest = access
                         closest_position = abs_position
 
-        # If this loop is contained inside a loop the closest foward
+        # If this directive is contained inside a loop the closest foward
         # dependency might be itself. So if closest is not within the ancestor
         # loop of node then we can't do nowait, so return False.
-        node_ancestor = node.ancestor(Loop)
+        node_ancestor = instance.ancestor(Loop)
         if node_ancestor:
             # If we didn't find a closest and we have an ancestor Loop, then
             # the loops next dependency is itself.
