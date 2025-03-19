@@ -38,6 +38,8 @@
 
 ''' This module provides the OMPTargetTrans PSyIR transformation '''
 
+from typing import List
+
 from psyclone.psyir.nodes import (
     CodeBlock, OMPTargetDirective, Call, Routine, Reference,
     OMPTaskwaitDirective, Node, Directive, Schedule)
@@ -91,7 +93,7 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
     '''
     excluded_node_types = (CodeBlock, )
 
-    def _add_asynchronicity(self, nodes: list[Node], instance: Directive):
+    def _add_asynchronicity(self, nodes: List[Node], instance: Directive):
         '''
         TODO
         '''

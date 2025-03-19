@@ -36,7 +36,7 @@
 ''' This module contains the AsyncTransMixin.'''
 
 import abc
-from typing import Union
+from typing import List, Union
 
 from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes import (
@@ -49,7 +49,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
     support asynchronous additions to parallel or region transformations, e.g.
     OpenMP's nowait clause.'''
 
-    def _add_asynchronicity(self, nodes: Union[Loop, list[Node]],
+    def _add_asynchronicity(self, nodes: Union[Loop, List[Node]],
                             instance: Directive):
         ''' Function to enable child classes to handle adding asynchronicity
         (e.g. nowait or dynamic queue choices) as part of the transformation.
@@ -58,7 +58,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         '''
         pass
 
-    def _find_next_dependency(self, nodes: Union[Loop, list[Node]],
+    def _find_next_dependency(self, nodes: Union[Loop, List[Node]],
                               instance: Directive) -> Union[Node, bool]:
         ''''''
         if isinstance(nodes, Loop):
