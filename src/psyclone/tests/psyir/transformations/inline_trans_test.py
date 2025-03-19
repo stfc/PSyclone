@@ -1228,8 +1228,8 @@ def test_apply_callsite_rename(fortran_reader, fortran_writer):
     inline_trans.apply(call)
     output = fortran_writer(psyir)
     assert ("  subroutine run_it()\n"
-            "    use a_mod, only : a_clash\n"
             "    use kinds_mod, only : i_def, r_def\n"
+            "    use a_mod, only : a_clash\n"
             "    integer :: i\n"
             "    integer :: a_clash_1\n\n"
             "    a_clash_1 = 2\n"
@@ -1265,8 +1265,8 @@ def test_apply_callsite_rename_container(fortran_reader, fortran_writer):
     inline_trans.apply(call)
     output = fortran_writer(psyir)
     assert ("  subroutine run_it()\n"
-            "    use a_mod, only : a_clash\n"
             "    use kinds_mod, only : i_def, r_def\n"
+            "    use a_mod, only : a_clash\n"
             "    integer :: i\n"
             "    integer :: a_mod_1\n\n"
             "    a_mod_1 = 2\n"

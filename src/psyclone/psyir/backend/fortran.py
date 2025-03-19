@@ -1125,11 +1125,9 @@ class FortranWriter(LanguageWriter):
 
         self._depth += 1
 
-        # Generate module imports in alpha order.
+        # Generate module imports
         imports = ""
-        csymbols = node.symbol_table.containersymbols
-        csymbols.sort(key=lambda e: e.name)
-        for symbol in csymbols:
+        for symbol in node.symbol_table.containersymbols:
             imports += self.gen_use(symbol, node.symbol_table)
 
         # Declare the Container's data
@@ -1227,11 +1225,9 @@ class FortranWriter(LanguageWriter):
                     node.symbol_table.detach()
                     whole_routine_scope.attach(node)
 
-        # Generate module imports in alpha order.
+        # Generate module imports
         imports = ""
-        csymbols = whole_routine_scope.containersymbols
-        csymbols.sort(key=lambda e: e.name)
-        for symbol in csymbols:
+        for symbol in whole_routine_scope.containersymbols:
             imports += self.gen_use(symbol, whole_routine_scope)
 
         # Generate declaration statements

@@ -118,8 +118,8 @@ end subroutine tl_foo_kernel_code
 end module tl_foo_kernel_mod'''
 
 EXPECTED_HARNESS_CODE = '''program adj_test
-  use adj_my_mod, only : adj_kern
   use my_mod, only : kern
+  use adj_my_mod, only : adj_kern
   integer, parameter :: array_extent = 20
   real, parameter :: overall_tolerance = 1500.0
   real :: inner1
