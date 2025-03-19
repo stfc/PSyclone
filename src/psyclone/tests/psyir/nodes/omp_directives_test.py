@@ -1554,6 +1554,9 @@ def test_omp_target_directive_constructor_and_strings():
     assert target.end_string() == "omp end target"
     assert str(target) == "OMPTargetDirective[]"
 
+    target = OMPTargetDirective(nowait=True)
+    assert target.begin_string() == "omp target nowait"
+
 
 # Test OMPDeclareTargetDirective
 
@@ -1606,10 +1609,6 @@ def test_omp_teamsloop_directive_constructor_and_strings():
     assert omploop.begin_string() == "omp teams loop collapse(4)"
     assert omploop.end_string() == "omp end teams loop"
     assert str(omploop) == "OMPTeamsLoopDirective[collapse=4]"
-
-    omploop = OMPTeamsLoopDirective(nowait=True)
-    assert omploop.nowait
-    assert omploop.begin_string() == "omp teams loop nowait"
 
 
 def test_omp_teamsloop_nowait_setter():

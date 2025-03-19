@@ -2339,12 +2339,32 @@ class OMPTeamsDistributeParallelDoDirective(OMPParallelDoDirective):
 class OMPTeamsLoopDirective(OMPParallelDoDirective):
     ''' Class representing the OMP teams loop directive.
 
-    :param nowait: whether or not to add a nowait clause onto this directive.
-        Default is False.
     '''
     _directive_string = "teams loop"
 
-    def __init__(self, nowait: bool = False, **kwargs):
+    def begin_string(self):
+        '''Returns the beginning statement of this directive.
+        The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
+        # Inherit the begin string from the super class implementation.
+        string = super().begin_string()
+        return string
+
+
+class OMPTargetDirective(OMPRegionDirective):
+    ''' Class for the !$OMP TARGET directive that offloads the code contained
+    in its region into an accelerator device.
+    :param nowait: whether or not to add a nowait clause onto this directive.
+        Default is False.
+    '''
+
+    def __init__(self, nowait: bool = False,
+                 **kwargs):
 
         super().__init__(**kwargs)
         self.nowait = nowait
@@ -2374,26 +2394,6 @@ class OMPTeamsLoopDirective(OMPParallelDoDirective):
         self._nowait = value
 
     def begin_string(self):
-        '''Returns the beginning statement of this directive.
-        The visitor is responsible for adding the
-        correct directive beginning (e.g. "!$").
-
-        :returns: the beginning statement for this directive.
-        :rtype: str
-
-        '''
-        # Inherit the begin string from the super class implementation.
-        string = super().begin_string()
-        if self.nowait:
-            string += " nowait"
-        return string
-
-
-class OMPTargetDirective(OMPRegionDirective):
-    ''' Class for the !$OMP TARGET directive that offloads the code contained
-    in its region into an accelerator device. '''
-
-    def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
         "omp target". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
@@ -2402,7 +2402,10 @@ class OMPTargetDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        return "omp target"
+        string = "omp target"
+        if self.nowait:
+            string += " nowait"
+        return string
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.

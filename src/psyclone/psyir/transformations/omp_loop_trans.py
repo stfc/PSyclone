@@ -145,12 +145,9 @@ class OMPLoopTrans(ParallelLoopTrans):
         '''
         TODO
         '''
-        # If we have a Parallel Do directive we can't add an asynchronous
-        # clause.
-        # Needs to be explicit type check as most of these inherit from
-        # OMPParallelDo
-        if (type(instance) is OMPParallelDoDirective or
-                type(instance) is OMPTeamsDistributeParallelDoDirective):
+        # Only OMPDoDirective supports nowait of these directives. Needs to be
+        # exact type check
+        if type(instance) is not OMPDoDirective:
             return
         # Otherwise find the next dependency.
         next_depend = self._find_next_dependency(node, instance)
