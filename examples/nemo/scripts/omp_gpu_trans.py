@@ -86,6 +86,13 @@ OFFLOADING_ISSUES = [
     "zdftke.f90",
 ]
 
+HOISTING_ISSUES = [
+    "trabbl.f90",
+    "trazdf.f90",
+    "zdfsh2.f90",
+    "p4zrem.f90",
+]
+
 
 def trans(psyir):
     ''' Add OpenMP Target and Loop directives to all loops, including the
@@ -101,6 +108,7 @@ def trans(psyir):
     # file-by-file exhaustive tests.
     only_do_file = os.environ.get('ONLY_FILE', False)
     if only_do_file and psyir.name not in (only_do_file,
+                                           "sbc_phy.f90",
                                            "lib_fortran.f90",
                                            "solfrac_mod.f90"):
         return
@@ -149,7 +157,7 @@ def trans(psyir):
         enhance_tree_information(subroutine)
         normalise_loops(
                 subroutine,
-                hoist_local_arrays=True,
+                hoist_local_arrays=psyir.name not in HOISTING_ISSUES,
                 convert_array_notation=True,
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
