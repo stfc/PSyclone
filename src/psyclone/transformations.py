@@ -439,11 +439,16 @@ class MarkRoutineForGPUMixin:
         ktable = kernel_schedule.symbol_table
         for sig in vai.all_signatures:
             name = sig.var_name
-            first = vai[sig].accesses[0].node
+            first = vai[sig].all_accesses[0].node
             if isinstance(first, Symbol):
                 table = ktable
             else:
-                table = first.scope.symbol_table
+                try:
+                    table = first.scope.symbol_table
+                except SymbolError:
+                    # The node associated with this access is not within a
+                    # scoping region.
+                    table = ktable
             symbol = table.lookup(name)
             if symbol.is_import:
                 # resolve_type does nothing if the Symbol type is known.
@@ -2874,7 +2879,8 @@ class KernelImportsToArguments(Transformation):
 
         from psyclone.domain.common.transformations import (
             KernelModuleInlineTrans)
-        KernelModuleInlineTrans.check_data_accesses(node, kernel, "Kernel")
+        KernelModuleInlineTrans.check_data_accesses(node, kernel, "Kernel",
+                                                    permit_unresolved=False)
 
     def apply(self, node, options=None):
         '''

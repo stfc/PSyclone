@@ -45,7 +45,7 @@ from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Assignment, IfBlock, Loop
+from psyclone.psyir.nodes import Assignment, CodeBlock, IfBlock, Loop
 from psyclone.tests.utilities import get_invoke, get_ast
 
 # Constants
@@ -126,14 +126,9 @@ def test_double_variable_lhs(fortran_reader):
              integer :: g(10)
              g(g(1)) = 1
            end program test_prog''')
-
-    indirect_addressing = psyir.children[0].children[0]
-    assert isinstance(indirect_addressing, Assignment)
-    var_accesses = VariablesAccessInfo()
-    with pytest.raises(NotImplementedError) as err:
-        indirect_addressing.reference_accesses(var_accesses)
+    assert isinstance(psyir, CodeBlock)
     assert ("The variable 'g' appears more than once on the left-hand side "
-            "of an assignment." in str(err.value))
+            "of an assignment." in psyir.preceding_comment)
 
 
 def test_if_statement(fortran_reader):

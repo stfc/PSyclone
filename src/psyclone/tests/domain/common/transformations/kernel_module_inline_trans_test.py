@@ -74,12 +74,9 @@ def test_check_data_accesses(config_instance):
     schedule = invoke.schedule
     kcall = schedule.walk(CodedKern)[1]
     config_instance.include_paths = []
-    with pytest.raises(TransformationError) as err:
-        trans.check_data_accesses(kcall, kcall.get_kernel_schedule(), "Kernel")
-    assert ("Kernel 'kernel_with_use2_code' contains accesses to 'go_wp' which"
-            " is unresolved. It is being brought into scope from one of "
-            "['argument_mod', 'grid_mod', 'kernel_mod', 'kind_params_mod']"
-            in str(err.value))
+    # Multiple wildcard imports are handled by bringing them into the routine
+    # and so aren't a problem.
+    trans.check_data_accesses(kcall, kcall.get_kernel_schedule(), "Kernel")
     # Now try where there's only a single wildcard import so we know the origin
     # of the symbol.
     kcall0 = schedule.walk(CodedKern)[0]
@@ -95,30 +92,6 @@ def test_check_data_accesses(config_instance):
     table = ksched.symbol_table
     assert (table.lookup("go_wp").interface.container_symbol.name ==
             "kind_params_mod")
-
-
-def test_check_data_accesses_indirect_import(monkeypatch):
-    '''
-    Test the case where a symbol cannot be resolved because it is imported
-    indirectly.
-
-    '''
-    _, invoke = get_invoke("single_invoke_three_kernels_with_use.f90",
-                           "gocean", idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    kcall = schedule.walk(CodedKern)[1]
-    ksched = kcall.get_kernel_schedule()
-    # Monkeypatch SymbolTable.resolve_imports() so that it does nothing. This
-    # then exercises the code path where we quietly fail to resolve a symbol.
-    monkeypatch.setattr(ksched.symbol_table, "resolve_imports",
-                        lambda container_symbols=None,
-                        symbol_target=None: None)
-    with pytest.raises(TransformationError) as err:
-        KernelModuleInlineTrans.check_data_accesses(kcall, ksched, "Kernel")
-    assert ("Kernel 'kernel_with_use2_code' contains accesses to 'go_wp' "
-            "which is unresolved" in str(err.value))
-    assert ("Failed to resolve the type of Symbol 'go_wp'. It is probably an "
-            "indirect import." in str(err.value))
 
 
 def test_check_data_accesses_import_clash(fortran_reader):

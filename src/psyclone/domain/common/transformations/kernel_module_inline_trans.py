@@ -42,7 +42,7 @@ TODO #2683 - rename this to {Privatise,Copy,Move}RoutineToLocalContainerTrans
 and move it to psyir/transformations/.
 
 '''
-from typing import Union
+from typing import List, Union
 
 from psyclone.core import VariablesAccessInfo
 from psyclone.psyGen import Transformation, CodedKern
@@ -191,7 +191,8 @@ class KernelModuleInlineTrans(Transformation):
     @staticmethod
     def check_data_accesses(call: Union[CodedKern, Call],
                             schedule: Routine,
-                            kern_or_call: str):
+                            kern_or_call: str,
+                            permit_unresolved: bool = True):
         '''
         Check for unresolved symbols or for any declared in the parent
         Container of the target routine.
@@ -201,9 +202,11 @@ class KernelModuleInlineTrans(Transformation):
         :param schedule: the PSyIR schedule of the routine to be inlined.
         :param kern_or_call: text appropriate to whether we have a PSyKAl
             Kernel or a generic routine.
+        :param permit_unresolved: whether or not the presence of unresolved
+            symbols will result in an error being raised.
 
         :raises TransformationError: if there is an access to an unresolved
-            symbol.
+            symbol and `permit_unresolved` is False.
         :raises TransformationError: if there is an access to a symbol that is
             declared in the Container (module) holding the target routine.
 
@@ -229,9 +232,18 @@ class KernelModuleInlineTrans(Transformation):
                     # Now we know the origin of this symbol we can update it.
                     symbol.interface = ImportInterface(csym)
                 else:
-                    # We have more than one wildcard import. This situation is
-                    # handled in _prepare_psyir_to_inline().
-                    continue
+                    # We have more than one wildcard import.
+                    if permit_unresolved:
+                        continue
+                    if not vai[sig].has_data_access():
+                        continue
+                    raise TransformationError(
+                        f"{kern_or_call} '{name}' contains accesses to "
+                        f"'{symbol.name}' which is unresolved. It is being "
+                        f"brought into scope from one of "
+                        f"{[sym.name for sym in routine_wildcards]}. It may be"
+                        f" resolved by adding these to RESOLVE_IMPORTS in the "
+                        f"transformation script.")
             if not symbol.is_import and symbol.name not in table:
                 sym_at_call_site = call.scope.symbol_table.lookup(
                     sig.var_name, otherwise=None)
@@ -264,15 +276,15 @@ class KernelModuleInlineTrans(Transformation):
                         f"Error was: {err}") from err
 
     @staticmethod
-    def _prepare_code_to_inline(routines_to_inline):
+    def _prepare_code_to_inline(
+            routines_to_inline: List[Routine]) -> List[Routine]:
         '''Prepare the PSyIR tree to inline by bringing in to the subroutine
         all referenced symbols so that the implementation is self contained.
 
         The provided routines are copied so that the original PSyIR is left
         unmodified.
 
-        :param code_to_inline: the routine(s) to module-inline.
-        :type code_to_inline: list[:py:class:`psyclone.psyir.node.Routine`]
+        :param routines_to_inline: the routine(s) to module-inline.
 
         :returns: the updated routine(s) to module-inline.
         :rtype: list[:py:class:`psyclone.psyir.node.Routine`]
