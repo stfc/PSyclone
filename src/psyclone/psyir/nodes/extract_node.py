@@ -50,6 +50,12 @@ be added in Issue #298.
 '''
 
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
+from psyclone.psyir.nodes.structure_reference import StructureReference
+from psyclone.psyir.nodes.routine import Routine
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.errors import InternalError
 
 
 class ExtractNode(PSyDataNode):
@@ -192,6 +198,9 @@ class ExtractNode(PSyDataNode):
 
         for child in self.children:
             child.lower_to_language_level()
+
+        for structure_ref in self.walk(StructureReference):
+            self._flatten_reference(structure_ref)
 
         if self._read_write_info is None:
             # Typically, _read_write_info should be set at the constructor,
@@ -345,6 +354,56 @@ class ExtractNode(PSyDataNode):
         self._used_kernel_names[key] = idx + 1
         region_name += f"-r{idx}"
         return (module_name, region_name)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _flatten_signature(signature):
+        '''Creates a 'flattened' string for a signature by using ``_`` to
+        separate the parts of a signature. For example, in Fortran
+        a reference to ``a%b`` would be flattened to be ``a_b``.
+
+        :param signature: the signature to be flattened.
+        :type signature: :py:class:`psyclone.core.Signature`
+
+        :returns: a flattened string (all '%' replaced with '_'.)
+        :rtype: str
+
+        '''
+        return str(signature).replace("%", "_")
+
+    # -------------------------------------------------------------------------
+    def _flatten_reference(self, old_reference):
+        '''Replaces ``old_reference``, which is a structure type, with a new
+        simple Reference and a flattened name (replacing all % with _). It will
+        also remove a '_proxy' in the name, so that the program uses the names
+        the user is familiar with, and which are also used in the extraction
+        driver.
+
+        :param old_reference: a reference to a structure member.
+        :type old_reference:
+            :py:class:`psyclone.psyir.nodes.StructureReference`
+
+        :raises InternalError: if the old_reference is not a
+            :py:class:`psyclone.psyir.nodes.StructureReference`
+        :raises GenerationError: if an array of structures is used
+
+        '''
+
+        if not isinstance(old_reference, StructureReference):
+            raise InternalError(f"Unexpected type "
+                                f"'{type(old_reference).__name__}'"
+                                f" in _flatten_reference, it must be a "
+                                f"'StructureReference'.")
+        signature, _ = old_reference.get_signature_and_indices()
+        flattened_name = self._flatten_signature(signature)
+        symtab = old_reference.ancestor(Routine).symbol_table
+        symbol = symtab.new_symbol(flattened_name, symbol_type=DataSymbol,
+                                   datatype=INTEGER_TYPE)
+
+        new_ref = Reference(symbol)
+        old_reference.replace_with(new_ref)
+        self.parent.addchild(Assignment.create(new_ref.copy(), old_reference),
+                             index=self.position)
 
 
 # For AutoAPI documentation generation

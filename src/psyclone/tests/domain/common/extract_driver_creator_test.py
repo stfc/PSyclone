@@ -94,7 +94,7 @@ def test_driver_creation1():
 
     etrans.apply(schedule.children[0], {'create_driver': True})
     # We are only interested in the driver, so ignore results.
-    _ = psy.gen
+    print(psy.gen)
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
@@ -142,6 +142,7 @@ def test_driver_creation1():
   call compare('j', j, j_post)
   call compare('out_fld', out_fld, out_fld_post)
   call compare_summary()'''
+    print(driver_code)
     expected_lines = expected.split("\n")
     for line in expected_lines:
         assert line in driver_code

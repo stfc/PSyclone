@@ -45,18 +45,16 @@ the output data contained in the input file.
 # pylint: disable=too-many-lines
 
 from psyclone.configuration import Config
-from psyclone.core import Signature
 from psyclone.domain.common import BaseDriverCreator
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
-from psyclone.psyGen import InvokeSchedule, Kern
+from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   IntrinsicCall, Literal, Reference,
-                                  Routine, StructureReference)
+                                  Routine)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, UnresolvedType,
@@ -199,228 +197,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         return name.replace("-", "")[:63]
 
     # -------------------------------------------------------------------------
-    def _get_proxy_name_mapping(self, schedule):
-        '''This function creates a mapping of each proxy name of an argument
-        to the field map. This mapping is used to convert proxy names used
-        in a lowered kernel call back to the original name, which is the name
-        used in extraction. For example, a field 'f' will be provided as
-        ``f_proxy%data`` to the kernel, but the extraction will just write
-        the name 'f', which is easier to understand for the user. The mapping
-        created here is used as a first step, to convert ``f_proxy`` back
-        to ``f``.
-
-        :param schedule: the schedule with all kernels.
-        :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
-
-        :returns: a mapping of proxy names to field names.
-        :rtype: Dict[str,str]
-
-        '''
-        proxy_name_mapping = {}
-        for kern in schedule.walk(Kern):
-            for arg in kern.args:
-                if arg.data_type in self._all_field_types:
-                    proxy_name_mapping[arg.proxy_name] = arg.name
-        return proxy_name_mapping
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _flatten_signature(signature):
-        '''Creates a 'flattened' string for a signature by using ``_`` to
-        separate the parts of a signature. For example, in Fortran
-        a reference to ``a%b`` would be flattened to be ``a_b``.
-
-        :param signature: the signature to be flattened.
-        :type signature: :py:class:`psyclone.core.Signature`
-
-        :returns: a flattened string (all '%' replaced with '_'.)
-        :rtype: str
-
-        '''
-        return str(signature).replace("%", "_")
-
-    # -------------------------------------------------------------------------
-    def _flatten_reference(self, old_reference, symbol_table,
-                           proxy_name_mapping):
-        '''Replaces ``old_reference``, which is a structure type, with a new
-        simple Reference and a flattened name (replacing all % with _). It will
-        also remove a '_proxy' in the name, so that the program uses the names
-        the user is familiar with, and which are also used in the extraction
-        driver.
-
-        :param old_reference: a reference to a structure member.
-        :type old_reference:
-            :py:class:`psyclone.psyir.nodes.StructureReference`
-        :param symbol_table: the symbol table to which to add the newly
-            defined flattened symbol.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param proxy_name_mapping: a mapping of proxy names to the original
-            names.
-        :type proxy_name_mapping: Dict[str,str]
-
-        :raises InternalError: if the old_reference is not a
-            :py:class:`psyclone.psyir.nodes.StructureReference`
-        :raises GenerationError: if an array of structures is used
-
-        '''
-
-        if not isinstance(old_reference, StructureReference):
-            raise InternalError(f"Unexpected type "
-                                f"'{type(old_reference).__name__}'"
-                                f" in _flatten_reference, it must be a "
-                                f"'StructureReference'.")
-        # A field access (`fld%data`) will get the `%data` removed, since then
-        # this avoids a potential name clash (`fld` is guaranteed to
-        # be unique, since it's a variable already, but `fld_data` could clash
-        # with a user variable if the user uses `fld` and `fld_data`).
-        # Furthermore, the NetCDF file declares the variable without `%data`,
-        # so removing `%data` here also simplifies code creation later on.
-
-        signature, _ = old_reference.get_signature_and_indices()
-        # Now remove '_proxy' that might have been added to a variable name,
-        # to preserve the expected names from a user's point of view.
-        symbol_name = proxy_name_mapping.get(signature[0], signature[0])
-
-        # Other types need to get the member added to the name,
-        # to make unique symbols (e.g. 'op_a_proxy%ncell_3d').
-        signature = Signature(symbol_name, signature[1:])
-
-        # We use this string as a unique tag - it must be unique since no
-        # other tag uses a '%' in the name. So even if the flattened name
-        # (e.g. f1_data) is not unique, the tag `f1%data` is unique, and
-        # the symbol table will then create a unique name for this symbol.
-        signature_str = str(signature)
-        try:
-            symbol = symbol_table.lookup_with_tag(signature_str)
-        except KeyError:
-            flattened_name = self._flatten_signature(signature)
-            symbol = DataSymbol(flattened_name, old_reference.datatype)
-            symbol_table.add(symbol, tag=signature_str)
-
-        new_ref = Reference(symbol)
-        old_reference.replace_with(new_ref)
-
-    # -------------------------------------------------------------------------
-    def _add_all_kernel_symbols(self, sched, symbol_table, proxy_name_mapping,
-                                read_write_info):
-        '''This function adds all symbols used in ``sched`` to the symbol
-        table. It uses LFRic-specific knowledge to declare fields and flatten
-        their name.
-
-        :param sched: the schedule that will be called by this driver program.
-        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
-        :param symbol_table: the symbol table to which to add all found
-            symbols.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param proxy_name_mapping: a mapping of proxy names to the original
-            names.
-        :type proxy_name_mapping: Dict[str,str]
-        :param read_write_info: information about all input and output
-            parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-
-        '''
-        # pylint: disable=too-many-locals, too-many-branches
-        all_references = sched.walk(Reference)
-
-        # First we add all non-structure names to the symbol table. This way
-        # the flattened name can be ensured not to clash with a variable name
-        # used in the program.
-        for reference in all_references:
-            # Skip routine references
-            if (isinstance(reference.parent, Call) and
-                    reference.parent.routine is reference):
-                continue
-            # For now ignore structure names, which require flattening (which
-            # could introduce duplicated symbols, so they need to be processed
-            # after all existing symbols have been added.
-            if isinstance(reference, StructureReference):
-                continue
-            old_symbol = reference.symbol
-            if old_symbol.name in symbol_table:
-                # The symbol has already been declared. We then still
-                # replace the old symbol with the new symbol to have all
-                # symbols consistent (otherwise if we would for whatever
-                # reason modify a symbol in the driver's symbol table, only
-                # some references would use the new values, the others
-                # would be the symbol from the original kernel for which
-                # the driver is being created).
-                reference.symbol = symbol_table.lookup(old_symbol.name)
-                continue
-
-            # Now we have a reference with a symbol that is in the old symbol
-            # table (i.e. not in the one of the driver). Create a new symbol
-            # (with the same name) in the driver's symbol table), and use
-            # it in the reference.
-            datatype = old_symbol.datatype
-            if isinstance(datatype, UnsupportedFortranType):
-                # Currently fields are of UnsupportedFortranType because they
-                # are pointers in the PSy layer. Here we just want the base
-                # type (i.e. not a pointer).
-                datatype = old_symbol.datatype.partial_datatype
-
-            new_symbol = symbol_table.new_symbol(root_name=reference.name,
-                                                 tag=reference.name,
-                                                 symbol_type=DataSymbol,
-                                                 datatype=datatype.copy())
-            new_symbol.replace_symbols_using(symbol_table)
-            reference.symbol = new_symbol
-
-        # Now handle all derived type. The name of a derived type is
-        # 'flattened', i.e. all '%' are replaced with '_', and this is then
-        # declared as a non-structured type. We also need to make sure that a
-        # flattened name does not clash with a variable declared by the user.
-        # We use the structured name (with '%') as tag to handle this.
-        for reference in all_references:
-            # Skip routine references
-            if (isinstance(reference.parent, Call) and
-                    reference.parent.routine is reference):
-                continue
-            # Skip references that are not any kind of structure
-            if not isinstance(reference, StructureReference):
-                continue
-            self._flatten_reference(reference, symbol_table,
-                                    proxy_name_mapping)
-
-        # Now add all non-local symbols, which need to be
-        # imported from the appropriate module:
-        # -----------------------------------------------
-        mod_man = ModuleManager.get()
-        for module_name, signature in read_write_info.set_of_all_used_vars:
-            if not module_name:
-                # Ignore local symbols, which will have been added above
-                continue
-            container = symbol_table.find_or_create(
-                module_name, symbol_type=ContainerSymbol)
-
-            # Now look up the original symbol. While the variable could
-            # be declared Unresolved here (i.e. just imported), we need the
-            # type information for the output variables (VAR_post), which
-            # are created later and which will query the original symbol for
-            # its type. And since they are not imported, they need to be
-            # explicitly declared.
-            mod_info = mod_man.get_module_info(module_name)
-            container_symbol = mod_info.get_symbol(signature[0])
-            if not container_symbol:
-                # TODO #2120: This typically indicates a problem with parsing
-                # a module: the psyir does not have the full tree structure.
-                continue
-
-            # It is possible that external symbol name (signature[0]) already
-            # exist in the symbol table (the same name is used in the local
-            # subroutine and in a module). In this case, the imported symbol
-            # must be renamed:
-            if signature[0] in symbol_table:
-                interface = ImportInterface(container, orig_name=signature[0])
-            else:
-                interface = ImportInterface(container)
-
-            symbol_table.find_or_create_tag(
-                tag=f"{signature[0]}@{module_name}", root_name=signature[0],
-                symbol_type=DataSymbol, interface=interface,
-                datatype=container_symbol.datatype)
-
-    # -------------------------------------------------------------------------
     @staticmethod
     def _create_output_var_code(name, program, is_input, read_var,
                                 postfix, index=None, module_name=None):
@@ -484,7 +260,11 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         post_name = sym.name + postfix
         post_sym = symbol_table.new_symbol(post_name,
                                            symbol_type=DataSymbol,
-                                           datatype=sym.datatype)
+                                           datatype=sym.datatype.copy())
+        if isinstance(post_sym.datatype, UnsupportedFortranType):
+            post_sym.datatype._declaration = \
+                post_sym.datatype._declaration.replace(sym.name, post_name)
+
         if module_name:
             post_tag = f"{name}{postfix}@{module_name}"
         else:
@@ -565,23 +345,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                            :py:class:`psyclone.psyir.symbols.Symbol`]]
 
         '''
-        def _sym_is_field(sym):
-            '''Utility that determines whether the supplied Symbol represents
-            an LFRic field.
-
-            :param sym: the Symbol to check.
-            :type sym: :py:class:`psyclone.psyir.symbols.TypedSymbol`
-
-            :returns: True if the Symbol represents a field, False otherwise.
-            :rtype: bool
-
-            '''
-            if isinstance(orig_sym.datatype, UnsupportedFortranType):
-                intrinsic_name = sym.datatype.partial_datatype.intrinsic.name
-            else:
-                intrinsic_name = sym.datatype.intrinsic.name
-            return intrinsic_name in self._all_field_types
-
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
         mod_man = ModuleManager.get()
@@ -594,7 +357,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
-            sig_str = self._flatten_signature(signature)
+            sig_str = str(signature)
 
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
@@ -608,16 +371,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                     orig_sym = original_symbol_table.lookup(signature[0])
                 except KeyError:
                     print(f"Error finding symbol '{signature[0]}'")
-
-            if orig_sym and orig_sym.is_array and _sym_is_field(orig_sym):
-                # This is a field vector, so add all individual fields
-                upper = int(orig_sym.datatype.shape[0].upper.value)
-                for i in range(1, upper+1):
-                    sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}_data")
-                    name_lit = Literal(f"{sig_str}%{i}", CHARACTER_TYPE)
-                    self.add_call(program, read_var,
-                                  [name_lit, Reference(sym)])
-                continue
 
             if module_name:
                 tag = f"{signature[0]}@{module_name}"
@@ -681,25 +434,11 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             else:
                 orig_sym = original_symbol_table.lookup(signature[0])
             is_input = read_write_info.is_read(signature)
-            if orig_sym.is_array and _sym_is_field(orig_sym):
-                # This is a field vector, so handle each individual field
-                # adding a number
-                flattened = self. _flatten_signature(signature)
-                upper = int(orig_sym.datatype.shape[0].upper.value)
-                for i in range(1, upper+1):
-                    sym_tuple = \
-                        self._create_output_var_code(flattened, program,
-                                                     is_input, read_var,
-                                                     postfix, index=i,
-                                                     module_name=module_name)
-                    output_symbols.append(sym_tuple)
-            else:
-                sig_str = str(signature)
-                sym_tuple = \
-                    self._create_output_var_code(str(signature), program,
-                                                 is_input, read_var, postfix,
-                                                 module_name=module_name)
-                output_symbols.append(sym_tuple)
+            sym_tuple = \
+                self._create_output_var_code(str(signature), program,
+                                             is_input, read_var, postfix,
+                                             module_name=module_name)
+            output_symbols.append(sym_tuple)
 
         return output_symbols
 
@@ -914,32 +653,13 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         schedule_copy = Routine.create("name")
         schedule_copy.children.extend([n.copy() for n in nodes[0].children])
 
-        # Halo exchanges are not allowed to be included in an exchange region,
-        # so there can never be a HaloExchange node here. But if it should be
-        # useful to include them (e.g. for performance testing of several
-        # kernels), the following code will remove the halo exchange nodes
-        # from the PSyIR to allow creation of a driver (but which would likely
-        # fail due to the missing halo updates).
-        # all_halos = schedule_copy.walk(HaloExchange)[:]
-        # if all_halos:
-        #     print(f"Driver creation warning: There are {len(all_halos)} "
-        #           f"halo exchanges that will be removed.")
-        #     print("The created driver will very likely not reproduce the "
-        #           "results of the original code.")
-        #     for halo in all_halos:
-        #         parent = halo.parent
-        #         parent.children.remove(halo)
-
         original_symbol_table = invoke_sched.symbol_table
-        # proxy_name_mapping = self._get_proxy_name_mapping(schedule_copy)
 
         # Find all imported routines and add them to the symbol table
         # of the driver, so the driver will have the correct import
         # statements.
         self._import_modules(program.scope.symbol_table, schedule_copy)
         self._add_precision_symbols(program.scope.symbol_table)
-        # self._add_all_kernel_symbols(schedule_copy, program_symbol_table,
-        #                              proxy_name_mapping, read_write_info)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,
@@ -958,6 +678,14 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             program.addchild(child)
 
         BaseDriverCreator.add_result_tests(program, output_symbols)
+
+        for symbol in program_symbol_table.datasymbols:
+
+            if isinstance(symbol.datatype, UnsupportedFortranType):
+                newt = symbol.datatype._declaration
+                newt = newt.replace('pointer', 'allocatable')
+                newt = newt.replace('=> null()', '')
+                symbol.datatype._declaration = newt
 
         return file_container
 

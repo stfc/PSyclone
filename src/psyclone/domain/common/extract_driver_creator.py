@@ -359,11 +359,15 @@ class ExtractDriverCreator(BaseDriverCreator):
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
             # in the symbol table (in add_all_kernel_symbols).
-            sig_str = str(signature.var_name)
-            sym = symbol_table.lookup(sig_str)
-            name_lit = Literal(sig_str, CHARACTER_TYPE)
-            BaseDriverCreator.add_call(program, read_var,
-                                       [name_lit, Reference(sym)])
+            sig_str = ExtractDriverCreator.flatten_string(str(signature))
+            try:
+                sym = symbol_table.lookup(sig_str)
+                name_lit = Literal(sig_str, CHARACTER_TYPE)
+                BaseDriverCreator.add_call(program, read_var,
+                                           [name_lit, Reference(sym)])
+            except KeyError:
+                print("Missing", sig_str)
+                pass
 
         # Then handle all variables that are written (note that some
         # variables might be read and written)
@@ -373,33 +377,37 @@ class ExtractDriverCreator(BaseDriverCreator):
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
             # in the symbol table (in add_all_kernel_symbols).
-            sig_str = str(signature.var_name)
-            sym = symbol_table.lookup(sig_str)
+            sig_str = ExtractDriverCreator.flatten_string(str(signature))
+            try:
+                sym = symbol_table.lookup(sig_str)
 
-            # The variable is written (and maybe read as well)
-            # ------------------------------------------------
-            # Declare a 'post' variable of the same type and
-            # read in its value.
-            post_name = sig_str+postfix
-            post_sym = symbol_table.new_symbol(post_name,
-                                               symbol_type=DataSymbol,
-                                               datatype=sym.datatype)
-            BaseDriverCreator.add_call(program, read_var,
-                                       [Literal(post_name, CHARACTER_TYPE),
-                                        Reference(post_sym)])
+                # The variable is written (and maybe read as well)
+                # ------------------------------------------------
+                # Declare a 'post' variable of the same type and
+                # read in its value.
+                post_name = sig_str+postfix
+                post_sym = symbol_table.new_symbol(post_name,
+                                                   symbol_type=DataSymbol,
+                                                   datatype=sym.datatype)
+                BaseDriverCreator.add_call(program, read_var,
+                                           [Literal(post_name, CHARACTER_TYPE),
+                                            Reference(post_sym)])
 
-            # Now if a variable is written to, but not read, the variable
-            # is not allocated. So we need to allocate it and set it to 0.
-            if not read_write_info.is_read(signature):
-                if isinstance(post_sym.datatype, ArrayType):
-                    alloc = IntrinsicCall.create(
-                        IntrinsicCall.Intrinsic.ALLOCATE,
-                        [Reference(sym), ("mold", Reference(post_sym))])
-                    program.addchild(alloc)
-                set_zero = Assignment.create(Reference(sym),
-                                             Literal("0", INTEGER_TYPE))
-                program.addchild(set_zero)
-            output_symbols.append((sym, post_sym))
+                # Now if a variable is written to, but not read, the variable
+                # is not allocated. So we need to allocate it and set it to 0.
+                if not read_write_info.is_read(signature):
+                    if isinstance(post_sym.datatype, ArrayType):
+                        alloc = IntrinsicCall.create(
+                            IntrinsicCall.Intrinsic.ALLOCATE,
+                            [Reference(sym), ("mold", Reference(post_sym))])
+                        program.addchild(alloc)
+                    set_zero = Assignment.create(Reference(sym),
+                                                 Literal("0", INTEGER_TYPE))
+                    program.addchild(set_zero)
+                output_symbols.append((sym, post_sym))
+            except KeyError:
+                print("Missing", sig_str)
+                pass
         return output_symbols
 
     # -------------------------------------------------------------------------
