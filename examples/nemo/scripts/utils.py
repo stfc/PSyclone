@@ -358,9 +358,29 @@ def normalise_loops(
     if increase_array_ranks:
         irlatrans = IncreaseRankLoopArraysTrans()
         if schedule.name == "dyn_zdf":
-            for loop in schedule.walk(Loop, stop_type=Loop):
-                if loop.variable.name == "jj":
-                    irlatrans.apply(loop, options={'arrays': ['zwd', 'zwi']})
+            for outer_loop in schedule.walk(Loop, stop_type=Loop):
+                if outer_loop.variable.name == "jj":
+                    irlatrans.apply(
+                        outer_loop,
+                        options={'arrays': ['zwd', 'zwi', 'zws']})
+                    # Now reorder the outer jj loop by:
+                    for child in outer_loop.loop_body:
+                        # moving all its contents where the loop was
+                        print("Moving 1 stmt")
+                        outer_loop.parent.addchild(child.detach(),
+                                                   index=outer_loop.position)
+                        # and add a copy of the jj loop above each inner loop
+                        for inner_loop in child.walk(Loop, stop_type=Loop):
+                            inner_loop.replace_with(
+                                Loop.create(
+                                    outer_loop.variable,
+                                    outer_loop.start_expr.copy(),
+                                    outer_loop.stop_expr.copy(),
+                                    outer_loop.step_expr.copy(),
+                                    children=[inner_loop.copy()]
+                                )
+                            )
+                    outer_loop.detach()
 
     if hoist_expressions:
         # First hoist all possible expressions
