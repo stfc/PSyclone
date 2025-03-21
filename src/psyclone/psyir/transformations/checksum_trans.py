@@ -49,6 +49,46 @@ class ChecksumTrans(RegionTrans):
     '''
     Creates a set of checksums (written via print) for all written to arrays
     inside the provided region.
+
+    For example:
+
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.transformations import ChecksumTrans
+
+    >>> psyir = FortranReader().psyir_from_source("""
+    ...     subroutine mysubroutine()
+    ...     integer, dimension(10,10) :: A
+    ...     integer :: i
+    ...     integer :: j
+    ...     do i = 1, 10
+    ...       do j = 1, 10
+    ...         A(i,j) = A(i,k) + i-j
+    ...       end do
+    ...     end do
+    ...     end subroutine
+    ...     """)
+    ... loop = psyir.children[0].children[0]
+    ... ChecksumTrans().apply(loop)
+    ... print(FortranWriter()(psyir))
+    subroutine mysubroutine()
+  integer, dimension(10,10) :: a
+  integer :: i
+  integer :: j
+  integer :: PSYCLONE_INTERNAL_line_
+  <BLANKLINE>
+  do i = 1, 10, 1
+    do j = 1, 10, 1
+      a(i,j) = a(i,j) + i - j
+    enddo
+  enddo
+  PSYCLONE_INTERNAL_line_ = __LINE__
+  PRINT *, "checksums from mysubroutine at line:", PSYCLONE_INTERNAL_line_
+  PRINT *, "a checksum", SUM(a)
+  <BLANKLINE>
+end subroutine mysubroutine
+<BLANKLINE>
+
     '''
 
     def apply(self, node: Union[Node, List[Node]], options=None) -> None:
