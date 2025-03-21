@@ -432,7 +432,10 @@ def test_mod_manager_load_all_module_infos_trigger_error_module_read_twice():
     # Should raise an error that the first module to be processed
     # was already processed
     with pytest.raises(KeyError) as einfo:
-        mod_man.load_all_module_infos(verbose=True)
+        mod_man.load_all_module_infos(
+                error_if_module_already_processed=True, 
+                verbose=True
+            )
 
     assert "Module 'a_mod' already processed" in str(einfo.value)
 

@@ -320,15 +320,23 @@ class ModuleManager:
             fileinfo: FileInfo
             fileinfo.get_psyir(verbose=verbose)
 
-    def load_all_module_infos(self, verbose: bool = False, indent: str = ""):
+    def load_all_module_infos(
+            self,
+            error_if_module_already_processed: bool = True,
+            verbose: bool = False,
+            indent: str = ""
+    ):
         """Load the module info using psyir nodes for all FileInfo objects
         in the ModuleManager.
 
         :param verbose: If `True`, print verbose information
+        :param error_if_module_already_processed: If `True`, raise an error
+                if the module was already processed.
         :param indent: Prefix used as indentation for each line of
             verbose output.
 
-        :raises KeyError: If module was already processed
+        :raises KeyError: If module was already processed if
+            error_if_module_already_processed is `True`
         """
 
         # iterate over all file infos and load psyir
@@ -374,8 +382,12 @@ class ModuleManager:
                 self._modules[container_name] = module_info
 
             filepath = file_info.filename
+
             if filepath in self._filepath_to_module_info.keys():
-                raise KeyError(f"File '{filepath}' already processed")
+                if error_if_module_already_processed:
+                    raise KeyError(f"File '{filepath}' already processed")
+
+                continue
 
             self._filepath_to_module_info[filepath] = module_info_in_file
 
@@ -501,8 +513,8 @@ class ModuleManager:
         # Work on a copy to avoid modifying the caller's set:
         todo = all_mod_names.copy()
 
-        # This set contains module that could not be found (to avoid
-        # adding them to the todo list again
+        # This list contains all module names that could not be found
+        # (to avoid adding them to the todo list again)
         not_found = list()
 
         while todo:
