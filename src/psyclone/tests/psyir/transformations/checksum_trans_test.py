@@ -79,3 +79,33 @@ end subroutine test
 """
     out = fortran_writer(psyir)
     assert out == correct
+
+    # Check the checksums are in the right place if there's no hierarchy of
+    # nodes.
+    code = """
+    subroutine test
+        integer, dimension(1:100) :: a, b
+        a(:) = 1
+        b(:) = 2
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+
+    ChecksumTrans().apply(psyir.children[0].children[:])
+
+    correct = """subroutine test()
+  integer, dimension(100) :: a
+  integer, dimension(100) :: b
+  integer :: PSYCLONE_INTERNAL_line_
+
+  a(:) = 1
+  b(:) = 2
+  PSYCLONE_INTERNAL_line_ = __LINE__
+  PRINT *, "checksums from test at line:", PSYCLONE_INTERNAL_line_
+  PRINT *, "b checksum", SUM(b)
+  PRINT *, "a checksum", SUM(a)
+
+end subroutine test
+"""
+    out = fortran_writer(psyir)
+    assert correct == out
