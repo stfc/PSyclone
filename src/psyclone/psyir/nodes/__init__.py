@@ -197,5 +197,5 @@ __all__ = [
         'OMPScheduleClause',
         'OMPFirstprivateClause',
         'OMPSharedClause',
-        'OMPDependClause'
-        ]
+        'OMPDependClause',
+]

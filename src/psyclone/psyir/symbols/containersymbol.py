@@ -135,6 +135,10 @@ class ContainerSymbol(Symbol):
                            the container.
         :type local_node: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
+        :param ignore_missing_modules: If 'True', no ModuleNotFound exception=
+            is raised in case in case the module wasn't found.
+        :type ignore_missing_modules: bool
+
         :returns: referenced container.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
