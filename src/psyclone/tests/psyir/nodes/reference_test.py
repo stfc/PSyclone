@@ -43,8 +43,9 @@ import pytest
 
 from psyclone.core import VariablesAccessInfo
 from psyclone.psyGen import GenerationError
-from psyclone.psyir.nodes import (ArrayReference, Assignment, colored,
-                                  KernelSchedule, Literal, Reference)
+from psyclone.psyir.nodes import (
+    ArrayReference, Assignment, CodeBlock, colored,
+    KernelSchedule, Literal, Reference)
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     UnresolvedType, ImportInterface,
                                     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
@@ -544,10 +545,8 @@ def test_reference_previous_accesses_with_codeblock(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.children[0]
     a = routine.children[1].lhs
-    codeblock = routine.children[1]
-    if a.previous_accesses() is not codeblock:
-        pytest.xfail("#2271 Codeblocks don't currently support "
-                     "reference_accesses")
+    codeblock = routine.walk(CodeBlock)[0]
+    assert a.previous_accesses()[0] is codeblock
 
 
 def test_reference_replace_symbols_using():

@@ -357,8 +357,33 @@ class DataSymbol(TypedSymbol):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
+        from psyclone.psyir.symbols.datatypes import ArrayType
+
         super().replace_symbols_using(table)
 
         # Ensure any Symbols referenced in the initial value are updated.
         if self.initial_value:
             self.initial_value.replace_symbols_using(table)
+
+        # Ensure any Symbols referenced in the shape are updated.
+        for dim in self.shape:
+            if isinstance(dim, ArrayType.Extent):
+                continue
+            for bnd in [dim.lower, dim.upper]:
+                if isinstance(bnd, ArrayType.Extent):
+                    continue
+                bnd.replace_symbols_using(table)
+
+    def reference_accesses(self, access_info):
+        '''
+        Update the supplied VariablesAccessInfo with information on the symbols
+        referenced by the definition of this Symbol.
+
+        :param access_info: the object in which to accumulate access
+                            information.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        '''
+        super().reference_accesses(access_info)
+
+        if self.initial_value:
+            self.initial_value.reference_accesses(access_info)

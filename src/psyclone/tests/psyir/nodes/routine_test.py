@@ -258,6 +258,34 @@ def test_routine_copy():
     assert routine2.return_symbol not in routine.symbol_table.symbols
 
 
+def test_routine_copy_in_container(fortran_reader):
+    '''
+    Test the copying of a Routine when it is inside a Container and has
+    references to Symbols declared in that Container.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+      use other_mod, only: trouble
+      implicit none
+
+    contains
+      subroutine my_sub()
+        trouble = trouble + 1
+      end subroutine my_sub
+    end module my_mod
+    ''')
+    rt0 = psyir.walk(Routine)[0]
+    rt1 = rt0.copy()
+    assert rt1.parent is None
+    # TODO should 'trouble' exist in the Routine or do we leave dangling
+    # References - i.e. References to Symbols that aren't in any table
+    # in the tree? Would we then resolve these if/when the Routine is
+    # attached to another tree?
+    assert "trouble" not in rt1.symbol_table
+    ref = rt1.walk(Reference)[0]
+    assert ref.symbol.name == "trouble"
+
+
 def test_routine_replace_with(fortran_reader):
     '''Test that the replace_with method correctly replaces the Routine
     with another Routine. '''
