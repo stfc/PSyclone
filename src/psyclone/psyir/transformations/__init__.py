@@ -62,6 +62,8 @@ from psyclone.psyir.transformations.hoist_local_arrays_trans import \
 from psyclone.psyir.transformations.hoist_loop_bound_expr_trans import \
     HoistLoopBoundExprTrans
 from psyclone.psyir.transformations.hoist_trans import HoistTrans
+from psyclone.psyir.transformations.increase_rank_loop_arrays_trans import \
+    IncreaseRankLoopArraysTrans
 from psyclone.psyir.transformations.inline_trans import InlineTrans
 from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
     Abs2CodeTrans
