@@ -65,8 +65,8 @@ from psyclone.psyir.nodes import (
     Call, CodeBlock, Container, Directive, Literal, Loop, Node,
     OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
-    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
-    Return, Routine, Schedule)
+    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Return,
+    Routine, Schedule)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
