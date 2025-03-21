@@ -364,13 +364,14 @@ def normalise_loops(
                         outer_loop,
                         options={'arrays': ['zwd', 'zwi', 'zws']})
                     # Now reorder the outer jj loop by:
-                    for child in outer_loop.loop_body:
+                    for child in outer_loop.loop_body[:]:
                         # moving all its contents where the loop was
-                        print("Moving 1 stmt")
                         outer_loop.parent.addchild(child.detach(),
                                                    index=outer_loop.position)
                         # and add a copy of the jj loop above each inner loop
                         for inner_loop in child.walk(Loop, stop_type=Loop):
+                            if isinstance(inner_loop.loop_body[0], Loop):
+                                inner_loop = inner_loop.loop_body[0]
                             inner_loop.replace_with(
                                 Loop.create(
                                     outer_loop.variable,
