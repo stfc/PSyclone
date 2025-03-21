@@ -408,7 +408,10 @@ def test_mod_manager_add_files_and_more():
     # Should raise an error that the first module to be processed
     # was already processed
     with pytest.raises(KeyError) as einfo:
-        mod_man.load_all_module_infos(verbose=True)
+        mod_man.load_all_module_infos(
+                error_if_module_already_processed=True,
+                verbose=True
+            )
 
     assert "Module 'a_mod' already processed" in str(einfo.value)
 
@@ -432,15 +435,15 @@ def test_mod_manager_load_all_module_infos_trigger_error_module_read_twice():
             verbose=True
         )
 
-    # Doing this a 2nd time should not raise an error
+    # Doing this a 2nd time should not raise any error
     mod_man.load_all_module_infos(
             verbose=True
         )
 
-    # This should raise an error that a file has been already processed
+    # This should raise an error that a module has been already processed
     with pytest.raises(KeyError) as einfo:
         mod_man.load_all_module_infos(
-                error_if_file_already_processed=True,
+                error_if_module_already_processed=True,
                 verbose=True
             )
 
@@ -463,6 +466,9 @@ def test_mod_manager_load_all_module_infos_trigger_error_file_read_twice():
 
     # Should raise an error that the file was already processed
     with pytest.raises(KeyError) as einfo:
-        mod_man.load_all_module_infos(verbose=True)
+        mod_man.load_all_module_infos(
+                error_if_file_already_processed=True,
+                verbose=True
+            )
 
     assert "File 't_mod.f90' already processed" in str(einfo.value)

@@ -323,6 +323,7 @@ class ModuleManager:
     def load_all_module_infos(
             self,
             error_if_file_already_processed: bool = False,
+            error_if_module_already_processed: bool = False,
             verbose: bool = False,
             indent: str = ""
     ):
@@ -331,7 +332,9 @@ class ModuleManager:
 
         :param verbose: If `True`, print verbose information
         :param error_if_file_already_processed: If `True`, raise an error
-                if one of the modules was already processed.
+                if a file was already processed.
+        :param error_if_module_already_processed: If `True`, raise an error
+                if a module was already processed.
         :param indent: Prefix used as indentation for each line of
             verbose output.
 
@@ -370,9 +373,13 @@ class ModuleManager:
                 container_name: str = container_node.name.lower()
 
                 if container_name in self._modules.keys():
-                    raise KeyError(
-                        f"Module '{container_name}' already processed"
-                    )
+                    if error_if_module_already_processed:
+                        raise KeyError(
+                            f"Module '{container_name}' already processed"
+                        )
+                    else:
+                        print(indent+f"Module '{container_name}' already processed")
+                        continue
 
                 module_info = ModuleInfo(
                     container_name, file_info, container_node
