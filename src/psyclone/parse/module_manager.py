@@ -322,7 +322,7 @@ class ModuleManager:
 
     def load_all_module_infos(
             self,
-            error_if_module_already_processed: bool = True,
+            error_if_file_already_processed: bool = False,
             verbose: bool = False,
             indent: str = ""
     ):
@@ -330,13 +330,13 @@ class ModuleManager:
         in the ModuleManager.
 
         :param verbose: If `True`, print verbose information
-        :param error_if_module_already_processed: If `True`, raise an error
-                if the module was already processed.
+        :param error_if_file_already_processed: If `True`, raise an error
+                if one of the modules was already processed.
         :param indent: Prefix used as indentation for each line of
             verbose output.
 
         :raises KeyError: If module was already processed if
-            error_if_module_already_processed is `True`
+            error_if_file_already_processed is `True`
         """
 
         # iterate over all file infos and load psyir
@@ -384,8 +384,10 @@ class ModuleManager:
             filepath = file_info.filename
 
             if filepath in self._filepath_to_module_info.keys():
-                if error_if_module_already_processed:
+                if error_if_file_already_processed:
                     raise KeyError(f"File '{filepath}' already processed")
+                else:
+                    print(indent+f"File '{filepath}' already processed")
 
                 continue
 

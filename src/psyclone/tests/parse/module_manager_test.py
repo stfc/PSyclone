@@ -427,13 +427,20 @@ def test_mod_manager_load_all_module_infos_trigger_error_module_read_twice():
     #
     mod_man.add_files("d1/a_mod.f90")
 
-    mod_man.load_all_module_infos(verbose=True)
+    # Load all module infos
+    mod_man.load_all_module_infos(
+            verbose=True
+        )
 
-    # Should raise an error that the first module to be processed
-    # was already processed
+    # Doing this a 2nd time should not raise an error
+    mod_man.load_all_module_infos(
+            verbose=True
+        )
+
+    # This should raise an error that a file has been already processed
     with pytest.raises(KeyError) as einfo:
         mod_man.load_all_module_infos(
-                error_if_module_already_processed=True, 
+                error_if_file_already_processed=True,
                 verbose=True
             )
 
