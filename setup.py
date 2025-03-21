@@ -163,7 +163,7 @@ if __name__ == '__main__':
         package_dir={"": "src"},
         install_requires=['pyparsing', 'fparser>=0.2.0', 'configparser',
                           'jsonschema', 'sympy', "Jinja2", 'termcolor',
-                          'graphviz'],
+                          'graphviz', 'sphinx'],
         extras_require={
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx-tabs",
                     "sphinx_rtd_theme", "sphinx-autodoc-typehints", "autoapi"],
