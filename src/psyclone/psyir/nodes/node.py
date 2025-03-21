@@ -1605,15 +1605,21 @@ class Node():
         self._children = ChildrenList(self, self._validate_child,
                                       self._children_valid_format)
         # And make a recursive copy of each child instead
-        self.children.extend([child.copy(new_parent=self) for
+        self.children.extend([child.copy(_new_parent=self) for
                               child in other.children])
         self._disable_tree_update = False
 
-    def copy(self, new_parent=None):
+    def copy(self, _new_parent=None):
         ''' Return a copy of this node. This is a bespoke implementation for
         PSyIR nodes that will deepcopy some of its recursive data-structure
         (e.g. the children tree), while not copying other attributes (e.g.
         top-level parent reference).
+
+        :param _new_parent: if supplied, the parent Node of the Node created
+            in this copy. The original call to copy should not supply this
+            as it is only used to ensure correct connection of the children
+            created as the copy walks down the tree
+        :type _new_parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: a copy of this node and its children.
         :rtype: :py:class:`psyclone.psyir.node.Node`
@@ -1627,7 +1633,7 @@ class Node():
         # creating. For the root node of the copy, this will be None (so
         # that the copy is detached from the original tree).
         # pylint: disable=protected-access
-        new_instance._parent = new_parent
+        new_instance._parent = _new_parent
         # and then refine the elements that shouldn't be shallow copied
         new_instance._refine_copy(self)
         return new_instance
