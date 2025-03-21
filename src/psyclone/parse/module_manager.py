@@ -378,7 +378,10 @@ class ModuleManager:
                             f"Module '{container_name}' already processed"
                         )
                     else:
-                        print(indent+f"Module '{container_name}' already processed")
+                        print(
+                            indent+f"Module '{container_name}' already"
+                            " processed"
+                        )
                         continue
 
                 module_info = ModuleInfo(
