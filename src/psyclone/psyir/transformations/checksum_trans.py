@@ -72,22 +72,22 @@ class ChecksumTrans(RegionTrans):
     ... ChecksumTrans().apply(loop)
     ... print(FortranWriter()(psyir))
     subroutine mysubroutine()
-  integer, dimension(10,10) :: a
-  integer :: i
-  integer :: j
-  integer :: PSYCLONE_INTERNAL_line_
-  <BLANKLINE>
-  do i = 1, 10, 1
-    do j = 1, 10, 1
-      a(i,j) = a(i,j) + i - j
-    enddo
-  enddo
-  PSYCLONE_INTERNAL_line_ = __LINE__
-  PRINT *, "checksums from mysubroutine at line:", PSYCLONE_INTERNAL_line_
-  PRINT *, "a checksum", SUM(a)
-  <BLANKLINE>
-end subroutine mysubroutine
-<BLANKLINE>
+      integer, dimension(10,10) :: a
+      integer :: i
+      integer :: j
+      integer :: PSYCLONE_INTERNAL_line_
+    <BLANKLINE>
+      do i = 1, 10, 1
+        do j = 1, 10, 1
+          a(i,j) = a(i,j) + i - j
+        enddo
+      enddo
+      PSYCLONE_INTERNAL_line_ = __LINE__
+      PRINT *, "checksums from mysubroutine at line:", PSYCLONE_INTERNAL_line_
+      PRINT *, "a checksum", SUM(a)
+    <BLANKLINE>
+    end subroutine mysubroutine
+    <BLANKLINE>
 
     '''
 
