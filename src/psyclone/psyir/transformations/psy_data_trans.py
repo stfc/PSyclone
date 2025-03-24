@@ -82,6 +82,12 @@ class PSyDataTrans(RegionTrans):
     # that a region can contain as we don't have to understand them.
     excluded_node_types = (Return,)
 
+    # This dictionary keeps track of region+module names that are already
+    # used. For each key (which is module_name+"|"+region_name) it contains
+    # how many regions with that name have been created. This number will
+    # then be added as an index to create unique region identifiers.
+    _used_kernel_names = {}
+
     def __init__(self, node_class=PSyDataNode):
         super().__init__()
         self._node_class = node_class

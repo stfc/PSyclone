@@ -499,7 +499,7 @@ def test_psy_data_node_name_clash(fortran_writer):
     module_manager.add_search_path(infrastructure_path)
     module_manager.add_search_path(read_mod_path)
 
-    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+    psy, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
                            "symbols.f90", api, dist_mem=False, idx=1)
 
     extract = LFRicExtractTrans()
@@ -507,7 +507,8 @@ def test_psy_data_node_name_clash(fortran_writer):
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
 
-    code = fortran_writer(invoke.schedule)
+    code = psy.gen
+    print(code)
 
     assert ('CALL extract_psy_data % PreDeclareVariable("f1_data_post", '
             'f1_data)' in code)

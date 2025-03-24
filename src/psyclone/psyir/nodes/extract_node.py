@@ -54,7 +54,8 @@ from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.assignment import Assignment
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import (
+    DataSymbol, INTEGER_TYPE, ContainerSymbol, ImportInterface)
 from psyclone.errors import InternalError
 
 
@@ -196,41 +197,38 @@ class ExtractNode(PSyDataNode):
             region_name = f"{routine_schedule.name}-{region_name}"
         self._region_name = region_name
 
+        # get_non_local_read_write_info doesn't work with the lowered tree,
+        # so we save a copy of the higher dsl tree
+        copy_dsl_tree = self.copy()
+
         for child in self.children:
             child.lower_to_language_level()
 
         for structure_ref in self.walk(StructureReference):
             self._flatten_reference(structure_ref)
 
-        if self._read_write_info is None:
-            # Typically, _read_write_info should be set at the constructor,
-            # but some tests do not provide the required information. To
-            # support these tests, allow creation of the read_write info
-            # here (it can't be done in the constructor, since this node
-            # is not yet integrated into the PSyIR, so the dependency tool
-            # cannot determine variable usage at that time):
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
+        # Determine the variables to write:
+        ctu = CallTreeUtils()
+        read_write_info = ctu.get_in_out_parameters(
+            self, include_non_data_accesses=False)
+        # Use the copy of the dsl_tree to get the external symbols
+        ctu.get_non_local_read_write_info(copy_dsl_tree.children,
+                                          read_write_info)
 
-            # Avoid circular dependency
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
-            # Determine the variables to write:
-            ctu = CallTreeUtils()
-            self._read_write_info = ctu.get_in_out_parameters(
-                self, include_non_data_accesses=True)
-
-        options = {'pre_var_list': self._read_write_info.read_list,
-                   'post_var_list': self._read_write_info.write_list,
+        options = {'pre_var_list': read_write_info.read_list,
+                   'post_var_list': read_write_info.write_list,
                    'post_var_postfix': self._post_name}
 
         if self._driver_creator:
-            ctu = CallTreeUtils()
             nodes = self.children
             region_name_tuple = self.get_unique_region_name(nodes, {})
             region_name_tuple = (region_name_tuple[0], region_name)
-            # Get the input- and output-parameters of the node list
-            read_write_info = \
-                ctu.get_in_out_parameters(self.children,
-                                          collect_non_local_symbols=True)
+
+            self._bring_external_symbols(read_write_info,
+                                         self.ancestor(Routine).symbol_table)
 
             # Even variables that are output-only need to be written with their
             # values at the time the kernel is called: many kernels will only
@@ -252,6 +250,7 @@ class ExtractNode(PSyDataNode):
             # We need to create the driver before inserting the ExtractNode
             # (since some of the visitors used in driver creation do not
             # handle an ExtractNode in the tree)
+            # import pdb; pdb.set_trace()
             self._driver_creator.write_driver(self.children,
                                               read_write_info,
                                               postfix=postfix,
@@ -404,6 +403,44 @@ class ExtractNode(PSyDataNode):
         old_reference.replace_with(new_ref)
         self.parent.addchild(Assignment.create(new_ref.copy(), old_reference),
                              index=self.position)
+
+    @staticmethod
+    def _bring_external_symbols(read_write_info, symbol_table):
+        from psyclone.parse import ModuleManager
+        mod_man = ModuleManager.get()
+        for module_name, signature in read_write_info.set_of_all_used_vars:
+            if not module_name:
+                # Ignore local symbols, which will have been added above
+                continue
+            container = symbol_table.find_or_create(
+                module_name, symbol_type=ContainerSymbol)
+
+            # Now look up the original symbol. While the variable could
+            # be declared Unresolved here (i.e. just imported), we need the
+            # type information for the output variables (VAR_post), which
+            # are created later and which will query the original symbol for
+            # its type. And since they are not imported, they need to be
+            # explicitly declared.
+            mod_info = mod_man.get_module_info(module_name)
+            container_symbol = mod_info.get_symbol(signature[0])
+            if not container_symbol:
+                # TODO #2120: This typically indicates a problem with parsing
+                # a module: the psyir does not have the full tree structure.
+                continue
+
+            # It is possible that external symbol name (signature[0]) already
+            # exist in the symbol table (the same name is used in the local
+            # subroutine and in a module). In this case, the imported symbol
+            # must be renamed:
+            if signature[0] in symbol_table:
+                interface = ImportInterface(container, orig_name=signature[0])
+            else:
+                interface = ImportInterface(container)
+
+            symbol_table.find_or_create_tag(
+                tag=f"{signature[0]}@{module_name}", root_name=signature[0],
+                symbol_type=DataSymbol, interface=interface,
+                datatype=container_symbol.datatype)
 
 
 # For AutoAPI documentation generation

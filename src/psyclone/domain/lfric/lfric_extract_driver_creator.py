@@ -54,7 +54,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   IntrinsicCall, Literal, Reference,
-                                  Routine)
+                                  Routine, ExtractNode)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, UnresolvedType,
@@ -247,14 +247,10 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # variable and the one storing the expected results have the same
         # type, look up the 'original' variable and declare the _POST variable
         symbol_table = program.symbol_table
-        sym = symbol_table.lookup(name)
-        # if module_name:
-        #     sym = symbol_table.lookup_with_tag(f"{name}@{module_name}")
-        # else:
-        #     if index is not None:
-        #         sym = symbol_table.lookup_with_tag(f"{name}_{index}_data")
-        #     else:
-        #       # If it is not indexed then `name` will already end in "_data"
+        if module_name:
+            sym = symbol_table.lookup_with_tag(f"{name}@{module_name}")
+        else:
+            sym = symbol_table.lookup(name)
 
         # Declare a 'post' variable of the same type and read in its value.
         post_name = sym.name + postfix
@@ -367,10 +363,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                     print(f"Error finding symbol '{sig_str}' in "
                           f"'{module_name}'.")
             else:
-                try:
-                    orig_sym = original_symbol_table.lookup(signature[0])
-                except KeyError:
-                    print(f"Error finding symbol '{signature[0]}'")
+                orig_sym = original_symbol_table.lookup(signature[0])
 
             if module_name:
                 tag = f"{signature[0]}@{module_name}"
@@ -388,6 +381,10 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             else:
                 sym = orig_sym.copy()
                 sym.interface = AutomaticInterface()
+                if symbol_table.lookup(sym.name, otherwise=None) is not None:
+                    # We can edit the name because we know the copied symbol is
+                    # not in a symbol table yet
+                    sym._name = symbol_table.next_available_name(sym.name)
                 symbol_table.add(sym)
                 # symbol_table.lookup_with_tag(str(signature))
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
@@ -660,6 +657,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # statements.
         self._import_modules(program.scope.symbol_table, schedule_copy)
         self._add_precision_symbols(program.scope.symbol_table)
+        ExtractNode._bring_external_symbols(read_write_info,
+                                            program.scope.symbol_table)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,

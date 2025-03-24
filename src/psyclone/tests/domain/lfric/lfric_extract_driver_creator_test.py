@@ -571,7 +571,6 @@ def test_lfric_driver_external_symbols():
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
     code = psy.gen
-    print(code)
     assert ('CALL extract_psy_data % PreDeclareVariable("'
             'module_var_a_post@module_with_var_mod", module_var_a)' in code)
     assert ('CALL extract_psy_data % ProvideVariable("'

@@ -46,6 +46,7 @@ from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import ExtractNode, Node, Schedule
 from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.tools import ReadWriteInfo
 from psyclone.tests.utilities import get_invoke
 
 
@@ -294,3 +295,52 @@ def test_flatten_reference_error():
         ExtractNode._flatten_reference("NoUserType")
     assert ("Unexpected type 'str' in _flatten_reference, it must be a "
             "'StructureReference'" in str(err.value))
+
+
+def test_determine_postfix():
+    '''Test that a unique postfix is determined.
+    '''
+
+    # Test if there is no clash that the specified postfix is returned as is:
+    read_write_info = ReadWriteInfo()
+    postfix = ExtractNode.determine_postfix(read_write_info)
+    assert postfix == "_post"
+    postfix = ExtractNode.determine_postfix(read_write_info,
+                                             postfix="_new_postfix")
+    assert postfix == "_new_postfix"
+
+    # Clash between input variable and a created output variable:
+    read_write_info = ReadWriteInfo()
+    read_write_info.add_read(Signature("var_post"))
+    read_write_info.add_write(Signature("var"))
+    postfix = ExtractNode.determine_postfix(read_write_info)
+    assert postfix == "_post0"
+
+    # Two clashes between input variable and a created output variable:
+    read_write_info.add_read(Signature("var_post0"))
+    postfix = ExtractNode.determine_postfix(read_write_info)
+    assert postfix == "_post1"
+
+    # Two clashes between different input variables and created output
+    # variables: 'var1' prevents the '_post' to be used, 'var2'
+    # prevents "_post0" to be used, 'var3' prevents "_post1":
+    read_write_info = ReadWriteInfo()
+    read_write_info.add_read(Signature("var1_post"))
+    read_write_info.add_read(Signature("var2_post0"))
+    read_write_info.add_read(Signature("var3_post1"))
+    read_write_info.add_write(Signature("var1"))
+    read_write_info.add_write(Signature("var2"))
+    read_write_info.add_write(Signature("var3"))
+    postfix = ExtractNode.determine_postfix(read_write_info)
+    assert postfix == "_post2"
+
+    # Handle clash between output variables: the first variable will
+    # create "var" and var_post", the second "var_post" and "var_post_post".
+    read_write_info = ReadWriteInfo()
+    read_write_info. add_write(Signature("var"))
+    read_write_info. add_write(Signature("var_post"))
+    postfix = ExtractNode.determine_postfix(read_write_info)
+    assert postfix == "_post0"
+    read_write_info.add_write(Signature("var_post0"))
+    postfix = ExtractNode.determine_postfix(read_write_info)
+    assert postfix == "_post1"
