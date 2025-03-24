@@ -182,6 +182,9 @@ class CallTreeUtils():
 
         if include_non_data_accesses:
             all_accesses = variables_info.all_signatures
+            for access in all_accesses[:]:
+                if variables_info[access].is_called():
+                    all_accesses.remove(access)
         else:
             all_accesses = variables_info.all_data_accesses
 

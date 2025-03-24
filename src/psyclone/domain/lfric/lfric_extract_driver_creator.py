@@ -347,48 +347,34 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
         # First handle variables that are read:
         # -------------------------------------
+        read_stmts = []
         for module_name, signature in read_write_info.read_list:
-            # Find the right symbol for the variable. Note that all variables
-            # in the input and output list have been detected as being used
-            # when the variable accesses were analysed. Therefore, these
-            # variables have References, and will already have been declared
-            # in the symbol table (in _add_all_kernel_symbols).
-            sig_str = str(signature)
-
             if module_name:
-                mod_info = mod_man.get_module_info(module_name)
-                orig_sym = mod_info.get_symbol(signature[0])
-                if not orig_sym:
-                    # TODO 2120: We likely couldn't parse the module.
-                    print(f"Error finding symbol '{sig_str}' in "
-                          f"'{module_name}'.")
-            else:
-                orig_sym = original_symbol_table.lookup(signature[0])
+                continue
+            orig_sym = original_symbol_table.lookup(signature[0])
+            sym = orig_sym.copy()
+            sym.interface = AutomaticInterface()
+            if symbol_table.lookup(sym.name, otherwise=None) is not None:
+                # We can edit the name because we know the copied symbol is
+                # not in a symbol table yet
+                sym._name = symbol_table.next_available_name(sym.name)
+            symbol_table.add(sym)
+            name_lit = Literal(str(signature), CHARACTER_TYPE)
+            read_stmts.append((name_lit, sym))
 
-            if module_name:
-                tag = f"{signature[0]}@{module_name}"
-                try:
-                    sym = symbol_table.lookup_with_tag(tag)
-                except KeyError:
-                    print(f"Cannot find symbol with tag '{tag}' - likely "
-                          f"a symptom of an earlier parsing problem.")
-                    # TODO #2120: Better error handling, at this stage
-                    # we likely could not find a module variable (e.g.
-                    # because we couldn't successfully parse the module)
-                    # and will have inconsistent/missing declarations.
-                    continue
-                name_lit = Literal(tag, CHARACTER_TYPE)
-            else:
-                sym = orig_sym.copy()
-                sym.interface = AutomaticInterface()
-                if symbol_table.lookup(sym.name, otherwise=None) is not None:
-                    # We can edit the name because we know the copied symbol is
-                    # not in a symbol table yet
-                    sym._name = symbol_table.next_available_name(sym.name)
-                symbol_table.add(sym)
-                # symbol_table.lookup_with_tag(str(signature))
-                name_lit = Literal(str(signature), CHARACTER_TYPE)
+        ExtractNode._bring_external_symbols(read_write_info,
+                                            program.scope.symbol_table)
+        for module_name, signature in read_write_info.read_list:
+            if not module_name:
+                continue
+            mod_info = mod_man.get_module_info(module_name)
+            orig_sym = mod_info.get_symbol(signature[0])
+            tag = f"{signature[0]}@{module_name}"
+            sym = symbol_table.lookup_with_tag(tag)
+            name_lit = Literal(tag, CHARACTER_TYPE)
+            read_stmts.append((name_lit, sym))
 
+        for name_lit, sym in read_stmts:
             # TODO #2898: the test for array can be removed if
             # `is_allocatable` is supported for non-arrays.
             if sym.is_array and not sym.datatype.is_allocatable:
@@ -657,8 +643,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # statements.
         self._import_modules(program.scope.symbol_table, schedule_copy)
         self._add_precision_symbols(program.scope.symbol_table)
-        ExtractNode._bring_external_symbols(read_write_info,
-                                            program.scope.symbol_table)
+        # ExtractNode._bring_external_symbols(read_write_info,
+        #                                     program.scope.symbol_table)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,

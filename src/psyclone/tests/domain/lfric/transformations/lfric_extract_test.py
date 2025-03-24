@@ -356,7 +356,6 @@ def test_single_node_dynamo0p3():
     CALL extract_psy_data % ProvideVariable("cell_post", cell)
     CALL extract_psy_data % ProvideVariable("f1_data_post", f1_data)
     CALL extract_psy_data % PostEnd'''
-    print(output)
     assert output == code
 
 

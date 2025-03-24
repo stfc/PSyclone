@@ -632,7 +632,6 @@ def test_lfric_driver_external_symbols_name_clash():
 
     # Even though PSyclone cannot find the variable, it should still be
     # extracted:
-
     filename = "driver-import-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()

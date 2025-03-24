@@ -213,7 +213,7 @@ class ExtractNode(PSyDataNode):
         # Determine the variables to write:
         ctu = CallTreeUtils()
         read_write_info = ctu.get_in_out_parameters(
-            self, include_non_data_accesses=False)
+            self, include_non_data_accesses=True)
         # Use the copy of the dsl_tree to get the external symbols
         ctu.get_non_local_read_write_info(copy_dsl_tree.children,
                                           read_write_info)
@@ -250,7 +250,6 @@ class ExtractNode(PSyDataNode):
             # We need to create the driver before inserting the ExtractNode
             # (since some of the visitors used in driver creation do not
             # handle an ExtractNode in the tree)
-            # import pdb; pdb.set_trace()
             self._driver_creator.write_driver(self.children,
                                               read_write_info,
                                               postfix=postfix,

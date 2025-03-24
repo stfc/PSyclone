@@ -277,7 +277,7 @@ undf_w3, map_w3(:,cell))
     CALL extract_psy_data % ProvideVariable("cell_post", cell)
     CALL extract_psy_data % ProvideVariable("f1_data_post", f1_data)
     CALL extract_psy_data % PostEnd'''
-    assert output in code
+    assert output == code
 
 
 def test_flatten_signature():
@@ -306,7 +306,7 @@ def test_determine_postfix():
     postfix = ExtractNode.determine_postfix(read_write_info)
     assert postfix == "_post"
     postfix = ExtractNode.determine_postfix(read_write_info,
-                                             postfix="_new_postfix")
+                                            postfix="_new_postfix")
     assert postfix == "_new_postfix"
 
     # Clash between input variable and a created output variable:
