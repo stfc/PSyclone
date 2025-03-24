@@ -172,6 +172,7 @@ class Container(ScopingNode, CommentableMixin):
         return f"Container[{self.name}]\n"
 
     def find_routine_psyir(self, name, allow_private=False,
+                           follow_imports=True,
                            check_wildcard_imports=False):
         '''
         Searches the Container for a definition of the named routine with
@@ -182,12 +183,15 @@ class Container(ScopingNode, CommentableMixin):
         to find the names of the routines that the interface resolves to.
 
         If it is not found and the routine is named in an import statement
-        then the search is continued in the named Container. Failing that,
-        all wildcard imports are checked if `check_wildcard_imports` is True.
+        then the search is continued in the named Container unless
+        `follow_imports` is False. Failing that, all wildcard imports are
+        checked if `check_wildcard_imports` is True.
 
         :param str name: the name of the Routine for which to search.
         :param bool allow_private: whether the Routine is permitted to have
             a visibility of PRIVATE.
+        :param bool follow_imports: whether or not to follow imports to attempt
+            to find the source of the routine.
         :param bool check_wildcard_imports: whether or not to proceed to check
             for the named routine in any wildcard imports. Default is False as
             this can be expensive.
@@ -216,8 +220,11 @@ class Container(ScopingNode, CommentableMixin):
                 # such that it can't be the one we're looking for.
                 return None
 
-        # It's not defined in this Container so look in the import that names
-        # the routine if there is one.
+        # It's not defined in this Container
+        if not follow_imports:
+            return None
+
+        # Look in the import that names the routine if there is one.
         table = self.symbol_table
         try:
             routine_sym = table.lookup(rname)

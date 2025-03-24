@@ -48,6 +48,8 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
+    DefaultModuleInterface,
+    ImportInterface,
     RoutineSymbol,
     Symbol,
     SymbolError,
@@ -501,13 +503,16 @@ class Call(Statement, DataNode):
 
         rsym = self.routine.symbol
         if rsym.is_unresolved:
-
             # First check for any Routines in the same Container as this
             # call (if it is inside a Container).
             cntr = self.ancestor(Container, excluding=FileContainer)
             if cntr:
-                psyir = cntr.find_routine_psyir(rsym.name)
+                # Use follow_imports=False to restrict the search to this
+                # Container only.
+                psyir = cntr.find_routine_psyir(rsym.name, allow_private=True,
+                                                follow_imports=False)
                 if psyir:
+                    rsym.interface = DefaultModuleInterface()
                     return [psyir]
 
             # Next, check for any "raw" Routines, i.e. ones that are only
@@ -516,6 +521,9 @@ class Call(Statement, DataNode):
             if fcntr:
                 psyir = fcntr.find_routine_psyir(rsym.name)
                 if psyir:
+                    # TODO - what interface should we give to rsym? We
+                    # don't have an existing SymbolInterface for something
+                    # that exists in a file.
                     return [psyir]
 
             # Now check for any wildcard imports and see if they can
@@ -542,6 +550,7 @@ class Call(Statement, DataNode):
                             if psyir:
                                 routines.append(psyir)
                         if routines:
+                            rsym.interface = ImportInterface(container_symbol)
                             return routines
                 current_table = current_table.parent_symbol_table()
             if not wildcard_names:
