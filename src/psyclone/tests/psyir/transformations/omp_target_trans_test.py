@@ -294,3 +294,44 @@ end subroutine x
 end subroutine X
 """
     assert correct == out
+
+    # Check we can add nowait around some none-loop code
+    code = """subroutine x()
+    integer :: i
+    integer :: j
+    integer, dimension(100) :: arr
+
+    arr(1) = 1
+
+    do i = 1, 100
+       j = i * i
+       arr(i) = arr(i) + j
+    end do
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    targettrans = OMPTargetTrans()
+    assign = psyir.children[0].children[0]
+    targettrans.apply(assign, options={"nowait": True})
+    targettrans.apply(loops[0], options={"nowait": True})
+    out = fortran_writer(psyir)
+    correct = """subroutine x()
+  integer :: i
+  integer :: j
+  integer, dimension(100) :: arr
+
+  !$omp target nowait
+  arr(1) = 1
+  !$omp end target
+  !$omp taskwait
+  !$omp target nowait
+  do i = 1, 100, 1
+    j = i * i
+    arr(i) = arr(i) + j
+  enddo
+  !$omp end target
+  !$omp taskwait
+
+end subroutine x
+"""
+    assert out == correct
