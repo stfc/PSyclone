@@ -527,7 +527,7 @@ class ModuleManager:
 
         # This list contains all module names that could not be found
         # (to avoid adding them to the todo list again)
-        not_found = list()
+        not_found = set()
 
         while todo:
             # Pick one (random) module to handle (convert to lowercase
@@ -546,7 +546,7 @@ class ModuleManager:
                     # ignore it.
                     # TODO 2120: allow a choice to abort or ignore.
                     print(f"Could not find module '{module}'.")
-                    not_found.append(module)
+                    not_found.add(module)
                     # Remove this module as dependencies from any other
                     # module in our todo list, so the final result will
                     # only contain known modules
