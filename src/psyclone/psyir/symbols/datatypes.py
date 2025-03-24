@@ -99,6 +99,7 @@ class DataType(metaclass=abc.ABCMeta):
         :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+
     @property
     def is_allocatable(self) -> Union[bool, None]:
         '''

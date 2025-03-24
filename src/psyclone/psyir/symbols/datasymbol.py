@@ -212,8 +212,9 @@ class DataSymbol(TypedSymbol):
 
         '''
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import (Node, Literal, Operation, Reference,
-                                          CodeBlock, IntrinsicCall)
+        from psyclone.psyir.nodes import (
+            Assignment, Node, Literal, Operation, Reference,
+            CodeBlock, IntrinsicCall)
         from psyclone.psyir.symbols.datatypes import (ScalarType, ArrayType,
                                                       UnsupportedType)
 
@@ -271,7 +272,6 @@ class DataSymbol(TypedSymbol):
             # expression, enabling some functionality without special cases.
             # Note that the parent dangles on top of the init value, and is not
             # referenced directly from anywhere else.
-            from psyclone.psyir.nodes import Assignment
             parent = Assignment()
             parent.addchild(Reference(self))
             parent.addchild(new_initial_value)
@@ -357,6 +357,7 @@ class DataSymbol(TypedSymbol):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols.datatypes import ArrayType
 
         super().replace_symbols_using(table)

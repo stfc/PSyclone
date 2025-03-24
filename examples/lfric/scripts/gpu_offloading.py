@@ -77,7 +77,7 @@ def trans(psyir):
     otrans = Dynamo0p3OMPLoopTrans()
     const = LFRicConstants()
     cpu_parallel = OMPParallelTrans()
-    inline_trans = KernelModuleInlineTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
 
     if OFFLOAD_DIRECTIVES == "omp":
         # Use OpenMP offloading
@@ -140,7 +140,7 @@ def trans(psyir):
                 if offload:
                     for kern in loop.kernels():
                         try:
-                            inline_trans.apply(kern)
+                            mod_inline_trans.apply(kern)
                         except TransformationError as err:
                             print(f"Failed to module-inline '{kern.name}' due "
                                   f"to:\n{err.value}")
