@@ -92,7 +92,7 @@ def test_transformation_doc_wrapper_single_inheritence():
             '''
             pass
 
-        def apply(self, node, opt1: bool=False, opt2=None, **kwargs):
+        def apply(self, node, opt1: bool = False, opt2=None, **kwargs):
             '''
             Super apply docstring
 
@@ -110,7 +110,7 @@ def test_transformation_doc_wrapper_single_inheritence():
             '''
             pass
 
-        def apply(self, node, opt3: int=1, **kwargs):
+        def apply(self, node, opt3: int = 1, **kwargs):
             '''
             Sub apply docstring
 
@@ -158,7 +158,7 @@ def test_transformation_doc_wrapper_multi_inheritence():
             '''
             pass
 
-        def apply(self, node, opt1: bool=False, **kwargs):
+        def apply(self, node, opt1: bool = False, **kwargs):
             '''
             Super apply docstring
 
@@ -175,7 +175,7 @@ def test_transformation_doc_wrapper_multi_inheritence():
             '''
             pass
 
-        def apply(self, node, opt2: bool=False, **kwargs):
+        def apply(self, node, opt2: bool = False, **kwargs):
             '''
             Super apply docstring
 
@@ -191,7 +191,7 @@ def test_transformation_doc_wrapper_multi_inheritence():
             '''
             pass
 
-        def apply(self, node, opt3: int=1, **kwargs):
+        def apply(self, node, opt3: int = 1, **kwargs):
             '''
             Sub apply docstring
 
