@@ -1558,6 +1558,20 @@ def test_omp_target_directive_constructor_and_strings():
     assert target.begin_string() == "omp target nowait"
 
 
+def test_omp_target_nowait_getter_setter():
+    ''' Test the OMPTargetDirective nowait getter and setter. '''
+    target = OMPTargetDirective()
+    target.nowait = True
+    assert target.nowait
+    target.nowait = False
+    assert not target.nowait
+
+    with pytest.raises(TypeError) as excinfo:
+        target.nowait = 1
+    assert ("The OMPTargetDirective nowait clause must be a bool, "
+            "but value '1' has been given." in str(excinfo.value))
+
+
 # Test OMPDeclareTargetDirective
 
 def test_omp_declare_target_directive_constructor_and_strings(monkeypatch):

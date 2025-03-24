@@ -253,3 +253,44 @@ end subroutine x
     targettrans.apply(loops[1], options={"nowait": True})
     out = fortran_writer(psyir)
     assert "nowait" not in out
+
+    # Check private symbols are ignored
+    code = """
+    subroutine X()
+    integer :: i, j
+    integer, dimension(100) :: arr
+
+    do i = 1, 100
+        j = i*i
+        arr(i) = j
+    end do
+
+    do i = 1, 100
+        j = i
+    end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    targettrans = OMPTargetTrans()
+    targettrans.apply(loops[0], options={"nowait": True})
+    out = fortran_writer(psyir)
+
+    correct = """subroutine X()
+  integer :: i
+  integer :: j
+  integer, dimension(100) :: arr
+
+  !$omp target nowait
+  do i = 1, 100, 1
+    j = i * i
+    arr(i) = j
+  enddo
+  !$omp end target
+  do i = 1, 100, 1
+    j = i
+  enddo
+  !$omp taskwait
+
+end subroutine X
+"""
+    assert correct == out
