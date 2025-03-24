@@ -37,7 +37,11 @@
 
 import sys
 
-from psyclone.utils import within_virtual_env, a_or_an
+from psyclone.transformations import Transformation
+from psyclone.utils import (
+    within_virtual_env, a_or_an,
+    transformation_documentation_wrapper
+)
 
 
 def test_within_virtual_env(monkeypatch):
@@ -74,3 +78,134 @@ def test_a_or_an():
     # Test remaining vowels.
     for vowel in ["e", "o", "u"]:
         assert a_or_an(vowel) == "an"
+
+
+def test_transformation_doc_wrapper_single_inheritence():
+    '''Test the transformation_doc_wrapper.'''
+
+    # Create a base transformation class
+    class BaseTrans(Transformation):
+
+        def validate(self, node, opt1, opt2, **kwargs):
+            '''
+            Super validate docstring
+            '''
+            pass
+
+        def apply(self, node, opt1: bool=False, opt2=None, **kwargs):
+            '''
+            Super apply docstring
+
+            :param opt1: opt1 docstring.
+            :param opt2: opt2 docstring.
+            :type opt2: opt2 type.
+            '''
+            pass
+
+    class InheritingTrans(BaseTrans):
+
+        def validate(self, node, opt3, **kwargs):
+            '''
+            Sub validate docstring
+            '''
+            pass
+
+        def apply(self, node, opt3: int=1, **kwargs):
+            '''
+            Sub apply docstring
+
+            :param opt3: opt3 docstring.
+            '''
+            pass
+
+    assert "opt2" not in BaseTrans.validate.__doc__
+
+    transformation_documentation_wrapper(BaseTrans, inherit=False)
+
+    assert ":param bool opt1: opt1 docstring." in BaseTrans.validate.__doc__
+    assert ":param opt2: opt2 docstring." in BaseTrans.validate.__doc__
+    assert ":type opt2: opt2 type." in BaseTrans.validate.__doc__
+
+    assert "opt2" not in InheritingTrans.apply.__doc__
+    assert "opt3" not in InheritingTrans.validate.__doc__
+    transformation_documentation_wrapper(InheritingTrans, inherit=False)
+
+    assert (":param int opt3: opt3 docstring." in
+            InheritingTrans.validate.__doc__)
+
+    transformation_documentation_wrapper(InheritingTrans, inherit=True)
+
+    assert (":param bool opt1: opt1 docstring." in
+            InheritingTrans.validate.__doc__)
+    assert ":param opt2: opt2 docstring." in InheritingTrans.validate.__doc__
+    assert ":type opt2: opt2 type." in InheritingTrans.validate.__doc__
+    assert ":param bool opt1: opt1 docstring." in InheritingTrans.apply.__doc__
+    assert ":param opt2: opt2 docstring." in InheritingTrans.apply.__doc__
+    assert ":type opt2: opt2 type." in InheritingTrans.apply.__doc__
+
+    assert "Super apply docstring" not in InheritingTrans.apply.__doc__
+
+
+def test_transformation_doc_wrapper_multi_inheritence():
+    '''Test the transformation_doc_wrapper.'''
+
+    # Create a base transformation class
+    class BaseTrans1(Transformation):
+
+        def validate(self, node, opt1, **kwargs):
+            '''
+            Super validate docstring
+            '''
+            pass
+
+        def apply(self, node, opt1: bool=False, **kwargs):
+            '''
+            Super apply docstring
+
+            :param opt1: opt1 docstring.
+            '''
+            pass
+
+    # Create a base transformation class
+    class BaseTrans2(Transformation):
+
+        def validate(self, node, opt2, **kwargs):
+            '''
+            Super validate docstring
+            '''
+            pass
+
+        def apply(self, node, opt2: bool=False, **kwargs):
+            '''
+            Super apply docstring
+
+            :param bool opt2: opt2 docstring.
+            '''
+            pass
+
+    class InheritingTrans(BaseTrans1, BaseTrans2):
+
+        def validate(self, node, opt3, **kwargs):
+            '''
+            Sub validate docstring
+            '''
+            pass
+
+        def apply(self, node, opt3: int=1, **kwargs):
+            '''
+            Sub apply docstring
+
+            :param opt3: opt3 docstring.
+            '''
+            pass
+
+    transformation_documentation_wrapper(
+        InheritingTrans,
+        inherit=[BaseTrans1, BaseTrans2]
+    )
+    assert "param bool opt1: opt1 docstring." in InheritingTrans.apply.__doc__
+    assert "param bool opt2: opt2 docstring." in InheritingTrans.apply.__doc__
+    assert ("param bool opt1: opt1 docstring."
+            in InheritingTrans.validate.__doc__)
+    assert ("param bool opt2: opt2 docstring." in
+            InheritingTrans.validate.__doc__)

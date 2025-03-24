@@ -122,6 +122,10 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                                     f"for class '{cls.__name__}' as the "
                                     f"'{param_name}' arg has no known type."
                                 )
+                            # FIXME This needs to be if its in param_name_grp
+                            if type_string in param_line:
+                                added_docs += param_line
+                                break
                             # Add the type into the param string
                             param_index = line.index(":param")
                             param_line = (param_line[:param_index+7]
@@ -131,6 +135,8 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                         break
                     if ":type" in parent_lines[z]:
                         type_found = True
+                        stripped_line = param_line.lstrip()
+                        added_docs += 8*" " + stripped_line + os.linesep
                         stripped_line = parent_lines[z].lstrip()
                         added_docs += 8*" " + stripped_line + os.linesep
                     elif not parent_lines[z].isspace():
@@ -163,6 +169,10 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                                 f"for class '{cls.__name__}' as the "
                                 f"'{param_name}' arg has no known type."
                             )
+                        # FIXME This needs to be if its in param_name_grp
+                        if type_string in param_line:
+                            added_docs += param_line
+                            break
                         # Add the type into the param string
                         param_index = line.index(":param")
                         param_line = (param_line[:param_index+7]
@@ -177,6 +187,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         doc = func.__doc__
         # Find the last instance of :param or :type
         doc_lines = doc.splitlines()
+        last_instance = 0
         for i, line in enumerate(doc_lines):
             if ":param" in line or ":type" in line:
                 last_instance = i
@@ -206,7 +217,14 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         func.__doc__ = new_docs
 
     def wrapper():
-        if inherit:
+        if isinstance(inherit, list):
+            added_parameters = ""
+            for superclass in inherit:
+                added_parameters += get_inherited_parameters(
+                    superclass, cls.apply,
+                    superclass.apply
+                )
+        elif inherit:
             added_parameters = get_inherited_parameters(
                     cls.__mro__[1], cls.apply,
                     cls.__mro__[1].__dict__["apply"]
