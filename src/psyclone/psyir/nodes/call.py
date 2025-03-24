@@ -42,6 +42,7 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.container import Container
+from psyclone.psyir.nodes.file_container import FileContainer
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
@@ -501,14 +502,21 @@ class Call(Statement, DataNode):
         rsym = self.routine.symbol
         if rsym.is_unresolved:
 
-            # Check for any "raw" Routines, i.e. ones that are not
-            # in a Container.  Such Routines would exist in the PSyIR
-            # as a child of a FileContainer (if the PSyIR contains a
-            # FileContainer). Note, if the PSyIR does contain a
-            # FileContainer, it will be the root node of the PSyIR.
-            psyir = self.root.find_routine_psyir(rsym.name)
-            if psyir:
-                return [psyir]
+            # First check for any Routines in the same Container as this
+            # call (if it is inside a Container).
+            cntr = self.ancestor(Container, excluding=FileContainer)
+            if cntr:
+                psyir = cntr.find_routine_psyir(rsym.name)
+                if psyir:
+                    return [psyir]
+
+            # Next, check for any "raw" Routines, i.e. ones that are only
+            # in a FileContainer and not a Container.
+            fcntr = self.ancestor(FileContainer)
+            if fcntr:
+                psyir = fcntr.find_routine_psyir(rsym.name)
+                if psyir:
+                    return [psyir]
 
             # Now check for any wildcard imports and see if they can
             # be used to resolve the symbol.

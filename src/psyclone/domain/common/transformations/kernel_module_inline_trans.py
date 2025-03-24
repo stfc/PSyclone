@@ -404,7 +404,7 @@ class KernelModuleInlineTrans(Transformation):
         return (caller_name, routines[0])
 
     @staticmethod
-    def _rm_imported_routine_symbol(name, table):
+    def _rm_imported_routine_symbol(symbol, schedule, table):
         '''
         If the named symbol is in the supplied table (or an ancestor) *and* is
         an import then it is removed. If the Container from which it was being
@@ -416,8 +416,17 @@ class KernelModuleInlineTrans(Transformation):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        symbol = table.lookup(name, otherwise=None)
-        if not symbol or not symbol.is_import:
+        if symbol.is_unresolved:
+            cntr = schedule.ancestor(Container, excluding=FileContainer)
+            if cntr:
+                cntr_name = cntr.name
+                cntr_sym = table.lookup(cntr_name)
+                # Now we have a ContainerSymbol, we can change the
+                # interface of called_sym and proceed in exactly the
+                # same way as if it had been resolved originally.
+                symbol.interface = ImportInterface(cntr_sym)
+
+        if not symbol.is_import:
             return
 
         # The symbol is in the table (or an outer scope) and is
@@ -431,7 +440,8 @@ class KernelModuleInlineTrans(Transformation):
         # the symbol is imported.
         ctable = (csym.find_symbol_table(table.node) if
                   csym.name not in table else table)
-        remove_csym = ctable.symbols_imported_from(csym) == [symbol]
+        remove_csym = (ctable.symbols_imported_from(csym) == [symbol] and
+                       not csym.wildcard_import)
         if csym.wildcard_import:
             # The Routine is brought into scope via a wildcard import. We have
             # to rename it on import to avoid a clash with the newly inlined
@@ -441,18 +451,10 @@ class KernelModuleInlineTrans(Transformation):
             # help. The only solution to this is to rename the module-inlined
             # Routine (or proceed to fully inline it).
             KernelModuleInlineTrans._rename_import(ctable, csym, symbol.name)
-            # pylint:disable-next=protected-access
-            actual_table._symbols.pop(symbol.name.lower())
-        elif remove_csym:
-            # We have to force the removal as there will be calls that
-            # reference this Symbol. (These calls will subsequently be updated
-            # to refer to the Symbol of the inlined routine.)
-            # pylint:disable-next=protected-access
-            actual_table._symbols.pop(symbol.name.lower())
+        # pylint:disable-next=protected-access
+        actual_table._symbols.pop(symbol.name.lower())
+        if remove_csym:
             actual_table.remove(csym)
-        else:
-            # pylint:disable-next=protected-access
-            actual_table._symbols.pop(symbol.name.lower())
 
     @staticmethod
     def _rename_import(table, csym, name):
@@ -512,14 +514,14 @@ class KernelModuleInlineTrans(Transformation):
             KernelModuleInlineTrans._get_psyir_to_inline(node))
         callee_name = code_to_inline.name
         codes_to_inline = [code_to_inline]
-        local_table = node.scope.symbol_table
+        callsite_table = node.scope.symbol_table
 
         for routine in codes_to_inline:
             # N.B.in a PSyKAl DSL, we won't have a RoutineSymbol for the
             # Kernel that is being called.
-            local_sym = local_table.lookup(caller_name, otherwise=None)
-            if (not local_sym or local_sym is not routine.symbol or
-                    (local_sym.is_import or local_sym.is_unresolved)):
+            called_sym = callsite_table.lookup(caller_name, otherwise=None)
+            if (not called_sym or called_sym is not routine.symbol or
+                    (called_sym.is_import or called_sym.is_unresolved)):
                 # This routine is not module-inlined.
                 break
         else:
@@ -529,53 +531,49 @@ class KernelModuleInlineTrans(Transformation):
 
         # Deal with the RoutineSymbol that is in scope at the call site.
         sym_in_ctr = None
-        if local_sym and (local_sym.is_import or local_sym.is_unresolved):
-            local_table = local_sym.find_symbol_table(node)
-            # It may be that the RoutineSymbol is in fact only declared
-            # in the Container. If that's the case then we need to keep a
-            # reference to it so that we can update other Calls to it at the
-            # end of this method.
-            if isinstance(local_table.node, Container):
-                sym_in_ctr = local_sym
-            if local_sym.is_unresolved:
-                # If it's currently unresolved then we first update its
-                # interface prior to removing it.
-                cntr = code_to_inline.ancestor(Container,
-                                               excluding=FileContainer)
-                if cntr:
-                    cntr_name = cntr.name
-                    cntr_sym = local_table.lookup(cntr_name)
-                    # Now we have a ContainerSymbol, we can change the
-                    # interface of sym_in_ctr and proceed in exactly the
-                    # same way as if it had been resolved originally.
-                    local_sym.interface = ImportInterface(cntr_sym)
 
-            # We need to remove this local symbol.
-            self._rm_imported_routine_symbol(local_sym.name, local_table)
+        if called_sym and (called_sym.is_import or called_sym.is_unresolved):
+            table = called_sym.find_symbol_table(node)
+            if isinstance(table.node, Container):
+                # The RoutineSymbol is declared in the ancestor Container.
+                # Therefore, we need to keep a reference to it so that we can
+                # update any other Calls to it (at the end of this method).
+                sym_in_ctr = called_sym
+
+            self._rm_imported_routine_symbol(called_sym, code_to_inline,
+                                             table)
+
             # Double check that this import is not shadowing a routine we've
             # already module-inlined.
             outer_sym = None
-            if local_table.node.parent:
-                outer_table = local_table.node.parent.scope.symbol_table
-                outer_sym = outer_table.lookup(local_sym.name,
+            if table.node.parent:
+                # There is a scope outside the one that contained the
+                # RoutineSymbol.
+                outer_table = table.node.parent.scope.symbol_table
+                # Look to see whether it also contains a symbol matching
+                # the name of the called routine.
+                outer_sym = outer_table.lookup(called_sym.name,
                                                otherwise=None)
-            if outer_sym:
-                outer_table = outer_sym.find_symbol_table(
-                    local_table.node.parent)
-                if not isinstance(outer_table.node, FileContainer):
-                    # It is shadowing an outer symbol that is in a Container
-                    # (not a FileContainer) so we just need to update the call
-                    # to point to the outer symbol.
-                    node.routine.symbol = outer_sym
-                    if not (outer_sym.is_import or outer_sym.is_unresolved):
-                        # The outer symbol is local to this Container so
-                        # there's nothing else to do.
-                        return
+                if outer_sym:
+                    outer_table = outer_sym.find_symbol_table(
+                        table.node.parent)
+                    if not isinstance(outer_table.node, FileContainer):
+                        # It is shadowing an outer symbol that is in a
+                        # Container (not a FileContainer) so we just need to
+                        # update the call to point to the outer symbol.
+                        node.routine.symbol = outer_sym
+                        if not (outer_sym.is_import or
+                                outer_sym.is_unresolved):
+                            # The outer symbol is local to this Container so
+                            # there's nothing else to do.
+                            return
 
         updated_routines = self._prepare_code_to_inline(codes_to_inline)
 
         # Update the Kernel to point to the updated PSyIR.
         if isinstance(node, CodedKern):
+            # TODO #924 - this will need updating to support kernels with
+            # multiple schedules (mixed precision).
             # pylint: disable=protected-access
             node._kern_schedule = updated_routines[0]
             if callee_name != caller_name:
@@ -587,72 +585,61 @@ class KernelModuleInlineTrans(Transformation):
         for code_to_inline in updated_routines:
 
             # Does the Container already have this Routine?
-            if not sym_in_ctr:
-                # We only update sym_in_ctr if it hasn't already been set
-                # earlier when updating the 'local' symbol.
-                sym_in_ctr = container.symbol_table.lookup(
-                    code_to_inline.name,
-                    scope_limit=container,
-                    otherwise=None)
-
-            if not sym_in_ctr:
+            sym = container.symbol_table.lookup(
+                code_to_inline.name,
+                scope_limit=container,
+                otherwise=None)
+            if not sym:
                 # If it doesn't exist already, module-inline the subroutine by
-                # inserting the relevant code into the tree.
-                # We need to set the visibility of the routine's symbol to
-                # be private.
+                # inserting the relevant code into the tree. We need to set
+                # the visibility of the routine's symbol to be private.
                 sym = code_to_inline.symbol
                 sym.visibility = Symbol.Visibility.PRIVATE
                 container.addchild(code_to_inline.detach())
 
-            elif sym_in_ctr.is_import:
+            elif sym.is_import:
                 # The RoutineSymbol is imported into the table. We must
                 # therefore update its interface and potentially remove the
                 # ContainerSymbol (from which it is imported) altogether.
-                self._rm_imported_routine_symbol(sym_in_ctr.name,
+                self._rm_imported_routine_symbol(sym,
+                                                 code_to_inline,
                                                  container.symbol_table)
                 # Inline the code. This will automatically add the
                 # associated RoutineSymbol into the Container.
                 code_to_inline = code_to_inline.detach()
                 container.addchild(code_to_inline)
-                sym = container.symbol_table.lookup(code_to_inline.name)
-                sym.visibility = Symbol.Visibility.PRIVATE
+                newsym = container.symbol_table.lookup(code_to_inline.name)
+                newsym.visibility = Symbol.Visibility.PRIVATE
 
-            elif sym_in_ctr.is_unresolved:
+            elif sym.is_unresolved:
                 # The Symbol in the Container scope is unresolved. However,
                 # we've found the source so we now know where it comes from.
+                self._rm_imported_routine_symbol(sym,
+                                                 code_to_inline,
+                                                 container.symbol_table)
                 cntr = code_to_inline.ancestor(Container,
                                                excluding=FileContainer)
                 if cntr:
-                    # The symbol comes from a Container (not a FileContainer)
-                    # and so needs an import interface.
-                    cntr_name = cntr.name
-                    cntr_sym = container.symbol_table.lookup(cntr_name)
-                    # Now we have a ContainerSymbol, we can change the
-                    # interface of sym_in_ctr and proceed in exactly the
-                    # same way as if it had been resolved originally.
-                    sym_in_ctr.interface = ImportInterface(cntr_sym)
-                    self._rm_imported_routine_symbol(sym_in_ctr.name,
-                                                     container.symbol_table)
                     # Inline the code. This will automatically add the
                     # associated RoutineSymbol into the Container.
                     code_to_inline = code_to_inline.detach()
                     container.addchild(code_to_inline)
-                    sym = container.symbol_table.lookup(code_to_inline.name)
-                    sym.visibility = Symbol.Visibility.PRIVATE
-            else:
-                # The Routine is present in the Container.
-                sym = sym_in_ctr
+                    newsym = container.symbol_table.lookup(code_to_inline.name)
+                    newsym.visibility = Symbol.Visibility.PRIVATE
+
             # All Calls to a routine of the same name in the same scope as the
             # target node must refer to the same Symbol.
             target_name = sym.name.lower()
+            target_sym = node.scope.symbol_table.lookup(target_name)
             for call in node.ancestor(Routine).walk(Call):
                 name = call.routine.symbol.name.lower()
                 if name == target_name:
-                    call.routine.symbol = sym
+                    call.routine.symbol = target_sym
             # All Calls that referred to this Symbol must also be updated.
-            for call in container.walk(Call):
-                if call.routine.symbol is sym_in_ctr:
-                    call.routine.symbol = sym
+            if sym_in_ctr:
+                for call in container.walk(Call):
+                    if call.routine.symbol is sym_in_ctr:
+                        call.routine.symbol = target_sym
 
         # Set the module-inline flag to avoid generating the kernel imports
         # TODO #1823. If the kernel imports were generated at PSy-layer
