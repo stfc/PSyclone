@@ -696,21 +696,16 @@ class SymbolTable():
                 # location?
                 if this_sym.is_unresolved:
                     rsym = other_sym
-                    usym = this_sym
-                    utable = self
                     imports = self_imports
                 else:
                     rsym = this_sym
-                    usym = other_sym
-                    utable = other_table
                     imports = other_imports
                 if rsym.is_import:
+                    # The resolved symbol is an import (as opposed to being
+                    # local to one of the tables).
                     import_source = rsym.interface.container_symbol.name
                     if import_source in imports:
-                        # It is being imported from the same location so we can
-                        # update its interface.
-                        csym = utable.lookup(import_source)
-                        usym.interface = ImportInterface(csym)
+                        # It is being imported from the same location.
                         continue
 
                     raise SymbolError(
@@ -765,7 +760,7 @@ class SymbolTable():
                     outer_table.rename_symbol(outer_sym, next_name)
                     outer_table.add(csym)
                 else:
-                    # The symbol in an outer scope is also a
+                    # The symbol in an outer scope (outer_sym) is also a
                     # ContainerSymbol so must refer to the same Container.
                     # If there is a wildcard import from this Container
                     # then we update the one in the outer scope to have
@@ -1137,7 +1132,8 @@ class SymbolTable():
     def swap(self, old_symbol, new_symbol):
         '''
         Remove the `old_symbol` from the table and replace it with the
-        `new_symbol`.
+        `new_symbol`. Any references to `old_symbol` in the PSyIR tree
+        associated with this table (if any) will also be updated.
 
         :param old_symbol: the symbol to remove from the table.
         :type old_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -1160,6 +1156,7 @@ class SymbolTable():
                 f"'{old_symbol.name}' and '{new_symbol.name}'")
         self._replace_symbol_refs(old_symbol, new_symbol)
         if self.node:
+            # Update the PSyIR tree associated with this table.
             table = SymbolTable()
             table.add(new_symbol)
             self.node.replace_symbols_using(table)
@@ -1170,7 +1167,7 @@ class SymbolTable():
         '''
         Looks through all Symbols referenced in the *definitions* of the
         Symbols in this table and replaces any instances of `old_sym` with
-        `new_sym`.
+        `new_sym`. Both symbols must have the same name.
 
         Note, this method does not attempt to update any PSyIR tree that may
         be associated with this table. That should be done separately using
@@ -1179,11 +1176,16 @@ class SymbolTable():
         :param old_sym: the existing symbol to replace.
         :param new_sym: the replacement symbol.
 
+        :raises ValueError: if the two Symbols don't have the same name.
         :raises InternalError: if an access is found in an unexpected type
             of Node.
 
         '''
-        norm_name = SymbolTable._normalize(old_sym.name)
+        norm_name = self._normalize(old_sym.name)
+        if norm_name != self._normalize(new_sym.name):
+            raise ValueError(
+                f"_replace_symbol_refs(): the old and new Symbols must have "
+                f"the same name but got '{old_sym.name}' and '{new_sym.name}'")
         # pylint: disable=import-outside-toplevel
         from psyclone.core import Signature, VariablesAccessInfo
         from psyclone.psyir.nodes import CodeBlock, Literal, Reference
@@ -1208,7 +1210,8 @@ class SymbolTable():
                     Literal(access.node.value, newtype))
             elif isinstance(access.node, CodeBlock):
                 # Nothing to do here as a CodeBlock does not contain
-                # Symbols (just a parse tree).
+                # Symbols (just a parse tree) and the new Symbol must have the
+                # same name as the old one.
                 pass
             else:
                 raise InternalError(
@@ -1687,15 +1690,15 @@ class SymbolTable():
 
         :param csymbol: the ContainerSymbol from which to import.
         :param container: the PSyIR of the Container from which to import.
-        :type container: :py:class:`psyclone.psyir.nodes.ContainerNode`
+        :type container: :py:class:`psyclone.psyir.nodes.Container`
         :param symbol_target: optional, single symbol to attempt to import.
 
         :returns: the Symbols that have been added to this table.
 
         '''
-        # Set holding all Symbols that we succeed in importing.
-        imported_names = {}
         # Map from symbol name in source container to name at import site.
+        qualified_imported_names = {}
+        # Set holding all Symbols that we succeed in importing.
         imported_symbols = set()
         if not csymbol.wildcard_import:
             # The import from this Container is for certain, specific
@@ -1704,10 +1707,10 @@ class SymbolTable():
             for isym in self.symbols_imported_from(csymbol):
                 iname = self._normalize(isym.name)
                 if isym.interface.orig_name:
-                    imported_names[
+                    qualified_imported_names[
                         self._normalize(isym.interface.orig_name)] = iname
                 else:
-                    imported_names[iname] = iname
+                    qualified_imported_names[iname] = iname
 
         # Examine all Symbols defined within this external container
         for imported_sym in container.symbol_table.symbols:
@@ -1729,16 +1732,17 @@ class SymbolTable():
             norm_name = self._normalize(imported_sym.name)
 
             if (not csymbol.wildcard_import and
-                    norm_name not in imported_names):
+                    norm_name not in qualified_imported_names):
                 # This symbol is not being imported.
                 continue
 
             # Allow for symbol renaming on import:
             #   orig_name is the name of the symbol in the src Container;
             #   local_name is the name it has at the import site.
-            if imported_names and norm_name != imported_names[norm_name]:
+            if (qualified_imported_names and
+                    norm_name != qualified_imported_names[norm_name]):
                 orig_name = norm_name
-                local_name = imported_names[norm_name]
+                local_name = qualified_imported_names[norm_name]
             else:
                 orig_name = None
                 local_name = norm_name
@@ -1802,7 +1806,7 @@ class SymbolTable():
         '''
         Given a newly-resolved symbol, walk down through the scopes below
         the scope associated with this table and replace any instances of
-        a symbols that are now known to be this symbol.
+        symbols that are now known to be this symbol.
 
         :param symbol: the Symbol that has been resolved.
 

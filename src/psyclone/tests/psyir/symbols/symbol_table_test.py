@@ -655,6 +655,12 @@ def test_replace_symbol_refs(parser, monkeypatch):
     '''
     table = symbols.SymbolTable()
     oldie = symbols.DataSymbol("oldie", symbols.INTEGER_TYPE)
+    wrong = symbols.DataSymbol("wrong", symbols.INTEGER_TYPE)
+    # Should raise an error if the Symbol names don't match.
+    with pytest.raises(ValueError) as err:
+        table._replace_symbol_refs(oldie, wrong)
+    assert ("the old and new Symbols must have the same name but got 'oldie' "
+            "and 'wrong'" in str(err.value))
     # Should do nothing on an empty table.
     table._replace_symbol_refs(oldie, oldie.copy())
     table.add(oldie)
@@ -898,15 +904,10 @@ def test_check_for_clashes_shared_wildcard_import():
     table2.add(symbols.Symbol("things",
                               interface=symbols.UnresolvedInterface()))
     table3 = table2.deep_copy()
-    # There should be no clash and the symbol in table2 should now be
-    # resolved.
+    # There should be no clash.
     table1.check_for_clashes(table2)
-    assert (table2.lookup("things").interface.container_symbol.name ==
-            "really_wild")
     # It shouldn't matter which way round check_for_clashes is called.
     table3.check_for_clashes(table1)
-    assert (table2.lookup("things").interface.container_symbol.name ==
-            "really_wild")
 
 
 def test_check_for_clashes_no_shared_wildcard_imports():
