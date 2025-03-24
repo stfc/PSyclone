@@ -40,6 +40,7 @@
 
 import pytest
 
+from psyclone.core import Signature
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
@@ -276,3 +277,20 @@ undf_w3, map_w3(:,cell))
     CALL extract_psy_data % ProvideVariable("f1_data_post", f1_data)
     CALL extract_psy_data % PostEnd'''
     assert output in code
+
+
+def test_flatten_signature():
+    '''Tests that a user-defined type access is correctly converted
+    to a 'flattened' string.'''
+
+    new_name = ExtractNode._flatten_signature(Signature("a%b%c"))
+    assert new_name == "a_b_c"
+
+
+def test_flatten_reference_error():
+    '''Tests errors when flattening user defined symbols.'''
+
+    with pytest.raises(InternalError) as err:
+        ExtractNode._flatten_reference("NoUserType")
+    assert ("Unexpected type 'str' in _flatten_reference, it must be a "
+            "'StructureReference'" in str(err.value))

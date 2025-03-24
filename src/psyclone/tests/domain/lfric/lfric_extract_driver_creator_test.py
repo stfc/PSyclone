@@ -40,10 +40,8 @@
 import os
 import pytest
 
-from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
-from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
@@ -140,42 +138,6 @@ def test_lfric_driver_valid_unit_name():
 
 
 # ----------------------------------------------------------------------------
-def test_lfric_driver_flatten_signature():
-    '''Tests that a user-defined type access is correctly converted
-    to a 'flattened' string.'''
-
-    new_name = LFRicExtractDriverCreator._flatten_signature(Signature("a%b%c"))
-    assert new_name == "a_b_c"
-
-
-# ----------------------------------------------------------------------------
-def test_lfric_driver_get_proxy_mapping():
-    '''Tests that a kernel returns the right proxy mapping.'''
-
-    _, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
-                           dist_mem=False, idx=0)
-    driver_creator = LFRicExtractDriverCreator()
-
-    mapping = driver_creator._get_proxy_name_mapping(invoke.schedule)
-    assert mapping == ({'x_ptr_vector_proxy': 'x_ptr_vector',
-                        'self_vec_type_vector_proxy': 'self_vec_type_vector',
-                        'm1_proxy': 'm1',
-                        'm2_proxy': 'm2'})
-
-
-# ----------------------------------------------------------------------------
-def test_lfric_driver_flatten_reference_error():
-    '''Tests errors when flattening user defined symbols.'''
-    driver_creator = LFRicExtractDriverCreator()
-
-    with pytest.raises(InternalError) as err:
-        driver_creator._flatten_reference("NoUserType", symbol_table=None,
-                                          proxy_name_mapping={})
-    assert ("Unexpected type 'str' in _flatten_reference, it must be a "
-            "'StructureReference'" in str(err.value))
-
-
-# ----------------------------------------------------------------------------
 def test_lfric_driver_add_call(fortran_writer):
     '''Tests that adding a call detects errors and adds calls
     with and without parameters as expected.
@@ -267,13 +229,11 @@ def test_lfric_driver_simple_test():
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
-    print(psy.gen)
+    _ = psy.gen
 
     filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
-    print(driver)
-    # assert False
 
     for line in [
         "if (ALLOCATED(psydata_filename)) then",
@@ -374,19 +334,19 @@ def test_lfric_driver_field_arrays():
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("field", "array")})
-    # The extraction provides the array once, it is the responsibility
-    # of the extraction library to create the individual fields.
+    # The extraction provides each array individual fields.
     out = psy.gen
-    assert "ProvideVariable(\"chi\", chi)" in out
+    for idx in range(1, 4):
+        assert f"ProvideVariable(\"chi_{idx}_data\", chi_{idx}_data)" in out
 
     filename = "driver-field-array.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
     # Check that the driver reads the three individual fields
-    assert "ReadVariable('chi%1', chi_1_data)" in driver
-    assert "ReadVariable('chi%2', chi_2_data)" in driver
-    assert "ReadVariable('chi%3', chi_3_data)" in driver
+    assert "ReadVariable('chi_1_data', chi_1_data)" in driver
+    assert "ReadVariable('chi_2_data', chi_2_data)" in driver
+    assert "ReadVariable('chi_3_data', chi_3_data)" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
@@ -415,7 +375,6 @@ def test_lfric_driver_operator():
                   options={"create_driver": True,
                            "region_name": ("operator", "test")})
     out = psy.gen
-    print(out)
     # Check the structure members that are added for operators:
     assert ("mm_w3_proxy_ncell_3d = mm_w3_proxy%ncell_3d" in out)
     assert ("ProvideVariable(\"mm_w3_local_stencil\", "
@@ -448,46 +407,6 @@ def test_lfric_driver_operator():
     # does not need any of the infrastructure files
     build = Compile(".")
     build.compile_file("driver-operator-test.F90")
-
-
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
-def test_lfric_driver_removing_structure_data():
-    '''Check that array accesses correctly remove the `%data`(which would be
-    added for builtins using f1_proxy%data(df)). E.g. the following code needs
-    to be created:
-        do df = loop0_start, loop0_stop, 1
-            f2(df) = a + f1(df)
-        enddo
-    As opposed to a normal kernel (where the whole field is passed in),
-    here we need explicit array accesses.
-    '''
-
-    _, invoke = get_invoke("15.1.8_a_plus_X_builtin_array_of_fields.f90",
-                           API, dist_mem=False, idx=0)
-    ctu = CallTreeUtils()
-    read_write_info = ctu.get_in_out_parameters(invoke.schedule)
-    driver_creator = LFRicExtractDriverCreator()
-
-    driver = driver_creator.\
-        get_driver_as_string(invoke.schedule, read_write_info, "extract",
-                             "_post", region_name=("region", "name"))
-
-    assert "call extract_psy_data%ReadVariable('f1_data', f1_data)" in driver
-    assert ("call extract_psy_data%ReadVariable('f2_data_post', f2_data_post)"
-            in driver)
-    assert "ALLOCATE(f2_data, mold=f2_data_post)" in driver
-    assert "f2_data(df) = a + f1_data(df)" in driver
-    assert "compare('f2_data', f2_data, f2_data_post" in driver
-
-    for mod in ["read_kernel_data_mod", "constants_mod"]:
-        assert f"module {mod}" in driver
-        assert f"end module {mod}" in driver
-
-    # While the actual code is LFRic, the driver is stand-alone, and as such
-    # does not need any of the infrastructure files
-    build = Compile(".")
-    build.string_compiles(driver)
 
 
 # ----------------------------------------------------------------------------
@@ -550,27 +469,29 @@ def test_lfric_driver_field_array_write():
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
     code = psy.gen
-    # The variable coord is an output variable, but it still must
-    # be provided as input field (since a kernel might only write
-    # some parts of a field - e.g. most kernels won't update halo
-    # regions) to make sure a driver can reproduce the values
-    # of the elements that are not being updated. The extraction
-    # library will write these accesses as individual fields using
-    # the names "coord_post%1", ..., "coord_post%3"
-    assert "ProvideVariable(\"coord_post\", coord)" in code
-    # The variable coord is an output value, but we still need to
-    # provide its input value (in case of kernels that only updates
-    # partial fields)
-    assert "ProvideVariable(\"coord\", coord)" in code
+    for i in range(1, 4):
+        # The variable coord is an output variable, but it still must
+        # be provided as input field (since a kernel might only write
+        # some parts of a field - e.g. most kernels won't update halo
+        # regions) to make sure a driver can reproduce the values
+        # ProvideVariable("coord_1_data", coord_1_data)
+        # of the elements that are not being updated.
+        assert (f"ProvideVariable(\"coord_{i}_data\", coord_{i}_data)"
+                in code)
+        # The variable coord is an output value, but we still need to
+        # provide its input value (in case of kernels that only updates
+        # partial fields)
+        assert (f"ProvideVariable(\"coord_{i}_data_post\", coord_{i}_data)"
+                in code)
 
     filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
     for i in range(1, 4):
-        assert (f"ReadVariable('coord_post%{i}', coord_{i}_data_post)"
+        assert (f"ReadVariable('coord_{i}_data_post', coord_{i}_data_post)"
                 in driver)
-        assert (f"ReadVariable('coord%{i}', coord_{i}_data)"
+        assert (f"ReadVariable('coord_{i}_data', coord_{i}_data)"
                 in driver)
         assert (f"compare('coord_{i}_data', coord_{i}_data, "
                 f"coord_{i}_data_post)" in driver)
@@ -601,9 +522,12 @@ def test_lfric_driver_field_array_inc():
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
     code = psy.gen
-    assert 'ProvideVariable("chi", chi)' in code
+    print(code)
+    for idx in range(1, 4):
+        assert f'ProvideVariable("chi_{idx}_data", chi_{idx}_data)' in code
     assert 'ProvideVariable("f1_data", f1_data)' in code
-    assert 'ProvideVariable("chi_post", chi)' in code
+    for idx in range(1, 4):
+        assert f'videVariable("chi_{idx}_data_post", chi_{idx}_data)' in code
     assert 'ProvideVariable("f1_data_post", f1_data)' in code
 
     filename = "driver-field-test.F90"
@@ -611,12 +535,12 @@ def test_lfric_driver_field_array_inc():
         driver = my_file.read()
 
     assert "ReadVariable('f1_data', f1_data)" in driver
-    assert "ReadVariable('chi%1', chi_1_data)" in driver
-    assert "ReadVariable('chi%2', chi_2_data)" in driver
-    assert "ReadVariable('chi%3', chi_3_data)" in driver
-    assert "ReadVariable('chi_post%1', chi_1_data_post)" in driver
-    assert "ReadVariable('chi_post%2', chi_2_data_post)" in driver
-    assert "ReadVariable('chi_post%3', chi_3_data_post)" in driver
+    assert "ReadVariable('chi_1_data', chi_1_data)" in driver
+    assert "ReadVariable('chi_2_data', chi_2_data)" in driver
+    assert "ReadVariable('chi_3_data', chi_3_data)" in driver
+    assert "ReadVariable('chi_1_data_post', chi_1_data_post)" in driver
+    assert "ReadVariable('chi_2_data_post', chi_2_data_post)" in driver
+    assert "ReadVariable('chi_3_data_post', chi_3_data_post)" in driver
     assert "ReadVariable('f1_data_post', f1_data_post)" in driver
 
     # Check that the required modules are inlined
@@ -647,6 +571,7 @@ def test_lfric_driver_external_symbols():
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
     code = psy.gen
+    print(code)
     assert ('CALL extract_psy_data % PreDeclareVariable("'
             'module_var_a_post@module_with_var_mod", module_var_a)' in code)
     assert ('CALL extract_psy_data % ProvideVariable("'

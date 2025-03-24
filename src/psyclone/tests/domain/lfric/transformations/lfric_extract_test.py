@@ -649,7 +649,7 @@ undf_w2, map_w2(:,cell))
     CALL extract_psy_data % ProvideVariable("f3_data_post", f3_data)
     CALL extract_psy_data % PostEnd"""
 
-    assert output in code
+    assert output == code
 
     # TODO #706: Compilation for LFRic extraction not supported yet.
     # assert LFRicBuild(tmpdir).code_compiles(psy)
