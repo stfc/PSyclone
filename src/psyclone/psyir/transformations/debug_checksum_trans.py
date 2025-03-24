@@ -84,7 +84,7 @@ class DebugChecksumTrans(RegionTrans):
       enddo
       PSYCLONE_INTERNAL_line_ = __LINE__
       PRINT *, "checksums from mysubroutine at line:", PSYCLONE_INTERNAL_line_\
-+ 1 
++ 1
       PRINT *, "a checksum", SUM(a)
     <BLANKLINE>
     end subroutine mysubroutine
