@@ -53,7 +53,8 @@ from psyclone.psyir.transformations.arrayaccess2loop_trans import \
     ArrayAccess2LoopTrans
 from psyclone.psyir.transformations.arrayassignment2loops_trans import \
     ArrayAssignment2LoopsTrans
-from psyclone.psyir.transformations.checksum_trans import ChecksumTrans
+from psyclone.psyir.transformations.debug_checksum_trans import \
+    DebugChecksumTrans
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
@@ -120,7 +121,7 @@ __all__ = [
     "AllArrayAccess2LoopTrans",
     "ArrayAccess2LoopTrans",
     "ArrayAssignment2LoopsTrans",
-    "ChecksumTrans",
+    "DebugChecksumTrans",
     "ChunkLoopTrans",
     "ExtractTrans",
     "FoldConditionalReturnExpressionsTrans",

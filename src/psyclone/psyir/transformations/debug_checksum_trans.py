@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author  A. B. G. Chalk, STFC Daresbury Lab
 
-'''This module contains the ChecksumTrans class.'''
+'''This module contains the DebugChecksumTrans class.'''
 
 from typing import Union, List
 
@@ -45,7 +45,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, \
         PreprocessorInterface
 
 
-class ChecksumTrans(RegionTrans):
+class DebugChecksumTrans(RegionTrans):
     '''
     Creates a set of checksums (written via print) for all written to arrays
     inside the provided region.
@@ -54,7 +54,7 @@ class ChecksumTrans(RegionTrans):
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.backend.fortran import FortranWriter
-    >>> from psyclone.transformations import ChecksumTrans
+    >>> from psyclone.transformations import DebugChecksumTrans
 
     >>> psyir = FortranReader().psyir_from_source("""
     ...     subroutine mysubroutine()
@@ -69,7 +69,7 @@ class ChecksumTrans(RegionTrans):
     ...     end subroutine
     ...     """)
     ... loop = psyir.children[0].children[0]
-    ... ChecksumTrans().apply(loop)
+    ... DebugChecksumTrans().apply(loop)
     ... print(FortranWriter()(psyir))
     subroutine mysubroutine()
       integer, dimension(10,10) :: a
@@ -83,7 +83,8 @@ class ChecksumTrans(RegionTrans):
         enddo
       enddo
       PSYCLONE_INTERNAL_line_ = __LINE__
-      PRINT *, "checksums from mysubroutine at line:", PSYCLONE_INTERNAL_line_
+      PRINT *, "checksums from mysubroutine at line:", PSYCLONE_INTERNAL_line_\
++ 1 
       PRINT *, "a checksum", SUM(a)
     <BLANKLINE>
     end subroutine mysubroutine
@@ -151,7 +152,7 @@ class ChecksumTrans(RegionTrans):
         explanation_statement = freader.psyir_from_statement(
                 f'print *, "checksums from '
                 f'{node_list[0].ancestor(Routine).name} at line:"'
-                f', PSYCLONE_INTERNAL_line_',
+                f', PSYCLONE_INTERNAL_line_ + 1',
                 node_list[0].ancestor(Routine).symbol_table
                 )
         # Remove the comment about this being a code block.

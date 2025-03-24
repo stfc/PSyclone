@@ -34,9 +34,9 @@
 # Author A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the tests for the ChecksumTrans.'''
+''' This module contains the tests for the DebugChecksumTrans.'''
 
-from psyclone.psyir.transformations import ChecksumTrans
+from psyclone.psyir.transformations import DebugChecksumTrans
 
 
 def test_checksum(fortran_reader, fortran_writer):
@@ -56,7 +56,7 @@ def test_checksum(fortran_reader, fortran_writer):
 
     psyir = fortran_reader.psyir_from_source(code)
 
-    ChecksumTrans().apply(psyir.children[0].children[0])
+    DebugChecksumTrans().apply(psyir.children[0].children[0])
 
     correct = """subroutine test()
   integer, dimension(100) :: a
@@ -71,7 +71,7 @@ def test_checksum(fortran_reader, fortran_writer):
     b(i) = 2 * i
   enddo
   PSYCLONE_INTERNAL_line_ = __LINE__
-  PRINT *, "checksums from test at line:", PSYCLONE_INTERNAL_line_
+  PRINT *, "checksums from test at line:", PSYCLONE_INTERNAL_line_ + 1
   PRINT *, "b checksum", SUM(b)
   PRINT *, "a checksum", SUM(a)
 
@@ -91,7 +91,7 @@ end subroutine test
     """
     psyir = fortran_reader.psyir_from_source(code)
 
-    ChecksumTrans().apply(psyir.children[0].children[:])
+    DebugChecksumTrans().apply(psyir.children[0].children[:])
 
     correct = """subroutine test()
   integer, dimension(100) :: a
@@ -101,7 +101,7 @@ end subroutine test
   a(:) = 1
   b(:) = 2
   PSYCLONE_INTERNAL_line_ = __LINE__
-  PRINT *, "checksums from test at line:", PSYCLONE_INTERNAL_line_
+  PRINT *, "checksums from test at line:", PSYCLONE_INTERNAL_line_ + 1
   PRINT *, "b checksum", SUM(b)
   PRINT *, "a checksum", SUM(a)
 
