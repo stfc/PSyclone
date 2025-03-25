@@ -135,10 +135,6 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
         array_datatype = CommonArgMetadata.get_arg(
             fparser2_tree, cls.array_ndims_arg_index)
         array_ndims = array_datatype.strip()
-        if not isinstance(array_ndims, str):
-            raise TypeError(f"The number of dimensions of a scalar array "
-                            f"should be of type str, but found "
-                            f"'{type(array_ndims).__name__}'.")
         try:
             int_value = int(array_ndims)
         except ValueError as info:

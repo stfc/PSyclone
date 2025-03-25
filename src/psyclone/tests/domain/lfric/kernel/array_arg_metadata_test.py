@@ -58,17 +58,6 @@ def test_create(datatype, access, array_ndims):
     assert array_arg.array_ndims == "1"
 
 
-# def test_init_invalid_an():
-#     '''Test that an invalid array_size supplied to the constructor
-#     raises the expected exception.
-
-#     '''
-#     with pytest.raises(TypeError) as info:
-#         _ = ScalarArrayArgMetadata("GH_REAL", "GH_READ", None)
-#     assert ("The number of dimensions of a scalar array should be of type "
-#             "str, but found 'NoneType'." in str(info.value))
-
-
 @pytest.mark.parametrize("metadata",
                          ["arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 2)"])
 def test_get_metadata(metadata):
