@@ -35,8 +35,10 @@
 
 '''This module implements tests for the generic utility functions.'''
 
+import pytest
 import sys
 
+from psyclone.errors import InternalError
 from psyclone.transformations import Transformation
 from psyclone.utils import (
     within_virtual_env, a_or_an,
@@ -90,7 +92,6 @@ def test_transformation_doc_wrapper_single_inheritence():
             '''
             Super validate docstring
             '''
-            pass
 
         def apply(self, node, opt1: bool = False, opt2=None, **kwargs):
             '''
@@ -100,7 +101,6 @@ def test_transformation_doc_wrapper_single_inheritence():
             :param opt2: opt2 docstring.
             :type opt2: opt2 type.
             '''
-            pass
 
     class InheritingTrans(BaseTrans):
 
@@ -108,7 +108,6 @@ def test_transformation_doc_wrapper_single_inheritence():
             '''
             Sub validate docstring
             '''
-            pass
 
         def apply(self, node, opt3: int = 1, **kwargs):
             '''
@@ -116,7 +115,6 @@ def test_transformation_doc_wrapper_single_inheritence():
 
             :param opt3: opt3 docstring.
             '''
-            pass
 
     assert "opt2" not in BaseTrans.validate.__doc__
 
@@ -156,7 +154,6 @@ def test_transformation_doc_wrapper_multi_inheritence():
             '''
             Super validate docstring
             '''
-            pass
 
         def apply(self, node, opt1: bool = False, **kwargs):
             '''
@@ -164,7 +161,6 @@ def test_transformation_doc_wrapper_multi_inheritence():
 
             :param opt1: opt1 docstring.
             '''
-            pass
 
     # Create a base transformation class
     class BaseTrans2(Transformation):
@@ -173,7 +169,6 @@ def test_transformation_doc_wrapper_multi_inheritence():
             '''
             Super validate docstring
             '''
-            pass
 
         def apply(self, node, opt2: bool = False, **kwargs):
             '''
@@ -181,7 +176,6 @@ def test_transformation_doc_wrapper_multi_inheritence():
 
             :param bool opt2: opt2 docstring.
             '''
-            pass
 
     class InheritingTrans(BaseTrans1, BaseTrans2):
 
@@ -189,7 +183,6 @@ def test_transformation_doc_wrapper_multi_inheritence():
             '''
             Sub validate docstring
             '''
-            pass
 
         def apply(self, node, opt3: int = 1, **kwargs):
             '''
@@ -197,7 +190,6 @@ def test_transformation_doc_wrapper_multi_inheritence():
 
             :param opt3: opt3 docstring.
             '''
-            pass
 
     transformation_documentation_wrapper(
         InheritingTrans,
@@ -209,3 +201,187 @@ def test_transformation_doc_wrapper_multi_inheritence():
             in InheritingTrans.validate.__doc__)
     assert ("param bool opt2: opt2 docstring." in
             InheritingTrans.validate.__doc__)
+
+def test_transformation_doc_wrapper_no_docstring():
+    '''
+    Test the transformation doc wrapper doesn't break when there are no
+    docstrings or arguments.
+    '''
+
+    # No docstrings so need pass and coverage of pass...
+    class BaseTrans(Transformation):
+
+        def apply(self, node, **kwargs):
+            pass
+
+        def validate(self, node):
+            pass
+
+    class InheritingTrans(BaseTrans):
+
+        def validate(self, node):
+            pass
+
+        def apply(self, node, **kwargs):
+            pass
+
+
+    transformation_documentation_wrapper(
+            InheritingTrans,
+            inherit=True
+    )
+ 
+    # Need coverage for BaseTrans
+    instance = BaseTrans()
+    instance.validate(None)
+    instance.apply(None)
+
+    # Need coverage for InheritingTrans
+    instance = InheritingTrans()
+    instance.validate(None)
+    instance.apply(None)
+
+
+def test_transformation_doc_wrapper_errors():
+    '''
+    Test the transformation doc wrapper raised errors.
+    '''
+
+    class BaseTrans(Transformation):
+
+        def validate(self, node, opt1, opt2, **kwargs):
+            '''
+            Super validate docstring
+            '''
+
+        def apply(self, node, opt1: bool = False, opt2=None, **kwargs):
+            '''
+            Super apply docstring
+
+            :param opt9: opt9 docstring.
+            :param opt2: opt2 docstring.
+            :type opt2: opt2 type.
+            '''
+
+    class InheritingTrans(BaseTrans):
+
+        def validate(self, node, opt3, **kwargs):
+            '''
+            Sub validate docstring
+            '''
+
+        def apply(self, node, opt3: int = 1, **kwargs):
+            '''
+            Sub apply docstring
+
+            :param opt3: opt3 docstring.
+            '''
+
+    with pytest.raises(InternalError) as excinfo:
+        transformation_documentation_wrapper(InheritingTrans, inherit=True)
+    assert ("Invalid documentation found when generating inherited "
+            "documentation for class 'BaseTrans'." in str(excinfo.value))
+
+    class BaseTrans(Transformation):
+
+        def validate(self, node, opt1, opt2, **kwargs):
+            '''
+            Super validate docstring
+            '''
+
+        def apply(self, node, opt1: bool = False, opt2=None, **kwargs):
+            '''
+            Super apply docstring
+
+            :param opt1: opt1 docstring.
+            :param opt2: opt2 docstring.
+            '''
+
+    class InheritingTrans(BaseTrans):
+
+        def validate(self, node, opt3, **kwargs):
+            '''
+            Sub validate docstring
+            '''
+
+        def apply(self, node, opt3: int = 1, **kwargs):
+            '''
+            Sub apply docstring
+
+            :param opt3: opt3 docstring.
+            '''
+
+    with pytest.raises(InternalError) as excinfo:
+        transformation_documentation_wrapper(InheritingTrans, inherit=True)
+    assert ("Invalid documentation found when generating inherited "
+            "documentation for class 'BaseTrans' as the 'opt2' arg has no "
+            "known type." in str(excinfo.value))
+
+    class BaseTrans(Transformation):
+
+        def validate(self, node, opt1, opt2, **kwargs):
+            '''
+            Super validate docstring
+            '''
+
+        def apply(self, node, opt1: bool = False, opt2=None, **kwargs):
+            '''
+            Super apply docstring
+
+            :param opt2: opt2 docstring.
+            :type opt2: opt2 type.
+            :param opt9: opt9 docstring.
+            '''
+
+    class InheritingTrans(BaseTrans):
+
+        def validate(self, node, opt3, **kwargs):
+            '''
+            Sub validate docstring
+            '''
+
+        def apply(self, node, opt3: int = 1, **kwargs):
+            '''
+            Sub apply docstring
+
+            :param opt3: opt3 docstring.
+            '''
+    with pytest.raises(InternalError) as excinfo:
+        transformation_documentation_wrapper(InheritingTrans, inherit=True)
+    assert ("Invalid documentation found when generating inherited "
+            "documentation for class 'BaseTrans'." in str(excinfo.value))
+
+    class BaseTrans(Transformation):
+
+        def validate(self, node, opt1, opt2, **kwargs):
+            '''
+            Super validate docstring
+            '''
+
+        def apply(self, node, opt1: bool = False, opt2=None, **kwargs):
+            '''
+            Super apply docstring
+
+            :param opt2: opt2 docstring.
+            :param opt9: opt9 docstring.
+            '''
+
+    class InheritingTrans(BaseTrans):
+
+        def validate(self, node, opt3, **kwargs):
+            '''
+            Sub validate docstring
+            '''
+
+        def apply(self, node, opt3: int = 1, **kwargs):
+            '''
+            Sub apply docstring
+
+            :param opt3: opt3 docstring.
+            '''
+
+    with pytest.raises(InternalError) as excinfo:
+        transformation_documentation_wrapper(InheritingTrans, inherit=True)
+    assert ("Invalid documentation found when generating inherited "
+            "documentation for class 'BaseTrans' as the 'opt2' arg has no "
+            "known type." in str(excinfo.value))

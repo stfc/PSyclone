@@ -186,7 +186,10 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
     def update_func_docstring(func, added_parameters):
         doc = func.__doc__
         # Find the last instance of :param or :type
-        doc_lines = doc.splitlines()
+        if doc is not None:
+            doc_lines = doc.splitlines()
+        else:
+            doc_lines = []
         last_instance = 0
         for i, line in enumerate(doc_lines):
             if ":param" in line or ":type" in line:
@@ -203,7 +206,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                     else:
                         break
         new_docs = ""
-        for i in range(last_instance+1):
+        for i in range(min(last_instance+1, len(doc_lines))):
             new_docs += doc_lines[i] + os.linesep
         # Remove any trailing whitespace, then add a newline
         new_docs = new_docs.rstrip() + os.linesep
