@@ -202,6 +202,7 @@ def test_transformation_doc_wrapper_multi_inheritence():
     assert ("param bool opt2: opt2 docstring." in
             InheritingTrans.validate.__doc__)
 
+
 def test_transformation_doc_wrapper_no_docstring():
     '''
     Test the transformation doc wrapper doesn't break when there are no
@@ -225,12 +226,11 @@ def test_transformation_doc_wrapper_no_docstring():
         def apply(self, node, **kwargs):
             pass
 
-
     transformation_documentation_wrapper(
             InheritingTrans,
             inherit=True
     )
- 
+
     # Need coverage for BaseTrans
     instance = BaseTrans()
     instance.validate(None)
