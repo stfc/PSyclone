@@ -85,13 +85,15 @@ directly-addressed MPI applications such as the
     :caption: Developer Guide
 
     developer_guide/index
-	
-.. toctree::
-    :maxdepth: 1
-    :hidden:
-    :caption: Reference Guide
 
-    reference_guide/index.rst
+.. only:: html
+
+    .. toctree::
+        :maxdepth: 1
+        :hidden:
+        :caption: Reference Guide
+
+        reference_guide/index.rst
     
 .. toctree::
     :maxdepth: 1

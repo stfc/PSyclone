@@ -38,15 +38,3 @@ User Guide
     psy_data
     profiling
     psyke
-
-
-.. when generating latex the index and module index are generated
-   automatically and the entries below are rendered as plain text.
-.. only:: html
-	  
-    Indices and tables
-    ==================
-
-    * :ref:`genindex`
-    * :ref:`modindex`
-    * :ref:`search`

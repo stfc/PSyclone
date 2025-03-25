@@ -152,7 +152,7 @@ libraries that come with PSyclone:
 Any user can create similar wrapper libraries for
 other profiling tools by providing a corresponding Fortran
 module. The functions that need to be implemented are described in
-the developer's guide (:ref:`devguide_psy_data`).
+the Developer Guide (:ref:`devguide_psy_data`).
 
 Most libraries in ``lib/profiling`` need to be linked in
 with the corresponding 3rd party profiling tool, or use a compiler
