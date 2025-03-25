@@ -61,9 +61,9 @@ def test_datatype():
     # was plural. Python >= 3.12 tweaks the error message yet again to mention
     # the lack of an implementation and to quote the method name.
     # We split the check to accomodate for this.
-    assert ("Can't instantiate abstract class DataType with" in msg)
-    assert ("abstract method" in msg)
-    assert ("__str__" in msg)
+    assert "Can't instantiate abstract class DataType with" in msg
+    assert "abstract method" in msg
+    assert "__str__" in msg
 
 
 # UnresolvedType class
@@ -77,6 +77,12 @@ def test_unresolvedtype_str():
     '''Test that the UnresolvedType class str method works as expected.'''
     data_type = UnresolvedType()
     assert str(data_type) == "UnresolvedType"
+
+
+def test_unresolvedtype_is_allocatable():
+    '''Test that the UnresolvedType class' is_allocatable property works.'''
+    data_type = UnresolvedType()
+    assert data_type.is_allocatable is None
 
 
 def test_unresolvedtype_eq():
@@ -105,6 +111,13 @@ def test_notype():
     assert str(data_type) == "NoType"
 
 
+def test_notype_is_allocatable():
+    ''' Check that the NoType class is not allocatable'''
+    data_type = NoType()
+    assert isinstance(data_type, NoType)
+    assert data_type.is_allocatable is False
+
+
 def test_notype_eq():
     '''Test the equality operator of NoType.'''
     notype1 = NoType()
@@ -126,7 +139,8 @@ def test_notype_eq():
 def test_scalartype_enum_precision(intrinsic, precision):
     '''Test that the ScalarType class can be created successfully for all
     supported ScalarType intrinsics and all supported enumerated precisions.
-    Also test that two such types are equal.
+    Also test that two such types are equal, and that is_allocatable
+    works as expected.
 
     '''
     scalar_type = ScalarType(intrinsic, precision)
@@ -135,6 +149,7 @@ def test_scalartype_enum_precision(intrinsic, precision):
     assert scalar_type.precision == precision
     scalar_type2 = ScalarType(intrinsic, precision)
     assert scalar_type == scalar_type2
+    assert scalar_type.is_allocatable is False
 
 
 @pytest.mark.parametrize("precision", [1, 8, 16])
@@ -361,11 +376,13 @@ def test_arraytype():
         scalar_type, [ArrayType.Extent.DEFERRED,
                       ArrayType.Extent.DEFERRED])
     assert array_type.shape[1] == ArrayType.Extent.DEFERRED
+    assert array_type.is_allocatable
     # Provided as an attribute extent
     array_type = ArrayType(
         scalar_type, [ArrayType.Extent.ATTRIBUTE,
                       (2, ArrayType.Extent.ATTRIBUTE)])
     assert array_type.shape[1].upper == ArrayType.Extent.ATTRIBUTE
+    assert array_type.is_allocatable is False
 
 
 def test_arraytype_invalid_datatype():
@@ -415,6 +432,8 @@ def test_arraytype_unsupportedtype():
     # Since no partial datatype is provided, these return None
     assert utype.partial_datatype is None
     assert utype.intrinsic is None
+    # Test the allocatable flag
+    assert utype.is_allocatable is None
 
 
 def test_arraytype_invalid_shape():
@@ -816,6 +835,35 @@ def test_unsupported_fortran_type_eq():
             UnsupportedFortranType("save :: blue_blood"))
 
 
+def test_unsupported_fortran_type_is_allocatable(fortran_reader):
+    '''Test the is_allocatable() method of UnsupportedFortranType.'''
+    code = '''
+    subroutine test
+      use some_mod, only: some_type, start, stop
+      integer, parameter :: nelem = 4
+      type(some_type), pointer :: var(nelem), var2(start:stop)
+      type(some_type), target, allocatable :: var_alloc(:)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    vsym = routine.symbol_table.lookup("var")
+    # Make sure we do indeed test the UnsupportedFortranType
+    assert isinstance(vsym.datatype, UnsupportedFortranType)
+    assert vsym.datatype.is_allocatable is False
+
+    # Now test an allocatable array in an UnsupportedFortranType:
+    vsym_alloc = routine.symbol_table.lookup("var_alloc")
+    # Make sure we do indeed test the UnsupportedFortranType
+    assert isinstance(vsym_alloc.datatype, UnsupportedFortranType)
+    assert vsym_alloc.datatype.is_allocatable
+
+    # Check the behaviour if partial_datatype is None
+    unsup_type = UnsupportedFortranType("some_declaration",
+                                        partial_datatype=None)
+    assert unsup_type.is_allocatable is None
+
+
 def test_unsupported_fortran_type_copy(fortran_reader):
     '''Test the copy() method of UnsupportedFortranType.'''
     code = '''
@@ -846,8 +894,8 @@ def test_unsupported_fortran_type_copy(fortran_reader):
     # The intrinsic type of the partial type should also be the same Symbol
     # in both cases.
     stype = routine.symbol_table.lookup("some_type")
-    assert vtype.partial_datatype.intrinsic is stype
-    assert cpytype.partial_datatype.intrinsic is stype
+    assert vtype.intrinsic is stype
+    assert cpytype.intrinsic is stype
     # Repeat check when array lower bound is also a Reference.
     var2 = routine.symbol_table.lookup("var2")
     v2type = var2.datatype
@@ -941,6 +989,7 @@ def test_structure_type():
         stype.add("hello", stype, Symbol.Visibility.PUBLIC, None)
     assert ("attempting to add component 'hello' - a StructureType definition "
             "cannot be recursive" in str(err.value))
+    assert stype.is_allocatable is False
 
 
 def test_create_structuretype():

@@ -423,7 +423,7 @@ def test_validate_checks_for_side_effects(fortran_reader):
             myfunc = a
         end function
         subroutine test()
-          use other
+          integer :: zanm
           do i=1,10
               zanm = myfunc(3)
           enddo

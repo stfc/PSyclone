@@ -576,8 +576,7 @@ class FortranWriter(LanguageWriter):
         datatype = gen_datatype(symbol.datatype, symbol.name)
         result += f"{self._nindent}{datatype}"
 
-        if ArrayType.Extent.DEFERRED in array_shape:
-            # A 'deferred' array extent means this is an allocatable array
+        if array_shape and symbol.datatype.is_allocatable:
             result += ", allocatable"
 
         # Specify Fortran attributes
@@ -1675,14 +1674,11 @@ class FortranWriter(LanguageWriter):
         result = f"{self._nindent}!${node.begin_string()}"
 
         clause_list = []
-        # Currently no standalone directives have clauses associated
-        # so this code is left commented out. If a standalone directive
-        # is added with clauses, this should be added in.
-        # for clause in node.clauses:
-        #     clause_list.append(self._visit(clause))
+        for clause in node.clauses:
+            clause_list.append(self._visit(clause))
         # Add a space only if there are clauses
-        # if len(clause_list) > 0:
-        #     result = result + " "
+        if len(clause_list) > 0:
+            result = result + " "
         result = result + ", ".join(clause_list)
         result = result + "\n"
 
