@@ -141,11 +141,13 @@ def trans(psyir):
                     for kern in loop.kernels():
                         try:
                             mod_inline_trans.apply(kern)
+                            print(f"Module-inlined kernel '{kern.name}'")
                         except TransformationError as err:
                             print(f"Failed to module-inline '{kern.name}' due "
                                   f"to:\n{err.value}")
                         try:
                             gpu_annotation_trans.apply(kern)
+                            print(f"Annotated kernel '{kern.name}'")
                         except TransformationError as err:
                             failed_to_offload.add(kern.name.lower())
                             print(f"Failed to annotate '{kern.name}' with "
@@ -199,3 +201,5 @@ def trans(psyir):
                 if loop.loop_type not in ["colours", "null"]:
                     cpu_parallel.apply(loop)
                     otrans.apply(loop, options={"reprod": True})
+                    kernel_names = [kn.name for kn in loop.kernels()]
+                    print(f"Added OMP threading to loop with {kernel_names}")
