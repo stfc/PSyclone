@@ -376,7 +376,7 @@ Extraction Libraries
 --------------------
 PSyclone comes with three extraction libraries:
 
-- one is based on NetCDF and will create NetCDF files to contain all input- and
+- one is based on NetCDF and will create NetCDF files which contain all input- and
   output-parameters.
 - the second one is a stand-alone library which uses only standard unformatted
   Fortran binary IO to write and read kernel data. The binary files produced using
@@ -518,11 +518,11 @@ optimisation of a stand-alone kernel.
 
 .. warning:: Care has to be taken that the driver matches the version
     of the code that was used to create the output file, otherwise the
-    driver will likely crash. The stand-alone driver relies on a
-    strict ordering of variable values in the output file and e.g.
-    even renaming one variable can affect this. The NetCDF version
-    stores the variable names and will not be able to find a variable
-    if its name has changed.
+    driver will likely crash. The stand-alone drivers (both ASCII and
+    binary) rely on a strict ordering of variable values in the output
+    file and e.g. even renaming one variable can affect this. The NetCDF
+    version stores the variable names and will not be able to find a
+    variable if its name has changed.
 
 The LFRic kernel driver will inline all required external modules into the
 driver. It uses a ``ModuleManager`` to find the required modules, based on the
