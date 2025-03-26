@@ -72,6 +72,18 @@ def a_or_an(string):
     return "a"
 
 
+def stringify_annotation(annotation) -> str:
+    ''' Simple PSyclone method to turn a Python type annotation to a string
+    when sphinx is not available.
+
+    :param annotation: The type annotation to convert to a string.
+    :type annotation: TypeAliasType
+
+    :returns: The string representation of annotation.
+    '''
+    return str(annotation)
+
+
 def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
     def get_inherited_parameters(cls, func, inheriting_func):
         docs = func.__doc__

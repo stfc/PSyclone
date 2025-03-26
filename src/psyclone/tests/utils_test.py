@@ -35,14 +35,18 @@
 
 '''This module implements tests for the generic utility functions.'''
 
+import inspect
 import pytest
 import sys
+
+from typing import Union
 
 from psyclone.errors import InternalError
 from psyclone.transformations import Transformation
 from psyclone.utils import (
     within_virtual_env, a_or_an,
-    transformation_documentation_wrapper
+    transformation_documentation_wrapper,
+    stringify_annotation,
 )
 
 
@@ -385,3 +389,22 @@ def test_transformation_doc_wrapper_errors():
     assert ("Invalid documentation found when generating inherited "
             "documentation for class 'BaseTrans' as the 'opt2' arg has no "
             "known type." in str(excinfo.value))
+
+
+def test_stringify_annotation():
+    '''Test the stringify_annotation method does as expected.'''
+    def func(temp: bool, temp2: Union[bool, int]):
+        ''' Test function for annotations.'''
+
+    signature = inspect.signature(func)
+    for k, v in signature.parameters.items():
+        # For first parameter temp
+        if "temp" == k:
+            anno = stringify_annotation(v.annotation)
+            assert "<class 'bool'>" == anno
+
+        # For second parameter temp2
+        if "temp2" == k:
+            anno = stringify_annotation(v.annotation)
+            assert "typing.Union[bool, int]" == anno
+
