@@ -522,8 +522,8 @@ class ModuleManager:
         # list of the dependencies and is returned as result:
         module_dependencies = OrderedDict()
 
-        # Work on a copy to avoid modifying the caller's set:
-        todo = all_mod_names.copy()
+        # Work on a copy to avoid modifying the caller's values:
+        todo = set(all_mod_names)
 
         # This list contains all module names that could not be found
         # (to avoid adding them to the todo list again)
@@ -539,7 +539,7 @@ class ModuleManager:
                 continue
             try:
                 mod_deps = self.get_module_info(module).get_used_module_names()
-                mod_deps = list(mod_deps)
+                mod_deps = set(mod_deps)
             except (FileNotFoundError, ModuleInfoError):
                 if module not in not_found:
                     # We don't have any information about this module,
@@ -556,22 +556,17 @@ class ModuleManager:
                 continue
 
             # Remove all dependencies which we don't know anything about:
-            mod_deps = [x for x in mod_deps if x not in not_found]
+            mod_deps = mod_deps.difference(not_found)
 
             # Add the dependencies of `module` to the result dictionary:
-            module_dependencies[module] = mod_deps
+            module_dependencies[module] = list(mod_deps)
 
             # Remove all dependencies from the list of new dependencies
             # of `module` that have already been handled:
-            module_dependencies_keys = module_dependencies.keys()
-            new_deps = [x for x in mod_deps
-                        if x not in module_dependencies_keys]
-
-            # Then append these really new modules to the list of modules
+            new_deps = mod_deps.difference(module_dependencies.keys())
+            # Then add these really new modules to the list of modules
             # that still need to be handled
-            for dep in new_deps:
-                if dep not in todo:
-                    todo.append(dep)
+            todo |= new_deps
 
         return module_dependencies
 
