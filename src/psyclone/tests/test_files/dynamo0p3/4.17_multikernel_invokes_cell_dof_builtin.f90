@@ -32,6 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author O. Brunt, Met Office
+! Modified A. Pirrie, Met Office
 
 program multikernel_invokes_cell_dof_builtin
 
@@ -46,12 +47,13 @@ program multikernel_invokes_cell_dof_builtin
   implicit none
 
   type(field_type) :: f1, f2, f3, f4, m1, m2
+  type(field_type) :: field_vec(3)
   real(kind=r_def) :: a, scalar_arg
 
-  call invoke(                                         &
-       testkern_dofs_type(f1, f2, f3, f4, scalar_arg), &
-       testkern_type(a, f1, f2, m1, m2),               &
-       inc_aX_plus_Y(0.5_r_def, f1, f2)                &
+  call invoke(                                                    &
+       testkern_dofs_type(f1, f2, f3, f4, field_vec, scalar_arg), &
+       testkern_type(a, f1, f2, m1, m2),                          &
+       inc_aX_plus_Y(0.5_r_def, f1, f2)                           &
           )
 
 end program multikernel_invokes_cell_dof_builtin
