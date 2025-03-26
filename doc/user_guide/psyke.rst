@@ -374,16 +374,27 @@ run, and it will create two kernel data files.
 
 Extraction Libraries
 --------------------
-PSyclone comes with two extraction libraries: one is based on NetCDF
-and will create NetCDF files to contain all input- and output-parameters.
-The second one is a stand-alone library which uses only standard Fortran
-IO to write and read kernel data. The binary files produced using this
-library may not be portable between machines and compilers. If you
-require such portability then please use the NetCDF extraction library.
+PSyclone comes with three extraction libraries:
 
-The two extraction :ref:`libraries <libraries>` are in
+- one is based on NetCDF and will create NetCDF files to contain all input- and
+  output-parameters.
+- the second one is a stand-alone library which uses only standard unformatted
+  Fortran binary IO to write and read kernel data. The binary files produced using
+  this library may not be portable between machines and compilers.
+- the last version is a stand-alone library which writes the data as ASCII
+  files. While this is supposed to be very general, some compilers do not
+  write sufficient digits for floating point numbers to reproduce the exact
+  same binary representation. This can show up as small errors reported
+  when running the drivers, even for trivial operations like `x-y`.
+
+The best option for portability across different compilers and different
+hardware is the NetCDF extraction library.
+
+The three extraction :ref:`libraries <libraries>` are in
 `lib/extract/standalone
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone>`_.
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone>`_,
+`lib/extract/standalone-ascii
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone-ascii>`_,
 and in
 `lib/extract/netcdf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf>`_.
@@ -408,14 +419,16 @@ Extraction for GOcean
 
 The extraction libraries in 
 `lib/extract/standalone/dl_esm_inf
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/dl_esm_inf>`_
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/dl_esm_inf>`_,
+`lib/extract/standalone-ascii/dl_esm_inf
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone-ascii/dl_esm_inf>`_
 and 
 `lib/extract/netcdf/dl_esm_inf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/dl_esm_inf>`_
 implement the full PSyData API for use with the
 :ref:`GOcean <gocean-api>` dl_esm_inf infrastructure library.
-When running the instrumented executable, it will create either a binary or
-a NetCDF file for each instrumented
+When running the instrumented executable, it will create a corresponding
+kernel data file for each instrumented
 code region. It includes all variables that are read before the code
 is executed, and all variables that have been modified. The output
 variables have the postfix ``_post`` attached to the names,
@@ -427,9 +440,9 @@ variable ``xyz`` will have its
 sizes stored as ``xyzdim1``, ``xyzdim2`` for the input values,
 and output arrays use the name ``xyz_postdim1``, ``xyz_postdim2``.
 
-.. note:: The stand-alone library does not store the names of the
-    variables in the output file, but these names will be used
-    as variable names in the created driver.
+.. note:: The stand-alone libraries do not store the names of the
+    variables in the output file, but these are the variable names
+    in the created driver.
 
 The output file contains the values of all variables used in the
 subroutine. The ``GOceanExtractTrans`` transformation can automatically
@@ -466,7 +479,9 @@ Extraction for LFRic
 
 The libraries in 
 `lib/extract/standalone/lfric
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/lfric>`_
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/lfric>`_,
+`lib/extract/standalone-ascii/lfric
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone-ascii/lfric>`_
 and
 `lib/extract/netcdf/lfric
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/lfric>`_
@@ -560,7 +575,9 @@ Extraction for generic Fortran
 ++++++++++++++++++++++++++++++
 The libraries in
 `lib/extract/standalone/generic
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/generic>`_
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/generic>`_,
+`lib/extract/standalone-ascii/generic
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone-ascii/generic>`_
 and
 `lib/extract/netcdf/generic
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/generic>`_
