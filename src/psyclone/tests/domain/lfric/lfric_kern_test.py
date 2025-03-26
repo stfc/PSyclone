@@ -208,6 +208,30 @@ def test_get_kernel_sched_mixed_precision_no_match(monkeypatch):
             "['mixed_code_32', 'mixed_code_64'].)" in str(err.value))
 
 
+def test_get_kernel_sched_mixed_precision_multiple_match(monkeypatch):
+    '''
+    Test that we get the expected error if there appears to be more than
+    one matching implementation for a mixed-precision kernel.
+
+    TODO #2716 will fix this and then this test can be removed.
+
+    '''
+    _, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
+                           name="invoke_0", dist_mem=False)
+    sched = invoke.schedule
+    kernels = sched.walk(LFRicKern, stop_type=LFRicKern)
+
+    # To simplify things we just monkeypatch the 'validate_kernel_code_args'
+    # method so that it always succeeds.
+    monkeypatch.setattr(LFRicKern, "validate_kernel_code_args",
+                        lambda _1, _2: None)
+    with pytest.raises(GenerationError) as err:
+        _ = kernels[0].get_kernel_schedule()
+    assert ("Found multiple kernel implementations (['mixed_code_32', "
+            "'mixed_code_64']) that apparently match the interface of this "
+            "call to 'mixed_code'" in str(err.value))
+
+
 def test_validate_kernel_code_args(monkeypatch):
     '''Test that a coded kernel that conforms to the expected kernel
     metadadata is validated successfully. Also check that the

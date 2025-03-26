@@ -716,8 +716,8 @@ class LFRicKern(CodedKern):
         :returns: Schedule representing the kernel code.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
 
-        :raises GenerationError: if no subroutine matching this kernel can \
-            be found in the parse tree of the associated source code.
+        :raises GenerationError: if 0 or >1 subroutines matching this kernel
+            can be found in the parse tree of the associated source code.
         '''
         if self._kern_schedule:
             return self._kern_schedule
@@ -733,21 +733,28 @@ class LFRicKern(CodedKern):
         else:
             # The kernel name corresponds to an interface block. Find which
             # of the routines matches the precision of the arguments.
+            matched_routines = []
             for routine in routines:
                 try:
                     # The validity check for the kernel arguments will raise
                     # an exception if the precisions don't match.
                     self.validate_kernel_code_args(routine.symbol_table)
-                    sched = routine
-                    break
+                    # TODO #2716 - this code will be reworked.
+                    matched_routines.append(routine)
                 except GenerationError:
                     pass
-            else:
+            if not matched_routines:
                 raise GenerationError(
                     f"Failed to find a kernel implementation with an interface"
                     f" that matches the invoke of '{self.name}'. (Tried "
                     f"routines {[item.name for item in routines]}.)")
-
+            if len(matched_routines) > 1:
+                raise GenerationError(
+                    f"Found multiple kernel implementations ("
+                    f"{[rt.name for rt in matched_routines]}) that apparently "
+                    f"match the interface of this call to '{self.name}'. This "
+                    f"is a known bug - TODO #2716.")
+            sched = matched_routines[0]
         # TODO #935 - replace the PSyIR argument data symbols with LFRic data
         # symbols. For the moment we just return the unmodified PSyIR schedule
         # but this should use RaisePSyIR2LFRicKernTrans once KernelInterface
