@@ -37,9 +37,11 @@
 
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import (
+    Directive, Loop, Schedule,
     Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
     OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
-    OMPScheduleClause)
+    OMPScheduleClause, OMPBarrierDirective, OMPParallelDirective,
+)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
@@ -51,6 +53,11 @@ MAP_STR_TO_LOOP_DIRECTIVES = {
     "teamsdistributeparalleldo": OMPTeamsDistributeParallelDoDirective,
     "teamsloop": OMPTeamsLoopDirective,
     "loop": OMPLoopDirective
+}
+
+#: Mapping from simple string to corresponding barrier type.
+MAP_STR_TO_BARRIER_DIRECTIVE = {
+    "do": OMPBarrierDirective,
 }
 #: List containing the valid names for OMP directives.
 VALID_OMP_DIRECTIVES = list(MAP_STR_TO_LOOP_DIRECTIVES.keys())
@@ -130,6 +137,59 @@ class OMPLoopTrans(ParallelLoopTrans):
 
     def __str__(self):
         return "Adds an OpenMP directive to parallelise the target loop"
+
+    def _add_asynchronicity(self, node: Loop, instance: Directive):
+        '''
+        TODO
+        '''
+        # Only OMPDoDirective supports nowait of these directives. Needs to be
+        # exact type check
+        if type(instance) is not OMPDoDirective:
+            return
+        # Otherwise find the next dependency.
+        next_depend = self._find_next_dependency(node, instance)
+        # If find_next_dependency returns False, then this loop is its own
+        # next dependency so we can't add an asynchronous clause.
+        if not next_depend:
+            return
+
+        barrier_type = MAP_STR_TO_BARRIER_DIRECTIVE[self.omp_directive]
+        # If find next_dependency returns True there is no follow up
+        # dependency, so we just need a barrier at the end of the containing
+        # Routine.
+        if next_depend is True:
+            # Add nowait to the instance.
+            instance.nowait = True
+            # Add a barrier to the end of the containing Routine if there
+            # isn't one already.
+            containing_routine = node.ancestor((Routine, OMPParallelDirective))
+            containing_schedule = containing_routine.walk(Schedule)[0]
+            # Check barrier that corresponds to self.omp_directive and add the
+            # correct barrier type
+            if not isinstance(containing_schedule.children[-1], barrier_type):
+                containing_schedule.addchild(barrier_type())
+            return
+
+        # Otherwise we have the next dependency and we need to find where the
+        # correct place to place the preceding barrier is. Need to find a
+        # guaranteed control flow path to place it.
+
+        # Find the deepest schedule in the tree containing both.
+        sched = next_depend.ancestor(Schedule)
+        routine = node.ancestor(Routine)
+        while sched.is_descendent_of(routine):
+            if node.is_descendent_of(sched):
+                # Get the path from sched to next_depend
+                path = next_depend.path_from(sched)
+                # The first element of path is the position of the ancestor
+                # of next_depend that is in sched, so we add the barrier there.
+                sched.addchild(barrier_type(), path[0])
+                instance.nowait = True
+                return
+            sched = sched.ancestor(Schedule)
+
+        # If we didn't find anywhere to put the barrier then we just don't
+        # add the nowait.
 
     @property
     def omp_directive(self):
