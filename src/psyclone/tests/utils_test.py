@@ -407,4 +407,3 @@ def test_stringify_annotation():
         if "temp2" == k:
             anno = stringify_annotation(v.annotation)
             assert "typing.Union[bool, int]" == anno
-
