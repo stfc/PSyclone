@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import (
     Assignment, Call, CodeBlock, IntrinsicCall, Loop, Reference, Routine,
     Statement)
 from psyclone.psyir.symbols import (
-    AutomaticInterface, DataSymbol, UnresolvedType)
+    AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType)
 from psyclone.psyir.transformations import (
     InlineTrans, TransformationError)
 from psyclone.tests.utilities import Compile
@@ -1593,6 +1593,10 @@ def test_apply_container_subroutine(
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
+    if "only" not in [use1, use2]:
+        sym = call.scope.symbol_table.lookup("sub")
+        csym = call.scope.symbol_table.lookup("inline_mod")
+        sym.interface = ImportInterface(csym)
     modinline_trans = KernelModuleInlineTrans()
     modinline_trans.apply(call)
     inline_trans = InlineTrans()
@@ -1654,10 +1658,9 @@ def test_validate_calls_find_routine(fortran_reader):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because its source cannot be found: "
-            "Failed to find the source code of the unresolved routine 'sub' - "
-            "looked at any routines in the same source file and attempted to "
-            "resolve the wildcard imports from ['some_mod']. However, failed "
-            "to find the source for ['some_mod']" in str(err.value))
+            "Failed to find the source code of the unresolved routine 'sub'. "
+            "It is being brought into scope from one of ['some_mod']." in
+            str(err.value))
 
 
 def test_validate_allocatable_local_array(fortran_reader):
@@ -1729,7 +1732,7 @@ def test_validate_routine_in_same_container(fortran_reader):
     '''
     code = (
         "module test_mod\n"
-        "use other_mod\n"
+        "use other_mod, only: sub\n"
         "contains\n"
         "  subroutine run_it()\n"
         "    integer :: i\n"

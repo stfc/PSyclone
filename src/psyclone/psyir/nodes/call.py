@@ -42,14 +42,12 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.container import Container
-from psyclone.psyir.nodes.file_container import FileContainer
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
     DefaultModuleInterface,
-    ImportInterface,
     RoutineSymbol,
     Symbol,
     SymbolError,
@@ -503,10 +501,10 @@ class Call(Statement, DataNode):
 
         rsym = self.routine.symbol
         if rsym.is_unresolved:
-            # First check for any Routines in the same Container as this
-            # call (if it is inside a Container).
-            cntr = self.ancestor(Container, excluding=FileContainer)
-            if cntr:
+            # First check for any Routines in the same Container and then
+            # the FileContainer.
+            cntr = self.ancestor(Container)
+            while cntr:
                 # Use follow_imports=False to restrict the search to this
                 # Container only.
                 psyir = cntr.find_routine_psyir(rsym.name, allow_private=True,
@@ -514,61 +512,28 @@ class Call(Statement, DataNode):
                 if psyir:
                     rsym.interface = DefaultModuleInterface()
                     return [psyir]
+                cntr = cntr.ancestor(Container)
 
-            # Next, check for any "raw" Routines, i.e. ones that are only
-            # in a FileContainer and not a Container.
-            fcntr = self.ancestor(FileContainer)
-            if fcntr:
-                psyir = fcntr.find_routine_psyir(rsym.name)
-                if psyir:
-                    # TODO - what interface should we give to rsym? We
-                    # don't have an existing SymbolInterface for something
-                    # that exists in a file.
-                    return [psyir]
-
-            # Now check for any wildcard imports and see if they can
-            # be used to resolve the symbol.
-            wildcard_names = []
-            containers_not_found = []
-            current_table = self.scope.symbol_table
-            while current_table:
-                for container_symbol in current_table.containersymbols:
-                    if container_symbol.wildcard_import:
-                        wildcard_names.append(container_symbol.name)
-                        try:
-                            container = container_symbol.find_container_psyir(
-                                local_node=self)
-                        except SymbolError:
-                            container = None
-                        if not container:
-                            # Failed to find/process this Container.
-                            containers_not_found.append(container_symbol.name)
-                            continue
-                        routines = []
-                        for name in container.resolve_routine(rsym.name):
-                            psyir = container.find_routine_psyir(name)
-                            if psyir:
-                                routines.append(psyir)
-                        if routines:
-                            rsym.interface = ImportInterface(container_symbol)
-                            return routines
-                current_table = current_table.parent_symbol_table()
-            if not wildcard_names:
-                wc_text = "there are no wildcard imports"
-            else:
-                if containers_not_found:
-                    wc_text = (
-                        f"attempted to resolve the wildcard imports from"
-                        f" {wildcard_names}. However, failed to find the "
-                        f"source for {containers_not_found}. The module search"
-                        f" path is set to {Config.get().include_paths}")
-                else:
-                    wc_text = (f"wildcard imports from {wildcard_names}")
-            raise NotImplementedError(
+            # At this point we could check for any wildcard imports and see if
+            # they can be used to resolve the symbol. However, this gets very
+            # costly and so we simply abort at this point for now. This can
+            # be revisited in future.
+            msg = (
                 f"Failed to find the source code of the unresolved routine "
-                f"'{rsym.name}' - looked at any routines in the same source "
-                f"file and {wc_text}. Searching for external routines "
-                f"that are only resolved at link time is not supported.")
+                f"'{rsym.name}'. ")
+            wildcard_names = [csym.name for csym in
+                              self.scope.symbol_table.wildcard_imports()]
+            if wildcard_names:
+                msg += (f"It is being brought into scope from one of "
+                        f"{wildcard_names}. You may wish to add the "
+                        f"appropriate module name to the `RESOLVE_IMPORTS` "
+                        f"variable in the transformation script.")
+            else:
+                msg += ("There are no wildcard imports that could be bringing "
+                        "it into scope and searching for external routines "
+                        "that are only resolved at link time is not "
+                        "supported.")
+            raise NotImplementedError(msg)
 
         root_node = self.ancestor(Container)
         if not root_node:

@@ -432,12 +432,8 @@ def test_validate_fail_to_get_psyir(fortran_reader, config_instance):
     with pytest.raises(TransformationError) as err:
         intrans.validate(call)
     assert ("failed to retrieve PSyIR for routine 'my_sub' due to: Failed to "
-            "find the source code of the unresolved routine 'my_sub' - looked "
-            "at any routines in the same source file and attempted to resolve "
-            "the wildcard imports from ['my_mod', 'other_mod']. However, "
-            "failed to find the source for ['my_mod', 'other_mod']. The module"
-            " search path is set to []. Searching for external routines that "
-            "are only resolved at link time is not supported."
+            "find the source code of the unresolved routine 'my_sub'. It is "
+            "being brought into scope from one of ['my_mod', 'other_mod']."
             in str(err.value))
 
 
@@ -1084,6 +1080,11 @@ def test_mod_inline_from_wildcard_import(fortran_reader, fortran_writer,
     end program my_prog
     '''
     prog_psyir = fortran_reader.psyir_from_source(code)
+    # Manually update the interface to `my_sub` so that we find it (since
+    # searching through wildcard imports is disabled.)
+    prog = prog_psyir.walk(Routine)[0]
+    csym = prog.symbol_table.lookup("my_mod")
+    prog.symbol_table.lookup("my_sub").interface = ImportInterface(csym)
     calls = prog_psyir.walk(Call)
     intrans.apply(calls[0])
     output = fortran_writer(prog_psyir)
@@ -1145,9 +1146,12 @@ def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader,
     '''
     prog_psyir = fortran_reader.psyir_from_source(code)
     container = prog_psyir.children[0]
+    do_it = container.find_routine_psyir("do_it")
+    # Workaround the fact that we don't follow wildcard imports.
+    csym = do_it.symbol_table.lookup("my_mod")
+    do_it.symbol_table.lookup("my_sub").interface = ImportInterface(csym)
     calls = prog_psyir.walk(Call)
     intrans.apply(calls[0])
-    do_it = container.find_routine_psyir("do_it")
     assert (do_it.walk(Call)[0].routine.symbol is
             container.symbol_table.lookup("my_sub"))
     # Call in second subroutine still refers to imported Symbol in local table.
@@ -1255,6 +1259,11 @@ def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
     container.symbol_table.new_symbol("my_sub", symbol_type=RoutineSymbol,
                                       interface=UnresolvedInterface())
     calls = container.walk(Call)
+    # Workaround the fact that we don't follow wildcard imports by updating
+    # the interface of the RoutineSymbol that is the target of the call.
+    rsym = calls[0].scope.symbol_table.lookup("my_sub")
+    csym = calls[0].scope.symbol_table.lookup("my_mod")
+    rsym.interface = ImportInterface(csym)
     intrans.apply(calls[0])
     new_rt = container.symbol_table.lookup("my_sub")
     assert not (new_rt.is_import or new_rt.is_unresolved)
