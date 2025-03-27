@@ -78,11 +78,16 @@ class LFRicLoop(PSyLoop):
         super().__init__(valid_loop_types=const.VALID_LOOP_TYPES, **kwargs)
         self.loop_type = loop_type
 
+        ischedule = self.ancestor(InvokeSchedule)
+        if not ischedule:
+            raise InternalError(
+                "LFRic loops must be inside an InvokeSchedule, a parent "
+                "argument is mandatory when they are created.")
+
         # Set our variable at initialisation as it might be required
         # by other classes before code generation. A 'null' loop does not
         # have an associated variable.
         if self.loop_type != "null":
-
             if self.loop_type == "colours":
                 tag = "colours_loop_idx"
                 suggested_name = "colour"
@@ -92,6 +97,12 @@ class LFRicLoop(PSyLoop):
             elif self.loop_type == "dof":
                 tag = "dof_loop_idx"
                 suggested_name = "df"
+            elif self.loop_type == "colourtiles":
+                tag = "tile_loop_idx"
+                suggested_name = "tile"
+            elif self.loop_type == "tile":
+                tag = "cell_loop_idx"
+                suggested_name = "cell"
             elif self.loop_type == "":
                 tag = "cell_loop_idx"
                 suggested_name = "cell"
@@ -101,16 +112,10 @@ class LFRicLoop(PSyLoop):
                     f"creating loop variable. Supported values are 'colours', "
                     f"'colour', 'dof' or '' (for cell-columns).")
 
-            self.variable = self.scope.symbol_table.find_or_create_tag(
+            self.variable = ischedule.symbol_table.find_or_create_tag(
                 tag, root_name=suggested_name, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
-        # Initialise loop bounds
-        ischedule = self.ancestor(InvokeSchedule)
-        if not ischedule:
-            raise InternalError(
-                "LFRic loops must be inside an InvokeSchedule, a parent "
-                "argument is mandatory when they are created.")
         # The loop bounds names are given by the number of previous LFRic loops
         # already present in the Schedule. Since this are inserted in order it
         # will produce sequentially ascending loop bound names.
@@ -490,7 +495,7 @@ class LFRicLoop(PSyLoop):
         :returns: the PSyIR for this loop upper bound.
 
         '''
-        sym_tab = self.ancestor(InvokeSchedule).symbol_table
+        sym_tab = self.scope.symbol_table
 
         # Precompute halo_index as we use it in more than one of the if clauses
         halo_index = None
@@ -511,6 +516,20 @@ class LFRicLoop(PSyLoop):
                         f"All kernels within a loop over colours must have "
                         f"been coloured but kernel '{kern.name}' has not")
             return Reference(sym_tab.lookup(kernels[0].ncolours_var))
+        if self._upper_bound_name == "ntilecolours":
+            # Loop over colours
+            kernels = self.walk(LFRicKern)
+            if not kernels:
+                raise InternalError(
+                    "Failed to find a kernel within a loop over colours.")
+            # Check that all kernels have been coloured. We can't check the
+            # number of colours since that is only known at runtime.
+            for kern in kernels:
+                if not kern.ntilecolours_var:
+                    raise InternalError(
+                        f"All kernels within a loop over colours must have "
+                        f"been coloured but kernel '{kern.name}' has not")
+            return Reference(sym_tab.lookup(kernels[0].ntilecolours_var))
 
         if self._upper_bound_name == "ncolour":
             # Loop over cells of a particular colour when DM is disabled.
@@ -607,6 +626,55 @@ class LFRicLoop(PSyLoop):
             raise GenerationError(
                 "'inner' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
+        if self._upper_bound_name == "ntiles_per_colour":
+            result = ArrayReference.create(
+                sym_tab.lookup_with_tag("last_edge_tile_per_colour"),
+                [Reference(sym_tab.lookup_with_tag("colours_loop_idx"))]
+            )
+            return result
+        if self._upper_bound_name == "ncells_per_colour_and_tile":
+            result = ArrayReference.create(
+                sym_tab.lookup_with_tag("last_edge_cell_per_colour_and_tile"),
+                [Reference(sym_tab.lookup_with_tag("colours_loop_idx")),
+                 Reference(sym_tab.lookup_with_tag("tile_loop_idx"))]
+            )
+            return result
+        if self._upper_bound_name == "ntiles_per_colour_halo":
+            if halo_index:
+                depth = halo_index.copy()
+            else:
+                # If no depth is specified then we go to the full halo depth
+                depth = Reference(sym_tab.find_or_create_tag(
+                    f"max_halo_depth_{self._mesh_name}"))
+            if Config.get().distributed_memory:
+                result = ArrayReference.create(
+                    sym_tab.lookup_with_tag("last_halo_tile_per_colour"),
+                    [Reference(sym_tab.lookup_with_tag("colours_loop_idx")),
+                     depth]
+                )
+                return result
+            raise GenerationError(
+                "'last_halo_tile_per_colour' is not a valid loop upper bound "
+                "for non-distributed-memory code")
+        if self._upper_bound_name == "ncells_per_colour_and_tile_halo":
+            if halo_index:
+                depth = halo_index.copy()
+            else:
+                # If no depth is specified then we go to the full halo depth
+                depth = Reference(sym_tab.find_or_create_tag(
+                    f"max_halo_depth_{self._mesh_name}"))
+            if Config.get().distributed_memory:
+                result = ArrayReference.create(
+                    sym_tab.lookup_with_tag(
+                                    "last_halo_cell_per_colour_and_tile"),
+                    [Reference(sym_tab.lookup_with_tag("colours_loop_idx")),
+                     Reference(sym_tab.lookup_with_tag("tile_loop_idx")),
+                     depth]
+                )
+                return result
+            raise GenerationError(
+                "'last_halo_cell_per_colour_and_tile' is not a valid loop "
+                "upper bound for non-distributed-memory code")
         raise GenerationError(
             f"Unsupported upper bound name '{self._upper_bound_name}' found "
             f"in lfricloop.upper_bound_fortran()")
@@ -866,8 +934,8 @@ class LFRicLoop(PSyLoop):
 
         sym_table = self.ancestor(InvokeSchedule).symbol_table
         insert_loc = self
-        # If it has ancestor directive keep going up
-        while isinstance(insert_loc.parent.parent, Directive):
+        # insert_loc is the outer loop/directive
+        while isinstance(insert_loc.parent.parent, (Directive, Loop)):
             insert_loc = insert_loc.parent.parent
         cursor = insert_loc.position
         insert_loc = insert_loc.parent

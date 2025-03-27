@@ -474,7 +474,8 @@ class LFRicKern(CodedKern):
         '''
         :returns: the symbol representing the colourmap for this kernel call.
 
-        :raises InternalError: if this kernel is not coloured.
+        :raises InternalError: if this kernel is not coloured or the dictionary
+        of inter-grid kernels and colourmaps has not been constructed.
 
         '''
         if not self.is_coloured():
@@ -495,6 +496,37 @@ class LFRicKern(CodedKern):
                         "integer(kind=i_def), pointer :: cmap(:,:)"))
 
         return cmap
+
+    @property
+    def tilecolourmap(self):
+        '''
+        Getter for the name of the tilecolourmap associated with this
+        kernel call.
+
+        :returns: name of the colourmap (Fortran array).
+        :rtype: str
+
+        :raises InternalError: if this kernel is not coloured or the dictionary
+        of inter-grid kernels and colourmaps has not been constructed.
+
+        '''
+        if not self.is_coloured():
+            raise InternalError(f"Kernel '{self.name}' is not inside a "
+                                f"coloured loop.")
+        sched = self.ancestor(InvokeSchedule)
+        if self.is_intergrid:
+            tmap = self._intergrid_ref.tilecolourmap_symbol.name
+        else:
+            try:
+                tmap = sched.symbol_table.lookup_with_tag("tmap").name
+            except KeyError:
+                # We have to do this here as _init_colourmap (which calls this
+                # method) is only called at code-generation time.
+                tmap = sched.symbol_table.find_or_create_array(
+                    "tmap", 3, ScalarType.Intrinsic.INTEGER,
+                    tag="tmap").name
+
+        return tmap
 
     @property
     def last_cell_all_colours_symbol(self):
@@ -547,6 +579,29 @@ class LFRicKern(CodedKern):
             return ncols_sym.name if ncols_sym is not None else None
 
         return self.scope.symbol_table.lookup_with_tag("ncolour").name
+
+    @property
+    def ntilecolours_var(self):
+        '''
+        Getter for the name of the variable holding the number of colours
+        associated with this kernel call.
+
+        :return: name of the variable holding the number of colours
+        :rtype: Union[str, NoneType]
+
+        :raises InternalError: if this kernel is not coloured or the
+            colour-map information has not been initialised.
+        '''
+        if not self.is_coloured():
+            raise InternalError(f"Kernel '{self.name}' is not inside a "
+                                f"coloured loop.")
+        if self.is_intergrid:
+            ncols_sym = self._intergrid_ref.ntilecolours_var_symbol
+            if not ncols_sym:
+                return None
+            return ncols_sym.name
+
+        return self.scope.symbol_table.lookup_with_tag("ntilecolours").name
 
     @property
     def fs_descriptors(self):
