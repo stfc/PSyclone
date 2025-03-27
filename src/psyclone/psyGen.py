@@ -41,6 +41,7 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
+from dataclasses import dataclass
 import inspect
 import os
 from collections import OrderedDict
@@ -2726,6 +2727,13 @@ class TransInfo():
                 issubclass(cls, base_class) and cls is not base_class]
 
 
+@dataclass
+class ValidOption:
+    default: object
+    type: object
+    typename: str
+
+
 class Transformation(metaclass=abc.ABCMeta):
     '''Abstract baseclass for a transformation. Uses the abc module so it
     can not be instantiated.
@@ -2804,7 +2812,7 @@ class Transformation(metaclass=abc.ABCMeta):
             raise ValueError(f"'{type(self).__name__}' failed to get option "
                              f"'{option_name}' as it is not provided as a "
                              f"keyword argument to the apply method.")
-        return kwargs.get(option_name, valid_options[option_name]['default'])
+        return kwargs.get(option_name, valid_options[option_name].default)
 
     @classmethod
     def get_valid_options(cls):
@@ -2828,8 +2836,7 @@ class Transformation(metaclass=abc.ABCMeta):
                 # If the argument is a keyword argument, i.e. it has a default
                 # value then we add it to the list of options.
                 if v.default is not inspect.Parameter.empty:
-                    valid_options[k] = {}
-                    valid_options[k]['default'] = v.default
+                    default = v.default
                 else:
                     # If its not a keyword argument then we skip it.
                     continue
@@ -2837,13 +2844,16 @@ class Transformation(metaclass=abc.ABCMeta):
                 # store the information so we can generate docs and do
                 # automatic type checking of options.
                 if v.annotation is not inspect.Parameter.empty:
-                    valid_options[k]['type'] = v.annotation
-                    valid_options[k]['typename'] = stringify_annotation(
+                    type_anno = v.annotation
+                    typename = stringify_annotation(
                             v.annotation
                     )
                 else:
-                    valid_options[k]['type'] = None
-                    valid_options[k]['typename'] = None
+                    type_anno = None
+                    typename = None
+                valid_options[k] = ValidOption(
+                    default=default, type=type_anno, typename=typename
+                )
         return valid_options
 
     def validate_options(self, **kwargs):
@@ -2864,10 +2874,10 @@ class Transformation(metaclass=abc.ABCMeta):
             if option not in valid_options:
                 invalid_options.append(option)
                 continue
-            if valid_options[option]['type'] is not None:
+            if valid_options[option].type is not None:
                 try:
                     if not isinstance(
-                            kwargs[option], valid_options[option]['type']):
+                            kwargs[option], valid_options[option].type):
                         wrong_types[option] = type(kwargs[option]).__name__
                 except TypeError:
                     # For older versions of Python, such as 3.8 they don't yet
@@ -2890,7 +2900,7 @@ class Transformation(metaclass=abc.ABCMeta):
             for name in wrong_types.keys():
                 wrong_types_detail.append(
                         f"'{name}' option expects type "
-                        f"'{valid_options[name]['typename']}' but received "
+                        f"'{valid_options[name].typename}' but received "
                         f"'{kwargs[name]}' of type '{wrong_types[name]}'.")
             wrong_types_list = "\n".join(wrong_types_detail)
             raise TypeError(f"'{type(self).__name__}' received options with "

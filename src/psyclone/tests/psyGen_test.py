@@ -211,12 +211,12 @@ def test_transformation_get_valid_options():
             pass  # pragma: no cover
 
     options = TestTrans.get_valid_options()
-    assert options['valid']['default']
-    assert options['valid']['type'] is bool
-    assert options['valid']['typename'] == "bool"
-    assert options['untyped']['default'] is False
-    assert options['untyped']['type'] is None
-    assert options['untyped']['typename'] is None
+    assert options['valid'].default
+    assert options['valid'].type is bool
+    assert options['valid'].typename == "bool"
+    assert options['untyped'].default is False
+    assert options['untyped'].type is None
+    assert options['untyped'].typename is None
 
 
 def test_transformation_validate_options():

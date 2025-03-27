@@ -157,7 +157,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                                     f"generating inherited documentation "
                                     f"for class '{cls.__name__}'."
                                 )
-                            type_string = valid_opts[param_name]['typename']
+                            type_string = valid_opts[param_name].typename
                             if type_string is None:
                                 raise InternalError(
                                     f"Invalid documentation found when "
@@ -204,7 +204,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                                 f"generating inherited documentation "
                                 f"for class '{cls.__name__}'."
                             )
-                        type_string = valid_opts[param_name]['typename']
+                        type_string = valid_opts[param_name].typename
                         if type_string is None:
                             raise InternalError(
                                 f"Invalid documentation found when "
