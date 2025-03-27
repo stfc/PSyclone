@@ -15,9 +15,7 @@ As you have already learnt in a previous section of the tutorial,
 PSyclone provides a number of builtin kernels. Some of these kernels
 perform reductions. The builtins are specified in the PSyclone user
 documentation
-[here](https://psyclone.readthedocs.io/en/latest/dynamo0p3.html#built-ins). If
-you prefer, a pdf of the user guide is also available in
-`<psyclone_home>` called `psyclone.pdf`.
+[here](https://psyclone.readthedocs.io/en/latest/dynamo0p3.html#built-ins).
 
 Choose one of the builtins that performs a reduction. These are either
 of the two inner products or the sum of elements builtins.

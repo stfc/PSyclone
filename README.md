@@ -31,8 +31,7 @@ directives](https://psyclone.readthedocs.io/en/latest/nemo.html) into existing
 directly-addressed MPI applications such as the
 [NEMO ocean model](https://www.nemo-ocean.eu/).
 
-For more detailed information see the [psyclone.pdf](psyclone.pdf) in this
-directory or the [PSyclone User Guide](http://psyclone.readthedocs.io).
+For more detailed information see the [PSyclone Documentation](http://psyclone.readthedocs.io).
 
 # Installation #
 
@@ -83,10 +82,7 @@ bin/                | Top-level driver scripts for PSyclone and the PSyclone ker
 changelog      	    | Information on changes between releases
 doc/           	    | Documentation source using Sphinx
 examples/      	    | Simple examples
-psyclone.pdf   	    | Generated documentation
 README.md      	    | This file
-README.gource  	    | Information on how to generate a gource video from the repository
-README.uml     	    | Information on how to create UML class diagrams from the source using pyreverse
 src/psyclone   	    | The Python source code
 src/psyclone/tests/ | Unit and functional tests using pytest
 tutorial/notebooks  | Tutorial using Jupyter notebooks
