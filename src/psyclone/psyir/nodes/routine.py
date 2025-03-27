@@ -48,7 +48,8 @@ from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol
+from psyclone.psyir.symbols import (DataSymbol, DefaultModuleInterface,
+                                    RoutineSymbol, UnresolvedInterface)
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 
 
@@ -207,7 +208,8 @@ class Routine(Schedule, CommentableMixin):
                         is self._symbol):
                     self._parent.symbol_table.remove(self._symbol)
             except ValueError:
-                pass
+                # It can't be removed so we make it Unresolved.
+                self._symbol.interface = UnresolvedInterface()
             except KeyError:
                 pass
         elif new_parent is not None:
@@ -229,14 +231,15 @@ class Routine(Schedule, CommentableMixin):
             try:
                 sym = new_parent.symbol_table.lookup(self.name,
                                                      scope_limit=new_parent)
-                # If the found symbol is not the symbol used to initialise
-                # this Routine then we raise an error, as we won't be able
-                # to add it to the parent.
-                if sym is not self._symbol:
+                # If the found symbol is resolved and is not the symbol used
+                # to initialise this Routine then we raise an error, as we
+                # won't be able to add it to the parent.
+                if sym is not self._symbol and not sym.is_unresolved:
                     raise GenerationError(
-                            f"Can't add routine '{self.name}' into a "
-                            f"scope that already contains a symbol with "
-                            f"the same name.")
+                        f"Can't add routine '{self.name}' into a scope "
+                        f"that already contains a resolved symbol with "
+                        f"the same name.")
+
                 # Check that the scope doens't contain a Routine or
                 # CodeBlock representing a Routine with this name.
                 routines = new_parent.walk(Routine)
@@ -271,6 +274,13 @@ class Routine(Schedule, CommentableMixin):
                     new_parent.symbol_table.lookup(self._symbol.name)
                 except KeyError:
                     new_parent.symbol_table.add(self._symbol)
+                # As we now have the RoutineSymbol back in a Container, we
+                # can give it the right interface.
+                self._symbol.interface = DefaultModuleInterface()
+            else:
+                # We found an unresolved symbol of the same name so we
+                # replace it with this new one.
+                new_parent.symbol_table.swap(sym, self._symbol)
         elif self.symbol_table:
             # Otherwise if new_parent is None, then we place the symbol
             # into this Routine's symbol table if possible. Not all Routine

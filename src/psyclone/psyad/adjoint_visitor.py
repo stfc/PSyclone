@@ -442,13 +442,6 @@ class AdjointVisitor(PSyIRVisitor):
             # Result may be a node or a list of nodes
             if isinstance(result, Node):
                 result = [result]
-            # TODO - this should be done in e.g.
-            # Container.update_parent_symbol_table()? I need to ask Aidan.
-            for new_node in result:
-                if isinstance(new_node, Routine):
-                    rname = new_node.name.lower()
-                    if rname in node_copy.symbol_table:
-                        node_copy.symbol_table._symbols.pop(rname)
             node_copy.children.extend(result)
 
         # TODO #2596 Update any GenericInterfaceSymbols to use the new

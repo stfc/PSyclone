@@ -1253,11 +1253,30 @@ class SymbolTable():
             self.node.reference_accesses(vai)
         self.reference_accesses(vai)
         sig = Signature(symbol.name)
-        if sig in vai:
-            first_access = vai[sig].all_accesses[0]
+        if sig not in vai:
+            return
+
+        # TODO #2424 - ideally SingleVariableAccessInfo.AccessInfo or
+        # Signature would store the actual Symbol that the access is to. In
+        # the absence of that, we have to examine each access to determine
+        # the Symbol.
+        from psyclone.psyir.nodes.reference import Reference
+        from psyclone.psyir.symbols.generic_interface_symbol import (
+            GenericInterfaceSymbol)
+        try:
+            for access in vai[sig].all_accesses:
+                if isinstance(access.node, GenericInterfaceSymbol):
+                    for rinfo in access.node.routines:
+                        if rinfo.symbol is symbol:
+                            raise ValueError()
+                else:
+                    for ref in access.node.walk(Reference):
+                        if ref.symbol is symbol:
+                            raise ValueError()
+        except ValueError:
             raise ValueError(
                 f"Cannot remove RoutineSymbol '{symbol.name}' because it is "
-                f"referenced by {first_access.description}")
+                f"referenced by {access.description}")
 
     def remove(self, symbol):
         '''
