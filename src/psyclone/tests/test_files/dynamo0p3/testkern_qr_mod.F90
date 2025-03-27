@@ -85,4 +85,3 @@ module testkern_qr_mod
     end subroutine testkern_qr_code
   
   end module testkern_qr_mod
-  

@@ -43,13 +43,13 @@ from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import GenerationError
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import (
-    ArrayReference, Assignment, BinaryOperation, Call, CodeBlock, Literal,
+    ArrayReference, BinaryOperation, Call, Literal,
     Node, Reference, Routine, Schedule)
 from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
     ArrayType, INTEGER_TYPE, DataSymbol, NoType, RoutineSymbol, REAL_TYPE,
-    SymbolError, UnsupportedFortranType)
+    SymbolError)
 
 
 class SpecialCall(Call):
@@ -679,6 +679,39 @@ end module some_mod'''
     call = psyir.walk(Call)[0]
     result = call.get_callees()
     assert result == [psyir.walk(Routine)[1]]
+
+
+def test_call_get_callees_local_file_container(fortran_reader):
+    '''
+    Test that get_callees() succeeds when the called routine is within
+    the parent FileContainer.
+    '''
+    code = '''
+subroutine upper()
+  write(*,*) "hello"
+end subroutine upper
+
+module some_mod
+  implicit none
+contains
+  subroutine top()
+    integer :: x = 0
+    call upper()
+    call bottom(x)
+  end subroutine top
+end module some_mod
+
+subroutine bottom(luggage)
+    integer, intent(inout) :: luggage
+    luggage = luggage + 1
+end subroutine bottom'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    result = call.get_callees()
+    assert result == [psyir.walk(Routine)[0]]
+    call = psyir.walk(Call)[1]
+    result = call.get_callees()
+    assert result == [psyir.walk(Routine)[2]]
 
 
 def test_call_get_callee_1_simple_match(fortran_reader):
@@ -1319,11 +1352,14 @@ end module some_mod'''
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_call_get_callees_unresolved(fortran_reader, tmpdir, monkeypatch):
+def test_call_get_callees_unresolved(fortran_reader, tmpdir, monkeypatch,
+                                     config_instance):
     '''
     Test that get_callees() raises the expected error if the called routine
     is unresolved.
     '''
+    # Ensure that include_paths in the Config object is empty.
+    config_instance.include_paths = []
     code = '''
 subroutine top()
   call bottom()
@@ -1422,47 +1458,6 @@ end module my_mod
     assert callees[1].name == "ibottom"
 
 
-def test_call_get_callees_unsupported_type(fortran_reader):
-    '''
-    Check that get_callees() raises the expected error when the called routine
-    is of UnsupportedFortranType. This is hard to achieve so we have to
-    manually construct some aspects of the test case.
-
-    '''
-    code = '''
-module my_mod
-  integer, target :: value
-contains
-  subroutine top()
-    integer :: luggage
-    luggage = bottom()
-  end subroutine top
-  function bottom() result(fval)
-    integer, pointer :: fval
-    fval => value
-  end function bottom
-end module my_mod
-'''
-    psyir = fortran_reader.psyir_from_source(code)
-    container = psyir.children[0]
-    routine = container.find_routine_psyir("bottom")
-    rsym = container.symbol_table.lookup(routine.name)
-    # Ensure the type of this RoutineSymbol is UnsupportedFortranType.
-    rsym.datatype = UnsupportedFortranType("integer, pointer :: fval")
-    assign = container.walk(Assignment)[0]
-    # Currently `bottom()` gets matched by fparser2 as a structure constructor
-    # and the fparser2 frontend leaves this as a CodeBlock (TODO #2429) so
-    # replace it with a Call. Once #2429 is fixed the next two lines can be
-    # removed.
-    assert isinstance(assign.rhs, CodeBlock)
-    assign.rhs.replace_with(Call.create(rsym))
-    call = psyir.walk(Call)[0]
-    with pytest.raises(NotImplementedError) as err:
-        _ = call.get_callees()
-    assert ("RoutineSymbol 'bottom' exists in Container 'my_mod' but is of "
-            "UnsupportedFortranType" in str(err.value))
-
-
 def test_call_get_callees_file_container(fortran_reader):
     '''
     Check that get_callees works if the called routine happens to be in file
@@ -1518,8 +1513,9 @@ end module my_mod
     call = top_routine.walk(Call)[0]
     with pytest.raises(SymbolError) as err:
         _ = call.get_callees()
-    assert ("Failed to find a Routine named 'bottom' in code:\n'subroutine "
-            "top()" in str(err.value))
+    assert ("The RoutineSymbol for Routine 'bottom' is marked as being local "
+            "but failed to find the corresponding implementation in code:\n'"
+            "subroutine top()" in str(err.value))
 
 
 def test_call_get_callees_wildcard_import_local_container(fortran_reader):
@@ -1622,6 +1618,58 @@ end module some_mod''')
     assert routines[0].name == "just_do_it"
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_call_get_callees_wildcard_import_interface_container(
+        fortran_reader, tmpdir, monkeypatch):
+    '''
+    Check that get_callees() works successfully for a routine accessed via
+    a wildcard import of an interface from a module in another file. This
+    includes the case where the procedures pointed to by that interface are
+    themselves private.
+
+    '''
+    code = '''
+module other_mod
+  use some_mod
+contains
+  subroutine run_it()
+    call just_do_it()
+  end subroutine run_it
+end module other_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    # Create the module containing the subroutine definition,
+    # write it to file and set the search path so that PSyclone can find it.
+    path = str(tmpdir)
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
+
+    with open(os.path.join(path, "some_mod.f90"),
+              "w", encoding="utf-8") as mfile:
+        mfile.write('''\
+module some_mod
+  interface just_do_it
+    module procedure :: just_now, just_then
+  end interface
+  ! The procedures themselves are declared as private to this module
+  ! although the interface is public.
+  private :: just_now, just_then
+contains
+  subroutine just_now()
+    write(*,*) "hello"
+  end subroutine just_now
+  subroutine just_then(arg)
+    integer :: arg
+    write(*,*) "goodbye"
+  end subroutine just_then
+end module some_mod''')
+    routines = call.get_callees()
+    assert len(routines) == 2
+    assert all(isinstance(node, Routine) for node in routines)
+    assert routines[0].name == "just_now"
+    assert routines[1].name == "just_then"
+
+
 def test_fn_call_get_callees(fortran_reader):
     '''
     Test that get_callees() works for a function call.
@@ -1670,7 +1718,8 @@ end module some_mod'''
     call = psyir.walk(Call)[1]
     with pytest.raises(SymbolError) as err:
         _ = call.get_callees()
-    assert ("Failed to find a Routine named 'my_func' in Container "
+    assert ("The RoutineSymbol for Routine 'my_func' is marked as being local "
+            "but failed to find the corresponding implementation in Container "
             "'some_mod'" in str(err.value))
 
 

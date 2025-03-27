@@ -425,7 +425,7 @@ class Symbol(CommentableMixin):
         try:
             current = node.scope.symbol_table
             while current:
-                if self.name in current:
+                if self.name in current and current.lookup(self.name) is self:
                     return current
                 if current.node.parent:
                     current = current.node.parent.scope.symbol_table
@@ -546,3 +546,16 @@ class Symbol(CommentableMixin):
                                              orig_name=orig_name)
         except KeyError:
             pass
+
+    def reference_accesses(self, access_info):
+        '''
+        Update the supplied VariablesAccessInfo with information on the symbols
+        referenced by the definition of this Symbol.
+
+        A generic (untyped) symbol cannot refer to anything else so this base
+        implementation does nothing.
+
+        :param access_info: the object in which to accumulate access
+                            information.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        '''
