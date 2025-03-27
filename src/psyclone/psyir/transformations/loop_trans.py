@@ -65,6 +65,11 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
     def apply(self, node, options=None, node_type_check: bool = True,
               verbose: bool = False, **kwargs):
         '''
+        Applies the transformation to the provided node.
+
+        This function only calls the superclass method, but is required for
+        option specification.
+
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.

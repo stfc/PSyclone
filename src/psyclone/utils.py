@@ -85,7 +85,38 @@ def stringify_annotation(annotation) -> str:
 
 
 def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
-    def get_inherited_parameters(cls, func, inheriting_func):
+    '''
+    Updates the apply and validate methods' docstrings for the supplied cls,
+    according to the value of inherit.
+
+    :param Class cls: The class whose docstrings are to be updated.
+    :param inherit: whether to inherit argument docstrings from cls' parent's
+                    apply method. If the provided argument is a list, instead
+                    the docstrings are updated from each class included in
+                    the provided list, to support metatransformations. If
+                    inherit is False, the wrapper will just update the
+                    Transformation's validate docstring from its own
+                    apply docstring.
+    :type inherit: Union[list[Class], bool]
+    '''
+    def get_inherited_parameters(cls, func, inheriting_func) -> str:
+        '''
+        Returns the docstring to be inherited by func from inheriting_func.
+
+        :param Class cls: The class containing func.
+        :param Callable func: The function to which the docstrings will be
+                              added.
+        :param Callable inheriting_func: The function in which to inherit the
+                                         docstrings from.
+
+        :returns: The docstrings to be added to func.
+
+        :raises InternalError: if inheriting_func contains docstring for an
+                               argument that isn't part of
+                               cls.get_valid_options.
+        :raises InternalError: if inheriting_func doesn't have a type
+                               for an argument that doesn't have a typehint.
+        '''
         docs = func.__doc__
         parent_docstring = inheriting_func.__doc__
         if parent_docstring is not None:
@@ -181,7 +212,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                                 f"for class '{cls.__name__}' as the "
                                 f"'{param_name}' arg has no known type."
                             )
-                        # FIXME This needs to be if its in param_name_grp
+                        # FIXME This needs to be if its in param_name_grp?
                         if type_string in param_line:
                             added_docs += param_line
                             break
@@ -195,7 +226,15 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         added_docs += 8*" " + os.linesep
         return added_docs
 
-    def update_func_docstring(func, added_parameters):
+    def update_func_docstring(func, added_parameters: str) -> None:
+        '''
+        Adds the docstrings specified in added_parameters to the
+        docstring of func.
+
+        :param Callable func: The func which is to have its docstrings updated.
+        :param added_parameters: The lines of docstring to add into the
+                                 docstring of func.
+        '''
         doc = func.__doc__
         # Find the last instance of :param or :type
         if doc is not None:
@@ -232,6 +271,10 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         func.__doc__ = new_docs
 
     def wrapper():
+        '''
+        The wrapping function of the decorator.
+
+        '''
         if isinstance(inherit, list):
             added_parameters = ""
             for superclass in inherit:
