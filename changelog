@@ -1,3 +1,7 @@
+   5) PR #2833. Extends the fparser caching functionality to allow the
+   location of the cache files to be configured. Also avoids repeated
+   parsing of a single file containing multiple modules.
+
    4) PR #2664 for #1664. Add OpenACC async clause and ACCWait directive.
 
    3) PR #2828 - adds a new ReplaceReferenceByLiteralTrans transformation.   

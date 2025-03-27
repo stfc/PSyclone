@@ -40,7 +40,7 @@ import os
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.parse import ModuleInfo, ModuleManager
+from psyclone.parse import FileInfo, ModuleInfo, ModuleManager
 
 
 # ----------------------------------------------------------------------------
@@ -198,7 +198,8 @@ def test_mod_manager_get_module_info():
     mod_info = mod_man.get_module_info("b_mod")
     assert mod_info.filename == "d1/d3/b_mod.F90"
     assert list(mod_man._remaining_search_paths) == ["d2", "d2/d4"]
-    assert set(mod_man._modules.keys()) == set(["a_mod", "b_mod"])
+    assert set(mod_man._modules.keys()) == \
+        set(["a_mod", "b_mod"])
 
     # Then locate the e_mod, which should remove two paths from
     # the search path:
@@ -212,8 +213,8 @@ def test_mod_manager_get_module_info():
                                                       "d2/d4/e_mod.F90",
                                                       "d2/g_mod.F90",
                                                       "d2/error_mod.F90"])
-    assert set(mod_man._modules.keys()) == set(["a_mod", "b_mod",
-                                                "e_mod"])
+    assert set(mod_man._modules.keys()) == \
+        set(["a_mod", "b_mod", "e_mod"])
 
     with pytest.raises(FileNotFoundError) as err:
         mod_man.get_module_info("does_not_exist")
@@ -241,21 +242,21 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
-    all_d = mod_man.get_all_dependencies_recursively({"d_mod"})
+    all_d = mod_man.get_all_dependencies_recursively(["d_mod"])
     assert len(all_d.keys()) == 4
-    assert all_d["a_mod"] == set()
-    assert all_d["b_mod"] == set()
-    assert all_d["c_mod"] == set(("a_mod", "b_mod"))
-    assert all_d["d_mod"] == set(("c_mod", ))
+    assert all_d["a_mod"] == []
+    assert all_d["b_mod"] == []
+    assert all_d["c_mod"] == ["a_mod", "b_mod"]
+    assert all_d["d_mod"] == ["c_mod"]
 
     # Test ignoring of unknown modules, in this case NetCDF
-    all_e = mod_man.get_all_dependencies_recursively({"e_mod"})
+    all_e = mod_man.get_all_dependencies_recursively(["e_mod"])
     assert len(all_e.keys()) == 1
-    assert all_e["e_mod"] == set()
+    assert all_e["e_mod"] == []
     out, _ = capsys.readouterr()
     assert "Could not find module 'netcdf'" in out
 
-    all_c = mod_man.get_all_dependencies_recursively({"c_mod"})
+    all_c = mod_man.get_all_dependencies_recursively(["c_mod"])
     assert "a_mod" in all_c
     assert "b_mod" in all_c
     assert "c_mod" in all_c
@@ -263,7 +264,7 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
     # Instruct the module manager to ignore a_mod, which means
     # it should only have b_mod and c_mod in its dependencies:
     mod_man.add_ignore_module("a_mod")
-    all_c = mod_man.get_all_dependencies_recursively({"c_mod"})
+    all_c = mod_man.get_all_dependencies_recursively(["c_mod"])
     assert "a_mod" not in all_c
     assert "b_mod" in all_c
     assert "c_mod" in all_c
@@ -343,3 +344,131 @@ def test_mod_manager_add_ignore_modules():
     # Just in case verify that other modules are not affected
     mod_info = mod_man.get_module_info("b_mod")
     assert mod_info.filename == "d1/d3/b_mod.F90"
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_mod_manager_add_files_and_more():
+    '''Fixture will create the following files
+
+    d1/a_mod.f90
+    d1/d3/b_mod.F90
+    d1/d3/c_mod.x90
+    d2/d_mod.X90
+    d2/d4/e_mod.F90
+
+    We will check through some further ModuleManager functions.
+    '''
+    mod_man = ModuleManager.get()
+
+    #
+    # Test add_files(...)
+    #
+    mod_man.add_files("d1/a_mod.f90")
+
+    # Add same file again, will be silently ignored
+    mod_man.add_files("d1/a_mod.f90")
+
+    #
+    # Test various other functions
+    #
+    mod_man.load_all_source_files()
+    for file_info in mod_man._filepath_to_file_info.values():
+        file_info: FileInfo
+        assert file_info._source_code is not None
+        assert file_info._fparser_tree is None
+        assert file_info._psyir_node is None
+
+    mod_man.create_all_fparser_trees()
+
+    for file_info in mod_man._filepath_to_file_info.values():
+        file_info: FileInfo
+        assert file_info._source_code is not None
+        assert file_info._fparser_tree is not None
+        assert file_info._psyir_node is None
+
+    mod_man.create_all_psyir_nodes()
+
+    for file_info in mod_man._filepath_to_file_info.values():
+        file_info: FileInfo
+        assert file_info._source_code is not None
+        assert file_info._fparser_tree is not None
+        assert file_info._psyir_node is not None
+
+    dummy = mod_man.all_file_infos
+    assert dummy is not None
+    mod_man.load_all_module_infos(verbose=True)
+
+    # Only one module loaded
+    assert len(mod_man._modules) == 1
+
+    dummy = mod_man.all_module_infos
+    assert dummy is not None
+
+    # Should raise an error that the first module to be processed
+    # was already processed
+    with pytest.raises(KeyError) as einfo:
+        mod_man.load_all_module_infos(
+                error_if_module_already_processed=True,
+                verbose=True
+            )
+
+    assert "Module 'a_mod' already processed" in str(einfo.value)
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_mod_manager_load_all_module_infos_trigger_error_module_read_twice():
+    '''
+    Make particular check for load_all_module_infos():
+    - Reading in the same module twice is triggering an error.
+    '''
+    mod_man = ModuleManager.get()
+
+    #
+    # Test add_files(...)
+    #
+    mod_man.add_files("d1/a_mod.f90")
+
+    # Load all module infos
+    mod_man.load_all_module_infos(
+            verbose=True
+        )
+
+    # Doing this a 2nd time should not raise any error
+    mod_man.load_all_module_infos(
+            verbose=True
+        )
+
+    # This should raise an error that a module has been already processed
+    with pytest.raises(KeyError) as einfo:
+        mod_man.load_all_module_infos(
+                error_if_module_already_processed=True,
+                verbose=True
+            )
+
+    assert "Module 'a_mod' already processed" in str(einfo.value)
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
+def test_mod_manager_load_all_module_infos_trigger_error_file_read_twice():
+    '''
+    Make particular check for load_all_module_infos():
+    - Reading in the same file twice is triggering an error.
+    '''
+    mod_man = ModuleManager.get()
+
+    with open("t_mod.f90", "w", encoding="utf-8") as f_out:
+        f_out.write("\n")   # Just an empty file
+
+    mod_man.add_files("t_mod.f90")
+    mod_man.load_all_module_infos(verbose=True)
+
+    # Should raise an error that the file was already processed
+    with pytest.raises(KeyError) as einfo:
+        mod_man.load_all_module_infos(
+                error_if_file_already_processed=True,
+                verbose=True
+            )
+
+    assert "File 't_mod.f90' already processed" in str(einfo.value)
