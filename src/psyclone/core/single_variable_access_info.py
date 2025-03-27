@@ -180,6 +180,7 @@ class AccessInfo():
         :returns: a textual description of this access for use in error
                   messages.
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Statement
         from psyclone.psyir.symbols import Symbol
         if isinstance(self.node, Symbol):

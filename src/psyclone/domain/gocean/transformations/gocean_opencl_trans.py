@@ -189,16 +189,11 @@ class GOOpenCLTrans(Transformation):
 
         # Check that we can construct the PSyIR and SymbolTable of each of
         # the kernels in this Schedule. Also check that none of them access
-        # any form of global data (that is not a routine argument or a compile-
-        # time constant).
+        # any form of global data (that is not a routine argument).
         for kern in node.kernels():
             KernelModuleInlineTrans().validate(kern)
             ksched = kern.get_kernel_schedule()
             global_variables = ksched.symbol_table.imported_symbols
-            for sym in global_variables[:]:
-                # Compile-time constants are fine.
-                if isinstance(sym, DataSymbol) and sym.is_constant:
-                    global_variables.remove(sym)
             if global_variables:
                 raise TransformationError(
                     f"The Symbol Table for kernel '{kern.name}' contains the "
