@@ -63,8 +63,7 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 FILES_TO_SKIP = []
 
 NEMOV5_EXCLUSIONS = [
-    # Produces different output results
-    "fldread.f90",
+    "dtatsd.f90",
 ]
 
 NEMOV4_EXCLUSIONS = [
@@ -82,8 +81,6 @@ SKIP_FOR_PERFORMANCE = [
 OFFLOADING_ISSUES = [
     # Runtime Error on BENCH: Illegal address during kernel execution
     "trcrad.f90",
-    # Produces different output results
-    "zdftke.f90",
 ]
 
 
@@ -149,11 +146,11 @@ def trans(psyir):
         enhance_tree_information(subroutine)
         normalise_loops(
                 subroutine,
-                hoist_local_arrays=True,
+                hoist_local_arrays=False,
                 convert_array_notation=True,
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
-                hoist_expressions=True
+                hoist_expressions=True,
         )
 
         # These are functions that are called from inside parallel regions,
