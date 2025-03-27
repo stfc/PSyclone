@@ -46,6 +46,7 @@ import inspect
 import os
 from collections import OrderedDict
 import abc
+from typing import Any
 
 try:
     from sphinx.util.typing import stringify_annotation
@@ -2729,6 +2730,7 @@ class TransInfo():
 
 @dataclass
 class ValidOption:
+    '''Class used to specify the valid options dict for a Transformation.'''
     default: object
     type: object
     typename: str
@@ -2804,9 +2806,16 @@ class Transformation(metaclass=abc.ABCMeta):
         '''
         # pylint: disable=unused-argument
 
-    def get_option(self, option_name: str, **kwargs):
-        '''Test if we can just pull the option value from the name of
-        the option'''
+    def get_option(self, option_name: str, **kwargs) -> Any:
+        '''Finds the value of the option_name from the kwargs.
+
+        :param option_name: The name of the option to find.
+
+        :returns: the value of the option or the default if one is specified.
+
+        :raises ValueError: if option_name is not found in the valid options
+                            for the Transformation.
+        '''
         valid_options = type(self).get_valid_options()
         if option_name not in valid_options.keys():
             raise ValueError(f"'{type(self).__name__}' failed to get option "
@@ -2815,11 +2824,14 @@ class Transformation(metaclass=abc.ABCMeta):
         return kwargs.get(option_name, valid_options[option_name].default)
 
     @classmethod
-    def get_valid_options(cls):
+    def get_valid_options(cls) -> dict[str, ValidOption]:
         '''
         Pulls the valid options from the apply method. It also recurses
         upwards to the superclasses of this transformation and pulls
         their valid options as well if they exist.
+
+        :returns: A dict of the valid option name and corresponding
+                  ValidOption dataclass.
         '''
         valid_options = OrderedDict()
         # Loop through the inherited classes of this class, starting with the

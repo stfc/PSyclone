@@ -136,7 +136,8 @@ jobs:
         # Uncomment the below to use the submodule version of fparser rather
         # than the latest release from pypi.
         # pip install external/fparser
-        pip install .[test, doc]
+        pip install .[doc]
+        pip install .[test]
     - name: Lint with flake8
       run: |
         # Stop the build if there are Python syntax errors or undefined names.
