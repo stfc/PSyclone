@@ -86,6 +86,16 @@ def test_a_or_an():
         assert a_or_an(vowel) == "an"
 
 
+def test_transformation_doc_wrapper_non_transformation():
+    '''Test the transformation_doc_wrapper throws an error if provided
+    a non-Transformation class.'''
+    with pytest.raises(InternalError) as excinfo:
+        transformation_documentation_wrapper(int)
+
+    assert ("transformation_documentation_wrapper expected a Transformation "
+            "but got 'int'" in str(excinfo.value))
+
+
 def test_transformation_doc_wrapper_single_inheritence():
     '''Test the transformation_doc_wrapper.'''
 

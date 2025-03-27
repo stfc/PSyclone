@@ -39,6 +39,7 @@ import os
 import re
 import sys
 from psyclone.errors import InternalError
+from psyclone.psyGen import Transformation
 
 
 def within_virtual_env():
@@ -274,7 +275,13 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         '''
         The wrapping function of the decorator.
 
+        :raises InternalError: if cls is not a Transformation.
         '''
+        if not issubclass(cls, Transformation):
+            raise InternalError(
+                f"transformation_documentation_wrapper expected a "
+                f"Transformation but got '{cls.__name__}'"
+            )
         if isinstance(inherit, list):
             added_parameters = ""
             for superclass in inherit:
