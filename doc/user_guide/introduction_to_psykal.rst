@@ -268,7 +268,7 @@ depending on the precision of the fields being passed to them::
     end interface   
 
 
-.. _built-ins:
+.. _psykal-built-ins:
 
 Built-ins
 ---------

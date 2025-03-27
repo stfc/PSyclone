@@ -60,6 +60,7 @@ is a singleton which must be obtained via
 search for a particular module via the `get_module_info` method:
 
 .. automethod:: psyclone.parse.ModuleManager.get_module_info
+    :no-index:
 
 Any PSyclone command line option ``-d`` (see :ref:`psyclone_command`)
 will be added to the ``ModuleManager`` as recursive search
@@ -102,11 +103,13 @@ a list of module dependencies, so that compiling the modules in this order
 module will only depend on previously defined modules:
 
 .. automethod:: psyclone.parse.ModuleManager.sort_modules
+    :no-index:
 
 Once a ``ModuleInfo`` has been obtained, its primary role is to provide
 access to the PSyIR of the ``Container`` representing the module:
 
 .. automethod:: psyclone.parse.ModuleInfo.get_psyir
+    :no-index:
 
 However, it also provides methods (``get_used_module_names``,
 ``get_used_symbols_from_modules``) for interrogating the parse tree which

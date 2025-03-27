@@ -38,7 +38,7 @@ In order to use it you must first install PSyclone like so:
 
  >>> pip install --user psyclone
 
-(or see the Getting Going section in ../../psyclone.pdf.) Once PSyclone is
+(or see the Getting Going section in the User Guide). Once PSyclone is
 installed, this script may be run by doing:
 
  >>> python runme_openacc.py

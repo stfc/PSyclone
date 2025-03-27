@@ -287,6 +287,7 @@ A simple variable such as `a` is stored as a one-element tuple `(a, )`, having
 a single component.
 
 .. autoclass:: psyclone.core.Signature
+    :no-index:
     :members:
     :special-members: __hash__, __eq__, __lt__
 
@@ -297,6 +298,7 @@ An individual access to a ``Signature`` is described by an instance of the
 ``AccessType`` enumeration:
 
 .. autoclass:: psyclone.core.access_type.AccessType
+    :no-index:
     :members:
 
 VariablesAccessInfo
@@ -309,8 +311,10 @@ It will add the accesses for the PSyIR subtree to the specified instance
 of `VariablesAccessInfo`.
 
 .. automethod:: psyclone.psyir.nodes.Node.reference_accesses
+    :no-index:
 
 .. autoclass:: psyclone.core.VariablesAccessInfo
+    :no-index:
     :members:
     :special-members: __str__
 
@@ -348,6 +352,7 @@ via `add_access()`, a new instance of `SingleVariableAccessInfo` is added,
 which in turn stores all access to the specified variable.
 
 .. autoclass:: psyclone.core.SingleVariableAccessInfo
+    :no-index:
     :members:
 
 AccessInfo
@@ -359,6 +364,7 @@ is appended to the list whenever `add_access_with_location()`
 is called.
 
 .. autoclass:: psyclone.core.AccessInfo
+    :no-index:
     :members:
 
 Indices
@@ -371,6 +377,7 @@ ComponentIndices object that each access has, which can be accessed
 using the `component_indices` property of an `AccessInfo` object.
 
 .. autoclass:: psyclone.core.ComponentIndices
+    :no-index:
     :members:
     :special-members: __getitem__, __len__
 
@@ -614,10 +621,11 @@ messages for the user to indicate why parallelisation was not possible. It
 uses `SymPy` internally to compare expressions symbolically.
 
 .. autoclass:: psyclone.psyir.tools.dependency_tools.DependencyTools
+    :no-index:
     :members:
 
 
-.. note:: PSyclone provides :ref:`user_guide:replace_induction_variable_trans`,
+.. note:: PSyclone provides :ref_guide:`ReplaceInductionVariableTrans psyclone.psyir.transformations.replace_induction_variables_trans.html#psyclone.psyir.transformations.replace_induction_variables_trans.ReplaceInductionVariablesTrans`,
           a transformation that can be very useful to improve the ability of
           the dependency analysis to provide useful information. It is
           recommended to run this transformation on a copy of the tree, since
