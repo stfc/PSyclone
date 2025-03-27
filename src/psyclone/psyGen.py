@@ -46,7 +46,7 @@ import inspect
 import os
 from collections import OrderedDict
 import abc
-from typing import Any
+from typing import Any, Dict
 
 try:
     from sphinx.util.typing import stringify_annotation
@@ -2824,7 +2824,7 @@ class Transformation(metaclass=abc.ABCMeta):
         return kwargs.get(option_name, valid_options[option_name].default)
 
     @classmethod
-    def get_valid_options(cls) -> dict[str, ValidOption]:
+    def get_valid_options(cls) -> Dict[str, ValidOption]:
         '''
         Pulls the valid options from the apply method. It also recurses
         upwards to the superclasses of this transformation and pulls
