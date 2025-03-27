@@ -96,6 +96,9 @@ jobs:
         module load perl/${PERL_VERSION}
         make -j 4 passthrough
         make -j 4 compile-passthrough
+        make run-passthrough
+        # Check for full numerical reproducibility with KGO results
+        diff <(make -s output-passthrough)  KGOs/run.stat.nemo4.splitz12.nvhpc.10steps
 
     # PSyclone, compile and run MetOffice NEMO with OpenMP for GPUs
     - name: NEMO MetOffice OpenMP for GPU

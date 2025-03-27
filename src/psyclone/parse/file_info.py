@@ -87,15 +87,28 @@ class FileInfo:
         object holds information on. Can also be set to 'None' in case of
         providing fparser / PSyIR node in a different way.
     :param use_caching: Use caching of intermediate representations
+    :param cache_path: Path to directory where to put cache files.
+        If it is provided, the file name for caching will include
+        the hash sum to avoid conflicting file names.
+        This allows using, e.g., `~/.cache/psyclone` as a cache
+        directory for all cached files.
+        See _get_filepath_cache() for more information.
 
     """
-    def __init__(self, filepath: str, use_caching: bool = False):
+    def __init__(self,
+                 filepath: str,
+                 cache_active: bool = False,
+                 cache_path: str = None
+                 ):
 
         # Full path to file
         self._filename: str = filepath
 
         # Use cache features
-        self._use_caching: bool = use_caching
+        self._cache_active: bool = cache_active
+
+        # Cache filepath
+        self._cache_path = cache_path
 
         # Source code:
         self._source_code: str = None
@@ -113,9 +126,8 @@ class FileInfo:
         # Psyir node
         self._psyir_node: FileContainer = None
 
-        # Single cache file
-        (path, ext) = os.path.splitext(self._filename)
-        self._filepath_cache = path + ".psycache"
+        # Filepath of cache
+        self._cache_filename = None
 
         # This reference to `_CacheFileInfo` is created when loading
         # cached information from a cache file.
@@ -130,6 +142,47 @@ class FileInfo:
         # `fparser tree` was created in the meantime and a cache update
         # is requested.
         self._cache_data_save: _CacheFileInfo = None
+
+    def _get_cache_filepath(self):
+        """Return the filepath of the cache.
+
+        This also supports having a shared caching directory,
+        e.g., in `$HOME/.cache/psyclone/`.
+
+        This sets up unique cache file names based on the
+        hashcode. Consequently, this can't be done in the
+        constructor since the hashcode of the source code
+        is required first.
+        """
+
+        if self._cache_filename is not None:
+            return self._cache_filename
+
+        if self._cache_path is None:
+            # If cache path is not specified, we use the source code path
+            # E.g.,
+            # path/to/file.f90 => path/to/file.psycache
+            (filepath_no_ext, _) = os.path.splitext(self._filename)
+
+            self._cache_filename = filepath_no_ext + ".psycache"
+            return self._cache_filename
+
+        # Cache path was specified.
+        # We assume this path is shared amongst different projects
+        # where psyclone is used for. We can't just use the file
+        # name of the source file itself, since the same one
+        # could be used in different projects and lead to
+        # conflicting file names. Hence, we use a hashsum based
+        # on the content of the source code itself.
+        # This also avoids having separate cache files for files
+        # with the same content spread across different projects.
+
+        # Therefore, we associate each cache file to a hashsum.
+        # The hashsum is truncated so that the entire filename
+        # fits in a 64 byte character string.
+        return os.path.join(
+            self._cache_path, self._source_code_hash_sum[:55] + ".psycache"
+        )
 
     @property
     def basename(self):
@@ -190,21 +243,27 @@ class FileInfo:
                 f"FileInfo: No such file or directory '{self._filename}'."
             ) from err
 
-        if self._use_caching:
-            # Only update if caching is used.
-            # Compute hash sum which will be used to
-            # check cache of fparser tree
+        if verbose:
+            # TODO #11: Use logging for this
+            print(
+                f"- Source file '{self._filename}': "
+                f"Loading source code"
+            )
+
+        if self._cache_active:
+            # Update the hash sum
             self._source_code_hash_sum = hashlib.md5(
-                self._source_code.encode()
-            ).hexdigest()
+                self._source_code.encode()).hexdigest()
 
         return self._source_code
 
     def _cache_load(
         self,
         verbose: bool = False,
+        indent: str = ""
     ) -> _CacheFileInfo:
         """Load fparser parse tree from the cache file if possible.
+
         This also checks for matching checksums after loading the data
         from the cache.
         The checksum is based solely on a hashsum of the source code itself,
@@ -213,7 +272,7 @@ class FileInfo:
         :param verbose: Produce some verbose output
         """
 
-        if not self._use_caching:
+        if not self._cache_active:
             return
 
         # Load the source code in case it's not yet loaded.
@@ -230,18 +289,29 @@ class FileInfo:
         # basically garbage. This will lead either to an Exception from the
         # unpickling or a non-matching checksum which is both caught below.
         try:
-            filehandler = open(self._filepath_cache, "rb")
+            filehandler = open(self._get_cache_filepath(), "rb")
+            if verbose:
+                # TODO #11: Use logging for this
+                print(
+                    f"{indent}- Using cache file "
+                    f"'{self._get_cache_filepath()}'"
+                )
         except FileNotFoundError:
             if verbose:
                 # TODO #11: Use logging for this
-                print(f"  - No cache file '{self._filepath_cache}' found")
+                print(
+                    f"{indent}- No cache file "
+                    f"'{self._get_cache_filepath()}' found"
+                )
             return None
 
         # Unpack cache file
         try:
             cache: _CacheFileInfo = pickle.load(filehandler)
         except Exception as ex:
-            print(f"  - Error while reading cache file - ignoring: {str(ex)}")
+            print(f"{indent}  - Error while reading cache file -"
+                  f" ignoring: {str(ex)}"
+                  )
             return None
 
         # Verify checksums
@@ -270,7 +340,7 @@ class FileInfo:
         :param verbose: Produce some verbose output
         """
 
-        if not self._use_caching:
+        if not self._cache_active:
             return None
 
         if self._source_code_hash_sum is None:
@@ -326,15 +396,15 @@ class FileInfo:
             # This is not a perfect solution, but avoids parallel
             # writing access of the same file.
 
-            # We first remove a potentially existing file
+            # We first remove a potentially existing file.
             try:
-                os.remove(self._filepath_cache)
+                os.remove(self._get_cache_filepath())
             except FileNotFoundError:
                 pass
 
             # Then we open it in exclusive mode.
             # If it already exists, an exception would be raised.
-            fd = os.open(self._filepath_cache,
+            fd = os.open(self._get_cache_filepath(),
                          os.O_CREAT | os.O_WRONLY | os.O_EXCL)
 
             filehandler = os.fdopen(fd, "wb")
@@ -432,10 +502,16 @@ class FileInfo:
 
         return self._fparser_tree
 
-    def get_psyir(self, verbose: bool = False) -> FileContainer:
-        """Returns the PSyIR FileContainer of the file.
+    def get_psyir(
+            self,
+            verbose: bool = False,
+            indent: str = ""
+    ) -> FileContainer:
+        """Returns the psyclone FileContainer of the file.
 
         :param verbose: Produce some verbose output
+        :param indent: String used for indentation of each line
+            for verbose output.
 
         :returns: PSyIR file container node.
 
@@ -444,21 +520,21 @@ class FileInfo:
             return self._psyir_node
 
         # Check for cache
-        self._cache_load(verbose=verbose)
+        self._cache_load(verbose=verbose, indent=indent)
 
         if self._cache_data_load is not None:
             if self._cache_data_load._psyir_node is not None:
                 # Use cached version
                 if verbose:
                     # TODO #11: Use logging for this
-                    print("  - Using cache of PSyIR")
+                    print(f"{indent}- Using cache of PSyIR")
 
                 self._psyir_node = self._cache_data_load._psyir_node
                 return self._psyir_node
 
         if verbose:
             # TODO #11: Use logging for this
-            print(f"  - Running psyir for '{self._filename}'")
+            print(f"{indent}- Running psyir for '{self._filename}'")
 
         # First, we get the fparser tree
         fparse_tree = self.get_fparser_tree(
