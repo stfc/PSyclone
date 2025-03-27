@@ -384,6 +384,7 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
     '''Tests resolving symbols in case of missing modules, subroutines, and
     unknown type (e.g. function call or array access).
     '''
+    # pylint: disable=too-many-statements
     # Add the search path of the driver creation tests to the
     # module manager:
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
@@ -430,10 +431,14 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
     todo = [('unknown', 'module_with_var_mod',
              Signature("module_subroutine"), None)]
     ctu._resolve_calls_and_unknowns(todo, rw_info)
-    assert rw_info.read_list == [('module_with_var_mod',
-                                  Signature("module_var_b"))]
-    assert rw_info.write_list == [('module_with_var_mod',
-                                   Signature("module_var_b"))]
+    assert set(rw_info.read_list) == {('module_with_var_mod',
+                                       Signature("module_var_b")),
+                                      ("module_with_var_mod",
+                                       Signature("const_size_array"))}
+    assert set(rw_info.write_list) == {('module_with_var_mod',
+                                        Signature("module_var_b")),
+                                       ("module_with_var_mod",
+                                        Signature("const_size_array"))}
 
     # Get the associated PSyIR and break it by removing the Routine and
     # associated Symbol.
@@ -569,14 +574,13 @@ def test_call_tree_utils_inout_parameters_generic(fortran_reader):
     # inside the ubound/lbound function calls.
     read_write_info = ReadWriteInfo()
     ctu.get_input_parameters(read_write_info, loops,
-                             options={'COLLECT-ARRAY-SHAPE-READS': True})
+                             include_non_data_accesses=True)
     input_set = set(sig for _, sig in read_write_info.set_of_all_used_vars)
     assert input_set == set([Signature("b"), Signature("c"),
                              Signature("jpj"), Signature("dummy")])
 
-    read_write_info = ctu.\
-        get_in_out_parameters(loops,
-                              options={'COLLECT-ARRAY-SHAPE-READS': True})
+    read_write_info = ctu.get_in_out_parameters(loops,
+                                                include_non_data_accesses=True)
     output_set = set(read_write_info.signatures_read)
     assert output_set == set([Signature("b"), Signature("c"),
                               Signature("jpj"), Signature("dummy")])
