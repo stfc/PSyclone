@@ -213,7 +213,7 @@ class ExtractNode(PSyDataNode):
         # Determine the variables to write:
         ctu = CallTreeUtils()
         read_write_info = ctu.get_in_out_parameters(
-            self, include_non_data_accesses=True)
+            self, include_non_data_accesses=False)
         # Use the copy of the dsl_tree to get the external symbols
         ctu.get_non_local_read_write_info(copy_dsl_tree.children,
                                           read_write_info)
