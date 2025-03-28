@@ -1659,6 +1659,42 @@ def test_validate_calls_find_routine(fortran_reader):
             in str(err.value))
 
 
+def test_validate_fail_to_get_psyir_due_to_wildcard(fortran_reader,
+                                                    config_instance):
+    '''
+    Test that the validate() method raises the expected error if we cannot
+    be certain of the origin of the called routine. In this case this is
+    because there's a wildcard import into the scope containing the call.
+
+    '''
+    # Ensure no include paths are set.
+    config_instance.include_paths = []
+    intrans = InlineTrans()
+    code = '''\
+    module a_mod
+    contains
+      subroutine my_sub(b)
+        ! This *might* be the target of the call but only if a subroutine
+        ! named 'my_sub' is not imported from 'other_mod'.
+        real, intent(in) :: b
+      end subroutine my_sub
+      subroutine a_sub()
+        use other_mod
+        real, dimension(10) :: a
+        call my_sub(a)
+      end subroutine a_sub
+    end module a_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    with pytest.raises(TransformationError) as err:
+        intrans.validate(call)
+    assert ("Cannot inline routine 'my_sub' because its source cannot be "
+            "found: Failed to find the source code of the unresolved routine "
+            "'my_sub'. It may be being brought into scope from one of "
+            "['other_mod']." in str(err.value))
+
+
 def test_validate_allocatable_local_array(fortran_reader):
     '''
     Test that we refuse to inline a call to a routine with a local, allocatable
