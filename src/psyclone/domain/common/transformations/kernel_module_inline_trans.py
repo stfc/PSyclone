@@ -256,7 +256,8 @@ class KernelModuleInlineTrans(Transformation):
                     raise TransformationError(
                         f"{kern_or_call} '{name}' contains accesses to "
                         f"'{symbol.name}' which is declared in the callee "
-                        f"module scope. Cannot inline such a {kern_or_call}.")
+                        f"module scope. Cannot transform such a "
+                        f"{kern_or_call}.")
 
         # We can't handle a clash between (apparently) different symbols that
         # share a name but are imported from different containers.

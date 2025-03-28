@@ -277,10 +277,7 @@ class Routine(Schedule, CommentableMixin):
                 # As we now have the RoutineSymbol back in a Container, we
                 # can give it the right interface.
                 self._symbol.interface = DefaultModuleInterface()
-            else:
-                # We found an unresolved symbol of the same name so we
-                # replace it with this new one.
-                new_parent.symbol_table.swap(sym, self._symbol)
+
         elif self.symbol_table:
             # Otherwise if new_parent is None, then we place the symbol
             # into this Routine's symbol table if possible. Not all Routine
