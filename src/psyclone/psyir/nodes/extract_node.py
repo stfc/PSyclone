@@ -50,6 +50,14 @@ be added in Issue #298.
 '''
 
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
+from psyclone.psyir.nodes.structure_reference import StructureReference
+from psyclone.psyir.nodes.routine import Routine
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.symbols import (
+    DataSymbol, INTEGER_TYPE, ContainerSymbol, ImportInterface)
+from psyclone.errors import InternalError
 
 
 class ExtractNode(PSyDataNode):
@@ -89,6 +97,12 @@ class ExtractNode(PSyDataNode):
     # The default prefix to add to the PSyData module name and PSyDataType
     _default_prefix = "extract"
 
+    # This dictionary keeps track of region+module names that are already
+    # used. For each key (which is module_name+"|"+region_name) it contains
+    # how many regions with that name have been created. This number will
+    # then be added as an index to create unique region identifiers.
+    _used_kernel_names = {}
+
     def __init__(self, ast=None, children=None, parent=None, options=None):
         super().__init__(ast=ast, children=children,
                          parent=parent, options=options)
@@ -112,6 +126,7 @@ class ExtractNode(PSyDataNode):
 
         # Keep a copy of the argument list:
         self._read_write_info = options.get("read_write_info")
+        self._driver_creator = None
 
     def __eq__(self, other):
         '''
@@ -154,27 +169,282 @@ class ExtractNode(PSyDataNode):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        if self._read_write_info is None:
-            # Typically, _read_write_info should be set at the constructor,
-            # but some tests do not provide the required information. To
-            # support these tests, allow creation of the read_write info
-            # here (it can't be done in the constructor, since this node
-            # is not yet integrated into the PSyIR, so the dependency tool
-            # cannot determine variable usage at that time):
+        from psyclone.psyGen import Kern
+        from psyclone.psyir.nodes import CodeBlock, Routine
+        module_name = self._module_name
+        kerns = self.walk(Kern)
+        if len(kerns) == 1:
+            # This PSyData region only has one kernel within it,
+            # so append the kernel name.
+            region_name = f"{kerns[0].name}-"
+        else:
+            region_name = ""
+        # Create a name for this region by finding where this PSyDataNode
+        # is in the list of PSyDataNodes in this Invoke. We allow for any
+        # previously lowered PSyDataNodes by checking for CodeBlocks with
+        # the "psy-data-start" annotation.
+        routine_schedule = self.ancestor(Routine)
+        pnodes = routine_schedule.walk((PSyDataNode, CodeBlock))
+        region_idx = 0
+        for node in pnodes[0:pnodes.index(self)]:
+            if (isinstance(node, PSyDataNode) or
+                    "psy-data-start" in node.annotations):
+                region_idx += 1
+        region_name = f"{region_name}r{region_idx}"
+        # If the routine name is not used as 'module name' (in case of a
+        # subroutine outside of any modules), add the routine name
+        # to the region. Otherwise just use the number
+        if module_name != routine_schedule.name:
+            region_name = f"{routine_schedule.name}-{region_name}"
+        self._region_name = region_name
 
-            # Avoid circular dependency
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
-            # Determine the variables to write:
-            ctu = CallTreeUtils()
-            self._read_write_info = ctu.get_in_out_parameters(
-                self, include_non_data_accesses=True)
+        # get_non_local_read_write_info doesn't work with the lowered tree,
+        # so we save a copy of the higher dsl tree
+        copy_dsl_tree = self.copy()
 
-        options = {'pre_var_list': self._read_write_info.read_list,
-                   'post_var_list': self._read_write_info.write_list,
+        for child in self.children:
+            child.lower_to_language_level()
+
+        for structure_ref in self.walk(StructureReference):
+            self._flatten_reference(structure_ref)
+
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
+        # Determine the variables to write:
+        ctu = CallTreeUtils()
+        read_write_info = ctu.get_in_out_parameters(
+            self, include_non_data_accesses=False)
+        # Use the copy of the dsl_tree to get the external symbols
+        ctu.get_non_local_read_write_info(copy_dsl_tree.children,
+                                          read_write_info)
+
+        options = {'pre_var_list': read_write_info.read_list,
+                   'post_var_list': read_write_info.write_list,
                    'post_var_postfix': self._post_name}
 
+        if self._driver_creator:
+            nodes = self.children
+            region_name_tuple = self.get_unique_region_name(nodes, {})
+            region_name_tuple = (region_name_tuple[0], region_name)
+
+            self._bring_external_symbols(read_write_info,
+                                         self.ancestor(Routine).symbol_table)
+
+            # Even variables that are output-only need to be written with their
+            # values at the time the kernel is called: many kernels will only
+            # write to part of a field (e.g. in case of MPI the halo region
+            # will not be written). Since the comparison in the driver uses
+            # the whole field (including values not updated), we need to write
+            # the current value of an output-only field as well. This is
+            # achieved by adding any written-only field to the list of fields
+            # read. This will trigger to write the values in the extraction,
+            # and the driver code created will read in their values.
+            for sig in read_write_info.write_list:
+                if sig not in read_write_info.read_list:
+                    read_write_info.read_list.append(sig)
+
+            # Determine a unique postfix to be used for output variables
+            # that avoid any name clashes
+            postfix = self.determine_postfix(read_write_info,
+                                             postfix="_post")
+            # We need to create the driver before inserting the ExtractNode
+            # (since some of the visitors used in driver creation do not
+            # handle an ExtractNode in the tree)
+            self._driver_creator.write_driver(self.children,
+                                              read_write_info,
+                                              postfix=postfix,
+                                              prefix="extract",
+                                              region_name=region_name_tuple)
+
         return super().lower_to_language_level(options)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def determine_postfix(read_write_info, postfix="_post"):
+        '''
+        This function prevents any name clashes that can occur when adding
+        the postfix to output variable names. For example, if there is an
+        output variable 'a', the driver (and the output file) will contain
+        two variables: 'a' and 'a_post'. But if there is also another variable
+        called 'a_post', a name clash would occur (two identical keys in the
+        output file, and two identical local variables in the driver). In
+        order to avoid this, the suffix 'post' is changed (to 'post0',
+        'post1', ...) until any name clashes are avoided. This works for
+        structured and non-structured types.
+
+        :param read_write_info: information about all input and output \
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
+        :param str postfix: the postfix to append to each output variable.
+
+        :returns: a postfix that can be added to each output variable without
+            generating a name clash.
+        :rtype: str
+
+        '''
+        suffix = ""
+        # Create the a set of all input and output variables (to avoid
+        # checking input+output variables more than once)
+        all_vars = read_write_info.set_of_all_used_vars
+        # The signatures in the input/output list need to be converted
+        # back to strings to easily append the suffix.
+        all_vars_string = [str(input_var) for _, input_var in all_vars]
+        while any(str(out_sig)+postfix+str(suffix) in all_vars_string
+                  for out_sig in read_write_info.signatures_written):
+            if suffix == "":
+                suffix = 0
+            else:
+                suffix += 1
+        return postfix+str(suffix)
+
+    def get_unique_region_name(self, nodes, options):
+        '''This function returns the region and module name. If they are
+        specified in the user options, these names will just be returned (it
+        is then up to the user to guarantee uniqueness). Otherwise a name
+        based on the module and invoke will be created using indices to
+        make sure the name is unique.
+
+        :param nodes: a list of nodes.
+        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
+        :param options: a dictionary with options for transformations.
+        :type options: Dict[str, Any]
+        :param (str,str) options["region_name"]: an optional name to \
+            use for this PSyData area, provided as a 2-tuple containing a \
+            location name followed by a local name. The pair of strings \
+            should uniquely identify a region unless aggregate information \
+            is required (and is supported by the runtime library).
+
+        '''
+        # We don't use a static method here since it might be useful to
+        # overwrite this functions in derived classes
+        name = options.get("region_name", None)
+        if name:
+            # pylint: disable=too-many-boolean-expressions
+            if not isinstance(name, tuple) or not len(name) == 2 or \
+               not name[0] or not isinstance(name[0], str) or \
+               not name[1] or not isinstance(name[1], str):
+                raise ValueError(
+                    "Error in PSyDataTrans. The name must be a "
+                    "tuple containing two non-empty strings.")
+            # pylint: enable=too-many-boolean-expressions
+            # Valid PSyData names have been provided by the user.
+            return name
+
+        from psyclone.psyGen import InvokeSchedule, Kern
+        invoke = nodes[0].ancestor(InvokeSchedule).invoke
+        module_name = invoke.invokes.psy.name
+
+        # Use the invoke name as a starting point.
+        region_name = invoke.name
+        kerns = []
+        for node in nodes:
+            kerns.extend(node.walk(Kern))
+
+        if len(kerns) == 1:
+            # This PSyData region only has one kernel within it,
+            # so append the kernel name.
+            region_name += f"-{kerns[0].name}"
+
+        # Add a region index to ensure uniqueness when there are
+        # multiple regions in an invoke.
+        key = module_name + "|" + region_name
+        idx = self._used_kernel_names.get(key, 0)
+        self._used_kernel_names[key] = idx + 1
+        region_name += f"-r{idx}"
+        return (module_name, region_name)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _flatten_signature(signature):
+        '''Creates a 'flattened' string for a signature by using ``_`` to
+        separate the parts of a signature. For example, in Fortran
+        a reference to ``a%b`` would be flattened to be ``a_b``.
+
+        :param signature: the signature to be flattened.
+        :type signature: :py:class:`psyclone.core.Signature`
+
+        :returns: a flattened string (all '%' replaced with '_'.)
+        :rtype: str
+
+        '''
+        return str(signature).replace("%", "_")
+
+    # -------------------------------------------------------------------------
+    def _flatten_reference(self, old_reference):
+        '''Replaces ``old_reference``, which is a structure type, with a new
+        simple Reference and a flattened name (replacing all % with _). It will
+        also remove a '_proxy' in the name, so that the program uses the names
+        the user is familiar with, and which are also used in the extraction
+        driver.
+
+        :param old_reference: a reference to a structure member.
+        :type old_reference:
+            :py:class:`psyclone.psyir.nodes.StructureReference`
+
+        :raises InternalError: if the old_reference is not a
+            :py:class:`psyclone.psyir.nodes.StructureReference`
+        :raises GenerationError: if an array of structures is used
+
+        '''
+
+        if not isinstance(old_reference, StructureReference):
+            raise InternalError(f"Unexpected type "
+                                f"'{type(old_reference).__name__}'"
+                                f" in _flatten_reference, it must be a "
+                                f"'StructureReference'.")
+        if isinstance(old_reference.parent, Call):
+            if old_reference.position == 0:
+                return  # Method calls are fine
+
+        signature, _ = old_reference.get_signature_and_indices()
+        flattened_name = self._flatten_signature(signature)
+        symtab = old_reference.ancestor(Routine).symbol_table
+        symbol = symtab.new_symbol(flattened_name, symbol_type=DataSymbol,
+                                   datatype=INTEGER_TYPE)
+
+        new_ref = Reference(symbol)
+        old_reference.replace_with(new_ref)
+        self.parent.addchild(Assignment.create(new_ref.copy(), old_reference),
+                             index=self.position)
+
+    @staticmethod
+    def _bring_external_symbols(read_write_info, symbol_table):
+        from psyclone.parse import ModuleManager
+        mod_man = ModuleManager.get()
+        for module_name, signature in read_write_info.set_of_all_used_vars:
+            if not module_name:
+                # Ignore local symbols, which will have been added above
+                continue
+            container = symbol_table.find_or_create(
+                module_name, symbol_type=ContainerSymbol)
+
+            # Now look up the original symbol. While the variable could
+            # be declared Unresolved here (i.e. just imported), we need the
+            # type information for the output variables (VAR_post), which
+            # are created later and which will query the original symbol for
+            # its type. And since they are not imported, they need to be
+            # explicitly declared.
+            mod_info = mod_man.get_module_info(module_name)
+            container_symbol = mod_info.get_symbol(signature[0])
+            if not container_symbol:
+                # TODO #2120: This typically indicates a problem with parsing
+                # a module: the psyir does not have the full tree structure.
+                continue
+
+            # It is possible that external symbol name (signature[0]) already
+            # exist in the symbol table (the same name is used in the local
+            # subroutine and in a module). In this case, the imported symbol
+            # must be renamed:
+            if signature[0] in symbol_table:
+                interface = ImportInterface(container, orig_name=signature[0])
+            else:
+                interface = ImportInterface(container)
+
+            symbol_table.find_or_create_tag(
+                tag=f"{signature[0]}@{module_name}", root_name=signature[0],
+                symbol_type=DataSymbol, interface=interface,
+                datatype=container_symbol.datatype)
 
 
 # For AutoAPI documentation generation

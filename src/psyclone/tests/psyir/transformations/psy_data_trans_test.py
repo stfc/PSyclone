@@ -202,5 +202,6 @@ def test_trans_with_shape_function(monkeypatch, fortran_reader,
 
     transformation.apply(loop)
     out = fortran_writer(psyir)
+    print(out)
     assert 'PreDeclareVariable("dummy", dummy)' in out
     assert 'ProvideVariable("dummy", dummy)' in out
