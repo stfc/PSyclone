@@ -432,8 +432,8 @@ def test_validate_fail_to_get_psyir(fortran_reader, config_instance):
     with pytest.raises(TransformationError) as err:
         intrans.validate(call)
     assert ("failed to retrieve PSyIR for routine 'my_sub' due to: Failed to "
-            "find the source code of the unresolved routine 'my_sub'. It is "
-            "probably being brought into scope from one of ['my_mod', "
+            "find the source code of the unresolved routine 'my_sub'. It may "
+            "be being brought into scope from one of ['my_mod', "
             "'other_mod']." in str(err.value))
 
 

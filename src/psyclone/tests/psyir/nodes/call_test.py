@@ -1382,28 +1382,31 @@ end subroutine top'''
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
     assert ("Failed to find the source code of the unresolved routine "
-            "'bottom'. It is probably being brought into scope from one of "
+            "'bottom'. It may be being brought into scope from one of "
             "['some_mod_somewhere']. You may wish to add the appropriate "
             "module name to the `RESOLVE_IMPORTS` variable in the "
             "transformation script." in str(err.value))
     # Repeat but in the presence of a wildcard import and CodeBlock.
     code = '''
-subroutine top()
+module my_mod
   use some_mod_somewhere
+  contains
+subroutine top()
   call bottom()
 end subroutine top
 complex function possibly()
     possibly = 1
 end function possibly
+end module my_mod
     '''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
     assert ("Failed to find the source code of the unresolved routine "
-            "'bottom'. It is probably being brought into scope from one of "
-            "['some_mod_somewhere'] but alternatively, it might be within a "
-            "CodeBlock. You may wish" in str(err.value))
+            "'bottom'. It may be being brought into scope from one of "
+            "['some_mod_somewhere'] or it may be within a CodeBlock. If it "
+            "isn't, you may" in str(err.value))
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")

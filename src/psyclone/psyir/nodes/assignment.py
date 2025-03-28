@@ -189,8 +189,11 @@ class Assignment(Statement):
         # from the original object to the new object.
         accesses_left = VariablesAccessInfo(options=var_accesses.options())
         self.lhs.reference_accesses(accesses_left)
-        # Now change the (one) access to the assigned variable to be WRITE
-        # (taking care that the LHS is not a CodeBlock):
+        # Now change the (one) access to the assigned variable to be WRITE.
+        # Note that if the LHS is a CodeBlock then reference_accesses() will
+        # already have given all Signatures READWRITE access. This is not
+        # strictly correct (they should probably be UNKNOWN) and is the
+        # subject of #2863.
         if isinstance(self.lhs, Reference):
             sig, _ = self.lhs.get_signature_and_indices()
             var_info = accesses_left[sig]

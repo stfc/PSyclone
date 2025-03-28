@@ -502,53 +502,62 @@ class Call(Statement, DataNode):
 
         rsym = self.routine.symbol
         if rsym.is_unresolved:
-            # First check for any Routines in the same Container and then
-            # the FileContainer.
-            cntr = self.ancestor(Container)
+            # Search for the Routine in the current file. This search is
+            # stopped if we encouter a wildcard import that could be
+            # responsible for bringing the Routine into scope.
+            table = rsym.find_symbol_table(self)
+            cursor = table.node
             have_codeblock = False
-            while cntr:
-                # Use follow_imports=False to restrict the search to this
-                # Container only.
-                psyir = cntr.find_routine_psyir(rsym.name, allow_private=True,
-                                                follow_imports=False)
-                if psyir:
-                    rsym.interface = DefaultModuleInterface()
-                    return [psyir]
-                if not have_codeblock:
-                    have_codeblock = any(isinstance(child, CodeBlock) for
-                                         child in cntr.children)
-                cntr = cntr.ancestor(Container)
+            while cursor:
+                if isinstance(cursor, Container):
+                    # Use follow_imports=False to restrict the search to this
+                    # Container only.
+                    psyir = cursor.find_routine_psyir(rsym.name,
+                                                      allow_private=True,
+                                                      follow_imports=False)
+                    if psyir:
+                        rsym.interface = DefaultModuleInterface()
+                        return [psyir]
+                    if not have_codeblock:
+                        have_codeblock = any(isinstance(child, CodeBlock) for
+                                             child in cursor.children)
+                wildcard_names = [csym.name for csym in
+                                  cursor.symbol_table.wildcard_imports(
+                                      scope_limit=cursor)]
+                if wildcard_names:
+                    # We haven't yet found an implementation of the Routine
+                    # but we have found a wildcard import and that could be
+                    # bringing it into scope so we stop searching (the
+                    # alternative is to resolve every wildcard import we
+                    # encounter and that is very costly).
+                    msg = (f"Failed to find the source code of the unresolved "
+                           f"routine '{rsym.name}'. It may be being brought "
+                           f"into scope from one of {wildcard_names}")
+                    if have_codeblock:
+                        msg += (" or it may be within a CodeBlock. If it isn't"
+                                ", you ")
+                    else:
+                        msg += ". You "
+                    msg += ("may wish to add the appropriate module name to "
+                            "the `RESOLVE_IMPORTS` variable in the "
+                            "transformation script.")
+                    raise NotImplementedError(msg)
+                parent = cursor.parent
+                cursor = parent.scope if parent else None
 
-            # At this point we could check for any wildcard imports and see if
-            # they can be used to resolve the symbol. However, this gets very
-            # costly and so we simply abort at this point for now. This can
-            # be revisited in future.
+            # We haven't found a Routine and nor have we encountered any
+            # wildcard imports.
             msg = (f"Failed to find the source code of the unresolved routine "
-                   f"'{rsym.name}'. ")
-            wildcard_names = [csym.name for csym in
-                              self.scope.symbol_table.wildcard_imports()]
-            if wildcard_names:
-                msg += (f"It is probably being brought into scope from one of "
-                        f"{wildcard_names}")
-                if have_codeblock:
-                    msg += (" but alternatively, it might be within a "
-                            "CodeBlock. ")
-                else:
-                    msg += ". "
-                msg += ("You may wish to add the "
-                        "appropriate module name to the `RESOLVE_IMPORTS` "
-                        "variable in the transformation script.")
+                   f"'{rsym.name}'. There are no wildcard imports that could "
+                   f"be bringing it into scope")
+            if have_codeblock:
+                msg += (" but it might be within a CodeBlock. If it isn't "
+                        "then it ")
             else:
-                msg += ("There are no wildcard imports that could be bringing "
-                        "it into scope")
-                if have_codeblock:
-                    msg += (" but it might be within a CodeBlock. If it isn't "
-                            "then it ")
-                else:
-                    msg += ". It "
-                msg += ("must be an external routine that is only resolved at "
-                        "link time and searching for such routines is not "
-                        "supported.")
+                msg += ". It "
+            msg += ("must be an external routine that is only resolved at "
+                    "link time and searching for such routines is not "
+                    "supported.")
             raise NotImplementedError(msg)
 
         root_node = self.ancestor(Container)

@@ -1521,16 +1521,12 @@ def test_apply_multi_function(fortran_reader, fortran_writer, tmpdir):
 
 @pytest.mark.parametrize("start, end, indent", [
     ("", "", ""),
-    ("module test_mod\ncontains\n", "end module test_mod\n", "  "),
-    ("module test_mod\nuse formal\ncontains\n", "end module test_mod\n",
-     "  ")])
+    ("module test_mod\ncontains\n", "end module test_mod\n", "  ")])
 def test_apply_raw_subroutine(
         fortran_reader, fortran_writer, tmpdir, start, end, indent):
     '''Test the apply method works correctly when the routine to be
     inlined is a raw subroutine and is called directly from another
-    raw subroutine, a subroutine within a module but without a use
-    statement and a subroutine within a module with a wildcard use
-    statement.
+    raw subroutine and a subroutine within a module.
 
     '''
     code = (
@@ -1659,7 +1655,7 @@ def test_validate_calls_find_routine(fortran_reader):
         inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because its source cannot be found: "
             "Failed to find the source code of the unresolved routine 'sub'. "
-            "It is probably being brought into scope from one of ['some_mod']."
+            "It may be being brought into scope from one of ['some_mod']."
             in str(err.value))
 
 
