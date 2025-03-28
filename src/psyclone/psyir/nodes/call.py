@@ -513,8 +513,7 @@ class Call(Statement, DataNode):
                     # Use follow_imports=False to restrict the search to this
                     # Container only.
                     psyir = cursor.find_routine_psyir(rsym.name,
-                                                      allow_private=True,
-                                                      follow_imports=False)
+                                                      allow_private=True)
                     if psyir:
                         rsym.interface = DefaultModuleInterface()
                         return [psyir]
