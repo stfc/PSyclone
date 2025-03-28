@@ -41,6 +41,7 @@ from collections.abc import Iterable
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
@@ -504,6 +505,7 @@ class Call(Statement, DataNode):
             # First check for any Routines in the same Container and then
             # the FileContainer.
             cntr = self.ancestor(Container)
+            have_codeblock = False
             while cntr:
                 # Use follow_imports=False to restrict the search to this
                 # Container only.
@@ -512,26 +514,40 @@ class Call(Statement, DataNode):
                 if psyir:
                     rsym.interface = DefaultModuleInterface()
                     return [psyir]
+                if not have_codeblock:
+                    have_codeblock = any(isinstance(child, CodeBlock) for
+                                         child in cntr.children)
                 cntr = cntr.ancestor(Container)
 
             # At this point we could check for any wildcard imports and see if
             # they can be used to resolve the symbol. However, this gets very
             # costly and so we simply abort at this point for now. This can
             # be revisited in future.
-            msg = (
-                f"Failed to find the source code of the unresolved routine "
-                f"'{rsym.name}'. ")
+            msg = (f"Failed to find the source code of the unresolved routine "
+                   f"'{rsym.name}'. ")
             wildcard_names = [csym.name for csym in
                               self.scope.symbol_table.wildcard_imports()]
             if wildcard_names:
-                msg += (f"It is being brought into scope from one of "
-                        f"{wildcard_names}. You may wish to add the "
-                        f"appropriate module name to the `RESOLVE_IMPORTS` "
-                        f"variable in the transformation script.")
+                msg += (f"It is probably being brought into scope from one of "
+                        f"{wildcard_names}")
+                if have_codeblock:
+                    msg += (" but alternatively, it might be within a "
+                            "CodeBlock. ")
+                else:
+                    msg += ". "
+                msg += ("You may wish to add the "
+                        "appropriate module name to the `RESOLVE_IMPORTS` "
+                        "variable in the transformation script.")
             else:
                 msg += ("There are no wildcard imports that could be bringing "
-                        "it into scope and searching for external routines "
-                        "that are only resolved at link time is not "
+                        "it into scope")
+                if have_codeblock:
+                    msg += (" but it might be within a CodeBlock. If it isn't "
+                            "then it ")
+                else:
+                    msg += ". It "
+                msg += ("must be an external routine that is only resolved at "
+                        "link time and searching for such routines is not "
                         "supported.")
             raise NotImplementedError(msg)
 
@@ -590,7 +606,7 @@ class Call(Statement, DataNode):
         # routine - we just need to locate it. It may be in a Container or
         # it may be in the parent FileContainer.
         cursor = container
-        while isinstance(cursor, Container):
+        while cursor and isinstance(cursor, Container):
             routines = []
             for name in cursor.resolve_routine(rsym.name):
                 psyir = cursor.find_routine_psyir(
@@ -599,8 +615,6 @@ class Call(Statement, DataNode):
                     routines.append(psyir)
             if routines:
                 return routines
-            if not cursor.parent:
-                break
             cursor = cursor.parent
 
         raise SymbolError(

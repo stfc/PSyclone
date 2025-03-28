@@ -1369,8 +1369,8 @@ end subroutine top'''
         _ = call.get_callees()
     assert ("Failed to find the source code of the unresolved routine "
             "'bottom'. There are no wildcard imports that could be bringing "
-            "it into scope and searching for external routines that are only "
-            "resolved at link time is not supported." in str(err.value))
+            "it into scope. It must be an external routine that is only "
+            "resolved at link time" in str(err.value))
     # Repeat but in the presence of a wildcard import.
     code = '''
 subroutine top()
@@ -1382,10 +1382,28 @@ end subroutine top'''
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
     assert ("Failed to find the source code of the unresolved routine "
-            "'bottom'. It is being brought into scope from one of "
+            "'bottom'. It is probably being brought into scope from one of "
             "['some_mod_somewhere']. You may wish to add the appropriate "
             "module name to the `RESOLVE_IMPORTS` variable in the "
             "transformation script." in str(err.value))
+    # Repeat but in the presence of a wildcard import and CodeBlock.
+    code = '''
+subroutine top()
+  use some_mod_somewhere
+  call bottom()
+end subroutine top
+complex function possibly()
+    possibly = 1
+end function possibly
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    with pytest.raises(NotImplementedError) as err:
+        _ = call.get_callees()
+    assert ("Failed to find the source code of the unresolved routine "
+            "'bottom'. It is probably being brought into scope from one of "
+            "['some_mod_somewhere'] but alternatively, it might be within a "
+            "CodeBlock. You may wish" in str(err.value))
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
@@ -1623,10 +1641,12 @@ contains
 end module some_mod'''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[1]
-    with pytest.raises(SymbolError) as err:
+    with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
-    assert ("Failed to find a Routine named 'my_func' in Container "
-            "'some_mod'" in str(err.value))
+    assert ("Failed to find the source code of the unresolved routine "
+            "'my_func'. There are no wildcard imports that could be bringing "
+            "it into scope but it might be within a CodeBlock." in
+            str(err.value))
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")

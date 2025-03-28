@@ -1659,8 +1659,8 @@ def test_validate_calls_find_routine(fortran_reader):
         inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because its source cannot be found: "
             "Failed to find the source code of the unresolved routine 'sub'. "
-            "It is being brought into scope from one of ['some_mod']." in
-            str(err.value))
+            "It is probably being brought into scope from one of ['some_mod']."
+            in str(err.value))
 
 
 def test_validate_allocatable_local_array(fortran_reader):

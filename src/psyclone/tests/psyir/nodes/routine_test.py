@@ -345,7 +345,7 @@ def test_routine_update_parent_symbol_table_illegal_parent(fortran_reader):
     with pytest.raises(GenerationError) as excinfo:
         module.addchild(alt_routine)
     assert ("Can't add routine 'routine' into a scope that already contains "
-            "a symbol with the same name." in str(excinfo.value))
+            "a resolved symbol with the same name." in str(excinfo.value))
 
     alt_routine = Routine(module.symbol_table.lookup("routine"))
     with pytest.raises(GenerationError) as excinfo:
