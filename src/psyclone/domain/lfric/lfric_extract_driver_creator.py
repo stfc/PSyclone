@@ -258,6 +258,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                            symbol_type=DataSymbol,
                                            datatype=sym.datatype.copy())
         if isinstance(post_sym.datatype, UnsupportedFortranType):
+            post_sym.datatype = post_sym.datatype.copy()
             post_sym.datatype._declaration = \
                 post_sym.datatype._declaration.replace(sym.name, post_name)
 
@@ -667,6 +668,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         for symbol in program_symbol_table.datasymbols:
 
             if isinstance(symbol.datatype, UnsupportedFortranType):
+                symbol.datatype = symbol.datatype.copy()
+
                 newt = symbol.datatype._declaration
                 newt = newt.replace('pointer', 'allocatable')
                 newt = newt.replace('=> null()', '')

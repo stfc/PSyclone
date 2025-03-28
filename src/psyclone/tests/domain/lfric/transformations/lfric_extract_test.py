@@ -458,15 +458,15 @@ def test_dynamo0p3_builtin():
     CALL extract_psy_data % PreDeclareVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % PreDeclareVariable("nlayers_f3", nlayers_f3)
     CALL extract_psy_data % PreDeclareVariable("undf_w2", undf_w2)
-    CALL extract_psy_data % PreDeclareVariable("cell", cell)
-    CALL extract_psy_data % PreDeclareVariable("df", df)
-    CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
-    CALL extract_psy_data % PreDeclareVariable("f5_data", f5_data)
     CALL extract_psy_data % PreDeclareVariable("cell_post", cell)
     CALL extract_psy_data % PreDeclareVariable("df_post", df)
     CALL extract_psy_data % PreDeclareVariable("f2_data_post", f2_data)
     CALL extract_psy_data % PreDeclareVariable("f3_data_post", f3_data)
     CALL extract_psy_data % PreDeclareVariable("f5_data_post", f5_data)
+    CALL extract_psy_data % PreDeclareVariable("map_w2_post", map_w2)
+    CALL extract_psy_data % PreDeclareVariable("ndf_w2_post", ndf_w2)
+    CALL extract_psy_data % PreDeclareVariable("nlayers_f3_post", nlayers_f3)
+    CALL extract_psy_data % PreDeclareVariable("undf_w2_post", undf_w2)
     CALL extract_psy_data % PreEndDeclaration
     CALL extract_psy_data % ProvideVariable("f3_data", f3_data)
     CALL extract_psy_data % ProvideVariable("loop0_start", loop0_start)
@@ -479,10 +479,6 @@ def test_dynamo0p3_builtin():
     CALL extract_psy_data % ProvideVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % ProvideVariable("nlayers_f3", nlayers_f3)
     CALL extract_psy_data % ProvideVariable("undf_w2", undf_w2)
-    CALL extract_psy_data % ProvideVariable("cell", cell)
-    CALL extract_psy_data % ProvideVariable("df", df)
-    CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
-    CALL extract_psy_data % ProvideVariable("f5_data", f5_data)
     CALL extract_psy_data % PreEnd
     do df = loop0_start, loop0_stop, 1
       ! Built-in: setval_c (set a real-valued field to a real scalar value)
@@ -502,6 +498,10 @@ def test_dynamo0p3_builtin():
     CALL extract_psy_data % ProvideVariable("f2_data_post", f2_data)
     CALL extract_psy_data % ProvideVariable("f3_data_post", f3_data)
     CALL extract_psy_data % ProvideVariable("f5_data_post", f5_data)
+    CALL extract_psy_data % ProvideVariable("map_w2_post", map_w2)
+    CALL extract_psy_data % ProvideVariable("ndf_w2_post", ndf_w2)
+    CALL extract_psy_data % ProvideVariable("nlayers_f3_post", nlayers_f3)
+    CALL extract_psy_data % ProvideVariable("undf_w2_post", undf_w2)
     CALL extract_psy_data % PostEnd"""
     assert output in code
     # TODO #706: Compilation for LFRic extraction not supported yet.
@@ -525,18 +525,14 @@ def test_extract_single_builtin_dynamo0p3():
     code = str(psy.gen)
     output = """\
     CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy", \
-"invoke_0-setval_c-r0", 4, 2)
+"invoke_0-setval_c-r0", 2, 2)
     CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
     CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
-    CALL extract_psy_data % PreDeclareVariable("df", df)
-    CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
     CALL extract_psy_data % PreDeclareVariable("df_post", df)
     CALL extract_psy_data % PreDeclareVariable("f2_data_post", f2_data)
     CALL extract_psy_data % PreEndDeclaration
     CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
     CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
-    CALL extract_psy_data % ProvideVariable("df", df)
-    CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
     CALL extract_psy_data % PreEnd
     do df = loop1_start, loop1_stop, 1
       ! Built-in: setval_c (set a real-valued field to a real scalar value)
@@ -564,7 +560,6 @@ def test_extract_single_builtin_dynamo0p3():
     CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
     CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
     CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
-    CALL extract_psy_data % PreDeclareVariable("df", df)
     CALL extract_psy_data % PreDeclareVariable("df_post", df)
     CALL extract_psy_data % PreDeclareVariable("f1_data_post", f1_data)
     CALL extract_psy_data % PreEndDeclaration
@@ -572,7 +567,6 @@ def test_extract_single_builtin_dynamo0p3():
     CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
     CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
     CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
-    CALL extract_psy_data % ProvideVariable("df", df)
     CALL extract_psy_data % PreEnd
     !$omp parallel do default(shared), private(df), schedule(static)
     do df = loop1_start, loop1_stop, 1
@@ -584,7 +578,7 @@ def test_extract_single_builtin_dynamo0p3():
     CALL extract_psy_data % ProvideVariable("df_post", df)
     CALL extract_psy_data % ProvideVariable("f1_data_post", f1_data)
     CALL extract_psy_data % PostEnd"""
-    assert output in code_omp
+    assert output == code_omp
 
 
 def test_extract_kernel_and_builtin_dynamo0p3():

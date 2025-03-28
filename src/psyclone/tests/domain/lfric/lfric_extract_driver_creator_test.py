@@ -44,9 +44,9 @@ from psyclone.domain.lfric import LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Literal, Routine, Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
-from psyclone.psyir.tools import CallTreeUtils
 from psyclone.tests.utilities import Compile, get_base_path, get_invoke
 
 
@@ -666,38 +666,11 @@ def test_lfric_driver_external_symbols_error(capsys):
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
-    code = psy.gen
-    # Even though PSyclone cannot find the variable, it should still be
-    # extracted:
-    assert ('CALL extract_psy_data % PreDeclareVariable("non_existent_var@'
-            'module_with_error_mod", non_existent_var' in code)
-    assert ('CALL extract_psy_data % ProvideVariable("non_existent_var@'
-            'module_with_error_mod", non_existent_var' in code)
 
-    filename = "driver-import-test.F90"
-    with open(filename, "r", encoding='utf-8') as my_file:
-        driver = my_file.read()
-
-    # First check output of extraction, which will detect the problems of
-    # finding variables and functions:
-    out, _ = capsys.readouterr()
-    assert ("Cannot get PSyIR for module 'module_with_error_mod' - ignoring "
-            "unknown symbol 'non_existent_func'" in out)
-    assert ("Cannot get PSyIR for module 'module_with_error_mod' - ignoring "
-            "unknown symbol 'non_existent_var'" in out)
-
-    # This error comes from the driver creation: a variable is in the list
-    # of variables to be processed, but its type cannot be found.
-    assert ("Cannot find symbol with tag 'non_existent_var@module_with_"
-            "error_mod' - likely a symptom of an earlier parsing problem."
-            in out)
-    # This variable will be ignored (for now, see TODO 2120) so no code will
-    # be created for it. The string will still be in the created driver (since
-    # the module is still inlined), but no ReadVariable code should be created:
-    assert "call extract_psy_data % ReadVariable('non_existent@" not in driver
-
-    # Note that this driver cannot be compiled, since one of the inlined
-    # source files is invalid Fortran.
+    with pytest.raises(VisitorError) as err:
+        _ = psy.gen
+    assert ("Could not find the tag 'non_existent_var@module_with_"
+            "error_mod'" in str(err.value))
 
 
 # -----------------------------------------------------------------------------
@@ -714,23 +687,28 @@ def test_lfric_driver_rename_externals():
     # a different module, i.e.:
     #     use module_with_var_mod, only: renamed_var => module_var_a
 
-    _, invoke = get_invoke("driver_creation/invoke_kernel_rename_symbols.f90",
-                           API, dist_mem=False, idx=0)
+    psy, invoke = get_invoke("driver_creation/"
+                             "invoke_kernel_rename_symbols.f90",
+                             API, dist_mem=False, idx=0)
 
-    ctu = CallTreeUtils()
-    read_write_info = ctu.get_in_out_parameters(invoke.schedule,
-                                                collect_non_local_symbols=True)
-    driver_creator = LFRicExtractDriverCreator()
-    code = driver_creator.get_driver_as_string(invoke.schedule,
-                                               read_write_info, "extract",
-                                               "_post", ("region", "name"))
+    extract = LFRicExtractTrans()
+
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("field", "test")})
+    _ = psy.gen
+
+    filename = "driver-field-test.F90"
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
     # The invoking program also contains a variable `module_var_a`. So
     # the `module_var_a` from the module must be renamed on import and it
     # becomes `module_var_a_1`.
     assert ("use module_with_var_mod, only : module_var_a_1=>module_var_a"
-            in code)
+            in driver)
     assert ("call extract_psy_data%ReadVariable("
-            "'module_var_a@module_with_var_mod', module_var_a_1)" in code)
+            "'module_var_a@module_with_var_mod', module_var_a_1)" in driver)
 
     # While the actual code is LFRic, the driver is stand-alone, and as such
     # does not need any of the infrastructure files. The string also needs
@@ -738,5 +716,5 @@ def test_lfric_driver_rename_externals():
     # when writing the result to a file).
     build = Compile(".")
     fll = FortLineLength()
-    code = fll.process(code)
+    code = fll.process(driver)
     build.string_compiles(code)
