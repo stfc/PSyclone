@@ -54,6 +54,7 @@ from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ContainerSymbol, ImportInterface)
 from psyclone.errors import InternalError
@@ -392,6 +393,10 @@ class ExtractNode(PSyDataNode):
                                 f"'{type(old_reference).__name__}'"
                                 f" in _flatten_reference, it must be a "
                                 f"'StructureReference'.")
+        if isinstance(old_reference.parent, Call):
+            if old_reference.position == 0:
+                return  # Method calls are fine
+
         signature, _ = old_reference.get_signature_and_indices()
         flattened_name = self._flatten_signature(signature)
         symtab = old_reference.ancestor(Routine).symbol_table
