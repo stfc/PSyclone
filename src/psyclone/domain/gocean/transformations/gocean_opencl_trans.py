@@ -189,18 +189,21 @@ class GOOpenCLTrans(Transformation):
 
         # Check that we can construct the PSyIR and SymbolTable of each of
         # the kernels in this Schedule. Also check that none of them access
-        # any form of global data (that is not a routine argument).
+        # any form of global data (that is not a routine argument or just
+        # type information).
         for kern in node.kernels():
             KernelModuleInlineTrans().validate(kern)
             ksched = kern.get_kernel_schedule()
-            global_variables = ksched.symbol_table.imported_symbols
-            if global_variables:
+            global_variables = set(ksched.symbol_table.imported_symbols)
+            prec_symbols = set(ksched.symbol_table.precision_datasymbols)
+            if global_variables.difference(prec_symbols):
+                names = sorted([sym.name for sym in
+                                global_variables.difference(prec_symbols)])
                 raise TransformationError(
                     f"The Symbol Table for kernel '{kern.name}' contains the "
-                    f"following symbols with 'global' scope: "
-                    f"{[sym.name for sym in global_variables]}. An OpenCL "
-                    f"kernel cannot call other kernels and all of the data it "
-                    f"accesses must be passed by argument. Use the "
+                    f"following symbols with 'global' scope: {names}. An "
+                    f"OpenCL kernel cannot call other kernels and all of the "
+                    f"data it accesses must be passed by argument. Use the "
                     f"KernelImportsToArguments transformation to convert such "
                     f"symbols to kernel arguments first.")
 
