@@ -13,22 +13,26 @@ chapter of the PSyclone documentation for details about this transformation.
 ## Compilation
 
 A simple makefile is provided to compile the example. It can use one of
-two extraction libraries: the stand-alone one, which only uses Fortran IO
-to create binary files with the kernel parameters, or the NetCDF version, which
-creates NetCDF files. By default, the stand-alone version will be used,
-but you can set the ``TYPE`` environment variable to ``netcdf`` when building to
-use the NetCDF library::
+three extraction libraries, as outlined in the
+[PSyKE extraction libraries](https://psyclone.readthedocs.io/en/stable/psyke.html#extraction-libraries) section.
+
+By default, the stand-alone binary version will be used,
+but you can set the ``TYPE`` environment variable to either ``standalone_ascii``
+or ``netcdf`` when compiling to use the other libraries::
 
     $ TYPE=netcdf make compile
+    $ TYPE=standalone_ascii make compile
 
  To compile the example, the following dependencies are needed:
 - the infrastructure library ``liblfric.a`` provided in
   ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``
 - one of the LFRic PSyData wrapper libraries, either:
     - ``lib_kernel_data_netcdf`` from
-      ``<PSYCLONEHOME>/lib/extract/netcdf/lfric`` and NetCDF, or
+      ``<PSYCLONEHOME>/lib/extract/netcdf/lfric`` and NetCDF,
     - ``lib_kernel_data_standalone`` from
-      ``<PSYCLONEHOME>/lib/extract/standalone/lfric``
+      ``<PSYCLONEHOME>/lib/extract/standalone/lfric``, or
+    - ``lib_kernel_data_standalone_ascii`` from
+      ``<PSYCLONEHOME>/lib/extract/standalone_ascii/lfric``
 
 The infrastructure and PSyData wrapper libraries will be compiled
 if they are not available.
