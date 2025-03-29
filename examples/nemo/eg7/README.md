@@ -1,4 +1,4 @@
-# PSyclone NEMO Example 5 - Kernel Data Extraction
+# PSyclone NEMO Example 7 - Kernel Data Extraction
 
 **Author:** J. Henrichs, Bureau of Meteorology
 
