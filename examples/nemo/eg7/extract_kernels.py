@@ -70,9 +70,7 @@ been preprocessed (if required).
 from psyclone.psyir.nodes import Loop
 from psyclone.transformations import TransformationError
 from psyclone.psyir.transformations import ExtractTrans
-from psyclone.domain.gocean.transformations import GOceanExtractTrans
 
-from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
 def trans(psy):
     '''A PSyclone-script compliant transformation function. Applies
@@ -82,12 +80,7 @@ def trans(psy):
     :type psy: :py:class:`psyclone.psyGen.PSy`
     '''
 
-    #extract = ExtractTrans()
-    extract = GOceanExtractTrans()
-
-
-    #print("Invokes found:\n" +
-    #      "\n".join([str(name) for name in psy.invokes.names]) + "\n")
+    extract = ExtractTrans()
 
     for loop in psy.walk(Loop):
         # Don't extract the content of an iteration loop:
@@ -98,18 +91,9 @@ def trans(psy):
         # an iteration loop as outer.
         if ancestor is None or ancestor.variable.name == "jt":
             try:
-                # TODO #2080: once this is fixed, the option can be removed
-                # The example contains array expressions, e.g.:
-                # zwx(:,:,jpk) = 0.e0
-                # PSyclone represents this internally using Range with LBOUND
-                # and UBOUND intrinsics and currently this results in several
-                # occurrences of zws on the left hand side, which will trigger
-                # an exception in the dependency analysis. Therefore, disable
-                # the collection of read accesses for the shape of an array.
-                extract.apply(loop,
-                              options={"COLLECT-ARRAY-SHAPE-READS": False,
-                              "create_driver": True})
+                # Note that driver creation is not yet supported.
+                extract.apply(loop)
             except TransformationError as err:
                 # Typically that's caused by a kernel having a CodeBlock
-                # inside.
-                print("Ignoring: ", str(err.value))
+                # inside. In this example there is a write statement
+                print(f"Ignoring error '{err.value}'.")
