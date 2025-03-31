@@ -180,9 +180,6 @@ class Container(ScopingNode, CommentableMixin):
         method will return None. You will need to use `resolve_routine` first
         to find the names of the routines that the interface resolves to.
 
-        If it is not found and the routine is named in an import statement
-        then the search is continued in the named Container.
-
         :param str name: the name of the Routine for which to search.
         :param bool allow_private: whether the Routine is permitted to have
             a visibility of PRIVATE.
@@ -194,7 +191,7 @@ class Container(ScopingNode, CommentableMixin):
         rname = name.lower()
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.routine import Routine
-        from psyclone.psyir.symbols.symbol import Symbol, SymbolError
+        from psyclone.psyir.symbols.symbol import Symbol
         # pylint: enable=import-outside-toplevel
 
         # Is the Routine defined within this Container?
@@ -211,46 +208,8 @@ class Container(ScopingNode, CommentableMixin):
                 # such that it can't be the one we're looking for.
                 return None
 
-        # It's not defined in this Container so look in the import that names
-        # the routine if there is one.
-        table = self.symbol_table
-        try:
-            routine_sym = table.lookup(rname)
-        except KeyError:
-            # Routine does not exist in the SymbolTable.
-            routine_sym = None
-
-        if routine_sym:
-            if isinstance(routine_sym, GenericInterfaceSymbol):
-                # The routine is actually an interface to one or more routines.
-                # This should be handled outside this routine (e.g. by using
-                # `resolve_routine` first).
-                return None
-
-            if not (allow_private or
-                    routine_sym.visibility == Symbol.Visibility.PUBLIC):
-                # The Symbol is imported into this Container but is not
-                # visible outside it.
-                return None
-
-        if routine_sym and routine_sym.is_import:
-            child_cntr_sym = routine_sym.interface.container_symbol
-            # Find the definition of the container.
-            container = None
-            try:
-                container = child_cntr_sym.find_container_psyir(
-                    local_node=self)
-            except (SymbolError, FileNotFoundError):
-                pass
-            if not container:
-                # TODO #11 log that we didn't find the Container from which
-                # the routine is imported.
-                return None
-            return container.find_routine_psyir(rname)
-
-        # We may not have found a RoutineSymbol yet or we have but don't know
-        # where it comes from. We don't look in any wildcard imports as that
-        # gets very costly.
+        # It's not defined in this Container. It's up to the caller to decide
+        # whether to examine any imports.
         return None
 
     def resolve_routine(self, name):
