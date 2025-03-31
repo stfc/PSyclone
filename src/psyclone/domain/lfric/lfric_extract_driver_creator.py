@@ -54,7 +54,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   IntrinsicCall, Literal, Reference,
-                                  Routine, ExtractNode)
+                                  Routine, ExtractNode, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, UnresolvedType,
@@ -636,6 +636,20 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         invoke_sched = nodes[0].ancestor(InvokeSchedule)
         schedule_copy = Routine.create("name")
         schedule_copy.children.extend([n.copy() for n in nodes[0].children])
+
+        for sref in schedule_copy.walk(StructureReference):
+            # StructureReference must have been flattened before creating the
+            # driver, or are method calls. In both cases they are not allowed.
+            dm_methods = ("set_dirty", "set_clean")
+            if (isinstance(sref.parent, Call) and
+                    sref.member.name in dm_methods):
+                # Some methods regarding distributed-memory can be deleted as
+                # we know the driver is executed with a single rank.
+                sref.parent.detach()
+            else:
+                raise ValueError(f"The provided PSyIR should not have "
+                                 f"StructureReferences, but found: "
+                                 f"{sref.debug_string()}")
 
         original_symbol_table = invoke_sched.symbol_table
 

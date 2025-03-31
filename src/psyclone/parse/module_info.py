@@ -316,7 +316,7 @@ class ModuleInfo:
                 # PSyIR could not be obtained so cannot search for Symbol
                 return None
 
-        except (FileNotFoundError, FileInfoFParserError, GenerationError):
+        except (FileNotFoundError, FileInfoFParserError, PSycloneError):
             return None
 
         try:
