@@ -540,8 +540,8 @@ def test_lfricbuiltin_not_dofs():
     bincall = BuiltInCall(KtypeDummy(), ["a", "b"])
     with pytest.raises(InternalError) as err:
         factory.create(bincall)
-    assert ("An LFRic built-in must iterate over DoFs but kernel 'x_plus_y' "
-            "iterates over 'wrong'" in str(err.value))
+    assert ("An LFRic built-in must iterate over one of ['dof', 'owned_dof'] "
+            "but kernel 'x_plus_y' iterates over 'wrong'" in str(err.value))
 
 
 def test_invalid_builtin_kernel():

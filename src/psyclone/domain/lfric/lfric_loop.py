@@ -226,11 +226,11 @@ class LFRicLoop(PSyLoop):
         # Loop bounds
         self.set_lower_bound("start")
         const = LFRicConstants()
-        if kern.iterates_over == "dof":
+        if kern.iterates_over in ["dof", "owned_dof"]:
             # This loop must be over DoFs
-            if Config.get().api_conf("lfric").compute_annexed_dofs \
-               and Config.get().distributed_memory \
-               and not kern.is_reduction:
+            if (Config.get().api_conf("lfric").compute_annexed_dofs
+                    and Config.get().distributed_memory
+                    and not kern.is_reduction):
                 self.set_upper_bound("nannexed")
             else:
                 self.set_upper_bound("ndofs")

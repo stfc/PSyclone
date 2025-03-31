@@ -4178,14 +4178,15 @@ def test_rc_no_owned_cell_kernels(monkeypatch):
     loops = invoke.schedule.walk(LFRicLoop)
     with pytest.raises(TransformationError) as err:
         rc_trans.validate(loops[0])
-    assert ("Dynamo0p3RedundantComputationTrans transformation to kernels that"
-            " operate on halo cells but kernel 'testkern_owned_cell_code' "
-            "operates on 'owned_cell_column'" in str(err.value))
+    assert ("Dynamo0p3RedundantComputationTrans transformation to kernel "
+            "'testkern_owned_cell_code' because it does not support redundant "
+            "computation (it operates on 'owned_cell_column')"
+            in str(err.value))
     with pytest.raises(TransformationError) as err:
         rc_trans.validate(loops[1])
-    assert ("Dynamo0p3RedundantComputationTrans transformation to kernels that"
-            " operate on halo cells but kernel 'setval_random' "
-            "operates on 'owned_dof'" in str(err.value))
+    assert ("Dynamo0p3RedundantComputationTrans transformation to kernel "
+            "'setval_random' because it does not support redundant computation"
+            " (it operates on 'owned_dof')" in str(err.value))
 
 
 def test_rc_invalid_depth():
