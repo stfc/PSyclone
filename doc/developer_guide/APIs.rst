@@ -1056,7 +1056,7 @@ BuiltIns
 
 In the LFRic PSyIR, calls to BuiltIn kernels are represented by a
 single Node which is a subclass of `LFRicBuiltIn
-<https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1domain_1_1lfric_1_1lfric__builtins_1_1LFRicBuiltIn.html>`_.
+</html/classpsyclone_1_1domain_1_1lfric_1_1lfric__builtins_1_1LFRicBuiltIn.html>`_.
 The ``lower_to_language_level()`` methods of these BuiltIn nodes must
 therefore replace that single Node with the
 PSyIR for the arithmetic operations required by the particular BuiltIn.
