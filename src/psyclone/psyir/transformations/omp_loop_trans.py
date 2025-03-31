@@ -236,7 +236,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         :param node: the supplied node to which we will apply the \
                      OMPLoopTrans transformation
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations\
+        :param options: a dictionary with options for transformations
                         and validation.
         :type options: Optional[Dict[str, Any]]
         :param bool options["reprod"]:
