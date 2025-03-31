@@ -545,7 +545,9 @@ use argument_mod,  only : arg_type,            &
      type(arg_type) :: meta_args(1) = (/                              &
           arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_1)          &
           /)
-     integer :: operates_on = DOF
+     ! This kernel cannot be used to perform redundant computation so
+     ! must operate only on owned dofs.
+     integer :: operates_on = OWNED_DOF
    contains
      procedure, nopass :: setval_random_code
   end type setval_random

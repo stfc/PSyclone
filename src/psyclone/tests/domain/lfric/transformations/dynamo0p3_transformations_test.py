@@ -575,9 +575,9 @@ def test_omp_parallel_colouring_needed(monkeypatch, annexed, dist_mem):
     as it affects how many halo exchanges are generated.
 
     '''
-    config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    #config = Config.get()
+    #dyn_config = config.api_conf("lfric")
+    #monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("11_any_space.f90", TEST_API,
                            name="invoke_0_testkern_any_space_1_type",
                            dist_mem=dist_mem)
@@ -4164,6 +4164,28 @@ def test_rc_no_halo_kernels():
             "operates on 'halo_cell_column'" in str(err.value))
 
 
+def test_rc_no_owned_cell_kernels(annexed):
+    '''
+    Test that Dynamo0p3RedundantComputationTrans refuses to transform a kernel
+    that must operate only on owned cells or dofs.
+
+    '''
+    _, invoke = get_invoke("1.4.5_owned_only_invoke.f90",
+                           TEST_API, idx=0, dist_mem=True)
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loops = invoke.schedule.walk(LFRicLoop)
+    with pytest.raises(TransformationError) as err:
+        rc_trans.validate(loop[0])
+    assert ("Dynamo0p3RedundantComputationTrans transformation to kernels that"
+            " operate on halo cells but kernel 'testkern_owned_cell_code' "
+            "operates on 'owned_cell_column'" in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        rc_trans.validate(loop[1])
+    assert ("Dynamo0p3RedundantComputationTrans transformation to kernels that"
+            " operate on halo cells but kernel 'setval_random' "
+            "operates on 'owned_dof'" in str(err.value))
+
+
 def test_rc_invalid_depth():
     ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied depth is less than 1. '''
@@ -4249,7 +4271,7 @@ def test_rc_continuous_no_depth():
             "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)") in result
 
 
-def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
+def test_rc_discontinuous_depth(tmpdir, annexed):
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with continuous reads are modified appropriately and
     set_clean() added correctly and halo_exchange added appropriately
@@ -4258,8 +4280,6 @@ def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("1_single_invoke_w3.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
@@ -4285,7 +4305,7 @@ def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_rc_discontinuous_no_depth(monkeypatch, annexed):
+def test_rc_discontinuous_no_depth(annexed):
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with continuous reads are modified appropriately and
     set_clean() added correctly and halo_exchange added appropriately
@@ -4294,8 +4314,6 @@ def test_rc_discontinuous_no_depth(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("1_single_invoke_w3.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
@@ -4604,7 +4622,7 @@ def test_rc_dofs_no_depth():
     assert "CALL f1_proxy%set_clean(max_halo_depth_mesh)" in result
 
 
-def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
+def test_rc_dofs_depth_prev_dep(annexed, tmpdir):
     ''' Test that the loop bounds when iterating over DoFs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
@@ -4613,8 +4631,6 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
     with and without annexed dofs.
 
     '''
-    api_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
@@ -4706,7 +4722,7 @@ def test_discontinuous_no_set_clean():
     assert "CALL m2_proxy%set_clean(" not in result
 
 
-def test_dofs_no_set_clean(monkeypatch, annexed):
+def test_dofs_no_set_clean(annexed):
     ''' Test that set_clean is not added for the default iteration space
     of a loop over dofs. This is probably covered from tests in
     lfric_builtins_test.py but it is good to have a specific
@@ -4714,8 +4730,6 @@ def test_dofs_no_set_clean(monkeypatch, annexed):
     this affects the generated code.
 
     '''
-    api_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     psy, _ = get_invoke("15.7.1_setval_c_builtin.f90", TEST_API,
                         idx=0, dist_mem=True)
     result = str(psy.gen)
@@ -5222,7 +5236,7 @@ def test_rc_invalid_depth_type():
             f"type '{type('txt')}'" in str(excinfo.value))
 
 
-def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
+def test_loop_fusion_different_loop_depth(annexed):
     '''We can only loop fuse if two loops iterate over the same entities
     and iterate over the same depth. The loop fusion transformation
     raises an exception if this is not the case. This test checks that
@@ -5231,9 +5245,6 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
     generated.
 
     '''
-    config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("4.6_multikernel_invokes.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
@@ -5311,7 +5322,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
             in str(excinfo.value))
 
 
-def test_rc_max_w_to_r_continuous_known_halo(monkeypatch, annexed):
+def test_rc_max_w_to_r_continuous_known_halo(annexed):
     '''If we have a continuous field being written to in one loop to the
     maximum halo depth and then being read in a following (dependent)
     loop to the maximum halo depth we can determine that we definitely
@@ -5321,9 +5332,6 @@ def test_rc_max_w_to_r_continuous_known_halo(monkeypatch, annexed):
     how many halo exchanges are generated.
 
     '''
-    config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("14.10_halo_continuous_cell_w_to_r.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
@@ -5892,7 +5900,7 @@ def test_loop_fuse_then_rc(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_haloex_colouring(tmpdir, monkeypatch, annexed):
+def test_haloex_colouring(tmpdir, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
     works when we colour the loops. We also test when annexed is False
     and True as it affects how many halo exchanges are generated.
@@ -5926,9 +5934,6 @@ def test_haloex_colouring(tmpdir, monkeypatch, annexed):
         assert depth_info.var_depth.value == "1"
         assert not depth_info.max_depth
 
-    config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     if annexed:
         w_loop_idx = 1
         r_loop_idx = 3
@@ -5965,7 +5970,7 @@ def test_haloex_colouring(tmpdir, monkeypatch, annexed):
         print("OK for iteration ", idx)
 
 
-def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
+def test_haloex_rc1_colouring(tmpdir, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
     works when we colour the loops and apply redundant computation to
     the maximum depth for the reader. We first check the halo exchange
@@ -6006,10 +6011,6 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
         assert not depth_info.annexed_only
         assert depth_info.max_depth
         assert not depth_info.var_depth
-
-    config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     if annexed:
         w_loop_idx = 1
@@ -6054,7 +6055,7 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
+def test_haloex_rc2_colouring(tmpdir, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
     works when we colour the loops and apply redundant computation to
     the maximum depth for the writer. We first check the halo exchange
@@ -6096,9 +6097,6 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         assert not depth_info.max_depth
         assert depth_info.var_depth.value == "1"
 
-    config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     w_loop_idx = 2
     if annexed:
         r_loop_idx = 4
@@ -6142,7 +6140,7 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
+def test_haloex_rc3_colouring(tmpdir, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
     works when we colour the loops and apply redundant computation to
     the maximum depth for the writer and the reader. We first check
@@ -6184,9 +6182,6 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         assert depth_info.max_depth
         assert not depth_info.var_depth
 
-    config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     w_loop_idx = 2
     r_loop_idx = 5
     ctrans = Dynamo0p3ColourTrans()
@@ -6229,7 +6224,7 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
+def test_haloex_rc4_colouring(tmpdir, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
     works when we colour the loops and apply redundant computation to
     depth 2 for the writer. We first check a halo exchange is not
@@ -6239,9 +6234,6 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
     True as it affects how many halo exchanges are generated.
 
     '''
-    config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     # At the start we have two halo exchange calls for field f1, one
     # before the first loop and one between the two loops when annexed
     # is False, and just the latter halo exchange when annexed is True
