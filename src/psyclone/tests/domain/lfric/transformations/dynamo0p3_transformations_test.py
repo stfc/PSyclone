@@ -575,9 +575,6 @@ def test_omp_parallel_colouring_needed(monkeypatch, annexed, dist_mem):
     as it affects how many halo exchanges are generated.
 
     '''
-    #config = Config.get()
-    #dyn_config = config.api_conf("lfric")
-    #monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("11_any_space.f90", TEST_API,
                            name="invoke_0_testkern_any_space_1_type",
                            dist_mem=dist_mem)
@@ -4175,12 +4172,12 @@ def test_rc_no_owned_cell_kernels(annexed):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     loops = invoke.schedule.walk(LFRicLoop)
     with pytest.raises(TransformationError) as err:
-        rc_trans.validate(loop[0])
+        rc_trans.validate(loops[0])
     assert ("Dynamo0p3RedundantComputationTrans transformation to kernels that"
             " operate on halo cells but kernel 'testkern_owned_cell_code' "
             "operates on 'owned_cell_column'" in str(err.value))
     with pytest.raises(TransformationError) as err:
-        rc_trans.validate(loop[1])
+        rc_trans.validate(loops[1])
     assert ("Dynamo0p3RedundantComputationTrans transformation to kernels that"
             " operate on halo cells but kernel 'setval_random' "
             "operates on 'owned_dof'" in str(err.value))
