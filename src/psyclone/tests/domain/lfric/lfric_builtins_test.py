@@ -230,8 +230,8 @@ def test_lfricbuiltin_validate_not_over_dofs(monkeypatch):
     monkeypatch.setattr(kern, "_iterates_over", "broken")
     with pytest.raises(ParseError) as err:
         kern._validate()
-    assert ("built-in calls must operate on one of ['dof'] but found 'broken' "
-            "for Built-in: setval_c (set a real-valued field "
+    assert ("built-in calls must operate on one of ['dof', 'owned_dof'] but "
+            "found 'broken' for Built-in: setval_c (set a real-valued field "
             in str(err.value))
 
 
@@ -1613,7 +1613,7 @@ def test_setval_X_and_its_int_version(fortran_writer):
     assert kern.metadata().meta_args[1].datatype == "gh_integer"
 
 
-def test_setval_random(fortran_writer):
+def test_setval_random(fortran_writer, annexed):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicSetvalRandomKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
@@ -1621,7 +1621,15 @@ def test_setval_random(fortran_writer):
     assert metadata.meta_args[0].access == "gh_write"
     assert metadata.meta_args[0].function_space == "any_space_1"
 
-    kern = builtin_from_file("15.7.4_setval_random_builtin.f90")
+    if annexed:
+        # This kernel cannot perform redundant computation and therefore
+        # cannot be used if compute_annexed_dofs is True.
+        with pytest.raises(ParseError) as err:
+            _ = builtin_from_file("15.7.4_setval_random_builtin.f90")
+        assert "TODO" in str(err.value)
+        return
+    else:
+        kern = builtin_from_file("15.7.4_setval_random_builtin.f90")
     assert str(kern) == ("Built-in: setval_random (fill a real-valued field"
                          " with pseudo-random numbers)")
 

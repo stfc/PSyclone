@@ -125,17 +125,19 @@ class LFRicBuiltInCallFactory():
         builtin = BUILTIN_MAP[call.func_name]()
 
         # Create the loop over the appropriate entity.
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric import LFRicLoop
 
-        if call.ktype.iterates_over == "dof":
+        if (call.ktype.iterates_over in
+                LFRicConstants().BUILTIN_ITERATION_SPACES):
             loop_type = "dof"
         else:
             raise InternalError(
-                f"An LFRic built-in must iterate over DoFs but kernel "
+                f"An LFRic built-in must iterate over one of "
+                f"{LFRicConstants().BUILTIN_ITERATION_SPACES} but kernel "
                 f"'{call.func_name}' iterates over "
                 f"'{call.ktype.iterates_over}'")
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric import LFRicLoop
         dofloop = LFRicLoop(parent=parent, loop_type=loop_type)
 
         # Use the call object (created by the parser) to set-up the state

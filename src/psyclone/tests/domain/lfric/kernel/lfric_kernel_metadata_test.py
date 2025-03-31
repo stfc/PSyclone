@@ -115,9 +115,9 @@ def test_init_args_error():
     with pytest.raises(ValueError) as info:
         _ = LFRicKernelMetadata(operates_on="invalid")
     assert ("The 'OPERATES_ON' metadata should be a recognised value "
-            "(one of ['cell_column', 'domain', 'dof', 'halo_cell_column', "
-            "'owned_and_halo_cell_column']) but found "
-            "'invalid'." in str(info.value))
+            "(one of ['cell_column', 'owned_cell_column', 'domain', 'dof', "
+            "'owned_dof', 'halo_cell_column', 'owned_and_halo_cell_column']) "
+            "but found 'invalid'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         _ = LFRicKernelMetadata(shapes="invalid")
@@ -1297,9 +1297,9 @@ def test_setter_getter_operates_on():
     with pytest.raises(ValueError) as info:
         metadata.operates_on = "invalid"
     assert ("The 'OPERATES_ON' metadata should be a recognised value "
-            "(one of ['cell_column', 'domain', 'dof', 'halo_cell_column', "
-            "'owned_and_halo_cell_column']) but found "
-            "'invalid'." in str(info.value))
+            "(one of ['cell_column', 'owned_cell_column', 'domain', 'dof', "
+            "'owned_dof', 'halo_cell_column', 'owned_and_halo_cell_column']) "
+            "but found 'invalid'." in str(info.value))
     metadata.operates_on = "DOMAIN"
     assert metadata.operates_on == "domain"
 

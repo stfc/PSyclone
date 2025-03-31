@@ -362,14 +362,14 @@ class Parser():
         builtin object respectively which contains the required
         information.
 
-        :param argument: Parse tree of an invoke argument. This \
+        :param argument: Parse tree of an invoke argument. This
             should contain a kernel name and associated arguments.
-        :type argument: :py:class:`fparser.two.Fortran2003.Part_Ref` or \
+        :type argument: :py:class:`fparser.two.Fortran2003.Part_Ref` |
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
-        :returns: A builtin or coded kernel call object which contains \
+        :returns: A builtin or coded kernel call object which contains
             relevant information about the Kernel.
-        :rtype: :py:class:`psyclone.parse.algorithm.KernelCall` or \
+        :rtype: :py:class:`psyclone.parse.algorithm.KernelCall` |
             :py:class:`psyclone.parse.algorithm.BuiltInCall`
 
         '''
@@ -383,6 +383,14 @@ class Parser():
             # This is a coded kernel
             kernel_call = self.create_coded_kernel_call(
                 kernel_name, args)
+
+        # Check that compute-annexed-dofs is False if the kernel must operate
+        # only on owned entities.
+        api_conf = Config.get().api_conf()
+        if (api_conf.compute_annexed_dofs and kernel_call.ktype.iterates_over in
+                api_conf.get_constants().NO_RC_ITERATION_SPACES):
+            raise ParseError("TODO - not sure a parseerror is right")
+
         return kernel_call
 
     def create_builtin_kernel_call(self, kernel_name, args):

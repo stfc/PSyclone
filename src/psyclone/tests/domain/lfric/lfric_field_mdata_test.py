@@ -281,9 +281,9 @@ def test_ad_field_init_wrong_iteration_space():
             field_arg, metadata.iterates_over, 0)._init_field(
                 field_arg, "ncolours")
     assert ("Invalid operates_on 'ncolours' in the kernel metadata (expected "
-            "one of ['cell_column', 'domain', 'dof', 'halo_cell_column', "
-            "'owned_and_halo_cell_column'])." in
-            str(excinfo.value))
+            "one of ['cell_column', 'owned_cell_column', 'domain', 'dof', "
+            "'owned_dof', 'halo_cell_column', 'owned_and_halo_cell_column'])."
+            in str(excinfo.value))
 
 
 def test_fs_discontinuous_inc_error():

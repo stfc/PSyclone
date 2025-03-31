@@ -46,6 +46,6 @@ program single_invoke
   real(r_def)      :: a
 
   call invoke( testkern_owned_cell_type(a, f1, f2, m1, m2), &
-               setval_random(a, f1))
+               setval_random(f1))
 
 end program single_invoke

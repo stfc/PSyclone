@@ -4161,12 +4161,17 @@ def test_rc_no_halo_kernels():
             "operates on 'halo_cell_column'" in str(err.value))
 
 
-def test_rc_no_owned_cell_kernels(annexed):
+def test_rc_no_owned_cell_kernels(monkeypatch):
     '''
     Test that Dynamo0p3RedundantComputationTrans refuses to transform a kernel
     that must operate only on owned cells or dofs.
 
     '''
+    # Set compute_annexed_dofs to False as that's the only permitted setting
+    # for the kernels in this test.
+    config = Config.get()
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", False)
     _, invoke = get_invoke("1.4.5_owned_only_invoke.f90",
                            TEST_API, idx=0, dist_mem=True)
     rc_trans = Dynamo0p3RedundantComputationTrans()
