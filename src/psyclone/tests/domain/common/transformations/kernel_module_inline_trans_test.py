@@ -1164,7 +1164,9 @@ def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader,
     assert calls[1].routine.symbol is container.symbol_table.lookup("my_sub")
     assert "my_mod" not in again.symbol_table
     assert len(container.walk(Routine)) == 3
-    assert Compile(tmpdir).string_compiles(fortran_writer(prog_psyir))
+    # Cannot compile this because we still have a wildcard import from my_mod.
+    output = fortran_writer(prog_psyir)
+    assert "use my_mod, old_my_sub_1=>my_sub" in output
 
 
 def test_mod_inline_all_calls_updated(monkeypatch, fortran_reader):
