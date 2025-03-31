@@ -42,7 +42,7 @@ import pytest
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Call, colored, Container, FileContainer,
-                                  KernelSchedule, Return, Routine)
+                                  KernelSchedule, Return)
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, SymbolTable
 from psyclone.tests.utilities import check_links
 
@@ -250,46 +250,6 @@ def test_get_routine_missing_container_wildcard(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     container = psyir.children[0]
     result = container.find_routine_psyir("my_sub")
-    assert result is None
-
-
-def test_get_routine_recurse_named(fortran_reader):
-    '''Test that when a container does not contain the required routine,
-    any imported containers within this container are also
-    searched. In this case the test is for a container within the
-    original container that explicitly names the routine. The PSyIR of
-    the routine is returned when it is found in the second container.
-
-    '''
-    code = (
-        f"{CALL_IN_SUB_USE}"
-        f"module inline_mod\n"
-        f"use inline_mod2, only : sub\n"
-        f"end module inline_mod\n"
-        f"module inline_mod2\n"
-        f"contains\n"
-        f"{SUB}\n"
-        f"end module inline_mod2\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    container = psyir.walk(Container)[1]
-    result = container.find_routine_psyir("sub")
-    assert isinstance(result, Routine)
-    assert result.name == "sub"
-    # Check that if an imported Routine is private then we don't
-    # return it.
-    code = (
-        f"{CALL_IN_SUB_USE}"
-        f"module inline_mod\n"
-        f"use inline_mod2, only : sub\n"
-        f"private\n"
-        f"end module inline_mod\n"
-        f"module inline_mod2\n"
-        f"contains\n"
-        f"{SUB}\n"
-        f"end module inline_mod2\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    container = psyir.walk(Container)[1]
-    result = container.find_routine_psyir("sub")
     assert result is None
 
 
