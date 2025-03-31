@@ -378,8 +378,7 @@ more kernels and/or implements any required Built-in operations.
 
 All these classes can be specialised in each PSyclone API to support the
 specific features of a particular API. The class diagram for the above base classes
-is shown below using the LFRic API as an illustration. This class diagram
-was generated from the source code with pyreverse and edited with inkscape.
+is shown below using the LFRic API as an illustration.
 
 .. image:: dynamo0p3_topclasses.png
     :width: 80%
