@@ -51,7 +51,7 @@ allow PSyclone to generate the PSy layer. These algorithm and kernel
 APIs are discussed separately in the following sections.
 
 The LFRic API supports the Met Office's finite element (hereafter FEM)
-based GungHo dynamical core (see :ref:`introduction`).
+based GungHo dynamical core.
 This dynamical core with atmospheric physics parameterisation
 schemes is a part of the Met Office LFRic modelling system :cite:`lfric-2019`,
 currently being developed in preparation for exascale computing in the 2020s.
@@ -1970,7 +1970,7 @@ operates_on                    Data passed for each field/operator argument
 ============================== =======================================================
 
 (For a description of the concepts of 'owned' and 'halo' cells please see the
-:ref:`dev_guide:lfric-developers`.)
+:ref:`lfric-developers`.)
 
 procedure
 #########
@@ -2628,7 +2628,7 @@ Built-ins
 ---------
 
 The basic concept of a PSyclone Built-in is described in the
-:ref:`built-ins` section.  In the LFRic API, calls to
+:ref:`psykal-built-ins` section.  In the LFRic API, calls to
 Built-ins generally follow a convention that the field/scalar written
 to comes first in the argument list. LFRic Built-ins must conform to the
 following rules:

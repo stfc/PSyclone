@@ -31,9 +31,9 @@ of the repository:
 
     pip install -e .[doc]
 
-In both cases ``latexmk`` is also required to be installed on
-the system in order to generate the
-[pdf documentation](../psyclone.pdf).
+For generating the pdf versions of the documentation and the doxygen reference
+guide, ``latexmk`` and ``doxygen`` respectively need to be installed in the
+system.
 
 The user documentation can make use of Sphinx's math support for
 html if `dvipng` is installed. This library is not listed as
