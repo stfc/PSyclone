@@ -22,7 +22,7 @@ When examining the PSyIR (the intermediate representation that PSyclone
 uses to generate and translate code) and writing transformation
 scripts, it may be useful to see the documentation of the various node
 types. The best way to do this is to use the [PSyclone Reference Guide
-](https://psyclone-ref.readthedocs.io/en/latest/).
+](https://psyclone.readthedocs.io/en/latest/reference_guide/).
 
 ## A note on importing PSyclone modules ##
 
@@ -43,7 +43,7 @@ Unfortunately, the various transformation classes are not yet as well
 organised. Many are now in the 'proper' location of
 `psyclone.psyir.transformations`, but some are still in
 `psyclone.transformations`. If in doubt, consult the
-[Reference Guide](https://psyclone-ref.readthedocs.io/en/latest/_static/html/annotated.html).
+[Reference Guide](https://psyclone.readthedocs.io/en/latest/html/annotated.html).
 
 
 ## 1. Processing Fortran code with PSyclone ##
