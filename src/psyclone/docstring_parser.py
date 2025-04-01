@@ -402,6 +402,7 @@ def parse_psyclone_docstring_from_object(
 
     return docstring_data
 
+
 # For Sphinx AutoAPI documentation generation
 __all__ = ['ArgumentData', 'RaisesData', 'ReturnsData', 'DocstringData',
            'create_docstring_data', 'gen_docstring_from_RaisesData',

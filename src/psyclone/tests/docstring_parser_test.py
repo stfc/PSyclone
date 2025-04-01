@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: A. B. G. Chalk, STFC Daresbury Lab
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
 '''This module contains the tests for the docstring_parser module.'''
 
 import pytest
@@ -46,6 +46,7 @@ from psyclone.docstring_parser import (
     gen_docstring_from_DocstringData,
 )
 from psyclone.errors import InternalError
+
 
 def test_argumentdata():
     '''Test the ArgumentData dataclass behaves as expected.'''
@@ -142,7 +143,7 @@ def test_create_docstring_data():
     args = ["param", "untyped_arg"]
     output = create_docstring_data(args, "desc", dummy_function)
     assert isinstance(output, ArgumentData)
-    assert output.datatype == None
+    assert output.datatype is None
     assert not output.inline_type
     assert output.name == "untyped_arg"
     assert output.desc == "desc"
@@ -191,7 +192,7 @@ def test_create_docstring_data():
     output = create_docstring_data(args, "desc", dummy_function)
     assert isinstance(output, ReturnsData)
     assert not output.inline_type
-    assert output.datatype == None
+    assert output.datatype is None
     assert output.desc == "desc"
 
     # Test valid returns string with type info.
@@ -201,7 +202,7 @@ def test_create_docstring_data():
     assert output.inline_type
     assert output.datatype == "str"
     assert output.desc == "desc"
-   
+
     # Test invalid input.
     args = ["invalid", "input"]
     with pytest.raises(InternalError) as excinfo:
@@ -223,7 +224,7 @@ def test_gen_docstring_from_ArgumentData():
                          desc="desc", inline_type=True)
     output = gen_docstring_from_ArgumentData(adata)
     assert output == ":param datatype name: desc"
-   
+
     adata = ArgumentData(name="name", datatype="datatype",
                          desc="desc", inline_type=False)
     output = gen_docstring_from_ArgumentData(adata)
@@ -263,7 +264,6 @@ def test_gen_docstring_from_DocstringData():
     output = gen_docstring_from_DocstringData(docdata)
     assert output == "    desc\n"
 
-
     adata = ArgumentData(name="name", datatype="datatype",
                          desc="desc", inline_type=True)
     docdata.add_data(adata)
@@ -294,7 +294,6 @@ def test_gen_docstring_from_DocstringData():
     :raises Error2: desc2
 '''
     assert output == correct
-
 
     rdata = ReturnsData(desc="desc", datatype="datatype", inline_type=False)
     docdata.add_data(rdata)
