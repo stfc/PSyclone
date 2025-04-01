@@ -205,7 +205,8 @@ def test_intrinsics(fortran_reader, fortran_writer):
 
 def test_call(fortran_reader, fortran_writer):
     '''Test that references to arrays that are arguments to a call are
-    transformed to array slice notation.
+    *not* transformed to array slice notation (since this affects the
+    bounds of the array seen within the called routine).
 
     '''
     code = (
@@ -216,7 +217,27 @@ def test_call(fortran_reader, fortran_writer):
         "  call work(a,b)\n"
         "end program test\n")
     result = apply_trans(fortran_reader, fortran_writer, code)
-    assert "call work(a(:), b)" in result
+    assert "call work(a, b)" in result
+
+
+def test_ambiguous_call_array_reference(fortran_reader, fortran_writer):
+    '''
+    Test that references to arrays that *may* be arguments to a call are *not*
+    transformed because, if it is a call, this will affect the bounds of the
+    array seen within the called routine.
+
+    '''
+    code = '''\
+    program test
+      use some_mod, only: work
+      integer, dimension(10) :: a, b
+      a = 1
+      ! Without resolving 'work', we don't know whether it is an array
+      ! or a function.
+      b = work(a)
+    end program test'''
+    result = apply_trans(fortran_reader, fortran_writer, code)
+    assert "b(:) = work(a)" in result
 
 
 def test_validate():

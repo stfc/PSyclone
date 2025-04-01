@@ -43,11 +43,11 @@
 '''
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import (Range, Reference, ArrayReference, Literal,
-                                  IntrinsicCall, Assignment)
-from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+from psyclone.psyir.nodes import (ArrayReference, Assignment, Call,
+                                  IntrinsicCall, Literal, Range, Reference)
+from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType, Symbol
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 
 
 class Reference2ArrayRangeTrans(Transformation):
@@ -136,8 +136,8 @@ class Reference2ArrayRangeTrans(Transformation):
         :raises TransformationError: if the node is not a Reference
             node or the Reference node not does not reference an array
             symbol.
-        :raises TransformationError: if the Reference node is within an
-            inquiry or DEALLOCATE intrinsic.
+        :raises TransformationError: if the Reference node is (or may be)
+            passed as an argument to a call.
 
         '''
         # TODO issue #1858. Add support for structures containing arrays.
@@ -150,17 +150,19 @@ class Reference2ArrayRangeTrans(Transformation):
             raise TransformationError(
                 f"The supplied node should be a Reference to a symbol "
                 f"that is an array, but '{node.symbol.name}' is not.")
-        if isinstance(node.parent, IntrinsicCall) and node.parent.is_inquiry:
-            raise TransformationError(
-                f"References to arrays passed as arguments to intrinsic "
-                f"enquiry routine '{node.parent.routine.name}' should not be "
-                f"transformed.")
-        if (isinstance(node.parent, IntrinsicCall) and
-                node.parent.routine.name in ["DEALLOCATE"]):
+        if isinstance(node.parent, Call):
             raise TransformationError(LazyString(
-                lambda: f"References to arrays passed to "
-                f"'{node.parent.routine.name}' intrinsics should not be "
-                f"transformed, but found:\n {node.parent.debug_string()}"))
+                lambda: f"The supplied node is passed as an argument to a "
+                f"Call ({node.parent.debug_string()}) and should not be "
+                f"transformed."))
+        if (isinstance(node.parent, Reference) and (
+                type(node.parent.symbol) is Symbol
+                or not isinstance(node.parent.symbol.datatype, ArrayType))):
+            raise TransformationError(LazyString(
+                lambda: f"References to arrays that *may* be routine arguments"
+                f" should not be transformed but found:\n "
+                f"{node.parent.debug_string()} and {node.parent.symbol.name} is"
+                f"not known to be of ArrayType (and therefore may be a call)."))
         assignment = node.ancestor(Assignment)
         if assignment and assignment.is_pointer:
             raise TransformationError(
