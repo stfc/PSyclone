@@ -384,14 +384,6 @@ class Parser():
             kernel_call = self.create_coded_kernel_call(
                 kernel_name, args)
 
-        # Check that compute-annexed-dofs is False if the kernel must operate
-        # only on owned entities.
-        api_conf = Config.get().api_conf()
-        if (api_conf.compute_annexed_dofs and
-                kernel_call.ktype.iterates_over in
-                api_conf.get_constants().NO_RC_ITERATION_SPACES):
-            raise ParseError("TODO - not sure a parseerror is right")
-
         return kernel_call
 
     def create_builtin_kernel_call(self, kernel_name, args):

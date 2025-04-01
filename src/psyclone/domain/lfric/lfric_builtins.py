@@ -45,12 +45,13 @@
 # pylint: disable=too-many-lines
 import abc
 
+from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
     FieldVectorArgMetadata)
-from psyclone.errors import InternalError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
@@ -285,17 +286,19 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         Check that this built-in conforms to the LFRic API.
 
         :raises ParseError: if a built-in call does not iterate over DoFs.
-        :raises ParseError: if an argument to a built-in kernel is not \
+        :raises ParseError: if an argument to a built-in kernel is not
                             one of valid argument types.
-        :raises ParseError: if an argument to a built-in kernel has \
+        :raises ParseError: if an argument to a built-in kernel has
                             an invalid data type.
-        :raises ParseError: if a built-in kernel writes to more than \
+        :raises ParseError: if a built-in kernel writes to more than
                             one argument.
-        :raises ParseError: if a built-in kernel does not have at least \
+        :raises ParseError: if a built-in kernel does not have at least
                             one field argument.
         :raises ParseError: if all field arguments are not on the same space.
-        :raises ParseError: if all field arguments of a non-conversion \
+        :raises ParseError: if all field arguments of a non-conversion
                             built-in do not have the same data type.
+        :raises GenerationError: if this kernel does not support redundant
+            computation and COMPUTE_ANNEXED_DOFS is True.
 
         '''
         const = LFRicConstants()
@@ -363,6 +366,14 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 f"{conversion_builtins} are allowed to have field arguments of"
                 f" different data types. However, found different data types "
                 f"{data_types_str} for field arguments to '{self.name}'.")
+
+        api_config = Config.get().api_conf("lfric")
+        if (api_config.compute_annexed_dofs and
+                self.iterates_over in const.NO_RC_ITERATION_SPACES):
+            raise GenerationError(
+                f"Built-in '{self.name}' cannot perform redundant computation "
+                f"(has OPERATES_ON={self.iterates_over}) but the 'COMPUTE_"
+                f"ANNEXED_DOFS' configuration option is set to True.")
 
     @property
     def halo_depth(self):

@@ -1624,9 +1624,11 @@ def test_setval_random(fortran_writer, annexed):
     if annexed:
         # This kernel cannot perform redundant computation and therefore
         # cannot be used if compute_annexed_dofs is True.
-        with pytest.raises(ParseError) as err:
+        with pytest.raises(GenerationError) as err:
             _ = builtin_from_file("15.7.4_setval_random_builtin.f90")
-        assert "TODO" in str(err.value)
+        assert ("'setval_random' cannot perform redundant computation (has "
+                "OPERATES_ON=owned_dof) but the 'COMPUTE_ANNEXED_DOFS'"
+                in str(err.value))
         return
     else:
         kern = builtin_from_file("15.7.4_setval_random_builtin.f90")
