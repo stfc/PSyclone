@@ -208,13 +208,12 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
         parent.add(DirectiveGen(parent, "omp", "begin", "taskwait", ""))
         # No children or end code for this node
 
-    def begin_string(self):
+    def begin_string(self) -> str:
         '''Returns the beginning statement of this directive, i.e.
         "omp taskwait". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the opening statement of this directive.
-        :rtype: str
 
         '''
         return "omp taskwait"
@@ -247,13 +246,12 @@ class OMPBarrierDirective(OMPStandaloneDirective):
 
         super().validate_global_constraints()
 
-    def begin_string(self):
+    def begin_string(self) -> str:
         '''Returns the beginning statement of this directive, i.e.
         "omp barrier". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the opening statement of this directive.
-        :rtype: str
 
         '''
         return "omp barrier"
@@ -1134,8 +1132,8 @@ class OMPSingleDirective(OMPSerialDirective):
     '''
     Class representing an OpenMP SINGLE directive in the PSyIR.
 
-    :param bool nowait: argument describing whether this single should have
-                        a nowait clause applied. Default value is False.
+    :param nowait: argument describing whether this single should have
+                   a nowait clause applied. Default value is False.
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
@@ -2341,19 +2339,6 @@ class OMPTeamsLoopDirective(OMPParallelDoDirective):
 
     '''
     _directive_string = "teams loop"
-
-    def begin_string(self):
-        '''Returns the beginning statement of this directive.
-        The visitor is responsible for adding the
-        correct directive beginning (e.g. "!$").
-
-        :returns: the beginning statement for this directive.
-        :rtype: str
-
-        '''
-        # Inherit the begin string from the super class implementation.
-        string = super().begin_string()
-        return string
 
 
 class OMPTargetDirective(OMPRegionDirective, DataSharingAttributeMixin):

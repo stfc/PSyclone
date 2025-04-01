@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025-2025, Science and Technology Facilities Council.
+# Copyright (c) 2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,13 +37,14 @@
 '''This module contains the DataSharingAttributeMixin.'''
 
 import abc
+from typing import Set, Tuple
 
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.psyir.nodes.if_block import IfBlock
-from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.while_loop import WhileLoop
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.symbols import DataSymbol, Symbol
 
 
 class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
@@ -51,7 +52,8 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
     in regions used for parallelism.
     '''
 
-    def infer_sharing_attributes(self):
+    def infer_sharing_attributes(self) -> \
+            Tuple[Set[Symbol], Set[Symbol], Set[Symbol]]:
         '''
         The PSyIR does not specify if each symbol inside an OpenMP region is
         private, firstprivate, shared or shared but needs synchronisation,
@@ -77,20 +79,14 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         assumed shared. How to synchronise the symbols in the third set is
         up to the caller of this method.
 
-        Any variables unspecified are assumed to be shared, and it is the job
-        of the subclass or callee to handle that assumption.
-
         :returns: three set of symbols that classify each of the symbols in
                   the directive body as PRIVATE, FIRSTPRIVATE or SHARED NEEDING
                   SYNCHRONISATION.
-        :rtype: Tuple[Set(:py:class:`psyclone.psyir.symbols.Symbol`),
-                      Set(:py:class:`psyclone.psyir.symbols.Symbol`),
-                      Set(:py:class:`psyclone.psyir.symbols.Symbol`)]
         '''
 
         # TODO #598: Improve the handling of scalar variables, there are
-        # remaining issues when we have accesses after the parallel region
-        # of variables that we currently declare as private. We could use
+        # remaining issues when we have accesses of variables after the
+        # parallel region that we currently declare as private. We could use
         # the DefinitionUseChain to prove that there are no more uses after
         # the loop.
         # e.g:

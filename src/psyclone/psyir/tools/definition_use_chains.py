@@ -654,7 +654,7 @@ class DefinitionUseChain:
                     control_flow_nodes.append(None)
                     current_block = []
                 # TODO #2751 if directives are optional we should be more
-                # careful.
+                # careful, i.e. if we add support for the if clause.
                 # We add a basic block for each of the parts of the
                 # RegionDirective. We don't need to do anything with the
                 # control flow storing for now.

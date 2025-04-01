@@ -94,8 +94,10 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
     excluded_node_types = (CodeBlock, )
 
     def _add_asynchronicity(self, nodes: List[Node], instance: Directive):
-        '''
-        TODO
+        ''' Adds asynchronicity to the provided directive if possible.
+
+        :param nodes: The Loop or code region to execute asynchronously.
+        :param instance: The directive to become asynchronous if possible.
         '''
         next_depend = self._find_next_dependency(nodes, instance)
 
@@ -120,25 +122,23 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
             return
 
         # Otherwise we have the next dependency and we need to find where the
-        # correct place to place the preceding barrier is. Need to find a
+        # correct place for the preceding barrier is. Need to find a
         # guaranteed control flow path to place it.
 
         # Find the deepest schedule in the tree containing both.
-        sched = next_depend.ancestor(Schedule)
+        sched = next_depend.ancestor(Schedule, shared_with=instance)
         routine = instance.ancestor(Routine)
-        while sched.is_descendent_of(routine):
-            if instance.is_descendent_of(sched):
-                # Get the path from sched to next_depend
-                path = next_depend.path_from(sched)
-                # The first element of path is the position of the ancestor
-                # of next_depend that is in sched, so we add the barrier there.
-                sched.addchild(OMPTaskwaitDirective(), path[0])
-                instance.nowait = True
-                return
-            sched = sched.ancestor(Schedule)
+        if sched and sched.is_descendent_of(routine):
+            # Get the path from sched to next_depend
+            path = next_depend.path_from(sched)
+            # The first element of path is the position of the ancestor
+            # of next_depend that is in sched, so we add the barrier there.
+            sched.addchild(OMPTaskwaitDirective(), path[0])
+            instance.nowait = True
 
         # If we didn't find anywhere to put the barrier then we just don't
         # add the nowait.
+        # TODO #11: If we fail to have nowait added then log it
 
     def validate(self, node, options=None):
         # pylint: disable=signature-differs
