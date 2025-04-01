@@ -44,6 +44,8 @@ import fparser
 from fparser import api as fpapi
 
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import print_diffs
+
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
@@ -53,6 +55,7 @@ from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir import nodes, symbols
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1306,91 +1309,106 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
 
 
 # Tests for the kernel-stub generator
-def test_cma_asm_stub_gen():
+def test_cma_asm_stub_gen(fortran_writer):
     ''' Test the kernel-stub generator for CMA operator assembly.
 
     '''
 
     path = os.path.join(BASE_PATH, "columnwise_op_asm_kernel_mod.F90")
-    result = generate(path, api=TEST_API)
+    psyir = generate(path, api=TEST_API)
+    result = fortran_writer(psyir)
+    expected1 = (
+        "subroutine columnwise_op_asm_kernel_code(cell, nlayers, "
+        "ncell_2d, op_1_ncell_3d, op_1, cma_op_2, nrow_cma_op_2, "
+        "ncol_cma_op_2, bandwidth_cma_op_2, alpha_cma_op_2, beta_cma_op_2, "
+        "gamma_m_cma_op_2, gamma_p_cma_op_2, ndf_adspc1, "
+        "cbanded_map_adspc1_cma_op_2, ndf_adspc2, "
+        "cbanded_map_adspc2_cma_op_2)\n")
+    assert expected1 in result
+    expected2 = (
+        "    use constants_mod, only : i_def, r_def\n"
+        "    integer(kind=i_def), intent(in) :: cell\n"
+        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: ncell_2d\n"
+        "    integer(kind=i_def), intent(in) :: op_1_ncell_3d\n"
+        "    integer(kind=i_def), intent(in) :: ndf_adspc1\n"
+        "    integer(kind=i_def), intent(in) :: ndf_adspc2\n"
+        "    real(kind=r_def), dimension(op_1_ncell_3d, ndf_adspc1,"
+        "ndf_adspc2), intent(in) :: op_1\n"
+        "    integer(kind=i_def), intent(in) :: bandwidth_cma_op_2\n"
+        "    integer(kind=i_def), intent(in) :: nrow_cma_op_2\n"
+        # Should be r_solver TODO
+        "    real(kind=r_def), dimension(bandwidth_cma_op_2,"
+        "nrow_cma_op_2,ncell_2d), intent(out) :: cma_op_2\n"
+        "    integer(kind=i_def), intent(in) :: ncol_cma_op_2\n"
+        "    integer(kind=i_def), intent(in) :: alpha_cma_op_2\n"
+        "    integer(kind=i_def), intent(in) :: beta_cma_op_2\n"
+        "    integer(kind=i_def), intent(in) :: gamma_m_cma_op_2\n"
+        "    integer(kind=i_def), intent(in) :: gamma_p_cma_op_2\n"
+        "    integer(kind=i_def), dimension(ndf_adspc1,nlayers), intent(in) "
+        ":: cbanded_map_adspc1_cma_op_2\n"
+        "    integer(kind=i_def), dimension(ndf_adspc2,nlayers), intent(in) "
+        ":: cbanded_map_adspc2_cma_op_2\n\n\n"
+        "  end subroutine columnwise_op_asm_kernel_code\n")
+    if expected2 not in result:
+        print_diffs(expected2, result)
+        assert 0
 
-    expected = (
-        "  MODULE columnwise_op_asm_kernel_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE columnwise_op_asm_kernel_code(cell, nlayers, "
-        "ncell_2d, op_1_ncell_3d, op_1, cma_op_2, cma_op_2_nrow, "
-        "cma_op_2_ncol, cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, "
-        "cma_op_2_gamma_m, cma_op_2_gamma_p, ndf_adspc1_op_1, "
-        "cbanded_map_adspc1_op_1, ndf_adspc2_op_1, cbanded_map_adspc2_op_1)\n"
-        "      USE constants_mod\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_adspc1_op_1\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension("
-        "ndf_adspc1_op_1,nlayers) :: cbanded_map_adspc1_op_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_adspc2_op_1\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension("
-        "ndf_adspc2_op_1,nlayers) :: cbanded_map_adspc2_op_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: cell, ncell_2d\n"
-        "      INTEGER(KIND=i_def), intent(in) :: cma_op_2_nrow, "
-        "cma_op_2_ncol, cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, "
-        "cma_op_2_gamma_m, cma_op_2_gamma_p\n"
-        "      REAL(KIND=r_solver), intent(inout), dimension("
-        "cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d) :: cma_op_2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(op_1_ncell_3d,"
-        "ndf_adspc1_op_1,ndf_adspc2_op_1) :: op_1\n"
-        "    END SUBROUTINE columnwise_op_asm_kernel_code\n"
-        "  END MODULE columnwise_op_asm_kernel_mod")
-    assert expected in str(result)
 
-
-def test_cma_asm_with_field_stub_gen():
+def test_cma_asm_with_field_stub_gen(fortran_writer):
     ''' Test the kernel-stub generator for CMA operator assembly when a
     field is involved.
 
     '''
-    result = generate(os.path.join(BASE_PATH,
-                                   "columnwise_op_asm_field_kernel_mod.F90"),
-                      api=TEST_API)
-
+    psyir = generate(os.path.join(BASE_PATH,
+                                  "columnwise_op_asm_field_kernel_mod.F90"),
+                     api=TEST_API)
+    routine = psyir.walk(nodes.Routine)[0]
+    assert routine.name == "columnwise_op_asm_field_kernel_code"
+    table = routine.symbol_table
+    assert [sym.name for sym in table.argument_list] == [
+        "cell", "nlayers", "ncell_2d", "field_1_aspc1_field_1",
+        "op_2_ncell_3d", "op_2", "cma_op_3", "nrow_cma_op_3", "ncol_cma_op_3",
+        "bandwidth_cma_op_3", "alpha_cma_op_3", "beta_cma_op_3",
+        "gamma_m_cma_op_3", "gamma_p_cma_op_3",
+        "ndf_aspc1_field_1", "undf_aspc1_field_1", "map_aspc1_field_1",
+        "cbanded_map_aspc1_field_1", "ndf_aspc2_op_2", "cbanded_map_aspc2_op_2"]
+    cmod = table.lookup("constants_mod")
+    assert isinstance(cmd, symbols.ContainerSymbol)
     expected = (
-        "  MODULE columnwise_op_asm_field_kernel_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE columnwise_op_asm_field_kernel_code(cell, nlayers, "
-        "ncell_2d, field_1_aspc1_field_1, op_2_ncell_3d, op_2, cma_op_3, "
-        "cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, "
-        "cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p, "
-        "ndf_aspc1_field_1, undf_aspc1_field_1, map_aspc1_field_1, "
-        "cbanded_map_aspc1_field_1, ndf_aspc2_op_2, cbanded_map_aspc2_op_2)\n"
-        "      USE constants_mod\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_aspc1_field_1) :: map_aspc1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_aspc1_field_1,nlayers) :: cbanded_map_aspc1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc2_op_2\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_aspc2_op_2,nlayers) :: cbanded_map_aspc2_op_2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_aspc1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: cell, ncell_2d\n"
-        "      INTEGER(KIND=i_def), intent(in) :: cma_op_3_nrow, "
-        "cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, "
-        "cma_op_3_gamma_m, cma_op_3_gamma_p\n"
-        "      REAL(KIND=r_solver), intent(inout), dimension("
-        "cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_aspc1_field_1) :: "
-        "field_1_aspc1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension("
-        "op_2_ncell_3d,ndf_aspc1_field_1,ndf_aspc2_op_2) :: op_2\n"
-        "    END SUBROUTINE columnwise_op_asm_field_kernel_code\n"
-        "  END MODULE columnwise_op_asm_field_kernel_mod")
-    assert expected in str(result)
+        "    use constants_mod, only : i_def, r_def\n"
+        "    integer(kind=i_def), intent(in) :: cell\n"
+        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: ncell_2d\n"
+        "    integer(kind=i_def), intent(in) :: undf_aspc1\n"
+        "    real(kind=r_def), dimension(undf_aspc1), intent(in) :: "
+        "rfield_1_aspc1\n"
+        "    integer(kind=i_def), intent(in) :: op_2_ncell_3d\n"
+        "    integer(kind=i_def), intent(in) :: ndf_aspc1\n"
+        "    integer(kind=i_def), intent(in) :: ndf_aspc2\n"
+        "    real(kind=r_def), dimension(op_2_ncell_3d,ndf_aspc1,ndf_aspc2), "
+        "intent(in) :: op_2\n"
+        "    integer(kind=i_def), intent(in) :: bandwidth_cma_op_3\n"
+        "    integer(kind=i_def), intent(in) :: nrow_cma_op_3\n"
+        # TODO was r_solver and (inout) before?
+        "    real(kind=r_def), dimension("
+        "bandwidth_cma_op_3,nrow_cma_op_3,ncell_2d), intent(out) :: cma_op_3\n"
+        "    integer(kind=i_def), intent(in) :: ncol_cma_op_3\n"
+        "    integer(kind=i_def), intent(in) :: alpha_cma_op_3\n"
+        "    integer(kind=i_def), intent(in) :: beta_cma_op_3\n"
+        "    integer(kind=i_def), intent(in) :: gamma_m_cma_op_3\n"
+        "    integer(kind=i_def), intent(in) :: gamma_p_cma_op_3\n"
+        "    integer(kind=i_def), dimension(ndf_aspc1), intent(in) :: "
+        "dofmap_aspc1\n"
+        "    integer(kind=i_def), dimension(ndf_aspc1,nlayers), intent(in) :: "
+        "cbanded_map_aspc1_cma_op_3\n"
+        "    integer(kind=i_def), dimension(ndf_aspc2,nlayers), intent(in) :: "
+        "cbanded_map_aspc2_cma_op_3\n"
+        "  end subroutine columnwise_op_asm_field_kernel_code\n"
+    )
+    if expected not in result:
+        print_diffs(expected, result)
+        assert 0
 
 
 def test_cma_asm_same_fs_stub_gen():
