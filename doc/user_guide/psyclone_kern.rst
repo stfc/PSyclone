@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2024, Science and Technology Facilities Council
+.. Copyright (c) 2017-2025, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified by I. Kavcic and L. Turner, Met Office
+.. Modified by I. Kavcic, L. Turner and J. Dendy, Met Office
 
 PSyclone Kernel Tools
 =====================
@@ -514,7 +514,7 @@ is useful for a number of reasons:
 1) Starting point for creating a test for a kernel;
 2) Benchmarking an individual kernel;
 3) Constructing a test harness for the adjoint of a kernel produced by
-   :ref:`PSyAD <psyad:introduction>`.
+   :ref:`PSyAD <psyad_introduction>`.
 
 Currently algorithm generation is only supported for the LFRic API but it
 could be extended to the GOcean API if desired.
@@ -558,14 +558,15 @@ gives the following algorithm layer code:
       use mesh_mod, only : mesh_type
       use simple_mod, only : simple_type
       use constants_mod, only : i_def, r_def
-      integer(kind=i_def), parameter :: element_order = 1_i_def
+      integer(kind=i_def), parameter :: element_order_h = 1_i_def
+      integer(kind=i_def), parameter :: element_order_v = 1_i_def
       type(mesh_type), pointer, intent(in) :: mesh
       type(field_type), dimension(3), intent(in), optional :: chi
       type(field_type), intent(in), optional :: panel_id
       TYPE(function_space_type), POINTER :: vector_space_w1_ptr
       type(field_type) :: field_1
 
-      vector_space_w1_ptr => function_space_collection % get_fs(mesh, element_order, w1)
+      vector_space_w1_ptr => function_space_collection % get_fs(mesh, element_order_h, element_order_v, w1)
       call field_1 % initialise(vector_space=vector_space_w1_ptr, name='field_1')
       call invoke(setval_c(field_1, 1.0_r_def), simple_type(field_1))
 
@@ -588,7 +589,7 @@ Once that's done, the interesting part is the `invoke` call:
                   simple_type(field_1))
 
 (where a line-break has been added for clarity). In this example the `invoke`
-is for two kernels: the first is a :ref:`Built-in <built-ins>` that gives
+is for two kernels: the first is a :ref:`Built-in <psykal-built-ins>` that gives
 `field_1` the value `1.0` everywhere and the second is the 'simple' kernel
 itself which is passed the now initialised `field_1`.
 

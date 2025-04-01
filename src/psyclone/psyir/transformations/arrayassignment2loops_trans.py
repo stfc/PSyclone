@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ not support array ranges.
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    Assignment, Call, IntrinsicCall, Loop, Literal, Range, Reference,
+    Assignment, Call, IntrinsicCall, Loop, Literal, Node, Range, Reference,
     CodeBlock, Routine, BinaryOperation)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
@@ -285,23 +285,10 @@ class ArrayAssignment2LoopsTrans(Transformation):
 
         # If we allow string arrays then we can skip the check.
         if not options.get("allow_string", False):
-            for child in node.walk((Literal, Reference)):
-                try:
-                    forbidden = ScalarType.Intrinsic.CHARACTER
-                    if (child.is_character(unknown_as=False) or
-                            (child.symbol.datatype.intrinsic == forbidden)):
-                        message = (f"{self.name} does not expand ranges "
-                                   f"on character arrays by default (use the"
-                                   f"'allow_string' option to expand them)")
-                        if verbose:
-                            node.append_preceding_comment(message)
-                        # pylint: disable=cell-var-from-loop
-                        raise TransformationError(LazyString(
-                            lambda: f"{message}, but found:"
-                            f"\n{node.debug_string()}"))
-                except (NotImplementedError, AttributeError):
-                    # We cannot always get the datatype, we ignore this for now
-                    pass
+            message = (f"{self.name} does not expand ranges "
+                       f"on character arrays by default (use the"
+                       f"'allow_string' option to expand them)")
+            self.validate_no_char(node, message, options)
 
         # We don't accept calls that are not guaranteed to be elemental
         for call in node.rhs.walk(Call):
@@ -371,6 +358,41 @@ class ArrayAssignment2LoopsTrans(Transformation):
                 # pylint: disable=cell-var-from-loop
                 raise TransformationError(LazyString(
                     lambda: f"{message} In:\n{node.debug_string()}"))
+
+    @staticmethod
+    def validate_no_char(node: Node, message: str, options: dict) -> None:
+        '''
+        Check that there is no character variable accessed in the sub-tree with
+        the supplied node at its root.
+
+        :param node: the root node to check for character assignments.
+        :param message: the message to use if a character assignment is found.
+        :param options: any options that apply to this check.
+        :param bool options["verbose"]: log the reason the validation failed,
+            at the moment with a comment in the provided PSyIR node.
+
+        :raises TransformationError: if the supplied node contains a
+            child of character type.
+
+        '''
+        # Whether or not to log the resason for raising an error. At the moment
+        # "logging" means adding a comment in the output code.
+        verbose = options.get("verbose", False)
+
+        for child in node.walk((Literal, Reference)):
+            try:
+                forbidden = ScalarType.Intrinsic.CHARACTER
+                if (child.is_character(unknown_as=False) or
+                        (child.symbol.datatype.intrinsic == forbidden)):
+                    if verbose:
+                        node.append_preceding_comment(message)
+                    # pylint: disable=cell-var-from-loop
+                    raise TransformationError(LazyString(
+                        lambda: f"{message}, but found:"
+                        f"\n{node.debug_string()}"))
+            except (NotImplementedError, AttributeError):
+                # We cannot always get the datatype, we ignore this for now
+                pass
 
 
 __all__ = [

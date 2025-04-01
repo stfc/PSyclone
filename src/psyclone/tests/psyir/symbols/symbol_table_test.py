@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -916,7 +916,7 @@ def test_merge_container_syms():
         tab1.merge(tab4)
     err_txt = str(err.value)
     assert "Cannot merge Symbol Table:" in err_txt
-    assert "due to unresolvable name clashes." in err_txt
+    assert "due to unresolvable name clashes" in err_txt
 
 
 def test_merge_same_routine_symbol(fortran_reader):
@@ -1424,6 +1424,10 @@ def test_wildcard_imports():
     csym.wildcard_import = True
     assert container_table.wildcard_imports() == set([csym.name])
     assert sched_table.wildcard_imports() == set([csym.name])
+    # Limiting the scope for the search
+    assert sched_table.wildcard_imports(scope_limit=sched_table.node) == set()
+    assert (sched_table.wildcard_imports(scope_limit=container_table.node)
+            == set([csym.name]))
 
 
 def test_view():
@@ -2875,6 +2879,20 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     # In this case check that the visibility stays PRIVATE
     assert isinstance(a_2, symbols.DataSymbol)
     assert a_2.visibility == symbols.Symbol.Visibility.PRIVATE
+
+
+def test_resolve_imports_missing_container(monkeypatch):
+    '''
+    Test that a clean failure to get Container PSyIR does not cause problems.
+    '''
+    table = symbols.SymbolTable()
+    csym = symbols.ContainerSymbol("a_mod")
+    # Monkeypatch the find_container_psyir() method of this ContainerSymbol
+    # so that it returns None.
+    monkeypatch.setattr(csym, "find_container_psyir", lambda local_node: None)
+    table.add(csym)
+    # Resolving imports should run without problems.
+    table.resolve_imports()
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,8 @@
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import (
     Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
-    OMPTeamsDistributeParallelDoDirective, OMPScheduleClause)
+    OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
+    OMPScheduleClause)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
@@ -48,6 +49,7 @@ MAP_STR_TO_LOOP_DIRECTIVES = {
     "do": OMPDoDirective,
     "paralleldo": OMPParallelDoDirective,
     "teamsdistributeparalleldo": OMPTeamsDistributeParallelDoDirective,
+    "teamsloop": OMPTeamsLoopDirective,
     "loop": OMPLoopDirective
 }
 #: List containing the valid names for OMP directives.

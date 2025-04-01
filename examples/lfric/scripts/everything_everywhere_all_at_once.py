@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2024, Science and Technology Facilities Council
+# Copyright (c) 2023-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,7 @@ from psyclone.transformations import Dynamo0p3ColourTrans, \
                                      TransformationError
 
 ENABLE_REDUNDANT_COMPUTATION = True
-ENABLE_ASYNC_HALOS = True
+ENABLE_ASYNC_HALOS = False  # TODO #2903: Async fails with FFSL
 ENABLE_OMP_COLOURING = True
 ENABLE_INTRINSIC_INLINING = True
 # LFRicLoopFuseTrans and DynKernelConstTrans could also be included but there

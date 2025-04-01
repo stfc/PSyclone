@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2017-2024, Science and Technology Facilities Council.
+   Copyright (c) 2017-2025, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -329,7 +329,7 @@ The SIR back-end is limited in a number of ways:
 
 The current implementation also outputs text rather than running Dawn
 directly. This text needs to be pasted into another script in order to
-run Dawn, see :ref:`user_guide:nemo-eg4-sir` the NEMO API example 4.
+run Dawn, see :ref:`nemo-eg4-sir` the NEMO API example 4.
 
 Currently there is no way to tell PSyclone to output SIR. Outputting
 SIR is achieved by writing a script which creates an SIRWriter and

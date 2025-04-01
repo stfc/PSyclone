@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@ from collections import namedtuple
 from collections.abc import Iterable
 from enum import Enum
 
+from psyclone.core import AccessType
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
@@ -790,17 +791,23 @@ class IntrinsicCall(Call):
             IntrinsicCall.Intrinsic.DPROD, IntrinsicCall.Intrinsic.EXP,
             IntrinsicCall.Intrinsic.IAND, IntrinsicCall.Intrinsic.IEOR,
             IntrinsicCall.Intrinsic.INT, IntrinsicCall.Intrinsic.IOR,
-            IntrinsicCall.Intrinsic.LOG, IntrinsicCall.Intrinsic.LOG10,
+            IntrinsicCall.Intrinsic.LOG,
             IntrinsicCall.Intrinsic.MAX, IntrinsicCall.Intrinsic.MIN,
             IntrinsicCall.Intrinsic.MOD, IntrinsicCall.Intrinsic.NINT,
             IntrinsicCall.Intrinsic.NOT, IntrinsicCall.Intrinsic.REAL,
             IntrinsicCall.Intrinsic.SIGN, IntrinsicCall.Intrinsic.SIN,
             IntrinsicCall.Intrinsic.SINH, IntrinsicCall.Intrinsic.SQRT,
             IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH,
+            IntrinsicCall.Intrinsic.UBOUND, IntrinsicCall.Intrinsic.MERGE,
+            # The ones below can be offloaded but provide numerical differences
+            # even with the -gpu=uniform_math flag, ideally it should be
+            # configurable if these are allowed or not.
+            # IntrinsicCall.Intrinsic.LOG10,
             # The one below are not documented on nvidia compiler
             IntrinsicCall.Intrinsic.PRODUCT, IntrinsicCall.Intrinsic.SIZE,
             IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
-            IntrinsicCall.Intrinsic.UBOUND)
+            IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.MINVAL,
+            IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE)
 
     @classmethod
     def create(cls, intrinsic, arguments=()):
@@ -905,25 +912,30 @@ class IntrinsicCall(Call):
 
     def reference_accesses(self, var_accesses):
         '''Get all reference access information from this node.
-        If the 'COLLECT-ARRAY-SHAPE-READS' options is set, it will report array
-        accesses used as first parameter in 'inquiry intrinsics' like
-        `lbound`, `ubound`, or `size` as 'read' accesses.
+
+        Any variables used as the first argument to 'inquiry intrinsics' like
+        `lbound`, `ubound`, or `size` are marked as having INQUIRY accesses.
 
         :param var_accesses: VariablesAccessInfo instance that stores the
             information about variable accesses.
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        if (self.intrinsic.is_inquiry and not
-                var_accesses.options("COLLECT-ARRAY-SHAPE-READS")):
+        if self.intrinsic.is_inquiry and isinstance(self.arguments[0],
+                                                    Reference):
             # If this is an inquiry access (which doesn't actually access the
-            # value) and we haven't explicitly requested them, ignore the
-            # inquired variables, which are always the first argument.
-            for child in self.arguments[1:]:
-                child.reference_accesses(var_accesses)
-        else:
-            for child in self.arguments:
-                child.reference_accesses(var_accesses)
+            # value) then make sure we use the correct access type for the
+            # inquired variable, which is always the first argument.
+            sig, indices = self.arguments[0].get_signature_and_indices()
+            var_accesses.add_access(sig, AccessType.INQUIRY, self.arguments[0])
+            for idx_list in indices:
+                for idx in idx_list:
+                    idx.reference_accesses(var_accesses)
+        elif self.arguments:
+            self.arguments[0].reference_accesses(var_accesses)
+
+        for child in self.arguments[1:]:
+            child.reference_accesses(var_accesses)
 
     # TODO #2102: Maybe the three properties below can be removed if intrinsic
     # is a symbol, as they would act as the super() implementation.

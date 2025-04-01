@@ -58,7 +58,7 @@ The compilation process will create the wrapper library
 ``lib_extract.a``.
 
 Similar to compilation of the [examples](
-https://psyclone.readthedocs.io/en/latest/examples.html#compilation), the
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples.html#compilation), the
 compiled wrapper library can be removed by running ``make clean``.
 
 ### Linking the wrapper library
@@ -86,7 +86,7 @@ or you have to explicitly provide the required paths and options).
 
 BSD 3-Clause License
 
-Copyright (c) 2023-2024, Science and Technology Facilities Council.
+Copyright (c) 2023-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,8 +46,8 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
     FortranWriter, precedence
 from psyclone.psyir.nodes import (
-    Assignment, Node, CodeBlock, Container, Literal, UnaryOperation,
-    BinaryOperation, Reference, Call, KernelSchedule,
+    ACCEnterDataDirective, Assignment, Node, CodeBlock, Container, Literal,
+    UnaryOperation, BinaryOperation, Reference, Call, KernelSchedule,
     ArrayReference, ArrayOfStructuresReference, Range, StructureReference,
     Schedule, Routine, Return, FileContainer, IfBlock, OMPTaskloopDirective,
     OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
@@ -58,6 +58,7 @@ from psyclone.psyir.symbols import (
     UnresolvedInterface, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
     CHARACTER_TYPE, BOOLEAN_TYPE, REAL_DOUBLE_TYPE, UnresolvedType,
     UnsupportedType, UnsupportedFortranType, DataTypeSymbol, StructureType)
+from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
 
@@ -1106,14 +1107,15 @@ def test_fw_binaryoperator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = b * (c + d)\n"
         "    a = b * c + d\n"
         "    a = (b * c) + d\n"
-        "    a = b * c * d * a\n"
-        "    a = (((b * c) * d) * a)\n"
-        "    a = (b * (c * (d * a)))\n"
+        "    a = b * c * d * a\n"  # Left-to-right
+        "    a = (((b * c) * d) * a)\n"  # Left-to-right with explicit par.
+        "    a = (b * (c * (d * a)))\n"  # Right-to-left
         "    a = -(a + b)\n"
         "    e = .not.(e .and. (f .or. g))\n"
         "    e = (((.not.e) .and. f) .or. g)\n"
         "    e = (e .and. (f .eqv. g))\n"
         "    e = (e .and. f .neqv. g)\n"
+        "    a = ((a + b) + (c + d)) / a * b\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
@@ -1124,13 +1126,14 @@ def test_fw_binaryoperator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = b * c + d\n"
         "    a = b * c + d\n"
         "    a = b * c * d * a\n"
-        "    a = b * c * d * a\n"
+        "    a = ((b * c) * d) * a\n"
         "    a = b * (c * (d * a))\n"
         "    a = -(a + b)\n"
         "    e = .NOT.(e .AND. (f .OR. g))\n"
         "    e = .NOT.e .AND. f .OR. g\n"
         "    e = e .AND. (f .EQV. g)\n"
-        "    e = e .AND. f .NEQV. g\n")
+        "    e = e .AND. f .NEQV. g\n"
+        "    a = ((a + b) + (c + d)) / a * b\n")
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
 
@@ -1949,6 +1952,33 @@ def test_fw_directive_with_clause(fortran_reader, fortran_writer):
   !$omp end taskloop
   !$omp end master
   !$omp end parallel''' in fortran_writer(container)
+
+
+def test_fw_standalonedirective(fortran_reader, fortran_writer):
+    '''
+    Test the handling of a StandaloneDirective with clauses. We use
+    ACCEnterDataDirective with an async clause.
+    '''
+    code = '''\
+        module test_mod
+        contains
+          subroutine a_sub()
+          integer, parameter :: n=20
+          integer :: i
+          real :: a(n)
+          do i=1,n
+            a(i) = 0.0
+          end do
+          end subroutine a_sub
+        end module test_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    ktrans = ACCKernelsTrans()
+    rt0 = psyir.walk(Routine)[0]
+    ktrans.apply(rt0.children[0])
+    edir = ACCEnterDataDirective(async_queue=1)
+    rt0.addchild(edir, index=0)
+    output = fortran_writer(psyir)
+    assert "!$acc enter data copyin(a,i,n) async(1)\n" in output
 
 
 def test_fw_clause(fortran_writer):

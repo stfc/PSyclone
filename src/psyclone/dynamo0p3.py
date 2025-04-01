@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -4808,10 +4808,6 @@ class DynKernelArguments(Arguments):
     '''
     def __init__(self, call, parent_call, check=True):
         # pylint: disable=too-many-branches
-        if False:  # pylint: disable=using-constant-test
-            # For pyreverse
-            self._0_to_n = DynKernelArgument(None, None, None, None)
-
         Arguments.__init__(self, parent_call)
 
         # check that the arguments provided by the algorithm layer are

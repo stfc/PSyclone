@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@
 
 import pytest
 from fparser.common.readfortran import FortranStringReader
+from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes import CodeBlock
 from psyclone.psyir.nodes.node import colored
 from psyclone.errors import GenerationError
@@ -131,6 +132,52 @@ def test_codeblock_get_symbol_names(parser):
     assert "myifblock" not in sym_names
     assert "this_is_true" in sym_names
     assert "that_is_true" in sym_names
+
+
+def test_codeblock_ref_accesses(parser):
+    '''Test that the reference_accesses() method works as expected.
+
+    TODO #2863 - accesses within a CodeBlock should really be marked as
+    AccessType.UNKNOWN but are currently always READWRITE. Also, calls to
+    Fortran intrinsics are not captured.
+
+    '''
+    vai = VariablesAccessInfo()
+    reader = FortranStringReader('''
+    subroutine mytest
+      that_is_true = .TRUE._bool_kind
+      hello_str = char_kind_"hello"
+      my_cmplx = (1.0_c_def, 1.0_b_def)
+      myloop: DO i = 1, 10_i_def
+        a = b + sqrt(c) + 1.0_r_def
+        myifblock: IF(this_is_true)THEN
+          EXIT myloop
+        ELSE IF(that_is_true)THEN myifblock
+          call my_routine()
+          write(*,*) "Bye"
+        ELSE myifblock
+          write(*,*) "hello"
+        END IF myifblock
+      END DO myloop
+    end subroutine mytest''')
+    prog = parser(reader)
+    block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    block.reference_accesses(vai)
+    all_sigs = vai.all_signatures
+    all_names = [sig.var_name for sig in all_sigs]
+    assert "a" in all_names
+    assert "i" in all_names
+    # Check that the various precision symbols are included.
+    assert "i_def" in all_names
+    assert "r_def" in all_names
+    assert "bool_kind" in all_names
+    assert "char_kind" in all_names
+    assert "c_def" in all_names
+    assert "b_def" in all_names
+    # The target of a CALL is included.
+    assert "my_routine" in all_names
+    # All signatures should be marked as READWRITE access.
+    assert all(vai.has_read_write(sig) for sig in all_sigs)
 
 
 def test_codeblock_equality(parser):

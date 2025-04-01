@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@
 #          C.M. Maynard, Met Office / University of Reading
 # Modified: J. Henrichs, Bureau of Meteorology
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
+#           J. Dendy, Met Office
 
 ''' Tests of transformations with the LFRic (Dynamo 0.3) API '''
 
@@ -7332,7 +7333,7 @@ def test_kern_const_name():
 
 def test_kern_const_apply(capsys, monkeypatch):
     '''Check that we generate the expected output from the apply method
-    with different valid combinations of the element_order,
+    with different valid combinations of the element_order_<h,v> arguments,
     number_of_layers and quadrature arguments.
 
     '''
@@ -7350,8 +7351,8 @@ def test_kern_const_apply(capsys, monkeypatch):
         "    Modified nqp_h, arg position 21, value 3.\n"
         "    Modified nqp_v, arg position 22, value 3.\n")
 
-    # element_order only
-    kctrans.apply(kernel, {"element_order": 0})
+    # element_order_<h,v> only
+    kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     result, _ = capsys.readouterr()
     assert result == element_order_expected
 
@@ -7361,22 +7362,24 @@ def test_kern_const_apply(capsys, monkeypatch):
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected
 
-    # element_order and quadrature
+    # element_order_<h,v> and quadrature
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
-    kctrans.apply(kernel, {"element_order": 0, "quadrature": True})
+    kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
+                           "quadrature": True})
     result, _ = capsys.readouterr()
     assert result == quadrature_expected + element_order_expected
 
-    # element_order and nlayers
+    # element_order_<h,v> and nlayers
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
-    kctrans.apply(kernel, {"element_order": 0, "number_of_layers": 20})
+    kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
+                           "number_of_layers": 20})
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected + element_order_expected
 
-    # element_order, nlayers and quadrature
+    # element_order_<h,v>, nlayers and quadrature
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
-    kctrans.apply(kernel, {"element_order": 0, "number_of_layers": 20,
-                           "quadrature": True})
+    kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
+                           "number_of_layers": 20, "quadrature": True})
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected + quadrature_expected + \
         element_order_expected
@@ -7402,7 +7405,7 @@ def test_kern_const_anyspace_anydspace_apply(capsys):
 
     kctrans = Dynamo0p3KernelConstTrans()
 
-    kctrans.apply(kernel, {"element_order": 0})
+    kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     result, _ = capsys.readouterr()
     assert result == (
         "    Skipped dofs, arg position 9, function space any_space_1\n"
@@ -7427,7 +7430,7 @@ def test_kern_const_anyw2_apply(capsys):
 
     kctrans = Dynamo0p3KernelConstTrans()
 
-    kctrans.apply(kernel, {"element_order": 0})
+    kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     result, _ = capsys.readouterr()
     assert result == (
         "    Skipped dofs, arg position 5, function space any_w2\n")
@@ -7440,36 +7443,186 @@ def test_kern_const_ndofs():
     Note: w2*trace spaces have their dofs on cell faces only.
 
     '''
-    expected = {"w3": [1, 8, 27, 64, 125, 216, 343, 512, 729, 1000],
-                "w2": [6, 36, 108, 240, 450, 756, 1176, 1728, 2430, 3300],
-                "w1": [12, 54, 144, 300, 540, 882, 1344, 1944, 2700, 3630],
-                "w0": [8, 27, 64, 125, 216, 343, 512, 729, 1000, 1331],
-                "wtheta": [2, 12, 36, 80, 150, 252, 392, 576, 810, 1100],
-                "w2h": [4, 24, 72, 160, 300, 504, 784, 1152, 1620, 2200],
-                "w2v": [2, 12, 36, 80, 150, 252, 392, 576, 810, 1100],
-                "w2broken": [6, 36, 108, 240, 450, 756, 1176, 1728, 2430,
-                             3300],
-                "wchi": [1, 8, 27, 64, 125, 216, 343, 512, 729, 1000],
-                "w2trace": [6, 24, 54, 96, 150, 216, 294, 384, 486, 600],
-                "w2htrace": [4, 16, 36, 64, 100, 144, 196, 256, 324, 400],
-                "w2vtrace": [2, 8, 18, 32, 50, 72, 98, 128, 162, 200]}
+    # A dictionary of expected ndofs indexed by
+    # space_to_dofs[space](element_order_h, element_order_v) =
+    #     expected[space](element_order_h + 10*element_order_v)
+    expected = {
+        "w3":       [1,    4,    9,    16,   25,   36,   49,   64,
+                     81,   100,  2,    8,    18,   32,   50,   72,
+                     98,   128,  162,  200,  3,    12,   27,   48,
+                     75,   108,  147,  192,  243,  300,  4,    16,
+                     36,   64,   100,  144,  196,  256,  324,  400,
+                     5,    20,   45,   80,   125,  180,  245,  320,
+                     405,  500,  6,    24,   54,   96,   150,  216,
+                     294,  384,  486,  600,  7,    28,   63,   112,
+                     175,  252,  343,  448,  567,  700,  8,    32,
+                     72,   128,  200,  288,  392,  512,  648,  800,
+                     9,    36,   81,   144,  225,  324,  441,  576,
+                     729,  900,  10,   40,   90,   160,  250,  360,
+                     490,  640,  810,  1000],
+        "w2":       [6,    20,   42,   72,   110,  156,  210,  272,
+                     342,  420,  11,   36,   75,   128,  195,  276,
+                     371,  480,  603,  740,  16,   52,   108,  184,
+                     280,  396,  532,  688,  864,  1060, 21,   68,
+                     141,  240,  365,  516,  693,  896,  1125, 1380,
+                     26,   84,   174,  296,  450,  636,  854,  1104,
+                     1386, 1700, 31,   100,  207,  352,  535,  756,
+                     1015, 1312, 1647, 2020, 36,   116,  240,  408,
+                     620,  876,  1176, 1520, 1908, 2340, 41,   132,
+                     273,  464,  705,  996,  1337, 1728, 2169, 2660,
+                     46,   148,  306,  520,  790,  1116, 1498, 1936,
+                     2430, 2980, 51,   164,  339,  576,  875,  1236,
+                     1659, 2144, 2691, 3300],
+        "w1":       [12,   33,   64,   105,  156,  217,  288,  369,
+                     460,  561,  20,   54,   104,  170,  252,  350,
+                     464,  594,  740,  902,  28,   75,   144,  235,
+                     348,  483,  640,  819,  1020, 1243, 36,   96,
+                     184,  300,  444,  616,  816,  1044, 1300, 1584,
+                     44,   117,  224,  365,  540,  749,  992,  1269,
+                     1580, 1925, 52,   138,  264,  430,  636,  882,
+                     1168, 1494, 1860, 2266, 60,   159,  304,  495,
+                     732,  1015, 1344, 1719, 2140, 2607, 68,   180,
+                     344,  560,  828,  1148, 1520, 1944, 2420, 2948,
+                     76,   201,  384,  625,  924,  1281, 1696, 2169,
+                     2700, 3289, 84,   222,  424,  690,  1020, 1414,
+                     1872, 2394, 2980, 3630],
+        "w0":       [8,    18,   32,   50,   72,   98,   128,  162,
+                     200,  242,  12,   27,   48,   75,   108,  147,
+                     192,  243,  300,  363,  16,   36,   64,   100,
+                     144,  196,  256,  324,  400,  484,  20,   45,
+                     80,   125,  180,  245,  320,  405,  500,  605,
+                     24,   54,   96,   150,  216,  294,  384,  486,
+                     600,  726,  28,   63,   112,  175,  252,  343,
+                     448,  567,  700,  847,  32,   72,   128,  200,
+                     288,  392,  512,  648,  800,  968,  36,   81,
+                     144,  225,  324,  441,  576,  729,  900,  1089,
+                     40,   90,   160,  250,  360,  490,  640,  810,
+                     1000, 1210, 44,   99,   176,  275,  396,  539,
+                     704,  891,  1100, 1331],
+        "wtheta":   [2,    8,    18,   32,   50,   72,   98,   128,
+                     162,  200,  3,    12,   27,   48,   75,   108,
+                     147,  192,  243,  300,  4,    16,   36,   64,
+                     100,  144,  196,  256,  324,  400,  5,    20,
+                     45,   80,   125,  180,  245,  320,  405,  500,
+                     6,    24,   54,   96,   150,  216,  294,  384,
+                     486,  600,  7,    28,   63,   112,  175,  252,
+                     343,  448,  567,  700,  8,    32,   72,   128,
+                     200,  288,  392,  512,  648,  800,  9,    36,
+                     81,   144,  225,  324,  441,  576,  729,  900,
+                     10,   40,   90,   160,  250,  360,  490,  640,
+                     810,  1000, 11,   44,   99,   176,  275,  396,
+                     539,  704,  891,  1100],
+        "w2h":      [4,    12,   24,   40,   60,   84,   112,  144,
+                     180,  220,  8,    24,   48,   80,   120,  168,
+                     224,  288,  360,  440,  12,   36,   72,   120,
+                     180,  252,  336,  432,  540,  660,  16,   48,
+                     96,   160,  240,  336,  448,  576,  720,  880,
+                     20,   60,   120,  200,  300,  420,  560,  720,
+                     900,  1100, 24,   72,   144,  240,  360,  504,
+                     672,  864,  1080, 1320, 28,   84,   168,  280,
+                     420,  588,  784,  1008, 1260, 1540, 32,   96,
+                     192,  320,  480,  672,  896,  1152, 1440, 1760,
+                     36,   108,  216,  360,  540,  756,  1008, 1296,
+                     1620, 1980, 40,   120,  240,  400,  600,  840,
+                     1120, 1440, 1800, 2200],
+        "w2v":      [2,    8,    18,   32,   50,   72,   98,   128,
+                     162,  200,  3,    12,   27,   48,   75,   108,
+                     147,  192,  243,  300,  4,    16,   36,   64,
+                     100,  144,  196,  256,  324,  400,  5,    20,
+                     45,   80,   125,  180,  245,  320,  405,  500,
+                     6,    24,   54,   96,   150,  216,  294,  384,
+                     486,  600,  7,    28,   63,   112,  175,  252,
+                     343,  448,  567,  700,  8,    32,   72,   128,
+                     200,  288,  392,  512,  648,  800,  9,    36,
+                     81,   144,  225,  324,  441,  576,  729,  900,
+                     10,   40,   90,   160,  250,  360,  490,  640,
+                     810,  1000, 11,   44,   99,   176,  275,  396,
+                     539,  704,  891,  1100],
+        "w2broken": [6,    20,   42,   72,   110,  156,  210,  272,
+                     342,  420,  11,   36,   75,   128,  195,  276,
+                     371,  480,  603,  740,  16,   52,   108,  184,
+                     280,  396,  532,  688,  864,  1060, 21,   68,
+                     141,  240,  365,  516,  693,  896,  1125, 1380,
+                     26,   84,   174,  296,  450,  636,  854,  1104,
+                     1386, 1700, 31,   100,  207,  352,  535,  756,
+                     1015, 1312, 1647, 2020, 36,   116,  240,  408,
+                     620,  876,  1176, 1520, 1908, 2340, 41,   132,
+                     273,  464,  705,  996,  1337, 1728, 2169, 2660,
+                     46,   148,  306,  520,  790,  1116, 1498, 1936,
+                     2430, 2980, 51,   164,  339,  576,  875,  1236,
+                     1659, 2144, 2691, 3300],
+        "wchi":     [1,    4,    9,    16,   25,   36,   49,   64,
+                     81,   100,  2,    8,    18,   32,   50,   72,
+                     98,   128,  162,  200,  3,    12,   27,   48,
+                     75,   108,  147,  192,  243,  300,  4,    16,
+                     36,   64,   100,  144,  196,  256,  324,  400,
+                     5,    20,   45,   80,   125,  180,  245,  320,
+                     405,  500,  6,    24,   54,   96,   150,  216,
+                     294,  384,  486,  600,  7,    28,   63,   112,
+                     175,  252,  343,  448,  567,  700,  8,    32,
+                     72,   128,  200,  288,  392,  512,  648,  800,
+                     9,    36,   81,   144,  225,  324,  441,  576,
+                     729,  900,  10,   40,   90,   160,  250,  360,
+                     490,  640,  810,  1000],
+        "w2trace":  [6,    16,   30,   48,   70,   96,   126,  160,
+                     198,  240,  10,   24,   42,   64,   90,   120,
+                     154,  192,  234,  280,  14,   32,   54,   80,
+                     110,  144,  182,  224,  270,  320,  18,   40,
+                     66,   96,   130,  168,  210,  256,  306,  360,
+                     22,   48,   78,   112,  150,  192,  238,  288,
+                     342,  400,  26,   56,   90,   128,  170,  216,
+                     266,  320,  378,  440,  30,   64,   102,  144,
+                     190,  240,  294,  352,  414,  480,  34,   72,
+                     114,  160,  210,  264,  322,  384,  450,  520,
+                     38,   80,   126,  176,  230,  288,  350,  416,
+                     486,  560,  42,   88,   138,  192,  250,  312,
+                     378,  448,  522,  600],
+        "w2htrace": [4,    8,    12,   16,   20,   24,   28,   32,
+                     36,   40,   8,    16,   24,   32,   40,   48,
+                     56,   64,   72,   80,   12,   24,   36,   48,
+                     60,   72,   84,   96,   108,  120,  16,   32,
+                     48,   64,   80,   96,   112,  128,  144,  160,
+                     20,   40,   60,   80,   100,  120,  140,  160,
+                     180,  200,  24,   48,   72,   96,   120,  144,
+                     168,  192,  216,  240,  28,   56,   84,   112,
+                     140,  168,  196,  224,  252,  280,  32,   64,
+                     96,   128,  160,  192,  224,  256,  288,  320,
+                     36,   72,   108,  144,  180,  216,  252,  288,
+                     324,  360,  40,   80,   120,  160,  200,  240,
+                     280,  320,  360,  400],
+        "w2vtrace": [2,    8,    18,   32,   50,   72,   98,   128,
+                     162,  200,  2,    8,    18,   32,   50,   72,
+                     98,   128,  162,  200,  2,    8,    18,   32,
+                     50,   72,   98,   128,  162,  200,  2,    8,
+                     18,   32,   50,   72,   98,   128,  162,  200,
+                     2,    8,    18,   32,   50,   72,   98,   128,
+                     162,  200,  2,    8,    18,   32,   50,   72,
+                     98,   128,  162,  200,  2,    8,    18,   32,
+                     50,   72,   98,   128,  162,  200,  2,    8,
+                     18,   32,   50,   72,   98,   128,  162,  200,
+                     2,    8,    18,   32,   50,   72,   98,   128,
+                     162,  200,  2,    8,    18,   32,   50,   72,
+                     98,   128,  162,  200]}
+
     kct = Dynamo0p3KernelConstTrans()
-    for order in range(10):
-        for function_space in ["w3", "w2", "w1", "w0", "wtheta", "w2h",
-                               "w2v", "w2broken", "wchi", "w2trace",
-                               "w2htrace", "w2vtrace"]:
-            assert kct.space_to_dofs[function_space](order) == \
-                expected[function_space][order]
-        # wtheta should equal w2v
-        assert kct.space_to_dofs["wtheta"](order) == \
-            kct.space_to_dofs["w2v"](order)
-        # w2h and w2v should sum up to w2
-        assert kct.space_to_dofs["w2h"](order) + \
-            kct.space_to_dofs["w2v"](order) == kct.space_to_dofs["w2"](order)
-        # w2htrace and w2vtrace should sum up to w2trace
-        assert kct.space_to_dofs["w2htrace"](order) + \
-            kct.space_to_dofs["w2vtrace"](order) == \
-            kct.space_to_dofs["w2trace"](order)
+    for order_h in range(10):
+        for order_v in range(10):
+            for function_space in ["w3", "w2", "w1", "w0", "wtheta", "w2h",
+                                   "w2v", "w2broken", "wchi", "w2trace",
+                                   "w2htrace", "w2vtrace"]:
+                assert kct.space_to_dofs[function_space](order_h, order_v) == \
+                    expected[function_space][order_h + 10*order_v]
+                # wtheta should equal w2v
+                assert kct.space_to_dofs["wtheta"](order_h, order_v) == \
+                    kct.space_to_dofs["w2v"](order_h, order_v)
+                # w2h and w2v should sum up to w2
+                assert kct.space_to_dofs["w2h"](order_h, order_v) + \
+                    kct.space_to_dofs["w2v"](order_h, order_v) == \
+                    kct.space_to_dofs["w2"](order_h, order_v)
+                # w2htrace and w2vtrace should sum up to w2trace
+                assert kct.space_to_dofs["w2htrace"](order_h, order_v) + \
+                    kct.space_to_dofs["w2vtrace"](order_h, order_v) == \
+                    kct.space_to_dofs["w2trace"](order_h, order_v)
 
 
 def test_kern_const_invalid():
@@ -7495,9 +7648,10 @@ def test_kern_const_invalid():
 
     # Element order < 0
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": -1})
-    assert "The element_order argument must be >= 0 but found '-1'." \
-        in str(excinfo.value)
+        kctrans.apply(kernel, {"element_order_h": -1, "element_order_v": -1})
+    assert ("The element_order_h and element_order_v argument must be >= 0 "
+            "but found element_order_h = '-1', element_order_v = '-1'."
+            in str(excinfo.value))
 
     # Number of layers < 1
     with pytest.raises(TransformationError) as excinfo:
@@ -7511,18 +7665,20 @@ def test_kern_const_invalid():
     assert "The quadrature argument must be boolean but found 'hello'." \
         in str(excinfo.value)
 
-    # Not element order and not number of layers
+    # Not element order(s) and not number of layers
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel)
-    assert ("At least one of element_order or number_of_layers must be set "
-            "otherwise this transformation does nothing.") \
+    assert ("At least one of [element_order_h, element_order_v] or "
+            "number_of_layers must be set otherwise this transformation does "
+            "nothing.") \
         in str(excinfo.value)
 
     # Quadrature but not element order
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"number_of_layers": 20,
                                "quadrature": True})
-    assert "If quadrature is set then element_order must also be set" \
+    assert ("If quadrature is set then both element_order_h and "
+            "element_order_v must also be set") \
         in str(excinfo.value)
 
 
@@ -7538,7 +7694,7 @@ def test_kern_const_invalid_dofs(monkeypatch):
                         {"wa": [], "wb": []})
 
     with pytest.raises(InternalError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert "Unsupported function space 'w1' found. Expecting one of " \
         in str(excinfo.value)
     assert "'wa'" in str(excinfo.value)
@@ -7559,7 +7715,7 @@ def test_kern_const_invalid_kern(monkeypatch):
         raise NotImplementedError("Monkeypatch error")
     monkeypatch.setattr(kernel, "get_kernel_schedule", dummy)
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert (
         "Failed to parse kernel 'testkern_code'. Error reported was "
         "'Monkeypatch error'.") in str(excinfo.value)
@@ -7576,7 +7732,8 @@ def test_kern_const_invalid_quad(monkeypatch):
     kctrans = Dynamo0p3KernelConstTrans()
     monkeypatch.setattr(kernel, "_eval_shapes", ["gh_quadrature_face"])
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0, "quadrature": True})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
+                               "quadrature": True})
     assert (
         "Support is currently limited to 'xyoz' quadrature but found "
         "['gh_quadrature_face'].") in str(excinfo.value)
@@ -7602,7 +7759,7 @@ def test_kern_const_invalid_make_constant1():
     symbol_table._argument_list = []
     kctrans = Dynamo0p3KernelConstTrans()
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert ("The argument index '7' is greater than the number of "
             "arguments '0'.") in str(excinfo.value)
 
@@ -7624,13 +7781,13 @@ def test_kern_const_invalid_make_constant2():
     # Expecting scalar integer. Set to array.
     symbol._datatype = ArrayType(INTEGER_TYPE, [10])
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert ("Expected entry to be a scalar argument but found "
             "'ArrayType'." in str(excinfo.value))
     # Expecting scalar integer. Set to real.
     symbol._datatype = REAL_TYPE
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert ("Expected entry to be a scalar integer argument but found "
             "'Scalar<REAL, UNDEFINED>'." in str(excinfo.value))
     # Expecting scalar integer. Set to constant.
@@ -7639,7 +7796,7 @@ def test_kern_const_invalid_make_constant2():
     symbol._initial_value = Literal("10", INTEGER_TYPE)
     symbol._is_constant = True
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert ("Expected entry to be a scalar integer argument but found "
             "a constant." in str(excinfo.value))
 

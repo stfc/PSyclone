@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # -----------------------------------------------------------------------------
 # Author: S. Siso, STFC Daresbury Lab
 # Modifications: A. R. Porter, N. Nobre and R. W. Ford, STFC Daresbury Lab
+#                J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module provides the PSyIR Fortran front-end.'''
@@ -72,6 +73,9 @@ class FortranReader():
         for more precise control it also accepts a list of module names.
         Defaults to False.
 
+    :raises ValueError: If ignore_directives is set to False but
+                        ignore_comments is set to True.
+
     '''
     # Save parser object across instances to reduce the initialisation time
     _parser = None
@@ -81,8 +85,14 @@ class FortranReader():
                  last_comments_as_codeblocks: bool = False,
                  resolve_modules: Union[bool, List[str]] = False):
         if not self._parser:
-            self._parser = ParserFactory().create(std="f2008")
+            std = Config.get().fortran_standard
+            self._parser = ParserFactory().create(std=std)
         self._free_form = free_form
+        if ignore_comments and not ignore_directives:
+            raise ValueError(
+                "Setting ignore_directives to False in the FortranReader will"
+                " only have an effect if ignore_comments is also set to False."
+            )
         self._ignore_comments = ignore_comments
         self._processor = Fparser2Reader(ignore_directives,
                                          last_comments_as_codeblocks,

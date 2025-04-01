@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2024, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2025, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -252,7 +252,7 @@ is included which will use PSyclone to generate the PSy code and
 transformed kernels and then compile the application. This compilation
 requires that the `dl_esm_inf library <https://github.com/stfc/dl_esm_inf>`_
 be installed/available - it is provided as a Git submodule of the PSyclone
-project (see :ref:`dev_guide:dev-installation` in the Developers' Guide
+project (see :ref:`dev-installation` in the Developers' Guide
 for details on working with submodules).
 
 The supplied ``Makefile`` also provides a second, ``profile`` target which
@@ -317,7 +317,7 @@ Example 5.2: Profiling
 This example shows how to use the profiling support in PSyclone.
 It instruments two invoke statements and can link in with any
 of the following profiling wrapper libraries: template,
-simple_timer, dl_timer, TAU, and DrHook (see
+simple_timer, dl_timer, TAU, Vernier, and DrHook (see
 :ref:`profiling_third_party_tools`). The ``README.md``
 file contains detailed instructions on how to build the
 different executables. By default (i.e. just using ``make``
@@ -707,7 +707,7 @@ reduce its depth by one) in certain circumstances, whereas a
 
 A kernel with a ``GH_WRITE`` access for a continuous field must guarantee to
 write the same value to a given shared DoF, independent of which cell
-is being updated. As :ref:`described <dev_guide:iterators_continuous>`
+is being updated. As :ref:`described <iterators_continuous>`
 in the Developer Guide, this means that annexed DoFs are computed
 correctly without the need to iterate into the L1 halo and thus can
 remove the need for halo exchanges on those fields that are read.
@@ -782,6 +782,14 @@ benchmark with the PSyData-based kernel extraction code. Detailed
 compilation instructions are in the ``README.md`` file, including how
 to switch from using the stand-alone extraction library to the NetCDF-based
 one (see :ref:`extraction_libraries` for details).
+
+Example 6: Read-only Verification
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example shows the use of read-only verification with PSyclone for
+generic Fortran code. It instruments each kernel in a small Fortran
+program with the PSyData-based read-only verification code. Detailed
+compilation instructions are in the ``README.md`` file.
 
 
 Scripts

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by T. Vockerodt, Met Office
+# Modified by A. Pirrie, Met Office
 
 '''A module to perform pytest tests on the code in the main.py file
 within the psyad directory.
@@ -44,8 +45,8 @@ import os
 
 import pytest
 
+from psyclone.configuration import Config
 from psyclone.psyad import main
-
 
 TEST_PROG = (
     "program test\n"
@@ -182,7 +183,7 @@ def test_main_h_option(capsys):
     expected2 = (
         "[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
         "[-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] "
-        "-a ACTIVE [ACTIVE ...] -- filename\n\n"
+        "[-c CONFIG] -a ACTIVE [ACTIVE ...] -- filename\n\n"
         "Run the PSyclone adjoint code generator on a tangent-linear "
         "kernel file\n\n"
         "positional arguments:\n"
@@ -193,8 +194,13 @@ def test_main_h_option(capsys):
     assert ("  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
             in output or
             "  -a, --active ACTIVE [ACTIVE ...]\n" in output)
+    assert ("                        names of active variables\n"
+            in output)
+    assert ("  -c CONFIG, --config CONFIG\n"
+            "                        config file with PSyclone specific "
+            "options\n" in output or " -c, --config CONFIG   config file"
+            " with PSyclone specific options\n" in output)
     expected3 = (
-        "                        names of active variables\n"
         "  -v, --verbose         increase the verbosity of the output\n"
         "  -t, --gen-test        generate a standalone unit test for the "
         "adjoint code\n"
@@ -230,7 +236,7 @@ def test_main_no_args(capsys):
     expected1 = "usage: "
     expected2 = ("[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
                  "[-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] "
-                 "-a ACTIVE [ACTIVE ...] -- filename")
+                 "[-c CONFIG] -a ACTIVE [ACTIVE ...] -- filename")
     expected3 = ("error: the following arguments are required: "
                  "-a/--active, filename\n")
     assert expected1 in error
@@ -466,6 +472,44 @@ def test_main_t_option(tmpdir, capsys):
     output, error = capsys.readouterr()
     assert error == ""
     assert EXPECTED_HARNESS_CODE in output.lower()
+
+
+def test_config_flag(tmpdir):
+    ''' Test that -c/--config take precedence over the configuration
+        file references in the environment variable.
+    '''
+    filename_in = str(tmpdir.join("tl.f90"))
+
+    # Create LFRic kernel file
+    with open(filename_in, "w", encoding='utf-8') as my_file:
+        my_file.write(TEST_LFRIC_KERNEL)
+
+    # dummy_config has a non-default REPROD_PAD_SIZE of 7
+    config_name = os.path.join(
+        os.path.split(os.path.dirname(os.path.abspath(__file__)))[0],
+        "test_files", "dummy_config.cfg")
+
+    # Test with no option
+    Config._HAS_CONFIG_BEEN_INITIALISED = False
+    main([filename_in, "-a", "field", "-api", "lfric"])
+    assert Config.get().api == "lfric"
+    assert Config.has_config_been_initialised() is True
+    assert Config.get().reprod_pad_size == 8
+
+    # Test with with -c
+    Config._HAS_CONFIG_BEEN_INITIALISED = False
+    main([filename_in, "-a", "field", "-c", config_name, "-api", "lfric"])
+    assert Config.get().api == "lfric"
+    assert Config.has_config_been_initialised() is True
+    assert Config.get().reprod_pad_size == 7
+
+    # Test with with --config
+    Config._HAS_CONFIG_BEEN_INITIALISED = False
+    main([filename_in, "-a", "field", "--config", config_name,
+         "-api", "lfric"])
+    assert Config.get().api == "lfric"
+    assert Config.has_config_been_initialised() is True
+    assert Config.get().reprod_pad_size == 7
 
 
 @pytest.mark.parametrize("extra_args", [[], ["-t"]])

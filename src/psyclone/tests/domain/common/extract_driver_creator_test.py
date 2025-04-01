@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council
+# Copyright (c) 2021-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -124,8 +124,7 @@ def test_driver_creation1():
   call extract_psy_data%OpenReadModuleRegion('psy_extract_example_with_various_variable_''' \
   '''access_patterns', 'invoke_0_compute_kernel-compute_kernel_code-r0')
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
-  ALLOCATE(out_fld, mold=out_fld_post)
-  out_fld = 0
+  call extract_psy_data%ReadVariable('out_fld', out_fld)
   call extract_psy_data%ReadVariable('in_fld', in_fld)
   call extract_psy_data%ReadVariable('in_out_fld_post', in_out_fld_post)
   call extract_psy_data%ReadVariable('dx', dx)
@@ -245,21 +244,49 @@ def test_rename_suffix_if_name_clash():
                                         ("module_name", "local_name")})
     extract_code = str(psy.gen)
 
-    # Due to the name clash of "out_fld"+"_post" and "out_fld_post"
-    # the _post suffix is changed to _post0. So the file will
-    # contain out_fld_post for the input variable out_fld_post,
-    # and "out_fld_post0" for the output value of out_fld.
-    expected = """
-      CALL extract_psy_data%PreDeclareVariable("out_fld_post", out_fld_post)
-      CALL extract_psy_data%PreDeclareVariable("in_out_fld_post0", in_out_fld)
-      CALL extract_psy_data%PreDeclareVariable("out_fld_post0", out_fld)
-      CALL extract_psy_data%ProvideVariable("in_out_fld", in_out_fld)
-      CALL extract_psy_data%ProvideVariable("out_fld_post", out_fld_post)
-      CALL extract_psy_data%ProvideVariable("in_out_fld_post0", in_out_fld)
-      CALL extract_psy_data%ProvideVariable("out_fld_post0", out_fld)"""
-    expected_lines = expected.split("\n")
+    print("XX", extract_code)
+    # This kernel calls compute_kernel(out_fld, in_out_fld, out_fld_post, dx)
+    # with the access patterns:
+    #   out_fld:      write
+    #   in_out_fld:   read+write
+    #   out_fld_post: read
+    # Due to the name clash of "out_fld"+"_post" (first parameter output
+    # value) and "out_fld_post" (third parameters as input argument)
+    # the _post suffix is changed to "_post0". So the file will
+    # contain:
+    #   out_fld:          the input value of the written field, since even if a
+    #                     parameter is output only, its input value is stored
+    #                     in case that the kernel only updates some elements
+    #   in_out_fld:       the input value of the in_out_fld argument
+    #   out_fld_post:     the input value of the read-only array
+    # Then for the written fields:
+    #   in_out_fld_post0: the value of in_out_fld after the kernel
+    #   out_fld_post0:    the output value of output_fld after the kernel call
+    # Test that these fields are indeed given to the extraction library.
+    # Note that the last two ProvideVariable calls will actually be after
+    # the kernel call.
+    expected_lines = [
+      # Declaration, first the three arguments
+      'CALL extract_psy_data % PreDeclareVariable("out_fld", out_fld)',
+      'CALL extract_psy_data % PreDeclareVariable("in_out_fld", '
+      'in_out_fld',
+      'CALL extract_psy_data % PreDeclareVariable("out_fld_post", '
+      'out_fld_post)',
+      # Declare the two variables to be written after the kernel, with
+      # the suffix `_post0` added.
+      'CALL extract_psy_data % PreDeclareVariable("in_out_fld_post0", '
+      'in_out_fld',
+      'CALL extract_psy_data % PreDeclareVariable("out_fld_post0", out_fld)',
+      # Provide the variables before the kernel call:
+      'CALL extract_psy_data % ProvideVariable("out_fld", out_fld)',
+      'CALL extract_psy_data % ProvideVariable("in_out_fld", in_out_fld)',
+      'CALL extract_psy_data % ProvideVariable("out_fld_post", out_fld_post)',
+      # Provide the variables after the kernel call:
+      'CALL extract_psy_data % ProvideVariable("in_out_fld_post0", '
+      'in_out_fld)',
+      'CALL extract_psy_data % ProvideVariable("out_fld_post0", out_fld)']
     for line in expected_lines:
-        assert line in expected_lines
+        assert line in extract_code
 
     # Now we also need to check that the driver uses the new suffix,
     # i.e. both as key for ReadVariable, as well as for the variable
@@ -279,7 +306,7 @@ def test_rename_suffix_if_name_clash():
   call extract_psy_data%ReadVariable('in_out_fld', in_out_fld)
   call extract_psy_data%ReadVariable('in_out_fld_post0', in_out_fld_post0)
   call extract_psy_data%ReadVariable('out_fld_post0', out_fld_post0)
-  ALLOCATE(out_fld, mold=out_fld_post0)
+  call extract_psy_data%ReadVariable('out_fld', out_fld)
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)"""
 
     for line in expected.split("\n"):
@@ -301,10 +328,10 @@ def test_rename_suffix_if_name_clash():
     extract_code = str(psy.gen)
 
     # Check that *out_fld* is declared correctly: it is only declared as
-    # output value, so must use key out_fld_post1 once, and not be declared
-    # as input value:
+    # output value, but it must also be added as input field, to make sure
+    # we have all values of a field, even if the kernel doesn't update them:
     assert 'PreDeclareVariable("out_fld_post1", out_fld)' in extract_code
-    assert 'PreDeclareVariable("out_fld", out_fld)' not in extract_code
+    assert 'PreDeclareVariable("out_fld", out_fld)' in extract_code
 
     # Check that *out_fld_post* (input/output) is declared correctly. It
     # must be declared twice: once for the input value using the original

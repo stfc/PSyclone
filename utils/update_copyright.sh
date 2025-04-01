@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024, Science and Technology Facilities Council
+# Copyright (c) 2024-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,9 +43,9 @@ function update_copyright() {
 	# Note the usage of ',' in the second statement to avoid that
 	# it matches the first format (2020-2023)
 	year=$(date +%Y)
-	echo $year
-	sed -i $1 -e s"/\(Copyright.*[0-9]\{4\}\)-[0-9]\{4\}/\1-$year/" \
-	          -e s"/\(Copyright[^0-9]*[0-9]\{4\}\),/\1-$year,/"
+	# Ignore case (/I)
+	sed -i $1 -e s"/\(Copyright.*[0-9]\{4\}\)-[0-9]\{4\}/\1-$year/I" \
+	          -e s"/\(Copyright[^0-9]*[0-9]\{4\}\),/\1-$year,/I"
 }
 
 # Determine the PSyclone root directory
@@ -78,3 +78,6 @@ find . $FIND_OPT "*.[fFxX]90" -print -exec bash -c "update_copyright \{}" \; >/d
 
 echo "Updating READMEs"
 find . $FIND_OPT "README*"    -print -exec bash -c "update_copyright \{}" \; >/dev/null
+
+echo "Updating configs"
+find . $FIND_OPT "*.cfg"    -print -exec bash -c "update_copyright \{}" \; >/dev/null

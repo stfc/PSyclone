@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,8 @@ directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, PASSTHROUGH_ISSUES, PARALLELISATION_ISSUES,
-    NEMO_MODULES_TO_IMPORT)
+    enhance_tree_information, PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT,
+    PRIVATISATION_ISSUES)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
@@ -52,12 +52,16 @@ PROFILING_ENABLED = False
 # PSyIR tree in order to use the symbol information from those modules
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
-# A environment variable can inform if this is targeting NEMOv5, in which case
-# array privatisation is enabled.
-NEMOV5 = os.environ.get('NEMOV5', False)
+# A environment variable can inform if this is targeting NEMOv4, in which case
+# array privatisation is disabled.
+NEMOV4 = os.environ.get('NEMOV4', False)
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = PASSTHROUGH_ISSUES
+FILES_TO_SKIP = []
+
+if PROFILING_ENABLED:
+    # Fails with profiling enabled. issue #2723
+    FILES_TO_SKIP.append("mppini.f90")
 
 
 def trans(psyir):
@@ -68,6 +72,12 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    # If the environemnt has ONLY_FILE defined, only process that one file and
+    # nothing else. This is useful for file-by-file exhaustive tests.
+    only_do_file = os.environ.get('ONLY_FILE', False)
+    if only_do_file and psyir.name != only_do_file:
+        return
+
     omp_parallel_trans = None
     omp_loop_trans = OMPLoopTrans(omp_schedule="static")
     omp_loop_trans.omp_directive = "paralleldo"
@@ -85,7 +95,8 @@ def trans(psyir):
                 hoist_local_arrays=False,
                 convert_array_notation=True,
                 convert_range_loops=True,
-                hoist_expressions=False
+                hoist_expressions=False,
+                scalarise_loops=False
         )
 
         if psyir.name not in PARALLELISATION_ISSUES:
@@ -94,5 +105,6 @@ def trans(psyir):
                     region_directive_trans=omp_parallel_trans,
                     loop_directive_trans=omp_loop_trans,
                     collapse=False,
-                    privatise_arrays=NEMOV5 and psyir.name != "ldftra.f90",
+                    privatise_arrays=(not NEMOV4 and
+                                      psyir.name not in PRIVATISATION_ISSUES)
             )

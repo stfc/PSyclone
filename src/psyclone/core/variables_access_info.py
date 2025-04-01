@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,8 @@
 '''This module provides management of variable access information.'''
 
 
+from typing import List
+
 from psyclone.core.component_indices import ComponentIndices
 from psyclone.core.signature import Signature
 from psyclone.core.single_variable_access_info import SingleVariableAccessInfo
@@ -60,10 +62,6 @@ class VariablesAccessInfo(dict):
     :param options: a dictionary with options to influence which variable
         accesses are to be collected.
     :type options: Dict[str, Any]
-    :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is set
-        to a True value, arrays used as first parameter to the PSyIR query
-        operators lbound, ubound, or size will be reported as 'read'.
-        Otherwise, these accesses will be ignored.
     :param Any options["USE-ORIGINAL-NAMES"]: if this option is set to a
         True value, an imported symbol that is renamed (``use mod, a=>b``)
         will be reported using the original name (``b`` in the example).
@@ -81,14 +79,10 @@ class VariablesAccessInfo(dict):
     # List of valid options and their default values. Note that only the
     # options method checks this, since it is convenient to pass in options
     # from the DependencyTools that might contain options for these tools.
-    # COLLECT-ARRAY-SHAPE-READS: controls if access to the shape of an array
-    #     (e.g. ``ubound(a)`` are reported as read or not at all. Defaults
-    #     to True.
     # USE-ORIGINAL-NAMES: if set this will report the original names of any
     #     symbol that is being renamed (``use mod, renamed_a=>a``). Defaults
     #     to False.
-    _DEFAULT_OPTIONS = {"COLLECT-ARRAY-SHAPE-READS": False,
-                        "USE-ORIGINAL-NAMES": False}
+    _DEFAULT_OPTIONS = {"USE-ORIGINAL-NAMES": False}
 
     def __init__(self, nodes=None, options=None):
         # This dictionary stores the mapping of signatures to the
@@ -159,6 +153,9 @@ class VariablesAccessInfo(dict):
                         mode = "READ"
                 elif self.is_written(signature):
                     mode = "WRITE"
+                else:
+                    # The data associated with this signature is not accessed.
+                    mode = "NO_DATA_ACCESS"
             output_list.append(f"{signature}: {mode}")
         return ", ".join(output_list)
 
@@ -277,11 +274,23 @@ class VariablesAccessInfo(dict):
     def all_signatures(self):
         ''':returns: all signatures contained in this instance, sorted (in \
                      order to make test results reproducible).
-        :rtype: List[:py:class:`psyclone.core.signature`]
+        :rtype: List[:py:class:`psyclone.core.Signature`]
         '''
         list_of_vars = list(self.keys())
         list_of_vars.sort()
         return list_of_vars
+
+    @property
+    def all_data_accesses(self) -> List[Signature]:
+        '''
+        :returns: all Signatures in this instance that have a data access (i.e.
+                  the data associated with them is read or written).
+        '''
+        result = []
+        for sig in self.all_signatures:
+            if self[sig].has_data_access():
+                result.append(sig)
+        return result
 
     def merge(self, other_access_info):
         '''Merges data from a VariablesAccessInfo instance to the
@@ -319,6 +328,14 @@ class VariablesAccessInfo(dict):
         # locations just merged in
         self._location = self._location + max_new_location
 
+    def is_called(self, signature: Signature) -> bool:
+        '''
+        :param signature: signature of the variable.
+
+        :returns: True if the specified variable is called at least once.
+        '''
+        return self[signature].is_called()
+
     def is_written(self, signature):
         '''Checks if the specified variable signature is at least
         written once.
@@ -336,15 +353,14 @@ class VariablesAccessInfo(dict):
         var_access_info = self[signature]
         return var_access_info.is_written()
 
-    def is_read(self, signature):
+    def is_read(self, signature) -> bool:
         '''Checks if the specified variable signature is at least read once.
 
         :param signature: signature of the variable
         :type signature: :py:class:`psyclone.core.Signature`
 
-        :returns: True if the specified variable name is read (at least \
+        :returns: True if the specified variable name is read (at least
             once).
-        :rtype: bool
 
         :raises: KeyError if the signature cannot be found.'''
 

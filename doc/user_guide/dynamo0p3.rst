@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2024, Science and Technology Facilities Council
+.. Copyright (c) 2017-2025, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ allow PSyclone to generate the PSy layer. These algorithm and kernel
 APIs are discussed separately in the following sections.
 
 The LFRic API supports the Met Office's finite element (hereafter FEM)
-based GungHo dynamical core (see :ref:`introduction`).
+based GungHo dynamical core.
 This dynamical core with atmospheric physics parameterisation
 schemes is a part of the Met Office LFRic modelling system :cite:`lfric-2019`,
 currently being developed in preparation for exascale computing in the 2020s.
@@ -262,14 +262,27 @@ gh_quadrature_XYoZ, gh_quadrature_face \)`` then the corresponding
 invoke would look something like::
 
       ...
-      qr_xyoz = quadrature_xyoz_type(nqp_exact, rule)
-      qr_face = quadrature_face_type(nqp_exact, ..., rule)
+      qr_xyoz = quadrature_xyoz_type(nqp_h_exact, nqp_h_exact, nqp_v_exact, rule)
+      qr_face = quadrature_face_type(nqp_h_exact, nqp_v_exact, ..., rule)
       call invoke(pressure_gradient_kernel_type(rhs_tmp(igh_u), rho, theta, qr_xyoz), &
                   geopotential_gradient_kernel_type(rhs_tmp(igh_u), geopotential, &
                                                     qr_xyoz, qr_face))
 
 These quadrature objects specify the set(s) of points at which the
 basis/differential-basis functions required by the kernel are to be evaluated.
+
+The arguments ``nqp_h_exact`` and ``nqp_v_exact`` are namelist options from the
+finite-element configuration file, generated as a function of the
+finite-element model (FEM) order in the horizontal and vertical directions (see
+:ref:`lfric-function-space`). They specify the number of quadrature
+points in the horizontal and vertical directions, respectively.
+
+Here, ``qr_face`` has been passed the horizontal and vertical numbers of
+quadrature points, meaning that the face in question is normal to a horizontal
+plane. In general, ``qr_xyoz`` takes the number of quadrature points in each
+direction (*x*, *y*, and *z*, in that order), whereas ``qr_face`` takes the
+number of quadrature points in each direction tangential to the face in
+question.
 
 .. _lfric-halo-depth:
 
@@ -989,12 +1002,14 @@ Kernels should follow those for General-Purpose Kernels.
 
 The list of rules for DoF Kernels is as follows:
 
-1) A DoF Kernel must have at least one argument that is a field.
-   This rule reflects that a Kernel operates on some subset of the
-   whole domain and is therefore designed to be called from within
-   a loop that iterates over those subsets of the domain. Only fields
-   (as opposed to e.g. field vectors or operators) are accepted for DoF
-   Kernels because only they have a single value at each DoF.
+1) A DoF Kernel must have at least one argument that is a field. This rule
+   reflects that a Kernel operates on some subset of the whole domain
+   and is therefore designed to be called from within a loop that iterates
+   over those subsets of the domain. Fields (as opposed to e.g. operators)
+   are accepted for DoF Kernels because only they have a single value at
+   each DoF. Field vectors can be represented in a DoF kernel as a
+   collection of field arguments, each one corresponding to an index in the
+   field vector.
 
 2) All Kernel arguments must be either fields or scalars (`real-` and/or
    `integer`-valued). DoF Kernels cannot accept operators.
@@ -1463,6 +1478,24 @@ vector variables are:
   ``0`` when it becomes the ``W0`` space (i.e. fully continuous).
   Please see the next section for more details on this function space.
 
+The previously mentioned FEM order can be specified in the horizontal
+and vertical directions independently, through the ``element_order_h`` and
+``element_order_v`` arguments in the function space initialisation. These
+element orders dictate the polynomial order of the basis functions used to
+represent a field. In most cases these element orders will be set to *0* in
+LFRic, and increasing them will result in an increased number of DoFs per cell.
+Increasing the element order in either direction will never change the
+continuity of a space; however, it can increase the number of shared DoFs per
+entity.
+
+For example, the ``W3`` space has a single DoF per cell at the lowest order,
+situated in the cell volume. The basis functions are constant over the
+cell, and the space is discontinuous. Increasing to ``element_order_v=1``
+(the so-called 'next-to-lowest order' in the vertical direction) will result
+in a second volume DoF per cell, yielding linear basis functions vertically,
+and constant basis functions horizontally. The space remains discontinuous
+in both directions.
+
 In addition to the specific function space metadata, there are also
 three generic function space metadata descriptors mentioned in
 sections above:
@@ -1902,7 +1935,7 @@ operates_on                    Data passed for each field/operator argument
 ============================== =======================================================
 
 (For a description of the concepts of 'owned' and 'halo' cells please see the
-:ref:`dev_guide:lfric-developers`.)
+:ref:`lfric-developers`.)
 
 procedure
 #########
@@ -2502,6 +2535,12 @@ with PSyclone's naming conventions, are:
          passed in separately. Again, the intent is determined from the
          metadata (see :ref:`meta_args <lfric-api-meta-args>`).
 
+   3) For each field vector in the order specified by the meta_args metadata,
+      there needs to be an equivalent number of arguments in the kernel as
+      the dimension of the field vector. The dimension is specified in the
+      metadata. The arguments must be ordered following the indexing of the
+      field vector.
+
 .. _lfric-kernel-arg-intents:
 
 Argument Intents
@@ -2554,7 +2593,7 @@ Built-ins
 ---------
 
 The basic concept of a PSyclone Built-in is described in the
-:ref:`built-ins` section.  In the LFRic API, calls to
+:ref:`psykal-built-ins` section.  In the LFRic API, calls to
 Built-ins generally follow a convention that the field/scalar written
 to comes first in the argument list. LFRic Built-ins must conform to the
 following rules:
@@ -2632,11 +2671,11 @@ metadata for the Built-ins that update a ``real``-valued field,
   type, public, extends(kernel_type) :: aX_plus_bY
      private
      type(arg_type) :: meta_args(5) = (/                              &
-          arg_type(GH_FIELD,  GH_REAL  GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
           arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,  GH_REAL  GH_READ,  ANY_SPACE_1)         &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
           /)
      integer :: operates_on = DOF
    contains

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council.
+# Copyright (c) 2018-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified S. Valat, Inria / Laboratoire Jean Kuntzmann
+#          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
 
 '''Module containing py.test tests for the transformation of the PSyIR
    of generic code using the OpenACC 'kernels' directive.
@@ -44,7 +46,7 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Assignment, ACCKernelsDirective, Loop, Routine
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, TransformationError, ProfileTrans)
-from psyclone.transformations import ACCLoopTrans
+from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans
 from psyclone.tests.utilities import get_invoke
 
 EXPLICIT_LOOP = ("program do_loop\n"
@@ -66,6 +68,30 @@ def test_kernels_single_node(fortran_reader):
     acc_trans = ACCKernelsTrans()
     acc_trans.apply(schedule[0], {"default_present": True})
     assert isinstance(schedule[0], ACCKernelsDirective)
+
+
+def test_trigger_async_error(fortran_reader):
+    """Check that we can't apply an ACC Kernel Trans with
+    a parent using an async queue IDs that is different."""
+    psyir = fortran_reader.psyir_from_source(EXPLICIT_LOOP)
+    acc_trans = ACCKernelsTrans()
+
+    loop = psyir.walk(Loop)[0]
+    acc_trans.apply(loop,
+                    {"default_present": True,
+                     "async_queue": 2})
+
+    loop = psyir.walk(Loop)[0]
+
+    with pytest.raises(TransformationError) as einfo:
+        acc_trans.apply(loop, {"default_present": True,
+                        "async_queue": 3})
+
+    correct = ("Cannot apply ACCKernelsTrans with asynchronous"
+               " queue '3' because a parent directive specifies"
+               " queue '2'")
+
+    assert correct in str(einfo.value)
 
 
 def test_no_kernels_error(fortran_reader):
@@ -438,19 +464,33 @@ end
     sub = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
-        acc_trans.validate(sub.children[0], options={})
+        acc_trans.validate(sub.children[0])
     assert ("Assumed-size character variables cannot be enclosed in an "
             "OpenACC region but found 'if (assumed_size_char == 'literal')"
             in str(err.value))
     with pytest.raises(TransformationError) as err:
-        acc_trans.validate(sub.children[1], options={})
+        acc_trans.validate(sub.children[1], options={"allow_string": True})
     assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
             " region but found 'assumed_size_char(:LEN(explicit_size_char)) = "
             in str(err.value))
     with pytest.raises(TransformationError) as err:
-        acc_trans.validate(sub.children[2], options={})
+        acc_trans.validate(sub.children[2], options={"allow_string": True})
     assert ("Cannot include 'ACHAR(9)' in an OpenACC region because "
             "it is not available on GPU" in str(err.value))
+    # Check that the character assignment is excluded by default.
+    with pytest.raises(TransformationError) as err:
+        acc_trans.validate(sub.children[2])
+    assert ("ACCKernelsTrans does not permit assignments involving character "
+            "variables by default (use the 'allow_string' option to include "
+            "them), but found:" in str(err.value))
+    # Check the verbose option.
+    with pytest.raises(TransformationError) as err:
+        acc_trans.validate(sub.children[2], options={"verbose": True})
+    assert (sub.children[2].preceding_comment ==
+            "ACCKernelsTrans does not permit assignments involving character "
+            "variables by default (use the 'allow_string' option to include "
+            "them)")
+
     # String with explicit length is fine.
     acc_trans.validate(sub.children[3], options={})
     # CHARACTER*(*) notation is also rejected.
@@ -464,3 +504,28 @@ end
     assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
             " region but found 'explicit_size_char = assumed2" in
             str(err.value))
+
+
+def test_check_async_queue_with_enter_data(fortran_reader):
+    '''Tests for the check_async_queue() method.'''
+    acc_trans = ACCKernelsTrans()
+    acc_edata_trans = ACCEnterDataTrans()
+    with pytest.raises(TypeError) as err:
+        acc_trans.check_async_queue(None, 3.5)
+    assert ("Invalid async_queue value, expect Reference or integer or None "
+            "or bool, got : 3.5" in str(err.value))
+    psyir = fortran_reader.psyir_from_source(
+                "program two_loops\n"
+                "  integer :: ji\n"
+                "  real :: array(10,10)\n"
+                "  do ji = 1, 5\n"
+                "    array(ji,1) = 2.0*array(ji,2)\n"
+                "  end do\n"
+                "end program two_loops\n")
+    prog = psyir.walk(Routine)[0]
+    acc_edata_trans.apply(prog, {"async_queue": 1})
+    with pytest.raises(TransformationError) as err:
+        acc_trans.check_async_queue(prog.walk(Loop), 2)
+    assert ("Cannot apply ACCKernelsTrans with asynchronous queue '2' because "
+            "the containing routine has an ENTER DATA directive specifying "
+            "queue '1'" in str(err.value))

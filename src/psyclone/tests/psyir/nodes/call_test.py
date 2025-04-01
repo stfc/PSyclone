@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -379,12 +379,15 @@ def test_call_reference_accesses():
     call1.reference_accesses(var_info)
     # Check that the current location number is increased after the call:
     assert var_info._location == 1
-    assert not var_info.all_signatures
+    # The Routine symbol is not considered 'read'.
+    assert not var_info.is_read(Signature("trillian"))
+    assert var_info.is_called(Signature("trillian"))
     dsym = DataSymbol("beta", INTEGER_TYPE)
     # Simple argument passed by reference.
     call2 = Call.create(rsym, [Reference(dsym)])
     call2.reference_accesses(var_info)
     assert var_info.has_read_write(Signature("beta"))
+    assert not var_info.is_called(Signature("beta"))
     # Array access argument. The array should be READWRITE, any variable in
     # the index expression should be READ.
     idx_sym = DataSymbol("ji", INTEGER_TYPE)
@@ -416,6 +419,55 @@ def test_call_reference_accesses():
     call6.reference_accesses(var_info)
     assert var_info.is_read(Signature("beta"))
     assert not var_info.is_written(Signature("beta"))
+
+
+def test_type_bound_call_reference_accesses(fortran_reader):
+    '''Test the reference_accesses() method for a call to a type-bound
+    procedure.
+
+    TODO #2823 - we currently make dangerous assumptions about accesses
+    to variables if whether or not they are being used as function
+    arguments is ambiguous.
+
+    '''
+    code = '''\
+    module my_mod
+    contains
+    pure function get_start(idx) result(start)
+      integer, intent(in) :: idx
+      integer :: start
+      start = idx - 1
+    end function get_start
+    subroutine my_sub
+      use some_mod, only: my_grid, domain
+      integer :: i, j, k, f
+      ! We know that get_start() is a call to a pure function so 'f' is
+      ! read only.
+      call my_grid(k)%update(get_start(f), domain%get_start(i),j)
+    end subroutine my_sub
+    end module my_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    vai = VariablesAccessInfo()
+    call.reference_accesses(vai)
+    # The type-bound procedure is called.
+    assert vai.is_called(Signature("my_grid%update"))
+    # As is the function defined in the same module.
+    assert vai.is_called(Signature("get_start"))
+    # All of the indices are marked as read.
+    for var in ["i", "j", "k", "f"]:
+        assert vai.is_read(Signature(var))
+    # Only the arguments to the calls are marked as read-write.
+    assert vai.has_read_write(Signature("j"))
+    assert not vai.has_read_write(Signature("k"))
+    assert not vai.has_read_write(Signature("f"))
+    # We can't tell whether 'domain%get_start(i)' is an array access
+    # or a function call. We currently, dangerously, assume it is the former.
+    if not vai.has_read_write(Signature("i")):
+        pytest.xfail(reason="TODO #2823 - potential array accesses/function "
+                     "calls are always assumed to be array accesses. This is "
+                     "unsafe.")
 
 
 def test_call_argumentnames_after_removearg():

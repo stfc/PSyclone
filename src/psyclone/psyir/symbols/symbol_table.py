@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 import inspect
 import copy
+from typing import Set
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -573,7 +574,6 @@ class SymbolTable():
         if key in self._symbols:
             raise KeyError(f"Symbol table already contains a symbol with "
                            f"name '{new_symbol.name}'.")
-
         if tag:
             if tag in self.get_tags():
                 raise KeyError(
@@ -855,7 +855,7 @@ class SymbolTable():
         except SymbolError as err:
             raise SymbolError(
                 f"Cannot merge {other_table.view()} with {self.view()} due to "
-                f"unresolvable name clashes.") from err
+                f"unresolvable name clashes: {err.value}") from err
 
         # Deal with any Container symbols first.
         self._add_container_symbols_from_table(other_table)
@@ -1583,12 +1583,12 @@ class SymbolTable():
         :type symbol_target: Optional[
             :py:class:`psyclone.psyir.symbols.Symbol`]
 
-        :raises SymbolError: if a symbol name clash is found between multiple \
+        :raises SymbolError: if a symbol name clash is found between multiple
             imports or an import and a local symbol.
-        :raises TypeError: if the provided container_symbols is not a list of \
+        :raises TypeError: if the provided container_symbols is not a list of
             ContainerSymbols.
         :raises TypeError: if the provided symbol_target is not a Symbol.
-        :raises KeyError: if a symbol_target has been specified but this has \
+        :raises KeyError: if a symbol_target has been specified but this has
             not been found in any of the searched containers.
 
         '''
@@ -1617,12 +1617,17 @@ class SymbolTable():
             try:
                 external_container = c_symbol.find_container_psyir(
                     local_node=self.node)
-            # pylint: disable=broad-except
+            # pylint: disable-next=broad-except
             except Exception:
                 # Ignore this container if the associated module file has not
                 # been found in the given include_path or any issue has arisen
                 # during parsing.
                 # TODO #11: It would be useful to log this.
+                continue
+
+            if not external_container:
+                # Failed to get a Container (possibly due to parsing or raising
+                # errors).
                 continue
 
             # Examine all Symbols defined within this external container
@@ -1859,14 +1864,20 @@ class SymbolTable():
         # Re-insert modified symbol
         self.add(symbol)
 
-    def wildcard_imports(self):
+    def wildcard_imports(self, scope_limit=None) -> Set[str]:
         '''
         Searches this symbol table and then up through any parent symbol
         tables for a ContainerSymbol that has a wildcard import.
 
+        :param scope_limit: optional Node which limits the search to the
+            symbol tables of the nodes within the given scope.
+            If it is None (the default), the whole scope (all symbol tables
+            in ancestor nodes) is searched, otherwise ancestors of the
+            scope_limit node are not searched.
+        :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+
         :returns: the name(s) of containers which have wildcard imports
             into the current scope.
-        :rtype: set[str]
 
         '''
         wildcards = set()
@@ -1875,7 +1886,8 @@ class SymbolTable():
             for sym in current_table.containersymbols:
                 if sym.wildcard_import:
                     wildcards.add(sym.name)
-            current_table = current_table.parent_symbol_table()
+            current_table = current_table.parent_symbol_table(
+                scope_limit=scope_limit)
         return wildcards
 
     def view(self):

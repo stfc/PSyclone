@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2020-2024, Science and Technology Facilities Council.
+   Copyright (c) 2020-2025, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -155,6 +155,7 @@ The `new_symbol` method is provided to create new symbols while avoiding name
 clashes:
 
 .. automethod:: psyclone.psyir.symbols.SymbolTable.new_symbol
+    :no-index:
 
 However, if this symbol needs to be retrieved later on, one must keep track
 of the symbol or the returned name. As this is not always feasible when
@@ -175,8 +176,10 @@ There are two ways to retrieve the symbol from a symbol table. Using the
 methods:
 
 .. automethod:: psyclone.psyir.symbols.SymbolTable.lookup
+    :no-index:
 
 .. automethod:: psyclone.psyir.symbols.SymbolTable.lookup_with_tag
+    :no-index:
 
 Sometimes, we have no way of knowing if a symbol we need has already been
 defined. In this case we can use a try/catch around
@@ -186,6 +189,7 @@ the Symbol Table provides the `find_or_create_tag` helper method that encapsulat
 the described behaviour and declares symbols when needed.
 
 .. automethod:: psyclone.psyir.symbols.SymbolTable.find_or_create_tag
+    :no-index:
 
 By default the `get_symbol`, `new_symbol`, `add`, `lookup`,
 `lookup_with_tag`, and `find_or_create_tag` methods in a symbol table will also
@@ -227,6 +231,7 @@ of the definition of their precision or initial value), creating copies
 is not entirely straightforward. Every `Symbol` has the `copy` method:
 
 .. automethod:: psyclone.psyir.symbols.Symbol.copy
+    :no-index:
 
 This ensures that the precision and initial-value PSyIR sub-trees are
 copied appropriately while any Symbols referred to inside those nodes remain
@@ -237,6 +242,7 @@ need to be replaced with their equivalents in the new tree. The
 `SymbolTable.deep_copy()` method:
 
 .. automethod:: psyclone.psyir.symbols.SymbolTable.deep_copy
+    :no-index:
 
 handles this by first creating shallow copies of all Symbols in the
 table and then ensuring that each is updated to refer to Symbols in
@@ -244,6 +250,7 @@ the new scope. This is achieved with the `replace_symbols_using`
 method:
 
 .. automethod:: psyclone.psyir.symbols.Symbol.replace_symbols_using
+    :no-index:
 
 All PSyIR `Node` classes also implement this method and call it when a
 `copy` operation is performed on the tree. The implementation in `Node`
@@ -253,6 +260,7 @@ with a new symbol table. Therefore, the implementation within this class
 is slightly different:
 
 .. automethod:: psyclone.psyir.nodes.ScopingNode.replace_symbols_using
+    :no-index:
 
 
 Specialising Symbols
