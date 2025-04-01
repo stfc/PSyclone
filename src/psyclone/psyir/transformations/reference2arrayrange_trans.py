@@ -161,8 +161,9 @@ class Reference2ArrayRangeTrans(Transformation):
             raise TransformationError(LazyString(
                 lambda: f"References to arrays that *may* be routine arguments"
                 f" should not be transformed but found:\n "
-                f"{node.parent.debug_string()} and {node.parent.symbol.name} is"
-                f"not known to be of ArrayType (and therefore may be a call)."))
+                f"{node.parent.debug_string()} and {node.parent.symbol.name} "
+                f"is not known to be of ArrayType (and therefore may be a "
+                f"call)."))
         assignment = node.ancestor(Assignment)
         if assignment and assignment.is_pointer:
             raise TransformationError(
