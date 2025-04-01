@@ -60,8 +60,7 @@ PSyclone on the file ``time_evolution_alg_mod.x90``.
 
 For this part of the exercise add the ``-s`` flag to the ``psyclone``
 invocation in ``Makefile.extract_one`` and provide the path to your script
-so that PSyclone will invoke it. It must start with ``./``, otherwise
-Python will not find our file.
+so that PSyclone will invoke it.
 
 Once this is done, you can then create your application using:
 
@@ -304,11 +303,15 @@ for each column. And after the first time this is reported as an invalid input p
 and then as an invalid output value.
 
 ### Stand-alone Kernel Extraction
-PSyclone provides two different kernel extraction libraries. Besides the
+PSyclone provides three different kernel extraction libraries. Besides the
 NetCDF based one, which was used above, there is also a stand-alone library
-which only uses Fortran IO and has no other external dependencies. This
-library is ideal if your application does not already have a NetCDF dependency.
-The downside is that you can't easily inspect the binary output file.
+which only uses Fortran binary IO and one that uses ASCII format. Bot of these
+do not have any other external dependencies. These
+libraries is ideal if your application does not already have a NetCDF dependency.
+
+The binary output format cannot be easily inspected, and it might not be portable
+between different compilers or platforms. The ASCII format might not
+reproduce bitwise identical results depending on compiler.
 There is no other change to the script or the application required, and you
 don't need to run PSyclone again if you have already processed the files,
 but you need to recompile the files that use kernel extraction.
