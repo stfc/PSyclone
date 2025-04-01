@@ -57,7 +57,6 @@ class LFRicInvokes(Invokes):
 
     '''
     def __init__(self, alg_calls, psy):
-        self._0_to_n = LFRicInvoke(None, None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, LFRicInvoke, psy)
 
 

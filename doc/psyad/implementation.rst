@@ -447,7 +447,7 @@ tangent-linear code it is first transformed into equivalent inline
 code before the code is transformed to its adjoint form. The PSyIR
 ``DotProduct2CodeTrans`` or ``Matmul2CodeTrans`` transformations are
 used to perform these manipulations. See the
-:ref:`user_guide:sec_transformations_available` section of the user guide for more
+:ref:`sec_transformations_available` section of the user guide for more
 information on these transformations.
 
 .. note:: At the moment all ``dot_product`` and ``matmul`` intrinsics
@@ -517,14 +517,14 @@ Kernel Metadata
 +++++++++++++++
 
 In the LFRic API, a kernel is described by its associated
-:ref:`user_guide:lfric-api-kernel-metadata`. When creating the adjoint
+:ref:`lfric-api-kernel-metadata`. When creating the adjoint
 of such a kernel, PSyAD must also update the metadata (since only then can
 the adjoint kernel be used with PSyclone in a standard fashion). The changes
 needed are:
 
 1) Update the name of the associated type and procedure to match the name
    of the adjointed kernel subroutine;
-2) Update the :ref:`access mode <user_guide:lfric-kernel-valid-access>`
+2) Update the :ref:`access mode <lfric-kernel-valid-access>`
    of each argument passed to the kernel.
 
 Multiple Subroutines
