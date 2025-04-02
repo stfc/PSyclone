@@ -448,7 +448,7 @@ to uninitialised data).
 
 To avoid this problem the user guide currently recommends that all
 ``setval_c`` and ``setval_x`` Built-in calls (see
-:ref:`user_guide:built-ins` for more details) compute to the level-1
+:ref:`psykal-built-ins` for more details) compute to the level-1
 halo (by using the redundant computation transformation). This will
 guarantee that all modified halo data has been initialised with a
 value. If redundant computation transformations have been added then

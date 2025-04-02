@@ -716,7 +716,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                             if isinstance(symbol, ContainerSymbol))
 
         mod_manager = ModuleManager.get()
-        return mod_manager.get_all_dependencies_recursively(all_mods)
+        return mod_manager.get_all_dependencies_recursively(
+            list(all_mods))
 
     # -------------------------------------------------------------------------
     def get_driver_as_string(self, nodes, read_write_info, prefix, postfix,

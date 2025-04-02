@@ -2609,9 +2609,6 @@ class TransInfo():
             the default module "Transformations" and the default base_class
             "Transformation"'''
 
-        if False:
-            self._0_to_n = DummyTransformation()  # only here for pyreverse!
-
         # TODO #620: This need to be improved to support the new
         # layout, where transformations are in different directories and files.
         # Leaving local imports so they will be removed once TransInfo is
@@ -2764,19 +2761,8 @@ class Transformation(metaclass=abc.ABCMeta):
         # pylint: disable=unused-argument
 
 
-class DummyTransformation(Transformation):
-    '''Dummy transformation use elsewhere to keep pyreverse happy.'''
-
-    @property
-    def name(self):
-        return
-
-    def apply(self, node, options=None):
-        pass
-
-
 # For Sphinx AutoAPI documentation generation
 __all__ = ['PSyFactory', 'PSy', 'Invokes', 'Invoke', 'InvokeSchedule',
            'GlobalSum', 'HaloExchange', 'Kern', 'CodedKern', 'InlinedKern',
            'BuiltIn', 'Arguments', 'DataAccess', 'Argument', 'KernelArgument',
-           'TransInfo', 'Transformation', 'DummyTransformation']
+           'TransInfo', 'Transformation']

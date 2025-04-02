@@ -1,3 +1,14 @@
+   6) PR #2921 for #2532. Changes the documentation so that the User,
+   Developer and Reference Guides are all in a single build. Updates
+   RTD so that a pdf is made available (and removes the local copy).
+   Switches to using the pydata theme for the docs.
+
+   5) PR #2833. Extends the fparser caching functionality to allow the
+   location of the cache files to be configured. Also avoids repeated
+   parsing of a single file containing multiple modules.
+
+   4) PR #2664 for #1664. Add OpenACC async clause and ACCWait directive.
+
    3) PR #2828 - adds a new ReplaceReferenceByLiteralTrans transformation.   
 
    2) PR #2914 for #2913. Consider unresolved imports when deciding scoping

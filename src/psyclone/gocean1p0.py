@@ -119,7 +119,6 @@ class GOInvokes(Invokes):
 
     '''
     def __init__(self, alg_calls, psy):
-        self._0_to_n = GOInvoke(None, None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, GOInvoke, psy)
 
         index_offsets = []
@@ -1130,8 +1129,6 @@ class GOKernelArguments(Arguments):
     '''
     def __init__(self, call, parent_call, check=True):
         # pylint: disable=unused-argument
-        if False:  # pylint: disable=using-constant-test
-            self._0_to_n = GOKernelArgument(None, None, None)  # for pyreverse
         Arguments.__init__(self, parent_call)
 
         self._args = []
