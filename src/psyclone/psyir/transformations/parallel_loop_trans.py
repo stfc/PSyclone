@@ -64,6 +64,12 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
     performs some data dependency checks to guarantee that the loop can be
     parallelised without changing the semantics of it.
 
+    If the nowait option is supplied to the apply function, then PSyclone will
+    attempt to add the relevant asynchronous option to the directive, if
+    supported. If its not supported, or PSyclone's analysis suggests that it
+    cannot be launched asynchronously, the transformation will occur as though
+    the nowait option was not supplied.
+
     '''
     # The types of node that must be excluded from the section of PSyIR
     # being transformed.
@@ -313,7 +319,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         :param bool options["verbose"]: whether to report the reasons the
             validate and collapse steps have failed.
         :param bool options["nowait"]: whether to add a nowait clause and a
-            corresponding barrier to enable asynchronous execution.
+            corresponding barrier (or equivalent) to enable asynchronous
+            execution.
 
         '''
         if not options:

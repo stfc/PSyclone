@@ -139,15 +139,17 @@ class OMPLoopTrans(ParallelLoopTrans):
         return "Adds an OpenMP directive to parallelise the target loop"
 
     def _add_asynchronicity(self, node: Loop, instance: Directive):
-        ''' Adds asynchronicity to the provided directive if possible.
+        ''' Adds asynchronicity to the provided directive if possible. If
+        PSyclone's analysis suggests that it is not possible, the directive
+        is left unchanged.
 
-        The only directive that this transformation can generate is the
-        OMPDoDirective.
+        The only directive that this method can act on is the OMPDoDirective.
 
         :param nodes: The Loop or code region to execute asynchronously.
-        :param instance: The directive to become asynchronous if possible.
+        :param instance: The directive to make asynchronous if possible.
         '''
-        # Only OMPDoDirective supports nowait of these directives. Needs to be
+        # Of the various directives supported by this transformation, only the
+        # OMPDoDirective supports the nowait clause. This needs to be an
         # exact type check
         if type(instance) is not OMPDoDirective:
             return

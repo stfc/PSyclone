@@ -58,6 +58,9 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
 
         :param nodes: The Loop or code region to execute asynchronously.
         '''
+        # TODO #11: If the base function is called then we should log that
+        # the user asked asynchronicity to be added to a transformation that
+        # doesn't support it.
 
     def _find_next_dependency(self, nodes: Union[Loop, List[Node]],
                               directive: Directive) -> Union[Node, bool]:
@@ -153,13 +156,13 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                         # happen.
                         anc_loop = access.ancestor(Loop, shared_with=directive)
                         # Find the loop ancestor of closest that is an ancestor
-                        # of node.
+                        # of the directive.
                         close_loop = closest.ancestor(
                             Loop, shared_with=directive
                         )
                         # If access and closest are in the same ancestor loop
                         # of directive, then the later node in the tree is
-                        # closets.
+                        # closest.
                         if (abs_position > loop_position and
                                 anc_loop is close_loop):
                             closest = access

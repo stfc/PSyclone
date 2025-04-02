@@ -94,7 +94,9 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
     excluded_node_types = (CodeBlock, )
 
     def _add_asynchronicity(self, nodes: List[Node], instance: Directive):
-        ''' Adds asynchronicity to the provided directive if possible.
+        '''Adds asynchronicity to the provided directive if possible. If
+        PSyclone's analysis suggests that it is not possible, the directive
+        is left unchanged.
 
         :param nodes: The Loop or code region to execute asynchronously.
         :param instance: The directive to become asynchronous if possible.
