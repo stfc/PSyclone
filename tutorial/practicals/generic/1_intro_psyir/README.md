@@ -249,8 +249,8 @@ exception of profiling) to apply transformations to regions of code
 that contain them.
 
 From a computational-performance standpoint, the most important nodes
-are [`Loop`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1psyir_1_1nodes_1_1loop_1_1Loop.html) and
-[`Assignment`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1psyir_1_1nodes_1_1assignment_1_1Assignment.html).
+are [`Loop`](https://psyclone.readthedocs.io/en/latest/html/classpsyclone_1_1psyir_1_1nodes_1_1loop_1_1Loop.html) and
+[`Assignment`](https://psyclone.readthedocs.io/en/latest/html/classpsyclone_1_1psyir_1_1nodes_1_1assignment_1_1Assignment.html).
 
 3. Modify the transformation script to obtain a list of all of the
    `Assignment` nodes:
