@@ -380,6 +380,7 @@ def test_routine_update_parent_symbol_table():
 
     assert routine.symbol_table.lookup("test") is not None
     container.addchild(routine)
+    assert container.symbol_table.lookup("test").is_modulevar
     # Routine's symbol table should no longer contain the RoutineSymbol
     with pytest.raises(KeyError):
         routine.symbol_table.lookup("test", scope_limit=routine)
@@ -399,3 +400,30 @@ def test_routine_update_parent_symbol_table():
     routine2.update_parent_symbol_table(None)
     assert (routine2.symbol_table.lookup("test", scope_limit=routine2) is
             routine.symbol)
+
+
+def test_routine_update_parent_symbol_table_when_referenced(fortran_reader):
+    ''' Test the update_parent_symbol_table function of the Routine class when
+    the target RoutineSymbol cannot be removed because of other references to
+    it.
+
+    '''
+    code = '''\
+    module my_mod
+      interface do_it
+        module procedure :: do_64, do_32
+      end interface
+    contains
+      subroutine do_64(var)
+        real*8 :: var
+      end subroutine do_64
+      subroutine do_32(var)
+        real*4 :: var
+      end subroutine do_32
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    cntr = psyir.children[0]
+    do_64_sym = cntr.symbol_table.lookup("do_64")
+    do_64 = cntr.children[0]
+    do_64.detach()
+    assert do_64_sym.is_unresolved
