@@ -1,10 +1,9 @@
 # PSyclone LFRic Examples
 
 These examples assume that you have PSyclone installed. The easiest
-way to do this is via pip, e.g. `pip install psyclone`. See the user
-manual for more details (`../../psyclone.pdf` or
-http://psyclone.readthedocs.io/en/stable/). After doing this `psyclone`
-should be on your PATH.
+way to do this is via pip, e.g. `pip install psyclone`. See the [User
+Guide](http://psyclone.readthedocs.io/) for more details. After doing
+this `psyclone` should be on your PATH.
 
 The first two examples are primarily provided to illustrate the use of
 the PSyclone code-generation system. No guarantee is made as to their

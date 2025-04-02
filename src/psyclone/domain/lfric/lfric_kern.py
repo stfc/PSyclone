@@ -92,11 +92,6 @@ class LFRicKern(CodedKern):
         # The super-init is called from the _setup() method which in turn
         # is called from load().
         # pylint: disable=super-init-not-called
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        if False:  # pylint: disable=using-constant-test
-            from psyclone.dynamo0p3 import DynKernelArguments
-            self._arguments = DynKernelArguments(None, None)  # for pyreverse
         self._parent = None
         self._stub_symbol_table = LFRicSymbolTable()
         self._base_name = ""

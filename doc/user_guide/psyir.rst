@@ -153,23 +153,37 @@ the code readability.
 The homogeneous navigation methods are:
 
    .. automethod:: psyclone.psyir.nodes.Node.children()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.siblings()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.parent()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.root()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.walk()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.get_sibling_lists()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.ancestor()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.scope()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.path_from()
+       :no-index:
 
 In addition to the navigation methods, nodes also have homogeneous methods to
 interrogate their location and surrounding nodes.
 
    .. automethod:: psyclone.psyir.nodes.Node.immediately_precedes()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.immediately_follows()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.position()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.abs_position()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.sameParent()
+       :no-index:
 
 The semantic navigation methods are:
 
@@ -178,23 +192,35 @@ The semantic navigation methods are:
    Schedule, e.g. ``sched[3]`` or ``sched[2:4]``.
 - ``Assignment``:
    .. automethod:: psyclone.psyir.nodes.Assignment.lhs()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Assignment.rhs()
+       :no-index:
 - ``IfBlock``:
    .. automethod:: psyclone.psyir.nodes.IfBlock.condition()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.IfBlock.if_body()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.IfBlock.else_body()
+       :no-index:
 - ``Loop``:
    .. automethod:: psyclone.psyir.nodes.Loop.loop_body()
+       :no-index:
 - ``WhileLoop``:
    .. automethod:: psyclone.psyir.nodes.WhileLoop.condition()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.WhileLoop.loop_body()
+       :no-index:
 - ``Array`` nodes (e.g. ``ArrayReference``, ``ArrayOfStructuresReference``):
    .. automethod:: psyclone.psyir.nodes.ArrayReference.indices()
+       :no-index:
 - ``RegionDirective``:
    .. automethod:: psyclone.psyir.nodes.RegionDirective.dir_body()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.RegionDirective.clauses()
+       :no-index:
 - Nodes representing accesses of data within a structure (e.g. ``StructureReference``, ``StructureMember``):
    .. automethod:: psyclone.psyir.nodes.StructureReference.member()
+       :no-index:
 
 
 DataTypes
@@ -370,26 +396,34 @@ from all symbol tables.
 The ``SymbolTable`` has the following interface:
 
 .. autoclass:: psyclone.psyir.symbols.SymbolTable
+    :no-index:
 
 Where each element is a ``Symbol`` with an immutable name:
 
 .. autoclass:: psyclone.psyir.symbols.Symbol
+    :no-index:
 
 There are several ``Symbol`` sub-classes to represent different
 labeled entities in the PSyIR. At the moment the available symbols
 are:
 
 - .. autoclass:: psyclone.psyir.symbols.ContainerSymbol
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.DataSymbol
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.DataTypeSymbol
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.IntrinsicSymbol
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.RoutineSymbol
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.GenericInterfaceSymbol
+    :no-index:
 
 See the reference guide for the full API documentation of the
 :ref_guide:`SymbolTable psyclone.psyir.symbols.html#psyclone.psyir.symbols.SymbolTable`
@@ -404,22 +438,31 @@ Interfaces are:
 
 
 - .. autoclass:: psyclone.psyir.symbols.AutomaticInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.DefaultModuleInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.ImportInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.ArgumentInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.StaticInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.CommonBlockInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.UnresolvedInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.UnknownInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.PreprocessorInterface
+    :no-index:
 
 
 Creating PSyIR
