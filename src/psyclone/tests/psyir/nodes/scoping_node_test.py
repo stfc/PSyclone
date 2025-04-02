@@ -42,9 +42,8 @@ from psyclone.psyir.nodes import (
     Schedule, Assignment, Reference, Container, Loop, Literal,
     Routine, ArrayReference)
 from psyclone.psyir.symbols import (
-    ArrayType, ArgumentInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    ImportInterface, INTEGER_TYPE, REAL_TYPE, RoutineSymbol, ScalarType,
-    StructureType, Symbol,
+    ArrayType, ArgumentInterface, DataSymbol, DataTypeSymbol,
+    INTEGER_TYPE, REAL_TYPE, ScalarType, StructureType, Symbol,
     SymbolTable, UnsupportedFortranType)
 from psyclone.tests.utilities import Compile
 
