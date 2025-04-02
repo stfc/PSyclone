@@ -472,13 +472,14 @@ class Call(Statement, DataNode):
     def get_callees(self):
         '''
         Searches for the implementation(s) of all potential target routines
-        for this Call without any arguments check.
+        for this Call without resolving static polymorphism by checking the
+        argument types.
 
         :returns: the Routine(s) that this call targets.
         :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
 
-        :raises NotImplementedError: if the routine is not local and not found
-            in any containers in scope at the call site.
+        :raises NotImplementedError: if the routine is not found or a
+            limitation prevents definite determination of the target routine.
 
         '''
         def _location_txt(node):
@@ -504,14 +505,13 @@ class Call(Statement, DataNode):
         if rsym.is_unresolved:
             # Search for the Routine in the current file. This search is
             # stopped if we encouter a wildcard import that could be
-            # responsible for bringing the Routine into scope.
+            # responsible for shadowing the routine name with an external
+            # implementation.
             table = rsym.find_symbol_table(self)
             cursor = table.node
             have_codeblock = False
             while cursor:
                 if isinstance(cursor, Container):
-                    # Use follow_imports=False to restrict the search to this
-                    # Container only.
                     psyir = cursor.find_routine_psyir(rsym.name,
                                                       allow_private=True)
                     if psyir:

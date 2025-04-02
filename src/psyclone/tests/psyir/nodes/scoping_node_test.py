@@ -109,8 +109,12 @@ def test_scoping_node_copy():
 
 def test_scoping_node_copy_with_imported_symbols(fortran_reader):
     '''
-    Test the deep-copying of a tree when a Symbol is imported from a
-    Container in an outer scope.
+    Test that deep-copying a tree with nested scopes keeps internal
+    ImportInterface references coherent.
+
+    TODO #1734 - we should probably extend the SymbolTable so that any Symbol
+    it contains that has an ImportInterface must reference a ContainerSymbol in
+    the *same* table.
 
     '''
     my_mod = Container("my_mod")

@@ -546,15 +546,6 @@ class Symbol(CommentableMixin):
                                              orig_name=orig_name)
         except KeyError:
             pass
-            # TODO - not sure whether we should always create a ContainerSymbol
-            # for an interface to point to?
-            # cursor = table
-            # while cursor.parent_symbol_table():
-            #     cursor = table.parent_symbol_table()
-            # from psyclone.psyir.symbols.containersymbol import \
-            #    ContainerSymbol
-            # sym = cursor.new_symbol(name, symbol_type=ContainerSymbol)
-            # self.interface = ImportInterface(sym, orig_name=orig_name)
 
     def reference_accesses(self, access_info):
         '''

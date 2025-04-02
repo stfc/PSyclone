@@ -436,7 +436,6 @@ class AdjointVisitor(PSyIRVisitor):
         # this.
         node_copy = node.copy()
         node_copy.children = []
-
         for child in node.children:
             result = self._visit(child)
             # Result may be a node or a list of nodes
@@ -444,7 +443,7 @@ class AdjointVisitor(PSyIRVisitor):
                 result = [result]
             node_copy.children.extend(result)
 
-        # TODO #2596 Update any GenericInterfaceSymbols to use the new
+        # TODO #2596 Update any GenericInterfaceSymbols to the use the new
         # routine symbols created during copying.
         sym_tab = node_copy.symbol_table
         for symbol in node_copy.symbol_table.get_symbols():
