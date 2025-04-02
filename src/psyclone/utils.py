@@ -32,14 +32,20 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Authors: A. B. G. Chalk, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
 '''This module provides generic utility functions.'''
 
-import os
-import re
+from collections import OrderedDict
 import sys
 from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
+from psyclone.docstring_parser import (
+    DocstringData,
+    parse_psyclone_docstring_from_object,
+    gen_docstring_from_DocstringData,
+)
 
 
 def within_virtual_env():
@@ -100,176 +106,25 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                     apply docstring.
     :type inherit: Union[list[Class], bool]
     '''
-    def get_inherited_parameters(cls, func, inheriting_func) -> str:
-        '''
-        Returns the docstring to be inherited by func from inheriting_func.
-
-        :param Class cls: The class containing func.
-        :param Callable func: The function to which the docstrings will be
-                              added.
-        :param Callable inheriting_func: The function in which to inherit the
-                                         docstrings from.
-
-        :returns: The docstrings to be added to func.
-
-        :raises InternalError: if inheriting_func contains docstring for an
-                               argument that isn't part of
-                               cls.get_valid_options.
-        :raises InternalError: if inheriting_func doesn't have a type
-                               for an argument that doesn't have a typehint.
-        '''
-        docs = func.__doc__
-        parent_docstring = inheriting_func.__doc__
-        if parent_docstring is not None:
-            parent_lines = parent_docstring.splitlines()
-        else:
-            parent_lines = []
-        added_docs = ""
-        for x, line in enumerate(parent_lines):
-            if ":param" in line:
-                param_str = re.search(":[a-zA-Z0-9_\\s]*:", line)
-                if param_str is None or param_str.group() in docs:
-                    continue
-                param_line = line + os.linesep
-#                added_docs += line + os.linesep
-                z = x+1
-                type_found = False
-                while z < len(parent_lines):
-                    # or ":raises" in parent_lines[z]):
-                    # FIXME Raises not yet handled
-                    if (":param" in parent_lines[z]):
-                        # If we didn't find the :type: docstring,
-                        # we need to create it to inherit the docstring
-                        # correctly.
-                        # FIXME To review - maybe this section should be
-                        # refactored into a function?
-                        if not type_found:
-                            # Find the parameter name
-                            param_name_grp = re.search(
-                                    "([a-zA-Z0-9_]*):",
-                                    line[line.index(":param")+6:]
-                            )
-                            param_name = param_name_grp.group(0)
-                            param_name = param_name[:param_name.index(":")]
-                            valid_opts = cls.get_valid_options()
-                            if param_name not in valid_opts.keys():
-                                raise InternalError(
-                                    f"Invalid documentation found when "
-                                    f"generating inherited documentation "
-                                    f"for class '{cls.__name__}'."
-                                )
-                            type_string = valid_opts[param_name].typename
-                            if type_string is None:
-                                raise InternalError(
-                                    f"Invalid documentation found when "
-                                    f"generating inherited documentation "
-                                    f"for class '{cls.__name__}' as the "
-                                    f"'{param_name}' arg has no known type."
-                                )
-                            # FIXME This needs to be if its in param_name_grp
-                            if type_string in param_line:
-                                added_docs += param_line
-                                break
-                            # Add the type into the param string
-                            param_index = line.index(":param")
-                            param_line = (param_line[:param_index+7]
-                                          + type_string + " " +
-                                          param_line[param_index+7:])
-                            added_docs += param_line
-                        break
-                    if ":type" in parent_lines[z]:
-                        type_found = True
-                        stripped_line = param_line.lstrip()
-                        added_docs += 8*" " + stripped_line + os.linesep
-                        stripped_line = parent_lines[z].lstrip()
-                        added_docs += 8*" " + stripped_line + os.linesep
-                    elif not parent_lines[z].isspace():
-                        stripped_line = parent_lines[z].lstrip()
-                        param_line += 12*" " + stripped_line + os.linesep
-                    z = z + 1
-                else:
-                    # If we don't break out of the loop we still need to check
-                    # if we find the type documentation for the argument.
-                    if not type_found:
-                        # Find the parameter name
-                        param_name_grp = re.search(
-                                "([a-zA-Z0-9_]*):",
-                                line[line.index(":param")+6:]
-                        )
-                        param_name = param_name_grp.group(0)
-                        param_name = param_name[:param_name.index(":")]
-                        valid_opts = cls.get_valid_options()
-                        if param_name not in valid_opts.keys():
-                            raise InternalError(
-                                f"Invalid documentation found when "
-                                f"generating inherited documentation "
-                                f"for class '{cls.__name__}'."
-                            )
-                        type_string = valid_opts[param_name].typename
-                        if type_string is None:
-                            raise InternalError(
-                                f"Invalid documentation found when "
-                                f"generating inherited documentation "
-                                f"for class '{cls.__name__}' as the "
-                                f"'{param_name}' arg has no known type."
-                            )
-                        # FIXME This needs to be if its in param_name_grp?
-                        if type_string in param_line:
-                            added_docs += param_line
-                            break
-                        # Add the type into the param string
-                        param_index = line.index(":param")
-                        param_line = (param_line[:param_index+7]
-                                      + type_string + " " +
-                                      param_line[param_index+7:])
-                        added_docs += param_line
-        # Add an extra indented blank line?
-        added_docs += 8*" " + os.linesep
-        return added_docs
-
-    def update_func_docstring(func, added_parameters: str) -> None:
+    def update_func_docstring(func, added_parameters: DocstringData) -> None:
         '''
         Adds the docstrings specified in added_parameters to the
         docstring of func.
 
         :param Callable func: The func which is to have its docstrings updated.
-        :param added_parameters: The lines of docstring to add into the
+        :param added_parameters: The DocstringData to add into the
                                  docstring of func.
         '''
-        doc = func.__doc__
-        # Find the last instance of :param or :type
-        if doc is not None:
-            doc_lines = doc.splitlines()
-        else:
-            doc_lines = []
-        last_instance = 0
-        for i, line in enumerate(doc_lines):
-            if ":param" in line or ":type" in line:
-                last_instance = i
-                x = i+1
-                while x < len(doc_lines):
-                    if doc_lines[x].isspace():
-                        break
-                    if not (":param" in doc_lines[x] or ":type" in
-                            doc_lines[x] or ":raise" in doc_lines[x]):
-                        # This is part of the previous section.
-                        last_instance = x
-                        x = x + 1
-                    else:
-                        break
-        new_docs = ""
-        for i in range(min(last_instance+1, len(doc_lines))):
-            new_docs += doc_lines[i] + os.linesep
-        # Remove any trailing whitespace, then add a newline
-        new_docs = new_docs.rstrip() + os.linesep
-        new_docs += added_parameters + os.linesep
+        func_data = parse_psyclone_docstring_from_object(func)
 
-        for i in range(last_instance+1, len(doc_lines)):
-            new_docs += doc_lines[i] + os.linesep
+        # We only merge the arguments.
+        added_parameters.desc = None
+        added_parameters.raises = []
+        added_parameters.returns = None
 
-        # Remove any trailing whitespace, then add a newline
-        new_docs = new_docs.rstrip() + os.linesep
-        func.__doc__ = new_docs
+        func_data.merge(added_parameters, replace_args=False)
+
+        func.__doc__ = gen_docstring_from_DocstringData(func_data)
 
     def wrapper():
         '''
@@ -283,23 +138,26 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                 f"Transformation but got '{cls.__name__}'"
             )
         if isinstance(inherit, list):
-            added_parameters = ""
+            added_parameters = DocstringData(
+                desc=None, arguments=OrderedDict(),
+                raises=[], returns=None)
             for superclass in inherit:
-                added_parameters += get_inherited_parameters(
-                    superclass, cls.apply,
-                    superclass.apply
-                )
+                inherited_params = \
+                    parse_psyclone_docstring_from_object(superclass.apply)
+                added_parameters.merge(inherited_params)
         elif inherit:
-            added_parameters = get_inherited_parameters(
-                    cls.__mro__[1], cls.apply,
+            added_parameters = \
+                parse_psyclone_docstring_from_object(
                     cls.__mro__[1].__dict__["apply"]
-            )
+                 )
         else:
-            added_parameters = ""
-        update_func_docstring(cls.apply, added_parameters)
+            added_parameters = None
+        if added_parameters is not None:
+            update_func_docstring(cls.apply, added_parameters)
         # Update the validate docstring
-        add_parameters = get_inherited_parameters(cls, cls.validate, cls.apply)
-        update_func_docstring(cls.validate, add_parameters)
+        added_parameters = parse_psyclone_docstring_from_object(cls.apply)
+        if added_parameters is not None:
+            update_func_docstring(cls.validate, added_parameters)
 
         return cls
     return wrapper(*args, **kwargs)
