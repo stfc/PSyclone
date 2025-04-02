@@ -6,7 +6,7 @@ or covered by the existing list of [Issues](https://github.com/stfc/PSyclone/iss
 please create a new Issue and give it the `question` label to mark it for attention.
 
 If this is the first time you have performed PSyclone development work then you will
-probably want to read the [Working with PSyclone from GitHub](https://psyclone.readthedocs.io/en/stable/developer_guide/working_practises.html)
+probably want to read the [Working with PSyclone from GitHub](https://psyclone.readthedocs.io/en/latest/developer_guide/working_practises.html)
 section of the Developer Guide.
 
 When creating a new Issue, please give it a descriptive title, possibly including the key
