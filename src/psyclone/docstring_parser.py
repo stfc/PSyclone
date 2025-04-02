@@ -397,10 +397,6 @@ def parse_psyclone_docstring_from_object(
     ):
         chunk = match.group(0)
 
-        # If chunk is None we should stop
-        if not chunk:
-            continue
-
         # Split the text into the section between the two :s and after.
         try:
             args_chunk, desc_chunk = chunk.lstrip(":").split(":", 1)

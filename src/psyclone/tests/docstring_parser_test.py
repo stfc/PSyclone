@@ -426,6 +426,10 @@ def test_parse_psyclone_docstring_from_object():
 
         :param myparam: a parameter.
         :type myparam: type
+        :param bool myparam2: a second parameter
+        with a multiline docstring.
+        :param bool myparam3: a third parameter with\
+                a backslash docstring.
 
         :raises InternalError: an error
 
@@ -435,11 +439,15 @@ def test_parse_psyclone_docstring_from_object():
 
     out_data = parse_psyclone_docstring_from_object(docstring)
     assert out_data.desc == "The description\n\n"
-    assert len(out_data.arguments.keys()) == 1
+    assert len(out_data.arguments.keys()) == 3
     assert out_data.arguments["myparam"].name == "myparam"
     assert out_data.arguments["myparam"].desc == "a parameter."
     assert out_data.arguments["myparam"].datatype == "type"
     assert not out_data.arguments["myparam"].inline_type
+    assert (out_data.arguments["myparam2"].desc == "a second parameter\n"
+            "with a multiline docstring.")
+    assert (out_data.arguments["myparam3"].desc == "a third parameter with\n"
+            "a backslash docstring.")
     assert len(out_data.raises) == 1
     assert out_data.raises[0].exception == "InternalError"
     assert out_data.raises[0].desc == "an error"
