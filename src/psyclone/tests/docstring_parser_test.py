@@ -44,6 +44,7 @@ from psyclone.docstring_parser import (
     gen_docstring_from_ArgumentData,
     gen_docstring_from_ReturnsData,
     gen_docstring_from_DocstringData,
+    parse_psyclone_docstring_from_object,
 )
 from psyclone.errors import InternalError
 
@@ -121,6 +122,77 @@ def test_docstringdata_add_data():
     assert ("Found docstring element not supported by PSyclone, expected"
             " :raise, :param, :returns, :type, or :rtype but found "
             "'1'." in str(excinfo.value))
+
+
+def test_docstringdata_merge():
+    '''Test the merge function of the DocstringData dataclass.'''
+    docdata = DocstringData(desc=None, arguments=OrderedDict(), raises=[],
+                            returns=None)
+
+    docdata2 = DocstringData(desc=None, arguments=OrderedDict(), raises=[],
+                             returns=None)
+    adata = ArgumentData(name="name", datatype="datatype",
+                         desc="desc", inline_type=True)
+    docdata2.add_data(adata)
+    adata2 = ArgumentData(name="name2", datatype="datatype",
+                          desc="desc", inline_type=True)
+    docdata2.add_data(adata2)
+
+    docdata.merge(docdata2)
+
+    assert docdata.arguments["name"] is adata
+    assert docdata.arguments["name2"] is adata2
+
+    # Check we don't overwrite arguments without replace set.
+    docdata3 = DocstringData(desc=None, arguments=OrderedDict(), raises=[],
+                             returns=None)
+    adata3 = ArgumentData(name="name", datatype="datatype",
+                          desc="desc", inline_type=True)
+    docdata3.add_data(adata3)
+    docdata.merge(docdata3)
+    assert docdata.arguments["name"] is not adata3
+    docdata.merge(docdata3, replace_args=True)
+    assert docdata.arguments["name"] is adata3
+
+    # Merge a description.
+    docdata4 = DocstringData(desc="desc", arguments=OrderedDict(), raises=[],
+                             returns=None)
+    docdata.merge(docdata4)
+    assert docdata.desc == "desc"
+
+    # Don't overwrite without param
+    docdata5 = DocstringData(desc="desc2", arguments=OrderedDict(), raises=[],
+                             returns=None)
+    docdata.merge(docdata5)
+    assert docdata.desc == "desc"
+    docdata.merge(docdata5, replace_desc=True)
+    assert docdata.desc == "desc2"
+
+    # Merge raises
+    docdata6 = DocstringData(desc="desc", arguments=OrderedDict(), raises=[],
+                             returns=None)
+    rdata = RaisesData(desc="desc2", exception="Error")
+    docdata6.add_data(rdata)
+    docdata.merge(docdata6)
+    assert docdata.raises[0] is rdata
+
+    # Merge returns
+    docdata7 = DocstringData(desc="desc", arguments=OrderedDict(), raises=[],
+                             returns=None)
+    rdata = ReturnsData(desc="desc", datatype="datatype", inline_type=False)
+    docdata7.add_data(rdata)
+    docdata.merge(docdata7)
+    assert docdata.returns is rdata
+
+    # Don't overwrite without param
+    docdata8 = DocstringData(desc="desc", arguments=OrderedDict(), raises=[],
+                             returns=None)
+    rdata2 = ReturnsData(desc="desc2", datatype="datatype", inline_type=False)
+    docdata8.add_data(rdata2)
+    docdata.merge(docdata8)
+    assert docdata.returns is not rdata2
+    docdata.merge(docdata8, replace_returns=True)
+    assert docdata.returns is rdata2
 
 
 def dummy_function(typed_arg: int, untyped_arg):
@@ -323,3 +395,80 @@ def test_gen_docstring_from_DocstringData():
     :returns datatype: desc
 '''
     assert output == correct
+
+
+def test_parse_psyclone_docstring_from_object():
+    ''' Test the parse_psyclone_docstring_from_object call. '''
+
+    # Method with no docstring should return None.
+    def no_docs():
+        pass
+
+    # To avoid coverage complaint.
+    no_docs()
+
+    assert parse_psyclone_docstring_from_object(no_docs) is None
+
+    # Method with only a description should return a DocstringData with
+    # only a description
+    def desc_only():
+        '''A description and nothing else'''
+
+    out_data = parse_psyclone_docstring_from_object(desc_only)
+    assert out_data.desc == "A description and nothing else"
+    assert len(out_data.arguments.keys()) == 0
+    assert len(out_data.raises) == 0
+    assert out_data.returns is None
+
+    # Test the full docstring creation.
+    def docstring(myparam):
+        '''The description
+
+        :param myparam: a parameter.
+        :type myparam: type
+
+        :raises InternalError: an error
+
+        :returns: something
+        :rtype: type
+        '''
+
+    out_data = parse_psyclone_docstring_from_object(docstring)
+    assert out_data.desc == "The description\n\n"
+    assert len(out_data.arguments.keys()) == 1
+    assert out_data.arguments["myparam"].name == "myparam"
+    assert out_data.arguments["myparam"].desc == "a parameter."
+    assert out_data.arguments["myparam"].datatype == "type"
+    assert not out_data.arguments["myparam"].inline_type
+    assert len(out_data.raises) == 1
+    assert out_data.raises[0].exception == "InternalError"
+    assert out_data.raises[0].desc == "an error"
+    assert out_data.returns.desc == "something"
+    assert out_data.returns.datatype == "type"
+    assert not out_data.returns.inline_type
+
+    # Test the ValueError.
+
+    def valueerror_docstring():
+        ''' Some description with only one colon after.
+
+        :nothing here '''
+
+    with pytest.raises(ValueError) as excinfo:
+        out_data = parse_psyclone_docstring_from_object(valueerror_docstring)
+    assert ('Error parsing meta information near ":nothing here "' in
+            str(excinfo.value))
+
+    def internalerror_docstring():
+        ''' Some description
+
+        :type param: uhoh
+        '''
+
+    with pytest.raises(InternalError) as excinfo:
+        out_data = parse_psyclone_docstring_from_object(
+            internalerror_docstring
+        )
+    assert ("Found a type string with no corresponding parameter: "
+            "'param' type found with no parameter docstring."
+            in str(excinfo.value))

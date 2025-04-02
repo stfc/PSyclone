@@ -33,7 +33,10 @@
 # -----------------------------------------------------------------------------
 # Authors: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
-'''This module contains the PSyclone docstring parsing code.'''
+'''This module contains the PSyclone docstring parsing code. This
+implementation influenced by the docstring_parser package created by
+Marcin Kurczewksi - https://github.com/rr-/docstring_parser.
+'''
 
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -107,6 +110,45 @@ class DocstringData():
                 f" :raise, :param, :returns, :type, or :rtype but found "
                 f"'{docstring_element}'."
             )
+
+    def merge(self, other_data, replace_desc: bool = False,
+              replace_args: bool = False, replace_returns: bool = False):
+        '''
+        Merges the other_data DocstringData object into this one.
+        The user can specify if data in other_data overwrites the data
+        in this DocstringData by setting the replace arguments to True.
+
+        If any objects in this DocstringData are None they will be overwritten
+        always.
+
+        :param other_data: the DocstringData object to merge into this object.
+        :type other_data: :py:class:`psyclone.docstring_parser.DocstringData`
+        :param replace_desc: whether to replace the desc with that of
+                             other_data.
+        :param replace_args: whether to replace duplicate arguments with that
+                             of other_data.
+        :param replace_returns: whether to overwrite the returns data with that
+                                of other_data.
+        '''
+        # Merge the desc if needed.
+        if ((self.desc is None or replace_desc)
+                and other_data.desc is not None):
+            self.desc = other_data.desc
+
+        # Add the arguments.
+        for arg in other_data.arguments:
+            if arg in self.arguments.keys() and not replace_args:
+                continue
+            self.arguments[arg] = other_data.arguments[arg]
+
+        # Add the raises.
+        for raises in other_data.raises:
+            self.raises.append(raises)
+
+        # Merge the returns if needed.
+        if ((self.returns is None or replace_returns)
+                and other_data.returns is not None):
+            self.returns = other_data.returns
 
 
 def create_docstring_data(args: List[str], desc: str, obj: Any) ->\
@@ -310,6 +352,8 @@ def parse_psyclone_docstring_from_object(
     :param Any obj: The object whose docstring will be parsed.
 
     :raises ValueError: if a docstring element cannot be parsed.
+    :raises InternalError: if a type docstring is found with no correspdongin
+                           parameter docstring.
 
     :returns: A DocstringData object representing the objects docstring or
               None if obj has no docstring.
@@ -340,7 +384,7 @@ def parse_psyclone_docstring_from_object(
     types = {}
     rtype = None
     docstring_data = DocstringData(
-        description="", arguments=OrderedDict(), raises=[],
+        desc="", arguments=OrderedDict(), raises=[],
         returns=None
     )
 
@@ -353,7 +397,7 @@ def parse_psyclone_docstring_from_object(
     ):
         chunk = match.group(0)
 
-        # If chunk is None we should stop (how can this be?)
+        # If chunk is None we should stop
         if not chunk:
             continue
 
@@ -387,12 +431,15 @@ def parse_psyclone_docstring_from_object(
             rtype = desc
         else:
             # Get the information.
-            docdata = create_docstring_data(args, desc)
+            docdata = create_docstring_data(args, desc, obj)
             docstring_data.add_data(docdata)
 
     for param in types:
         if param not in docstring_data.arguments.keys():
-            assert False
+            raise InternalError(
+                f"Found a type string with no corresponding parameter: "
+                f"'{param}' type found with no parameter docstring."
+            )
         docstring_data.arguments[param].datatype = types[param]
         docstring_data.arguments[param].inline_type = False
 
