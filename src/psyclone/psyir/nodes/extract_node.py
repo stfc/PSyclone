@@ -49,6 +49,7 @@ wrapping up settings for generating driver for the extracted code, will
 be added in Issue #298.
 '''
 
+from psyclone.configuration import Config
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.routine import Routine
@@ -56,7 +57,8 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, ContainerSymbol, ImportInterface)
+    DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ContainerSymbol,
+    ImportInterface)
 from psyclone.errors import InternalError
 
 
@@ -400,13 +402,31 @@ class ExtractNode(PSyDataNode):
         signature, _ = old_reference.get_signature_and_indices()
         flattened_name = self._flatten_signature(signature)
         symtab = old_reference.ancestor(Routine).symbol_table
-        symbol = symtab.new_symbol(flattened_name, symbol_type=DataSymbol,
-                                   datatype=INTEGER_TYPE)
+        symbol = symtab.new_symbol(
+                    flattened_name,
+                    symbol_type=DataSymbol,
+                    datatype=self._flatten_datatype(old_reference))
 
         new_ref = Reference(symbol)
         old_reference.replace_with(new_ref)
         self.parent.addchild(Assignment.create(new_ref.copy(), old_reference),
                              index=self.position)
+
+    @staticmethod
+    def _flatten_datatype(structure_reference):
+        ''' Ideally this should be replaces by structure_reference.datatype
+        but until it works, this utility method provides hardcoded type
+        information depending on the PSyKAL DSL and names involved
+        '''
+        signature, _ = structure_reference.get_signature_and_indices()
+        if Config.get().api == "gocean":
+            if signature[-1] == "data":
+                return ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED,
+                                             ArrayType.Extent.DEFERRED])
+
+
+        # Everything else defaults to integer
+        return INTEGER_TYPE
 
     @staticmethod
     def _bring_external_symbols(read_write_info, symbol_table):

@@ -225,24 +225,25 @@ def test_single_node_ompparalleldo_gocean1p0():
     code = str(psy.gen)
     output = """
     CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-    """"invoke_0-compute_cv_code-r0", 9, 3)
+    """"invoke_0-compute_cv_code-r0", 7, 5)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_data", cv_fld_data)
     CALL extract_psy_data % PreDeclareVariable("cv_fld_internal_xstart", """ \
                                              """cv_fld_internal_xstart)
     CALL extract_psy_data % PreDeclareVariable("cv_fld_internal_xstop", """ \
                                              """cv_fld_internal_xstop)
     CALL extract_psy_data % PreDeclareVariable("cv_fld_internal_ystart", """ \
-                                             """cv_fld_internal_ ystart)
+                                             """cv_fld_internal_ystart)
     CALL extract_psy_data % PreDeclareVariable("cv_fld_internal_ystop", """ \
                                              """cv_fld_internal_ystop)
     CALL extract_psy_data % PreDeclareVariable("p_fld_data", p_fld_data)
     CALL extract_psy_data % PreDeclareVariable("v_fld_data", v_fld_data)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld_data", cv_fld_data)
-    CALL extract_psy_data % PreDeclareVariable("i", i)
-    CALL extract_psy_data % PreDeclareVariable("j", j)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld_post", cv_fld)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_data_post", cv_fld_data)
     CALL extract_psy_data % PreDeclareVariable("i_post", i)
     CALL extract_psy_data % PreDeclareVariable("j_post", j)
+    CALL extract_psy_data % PreDeclareVariable("p_fld_data_post", p_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PreEndDeclaration
+    CALL extract_psy_data % ProvideVariable("cv_fld_data", cv_fld_data)
     CALL extract_psy_data % ProvideVariable("cv_fld_internal_xstart", """ \
                                           """cv_fld_internal_xstart)
     CALL extract_psy_data % ProvideVariable("cv_fld_internal_xstop", """ \
@@ -253,9 +254,6 @@ def test_single_node_ompparalleldo_gocean1p0():
                                           """cv_fld_internal_ystop)
     CALL extract_psy_data % ProvideVariable("p_fld_data", p_fld_data)
     CALL extract_psy_data % ProvideVariable("v_fld_data", v_fld_data)
-    CALL extract_psy_data % ProvideVariable("cv_fld_data", cv_fld_data)
-    CALL extract_psy_data % ProvideVariable("i", i)
-    CALL extract_psy_data % ProvideVariable("j", j)
     CALL extract_psy_data % PreEnd
     !$omp parallel do default(shared), private(i,j), schedule(static)
     do j = cv_fld_internal_ystart, cv_fld_internal_ystop, 1
@@ -265,12 +263,14 @@ def test_single_node_ompparalleldo_gocean1p0():
     enddo
     !$omp end parallel do
     CALL extract_psy_data % PostStart
-    CALL extract_psy_data % ProvideVariable("cv_fld_post", cv_fld)
+    CALL extract_psy_data % ProvideVariable("cv_fld_data_post", cv_fld_data)
     CALL extract_psy_data % ProvideVariable("i_post", i)
     CALL extract_psy_data % ProvideVariable("j_post", j)
+    CALL extract_psy_data % ProvideVariable("p_fld_data_post", p_fld_data)
+    CALL extract_psy_data % ProvideVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PostEnd
     """
-    assert output == code
+    assert output in code
 
 
 # -----------------------------------------------------------------------------
@@ -303,25 +303,23 @@ def test_single_node_ompparalleldo_gocean1p0_const_loop():
     code = str(psy.gen)
     output = """
     CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-    """"invoke_0-compute_cv_code-r0", 7, 3)
+    """"invoke_0-compute_cv_code-r0", 5, 5)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_data", cv_fld_data)
     CALL extract_psy_data % PreDeclareVariable("istop", istop)
     CALL extract_psy_data % PreDeclareVariable("jstop", jstop)
-    CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
-    CALL extract_psy_data % PreDeclareVariable("v_fld", v_fld)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld", cv_fld)
-    CALL extract_psy_data % PreDeclareVariable("i", i)
-    CALL extract_psy_data % PreDeclareVariable("j", j)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld_post", cv_fld)
+    CALL extract_psy_data % PreDeclareVariable("p_fld_data", p_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("v_fld_data", v_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_data_post", cv_fld_data)
     CALL extract_psy_data % PreDeclareVariable("i_post", i)
     CALL extract_psy_data % PreDeclareVariable("j_post", j)
+    CALL extract_psy_data % PreDeclareVariable("p_fld_data_post", p_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PreEndDeclaration
+    CALL extract_psy_data % ProvideVariable("cv_fld_data", cv_fld_data)
     CALL extract_psy_data % ProvideVariable("istop", istop)
     CALL extract_psy_data % ProvideVariable("jstop", jstop)
-    CALL extract_psy_data % ProvideVariable("p_fld", p_fld)
-    CALL extract_psy_data % ProvideVariable("v_fld", v_fld)
-    CALL extract_psy_data % ProvideVariable("cv_fld", cv_fld)
-    CALL extract_psy_data % ProvideVariable("i", i)
-    CALL extract_psy_data % ProvideVariable("j", j)
+    CALL extract_psy_data % ProvideVariable("p_fld_data", p_fld_data)
+    CALL extract_psy_data % ProvideVariable("v_fld_data", v_fld_data)
     CALL extract_psy_data % PreEnd
     !$omp parallel do default(shared), private(i,j), schedule(static)
     do j = 2, jstop + 1, 1
@@ -331,9 +329,11 @@ def test_single_node_ompparalleldo_gocean1p0_const_loop():
     enddo
     !$omp end parallel do
     CALL extract_psy_data % PostStart
-    CALL extract_psy_data % ProvideVariable("cv_fld_post", cv_fld)
+    CALL extract_psy_data % ProvideVariable("cv_fld_data_post", cv_fld_data)
     CALL extract_psy_data % ProvideVariable("i_post", i)
     CALL extract_psy_data % ProvideVariable("j_post", j)
+    CALL extract_psy_data % ProvideVariable("p_fld_data_post", p_fld_data)
+    CALL extract_psy_data % ProvideVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PostEnd
     """
     assert output in code
@@ -372,30 +372,32 @@ def test_node_list_ompparallel_gocean1p0():
     code = str(psy.gen)
     output = """
     CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-    """"invoke_0-r0", 9, 4)
+    """"invoke_0-r0", 8, 8)
+    CALL extract_psy_data % PreDeclareVariable("cu_fld_data", cu_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_data", cv_fld_data)
     CALL extract_psy_data % PreDeclareVariable("istop", istop)
     CALL extract_psy_data % PreDeclareVariable("jstop", jstop)
-    CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
-    CALL extract_psy_data % PreDeclareVariable("u_fld", u_fld)
-    CALL extract_psy_data % PreDeclareVariable("v_fld", v_fld)
-    CALL extract_psy_data % PreDeclareVariable("cu_fld", cu_fld)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld", cv_fld)
-    CALL extract_psy_data % PreDeclareVariable("i", i)
-    CALL extract_psy_data % PreDeclareVariable("j", j)
-    CALL extract_psy_data % PreDeclareVariable("cu_fld_post", cu_fld)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld_post", cv_fld)
+    CALL extract_psy_data % PreDeclareVariable("p_fld_data", p_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("p_fld_data_1", p_fld_data_1)
+    CALL extract_psy_data % PreDeclareVariable("u_fld_data", u_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("v_fld_data", v_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("cu_fld_data_post", cu_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_data_post", cv_fld_data)
     CALL extract_psy_data % PreDeclareVariable("i_post", i)
     CALL extract_psy_data % PreDeclareVariable("j_post", j)
+    CALL extract_psy_data % PreDeclareVariable("p_fld_data_post", p_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("p_fld_data_1_post", p_fld_data_1)
+    CALL extract_psy_data % PreDeclareVariable("u_fld_data_post", u_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PreEndDeclaration
+    CALL extract_psy_data % ProvideVariable("cu_fld_data", cu_fld_data)
+    CALL extract_psy_data % ProvideVariable("cv_fld_data", cv_fld_data)
     CALL extract_psy_data % ProvideVariable("istop", istop)
     CALL extract_psy_data % ProvideVariable("jstop", jstop)
-    CALL extract_psy_data % ProvideVariable("p_fld", p_fld)
-    CALL extract_psy_data % ProvideVariable("u_fld", u_fld)
-    CALL extract_psy_data % ProvideVariable("v_fld", v_fld)
-    CALL extract_psy_data % ProvideVariable("cu_fld", cu_fld)
-    CALL extract_psy_data % ProvideVariable("cv_fld", cv_fld)
-    CALL extract_psy_data % ProvideVariable("i", i)
-    CALL extract_psy_data % ProvideVariable("j", j)
+    CALL extract_psy_data % ProvideVariable("p_fld_data", p_fld_data)
+    CALL extract_psy_data % ProvideVariable("p_fld_data_1", p_fld_data_1)
+    CALL extract_psy_data % ProvideVariable("u_fld_data", u_fld_data)
+    CALL extract_psy_data % ProvideVariable("v_fld_data", v_fld_data)
     CALL extract_psy_data % PreEnd
     !$omp parallel default(shared), private(i,j)
     !$omp do schedule(static)
@@ -408,16 +410,20 @@ def test_node_list_ompparallel_gocean1p0():
     !$omp do schedule(static)
     do j = 2, jstop + 1, 1
       do i = 2, istop, 1
-        call compute_cv_code(i, j, cv_fld_data, p_fld_data, v_fld_data)
+        call compute_cv_code(i, j, cv_fld_data, p_fld_data_1, v_fld_data)
       enddo
     enddo
     !$omp end do
     !$omp end parallel
     CALL extract_psy_data % PostStart
-    CALL extract_psy_data % ProvideVariable("cu_fld_post", cu_fld)
-    CALL extract_psy_data % ProvideVariable("cv_fld_post", cv_fld)
+    CALL extract_psy_data % ProvideVariable("cu_fld_data_post", cu_fld_data)
+    CALL extract_psy_data % ProvideVariable("cv_fld_data_post", cv_fld_data)
     CALL extract_psy_data % ProvideVariable("i_post", i)
     CALL extract_psy_data % ProvideVariable("j_post", j)
+    CALL extract_psy_data % ProvideVariable("p_fld_data_post", p_fld_data)
+    CALL extract_psy_data % ProvideVariable("p_fld_data_1_post", p_fld_data_1)
+    CALL extract_psy_data % ProvideVariable("u_fld_data_post", u_fld_data)
+    CALL extract_psy_data % ProvideVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PostEnd
     """
     assert output in code
