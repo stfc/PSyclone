@@ -12,11 +12,11 @@ https://bitbucket.org/apeg/dl_timer.
 This profiling library uses the [PSyData API](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
 the application. The library is based on the [PSyData base class](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-base-class),
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#psydata-base-class),
 which is included in PSyclone as a Jinja template, ``psy_data_base.jinja``.
 Full documentation on using this template is provided in the PSyclone
 [Developer Guide](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja).
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#jinja).
 
 Since the profiling API does not need access to any fields or variables,
 only the static subroutines and ``PreStart`` and ``PostEnd`` are implemented,
