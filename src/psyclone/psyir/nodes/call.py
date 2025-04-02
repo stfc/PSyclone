@@ -439,16 +439,10 @@ class Call(Statement, DataNode):
     def __str__(self):
         return self.node_str(False)
 
-    def copy(self, _new_parent=None):
+    def copy(self):
         '''Return a copy of this node. This is a bespoke implementation for
         a Call node that ensures that any internal id's are
         consistent before and after copying.
-
-        :param _new_parent: if supplied, the parent Node of the Node created
-            in this copy. The original call to copy should not supply this
-            as it is only used to ensure correct connection of the children
-            created as the copy walks down the tree
-        :type _new_parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: a copy of this node and its children.
         :rtype: :py:class:`psyclone.psyir.node.Call`
@@ -458,7 +452,7 @@ class Call(Statement, DataNode):
         # before copying.
         self._reconcile()
         # copy
-        new_copy = super().copy(_new_parent=_new_parent)
+        new_copy = super().copy()
         # Fix invalid id's in _argument_names after copying.
         # pylint: disable=protected-access
         new_list = []

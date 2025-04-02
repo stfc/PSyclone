@@ -1605,21 +1605,15 @@ class Node():
         self._children = ChildrenList(self, self._validate_child,
                                       self._children_valid_format)
         # And make a recursive copy of each child instead
-        self.children.extend([child.copy(_new_parent=self) for
+        self.children.extend([child.copy() for
                               child in other.children])
         self._disable_tree_update = False
 
-    def copy(self, _new_parent=None):
+    def copy(self):
         ''' Return a copy of this node. This is a bespoke implementation for
         PSyIR nodes that will deepcopy some of its recursive data-structure
         (e.g. the children tree), while not copying other attributes (e.g.
         top-level parent reference).
-
-        :param _new_parent: if supplied, the parent Node of the Node created
-            in this copy. The original call to copy should not supply this
-            as it is only used to ensure correct connection of the children
-            created as the copy walks down the tree
-        :type _new_parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: a copy of this node and its children.
         :rtype: :py:class:`psyclone.psyir.node.Node`
@@ -1627,14 +1621,7 @@ class Node():
         '''
         # Start with a shallow copy of the object
         new_instance = copy.copy(self)
-        # The subsequent call to _refine_copy() will update any SymbolTable
-        # attached to a ScopingNode. For this to work correctly we need to
-        # set the parent of this copy to point into the new tree we are
-        # creating. For the root node of the copy, this will be None (so
-        # that the copy is detached from the original tree).
-        # pylint: disable=protected-access
-        new_instance._parent = _new_parent
-        # and then refine the elements that shouldn't be shallow copied
+        # Then refine the elements that shouldn't be shallow copied
         new_instance._refine_copy(self)
         return new_instance
 
@@ -1768,20 +1755,23 @@ class Node():
         result_list.reverse()
         return result_list
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
         This base implementation simply propagates the call to any child Nodes.
 
-        :param table: the symbol table in which to look up replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         for child in self.children:
-            child.replace_symbols_using(table)
+            child.replace_symbols_using(table_or_symbol)
 
     def update_parent_symbol_table(self, new_parent):
         '''

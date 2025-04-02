@@ -79,14 +79,17 @@ class DataType(metaclass=abc.ABCMeta):
         '''
         return copy.copy(self)
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
 
@@ -291,18 +294,23 @@ class UnsupportedFortranType(UnsupportedType):
             new._partial_datatype = self._partial_datatype.copy()
         return new
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        This base implementation simply propagates the call to any child Nodes.
+
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         if self.partial_datatype:
-            self.partial_datatype.replace_symbols_using(table)
+            self.partial_datatype.replace_symbols_using(table_or_symbol)
 
     @property
     def intrinsic(self):
@@ -480,23 +488,31 @@ class ScalarType(DataType):
             precision_match = self.precision == other.precision
         return precision_match and self.intrinsic == other.intrinsic
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it is
+        left unchanged.
 
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         # Only the 'precision' of a ScalarType can refer to a Symbol.
         if isinstance(self.precision, Symbol):
             # Update any 'precision' information.
-            try:
-                self._precision = table.lookup(self.precision.name)
-            except KeyError:
-                pass
+            new_sym = None
+            if isinstance(table_or_symbol, Symbol):
+                if table_or_symbol.name.lower() == self.precision.name.lower():
+                    new_sym = table_or_symbol
+            else:
+                new_sym = table_or_symbol.lookup(self.precision.name,
+                                                 otherwise=None)
+            if new_sym:
+                self._precision = new_sym
 
     def reference_accesses(self, sym, access_info):
         '''
@@ -947,36 +963,55 @@ class ArrayType(DataType):
                 new_shape.append(dim)
         return ArrayType(self.datatype, new_shape)
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it is
+        left unchanged.
 
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         if isinstance(self.datatype, DataTypeSymbol):
-            try:
-                self._datatype = table.lookup(self.datatype.name)
-            except KeyError:
-                pass
+            if isinstance(table_or_symbol, Symbol):
+                if table_or_symbol.name.lower() == self._datatype.name.lower():
+                    self._datatype = table_or_symbol
+            else:
+                try:
+                    self._datatype = table_or_symbol.lookup(self.datatype.name)
+                except KeyError:
+                    pass
         else:
-            self.datatype.replace_symbols_using(table)
+            self.datatype.replace_symbols_using(table_or_symbol)
 
         # TODO #1857: we will probably remove '_precision' and have
         # 'intrinsic' be 'datatype'.
         if self._precision and isinstance(self._precision, Symbol):
-            try:
-                self._precision = table.lookup(self._precision.name)
-            except KeyError:
-                pass
+            if isinstance(table_or_symbol, Symbol):
+                if (table_or_symbol.name.lower() ==
+                        self._precision.name.lower()):
+                    self._precision = table_or_symbol
+            else:
+                try:
+                    self._precision = table_or_symbol.lookup(
+                        self._precision.name)
+                except KeyError:
+                    pass
         if self._intrinsic and isinstance(self._intrinsic, Symbol):
-            try:
-                self._intrinsic = table.lookup(self._intrinsic.name)
-            except KeyError:
-                pass
+            if isinstance(table_or_symbol, Symbol):
+                if (table_or_symbol.name.lower() ==
+                        self._intrinsic.name.lower()):
+                    self._intrinsic = table_or_symbol
+            else:
+                try:
+                    self._intrinsic = table_or_symbol.lookup(
+                        self._intrinsic.name)
+                except KeyError:
+                    pass
 
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Node
@@ -989,7 +1024,7 @@ class ArrayType(DataType):
                 exprns = [dim]
             for bnd in exprns:
                 if isinstance(bnd, Node):
-                    bnd.replace_symbols_using(table)
+                    bnd.replace_symbols_using(table_or_symbol)
 
     def reference_accesses(self, sym, access_info):
         '''
@@ -1207,29 +1242,42 @@ class StructureType(DataType):
 
         return True
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        This base implementation simply propagates the call to any child Nodes.
+
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         # Since ComponentType is a frozen dataclass it is immutable, therefore
         # we must construct new ones.
         for component in self.components.values():
             if isinstance(component.datatype, DataTypeSymbol):
-                try:
-                    new_type = table.lookup(component.datatype.name)
-                except KeyError:
-                    new_type = component.datatype
+                if isinstance(table_or_symbol, Symbol):
+                    if (table_or_symbol.name.lower() ==
+                            component.datatype.name.lower()):
+                        new_type = table_or_symbol
+                    else:
+                        new_type = component.datatype
+                else:
+                    new_type = table_or_symbol.lookup(
+                        component.datatype.name, otherwise=component.datatype)
+
             else:
-                component.datatype.replace_symbols_using(table)
+                component.datatype.replace_symbols_using(table_or_symbol)
                 new_type = component.datatype
+
             if component.initial_value:
-                component.initial_value.replace_symbols_using(table)
+                component.initial_value.replace_symbols_using(table_or_symbol)
+
             # Construct the new ComponentType
             key_name = component.name.lower()
             self.add(key_name, new_type, component.visibility,

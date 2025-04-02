@@ -805,9 +805,10 @@ def test_gen_access_stmts(fortran_writer):
     code = fortran_writer.gen_access_stmts(symbol_table)
     assert "private :: my_sub2\n" in code
     # Check that the interface of the symbol does not matter
+    csym = symbol_table.new_symbol("some_mod", symbol_type=ContainerSymbol)
     symbol_table.add(
         RoutineSymbol("used_sub", visibility=Symbol.Visibility.PRIVATE,
-                      interface=ImportInterface(ContainerSymbol("some_mod"))))
+                      interface=ImportInterface(csym)))
     code = fortran_writer.gen_access_stmts(symbol_table)
     assert "private :: my_sub2, used_sub\n" in code
     # Since the default visibility of the table is PUBLIC, we should not

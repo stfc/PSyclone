@@ -186,26 +186,29 @@ class ScopingNode(Node):
             self._symbol_table.reference_accesses(access_info)
         super().reference_accesses(access_info)
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Update any Symbols referenced by this Node (and its descendants) with
-        those in the supplied table with matching names. If there is no match
-        for a given Symbol then it is left unchanged.
+        those in the supplied table (or just the supplied Symbol instance) if
+        they have matching names. If there is no match for a given Symbol then
+        it is left unchanged.
 
         Since this is a ScopingNode, it is associated with a symbol table.
         Therefore, if the supplied table is the one for the scope containing
         this node (if any), the one passed to the child nodes is updated to be
         the one associated with this node.
 
-        :param table: the symbol table in which to look up replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        next_table = table
-        if self.parent:
+        next_table = table_or_symbol
+        if self.parent and isinstance(table_or_symbol, SymbolTable):
             try:
                 # If this node is not within a scope we get a SymbolError
-                if table is self.parent.scope.symbol_table:
+                if table_or_symbol is self.parent.scope.symbol_table:
                     next_table = self.symbol_table
             except SymbolError:
                 pass

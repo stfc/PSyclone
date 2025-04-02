@@ -1210,46 +1210,6 @@ def test_add_symbols_from_table_rename_existing():
     assert isinstance(new_sym.datatype, symbols.UnresolvedType)
 
 
-def test_add_symbols_from_table_import_parent_scope():
-    '''
-    Test that _add_symbols_from_table() works successfully when
-    the clashing symbols is an import but the associated ContainerSymbol
-    is in an outer scope.
-
-    '''
-    cntr = Container("outer_scope")
-    csym = symbols.ContainerSymbol("some_mod")
-    cntr.symbol_table.add(csym)
-    sub = Routine.create("sub", children=[])
-    cntr.addchild(sub)
-    clash = symbols.Symbol("strummer",
-                           interface=symbols.ImportInterface(csym))
-    sub.symbol_table.add(clash)
-    new_cntr = cntr.copy()
-    new_sub = new_cntr.children[0]
-    # Both the original and copied subroutine symbol table will contain
-    # "strummer" which would be a clash but for the fact they are both
-    # imported from a Container of the same name. Therefore, calling
-    # _add_symbols_from_table should do nothing.
-    new_sub.symbol_table._add_symbols_from_table(sub.symbol_table)
-    new_strummer = new_sub.symbol_table.lookup("strummer")
-    assert new_strummer is not clash
-    assert (new_strummer.interface.container_symbol is
-            new_cntr.symbol_table.lookup("some_mod"))
-    # Now add a symbol which is imported from different containers.
-    new_csym = symbols.ContainerSymbol("image")
-    new_cntr.symbol_table.add(new_csym)
-    new_sub.symbol_table.add(
-        symbols.Symbol("levene", interface=symbols.ImportInterface(new_csym)))
-    sub.symbol_table.add(
-        symbols.Symbol("levene", interface=symbols.ImportInterface(csym)))
-    with pytest.raises(InternalError) as err:
-        new_sub.symbol_table._add_symbols_from_table(sub.symbol_table)
-    assert ("'levene' imported from 'image' clashes with a Symbol of the same "
-            "name imported from 'some_mod'. This should have been caught by"
-            in str(err.value))
-
-
 def test_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
     # pylint: disable=too-many-statements
@@ -1711,11 +1671,11 @@ def test_argument_list_errors():
     ''' Tests the internal sanity checks of the SymbolTable.argument_list
     property. '''
     sym_table = symbols.SymbolTable()
+    csym = sym_table.new_symbol("my_mod", symbol_type=symbols.ContainerSymbol)
     sym_table.add(symbols.DataSymbol("var1", symbols.REAL_TYPE))
     sym_table.add(symbols.DataSymbol("var2", symbols.REAL_TYPE))
     sym_table.add(symbols.DataSymbol("var3", symbols.REAL_TYPE,
-                                     interface=symbols.ImportInterface(
-                                         symbols.ContainerSymbol("my_mod"))))
+                                     interface=symbols.ImportInterface(csym)))
     # Manually put a local symbol into the internal list of arguments
     sym_table._argument_list = [sym_table.lookup("var1")]
     with pytest.raises(ValueError) as err:
@@ -1888,11 +1848,11 @@ def test_validate_non_args():
     ''' Checks for the validation of non-argument entries in the
     SymbolTable. '''
     sym_table = symbols.SymbolTable()
+    csym = sym_table.new_symbol("my_mod", symbol_type=symbols.ContainerSymbol)
     sym_table.add(symbols.DataSymbol("var1", symbols.REAL_TYPE))
     sym_table.add(symbols.DataSymbol("var2", symbols.REAL_TYPE))
     sym_table.add(symbols.DataSymbol("var3", symbols.REAL_TYPE,
-                                     interface=symbols.ImportInterface(
-                                         symbols.ContainerSymbol("my_mod"))))
+                                     interface=symbols.ImportInterface(csym)))
     # Everything should be fine so far
     sym_table._validate_non_args()
     # Add an entry with an Argument interface
@@ -1933,10 +1893,10 @@ def test_symbols():
                                    [symbols.ArrayType.Extent.ATTRIBUTE])
     sym_table.add(symbols.DataSymbol("var2", array_type))
     assert len(sym_table.symbols) == 2
+    csym = sym_table.new_symbol("my_mod", symbol_type=symbols.ContainerSymbol)
     sym_table.add(symbols.DataSymbol("var3", symbols.REAL_TYPE,
-                                     interface=symbols.ImportInterface(
-                                         symbols.ContainerSymbol("my_mod"))))
-    assert len(sym_table.symbols) == 3
+                                     interface=symbols.ImportInterface(csym)))
+    assert len(sym_table.symbols) == 4
 
 
 def test_automatic_datasymbols():
@@ -1965,9 +1925,9 @@ def test_automatic_datasymbols():
     assert sym_table.lookup("var2") in sym_table.automatic_datasymbols
     assert sym_table.lookup("var3") in sym_table.automatic_datasymbols
 
+    csym = sym_table.new_symbol("my_mod", symbol_type=symbols.ContainerSymbol)
     sym_table.add(symbols.DataSymbol("var4", symbols.REAL_TYPE,
-                                     interface=symbols.ImportInterface(
-                                         symbols.ContainerSymbol("my_mod"))))
+                                     interface=symbols.ImportInterface(csym)))
     assert len(sym_table.automatic_datasymbols) == 2
     assert sym_table.lookup("var4") not in sym_table.automatic_datasymbols
 
@@ -2022,9 +1982,9 @@ def test_imported_symbols():
     sym_table.add(symbols.DataSymbol("var2", array_type))
     assert sym_table.imported_symbols == []
     # Add a global symbol
+    csym = sym_table.new_symbol("my_mod", symbol_type=symbols.ContainerSymbol)
     sym_table.add(symbols.DataSymbol("gvar1", symbols.REAL_TYPE,
-                                     interface=symbols.ImportInterface(
-                                         symbols.ContainerSymbol("my_mod"))))
+                                     interface=symbols.ImportInterface(csym)))
     assert sym_table.lookup("gvar1") in sym_table.imported_symbols
     sym_table.add(
         symbols.DataSymbol("gvar2", symbols.REAL_TYPE,
@@ -2036,8 +1996,7 @@ def test_imported_symbols():
     # Add another global symbol
     sym_table.add(
         symbols.RoutineSymbol("my_sub", symbols.INTEGER_TYPE,
-                              interface=symbols.ImportInterface(
-                                  symbols.ContainerSymbol("my_mod"))))
+                              interface=symbols.ImportInterface(csym)))
     assert sym_table.lookup("my_sub") in sym_table.imported_symbols
     assert len(sym_table.imported_symbols) == 2
 

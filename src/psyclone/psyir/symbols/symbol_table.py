@@ -282,9 +282,17 @@ class SymbolTable():
         if new_node:
             new_st._node = new_node
 
-        # Make a copy of each symbol in the symbol table
-        for symbol in self.symbols:
+        # Make a copy of each symbol in the symbol table ensuring we do any
+        # ContainerSymbols first as there may be imports from them.
+        for symbol in self.containersymbols:
             new_st.add(symbol.copy())
+        for symbol in self.symbols:
+            if not isinstance(symbol, ContainerSymbol):
+                new_sym = symbol.copy()
+                if new_sym.is_import:
+                    name = new_sym.interface.container_symbol.name
+                    new_sym.interface.container_symbol = new_st.lookup(name)
+                new_st.add(new_sym)
 
         # Prepare the new argument list
         new_arguments = []
@@ -573,11 +581,9 @@ class SymbolTable():
         :param str tag: a tag identifier for the new symbol, by default no \
             tag is given.
 
-        :raises InternalError: if the new_symbol argument is not a \
-            symbol.
+        :raises InternalError: if the new_symbol argument is not a symbol.
         :raises KeyError: if the symbol name is already in use.
-        :raises KeyError: if a tag is supplied and it is already in \
-            use.
+        :raises KeyError: if a tag is supplied and it is already in use.
 
         '''
         if not isinstance(new_symbol, Symbol):
@@ -588,6 +594,19 @@ class SymbolTable():
         if key in self._symbols:
             raise KeyError(f"Symbol table already contains a symbol with "
                            f"name '{new_symbol.name}'.")
+
+        # TODO #1734 - enable this check to ensure that an imported Symbol is
+        # only ever added to the table containing the ContainerSymbol from
+        # which it is imported.
+        # if new_symbol.is_import:
+        #     if (new_symbol.interface.container_symbol not in
+        #             self._symbols.values()):
+        #         raise SymbolError(
+        #             f"Symbol '{new_symbol.name}' is imported from Container "
+        #             f"'{new_symbol.interface.container_symbol.name}' but the"
+        #             f" associated ContainerSymbol does not exist in this "
+        #             f"table.")
+
         if tag:
             if tag in self.get_tags():
                 raise KeyError(
@@ -1157,9 +1176,7 @@ class SymbolTable():
         self._replace_symbol_refs(old_symbol, new_symbol)
         if self.node:
             # Update the PSyIR tree associated with this table.
-            table = SymbolTable()
-            table.add(new_symbol)
-            self.node.replace_symbols_using(table)
+            self.node.replace_symbols_using(new_symbol)
         self.remove(old_symbol)
         self.add(new_symbol)
 
@@ -1194,12 +1211,10 @@ class SymbolTable():
         sig = Signature(norm_name)
         if sig not in vai:
             return
-        new_table = SymbolTable()
-        new_table.add(new_sym)
         for access in vai[sig].all_accesses:
             if isinstance(access.node, Symbol):
                 sym = access.node
-                sym.replace_symbols_using(new_table)
+                sym.replace_symbols_using(new_sym)
             elif isinstance(access.node, Reference):
                 access.node.symbol = new_sym
             elif isinstance(access.node, Literal):
@@ -1868,9 +1883,7 @@ class SymbolTable():
             # Update any references to it within the SymbolTable itself.
             symbol_table._replace_symbol_refs(test_symbol, symbol)
             # Then update any references in the associated PSyIR tree.
-            new_table = SymbolTable()
-            new_table.add(symbol)
-            self.node.replace_symbols_using(new_table)
+            self.node.replace_symbols_using(symbol)
             # Finally, we can remove the local symbol.
             symbol_table.remove(test_symbol)
 

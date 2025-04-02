@@ -107,33 +107,6 @@ def test_scoping_node_copy():
     assert new_schedule[0].rhs.symbol in new_schedule.symbol_table.symbols
 
 
-def test_scoping_node_copy_with_imported_symbols(fortran_reader):
-    '''
-    Test that deep-copying a tree with nested scopes keeps internal
-    ImportInterface references coherent.
-
-    TODO #1734 - we should probably extend the SymbolTable so that any Symbol
-    it contains that has an ImportInterface must reference a ContainerSymbol in
-    the *same* table.
-
-    '''
-    my_mod = Container("my_mod")
-    csym = ContainerSymbol("other_mod")
-    my_mod.symbol_table.add(csym)
-    my_sub_sym = RoutineSymbol("my_sub")
-    my_sub = Routine(my_sub_sym)
-    my_mod.addchild(my_sub)
-    sub_table = my_sub.symbol_table
-    sub_table.add(Symbol("jpnij", interface=ImportInterface(csym)))
-    new_mod = my_mod.copy()
-    new_sub = new_mod.children[0]
-    new_csym = new_mod.symbol_table.lookup("other_mod")
-    assert new_csym is not csym
-    new_jpnij = new_sub.symbol_table.lookup("jpnij")
-    interface_sym = new_jpnij.interface.container_symbol
-    assert new_csym is interface_sym
-
-
 def test_scoping_node_replace_symbols():
     '''Test the replace_symbols_using() method.'''
     sched = Routine.create("my_sub")
