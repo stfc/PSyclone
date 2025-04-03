@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   IntrinsicCall, Literal, Reference, Routine,
                                   StructureReference)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE, IntrinsicSymbol,
-                                    ContainerSymbol, DataSymbol,
+                                    ContainerSymbol, DataSymbol, Symbol,
                                     DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
                                     REAL8_TYPE, RoutineSymbol, ScalarType)
@@ -72,8 +72,10 @@ class ExtractDriverCreator(BaseDriverCreator):
     :type real_type: :py:class:`psyclone.psyir.symbols.ScalarType`
 
     '''
-    def __init__(self, integer_type=INTEGER_TYPE, real_type=REAL8_TYPE):
+    def __init__(self, integer_type=INTEGER_TYPE, real_type=REAL8_TYPE,
+                 region_name=None):
         super().__init__()
+        self._region_name = region_name
         # Set the integer and real types to use.
         # For convenience, also add the names used in the gocean config file:
         self._default_types = {ScalarType.Intrinsic.INTEGER: integer_type,
@@ -243,61 +245,14 @@ class ExtractDriverCreator(BaseDriverCreator):
             # For now ignore structure names, which require flattening
             if isinstance(reference, StructureReference):
                 continue
-            old_symbol = reference.symbol
-            if old_symbol.name in symbol_table:
-                # The symbol has already been declared. We then still
-                # replace the old symbol with the new symbol to have all
-                # symbols consistent:
-                reference.symbol = symbol_table.lookup(old_symbol.name)
-                continue
-
-            # We found a new symbol, so we create a new symbol in the new
-            # symbol table here. GOcean does not support any arbitrary array
-            # as kernel argument (only fields and grid properties), so we
-            # only need to declare scalars here.
-            try:
-                new_type = self._default_types[old_symbol.datatype.intrinsic]
-            except KeyError as err:
-                fortran_string = writer(reference)
-                valid = list(self._default_types.keys())
-                # Sort to make sure we get a reproducible order for testing
-                valid.sort()
-                raise InternalError(
-                    f"Error when constructing driver for '{sched.name}': "
-                    f"Unknown intrinsic data type "
-                    f"'{old_symbol.datatype.intrinsic}' in reference "
-                    f"'{fortran_string}'. Valid types are '{valid}'.") from err
+            dt = reference.datatype.copy()
+            if isinstance(dt.precision, Symbol):
+                dt._precision = 8
             new_symbol = symbol_table.new_symbol(root_name=reference.name,
                                                  tag=reference.name,
                                                  symbol_type=DataSymbol,
-                                                 datatype=new_type)
+                                                 datatype=dt)
             reference.symbol = new_symbol
-
-        # Now handle all derived type. In GOcean the only supported derived
-        # type is "r2d_field". This type might be used to access the field
-        # data, loop boundaries or other properties. We use the
-        # grid_properties information from the config file to identify which
-        # property is used. The name of a derived type is 'flattened', i.e.
-        # all '%' are replaced with '_', and this is then declared as a
-        # non-structured type. We also need to make sure that a flattened
-        # name does not clash with a variable declared by the user. We use
-        # the structured name (with '%') as tag to handle this.
-        for reference in all_references:
-            if isinstance(reference.symbol, (RoutineSymbol, IntrinsicSymbol)):
-                continue
-            if not isinstance(reference, StructureReference):
-                continue
-            old_symbol = reference.symbol
-            if old_symbol.datatype.name != "r2d_field":
-                fortran_string = writer(reference)
-                raise InternalError(
-                    f"Error when constructing driver for '{sched.name}': "
-                    f"Unknown derived type '{old_symbol.datatype.name}' "
-                    f"in reference '{fortran_string}'.")
-            # We have a structure reference to a field, flatten it, and
-            # replace the StructureReference with a new Reference to this
-            # flattened name (e.g. `fld%data` becomes `fld_data`)
-            self.flatten_reference(reference, symbol_table, writer=writer)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -608,6 +563,8 @@ class ExtractDriverCreator(BaseDriverCreator):
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         '''
+        if self._region_name is not None:
+            region_name = self._region_name
         code = self.get_driver_as_string(nodes, read_write_info, prefix,
                                          postfix, region_name, writer=writer)
         module_name, local_name = region_name

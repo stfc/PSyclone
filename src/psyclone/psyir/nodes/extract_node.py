@@ -174,31 +174,32 @@ class ExtractNode(PSyDataNode):
         from psyclone.psyGen import Kern
         from psyclone.psyir.nodes import CodeBlock, Routine
         module_name = self._module_name
-        kerns = self.walk(Kern)
-        if len(kerns) == 1:
-            # This PSyData region only has one kernel within it,
-            # so append the kernel name.
-            region_name = f"{kerns[0].name}-"
-        else:
-            region_name = ""
-        # Create a name for this region by finding where this PSyDataNode
-        # is in the list of PSyDataNodes in this Invoke. We allow for any
-        # previously lowered PSyDataNodes by checking for CodeBlocks with
-        # the "psy-data-start" annotation.
-        routine_schedule = self.ancestor(Routine)
-        pnodes = routine_schedule.walk((PSyDataNode, CodeBlock))
-        region_idx = 0
-        for node in pnodes[0:pnodes.index(self)]:
-            if (isinstance(node, PSyDataNode) or
-                    "psy-data-start" in node.annotations):
-                region_idx += 1
-        region_name = f"{region_name}r{region_idx}"
-        # If the routine name is not used as 'module name' (in case of a
-        # subroutine outside of any modules), add the routine name
-        # to the region. Otherwise just use the number
-        if module_name != routine_schedule.name:
-            region_name = f"{routine_schedule.name}-{region_name}"
-        self._region_name = region_name
+        if not self._region_name:
+            kerns = self.walk(Kern)
+            if len(kerns) == 1:
+                # This PSyData region only has one kernel within it,
+                # so append the kernel name.
+                region_name = f"{kerns[0].name}-"
+            else:
+                region_name = ""
+            # Create a name for this region by finding where this PSyDataNode
+            # is in the list of PSyDataNodes in this Invoke. We allow for any
+            # previously lowered PSyDataNodes by checking for CodeBlocks with
+            # the "psy-data-start" annotation.
+            routine_schedule = self.ancestor(Routine)
+            pnodes = routine_schedule.walk((PSyDataNode, CodeBlock))
+            region_idx = 0
+            for node in pnodes[0:pnodes.index(self)]:
+                if (isinstance(node, PSyDataNode) or
+                        "psy-data-start" in node.annotations):
+                    region_idx += 1
+            region_name = f"{region_name}r{region_idx}"
+            # If the routine name is not used as 'module name' (in case of a
+            # subroutine outside of any modules), add the routine name
+            # to the region. Otherwise just use the number
+            if module_name != routine_schedule.name:
+                region_name = f"{routine_schedule.name}-{region_name}"
+            self._region_name = region_name
 
         # get_non_local_read_write_info doesn't work with the lowered tree,
         # so we save a copy of the higher dsl tree
@@ -228,7 +229,7 @@ class ExtractNode(PSyDataNode):
         if self._driver_creator:
             nodes = self.children
             region_name_tuple = self.get_unique_region_name(nodes, {})
-            region_name_tuple = (region_name_tuple[0], region_name)
+            region_name_tuple = (region_name_tuple[0], self._region_name)
 
             self._bring_external_symbols(read_write_info,
                                          self.ancestor(Routine).symbol_table)
@@ -423,7 +424,9 @@ class ExtractNode(PSyDataNode):
             if signature[-1] == "data":
                 return ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED,
                                              ArrayType.Extent.DEFERRED])
-
+            if signature[-1] == "tmask":
+                return ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED,
+                                                ArrayType.Extent.DEFERRED])
 
         # Everything else defaults to integer
         return INTEGER_TYPE

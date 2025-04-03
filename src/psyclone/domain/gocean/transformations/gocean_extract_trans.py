@@ -155,5 +155,7 @@ class GOceanExtractTrans(ExtractTrans):
         super().apply(nodes, my_options)
         new_node = nodes[0].ancestor(ExtractNode)
         if my_options.get("create_driver", False):
+            region_name = my_options.get("region_name", None)
             new_node._driver_creator = ExtractDriverCreator(INTEGER_TYPE,
-                                                            REAL8_TYPE)
+                                                            REAL8_TYPE,
+                                                            region_name)

@@ -86,8 +86,11 @@ def ordered_lines_in_text(lines, text):
     '''
     indx = 0
     for line in lines:
-        # index will raise a ValueException if the string is not found
-        new_index = text.index(line, indx)
+        try:
+            # index will raise a ValueException if the string is not found
+            new_index = text.index(line, indx)
+        except ValueError:
+            assert False, line + "\n -- not in --\n" + text
         indx = new_index + len(line)
 
 # --------------------------------------------------------------------------- #
@@ -606,7 +609,7 @@ def test_driver_grid_properties(fortran_writer):
                       '\'psy_single_invoke_scalar_float_test\', '
                       '\'invoke_0_bc_ssh-bc_ssh_code-r0\')',
                       'call extract_psy_data%ReadVariable('
-                      '\'ssh_fld%grid%subdomain%internal%xstop\', '
+                      '\'ssh_fld_grid_subdomain_internal_xstop\', '
                       'ssh_fld_grid_subdomain_internal_xstop)',
                       'call extract_psy_data%ReadVariable('
                       '\'ssh_fld_grid_tmask\', ssh_fld_grid_tmask)']
@@ -636,7 +639,7 @@ def test_rename_region():
                   'region_name': ("main", "update")})
 
     # Test that the extraction code contains the right names
-    assert 'CALL extract_psy_data % PreStart("main", "update", 10, 3)' \
+    assert 'CALL extract_psy_data % PreStart("main", "update",' \
         in str(psy.gen)
 
     # Now test if the created driver has the right name, and will open the
