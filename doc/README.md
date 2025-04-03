@@ -1,16 +1,13 @@
 Generating Documentation
 ========================
 
-PSyclone has both a
-[User Guide](https://psyclone.readthedocs.io/en/stable/) and a
-[Developers' Guide](https://psyclone-dev.readthedocs.io/en/stable/).
-The sources for these are contained in the "user_guide" and
-"developer_guide" directories, respectively.
+PSyclone documentation for ['stable' (last release)](https://psyclone.readthedocs.io/en/stable/)
+and ['latest' (last master commit)](https://psyclone.readthedocs.io/en/latest/)
+are published online.
 
-PSyclone must be installed (see the top-level [README](../README.md)
-file) before attempting to generate any documentation.
-
-The documentation for PSyclone is created using
+To generate the documentation locally the 'doc' PSyclone dependencies
+must be installed (e.g. `pip install -e .[doc]`).
+The documentation is created using
 [Sphinx](https://www.sphinx-doc.org). Documentation can be created in a
 number of formats, such as html, latex and pdf. To see the options
 "cd" to either the "user_guide" or "developer_guide" directory and
