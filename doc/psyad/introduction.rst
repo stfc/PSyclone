@@ -33,7 +33,7 @@
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-.. _introduction:
+.. _psyad_introduction:
 
 Introduction
 ============
@@ -41,14 +41,14 @@ Introduction
 PSyAD is PSyclone's Adjoint code generator. PSyAD takes a
 tangent linear kernel and translates it into its adjoint. A kernel may
 either be a generic subroutine/program or a
-:ref:`user_guide:lfric-kernel` that conforms to the LFRic API .
+:ref:`lfric-kernel` that conforms to the LFRic API .
 
 .. _psyad_examples:
 
 Examples
 ========
 
-See the :ref:`user_guide:examples` section of the PSyclone User Guide for an
+See the :ref:`examples` section of the PSyclone User Guide for an
 introduction to getting started with the PSyclone examples. This includes the
 set-up necessary for getting PSyAD to work.
 

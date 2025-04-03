@@ -72,9 +72,6 @@ class LFRicInvoke(Invoke):
     # pylint: disable=too-many-instance-attributes
     # pylint: disable=too-many-locals
     def __init__(self, alg_invocation, idx, invokes):
-        if not alg_invocation and not idx:
-            # This 'if' test is added to support pyreverse
-            return
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicInvokeSchedule
