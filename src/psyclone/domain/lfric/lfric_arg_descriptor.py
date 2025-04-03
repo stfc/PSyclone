@@ -753,6 +753,6 @@ class LFRicArgDescriptor(Descriptor):
 
 
 # Documentation utils: The list of module members that we wish AutoAPI to
-# generate documentation for (see https://psyclone-ref.readthedocs.io).
+# generate documentation for.
 __all__ = [
     'LFRicArgDescriptor']

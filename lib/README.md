@@ -35,7 +35,7 @@ by the [PSyData-API-based](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) wrapper libraries.
 Full documentation on using this template is provided in the PSyclone
 [Developer Guide](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja). The
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#jinja). The
 script ``process.py`` is used by the derived classes to process this
 template. This script is processed with the help of the Shell script
 ``get_python.sh`` that finds an executable Python command.
