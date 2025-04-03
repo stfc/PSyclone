@@ -39,7 +39,7 @@
 ''' Perform py.test tests on the psyclone.psyir.symbols.datatype module. '''
 
 import pytest
-from psyclone.core import VariablesAccessInfo
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     BinaryOperation, Container, KernelSchedule,
@@ -665,23 +665,28 @@ def test_arraytype_copy():
     assert bcopy is not btype
 
 
-def test_arraytype_replace_symbols_using():
+@pytest.mark.parametrize("table", [None, SymbolTable()])
+def test_arraytype_replace_symbols_using(table):
     '''Test that the replace_symbols_using method updates any symbol referred
-    to by an ArrayType.
+    to by an ArrayType. We test when the new symbol(s) are supplied in a
+    SymbolTable or directly.
 
     '''
-    table = SymbolTable()
     sym1 = DataSymbol("alimit", INTEGER_TYPE)
     atype = ArrayType(INTEGER_TYPE, [Reference(sym1),
                                      (Reference(sym1), Reference(sym1))])
-    atype.replace_symbols_using(table)
-    assert atype.shape[0].upper.symbol is sym1
-    assert atype.shape[1].lower.symbol is sym1
-    assert atype.shape[1].upper.symbol is sym1
+    if table is not None:
+        atype.replace_symbols_using(table)
+        assert atype.shape[0].upper.symbol is sym1
+        assert atype.shape[1].lower.symbol is sym1
+        assert atype.shape[1].upper.symbol is sym1
 
     sym1_new = DataSymbol("alimit", INTEGER_TYPE)
-    table.add(sym1_new)
-    atype.replace_symbols_using(table)
+    if table is not None:
+        table.add(sym1_new)
+        atype.replace_symbols_using(table)
+    else:
+        atype.replace_symbols_using(sym1_new)
     assert atype.shape[0].upper.symbol is sym1_new
     assert atype.shape[1].lower.symbol is sym1_new
     assert atype.shape[1].upper.symbol is sym1_new
@@ -689,11 +694,17 @@ def test_arraytype_replace_symbols_using():
     # Test when the intrinsic type of the array is given by a DataTypeSymbol.
     typesym = DataTypeSymbol("grid", UnresolvedType())
     btype = ArrayType(typesym, [Reference(sym1)])
-    btype.replace_symbols_using(table)
+    if table is not None:
+        btype.replace_symbols_using(table)
+    else:
+        btype.replace_symbols_using(sym1_new)
     assert btype.shape[0].upper.symbol is sym1_new
     newtypesim = DataTypeSymbol("grid", UnresolvedType())
-    table.add(newtypesim)
-    btype.replace_symbols_using(table)
+    if table is not None:
+        table.add(newtypesim)
+        btype.replace_symbols_using(table)
+    else:
+        btype.replace_symbols_using(newtypesim)
     assert btype.intrinsic is newtypesim
 
     # Test when the precision of the intrinsic type of the array is given
@@ -701,28 +712,39 @@ def test_arraytype_replace_symbols_using():
     rdef = DataSymbol("rdef", INTEGER_TYPE)
     ctype = ArrayType(ScalarType(ScalarType.Intrinsic.REAL, rdef),
                       [Reference(sym1)])
-    ctype.replace_symbols_using(table)
+    if table is not None:
+        ctype.replace_symbols_using(table)
+    else:
+        ctype.replace_symbols_using(sym1_new)
     assert ctype.precision is rdef
     assert ctype.shape[0].upper.symbol is sym1_new
     newrdef = DataSymbol("rdef", INTEGER_TYPE)
-    table.add(newrdef)
-    ctype.replace_symbols_using(table)
+    if table is not None:
+        table.add(newrdef)
+        ctype.replace_symbols_using(table)
+    else:
+        ctype.replace_symbols_using(newrdef)
     assert ctype.precision is newrdef
 
     # Check that having an array dimension of unknown size is OK.
     dtype = ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
-    dtype.replace_symbols_using(table)
-    assert dtype == ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+    if table is not None:
+        dtype.replace_symbols_using(table)
+        assert dtype == ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
 
     idef = DataSymbol("idef", INTEGER_TYPE)
     etype = ArrayType(ScalarType(ScalarType.Intrinsic.REAL, rdef),
                       [Literal("10", ScalarType(ScalarType.Intrinsic.INTEGER,
                                                 idef))])
-    etype.replace_symbols_using(table)
+    if table is not None:
+        etype.replace_symbols_using(table)
     assert etype.shape[0].upper.datatype.precision is idef
     newidef = DataSymbol("idef", INTEGER_TYPE)
-    table.add(newidef)
-    etype.replace_symbols_using(table)
+    if table is not None:
+        table.add(newidef)
+        etype.replace_symbols_using(table)
+    else:
+        etype.replace_symbols_using(newidef)
     assert etype.shape[0].upper.datatype.precision is newidef
 
 
@@ -1066,7 +1088,8 @@ def test_structuretype_eq():
         ("roger", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
 
 
-def test_structuretype_replace_symbols():
+@pytest.mark.parametrize("table", [None, SymbolTable()])
+def test_structuretype_replace_symbols(table):
     '''Test that replace_symbols_using() correctly updates any Symbols referred
     to within a StructureType.
 
@@ -1077,14 +1100,38 @@ def test_structuretype_replace_symbols():
         ("george", REAL_TYPE, Symbol.Visibility.PRIVATE,
          Literal("1.0", REAL_TYPE)),
         ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
-    table = SymbolTable()
     assert stype.components["barry"].datatype is tsymbol
-    stype.replace_symbols_using(table)
-    assert stype.components["barry"].datatype is tsymbol
+    if table is not None:
+        # Empty table should do nothing.
+        stype.replace_symbols_using(table)
+        assert stype.components["barry"].datatype is tsymbol
     newtsymbol = DataTypeSymbol("my_type", UnresolvedType())
-    table.add(newtsymbol)
-    stype.replace_symbols_using(table)
+    if table is not None:
+        table.add(newtsymbol)
+        stype.replace_symbols_using(table)
+    else:
+        stype.replace_symbols_using(newtsymbol)
+        # Supplying a Symbol that doesn't match any components doesn't do
+        # anything.
+        stype.replace_symbols_using(DataTypeSymbol("not_used",
+                                                   UnresolvedType()))
     assert stype.components["barry"].datatype is newtsymbol
+
+
+def test_structuretype_reference_accesses():
+    '''Tests for the reference_accesses() method of StructureType.'''
+    vai = VariablesAccessInfo()
+    tsymbol = DataTypeSymbol("my_type", UnresolvedType())
+    atype = ArrayType(REAL_TYPE, [Reference(Symbol("ndim"))])
+    stype = StructureType.create([
+        ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("george", atype, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE)),
+        ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
+    my_var = DataTypeSymbol("my_var", stype)
+    stype.reference_accesses(my_var, vai)
+    assert Signature("my_type") in vai.all_signatures
+    assert Signature("ndim") in vai.all_signatures
 
 
 def test_structuretype_componenttype_eq():
