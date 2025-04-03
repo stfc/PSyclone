@@ -93,7 +93,7 @@ from psyclone.psyir.nodes.omp_directives import (
     OMPStandaloneDirective, OMPRegionDirective, OMPTargetDirective,
     OMPLoopDirective, OMPDeclareTargetDirective,
     OMPTeamsDistributeParallelDoDirective, OMPAtomicDirective,
-    OMPSimdDirective, OMPTeamsLoopDirective)
+    OMPSimdDirective, OMPTeamsLoopDirective, OMPBarrierDirective)
 from psyclone.psyir.nodes.clause import Clause, OperandClause
 from psyclone.psyir.nodes.omp_clauses import (
     OMPGrainsizeClause, OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause,
@@ -167,6 +167,7 @@ __all__ = [
         'ACCCopyOutClause',
         # OpenMP Directive Nodes
         'OMPAtomicDirective',
+        'OMPBarrierDirective',
         'OMPDirective',
         'OMPRegionDirective',
         'OMPStandaloneDirective',
