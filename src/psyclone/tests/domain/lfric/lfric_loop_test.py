@@ -51,8 +51,9 @@ from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
                                    LFRicInvokeSchedule)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, InvokeSchedule
 from psyclone.psyir.nodes import Call, ScopingNode, Loop
+from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import Message, DTCode
 from psyclone.tests.lfric_build import LFRicBuild
@@ -102,8 +103,9 @@ def test_constructor_invalid_loop_type(monkeypatch):
     # Monkeypatch the list of valid loop types so as to reach the code
     # that attempts to set the loop variable.
     monkeypatch.setattr(LFRicConstants, "VALID_LOOP_TYPES", ["wrong"])
+    parent = InvokeSchedule(RoutineSymbol("test"), None, None)
     with pytest.raises(InternalError) as err:
-        LFRicLoop(loop_type="wrong")
+        LFRicLoop(loop_type="wrong", parent=parent)
     assert ("Unsupported loop type 'wrong' found when creating loop variable."
             " Supported values are 'colours'" in str(err.value))
 
