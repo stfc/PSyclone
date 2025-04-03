@@ -78,7 +78,7 @@ jobs:
       if: ${{ github.run_attempt != '1' }}
       run: |
         # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
         spack unload && spack load nemo-build-environment%gcc@14
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
@@ -109,8 +109,8 @@ jobs:
       if: ${{ github.run_attempt != '1' }}
       run: |
         # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@24.5
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%nvhpc@24.11
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -123,10 +123,9 @@ jobs:
         export FCFLAGS="-i4 -Mr8 -O2 -nofma -Mnovect -g"
         
         # Clean up and compile
-        # Without key_mpi_off it fails to compile (even without psyclone)
         rm -rf tests/${TEST_DIR}
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
-          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
+          -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
@@ -142,7 +141,8 @@ jobs:
       if: ${{ github.run_attempt != '1' }}
       run: |
         # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%nvhpc@24.11
         spack unload && spack load nemo-build-environment%oneapi
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
@@ -170,7 +170,7 @@ jobs:
     - name: NEMO 5.0 gfortran OpenMP for CPUs
       run: |
         # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
         spack unload && spack load nemo-build-environment%gcc@14
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
@@ -207,8 +207,8 @@ jobs:
     - name: NEMO 5.0 nvidia OpenMP for GPUs (BENCH - managed memory)
       run: |
         # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@24.5
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%nvhpc@24.11
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -222,10 +222,9 @@ jobs:
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
 
         # Clean up and compile
-        # Without key_mpi_off it fails to compile (even without psyclone)
         rm -rf tests/${TEST_DIR}
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
-          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
+          -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
@@ -246,8 +245,8 @@ jobs:
     - name: NEMO 5.0 nvidia OpenMP for GPUs (UKMO ORCA1 - managed memory)
       run: |
         # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@24.5
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%nvhpc@24.11
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -261,10 +260,9 @@ jobs:
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
 
         # Clean up and compile
-        # Without key_mpi_off it fails to compile (even without psyclone)
         rm -rf cfgs/${TEST_DIR}
         ./makenemo -r GOSI10p0.0_like_eORCA1 -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
-          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
+          -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
@@ -284,8 +282,8 @@ jobs:
     - name: NEMO 5.0 nvidia OpenMP for GPUs (UKMO ORCA2 - managed memory)
       run: |
         # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@24.5
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%nvhpc@24.11
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -299,10 +297,9 @@ jobs:
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
 
         # Clean up and compile
-        # Without key_mpi_off it fails to compile (even without psyclone)
         rm -rf cfgs/${TEST_DIR}
         ./makenemo -r ORCA2_ICE_PISCES -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
-          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
+           -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
