@@ -41,8 +41,9 @@ from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes import Assignment, Node, Reference, Routine
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, \
-        PreprocessorInterface
+from psyclone.psyir.symbols import (
+    DataSymbol, INTEGER_TYPE, PreprocessorInterface, ScalarType
+)
 
 
 class DebugChecksumTrans(RegionTrans):
@@ -113,7 +114,10 @@ class DebugChecksumTrans(RegionTrans):
         for sig in vai.all_data_accesses:
             if vai.is_written(sig) and vai[sig].is_array():
                 sym = vai[sig].all_accesses[0].node.symbol
-                writes.append(sym)
+                if (isinstance(sym, DataSymbol) and sym.datatype.intrinsic in
+                        [ScalarType.Intrinsic.REAL,
+                         ScalarType.Intrinsic.INTEGER]):
+                    writes.append(sym)
         # For each write, add a checksum after.
         checksum_nodes = []
         freader = FortranReader()

@@ -40,16 +40,19 @@ from psyclone.psyir.transformations import DebugChecksumTrans
 
 
 def test_checksum(fortran_reader, fortran_writer):
+    ''' Test the behaviour of the debug_checksum_trans'''
 
     code = """
     subroutine test
         integer, dimension(1:100) :: a, b, c
+        logical, dimension(1:100) :: f
         integer :: i
         integer :: d
 
         do i = 1, 100
             a(i) = c(i) + d
             b(i) = 2 * i
+            f(i) = .true.
         enddo
     end subroutine
     """
@@ -62,6 +65,7 @@ def test_checksum(fortran_reader, fortran_writer):
   integer, dimension(100) :: a
   integer, dimension(100) :: b
   integer, dimension(100) :: c
+  logical, dimension(100) :: f
   integer :: i
   integer :: d
   integer :: PSYCLONE_INTERNAL_line_
@@ -69,6 +73,7 @@ def test_checksum(fortran_reader, fortran_writer):
   do i = 1, 100, 1
     a(i) = c(i) + d
     b(i) = 2 * i
+    f(i) = .true.
   enddo
   PSYCLONE_INTERNAL_line_ = __LINE__
   PRINT *, "checksums from test at line:", PSYCLONE_INTERNAL_line_ + 1
