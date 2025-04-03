@@ -37,7 +37,7 @@
 
 .. highlight:: fortran
 
-.. _psyke:
+.. _userguide-psyke:
 
 PSy Kernel Extractor (PSyKE)
 ============================
@@ -77,7 +77,7 @@ The ``ExtractNode`` class uses the dependency analysis to detect
 which variables are input-, and which ones are output-parameters.
 The lists of variables are then passed to the ``PSyDataNode``,
 which is the base class of any ``ExtractNode`` (details of
-the ``PSyDataNode`` can be found in :ref:`dev_guide:psy_data`). This
+the ``PSyDataNode`` can be found in :ref:`psy_data`). This
 node then creates the actual code, as in the following LFRic example::
 
       ! ExtractStart

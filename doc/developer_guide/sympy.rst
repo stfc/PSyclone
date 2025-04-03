@@ -78,6 +78,7 @@ will be evaluated to be true.
 The SymPy package is wrapped in the PSyclone class ``SymbolicMaths``:
 
 .. autoclass:: psyclone.core.SymbolicMaths
+    :no-index:
     :members:
 
 This can be used for tests of nodes in the PSyIR. For example,
@@ -182,6 +183,7 @@ Documentation for SymPyWriter Functions
 The SymPyWriter provides the following functions:
 
 .. autoclass:: psyclone.psyir.backend.sympy_writer.SymPyWriter
+    :no-index:
     :members:
     :special-members: __new__
 
@@ -236,4 +238,5 @@ Documentation for SymPyReader Functions
 The SymPyReader provides the following functions:
 
 .. autoclass:: psyclone.psyir.frontend.sympy_reader.SymPyReader
+    :no-index:
     :members:
