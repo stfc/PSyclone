@@ -196,6 +196,10 @@ class Routine(Schedule, CommentableMixin):
         Check for unresolved symbols or for any declared in the outer scope
         Container of the target routine.
 
+        If a Symbol in this Routine was previously unresolved but it turns out
+        that there is only one wildcard import that can be bringing it into
+        scope then its interface is updated accordingly.
+
         :param call: the node representing the call to the routine that is to
             be inlined.
         :type call: Union[CodedKern, Call]
@@ -254,8 +258,7 @@ class Routine(Schedule, CommentableMixin):
                     raise SymbolError(
                         f"{kern_or_call} '{name}' contains accesses to "
                         f"'{symbol.name}' which is declared in the callee "
-                        f"module scope. Cannot transform such a "
-                        f"{kern_or_call}.")
+                        f"module scope.")
 
         # We can't handle a clash between (apparently) different symbols that
         # share a name but are imported from different containers.

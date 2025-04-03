@@ -85,7 +85,7 @@ def test_kernelimportsstoargumentstrans_no_outer_module_import():
     with pytest.raises(TransformationError) as err:
         trans.validate(kernel)
     assert ("contains accesses to 'alpha' which is declared in the callee "
-            "module scope. Cannot transform such a Kernel." in str(err.value))
+            "module scope." in str(err.value))
 
 
 def test_kernelimportstoargumentstrans_no_wildcard_import():

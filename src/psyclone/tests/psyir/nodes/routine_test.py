@@ -537,3 +537,110 @@ def test_check_outer_scope_accesses_import_clash(fortran_reader):
             "the table at the call site" in str(err.value))
     assert ("This table has an import of 'a_clash' via interface" in
             str(err.value))
+
+
+def test_outer_scope_accesses_unresolved(fortran_reader):
+    '''
+    Test that check_outer_scope_accesses() raises the expected errors for
+    symbols that aren't found or are unresolved.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+      use another_mod
+    contains
+      subroutine call_it()
+        write(*,*) unresolved()
+        call a_routine()
+      end subroutine call_it
+    end module my_mod
+    ''')
+    rt0 = psyir.children[0].children[0]
+    sym = rt0.symbol_table.lookup("a_routine")
+    assert sym.is_unresolved
+    call = Call.create(RoutineSymbol("a_routine"), [])
+    # The access to 'unresolved' is in a CodeBlock and we don't have a
+    # Symbol for it.
+    with pytest.raises(SymbolError) as err:
+        rt0.check_outer_scope_accesses(call, "call")
+    assert ("'call_it' contains accesses to 'unresolved' but the origin of "
+            "this" in str(err.value))
+    # Remove the CodeBlock and repeat.
+    rt0.children[0].detach()
+    rt0.check_outer_scope_accesses(call, "call")
+    # The interface should have been updated as there's only 1 wildcard import
+    assert sym.interface.container_symbol.name == "another_mod"
+
+
+def test_outer_scope_accesses_multi_wildcards(fortran_reader):
+    '''
+    Test that check_outer_scope_accesses() raises the expected errors when it's
+    not known which wildcard import is bringing a symbol into scope..
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+      use another_mod
+      use this_one
+    contains
+      subroutine call_it(vaar)
+        real, intent(inout) :: vaar
+        call a_routine()
+        vaar = 1.0_r_def
+      end subroutine call_it
+    end module my_mod
+    ''')
+    rt0 = psyir.children[0].children[0]
+    call = Call.create(RoutineSymbol("a_routine"), [])
+    # By default we allow unresolved Symbols.
+    rt0.check_outer_scope_accesses(call, "call")
+    # But not if we disable that.
+    with pytest.raises(SymbolError) as err:
+        rt0.check_outer_scope_accesses(call, "call", permit_unresolved=False)
+    assert ("'call_it' contains accesses to 'a_routine' which is unresolved. "
+            "It is being brought into" in str(err.value))
+    # Remove the call.
+    rt0.children[0].detach()
+    # Now the kind parameter 'r_def' should be flagged.
+    with pytest.raises(SymbolError) as err:
+        rt0.check_outer_scope_accesses(call, "call", permit_unresolved=False)
+    assert ("'call_it' contains accesses to 'r_def' which is unresolved. It "
+            "is being brought into scope from one of ['another_mod', "
+            "'this_one']" in str(err.value))
+    # But not if we ignore non-data accesses.
+    rt0.check_outer_scope_accesses(call, "call", permit_unresolved=False,
+                                   ignore_non_data_accesses=True)
+
+
+def test_outer_scope_accesses_module_data(fortran_reader):
+    '''
+    Test that check_outer_scope_accesses() raises the expected errors when a
+    routine accesses module data.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+      use kinds_mod
+      real(kind=r_def) :: vaar
+    contains
+      subroutine call_it()
+        call second()
+      end subroutine call_it
+      subroutine second()
+        vaar = 2.0_r_def
+      end subroutine second
+    end module my_mod
+    ''')
+    rt1 = psyir.children[0].children[1]
+    call = psyir.walk(Call)[0]
+    # No error because `vaar` at the call site is the same Symbol that is
+    # accessed within the called routine.
+    rt1.check_outer_scope_accesses(call, "call")
+    rt0 = psyir.children[0].children[0]
+    # Add a new `vaar` Symbol at the call site that shadows the module
+    # variable.
+    rt0.symbol_table.new_symbol("vaar", shadowing=True)
+    with pytest.raises(SymbolError) as err:
+        rt1.check_outer_scope_accesses(call, "call")
+    assert ("'second' contains accesses to 'vaar' which is declared in the "
+            "callee module scope" in str(err.value))

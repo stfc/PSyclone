@@ -150,8 +150,7 @@ def test_validate_no_inline_global_var(parser):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kernels[0])
     assert ("Kernel 'kernel_with_global_code' contains accesses to 'alpha' "
-            "which is declared in the callee module scope. Cannot transform "
-            "such a Kernel." in str(err.value))
+            "which is declared in the callee module scope" in str(err.value))
 
     # Check that the issue is also reported if the symbol is inside a
     # Codeblock
@@ -167,8 +166,7 @@ def test_validate_no_inline_global_var(parser):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kernels[0])
     assert ("'kernel_with_global_code' contains accesses to 'alpha' which is "
-            "declared in the callee module scope. Cannot "
-            "transform such a Kernel." in str(err.value))
+            "declared in the callee module scope." in str(err.value))
 
     # Check that a symbol of unknown origin within a CodeBlock is caught.
     reader = FortranStringReader('''
