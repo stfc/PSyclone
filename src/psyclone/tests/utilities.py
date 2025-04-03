@@ -646,7 +646,11 @@ def make_external_module(monkeypatch,
 
     '''
     minfo = ModuleInfo(mod_name, FileInfo(f"{mod_name}.f90"))
+    # Create the PSyIR for the provided module and store it in the
+    # ModuleInfo object.
     cntr = fortran_reader.psyir_from_source(code).children[0]
     minfo._psyir_container_node = cntr
+    # Monkeypatch an entry for this ModuleInfo into the ModuleManager so
+    # that it will be found when the named module is requested.
     mman = ModuleManager.get()
     monkeypatch.setitem(mman._modules, mod_name, minfo)

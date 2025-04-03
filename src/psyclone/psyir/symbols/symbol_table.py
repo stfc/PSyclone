@@ -269,9 +269,9 @@ class SymbolTable():
         The only attribute not copied is the _node reference to the scope,
         since that scope can only have one symbol table associated to it.
 
-        :param new_node: the PSyIR Node with which the copied table is to be
-            associated (if different from self.node).
-        :type new_node: :py:class:`psyclone.psyir.nodes.Node`
+        :param new_node: the PSyIR Node to be associated with the copied
+            table (if different from self.node).
+        :type new_node: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
         :returns: a deep copy of this symbol table.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
