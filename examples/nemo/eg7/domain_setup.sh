@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,34 +30,13 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified by D. Sergeev, University of Exeter
-# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
+# ------------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel extraction code to
-the 'invoke_propagate_perturbation' invoke.
-'''
+# Set environment variables required to define the domain size and number of
+# time steps for the tra_adv benchmark.
+export JPK=30
+export JPJ=100
+export JPI=100
+export IT=10
 
-from psyclone.domain.lfric.transformations import LFRicExtractTrans
-
-
-def trans(psyir):
-    '''
-    Take the supplied psy object, and add kernel extraction code.
-
-    :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
-
-    '''
-    extract = LFRicExtractTrans()
-
-    name = "invoke_propagate_perturbation"
-    subroutine = [x for x in psyir.children[0].children if x.name == name][0]
-
-    # Enclose everything in a extract region
-    extract.apply(subroutine, {"region_name": ("time_evolution", "propagate"),
-                               "create_driver": True})
-
-    print(subroutine.view())
