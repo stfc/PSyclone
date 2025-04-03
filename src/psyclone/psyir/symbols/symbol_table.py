@@ -287,7 +287,12 @@ class SymbolTable():
 
         # Prepare the new tag dict
         for tag, symbol in self._tags.items():
-            new_st._tags[tag] = new_st.lookup(symbol.name)
+            try:
+                new_st._tags[tag] = new_st.lookup(symbol.name)
+            except KeyError:
+                # TODO 898: If the lookup fails it means that the symbol was
+                # removed from the symbol table but not the tags dictionary
+                pass
 
         # Update any references to Symbols within Symbols (initial values,
         # precision etc.)
@@ -1278,8 +1283,9 @@ class SymbolTable():
 
     def append_argument(self, argument):
         '''
-        Append a new argument to the argument list and add it in the symbol
-        table itself.
+        Append the given argument to the argument list and add it in the symbol
+        table itself. If the argument is already part of the argument_list it
+        does nothing.
 
         :param argument: the new argument to add to the list.
         :type argument: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -1298,9 +1304,12 @@ class SymbolTable():
             raise ValueError(
                 f"DataSymbol '{argument.name}' is not marked as a kernel "
                 "argument.")
+        if argument in self._argument_list:
+            return
 
         self._argument_list.append(argument)
-        self.add(argument)
+        if argument not in self.get_symbols().values():
+            self.add(argument)
 
         try:
             self._validate_arg_list(self._argument_list)

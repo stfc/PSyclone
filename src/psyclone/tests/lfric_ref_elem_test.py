@@ -200,12 +200,14 @@ def test_refelem_gen(tmpdir):
     psy, _ = get_invoke("23.1_ref_elem_invoke.f90", TEST_API,
                         dist_mem=False, idx=0)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
-    assert "use reference_element_mod, only: reference_element_type" in gen
-    assert "integer(kind=i_def) nfaces_re_h, nfaces_re_v" in gen
-    assert ("real(kind=r_def), allocatable :: normals_to_horiz_faces(:,:), "
-            "normals_to_vert_faces(:,:)" in gen)
+    assert "use reference_element_mod, only : reference_element_type" in gen
+    assert "integer(kind=i_def) :: nfaces_re_h" in gen
+    assert "integer(kind=i_def) :: nfaces_re_v" in gen
+    assert ("real(kind=r_def), allocatable, dimension(:,:) :: "
+            "normals_to_horiz_faces" in gen)
+    assert ("real(kind=r_def), allocatable, dimension(:,:) :: "
+            "normals_to_vert_faces" in gen)
     assert ("class(reference_element_type), pointer :: reference_element "
             "=> null()" in gen)
     # We need a mesh object in order to get a reference_element object
@@ -224,6 +226,7 @@ def test_refelem_gen(tmpdir):
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_duplicate_refelem_gen(tmpdir):
@@ -232,11 +235,13 @@ def test_duplicate_refelem_gen(tmpdir):
     psy, _ = get_invoke("23.2_multi_ref_elem_invoke.f90", TEST_API,
                         dist_mem=False, idx=0)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
     assert gen.count(
-        "real(kind=r_def), allocatable :: normals_to_horiz_faces(:,:)"
-        ", normals_to_vert_faces(:,:)") == 1
+        "real(kind=r_def), allocatable, dimension(:,:) :: "
+        "normals_to_horiz_faces") == 1
+    assert gen.count(
+        "real(kind=r_def), allocatable, dimension(:,:) :: "
+        "normals_to_vert_faces") == 1
     assert gen.count(
         "reference_element => mesh%get_reference_element") == 1
     assert gen.count(
@@ -257,6 +262,7 @@ def test_duplicate_refelem_gen(tmpdir):
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_union_refelem_gen(tmpdir):
@@ -265,20 +271,19 @@ def test_union_refelem_gen(tmpdir):
     psy, _ = get_invoke("23.3_shared_ref_elem_invoke.f90", TEST_API,
                         dist_mem=False, idx=0)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
 
     assert (
-        "      reference_element => mesh%get_reference_element()\n"
-        "      nfaces_re_h = reference_element%get_number_horizontal_faces()\n"
-        "      nfaces_re_v = reference_element%get_number_vertical_faces()\n"
-        "      call reference_element%get_normals_to_horizontal_faces("
+        "    reference_element => mesh%get_reference_element()\n"
+        "    nfaces_re_h = reference_element%get_number_horizontal_faces()\n"
+        "    nfaces_re_v = reference_element%get_number_vertical_faces()\n"
+        "    call reference_element%get_normals_to_horizontal_faces("
         "normals_to_horiz_faces)\n"
-        "      call reference_element%get_outward_normals_to_horizontal_faces("
+        "    call reference_element%get_outward_normals_to_horizontal_faces("
         "out_normals_to_horiz_faces)\n"
-        "      call reference_element%get_normals_to_vertical_faces("
+        "    call reference_element%get_normals_to_vertical_faces("
         "normals_to_vert_faces)\n"
-        "      call reference_element%get_outward_normals_to_vertical_faces("
+        "    call reference_element%get_outward_normals_to_vertical_faces("
         "out_normals_to_vert_faces)\n" in gen)
     assert ("call testkern_ref_elem_code(nlayers_f1, a, f1_data, "
             "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
@@ -291,6 +296,7 @@ def test_union_refelem_gen(tmpdir):
             " map_w3(:,cell), nfaces_re_v, nfaces_re_h, "
             "out_normals_to_vert_faces, normals_to_vert_faces, "
             "out_normals_to_horiz_faces)" in gen)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_all_faces_refelem_gen(tmpdir):
@@ -304,10 +310,10 @@ def test_all_faces_refelem_gen(tmpdir):
     gen = str(psy.gen).lower()
 
     assert (
-        "      reference_element => mesh%get_reference_element()\n"
-        "      nfaces_re = reference_element%get_number_faces()\n"
-        "      call reference_element%get_normals_to_faces(normals_to_faces)\n"
-        "      call reference_element%get_outward_normals_to_faces("
+        "    reference_element => mesh%get_reference_element()\n"
+        "    nfaces_re = reference_element%get_number_faces()\n"
+        "    call reference_element%get_normals_to_faces(normals_to_faces)\n"
+        "    call reference_element%get_outward_normals_to_faces("
         "out_normals_to_faces)\n" in gen)
     assert ("call testkern_ref_elem_all_faces_code(nlayers_f1, a, f1_data, "
             "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
@@ -329,7 +335,7 @@ def test_refelem_no_rdef(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
-    assert "use constants_mod, only: r_solver, r_def, i_def" in gen
+    assert "use constants_mod" in gen
 
 
 def test_ref_element_symbols():

@@ -40,7 +40,6 @@
 '''
 
 from unittest import mock
-
 import pytest
 
 from psyclone.psyir.nodes import Literal, Loop, Schedule, Return

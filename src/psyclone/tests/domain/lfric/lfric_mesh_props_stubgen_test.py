@@ -79,7 +79,7 @@ end module testkern_mesh_prop_quad_mod
 '''
 
 
-def test_mesh_prop_stub_gen():
+def test_mesh_prop_stub_gen(fortran_writer):
     ''' Check that correct kernel stub code is produced when the kernel
     metadata contains a mesh property. '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
@@ -88,32 +88,34 @@ def test_mesh_prop_stub_gen():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    gen = str(kernel.gen_stub).lower()
+    gen = fortran_writer(kernel.gen_stub)
 
-    output = (
-        "  module testkern_mesh_prop_mod\n"
-        "    implicit none\n"
-        "    contains\n"
-        "    subroutine testkern_mesh_prop_code(nlayers, rscalar_1, "
-        "field_2_w1, ndf_w1, undf_w1, map_w1, nfaces_re_h, adjacent_face)\n"
-        "      use constants_mod\n"
-        "      implicit none\n"
-        "      integer(kind=i_def), intent(in) :: nlayers\n"
-        "      integer(kind=i_def), intent(in) :: ndf_w1\n"
-        "      integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
-        "      integer(kind=i_def), intent(in) :: undf_w1\n"
-        "      real(kind=r_def), intent(in) :: rscalar_1\n"
-        "      real(kind=r_def), intent(inout), dimension(undf_w1) :: "
-        "field_2_w1\n"
-        "      integer(kind=i_def), intent(in) :: nfaces_re_h\n"
-        "      integer(kind=i_def), intent(in), dimension(nfaces_re_h) :: "
-        "adjacent_face\n"
-        "    end subroutine testkern_mesh_prop_code\n"
-        "  end module testkern_mesh_prop_mod")
-    assert output in gen
+    assert """\
+module testkern_mesh_prop_mod
+  implicit none
+  public
+
+  contains
+  subroutine testkern_mesh_prop_code(nlayers, rscalar_1, field_2_w1, ndf_w1, \
+undf_w1, map_w1, nfaces_re_h, adjacent_face)
+    use constants_mod
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
+    integer(kind=i_def), intent(in) :: undf_w1
+    real(kind=r_def), intent(in) :: rscalar_1
+    real(kind=r_def), dimension(undf_w1), intent(inout) :: field_2_w1
+    integer(kind=i_def), intent(in) :: nfaces_re_h
+    integer(kind=i_def), dimension(nfaces_re_h), intent(in) :: adjacent_face
 
 
-def test_mesh_props_quad_stub_gen():
+  end subroutine testkern_mesh_prop_code
+
+end module testkern_mesh_prop_mod
+""" == gen
+
+
+def test_mesh_props_quad_stub_gen(fortran_writer):
     ''' Check that correct stub code is produced when the kernel metadata
     specifies both mesh and quadrature properties (quadrature
     properties should be placed at the end of subroutine argument list). '''
@@ -121,35 +123,48 @@ def test_mesh_props_quad_stub_gen():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    gen = str(kernel.gen_stub)
+    gen = fortran_writer(kernel.gen_stub)
 
-    output1 = (
-        "  SUBROUTINE testkern_mesh_prop_quad_code(nlayers, field_1_w1, "
-        "field_2_wtheta, ndf_w1, undf_w1, map_w1, basis_w1_qr_xyoz, "
-        "ndf_wtheta, undf_wtheta, map_wtheta, basis_wtheta_qr_xyoz, "
-        "nfaces_re_h, nfaces_re, normals_to_horiz_faces, "
-        "out_normals_to_faces, adjacent_face, np_xy_qr_xyoz, "
-        "np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)")
-    assert output1 in gen
-    output2 = (
-        "      INTEGER(KIND=i_def), intent(in) :: np_xy_qr_xyoz, "
-        "np_z_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), "
-        "dimension(3,ndf_w1,np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w1_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), "
-        "dimension(1,ndf_wtheta,np_xy_qr_xyoz,np_z_qr_xyoz) :: "
-        "basis_wtheta_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) :: "
-        "weights_xy_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) :: "
-        "weights_z_qr_xyoz\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nfaces_re_h\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nfaces_re\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,nfaces_re_h) :: "
-        "normals_to_horiz_faces\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,nfaces_re) :: "
-        "out_normals_to_faces\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(nfaces_re_h) :: "
-        "adjacent_face\n"
-    )
-    assert output2 in gen
+    assert """\
+module testkern_mesh_prop_quad_mod
+  implicit none
+  public
+
+  contains
+  subroutine testkern_mesh_prop_quad_code(nlayers, field_1_w1, \
+field_2_wtheta, ndf_w1, undf_w1, map_w1, basis_w1_qr_xyoz, ndf_wtheta, \
+undf_wtheta, map_wtheta, basis_wtheta_qr_xyoz, nfaces_re_h, nfaces_re, \
+normals_to_horiz_faces, out_normals_to_faces, adjacent_face, np_xy_qr_xyoz, \
+np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)
+    use constants_mod
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
+    integer(kind=i_def), intent(in) :: ndf_wtheta
+    integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
+    integer(kind=i_def), intent(in) :: undf_w1
+    integer(kind=i_def), intent(in) :: undf_wtheta
+    real(kind=r_def), dimension(undf_w1), intent(in) :: field_1_w1
+    real(kind=r_def), dimension(undf_wtheta), intent(inout) :: field_2_wtheta
+    integer(kind=i_def), intent(in) :: np_xy_qr_xyoz
+    integer(kind=i_def), intent(in) :: np_z_qr_xyoz
+    real(kind=r_def), dimension(3,ndf_w1,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: basis_w1_qr_xyoz
+    real(kind=r_def), dimension(1,ndf_wtheta,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: basis_wtheta_qr_xyoz
+    real(kind=r_def), dimension(np_xy_qr_xyoz), intent(in) :: \
+weights_xy_qr_xyoz
+    real(kind=r_def), dimension(np_z_qr_xyoz), intent(in) :: weights_z_qr_xyoz
+    integer(kind=i_def), intent(in) :: nfaces_re_h
+    integer(kind=i_def), intent(in) :: nfaces_re
+    real(kind=r_def), dimension(3,nfaces_re_h), intent(in) :: \
+normals_to_horiz_faces
+    real(kind=r_def), dimension(3,nfaces_re), intent(in) :: \
+out_normals_to_faces
+    integer(kind=i_def), dimension(nfaces_re_h), intent(in) :: adjacent_face
+
+
+  end subroutine testkern_mesh_prop_quad_code
+
+end module testkern_mesh_prop_quad_mod
+""" == gen

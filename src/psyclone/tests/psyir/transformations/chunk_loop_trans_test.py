@@ -37,7 +37,6 @@
 
 '''This module contains the unit tests for the ChunkLoopTrans module'''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
@@ -341,15 +340,15 @@ def test_chunkloop_trans_apply_pos():
     chunktrans.apply(schedule.children[0])
     code = str(psy.gen)
     correct = \
-        '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
-        j_el_inner = MIN(j_out_var + (32 - 1), cu_fld%internal%ystop)
-        DO j = j_out_var, j_el_inner, 1
-          DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
+        '''do j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
+      j_el_inner = MIN(j_out_var + (32 - 1), cu_fld%internal%ystop)
+      do j = j_out_var, j_el_inner, 1
+        do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
     '''
     assert correct in code
-    correct = '''END DO
-        END DO
-      END DO'''
+    correct = '''enddo
+      enddo
+    enddo'''
     assert correct in code
     loop = schedule.walk(Loop)[0]
     assert 'chunked' in loop.annotations
@@ -367,15 +366,15 @@ def test_chunkloop_trans_apply_neg():
     chunktrans.apply(schedule.children[0])
     code = str(psy.gen)
     correct = \
-        '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, -32
-        j_el_inner = MAX(j_out_var - (32 + 1), cu_fld%internal%ystop)
-        DO j = j_out_var, j_el_inner, -1
-          DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
+        '''do j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, -32
+      j_el_inner = MAX(j_out_var - (32 + 1), cu_fld%internal%ystop)
+      do j = j_out_var, j_el_inner, -1
+        do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
     '''
     assert correct in code
-    correct = '''END DO
-        END DO
-      END DO'''
+    correct = '''enddo
+      enddo
+    enddo'''
     assert correct in code
 
 
@@ -390,9 +389,9 @@ def test_chunkloop_trans_apply_with_options():
     chunktrans.apply(schedule.children[0], {'chunksize': 4})
     code = str(psy.gen)
     correct = \
-        '''DO j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 4
-        j_el_inner = MIN(j_out_var + (4 - 1), cu_fld%internal%ystop)
-        DO j = j_out_var, j_el_inner, 1
+        '''do j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 4
+      j_el_inner = MIN(j_out_var + (4 - 1), cu_fld%internal%ystop)
+      do j = j_out_var, j_el_inner, 1
     '''
     assert correct in code
 

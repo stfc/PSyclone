@@ -287,7 +287,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
           end do
           !$OMP END DO
 
-        At code-generation time (when gen_code()` is called), this node must be
+        At code-generation time (when lowering is called), this node must be
         within (i.e. a child of) a PARALLEL region.
 
         :param node: the supplied node to which we will apply the

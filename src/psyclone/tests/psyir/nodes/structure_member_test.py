@@ -38,7 +38,6 @@
 
 ''' Performs py.test tests on the StructureMember PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir import nodes
 from psyclone.psyir import symbols
