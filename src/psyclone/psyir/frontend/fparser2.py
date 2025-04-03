@@ -1676,20 +1676,8 @@ class Fparser2Reader():
                 new_symbol = DataTypeSymbol(type_name, UnresolvedType(),
                                             interface=type_symbol.interface,
                                             visibility=type_symbol.visibility)
-                if type_symbol.is_import:
-                    # We have to ensure that we put the new symbol in the same
-                    # table that contains the ContainerSymbol from which it is
-                    # imported.
-                    table = type_symbol.interface.container_symbol.\
-                        find_symbol_table(parent)
-                    current_table = type_symbol.find_symbol_table(parent)
-                    if current_table is not table:
-                        table.add(type_symbol)
-                        current_table._symbols.pop(type_symbol.name.lower())
-                    table.swap(type_symbol, new_symbol)
-                else:
-                    table = type_symbol.find_symbol_table(parent)
-                    table.swap(type_symbol, new_symbol)
+                table = type_symbol.find_symbol_table(parent)
+                table.swap(type_symbol, new_symbol)
                 type_symbol = new_symbol
             elif not isinstance(type_symbol, DataTypeSymbol):
                 raise SymbolError(

@@ -102,7 +102,7 @@ class Loop(Statement):
         self._variable = None
         if variable is not None:
             self.variable = variable
-        # Hold the set of symbols that will be private/local to the interation
+        # Hold the set of symbols that will be private/local to the iteration
         # if this loop is run concurrently. Alternatively this could be
         # implemented by moving the symbols to the loop_body symbol table.
         self._explicitly_private_symbols = set()
