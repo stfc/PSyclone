@@ -318,6 +318,19 @@ def test_scalartype_replace_symbols():
     assert stype2.precision is rdef2
 
 
+def test_scalartype_reference_accesses():
+    '''Test for the ScalarType.reference_accesses() method.'''
+    rdef = DataSymbol("rdef", INTEGER_TYPE)
+    stype2 = ScalarType(ScalarType.Intrinsic.INTEGER,
+                        rdef)
+    var = DataSymbol("var", stype2)
+    vai = VariablesAccessInfo()
+    stype2.reference_accesses(var, vai)
+    svaccess = vai[Signature("rdef")]
+    assert svaccess.has_data_access() is False
+    assert svaccess[0].node is var
+
+
 # ArrayType class
 
 def test_arraytype_extent():
@@ -748,6 +761,23 @@ def test_arraytype_replace_symbols_using(table):
     assert etype.shape[0].upper.datatype.precision is newidef
 
 
+def test_arraytype_reference_accesses():
+    '''Tests for the ArrayType.reference_accesses() method.'''
+
+    rdef = DataSymbol("rdef", INTEGER_TYPE)
+    idef = DataSymbol("idef", INTEGER_TYPE)
+    etype = ArrayType(ScalarType(ScalarType.Intrinsic.REAL, rdef),
+                      [Literal("10", ScalarType(ScalarType.Intrinsic.INTEGER,
+                                                idef)),
+                       Reference(DataSymbol("ndim", INTEGER_TYPE))])
+    vai = VariablesAccessInfo()
+    etype.reference_accesses(Symbol("test"), vai)
+    all_names = [sig.var_name for sig in vai.all_signatures]
+    assert "rdef" in all_names
+    assert "idef" in all_names
+    assert "ndim" in all_names
+
+
 # UnsupportedFortranType tests
 
 def test_unsupported_fortran_type():
@@ -959,6 +989,27 @@ def test_unsupported_fortran_type_replace_symbols():
     table.add(newp)
     stype2.replace_symbols_using(table)
     assert stype2.partial_datatype.precision is newp
+
+
+def test_unsupported_fortran_type_reference_accesses():
+    '''
+    Test the reference_accesses() method of UnsupportedFortranType.
+    '''
+    decl = "type(some_type), dimension(nelem) :: var"
+    stype = DataTypeSymbol("some_type", UnresolvedType())
+    nelem = DataSymbol("nelem", INTEGER_TYPE)
+    ptype = ArrayType(stype, [Reference(nelem)])
+    utype = UnsupportedFortranType(decl, partial_datatype=ptype)
+    vai = VariablesAccessInfo()
+    utype.reference_accesses(Symbol("test"), vai)
+    all_names = [sig.var_name for sig in vai.all_signatures]
+    assert "nelem" in all_names
+    assert "some_type" in all_names
+    decl2 = "type(some_type), pointer :: var"
+    u2type = UnsupportedFortranType(decl2, partial_datatype=stype)
+    vai2 = VariablesAccessInfo()
+    u2type.reference_accesses(Symbol("test"), vai2)
+    assert "some_type" in [sig.var_name for sig in vai.all_signatures]
 
 
 # StructureType tests

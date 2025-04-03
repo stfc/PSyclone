@@ -1035,11 +1035,18 @@ class ArrayType(DataType):
         :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.core.signature import Signature
+        from psyclone.core.access_type import AccessType
+
         super().reference_accesses(sym, access_info)
 
+        if isinstance(self.intrinsic, Symbol):
+            access_info.add_access(
+                Signature(self.intrinsic.name),
+                AccessType.TYPE_INFO, sym)
+
         if isinstance(self.precision, Symbol):
-            from psyclone.core.signature import Signature
-            from psyclone.core.access_type import AccessType
             access_info.add_access(
                 Signature(self.precision.name),
                 AccessType.TYPE_INFO, sym)
