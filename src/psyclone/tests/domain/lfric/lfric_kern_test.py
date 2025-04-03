@@ -470,3 +470,16 @@ def test_undf_name():
     kern = sched.walk(LFRicKern)[0]
 
     assert kern.undf_name == "undf_w1"
+
+
+def test_kern_owned_cell_no_annexed(monkeypatch):
+    '''
+    Test that creating a kernel with OPERATES_ON=owned_cell_column raises
+    an error if COMPUTE_ANNEXED_DOFS is True.
+    '''
+    config = Config.get().api_conf("lfric")
+    monkeypatch.setattr(config, "_compute_annexed_dofs", True)
+    with pytest.raises(GenerationError) as err:
+        _ = get_invoke("1.4.5_owned_only_invoke.f90", api=TEST_API, idx=0)
+    assert ("Kernel 'testkern_owned_cell_code' cannot perform redundant "
+            "computation (has" in str(err.value))
