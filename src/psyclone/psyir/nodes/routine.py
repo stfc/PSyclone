@@ -208,7 +208,8 @@ class Routine(Schedule, CommentableMixin):
                         is self._symbol):
                     self._parent.symbol_table.remove(self._symbol)
             except ValueError:
-                # It can't be removed so we make it Unresolved.
+                # It can't be removed so we make it Unresolved. This will be
+                # undone when a Routine is re-attached.
                 self._symbol.interface = UnresolvedInterface()
             except KeyError:
                 pass

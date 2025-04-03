@@ -87,6 +87,8 @@ def test_routine_properties():
         node3.symbol = "123"
     assert ("Routine symbol must be a RoutineSymbol but got 'str'"
             in str(excinfo.value))
+    node3.symbol = RoutineSymbol("ave")
+    assert node3.symbol.name == "ave"
 
 
 def test_routine_name_setter():
@@ -108,7 +110,18 @@ def test_routine_name_setter():
     node.name = "goodbye"
     assert node.name == "goodbye"
     # Check that the previous symbol has been deleted and the new one created
-    assert node.name != "hello" not in node.symbol_table
+    assert "hello" not in node.symbol_table
+
+    # Repeat when there is no RoutineSymbol present at all.
+    node.symbol_table._symbols.pop("goodbye")
+    node.name = "hello_again"
+    assert node.name == "hello_again"
+
+    # Repeat when the Routine has a parent.
+    cntr = Container("greeting")
+    cntr.addchild(node)
+    node.name = "ave"
+    assert node.name == "ave"
 
 
 def test_routine_return_symbol_setter():
@@ -424,6 +437,36 @@ def test_routine_update_parent_symbol_table_when_referenced(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     cntr = psyir.children[0]
     do_64_sym = cntr.symbol_table.lookup("do_64")
+    assert do_64_sym.is_modulevar
     do_64 = cntr.children[0]
     do_64.detach()
+    # The RoutineSymbol must still be in the symbol table because it is
+    # referred to by the Interface.
+    assert "do_64" in cntr.symbol_table
     assert do_64_sym.is_unresolved
+    cntr.addchild(do_64)
+    assert do_64_sym.is_modulevar
+
+
+def test_routine_update_parent_symbol_table_missing_symbol(fortran_reader):
+    '''
+    Test that update_parent_symbol_table() works correctly when the symbol
+    representing the Routine is missing from the parent symbol table.
+
+    TODO #2702 - the code that this test covers is marked with this TODO.
+    '''
+    code = '''\
+    module my_mod
+    contains
+      subroutine do_64(var)
+        real*8 :: var
+      end subroutine do_64
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    cntr = psyir.children[0]
+    # Remove the RoutineSymbol from the parent Container.
+    cntr.symbol_table._symbols.pop("do_64")
+    do_64 = cntr.children[0]
+    # Then detach the routine.
+    do_64.detach()
+    assert len(cntr.symbol_table._symbols.keys()) == 0
