@@ -42,12 +42,13 @@
 import pytest
 
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes import (Assignment, CodeBlock, Container,
-                                  Literal, Reference, Routine,
-                                  ScopingNode)
-from psyclone.psyir.symbols import (REAL_TYPE, DataSymbol,
-                                    SymbolTable, RoutineSymbol)
-from psyclone.tests.utilities import check_links
+from psyclone.psyGen import CodedKern
+from psyclone.psyir.nodes import (Assignment, Call, CodeBlock, Container,
+                                  Literal, Reference, Routine, ScopingNode)
+from psyclone.psyir.symbols import (
+    ContainerSymbol, DataSymbol, ImportInterface, REAL_TYPE,
+    Symbol, SymbolError, SymbolTable, RoutineSymbol)
+from psyclone.tests.utilities import check_links, get_invoke
 
 
 def test_routine_constructor():
@@ -470,3 +471,69 @@ def test_routine_update_parent_symbol_table_missing_symbol(fortran_reader):
     # Then detach the routine.
     do_64.detach()
     assert len(cntr.symbol_table._symbols.keys()) == 0
+
+
+def test_check_outer_scope_accesses(config_instance):
+    '''
+    Tests for the check_outer_scope_accesses() method.
+    '''
+    _, invoke = get_invoke("single_invoke_three_kernels_with_use.f90",
+                           "gocean", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    kcall = schedule.walk(CodedKern)[1]
+    config_instance.include_paths = []
+    # Multiple wildcard imports are handled by bringing them into the routine
+    # and so aren't a problem.
+    kcall.get_kernel_schedule().check_outer_scope_accesses(kcall, "Kernel")
+    # Now try where there's only a single wildcard import so we know the origin
+    # of the symbol.
+    kcall0 = schedule.walk(CodedKern)[0]
+    ksched = kcall0.get_kernel_schedule()
+    ctable = ksched.ancestor(Container).symbol_table
+    # To do this, we manually remove all ContainerSymbols apart from the one
+    # from which 'go_wp' is imported.
+    for sym in ctable.wildcard_imports():
+        if sym.name != "kind_params_mod":
+            ctable._symbols.pop(sym.name)
+
+    ksched.check_outer_scope_accesses(kcall0, "Kernel")
+    table = ksched.symbol_table
+    assert (table.lookup("go_wp").interface.container_symbol.name ==
+            "kind_params_mod")
+
+
+def test_check_outer_scope_accesses_import_clash(fortran_reader):
+    '''
+    Check that check_outer_scope_accesses() spots a clash with an imported
+    Symbol.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+      use my_kernel_mod, only: a_routine
+    contains
+      subroutine call_it()
+
+        if(.TRUE.)then
+          call a_routine()
+        end if
+      end subroutine call_it
+    end module my_mod
+    ''')
+    rt_psyir = fortran_reader.psyir_from_source('''\
+    subroutine a_routine()
+      use other_mod, only: a_clash
+    end subroutine a_routine
+    ''')
+    kern_call = psyir.walk(Call)[0]
+    csym = ContainerSymbol("money")
+    kern_call.scope.symbol_table.add(csym)
+    kern_call.scope.symbol_table.add(Symbol("a_clash",
+                                            interface=ImportInterface(csym)))
+    sched = rt_psyir.children[0]
+    with pytest.raises(SymbolError) as err:
+        sched.check_outer_scope_accesses(kern_call, "Call")
+    assert ("One or more symbols from routine 'a_routine' cannot be added to "
+            "the table at the call site" in str(err.value))
+    assert ("This table has an import of 'a_clash' via interface" in
+            str(err.value))

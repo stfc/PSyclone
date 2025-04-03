@@ -2914,12 +2914,14 @@ class KernelImportsToArguments(Transformation):
                 f"Kernel '{node.name}' contains undeclared symbol: "
                 f"{err.value}") from err
 
-        from psyclone.domain.common.transformations import (
-            KernelModuleInlineTrans)
-        KernelModuleInlineTrans.check_data_accesses(
-            node, kernel, "Kernel",
-            permit_unresolved=False,
-            ignore_non_data_accesses=True)
+        try:
+            kernel.check_outer_scope_accesses(node, "Kernel",
+                                              permit_unresolved=False,
+                                              ignore_non_data_accesses=True)
+        except SymbolError as err:
+            raise TransformationError(
+                f"Cannot apply {self.name} to Kernel '{node.name}' because it "
+                f"accesses data from its outer scope: {err.value}") from err
 
     def apply(self, node, options=None):
         '''
