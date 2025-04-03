@@ -251,13 +251,15 @@ class ExtractNode(PSyDataNode):
             # that avoid any name clashes
             postfix = self.determine_postfix(read_write_info,
                                              postfix="_post")
+            # Remove the spurious "_" at the end of the prefix or use default
+            prefix = self._prefix[:-1] if self._prefix else "extract"
             # We need to create the driver before inserting the ExtractNode
             # (since some of the visitors used in driver creation do not
             # handle an ExtractNode in the tree)
             self._driver_creator.write_driver(self.children,
                                               read_write_info,
                                               postfix=postfix,
-                                              prefix="extract",
+                                              prefix=prefix,
                                               region_name=region_name_tuple)
 
         return super().lower_to_language_level(options)

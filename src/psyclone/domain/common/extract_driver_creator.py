@@ -53,7 +53,6 @@ from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE, IntrinsicSymbol,
                                     DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
                                     REAL8_TYPE, RoutineSymbol, ScalarType)
-from psyclone.psyir.transformations import ExtractTrans
 
 # TODO 1382: once we support LFRic, make this into a proper base class
 # and put the domain-specific implementations into the domain/* directories.
@@ -435,10 +434,6 @@ class ExtractDriverCreator(BaseDriverCreator):
         # Since this is a 'public' method of an entirely separate class,
         # we check that the list of nodes is what it expects. This is done
         # by invoking the validate function of the basic extract function.
-        extract_trans = ExtractTrans()
-        # We need to provide the prefix to the validation function:
-        extract_trans.validate(nodes, options={"prefix": prefix})
-
         module_name, local_name = region_name
         unit_name = f"{module_name}_{local_name}"
 

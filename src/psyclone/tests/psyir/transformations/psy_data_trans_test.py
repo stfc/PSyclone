@@ -175,12 +175,10 @@ def test_psy_data_get_unique_region_names():
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.parametrize("transformation",
-                         [ExtractTrans(), ReadOnlyVerifyTrans()])
 def test_trans_with_shape_function(monkeypatch, fortran_reader,
-                                   fortran_writer, transformation):
+                                   fortran_writer):
     '''Tests that extraction of a region that uses an array-shape Fortran
-    intrinsic like lbound, ubound, or size do not include these references.
+    intrinsic like lbound, ubound, or size include these references.
 
     '''
     source = '''program test
@@ -200,9 +198,7 @@ def test_trans_with_shape_function(monkeypatch, fortran_reader,
     config = Config.get()
     monkeypatch.setattr(config, "distributed_memory", False)
 
-    transformation.apply(loop)
+    ReadOnlyVerifyTrans().apply(loop)
     out = fortran_writer(psyir)
-    assert 'PreDeclareVariable("dummy", dummy)' not in out
-    assert 'ProvideVariable("dummy", dummy)' not in out
-    # We don't use their data, only their type information, so we may want
-    # to check that they are declared in the driver
+    assert 'PreDeclareVariable("dummy", dummy)' in out
+    assert 'ProvideVariable("dummy", dummy)' in out

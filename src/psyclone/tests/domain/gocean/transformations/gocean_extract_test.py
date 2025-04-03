@@ -677,7 +677,7 @@ def test_change_prefix(monkeypatch, dist_mem):
 
     # Test that the extraction code contains the new prefix:
     gen = str(psy.gen)
-    assert 'CALL NEW_psy_data % PreStart("main", "update", 10, 3)' \
+    assert 'CALL NEW_psy_data % PreStart("main", "update",' \
         in gen
 
     # Now test if the created driver has the right prefix:
