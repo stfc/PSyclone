@@ -598,9 +598,7 @@ class PSyDataNode(Statement):
             else:
                 module_name = routine_schedule.name
 
-        if self._region_name:
-            region_name = self._region_name
-        else:
+        if self._region_name is None:
             from psyclone.psyGen import Kern
             kerns = self.walk(Kern)
             if len(kerns) == 1:
@@ -625,6 +623,8 @@ class PSyDataNode(Statement):
             # to the region. Otherwise just use the number
             if module_name != routine_schedule.name:
                 region_name = f"{routine_schedule.name}-{region_name}"
+        else:
+            region_name = self._region_name
 
         if not options:
             options = {}
