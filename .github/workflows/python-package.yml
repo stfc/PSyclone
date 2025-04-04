@@ -102,9 +102,11 @@ jobs:
         # Some of the examples use Jupyter. We need to keep IPython to
         # below 8.0 as we still run the test suite with Python 3.7.
         pip install "ipython>=7.0,<8.0" jupyter
+        # We need to install sphinx to get correct doc testing
         # Uncomment the below to use the submodule version of fparser rather
         # than the latest release from pypi.
         # pip install external/fparser
+        pip install .[doc]
         pip install .[test]
     - name: Lint with flake8
       run: |

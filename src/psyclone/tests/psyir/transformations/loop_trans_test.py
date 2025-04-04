@@ -183,3 +183,23 @@ def test_all_loop_trans_base_validate(monkeypatch):
                         trans.validate(target)
                 assert "validate test exception" in str(err.value), \
                     f"{name}.validate() does not call LoopTrans.validate()"
+
+
+def test_loop_trans_base_apply(fortran_reader):
+    '''Test the new base apply method for loop_trans. This now exists as we
+    need to specify the new options.'''
+    class fake_class(LoopTrans):
+        pass
+
+    psyir_test = fortran_reader.psyir_from_source('''
+       subroutine test()
+           integer :: i
+           integer, target :: a
+           integer, pointer :: b
+           do i = 1, 10
+               b => a
+           enddo
+       end subroutine test
+    ''')
+    loop = psyir_test.walk(Loop)[0]
+    fake_class().apply(loop)
