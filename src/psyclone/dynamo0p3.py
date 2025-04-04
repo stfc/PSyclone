@@ -4808,10 +4808,6 @@ class DynKernelArguments(Arguments):
     '''
     def __init__(self, call, parent_call, check=True):
         # pylint: disable=too-many-branches
-        if False:  # pylint: disable=using-constant-test
-            # For pyreverse
-            self._0_to_n = DynKernelArgument(None, None, None, None)
-
         Arguments.__init__(self, parent_call)
 
         # check that the arguments provided by the algorithm layer are
@@ -5988,7 +5984,7 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for.
 __all__ = [
     'DynFuncDescriptor03',
     'DynFunctionSpaces',
