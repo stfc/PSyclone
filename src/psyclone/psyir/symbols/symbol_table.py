@@ -860,11 +860,8 @@ class SymbolTable():
         '''
         self_sym = self.lookup(old_sym.name)
         if old_sym.is_import:
-            # The clashing symbol is imported from a Container. If the
-            # ContainerSymbol is in `other_table` it should already have been
-            # replaced with the corresponding symbol that is in scope in this
-            # table. However, if it isn't in `other_table` then it won't have
-            # been updated.
+            # The clashing symbol is imported from a Container and the table
+            # must contain the ContainerSymbol from which it is imported.
             self_csym = self.lookup(self_sym.interface.container_symbol.name)
             if old_sym.interface.container_symbol is self_csym:
                 return

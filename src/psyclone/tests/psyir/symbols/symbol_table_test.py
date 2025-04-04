@@ -1210,6 +1210,50 @@ def test_add_symbols_from_table_rename_existing():
     assert isinstance(new_sym.datatype, symbols.UnresolvedType)
 
 
+def test_handle_symbol_clash_imported_symbols():
+    '''
+    Tests for the _handle_symbol_clash() method for imported symbols.
+    '''
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    # When both symbols are local to the respective tables, we can just
+    # rename one of them.
+    sym = table2.new_symbol("var1", symbol_type=symbols.DataSymbol,
+                            datatype=symbols.INTEGER_TYPE)
+    table1.add(sym.copy())
+    table1._handle_symbol_clash(sym, table2)
+    assert sym.name != "var1"
+    # Same ContainerSymbol object - no action needed.
+    csym = symbols.ContainerSymbol("mustrum")
+    table1.add(csym)
+    table1.add(symbols.DataSymbol("wizzard", datatype=symbols.UnresolvedType(),
+                                  interface=symbols.ImportInterface(csym)))
+    table2.add(csym)
+    table2.add(symbols.DataSymbol("wizzard", datatype=symbols.UnresolvedType(),
+                                  interface=symbols.ImportInterface(csym)))
+    table1._handle_symbol_clash(table2.lookup("wizzard"), table2)
+    # Different ContainerSymbols but with the same name.
+    table3 = symbols.SymbolTable()
+    csym2 = symbols.ContainerSymbol("mustrUm")
+    table3.add(csym2)
+    table3.add(symbols.DataSymbol("wizzard", datatype=symbols.UnresolvedType(),
+                                  interface=symbols.ImportInterface(csym2)))
+    table1._handle_symbol_clash(table3.lookup("wizzard"), table3)
+    # The target ContainerSymbol should have been updated.
+    assert table3.lookup("wizzard").interface.container_symbol is csym
+    # Symbol of the same name imported from different Containers. This should
+    # raise an InternalError as it cannot be resolved.
+    table4 = symbols.SymbolTable()
+    csym3 = symbols.ContainerSymbol("Ridcully")
+    table4.add(csym3)
+    table4.add(symbols.DataSymbol("wizzard", datatype=symbols.UnresolvedType(),
+                                  interface=symbols.ImportInterface(csym3)))
+    with pytest.raises(InternalError) as err:
+        table1._handle_symbol_clash(table4.lookup("wizzard"), table4)
+    assert ("Symbol 'wizzard' imported from 'mustrum' clashes with a Symbol "
+            "of the same name imported from 'Ridcully'" in str(err.value))
+
+
 def test_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
     # pylint: disable=too-many-statements
