@@ -291,13 +291,14 @@ def test_routine_copy_in_container(fortran_reader):
     rt0 = psyir.walk(Routine)[0]
     rt1 = rt0.copy()
     assert rt1.parent is None
-    # TODO should 'trouble' exist in the Routine or do we leave dangling
-    # References - i.e. References to Symbols that aren't in any table
-    # in the tree? Would we then resolve these if/when the Routine is
-    # attached to another tree?
+    # The copy of just the routine (and not its parent container) leaves
+    # it with dangling References - i.e. References to Symbols that aren't in
+    # any table.
     assert "trouble" not in rt1.symbol_table
     ref = rt1.walk(Reference)[0]
     assert ref.symbol.name == "trouble"
+    # TODO #723 - these dangling References should be handled when the Routine
+    # is attached to a new parent.
 
 
 def test_routine_replace_with(fortran_reader):
