@@ -389,7 +389,8 @@ def test_node_list_ompparallel_gocean1p0():
     CALL extract_psy_data % PreDeclareVariable("i_post", i)
     CALL extract_psy_data % PreDeclareVariable("j_post", j)
     CALL extract_psy_data % PreDeclareVariable("p_fld_data_post", p_fld_data)
-    CALL extract_psy_data % PreDeclareVariable("p_fld_data_1_post", p_fld_data_1)
+    CALL extract_psy_data % PreDeclareVariable("p_fld_data_1_post", \
+p_fld_data_1)
     CALL extract_psy_data % PreDeclareVariable("u_fld_data_post", u_fld_data)
     CALL extract_psy_data % PreDeclareVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PreEndDeclaration
@@ -498,9 +499,7 @@ def test_driver_loop_variables():
     unexpected_lines = ['  integer :: j_post', 'j = 0']
 
     for line in unexpected_lines:
-        if line in driver_code:
-            pytest.xfail("#641 Loop variables are stored.")
-    assert False, "X-failing test working: #641 Loop variables."
+        assert line not in driver_code
 
 
 # -----------------------------------------------------------------------------
@@ -543,8 +542,8 @@ def test_driver_scalars(fortran_writer):
         driver_code = driver_file.read()
 
     expected_lines = ["use read_kernel_data_mod, only : ReadKernelDataType",
-                      "real*8 :: a_scalar",
                       "type(ReadKernelDataType) :: extract_psy_data",
+                      "real*8 :: a_scalar",
                       ("call extract_psy_data%OpenReadModuleRegion"
                        "('psy_single_invoke_scalar_float_test', "
                        "'invoke_0_bc_ssh-bc_ssh_code-r0')"),

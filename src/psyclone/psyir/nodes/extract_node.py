@@ -57,7 +57,7 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ContainerSymbol,
+    DataSymbol, INTEGER_TYPE, REAL8_TYPE, ArrayType, ContainerSymbol,
     ImportInterface)
 from psyclone.errors import InternalError
 
@@ -423,12 +423,14 @@ class ExtractNode(PSyDataNode):
         '''
         signature, _ = structure_reference.get_signature_and_indices()
         if Config.get().api == "gocean":
-            if signature[-1] == "data":
-                return ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED,
-                                             ArrayType.Extent.DEFERRED])
+            if signature[-1] in ("data", "gphiu"):
+                return ArrayType(REAL8_TYPE, [ArrayType.Extent.DEFERRED,
+                                              ArrayType.Extent.DEFERRED])
             if signature[-1] == "tmask":
                 return ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED,
                                                 ArrayType.Extent.DEFERRED])
+            if signature[-1] == "dx":
+                return REAL8_TYPE
 
         # Everything else defaults to integer
         return INTEGER_TYPE

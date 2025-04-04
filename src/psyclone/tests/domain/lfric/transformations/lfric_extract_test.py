@@ -304,7 +304,8 @@ def test_single_node_dynamo0p3():
     etrans.apply(schedule.children[0])
     code = str(psy.gen)
     output = '''\
-    CALL extract_psy_data % PreStart("single_invoke_psy", "invoke_0_testkern_type-testkern_code-r0", 17, 16)
+    CALL extract_psy_data % PreStart("single_invoke_psy", \
+"invoke_0_testkern_type-testkern_code-r0", 17, 16)
     CALL extract_psy_data % PreDeclareVariable("a", a)
     CALL extract_psy_data % PreDeclareVariable("f1_data", f1_data)
     CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
@@ -620,7 +621,8 @@ def test_extract_kernel_and_builtin_dynamo0p3():
     etrans.apply(schedule.children[1:3])
     code = str(psy.gen)
     output = """\
-    CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy", "invoke_0-r0", 9, 8)
+    CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy",\
+ "invoke_0-r0", 9, 8)
     CALL extract_psy_data % PreDeclareVariable("f3_data", f3_data)
     CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
     CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
@@ -654,7 +656,8 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       f2_data(df) = 0.0
     enddo
     do cell = loop2_start, loop2_stop, 1
-      call testkern_w2_only_code(nlayers_f3, f3_data, f2_data, ndf_w2, undf_w2, map_w2(:,cell))
+      call testkern_w2_only_code(nlayers_f3, f3_data, f2_data, ndf_w2, \
+undf_w2, map_w2(:,cell))
     enddo
     CALL extract_psy_data % PostStart
     CALL extract_psy_data % ProvideVariable("cell_post", cell)
@@ -672,7 +675,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_extract_colouring_omp_dynamo0p3(fortran_writer):
+def test_extract_colouring_omp_dynamo0p3():
     ''' Test that extraction of a Kernel in an Invoke after applying
     colouring and OpenMP optimisations produces the correct result
     in Dynamo0.3 API. '''
@@ -707,8 +710,9 @@ def test_extract_colouring_omp_dynamo0p3(fortran_writer):
     etrans.apply(child)
 
     code = str(psy.gen)
-    output = ("""
-    CALL extract_psy_data % PreStart("multikernel_invokes_7_psy", "invoke_0-ru_code-r0", 32, 29)
+    output = """
+    CALL extract_psy_data % PreStart("multikernel_invokes_7_psy", \
+"invoke_0-ru_code-r0", 32, 29)
     CALL extract_psy_data % PreDeclareVariable("a_data", a_data)
     CALL extract_psy_data % PreDeclareVariable("b_data", b_data)
     CALL extract_psy_data % PreDeclareVariable("basis_w0_qr", basis_w0_qr)
@@ -716,13 +720,16 @@ def test_extract_colouring_omp_dynamo0p3(fortran_writer):
     CALL extract_psy_data % PreDeclareVariable("basis_w3_qr", basis_w3_qr)
     CALL extract_psy_data % PreDeclareVariable("c_data", c_data)
     CALL extract_psy_data % PreDeclareVariable("cmap", cmap)
-    CALL extract_psy_data % PreDeclareVariable("diff_basis_w0_qr", diff_basis_w0_qr)
-    CALL extract_psy_data % PreDeclareVariable("diff_basis_w2_qr", diff_basis_w2_qr)
+    CALL extract_psy_data % PreDeclareVariable("diff_basis_w0_qr", \
+diff_basis_w0_qr)
+    CALL extract_psy_data % PreDeclareVariable("diff_basis_w2_qr", \
+diff_basis_w2_qr)
     CALL extract_psy_data % PreDeclareVariable("e_1_data", e_1_data)
     CALL extract_psy_data % PreDeclareVariable("e_2_data", e_2_data)
     CALL extract_psy_data % PreDeclareVariable("e_3_data", e_3_data)
     CALL extract_psy_data % PreDeclareVariable("istp", istp)
-    CALL extract_psy_data % PreDeclareVariable("last_edge_cell_all_colours", last_edge_cell_all_colours)
+    CALL extract_psy_data % PreDeclareVariable("last_edge_cell_all_colours", \
+last_edge_cell_all_colours)
     CALL extract_psy_data % PreDeclareVariable("loop4_start", loop4_start)
     CALL extract_psy_data % PreDeclareVariable("loop4_stop", loop4_stop)
     CALL extract_psy_data % PreDeclareVariable("loop5_start", loop5_start)
@@ -749,8 +756,10 @@ def test_extract_colouring_omp_dynamo0p3(fortran_writer):
     CALL extract_psy_data % PreDeclareVariable("c_data_post", c_data)
     CALL extract_psy_data % PreDeclareVariable("cell_post", cell)
     CALL extract_psy_data % PreDeclareVariable("colour_post", colour)
-    CALL extract_psy_data % PreDeclareVariable("diff_basis_w0_qr_post", diff_basis_w0_qr)
-    CALL extract_psy_data % PreDeclareVariable("diff_basis_w2_qr_post", diff_basis_w2_qr)
+    CALL extract_psy_data % PreDeclareVariable("diff_basis_w0_qr_post", \
+diff_basis_w0_qr)
+    CALL extract_psy_data % PreDeclareVariable("diff_basis_w2_qr_post", \
+diff_basis_w2_qr)
     CALL extract_psy_data % PreDeclareVariable("e_1_data_post", e_1_data)
     CALL extract_psy_data % PreDeclareVariable("e_2_data_post", e_2_data)
     CALL extract_psy_data % PreDeclareVariable("e_3_data_post", e_3_data)
@@ -768,8 +777,10 @@ def test_extract_colouring_omp_dynamo0p3(fortran_writer):
     CALL extract_psy_data % PreDeclareVariable("undf_w0_post", undf_w0)
     CALL extract_psy_data % PreDeclareVariable("undf_w2_post", undf_w2)
     CALL extract_psy_data % PreDeclareVariable("undf_w3_post", undf_w3)
-    CALL extract_psy_data % PreDeclareVariable("weights_xy_qr_post", weights_xy_qr)
-    CALL extract_psy_data % PreDeclareVariable("weights_z_qr_post", weights_z_qr)
+    CALL extract_psy_data % PreDeclareVariable("weights_xy_qr_post", \
+weights_xy_qr)
+    CALL extract_psy_data % PreDeclareVariable("weights_z_qr_post", \
+weights_z_qr)
     CALL extract_psy_data % PreEndDeclaration
     CALL extract_psy_data % ProvideVariable("a_data", a_data)
     CALL extract_psy_data % ProvideVariable("b_data", b_data)
@@ -778,13 +789,16 @@ def test_extract_colouring_omp_dynamo0p3(fortran_writer):
     CALL extract_psy_data % ProvideVariable("basis_w3_qr", basis_w3_qr)
     CALL extract_psy_data % ProvideVariable("c_data", c_data)
     CALL extract_psy_data % ProvideVariable("cmap", cmap)
-    CALL extract_psy_data % ProvideVariable("diff_basis_w0_qr", diff_basis_w0_qr)
-    CALL extract_psy_data % ProvideVariable("diff_basis_w2_qr", diff_basis_w2_qr)
+    CALL extract_psy_data % ProvideVariable("diff_basis_w0_qr", \
+diff_basis_w0_qr)
+    CALL extract_psy_data % ProvideVariable("diff_basis_w2_qr", \
+diff_basis_w2_qr)
     CALL extract_psy_data % ProvideVariable("e_1_data", e_1_data)
     CALL extract_psy_data % ProvideVariable("e_2_data", e_2_data)
     CALL extract_psy_data % ProvideVariable("e_3_data", e_3_data)
     CALL extract_psy_data % ProvideVariable("istp", istp)
-    CALL extract_psy_data % ProvideVariable("last_edge_cell_all_colours", last_edge_cell_all_colours)
+    CALL extract_psy_data % ProvideVariable("last_edge_cell_all_colours", \
+last_edge_cell_all_colours)
     CALL extract_psy_data % ProvideVariable("loop4_start", loop4_start)
     CALL extract_psy_data % ProvideVariable("loop4_stop", loop4_stop)
     CALL extract_psy_data % ProvideVariable("loop5_start", loop5_start)
@@ -849,7 +863,7 @@ diff_basis_w2_qr)
 weights_xy_qr)
     CALL extract_psy_data % ProvideVariable("weights_z_qr_post", weights_z_qr)
     CALL extract_psy_data % PostEnd
-    """)
+    """
     assert output in code
 
     # TODO #706: Compilation for LFRic extraction not supported yet.

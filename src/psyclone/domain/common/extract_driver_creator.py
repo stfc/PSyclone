@@ -41,9 +41,7 @@ the output data contained in the input file.
 '''
 
 
-from psyclone.configuration import Config
 from psyclone.domain.common import BaseDriverCreator
-from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   IntrinsicCall, Literal, Reference, Routine,
@@ -83,137 +81,7 @@ class ExtractDriverCreator(BaseDriverCreator):
                                "real": real_type}
 
     # -------------------------------------------------------------------------
-    def create_flattened_symbol(self, flattened_name, reference, symbol_table,
-                                writer=FortranWriter()):
-        '''Takes a reference to a structure and creates a new Symbol of the
-        type that the reference resolves to, e.g. fld%data... will be mapped
-        to `real, dimension(:,:)`, and `fld%data$whole%xstart` to `integer`.
-
-        :param str flattened_name: the new 'flattened' name to be used for
-            the newly created symbol.
-        :param reference: the reference to a structure.
-        :type reference: :py:class:`psyclone.psyir.nodes.StructureReference`
-        :param symbol_table: the symbol table to use to make sure a unique
-            name is created (based on `flattened_name`).
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param writer: a backend visitor to convert the reference into a
-            string, which is then used to find the corresponding
-            gocean-grid-properties.
-        :type writer:
-            :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
-
-        :raises InternalError: if the structure access is not to a
-            GOCean grid property.
-        :raises InternalError: if there is no default type defined for
-            the type of the GOCean grid property (defaults are defined in
-            the constructor of this class).
-        :raises InternalError: if the gocean grid property type is
-            neither 'array' nor 'scalar'.
-
-        :returns: the new symbol created.
-        :rtype: :py:class:`psyclone.psyir.symbol.DataSymbol`
-
-        '''
-        fortran_expression = writer(reference)
-        api_config = Config.get().api_conf("gocean")
-        grid_properties = api_config.grid_properties
-
-        for prop_name in grid_properties:
-            gocean_property = grid_properties[prop_name]
-            deref_name = gocean_property.fortran.format(reference.name)
-            if fortran_expression == deref_name:
-                break
-        else:
-            raise InternalError(
-                f"Could not find type for reference '{fortran_expression}' "
-                f"in the config file '{Config.get().filename}'.")
-        try:
-            base_type = self._default_types[gocean_property.intrinsic_type]
-        except KeyError as err:
-            raise InternalError(
-                              f"Type '{gocean_property.intrinsic_type}' of "
-                              f"the property reference '{fortran_expression}' "
-                              f"as defined in the config file "
-                              f"'{Config.get().filename}' is not supported "
-                              f"in the GOcean API.") from err
-        # Handle name clashes (e.g. if the user used a variable that is
-        # the same as a flattened grid property)
-        flattened_name = symbol_table.next_available_name(flattened_name)
-        if gocean_property.type == "scalar":
-            new_symbol = DataSymbol(flattened_name, base_type)
-
-        elif gocean_property.type == "array":
-            # At this stage all gocean arrays are 2d (even integer ones)
-            # so no need to add any further tests here.
-            array = ArrayType(base_type, [ArrayType.Extent.DEFERRED,
-                                          ArrayType.Extent.DEFERRED])
-            new_symbol = DataSymbol(flattened_name, array)
-        else:
-            raise InternalError(f"The expression '{fortran_expression}' maps "
-                                f"to an unknown GOcean property type "
-                                f"'{gocean_property.type}' in the config "
-                                f"file '{Config.get().filename}'.")
-
-        return new_symbol
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def flatten_string(fortran_string):
-        '''Replaces all `%` with `_` in the string, creating a 'flattened'
-        name.
-
-        :param str fortran_string: the Fortran string containing '%'.
-
-        :returns: a flattened string (all '%' replaced with '_'.)
-        :rtype: str
-
-        '''
-        return fortran_string.replace("%", "_")
-
-    # -------------------------------------------------------------------------
-    def flatten_reference(self, old_reference, symbol_table,
-                          writer=FortranWriter()):
-        '''Replaces `old_reference` which is a structure type with a new
-        simple Reference and a flattened name (replacing all % with _).
-
-        :param old_reference: a reference to a structure member.
-        :type old_reference:
-            :py:class:`psyclone.psyir.nodes.StructureReference`
-        :param symbol_table: the symbol table to which to add the newly
-            defined flattened symbol.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param writer: a Fortran writer used when flattening a
-            `StructureReference`.
-        :type writer: :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
-
-        '''
-        # A field access (`fld%data`) will get the `%data` removed, since then
-        # this avoids a potential name clash (`fld` is guaranteed to
-        # be unique, since it's a variable already, but `fld_data` could clash
-        # with a user variable if the user uses `fld` and `fld_data`).
-        # Furthermore, the netcdf file declares the variable without `%data`,
-        # so removing `%data` here also simplifies code creation later on.
-        signature, _ = old_reference.get_signature_and_indices()
-        fortran_string = writer(old_reference)
-        if signature[-1] == "data":
-            # Remove %data
-            fortran_string = fortran_string[:-5]
-        try:
-            symbol = symbol_table.lookup_with_tag(fortran_string)
-        except KeyError:
-            flattened_name = self.flatten_string(fortran_string)
-            # Symbol not in table, create a new symbol
-            symbol = self.create_flattened_symbol(flattened_name,
-                                                  old_reference, symbol_table,
-                                                  writer)
-            symbol_table.add(symbol, tag=fortran_string)
-        # We need to create a new, flattened Reference and replace the
-        # StructureReference with it:
-        old_reference.replace_with(Reference(symbol))
-
-    # -------------------------------------------------------------------------
-    def add_all_kernel_symbols(self, sched, symbol_table,
-                               writer=FortranWriter()):
+    def add_all_kernel_symbols(self, sched):
         '''This function adds all symbols used in `sched` to the symbol table.
         It uses GOcean-specific knowledge to declare fields and flatten their
         name.
@@ -235,6 +103,7 @@ class ExtractDriverCreator(BaseDriverCreator):
 
         '''
         all_references = sched.walk(Reference)
+        symbol_table = sched.symbol_table
         # First we add all non-structure names to the symbol table. This way
         # the flattened name can be ensured not to clash with a variable name
         # used in the program.
@@ -248,7 +117,6 @@ class ExtractDriverCreator(BaseDriverCreator):
             if isinstance(dt.precision, Symbol):
                 dt._precision = 8
             new_symbol = symbol_table.new_symbol(root_name=reference.name,
-                                                 tag=reference.name,
                                                  symbol_type=DataSymbol,
                                                  datatype=dt)
             reference.symbol = new_symbol
@@ -313,7 +181,7 @@ class ExtractDriverCreator(BaseDriverCreator):
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
             # in the symbol table (in add_all_kernel_symbols).
-            sig_str = ExtractDriverCreator.flatten_string(str(signature))
+            sig_str = str(signature)
             try:
                 sym = symbol_table.lookup(sig_str)
                 name_lit = Literal(sig_str, CHARACTER_TYPE)
@@ -331,7 +199,7 @@ class ExtractDriverCreator(BaseDriverCreator):
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
             # in the symbol table (in add_all_kernel_symbols).
-            sig_str = ExtractDriverCreator.flatten_string(str(signature))
+            sig_str = str(signature)
             try:
                 sym = symbol_table.lookup(sig_str)
 
@@ -454,14 +322,17 @@ class ExtractDriverCreator(BaseDriverCreator):
                                        interface=ImportInterface(psy_data_mod))
         program_symbol_table.add(psy_data_type)
 
-        writer = FortranWriter()
         # The validation of the extract transform guarantees that all nodes
         # in the node list have the same parent.
-        schedule_copy = nodes[0].parent.copy()
+        if isinstance(nodes, list):
+            program.children.extend([n.copy() for n in nodes[0].children])
+        else:
+            program.children.extend([n.copy() for n in nodes.children])
+
+        schedule_copy = program
         # schedule_copy.lower_to_language_level()
         self.import_modules(program, schedule_copy)
-        self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
-                                    writer)
+        self.add_all_kernel_symbols(schedule_copy)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,
@@ -475,10 +346,6 @@ class ExtractDriverCreator(BaseDriverCreator):
 
         output_symbols = self.create_read_in_code(program, psy_data,
                                                   read_write_info, postfix)
-        # Copy over all of the executable part of the extracted region
-        all_children = schedule_copy.children[0].pop_all_children()
-        for child in all_children:
-            program.addchild(child)
 
         self.add_result_tests(program, output_symbols)
 

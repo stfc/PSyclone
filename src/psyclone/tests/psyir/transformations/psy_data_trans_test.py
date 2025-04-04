@@ -41,7 +41,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import PSyDataNode
-from psyclone.psyir.transformations import (ExtractTrans, PSyDataTrans,
+from psyclone.psyir.transformations import (PSyDataTrans,
                                             ReadOnlyVerifyTrans,
                                             TransformationError)
 from psyclone.tests.utilities import get_invoke
