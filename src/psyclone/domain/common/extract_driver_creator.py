@@ -43,14 +43,15 @@ the output data contained in the input file.
 
 from psyclone.domain.common import BaseDriverCreator
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
-                                  IntrinsicCall, Literal, Reference, Routine,
+from psyclone.psyir.nodes import (Call, FileContainer,
+                                  Literal, Reference, Routine,
                                   StructureReference)
-from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE, IntrinsicSymbol,
+from psyclone.psyir.symbols import (CHARACTER_TYPE, IntrinsicSymbol,
                                     ContainerSymbol, DataSymbol, Symbol,
                                     DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
                                     REAL8_TYPE, RoutineSymbol, ScalarType)
+from psyclone.psyGen import InvokeSchedule
 
 # TODO 1382: once we support LFRic, make this into a proper base class
 # and put the domain-specific implementations into the domain/* directories.
@@ -81,7 +82,7 @@ class ExtractDriverCreator(BaseDriverCreator):
                                "real": real_type}
 
     # -------------------------------------------------------------------------
-    def add_all_kernel_symbols(self, sched):
+    def add_all_kernel_symbols(self, sched, symbol_table):
         '''This function adds all symbols used in `sched` to the symbol table.
         It uses GOcean-specific knowledge to declare fields and flatten their
         name.
@@ -103,7 +104,6 @@ class ExtractDriverCreator(BaseDriverCreator):
 
         '''
         all_references = sched.walk(Reference)
-        symbol_table = sched.symbol_table
         # First we add all non-structure names to the symbol table. This way
         # the flattened name can be ensured not to clash with a variable name
         # used in the program.
@@ -120,117 +120,6 @@ class ExtractDriverCreator(BaseDriverCreator):
                                                  symbol_type=DataSymbol,
                                                  datatype=dt)
             reference.symbol = new_symbol
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def create_read_in_code(program, psy_data, read_write_info, postfix):
-        '''This function creates the code that reads in the NetCDF file
-        produced during extraction. For each:
-
-        - variable that is read-only, it will declare the symbol and add code
-          that reads in the variable using the PSyData library.
-        - variable that is read and written, it will create code to read in the
-          variable that is read, and create a new variable with the same name
-          and "_post" added which is read in to store the values from the
-          NetCDF file after the instrumented region was executed. In the end,
-          the variable that was read and written should have the same value
-          as the corresponding "_post" variable.
-        - variable that is written only, it will create a variable with "_post"
-          as postfix that reads in the output data from the NetCDF file. It
-          then also declares a variable without postfix (which will be the
-          parameter to the function), allocates it based on the shape of
-          the corresponding "_post" variable, and initialises it with 0.
-
-        :param program: the PSyIR Routine to which any code must
-            be added. It also contains the symbol table to be used.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param psy_data: the PSyData symbol to be used.
-        :type psy_data: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param read_write_info: information about all input and output
-            parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str postfix: a postfix that is added to a variable to
-            create the corresponding variable that stores the output
-            value from the kernel data file.
-
-        :returns: a list with all output parameters, i.e. variables that
-            need to be verified after executing the kernel. Each entry is
-            a 2-tuple containing the symbol of the computed variable, and
-            the symbol of the variable that contains the value read from
-            the file.
-        :rtype: list[tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
-            :py:class:`psyclone.psyir.symbols.Symbol`]]
-
-        '''
-        symbol_table = program.scope.symbol_table
-        read_var = f"{psy_data.name}%ReadVariable"
-
-        # Collect all output symbols to later create the tests for
-        # correctness. This list stores 2-tuples: first one the
-        # variable that stores the output from the kernel, the second
-        # one the variable that stores the output values read from the
-        # file. The content of these two variables should be identical
-        # at the end.
-        output_symbols = []
-
-        # First handle variables that are read:
-        # -------------------------------------
-        for signature in read_write_info.signatures_read:
-            # Find the right symbol for the variable. Note that all variables
-            # in the input and output list have been detected as being used
-            # when the variable accesses were analysed. Therefore, these
-            # variables have References, and will already have been declared
-            # in the symbol table (in add_all_kernel_symbols).
-            sig_str = str(signature)
-            try:
-                sym = symbol_table.lookup(sig_str)
-                name_lit = Literal(sig_str, CHARACTER_TYPE)
-                BaseDriverCreator.add_call(program, read_var,
-                                           [name_lit, Reference(sym)])
-            except KeyError:
-                print("Missing", sig_str)
-                pass
-
-        # Then handle all variables that are written (note that some
-        # variables might be read and written)
-        for signature in read_write_info.signatures_written:
-            # Find the right symbol for the variable. Note that all variables
-            # in the input and output list have been detected as being used
-            # when the variable accesses were analysed. Therefore, these
-            # variables have References, and will already have been declared
-            # in the symbol table (in add_all_kernel_symbols).
-            sig_str = str(signature)
-            try:
-                sym = symbol_table.lookup(sig_str)
-
-                # The variable is written (and maybe read as well)
-                # ------------------------------------------------
-                # Declare a 'post' variable of the same type and
-                # read in its value.
-                post_name = sig_str+postfix
-                post_sym = symbol_table.new_symbol(post_name,
-                                                   symbol_type=DataSymbol,
-                                                   datatype=sym.datatype)
-                BaseDriverCreator.add_call(program, read_var,
-                                           [Literal(post_name, CHARACTER_TYPE),
-                                            Reference(post_sym)])
-
-                # Now if a variable is written to, but not read, the variable
-                # is not allocated. So we need to allocate it and set it to 0.
-                if not read_write_info.is_read(signature):
-                    if isinstance(post_sym.datatype, ArrayType):
-                        alloc = IntrinsicCall.create(
-                            IntrinsicCall.Intrinsic.ALLOCATE,
-                            [Reference(sym), ("mold", Reference(post_sym))])
-                        program.addchild(alloc)
-                    set_zero = Assignment.create(Reference(sym),
-                                                 Literal("0", INTEGER_TYPE))
-                    program.addchild(set_zero)
-                output_symbols.append((sym, post_sym))
-            except KeyError:
-                print("Missing", sig_str)
-                pass
-        return output_symbols
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -322,17 +211,13 @@ class ExtractDriverCreator(BaseDriverCreator):
                                        interface=ImportInterface(psy_data_mod))
         program_symbol_table.add(psy_data_type)
 
-        # The validation of the extract transform guarantees that all nodes
-        # in the node list have the same parent.
-        if isinstance(nodes, list):
-            program.children.extend([n.copy() for n in nodes[0].children])
-        else:
-            program.children.extend([n.copy() for n in nodes.children])
+        # Create a routine with a copy of the region of interest
+        schedule_copy = Routine.create("name")
+        schedule_copy.children.extend([n.copy() for n in nodes[0].children])
+        og_symtab = nodes[0].ancestor(InvokeSchedule).symbol_table
 
-        schedule_copy = program
-        # schedule_copy.lower_to_language_level()
         self.import_modules(program, schedule_copy)
-        self.add_all_kernel_symbols(schedule_copy)
+        # self.add_all_kernel_symbols(schedule_copy, program_symbol_table)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,
@@ -344,8 +229,15 @@ class ExtractDriverCreator(BaseDriverCreator):
         self.add_call(program, f"{psy_data.name}%OpenReadModuleRegion",
                       [module_str, region_str])
 
-        output_symbols = self.create_read_in_code(program, psy_data,
-                                                  read_write_info, postfix)
+        output_symbols = self._create_read_in_code(program, psy_data,
+                                                   og_symtab,
+                                                   read_write_info, postfix)
+
+        # Move the nodes making up the extracted region into the Schedule
+        # of the driver program
+        all_children = schedule_copy.pop_all_children()
+        for child in all_children:
+            program.addchild(child)
 
         self.add_result_tests(program, output_symbols)
 

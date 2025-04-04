@@ -52,7 +52,7 @@ from psyclone.errors import InternalError
 from psyclone.domain.common import ExtractDriverCreator
 from psyclone.domain.gocean.transformations import (GOceanExtractTrans,
                                                     GOConstLoopBoundsTrans)
-from psyclone.psyir.nodes import Reference, Routine
+from psyclone.psyir.nodes import Reference, Routine, Loop
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
 from psyclone.psyir.tools import CallTreeUtils
 from psyclone.psyir.transformations import PSyDataTrans
@@ -194,22 +194,24 @@ def test_driver_creation2():
 
     '''
     # Use tmpdir so that the driver is created in tmp
+    psy, invoke = get_invoke("driver_test.f90", GOCEAN_API,
+                             idx=0, dist_mem=False)
 
-    _, invoke = get_invoke("driver_test.f90", GOCEAN_API,
-                           idx=0, dist_mem=False)
-
-    nodes = [invoke.schedule.children[0]]
     clb_trans = GOConstLoopBoundsTrans()
     clb_trans.apply(invoke.schedule)
+    etrans = GOceanExtractTrans()
+    first_loop = invoke.schedule.walk(Loop)[0]
+    etrans.apply(first_loop, {'create_driver': True,
+                              'region_name':
+                              ("module_name", "local_name")})
 
-    ctu = CallTreeUtils()
-    read_write_info = ctu.get_in_out_parameters(nodes)
+    _ = psy.gen
+    print(psy.gen)
+    driver = Path("driver-module_name-local_name.f90")
+    assert driver.is_file()
 
-    edc = ExtractDriverCreator()
-
-    driver_code = edc.get_driver_as_string(nodes, read_write_info,
-                                           "extract", "_post",
-                                           ("module_name", "local_name"))
+    with driver.open("r", encoding="utf-8") as driver_file:
+        driver_code = driver_file.read()
 
     # This is an excerpt of the code that should get created.
     # It is tested line by line since there is other code in between
@@ -255,7 +257,7 @@ def test_driver_creation2():
   call compare_summary()'''
     expected_lines = expected.split("\n")
     for line in expected_lines:
-        assert line in driver_code
+        assert line in driver_code, line + "\n -- not in --\n" + driver_code
 
 
 # -----------------------------------------------------------------------------
