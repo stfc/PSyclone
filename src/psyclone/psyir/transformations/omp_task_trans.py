@@ -202,3 +202,7 @@ class OMPTaskTrans(ParallelLoopTrans):
             options = {}
         self._inline_kernels(node)
         super().apply(node, options)
+
+
+# For AutoAPI documentation generation.
+__all__ = ["OMPTaskTrans"]

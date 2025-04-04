@@ -443,3 +443,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
+
+
+# For AutoAPI documentation generation.
+__all__ = ["ParallelLoopTrans"]
