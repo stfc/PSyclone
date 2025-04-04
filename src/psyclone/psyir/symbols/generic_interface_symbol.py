@@ -216,6 +216,9 @@ class GenericInterfaceSymbol(RoutineSymbol):
         have matching names. If there is no match for a given Symbol then it
         is left unchanged.
 
+        Before performing any replacement, the supplied symbol is specialised
+        to a RoutineSymbol, if necessary.
+
         :param table_or_symbol: the symbol table from which to get replacement
             symbols or a single, replacement Symbol.
         :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
@@ -233,8 +236,8 @@ class GenericInterfaceSymbol(RoutineSymbol):
             else:
                 new_rt = table_or_symbol.lookup(routine.symbol.name,
                                                 otherwise=routine.symbol)
-                if not isinstance(new_rt, RoutineSymbol):
-                    new_rt.specialise(RoutineSymbol)
+            if not isinstance(new_rt, RoutineSymbol):
+                new_rt.specialise(RoutineSymbol)
             new_routines.append((new_rt, routine.from_container))
         self.routines = new_routines
 

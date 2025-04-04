@@ -37,6 +37,8 @@
 ''' This module contains pytest tests for GenericInterfaceSymbol.'''
 
 import pytest
+
+from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.symbols import (
     ContainerSymbol, GenericInterfaceSymbol, ImportInterface, INTEGER_TYPE,
     RoutineSymbol, SymbolTable, Symbol, UnresolvedInterface)
@@ -163,7 +165,8 @@ def test_gis_copy_properties():
         assert info.symbol.interface.container_symbol is csym
 
 
-def test_gis_replace_symbols_using():
+@pytest.mark.parametrize("table", [None, SymbolTable()])
+def test_gis_replace_symbols_using(table):
     '''Test that replace_symbols_using() correctly updates symbols referred
     to by a GenericInterfaceSymbol.
 
@@ -173,21 +176,44 @@ def test_gis_replace_symbols_using():
     birch = RoutineSymbol("birch")
     coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False),
                                                  (birch, True)])
-    table = SymbolTable()
     for rinfo in coppice.routines:
         assert rinfo.symbol in [ash, holly, birch]
     ashling = ash.copy()
-    table.add(ashling)
+
     # Test when the replacement symbol is currently just a Symbol. It should
     # be converted into a RoutineSymbol (in place).
     birch = Symbol("birch")
-    table.add(birch)
-    coppice.replace_symbols_using(table)
+    if table is not None:
+        table.add(ashling)
+        table.add(birch)
+        coppice.replace_symbols_using(table)
+    else:
+        coppice.replace_symbols_using(ashling)
+        coppice.replace_symbols_using(birch)
     for rinfo in coppice.routines:
         assert rinfo.symbol in [ashling, holly, birch]
         assert isinstance(rinfo.symbol, RoutineSymbol)
     newholly = holly.copy()
-    table.add(newholly)
-    coppice.replace_symbols_using(table)
+    if table is not None:
+        table.add(newholly)
+        coppice.replace_symbols_using(table)
+    else:
+        coppice.replace_symbols_using(newholly)
     for rinfo in coppice.routines:
         assert rinfo.symbol in [ashling, newholly, birch]
+
+
+def test_gis_reference_accesses():
+    '''Tests for the reference_accesses() method.'''
+    ash = RoutineSymbol("ash")
+    holly = RoutineSymbol("holly")
+    birch = RoutineSymbol("birch")
+    coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False),
+                                                 (birch, True)])
+    vai = VariablesAccessInfo()
+    coppice.reference_accesses(vai)
+    all_names = [sig.var_name for sig in vai.all_signatures]
+    assert len(all_names) == 3
+    assert "ash" in all_names
+    assert "holly" in all_names
+    assert "birch" in all_names
