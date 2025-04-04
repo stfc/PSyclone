@@ -48,7 +48,8 @@ is not tested here.
 
 import pytest
 
-from psyclone.core import Signature, SingleVariableAccessInfo
+from psyclone.core import (
+    Signature, SingleVariableAccessInfo, VariablesAccessInfo)
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Literal, KernelSchedule
 from psyclone.psyir.symbols import (
@@ -441,24 +442,39 @@ def test_symbol_array_handling():
     assert not asym.is_array_access("i", svinfo)
 
 
-def test_symbol_replace_symbols_using():
+@pytest.mark.parametrize("table", [None, SymbolTable()])
+def test_symbol_replace_symbols_using(table):
     '''Test the replace_symbols_using() method in Symbol.'''
     interf = DefaultModuleInterface()
     asym = Symbol("a", interface=interf)
-    table = SymbolTable()
-    # No symbols in table and nothing to update.
-    asym.replace_symbols_using(table)
+    if table is not None:
+        # No symbols in table and nothing to update.
+        asym.replace_symbols_using(table)
     assert asym.interface is interf
     cont = ContainerSymbol("genesis")
     binterf = ImportInterface(cont, orig_name="e")
     bsym = Symbol("b", interface=binterf)
     # No symbols in table.
-    bsym.replace_symbols_using(table)
+    if table is not None:
+        bsym.replace_symbols_using(table)
     assert bsym.interface is binterf
     assert bsym.interface.container_symbol is cont
     # Add a new ContainerSymbol to the table.
     cont2 = cont.copy()
-    table.add(cont2)
-    bsym.replace_symbols_using(table)
+    if table is not None:
+        table.add(cont2)
+        bsym.replace_symbols_using(table)
+    else:
+        bsym.replace_symbols_using(cont2)
     assert bsym.interface is not binterf
     assert bsym.interface.container_symbol is cont2
+
+
+def test_symbol_reference_accesses():
+    '''Test that the reference_accesses() method of a Symbol does not add any
+    accesses.'''
+    vai = VariablesAccessInfo()
+    interf = DefaultModuleInterface()
+    asym = Symbol("a", interface=interf)
+    asym.reference_accesses(vai)
+    assert not vai.all_signatures

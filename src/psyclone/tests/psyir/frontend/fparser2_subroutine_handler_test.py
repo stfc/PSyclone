@@ -273,6 +273,7 @@ def test_function_result_suffix(fortran_reader, fortran_writer,
     assert len(routines) == 1
     assert (routines[0].return_symbol is
             routines[0].symbol_table.lookup("my_val"))
+    assert "kind_params" not in routines[0].symbol_table
     result = fortran_writer(psyir)
     assert expected in result
 

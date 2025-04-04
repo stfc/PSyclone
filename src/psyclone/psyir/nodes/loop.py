@@ -43,7 +43,7 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes import Schedule
-from psyclone.psyir.symbols import ScalarType, DataSymbol
+from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import DeclGen, PSyIRGen, UseGen
@@ -102,7 +102,7 @@ class Loop(Statement):
         self._variable = None
         if variable is not None:
             self.variable = variable
-        # Hold the set of symbols that will be private/local to the interation
+        # Hold the set of symbols that will be private/local to the iteration
         # if this loop is run concurrently. Alternatively this could be
         # implemented by moving the symbols to the loop_body symbol table.
         self._explicitly_private_symbols = set()
@@ -427,32 +427,44 @@ class Loop(Statement):
         self._check_variable(var)
         self._variable = var
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace the Symbol referred to by this object's `variable` and
         `explicit_local_symbols` properties with those in the supplied
-        SymbolTable with a matching name. If there is no matches then they
-        are left unchanged.
+        SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
-        :param table: symbol table in which to look up the replacement symbol.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         if self._variable:
-            try:
-                new_sym = table.lookup(self._variable.name)
-                self.variable = new_sym
-            except KeyError:
-                pass
+            if isinstance(table_or_symbol, Symbol):
+                if table_or_symbol.name.lower() == self._variable.name.lower():
+                    self._variable = table_or_symbol
+            else:
+                try:
+                    new_sym = table_or_symbol.lookup(self._variable.name)
+                    self.variable = new_sym
+                except KeyError:
+                    pass
 
         for symbol in list(self._explicitly_private_symbols):
-            try:
-                new_sym = table.lookup(symbol.name)
-                self._explicitly_private_symbols.remove(symbol)
-                self._explicitly_private_symbols.add(new_sym)
-            except KeyError:
-                pass
-        super().replace_symbols_using(table)
+            if isinstance(table_or_symbol, Symbol):
+                if table_or_symbol.name.lower() == symbol.name.lower():
+                    self._explicitly_private_symbols.remove(symbol)
+                    self._explicitly_private_symbols.add(table_or_symbol)
+            else:
+                try:
+                    new_sym = table_or_symbol.lookup(symbol.name)
+                    self._explicitly_private_symbols.remove(symbol)
+                    self._explicitly_private_symbols.add(new_sym)
+                except KeyError:
+                    pass
+        super().replace_symbols_using(table_or_symbol)
 
     def __str__(self):
         # Give Loop sub-classes a specialised name

@@ -2,7 +2,7 @@ module boundary_conditions_ne_offset_mod
   use argument_mod
   use grid_mod
   use kernel_mod
-  use kind_params_mod
+  use kind_params_mod, only: go_wp
   implicit none
 
   private

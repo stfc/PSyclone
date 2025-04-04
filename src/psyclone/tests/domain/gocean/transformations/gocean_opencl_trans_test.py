@@ -1289,5 +1289,5 @@ def test_opencl_kernel_with_use():
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched)
     assert ("'kernel_with_use_code' contains the following symbols with "
-            "'global' scope: ['rdt', 'magic']. An OpenCL kernel cannot call "
-            "other kernels and all of the data" in str(err.value))
+            "'global' scope: ['magic', 'rdt']. An OpenCL kernel "
+            "cannot call other kernels and all of the data" in str(err.value))
