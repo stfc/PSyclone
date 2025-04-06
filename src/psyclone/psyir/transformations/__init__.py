@@ -106,6 +106,8 @@ from psyclone.psyir.transformations.replace_induction_variables_trans import \
 from psyclone.psyir.transformations.replace_reference_by_literal_trans import (
     ReplaceReferenceByLiteralTrans,
 )
+from psyclone.psyir.transformations.remove_ifblock_trans import \
+    RemoveIfBlockTrans
 from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
 from psyclone.psyir.transformations.scalarisation_trans import \
@@ -153,5 +155,7 @@ __all__ = [
     "ReplaceInductionVariablesTrans",
     "ReplaceReferenceByLiteralTrans",
     "TransformationError",
+    "RemoveIfBlockTrans",
+    "ScalarisationTrans",
     "ValueRangeCheckTrans",
 ]
