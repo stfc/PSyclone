@@ -44,7 +44,7 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
-    Reference2ArrayRangeTrans, ScalarisationTrans)
+    Reference2ArrayRangeTrans, ScalarisationTrans, IncreaseRankLoopArraysTrans)
 from psyclone.transformations import TransformationError
 
 
@@ -282,8 +282,9 @@ def normalise_loops(
         convert_array_notation: bool = True,
         loopify_array_intrinsics: bool = True,
         convert_range_loops: bool = True,
-        hoist_expressions: bool = True,
         scalarise_loops: bool = False,
+        increase_array_ranks: bool = True,
+        hoist_expressions: bool = True,
         ):
     ''' Normalise all loops in the given schedule so that they are in an
     appropriate form for the Parallelisation transformations to analyse
@@ -298,10 +299,12 @@ def normalise_loops(
         operate on arrays to explicit loops (currently only maxval).
     :param bool convert_range_loops: whether to convert ranges to explicit
         loops.
-    :param bool hoist_expressions: whether to hoist bounds and loop invariant
-        statements out of the loop nest.
     :param scalarise_loops: whether to attempt to convert arrays to scalars
         where possible, default is False.
+    :param increase_array_ranks: whether to increase the rank of selected
+        arrays.
+    :param bool hoist_expressions: whether to hoist bounds and loop invariant
+        statements out of the loop nest.
     '''
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
@@ -351,6 +354,34 @@ def normalise_loops(
         scalartrans = ScalarisationTrans()
         for loop in loops:
             scalartrans.apply(loop)
+
+    if increase_array_ranks:
+        irlatrans = IncreaseRankLoopArraysTrans()
+        if schedule.name == "dyn_zdf":
+            for outer_loop in schedule.walk(Loop, stop_type=Loop):
+                if outer_loop.variable.name == "jj":
+                    irlatrans.apply(
+                        outer_loop,
+                        options={'arrays': ['zwd', 'zwi', 'zws']})
+                    # Now reorder the outer jj loop by:
+                    for child in outer_loop.loop_body[:]:
+                        # moving all its contents where the loop was
+                        outer_loop.parent.addchild(child.detach(),
+                                                   index=outer_loop.position)
+                        # and add a copy of the jj loop above each inner loop
+                        for inner_loop in child.walk(Loop, stop_type=Loop):
+                            if isinstance(inner_loop.loop_body[0], Loop):
+                                inner_loop = inner_loop.loop_body[0]
+                            inner_loop.replace_with(
+                                Loop.create(
+                                    outer_loop.variable,
+                                    outer_loop.start_expr.copy(),
+                                    outer_loop.stop_expr.copy(),
+                                    outer_loop.step_expr.copy(),
+                                    children=[inner_loop.copy()]
+                                )
+                            )
+                    outer_loop.detach()
 
     if hoist_expressions:
         # First hoist all possible expressions
@@ -455,11 +486,12 @@ def insert_explicit_loop_parallelism(
             # And if successful, the region directive on top.
             if region_directive_trans:
                 region_directive_trans.apply(loop.parent.parent)
-        except TransformationError:
+        except TransformationError as err:
             # This loop cannot be transformed, proceed to next loop.
             # The parallelisation restrictions will be explained with a comment
             # associted to the loop in the generated output.
-            continue
+            if not loop.preceding_comment:
+                loop.append_preceding_comment(str(err.value))
 
 
 def add_profiling(children):
