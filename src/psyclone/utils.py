@@ -123,7 +123,6 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         added_parameters.returns = None
 
         func_data.merge(added_parameters, replace_args=False)
-
         func.__doc__ = gen_docstring_from_DocstringData(func_data)
 
     def wrapper():

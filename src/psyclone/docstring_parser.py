@@ -41,6 +41,7 @@ Marcin Kurczewksi - https://github.com/rr-/docstring_parser.
 from collections import OrderedDict
 from dataclasses import dataclass
 import inspect
+import os
 import re
 from typing import Any, List, Union
 
@@ -253,7 +254,7 @@ def gen_docstring_from_ArgumentData(
     if argdata.inline_type:
         rstr += f"{argdata.datatype} {argdata.name}: {argdata.desc}"
     else:
-        rstr += f"{argdata.name}: {argdata.desc}\n"
+        rstr += f"{argdata.name}: {argdata.desc}{os.linesep}"
         rstr += f":type {argdata.name}: {argdata.datatype}"
 
     return rstr
@@ -267,7 +268,7 @@ def gen_docstring_from_ReturnsData(rdata: ReturnsData) -> str:
     if rdata.inline_type:
         return f":returns {rdata.datatype}: {rdata.desc}"
     else:
-        rstr = f":returns: {rdata.desc}\n"
+        rstr = f":returns: {rdata.desc}{os.linesep}"
         rstr += f":rtype: {rdata.datatype}"
         return rstr
 
@@ -289,7 +290,14 @@ def gen_docstring_from_DocstringData(
     :returns: The docstring for the input docdata.
     '''
     if docdata.desc is not None:
-        description = indentation + docdata.desc + "\n"
+        # Need to indent the docstring description if it is multiline.
+        if "\n" in docdata.desc:
+            lines = docdata.desc.split("\n")
+            description = ""
+            for line in lines:
+                description += indentation + line + os.linesep
+        else:
+            description = indentation + docdata.desc + os.linesep
     else:
         description = ""
 
@@ -300,9 +308,13 @@ def gen_docstring_from_DocstringData(
         )
         if "\n" in argstring:
             lines = argstring.split("\n")
-            argstring = ""
-            for line in lines:
-                argstring += indentation + line + "\n"
+            argstring = indentation + lines[0] + os.linesep
+            for line in lines[1:]:
+                if ":type" not in line:
+                    argstring += indentation*2 + line + os.linesep
+                else:
+                    argstring += indentation + line + os.linesep
+            # Remove the last newline character
             argstring = argstring[:-1]
         else:
             argstring = indentation + argstring
@@ -310,15 +322,26 @@ def gen_docstring_from_DocstringData(
 
     raisestrings = []
     for element in docdata.raises:
-        raisestring = indentation + gen_docstring_from_RaisesData(element)
+        raisesdocstring = gen_docstring_from_RaisesData(element)
+        if "\n" in raisesdocstring:
+            lines = raisesdocstring.split("\n")
+            raisestring = indentation + lines[0] + os.linesep
+            for line in lines[1:]:
+                raisestring += indentation*2 + line.rstrip() + os.linesep
+            # Remove the last \n from the generated string
+            raisestring = raisestring[:-1]
+        else:
+            raisestring = indentation + gen_docstring_from_RaisesData(element)
         raisestrings.append(raisestring)
 
     if docdata.returns is not None:
         returnstring = gen_docstring_from_ReturnsData(docdata.returns)
         if "\n" in returnstring:
             first_line, rest = returnstring.split("\n", 1)
-            returnstring = indentation + first_line + "\n"
-            returnstring += indentation + rest + "\n"
+            lines = returnstring.split("\n")
+            returnstring = ""
+            for line in lines:
+                returnstring += indentation + line + os.linesep
         else:
             returnstring = indentation + returnstring + "\n"
     else:
@@ -326,14 +349,14 @@ def gen_docstring_from_DocstringData(
 
     docstring = description
 
-    docstring += "\n".join(argstrings)
+    docstring += os.linesep.join(argstrings)
     if len(argstrings) > 0:
         docstring += "\n"
 
     # Add an empty line between param and raises
     if len(argstrings) > 0 and len(raisestrings) > 0:
         docstring += "\n"
-    docstring += "\n".join(raisestrings)
+    docstring += os.linesep.join(raisestrings)
     if len(raisestrings) > 0:
         docstring += "\n"
 

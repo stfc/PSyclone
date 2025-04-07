@@ -480,3 +480,77 @@ def test_parse_psyclone_docstring_from_object():
     assert ("Found a type string with no corresponding parameter: "
             "'param' type found with no parameter docstring."
             in str(excinfo.value))
+
+
+def test_docstring_is_reversible():
+    '''Test that the outputs from the DocstringParser are reversible, i.e.
+    that updating the __doc__ with the output from the docstring geneator
+    function still creates the correct DocData objects.'''
+
+    def docstring_object(param1, param2, param3, **kwargs):
+        '''
+        This is my docstring, its very long and we need to check that we can
+        correctly generate multiline docstring reversibly without causing
+        any issues.
+
+        :param param1: param1
+        :type param1: param1type
+        :param param2: param2
+        :type param2: param2type
+        :param param3: param2
+        :type param3: param2type
+
+        :raises Error: when bad things happen.
+
+        :returns int: if things go well.
+        '''
+
+    def docstring_object2(param4):
+        '''
+        Merging docstring object.
+
+        :param param4: param4
+        :type param4: param4type
+        '''
+
+    basedata = parse_psyclone_docstring_from_object(docstring_object)
+    # Functionality of these is tested in other tests, this is a sanity check.
+    assert len(basedata.arguments) == 3
+    assert len(basedata.raises) == 1
+    assert basedata.returns is not None
+    assert basedata.desc is not None
+
+    # Create a processed docstring
+    processed_doc = gen_docstring_from_DocstringData(basedata)
+
+    # Generate a new basedata from the generated docstring.
+    docstring_object.__doc__ = processed_doc
+    basedata2 = parse_psyclone_docstring_from_object(docstring_object)
+    assert len(basedata2.arguments) == 3
+    assert list(basedata2.arguments.keys())[0] == "param1"
+    assert list(basedata2.arguments.keys())[1] == "param2"
+    assert list(basedata2.arguments.keys())[2] == "param3"
+    assert len(basedata2.raises) == 1
+    assert basedata2.returns is not None
+    assert basedata2.desc is not None
+
+    # Get the docstring object 2 docdata
+    doc2data = parse_psyclone_docstring_from_object(docstring_object2)
+   
+    # Merge it into basedata
+    basedata.merge(doc2data)
+    assert "param4" in basedata.arguments.keys()
+
+    processed_doc = gen_docstring_from_DocstringData(basedata)
+
+    # Generate a new basedata from the meregd docstring
+    docstring_object.__doc__ = processed_doc
+    basedata3 = parse_psyclone_docstring_from_object(docstring_object)
+    assert len(basedata3.arguments) == 4
+    assert list(basedata3.arguments.keys())[0] == "param1"
+    assert list(basedata3.arguments.keys())[1] == "param2"
+    assert list(basedata3.arguments.keys())[2] == "param3"
+    assert list(basedata3.arguments.keys())[3] == "param4"
+    assert len(basedata3.raises) == 1
+    assert basedata3.returns is not None
+    assert basedata3.desc is not None
