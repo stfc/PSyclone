@@ -536,7 +536,7 @@ def test_docstring_is_reversible():
 
     # Get the docstring object 2 docdata
     doc2data = parse_psyclone_docstring_from_object(docstring_object2)
-   
+
     # Merge it into basedata
     basedata.merge(doc2data)
     assert "param4" in basedata.arguments.keys()
