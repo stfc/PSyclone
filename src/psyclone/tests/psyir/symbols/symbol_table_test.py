@@ -44,16 +44,11 @@ import os
 from collections import OrderedDict
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
-from fparser.two.utils import walk
-
 from psyclone.configuration import Config
-from psyclone.core import SingleVariableAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     BinaryOperation, CodeBlock, Container, IntrinsicCall, KernelSchedule,
-    Literal, Reference, Assignment, Return, Routine, Schedule)
+    Literal, Reference, Assignment, Routine, Schedule)
 from psyclone.psyir import symbols
 
 
@@ -647,77 +642,6 @@ def test_remove_case_insensitive(sym_name):
     assert "var1" in sym_table
     sym_table.remove(symbol1)
     assert "var1" not in sym_table
-
-
-def test_replace_symbol_refs(parser, monkeypatch):
-    '''
-    Tests for the _replace_symbol_refs() method.
-    '''
-    table = symbols.SymbolTable()
-    oldie = symbols.DataSymbol("oldie", symbols.INTEGER_TYPE)
-    wrong = symbols.DataSymbol("wrong", symbols.INTEGER_TYPE)
-    # Should raise an error if the Symbol names don't match.
-    with pytest.raises(ValueError) as err:
-        table._replace_symbol_refs(oldie, wrong)
-    assert ("the old and new Symbols must have the same name but got 'oldie' "
-            "and 'wrong'" in str(err.value))
-    # Should do nothing on an empty table.
-    table._replace_symbol_refs(oldie, oldie.copy())
-    table.add(oldie)
-    wp = symbols.DataSymbol("wp", symbols.INTEGER_TYPE)
-    table.add(wp)
-    # An array with precision defined by a Symbol and a dimension also defined
-    # by an expression.
-    scalar_type = symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER, wp)
-    atype = symbols.ArrayType(scalar_type, [Reference(oldie)])
-    array = symbols.DataSymbol("array", atype)
-    table.add(array)
-    wp2 = symbols.DataSymbol("wp", symbols.INTEGER_TYPE)
-    goldie = symbols.DataSymbol("oldie", symbols.INTEGER_TYPE)
-    table._replace_symbol_refs(wp, wp2)
-    assert array.datatype.precision is wp2
-    table._replace_symbol_refs(oldie, goldie)
-    assert array.datatype.shape[0].upper.symbol is goldie
-    # Scalar with an initial-value expression.
-    exprn = BinaryOperation.create(
-        BinaryOperation.Operator.MUL,
-        Literal("2", scalar_type),
-        IntrinsicCall.create(IntrinsicCall.Intrinsic.COS, [Reference(oldie)]))
-    var = symbols.DataSymbol("var", symbols.REAL_TYPE, initial_value=exprn)
-    table.add(var)
-    table._replace_symbol_refs(wp, wp2)
-    table._replace_symbol_refs(oldie, goldie)
-    assert var.initial_value.children[0].datatype.precision is wp2
-    assert (var.initial_value.walk(IntrinsicCall)[0].arguments[0].symbol is
-            goldie)
-    # Scalar with an initial value given by a CodeBlock.
-    reader = FortranStringReader('''
-    subroutine mytest
-      a = 4.0*oldie
-    end subroutine mytest''')
-    prog = parser(reader)
-    assign = walk(prog, Fortran2003.Assignment_Stmt)[0]
-    cblock = CodeBlock([assign.children[2]], CodeBlock.Structure.EXPRESSION)
-    cbeebies = symbols.DataSymbol("cbeebies", symbols.REAL_TYPE,
-                                  initial_value=cblock)
-    table.add(cbeebies)
-    # Should do nothing as a CodeBlock does not contain Symbols.
-    table._replace_symbol_refs(oldie, goldie)
-    # Now test the internal error for an unhandled type of Node. The easiest
-    # way to do this is to monkeypatch SingleVariableAccessInfo such that
-    # `all_accesses` returns something unexpected.
-
-    class FakeAccess:
-        def __init__(self):
-            self.node = Return()
-
-    monkeypatch.setattr(SingleVariableAccessInfo, "all_accesses",
-                        [FakeAccess()])
-    with pytest.raises(InternalError) as err:
-        table._replace_symbol_refs(oldie, goldie)
-    assert ("Node of type 'Return' not supported in SymbolTable._replace_"
-            "symbol_refs() while looking for accesses of 'oldie'" in
-            str(err.value))
 
 
 def test_swap_symbol():

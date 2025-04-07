@@ -262,8 +262,10 @@ def test_apply_gocean_kern(fortran_reader, fortran_writer, monkeypatch):
     # Set up include_path to import the proper module
     src_dir = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "../../../external/dl_esm_inf/finite_difference/src")
+        "../../../../../external/dl_esm_inf/finite_difference/src")
     monkeypatch.setattr(Config.get(), '_include_paths', [str(src_dir)])
+    monkeypatch.setattr(fortran_reader._processor, "_modules_to_resolve",
+                        ["kind_params_mod"])
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
@@ -929,6 +931,11 @@ def test_apply_struct_array(fortran_reader, fortran_writer, tmpdir,
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
     if "use some_mod" in type_decln:
+        # In order to get to the error we want, we resolve `big_type` within
+        # the subroutine 'sub'.
+        sub = psyir.walk(Routine)[1]
+        csym = sub.symbol_table.lookup("some_mod")
+        sub.symbol_table.lookup("big_type").interface = ImportInterface(csym)
         with pytest.raises(TransformationError) as err:
             inline_trans.apply(psyir.walk(Call)[0])
         assert ("Routine 'sub' cannot be inlined because the type of the "
@@ -1971,25 +1978,18 @@ def test_validate_unresolved_precision_sym(fortran_reader, code_body,
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
     call = psyir.walk(Call)[0]
-    if use_stmt:
-        # There is a module import within the called routine and therefore
-        # we don't know which module any unresolved symbols come from.
-        with pytest.raises(TransformationError) as err:
-            inline_trans.validate(call)
-        assert ("routine 'sub' contains accesses to '" in str(err.value))
-    else:
-        # There is only one module import and it is common to the target
-        # routine and the call site.
+    with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
+    assert ("routine 'sub' contains accesses to '" in str(err.value))
 
 
 def test_validate_resolved_precision_sym(fortran_reader, monkeypatch,
                                          tmpdir):
     '''Test that a routine that uses a resolved precision symbol from its
-    parent Container is rejected.'''
+    parent Container is accepted when we can be sure it's the same symbol.'''
     code = (
         "module test_mod\n"
-        "  use kinds_mod\n"
+        "  use kinds_mod, only: i_def\n"
         "contains\n"
         "  subroutine run_it()\n"
         "    integer :: i\n"
@@ -2126,7 +2126,10 @@ def test_validate_unresolved_import(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    inline_trans.validate(call)
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("routine 'sub' contains accesses to 'trouble' which is "
+            "unresolved" in str(err.value))
 
 
 def test_validate_unresolved_array_dim(fortran_reader):
@@ -2153,7 +2156,10 @@ def test_validate_unresolved_array_dim(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    inline_trans.validate(call)
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("routine 'sub' contains accesses to 'some_size' which is "
+            "unresolved" in str(err.value))
 
 
 def test_validate_array_reshape(fortran_reader):

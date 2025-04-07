@@ -53,7 +53,6 @@ from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, DataTypeSymbol,
     ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
-from psyclone.psyir.symbols.datatypes import ScalarType
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
@@ -1170,66 +1169,13 @@ class SymbolTable():
             raise SymbolError(
                 f"Cannot swap symbols that have different names, got: "
                 f"'{old_symbol.name}' and '{new_symbol.name}'")
-        self._replace_symbol_refs(old_symbol, new_symbol)
+        for sym in self.symbols:
+            sym.replace_symbols_using(new_symbol)
         if self.node:
             # Update the PSyIR tree associated with this table.
             self.node.replace_symbols_using(new_symbol)
         self.remove(old_symbol)
         self.add(new_symbol)
-
-    def _replace_symbol_refs(self, old_sym: Symbol, new_sym: Symbol):
-        '''
-        Looks through all Symbols referenced in the *definitions* of the
-        Symbols in this table and replaces any instances of `old_sym` with
-        `new_sym`. Both symbols must have the same name.
-
-        Note, this method does not attempt to update any PSyIR tree that may
-        be associated with this table. That should be done separately using
-        Node.replace_symbols_using().
-
-        :param old_sym: the existing symbol to replace.
-        :param new_sym: the replacement symbol.
-
-        :raises ValueError: if the two Symbols don't have the same name.
-        :raises InternalError: if an access is found in an unexpected type
-            of Node.
-
-        '''
-        norm_name = self._normalize(old_sym.name)
-        if norm_name != self._normalize(new_sym.name):
-            raise ValueError(
-                f"_replace_symbol_refs(): the old and new Symbols must have "
-                f"the same name but got '{old_sym.name}' and '{new_sym.name}'")
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core import Signature, VariablesAccessInfo
-        from psyclone.psyir.nodes import CodeBlock, Literal, Reference
-        vai = VariablesAccessInfo()
-        self.reference_accesses(vai)
-        sig = Signature(norm_name)
-        if sig not in vai:
-            return
-        for access in vai[sig].all_accesses:
-            if isinstance(access.node, Symbol):
-                sym = access.node
-                sym.replace_symbols_using(new_sym)
-            elif isinstance(access.node, Reference):
-                access.node.symbol = new_sym
-            elif isinstance(access.node, Literal):
-                oldtype = access.node.datatype
-                newtype = ScalarType(oldtype.intrinsic,
-                                     new_sym)
-                access.node.replace_with(
-                    Literal(access.node.value, newtype))
-            elif isinstance(access.node, CodeBlock):
-                # Nothing to do here as a CodeBlock does not contain
-                # Symbols (just a parse tree) and the new Symbol must have the
-                # same name as the old one.
-                pass
-            else:
-                raise InternalError(
-                    f"Node of type '{type(access.node).__name__}' not "
-                    f"supported in SymbolTable._replace_symbol_refs() while "
-                    f"looking for accesses of '{old_sym.name}'.")
 
     def _validate_remove_routinesymbol(self, symbol):
         '''
@@ -1878,7 +1824,8 @@ class SymbolTable():
             # We want to replace the local symbol with the newly
             # imported one in the outer scope (`isym`).
             # Update any references to it within the SymbolTable itself.
-            symbol_table._replace_symbol_refs(test_symbol, symbol)
+            for sym in symbol_table.symbols:
+                sym.replace_symbols_using(symbol)
             # Then update any references in the associated PSyIR tree.
             self.node.replace_symbols_using(symbol)
             # Finally, we can remove the local symbol.
