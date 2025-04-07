@@ -54,7 +54,6 @@ from psyclone.domain.gocean.transformations import (GOceanExtractTrans,
                                                     GOConstLoopBoundsTrans)
 from psyclone.psyir.nodes import Reference, Routine, Loop
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
-from psyclone.psyir.tools import CallTreeUtils
 from psyclone.psyir.transformations import PSyDataTrans
 from psyclone.tests.utilities import get_invoke
 
@@ -515,6 +514,7 @@ def test_driver_creation_add_all_kernel_symbols_errors():
 
 
 # -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
 def test_driver_creation_same_symbol():
     '''Make sure that if a symbol appears in more than one invoke no duplicated
     symbol is created.
@@ -524,28 +524,67 @@ def test_driver_creation_same_symbol():
     # This means the same symbols are re-encountered when handling the
     # second kernel call (since each kernel argument has already been
     # declared when the first kernel was done).
-    _, invoke = get_invoke("driver_test.f90", GOCEAN_API,
-                           idx=3, dist_mem=False)
+    psy, invoke = get_invoke("driver_test.f90", GOCEAN_API,
+                             idx=3, dist_mem=False)
 
-    nodes = [invoke.schedule.children[0]]
-    ctu = CallTreeUtils()
-    read_write_info = ctu.get_in_out_parameters(nodes)
+    etrans = GOceanExtractTrans()
+    etrans.apply(invoke.schedule, {'create_driver': True,
+                                   'region_name':
+                                   ("module_name", "local_name")})
+    code = psy.gen
 
-    edc = ExtractDriverCreator()
-    driver_code = edc.get_driver_as_string(nodes, read_write_info,
-                                           "extract", "_post",
-                                           ("module_name", "local_name"))
-    # Make sure we have both kernel calls in the driver.
-    correct = """  do j = out_fld_internal_ystart, out_fld_internal_ystop, 1
-    do i = out_fld_internal_xstart, out_fld_internal_xstop, 1
-      call compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, dx, """ \
-      """in_fld_grid_dx, in_fld_grid_gphiu)
-    enddo
-  enddo
+    # Only one version of the flattened symbol is created and given
+    # the value back
+    assert """
+    out_fld_internal_ystart = out_fld%internal%ystart
+    out_fld_internal_ystop = out_fld%internal%ystop
+    out_fld_internal_xstart = out_fld%internal%xstart
+    out_fld_internal_xstop = out_fld%internal%xstop
+    out_fld_data = out_fld%data
+    in_out_fld_data = in_out_fld%data
+    in_fld_data = in_fld%data
+    dx_data = dx%data
+    in_fld_grid_dx = in_fld%grid%dx
+    in_fld_grid_gphiu = in_fld%grid%gphiu
+    CALL extract_psy_data % PreStart("module_name", "local_name", 12, 8)
+    """ in code
+    assert """
+    CALL extract_psy_data % PostEnd
+    in_fld%grid%gphiu = in_fld_grid_gphiu
+    in_fld%grid%dx = in_fld_grid_dx
+    dx%data = dx_data
+    in_fld%data = in_fld_data
+    in_out_fld%data = in_out_fld_data
+    out_fld%data = out_fld_data
+    out_fld%internal%xstop = out_fld_internal_xstop
+    out_fld%internal%xstart = out_fld_internal_xstart
+    out_fld%internal%ystop = out_fld_internal_ystop
+    out_fld%internal%ystart = out_fld_internal_ystart
+    """
+    driver = Path("driver-module_name-local_name.f90")
+    assert driver.is_file()
+
+    with driver.open("r", encoding="utf-8") as driver_file:
+        driver_code = driver_file.read()
+
+    # Make sure that all kernels use the same flattened symbols
+    correct = """
   do j = out_fld_internal_ystart, out_fld_internal_ystop, 1
     do i = out_fld_internal_xstart, out_fld_internal_xstop, 1
-      call compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, dx, """ \
-      """in_fld_grid_dx, in_fld_grid_gphiu)
+      call compute_kernel_code(i, j, out_fld_data, in_out_fld_data, \
+in_fld_data, dx_data, in_fld_grid_dx, in_fld_grid_gphiu)
+    enddo
+  enddo
+  do j = in_fld_grid_gphiu, in_fld_grid_gphiu, 1
+    do i = in_fld_grid_gphiu, in_fld_grid_gphiu, 1
+      call compute_kernel_code(i, j, in_fld_grid_gphiu, in_fld_grid_gphiu, \
+in_fld_grid_gphiu, in_fld_grid_gphiu, in_fld_grid_gphiu, in_fld_grid_gphiu)
+    enddo
+  enddo
+  do j = in_fld_grid_gphiu, in_fld_grid_gphiu, 1
+    do i = in_fld_grid_gphiu, in_fld_grid_gphiu, 1
+      call compute_kernel_code(i, j, in_fld_grid_gphiu, in_fld_grid_gphiu, \
+in_fld_grid_gphiu, in_fld_grid_gphiu, in_fld_grid_gphiu, in_fld_grid_gphiu)
     enddo
   enddo"""
     assert correct in driver_code

@@ -59,7 +59,6 @@ from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, REAL8_TYPE, ArrayType, ContainerSymbol,
     ImportInterface)
-from psyclone.errors import InternalError
 
 
 class ExtractNode(PSyDataNode):
@@ -208,8 +207,7 @@ class ExtractNode(PSyDataNode):
         for child in self.children:
             child.lower_to_language_level()
 
-        for structure_ref in self.walk(StructureReference):
-            self._flatten_reference(structure_ref)
+        self.flatten_references()
 
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
@@ -376,44 +374,40 @@ class ExtractNode(PSyDataNode):
         return str(signature).replace("%", "_")
 
     # -------------------------------------------------------------------------
-    def _flatten_reference(self, old_reference):
-        '''Replaces ``old_reference``, which is a structure type, with a new
-        simple Reference and a flattened name (replacing all % with _). It will
-        also remove a '_proxy' in the name, so that the program uses the names
-        the user is familiar with, and which are also used in the extraction
-        driver.
-
-        :param old_reference: a reference to a structure member.
-        :type old_reference:
-            :py:class:`psyclone.psyir.nodes.StructureReference`
-
-        :raises InternalError: if the old_reference is not a
-            :py:class:`psyclone.psyir.nodes.StructureReference`
-        :raises GenerationError: if an array of structures is used
+    def flatten_references(self):
+        '''Replace StructureReferencces with a simple Reference and a flattened
+        name (replacing all % with _).
 
         '''
+        already_flattened = {}  # dict of name: symbol
 
-        if not isinstance(old_reference, StructureReference):
-            raise InternalError(f"Unexpected type "
-                                f"'{type(old_reference).__name__}'"
-                                f" in _flatten_reference, it must be a "
-                                f"'StructureReference'.")
-        if isinstance(old_reference.parent, Call):
-            if old_reference.position == 0:
-                return  # Method calls are fine
+        for structure_ref in self.walk(StructureReference)[:]:
+            if isinstance(structure_ref.parent, Call):
+                if structure_ref.position == 0:
+                    return  # Method calls are fine
 
-        signature, _ = old_reference.get_signature_and_indices()
-        flattened_name = self._flatten_signature(signature)
-        symtab = old_reference.ancestor(Routine).symbol_table
-        symbol = symtab.new_symbol(
-                    flattened_name,
-                    symbol_type=DataSymbol,
-                    datatype=self._flatten_datatype(old_reference))
+            signature, _ = structure_ref.get_signature_and_indices()
+            flattened_name = self._flatten_signature(signature)
+            try:
+                already_flattened[flattened_name]
+            except KeyError:
+                symtab = structure_ref.ancestor(Routine).symbol_table
+                symbol = symtab.new_symbol(
+                            flattened_name,
+                            symbol_type=DataSymbol,
+                            datatype=self._flatten_datatype(structure_ref))
+                already_flattened[flattened_name] = symbol
+                # We also need two assignments to copy the initial and final
+                # values to/from the flattened temporary
+                self.parent.addchild(Assignment.create(Reference(symbol),
+                                                       structure_ref.copy()),
+                                     index=self.position)
+                self.parent.addchild(Assignment.create(structure_ref.copy(),
+                                                       Reference(symbol)),
+                                     index=self.position+1)
 
-        new_ref = Reference(symbol)
-        old_reference.replace_with(new_ref)
-        self.parent.addchild(Assignment.create(new_ref.copy(), old_reference),
-                             index=self.position)
+            new_ref = Reference(symbol)
+            structure_ref.replace_with(new_ref)
 
     @staticmethod
     def _flatten_datatype(structure_reference):

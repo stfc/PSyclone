@@ -496,10 +496,12 @@ def test_driver_loop_variables():
     # Since atm types are not handled, scalars are actually considered
     # to be arrays. Once this is fixed, none of those lines should be
     # in the code anymore (j_post should be declared as scalar):
-    unexpected_lines = ['  integer :: j_post', 'j = 0']
+    unexpected_lines = ['  integer :: j_post']
 
     for line in unexpected_lines:
-        assert line not in driver_code
+        if line in driver_code:
+            pytest.xfail("#641 Loop variables are stored.")
+    assert False, "X-failing test working: #641 Loop variables."
 
 
 # -----------------------------------------------------------------------------

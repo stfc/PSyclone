@@ -314,15 +314,6 @@ def test_flatten_signature():
     assert new_name == "a_b_c"
 
 
-def test_flatten_reference_error():
-    '''Tests errors when flattening user defined symbols.'''
-
-    with pytest.raises(InternalError) as err:
-        ExtractNode()._flatten_reference("NoUserType")
-    assert ("Unexpected type 'str' in _flatten_reference, it must be a "
-            "'StructureReference'" in str(err.value))
-
-
 def test_determine_postfix():
     '''Test that a unique postfix is determined.
     '''
