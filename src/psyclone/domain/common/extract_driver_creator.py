@@ -76,9 +76,7 @@ class ExtractDriverCreator(BaseDriverCreator):
         self._region_name = region_name
         # Set the integer and real types to use.
         # For convenience, also add the names used in the gocean config file:
-        self._default_types = {ScalarType.Intrinsic.INTEGER: integer_type,
-                               "integer": integer_type,
-                               ScalarType.Intrinsic.REAL: real_type,
+        self._default_types = {"integer": integer_type,
                                "real": real_type}
 
     # -------------------------------------------------------------------------
@@ -239,9 +237,24 @@ class ExtractDriverCreator(BaseDriverCreator):
         for child in all_children:
             program.addchild(child)
 
+        self.replace_precisions(program)
+
         self.add_result_tests(program, output_symbols)
 
         return file_container
+
+    def replace_precisions(self, program):
+        ''' Replaces the precisions with the values given in the _default_types
+        in order to avoid imported precision symbols.
+        '''
+        for symbol in program.symbol_table.symbols:
+            if isinstance(symbol, DataSymbol):
+                dt = symbol.datatype
+                if isinstance(dt, ScalarType):
+                    if dt.intrinsic == ScalarType.Intrinsic.INTEGER:
+                        symbol.datatype = self._default_types["integer"]
+                    if dt.intrinsic == ScalarType.Intrinsic.REAL:
+                        symbol.datatype = self._default_types["real"]
 
     # -------------------------------------------------------------------------
     def get_driver_as_string(self, nodes, read_write_info,
