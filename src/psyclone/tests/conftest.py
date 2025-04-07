@@ -219,7 +219,6 @@ def change_into_tmpdir(tmpdir):
     and changes automatically back at the end. '''
     prev_dir = os.getcwd()
     os.chdir(os.path.expanduser(tmpdir))
-    print(tmpdir)
     try:
         yield tmpdir
     finally:

@@ -492,7 +492,7 @@ def test_driver_loop_variables():
     # Since atm types are not handled, scalars are actually considered
     # to be arrays. Once this is fixed, none of those lines should be
     # in the code anymore (j_post should be declared as scalar):
-    unexpected_lines = ['  integer :: j_post']
+    unexpected_lines = ['  integer :: j_post', 'j = 0']
 
     for line in unexpected_lines:
         if line in driver_code:
@@ -577,8 +577,7 @@ def test_driver_grid_properties(fortran_writer):
     # Test the handling of scalar and array grid properties
     expected_lines = ['CALL extract_psy_data % PreDeclareVariable("'
                       'ssh_fld_grid_subdomain_internal_xstop", '
-                      'ssh_fld_grid_'
-                      'subdomain_internal_xstop)',
+                      'ssh_fld_grid_subdomain_internal_xstop)',
                       'CALL extract_psy_data % PreDeclareVariable('
                       '"ssh_fld_grid_tmask", ssh_fld_grid_tmask)',
                       'CALL extract_psy_data % ProvideVariable('

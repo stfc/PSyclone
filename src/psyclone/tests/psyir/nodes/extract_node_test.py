@@ -361,3 +361,91 @@ def test_determine_postfix():
     read_write_info.add_write(Signature("var_post0"))
     postfix = ExtractNode.determine_postfix(read_write_info)
     assert postfix == "_post1"
+
+
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_psylayer_flatten_same_symbols():
+    '''Make sure that when we flatten a symbol, we bring its data back
+    after using the flattened version, including repeatedly if there are
+    multiple extraction regions.
+
+    '''
+    psy, invoke = get_invoke("driver_test.f90", "gocean",
+                             idx=3, dist_mem=False)
+
+    etrans = GOceanExtractTrans()
+    etrans.apply(invoke.schedule[0])
+    etrans.apply(invoke.schedule[1])
+    etrans.apply(invoke.schedule[2])
+    code = psy.gen
+
+    # Flatten before region 1
+    assert """
+    out_fld_internal_ystart = out_fld%internal%ystart
+    out_fld_internal_ystop = out_fld%internal%ystop
+    out_fld_internal_xstart = out_fld%internal%xstart
+    out_fld_internal_xstop = out_fld%internal%xstop
+    out_fld_data = out_fld%data
+    in_out_fld_data = in_out_fld%data
+    in_fld_data = in_fld%data
+    dx_data = dx%data
+    in_fld_grid_dx = in_fld%grid%dx
+    in_fld_grid_gphiu = in_fld%grid%gphiu
+    CALL extract_psy_data % PreStart("psy_extract_example_with_various_\
+variable_access_patterns", "invoke_3-compute_kernel_code-r0", 10, 8)
+    """ in code
+
+    # Brint the data back to the orginal structure at the end of the region1
+    # and then flatten it again to prepare for the second region
+    assert """
+    CALL extract_psy_data % PostEnd
+    in_fld%grid%gphiu = in_fld_grid_gphiu
+    in_fld%grid%dx = in_fld_grid_dx
+    dx%data = dx_data
+    in_fld%data = in_fld_data
+    in_out_fld%data = in_out_fld_data
+    out_fld%data = out_fld_data
+    out_fld%internal%xstop = out_fld_internal_xstop
+    out_fld%internal%xstart = out_fld_internal_xstart
+    out_fld%internal%ystop = out_fld_internal_ystop
+    out_fld%internal%ystart = out_fld_internal_ystart
+    out_fld_internal_ystart_1 = out_fld%internal%ystart
+    out_fld_internal_ystop_1 = out_fld%internal%ystop
+    out_fld_internal_xstart_1 = out_fld%internal%xstart
+    out_fld_internal_xstop_1 = out_fld%internal%xstop
+    out_fld_data_1 = out_fld%data
+    in_out_fld_data_1 = in_out_fld%data
+    in_fld_data_1 = in_fld%data
+    dx_data_1 = dx%data
+    in_fld_grid_dx_1 = in_fld%grid%dx
+    in_fld_grid_gphiu_1 = in_fld%grid%gphiu
+    CALL extract_psy_data_1 % PreStart("psy_extract_example_with_\
+various_variable_access_patterns", "invoke_3-compute_kernel_code-r1", 10, 8)
+    """ in code
+
+    # Bring data back and flatten agian a thrid time
+    assert """
+    CALL extract_psy_data_1 % PostEnd
+    in_fld%grid%gphiu = in_fld_grid_gphiu_1
+    in_fld%grid%dx = in_fld_grid_dx_1
+    dx%data = dx_data_1
+    in_fld%data = in_fld_data_1
+    in_out_fld%data = in_out_fld_data_1
+    out_fld%data = out_fld_data_1
+    out_fld%internal%xstop = out_fld_internal_xstop_1
+    out_fld%internal%xstart = out_fld_internal_xstart_1
+    out_fld%internal%ystop = out_fld_internal_ystop_1
+    out_fld%internal%ystart = out_fld_internal_ystart_1
+    out_fld_internal_ystart_2 = out_fld%internal%ystart
+    out_fld_internal_ystop_2 = out_fld%internal%ystop
+    out_fld_internal_xstart_2 = out_fld%internal%xstart
+    out_fld_internal_xstop_2 = out_fld%internal%xstop
+    out_fld_data_2 = out_fld%data
+    in_out_fld_data_2 = in_out_fld%data
+    in_fld_data_2 = in_fld%data
+    dx_data_2 = dx%data
+    in_fld_grid_dx_2 = in_fld%grid%dx
+    in_fld_grid_gphiu_2 = in_fld%grid%gphiu
+    CALL extract_psy_data_2 % PreStart("psy_extract_example_with_various_\
+variable_access_patterns", "invoke_3-compute_kernel_code-r2", 10, 8)
+    """ in code

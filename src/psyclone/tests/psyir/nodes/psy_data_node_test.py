@@ -508,7 +508,6 @@ def test_psy_data_node_name_clash(fortran_writer):
                            "region_name": ("import", "test")})
 
     code = psy.gen
-    print(code)
 
     assert ('CALL extract_psy_data % PreDeclareVariable("f1_data_post", '
             'f1_data)' in code)
