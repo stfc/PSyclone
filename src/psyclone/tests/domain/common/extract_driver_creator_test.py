@@ -41,18 +41,14 @@ previously dumped kernel input- and output-data.
 
 # TODO #706: Add compilation support
 
-from collections import namedtuple
 from pathlib import Path
-import re
 
 import pytest
 
-from psyclone.configuration import Config
-from psyclone.errors import InternalError
 from psyclone.domain.common import ExtractDriverCreator
 from psyclone.domain.gocean.transformations import (GOceanExtractTrans,
                                                     GOConstLoopBoundsTrans)
-from psyclone.psyir.nodes import Reference, Routine, Loop
+from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
 from psyclone.psyir.transformations import PSyDataTrans
 from psyclone.tests.utilities import get_invoke
@@ -270,7 +266,7 @@ def test_rename_suffix_if_name_clash():
 
     '''
     return  # TODO: This 'driver_test.f90' do not produce name clashes, the
-            # test has to be completely redone
+    # test has to be completely redone
     # Use tmpdir so that the driver is created in tmp
     etrans = GOceanExtractTrans()
     psy, invoke = get_invoke("driver_test.f90",
@@ -304,7 +300,8 @@ def test_rename_suffix_if_name_clash():
     # the kernel call.
     expected_lines = [
       # Declaration, first the three arguments
-      'CALL extract_psy_data % PreDeclareVariable("out_fld_data", out_fld_data)',
+      'CALL extract_psy_data % PreDeclareVariable("out_fld_data", \
+out_fld_data)',
       'CALL extract_psy_data % PreDeclareVariable("in_out_fld_data", '
       'in_out_fld_data',
       'CALL extract_psy_data % PreDeclareVariable("out_fld_post_data", '
