@@ -229,8 +229,8 @@ class ExtractNode(PSyDataNode):
             region_name_tuple = self.get_unique_region_name(nodes, {})
             region_name_tuple = (region_name_tuple[0], self._region_name)
 
-            self._bring_external_symbols(read_write_info,
-                                         self.ancestor(Routine).symbol_table)
+            self.bring_external_symbols(read_write_info,
+                                        self.ancestor(Routine).symbol_table)
 
             # Even variables that are output-only need to be written with their
             # values at the time the kernel is called: many kernels will only
@@ -430,7 +430,7 @@ class ExtractNode(PSyDataNode):
         return INTEGER_TYPE
 
     @staticmethod
-    def _bring_external_symbols(read_write_info, symbol_table):
+    def bring_external_symbols(read_write_info, symbol_table):
         from psyclone.parse import ModuleManager
         mod_man = ModuleManager.get()
         for module_name, signature in read_write_info.set_of_all_used_vars:

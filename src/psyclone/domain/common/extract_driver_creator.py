@@ -80,46 +80,6 @@ class ExtractDriverCreator(BaseDriverCreator):
                                "real": real_type}
 
     # -------------------------------------------------------------------------
-    def add_all_kernel_symbols(self, sched, symbol_table):
-        '''This function adds all symbols used in `sched` to the symbol table.
-        It uses GOcean-specific knowledge to declare fields and flatten their
-        name.
-
-        :param sched: the schedule that will be called by this driver program.
-        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
-        :param symbol_table: the symbol table to which to add all found
-            symbols.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param writer: a Fortran writer used when flattening a
-            `StructureReference`.
-        :type writer: :py:class:`psyclone.psyir.backend.fortan.FortranWriter`
-
-        :raises InternalError: if a non-derived type has an unknown
-            intrinsic type.
-        :raises InternalError: if an unknown derived type is
-            encountered. At this stage only the dl_esm_inf `field` type
-            is supported.
-
-        '''
-        all_references = sched.walk(Reference)
-        # First we add all non-structure names to the symbol table. This way
-        # the flattened name can be ensured not to clash with a variable name
-        # used in the program.
-        for reference in all_references:
-            if isinstance(reference.symbol, (RoutineSymbol, IntrinsicSymbol)):
-                continue
-            # For now ignore structure names, which require flattening
-            if isinstance(reference, StructureReference):
-                continue
-            dt = reference.datatype.copy()
-            if isinstance(dt.precision, Symbol):
-                dt._precision = 8
-            new_symbol = symbol_table.new_symbol(root_name=reference.name,
-                                                 symbol_type=DataSymbol,
-                                                 datatype=dt)
-            reference.symbol = new_symbol
-
-    # -------------------------------------------------------------------------
     @staticmethod
     def import_modules(program, sched):
         '''This function adds all the import statements required for the
@@ -215,7 +175,6 @@ class ExtractDriverCreator(BaseDriverCreator):
         og_symtab = nodes[0].ancestor(InvokeSchedule).symbol_table
 
         self.import_modules(program, schedule_copy)
-        # self.add_all_kernel_symbols(schedule_copy, program_symbol_table)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,

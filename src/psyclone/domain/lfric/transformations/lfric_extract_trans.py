@@ -146,8 +146,3 @@ class LFRicExtractTrans(ExtractTrans):
         if my_options.get("create_driver", False):
             region_name = my_options.get("region_name", None)
             new_node._driver_creator = LFRicExtractDriverCreator(region_name)
-        return
-
-        # The PSyData transformation needs to pass this object to
-        # the corresponding PSyData node, so add it to the option arguments.
-        # my_options["read_write_info"] = read_write_info

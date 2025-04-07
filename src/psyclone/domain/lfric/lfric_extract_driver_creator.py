@@ -417,8 +417,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # statements.
         self._import_modules(program.scope.symbol_table, schedule_copy)
         self._add_precision_symbols(program.scope.symbol_table)
-        # ExtractNode._bring_external_symbols(read_write_info,
-        #                                     program.scope.symbol_table)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,
