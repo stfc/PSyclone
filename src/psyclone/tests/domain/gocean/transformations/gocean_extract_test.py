@@ -358,6 +358,7 @@ def test_node_list_ompparallel_gocean1p0():
                              GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
+    print(psy.gen)
     # Apply GOConstLoopBoundsTrans
     ctrans.apply(schedule)
     # Apply GOceanOMPParallelLoopTrans to the first two Loops
@@ -375,13 +376,12 @@ def test_node_list_ompparallel_gocean1p0():
     code = str(psy.gen)
     output = """
     CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-    """"invoke_0-r0", 8, 8)
+    """"invoke_0-r0", 7, 7)
     CALL extract_psy_data % PreDeclareVariable("cu_fld_data", cu_fld_data)
     CALL extract_psy_data % PreDeclareVariable("cv_fld_data", cv_fld_data)
     CALL extract_psy_data % PreDeclareVariable("istop", istop)
     CALL extract_psy_data % PreDeclareVariable("jstop", jstop)
     CALL extract_psy_data % PreDeclareVariable("p_fld_data", p_fld_data)
-    CALL extract_psy_data % PreDeclareVariable("p_fld_data_1", p_fld_data_1)
     CALL extract_psy_data % PreDeclareVariable("u_fld_data", u_fld_data)
     CALL extract_psy_data % PreDeclareVariable("v_fld_data", v_fld_data)
     CALL extract_psy_data % PreDeclareVariable("cu_fld_data_post", cu_fld_data)
@@ -389,8 +389,6 @@ def test_node_list_ompparallel_gocean1p0():
     CALL extract_psy_data % PreDeclareVariable("i_post", i)
     CALL extract_psy_data % PreDeclareVariable("j_post", j)
     CALL extract_psy_data % PreDeclareVariable("p_fld_data_post", p_fld_data)
-    CALL extract_psy_data % PreDeclareVariable("p_fld_data_1_post", \
-p_fld_data_1)
     CALL extract_psy_data % PreDeclareVariable("u_fld_data_post", u_fld_data)
     CALL extract_psy_data % PreDeclareVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PreEndDeclaration
@@ -399,7 +397,6 @@ p_fld_data_1)
     CALL extract_psy_data % ProvideVariable("istop", istop)
     CALL extract_psy_data % ProvideVariable("jstop", jstop)
     CALL extract_psy_data % ProvideVariable("p_fld_data", p_fld_data)
-    CALL extract_psy_data % ProvideVariable("p_fld_data_1", p_fld_data_1)
     CALL extract_psy_data % ProvideVariable("u_fld_data", u_fld_data)
     CALL extract_psy_data % ProvideVariable("v_fld_data", v_fld_data)
     CALL extract_psy_data % PreEnd
@@ -414,7 +411,7 @@ p_fld_data_1)
     !$omp do schedule(static)
     do j = 2, jstop + 1, 1
       do i = 2, istop, 1
-        call compute_cv_code(i, j, cv_fld_data, p_fld_data_1, v_fld_data)
+        call compute_cv_code(i, j, cv_fld_data, p_fld_data, v_fld_data)
       enddo
     enddo
     !$omp end do
@@ -425,7 +422,6 @@ p_fld_data_1)
     CALL extract_psy_data % ProvideVariable("i_post", i)
     CALL extract_psy_data % ProvideVariable("j_post", j)
     CALL extract_psy_data % ProvideVariable("p_fld_data_post", p_fld_data)
-    CALL extract_psy_data % ProvideVariable("p_fld_data_1_post", p_fld_data_1)
     CALL extract_psy_data % ProvideVariable("u_fld_data_post", u_fld_data)
     CALL extract_psy_data % ProvideVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PostEnd

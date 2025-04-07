@@ -389,7 +389,7 @@ class ExtractNode(PSyDataNode):
             signature, _ = structure_ref.get_signature_and_indices()
             flattened_name = self._flatten_signature(signature)
             try:
-                already_flattened[flattened_name]
+                symbol = already_flattened[flattened_name]
             except KeyError:
                 symtab = structure_ref.ancestor(Routine).symbol_table
                 symbol = symtab.new_symbol(
@@ -406,8 +406,8 @@ class ExtractNode(PSyDataNode):
                                                        Reference(symbol)),
                                      index=self.position+1)
 
-            new_ref = Reference(symbol)
-            structure_ref.replace_with(new_ref)
+            # Replace the structure access with the flattened reference
+            structure_ref.replace_with(Reference(symbol))
 
     @staticmethod
     def _flatten_datatype(structure_reference):
