@@ -283,6 +283,7 @@ def test_lfric_driver_dm_test():
     assert ("The provided PSyIR should not have StructureReferences, "
             "but found: x_ptr_vector%method" in str(err.value))
 
+
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_import_precision():

@@ -43,11 +43,9 @@ the output data contained in the input file.
 
 from psyclone.domain.common import BaseDriverCreator
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (Call, FileContainer,
-                                  Literal, Reference, Routine,
-                                  StructureReference)
-from psyclone.psyir.symbols import (CHARACTER_TYPE, IntrinsicSymbol,
-                                    ContainerSymbol, DataSymbol, Symbol,
+from psyclone.psyir.nodes import Call, FileContainer, Literal, Routine
+from psyclone.psyir.symbols import (CHARACTER_TYPE,
+                                    ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
                                     REAL8_TYPE, RoutineSymbol, ScalarType)
