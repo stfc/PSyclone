@@ -161,6 +161,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         # Check that the supplied node is a Loop and does not contain any
         # unsupported nodes.
         super().validate(node, options=options, **kwargs)
+        # TODO 2668 - options dict is deprecated.
         if not options:
             self.validate_options(**kwargs)
             verbose = self.get_option("verbose", **kwargs)
@@ -330,6 +331,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             validate and collapse steps have failed.
 
         '''
+        # TODO 2668 - options dict is deprecated.
         if not options:
             self.validate_options(
                     verbose=verbose, collapse=collapse,
@@ -338,6 +340,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     sequential=sequential, **kwargs
             )
             # Rename the input options that are renamed in this apply method.
+            # TODO 2668, rename options to be consistent.
             ignore_dep_analysis = force
             if ignore_dependencies_for is None:
                 list_of_names = []

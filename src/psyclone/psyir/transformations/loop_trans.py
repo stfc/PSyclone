@@ -119,6 +119,7 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
                 f"must have four children but found: "
                 f"{[type(child).__name__ for child in node.children]}.")
 
+        # TODO 2668: options are now deprecated.
         if not options:
             self.validate_options(**kwargs)
             verbose = self.get_option("verbose", **kwargs)

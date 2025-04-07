@@ -33,9 +33,30 @@
 # -----------------------------------------------------------------------------
 # Authors: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
+#
+# This code is influenced by the docstring_parser packaged created by Marcin
+# Kurczewski. Their licence is:
+#
+# The MIT License (MIT)
+# Copyright (c) 2018 Marcin Kurczewski
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to
+# deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
 '''This module contains the PSyclone docstring parsing code. This
 implementation influenced by the docstring_parser package created by
-Marcin Kurczewksi - https://github.com/rr-/docstring_parser.
+Marcin Kurczewski - https://github.com/rr-/docstring_parser.
 '''
 
 from collections import OrderedDict
@@ -45,7 +66,7 @@ import os
 import re
 from typing import Any, List, Union
 
-from psyclone.errors import InternalError
+from psyclone.errors import DocParseError
 
 try:
     from sphinx.util.typing import stringify_annotation
@@ -61,27 +82,104 @@ except ImportError:
 
 @dataclass
 class ArgumentData():
+    ''' Dataclass object to represent  a :param...: docstring element.
+
+    :param str name: The name of the parameter.
+    :param str datatype: The string representation of the parameter's
+                         datatype.
+    :param str desc: The description of the parameter.
+    :param bool inline_type: whether the type of this parameter should be
+                             inline or a separate :type param: docstring line.
+    '''
     name: str
-    datatype: object
+    datatype: str
     desc: str
     inline_type: bool
+
+    def gen_docstring(self, obj: Union[None, Any] = None) -> str:
+        '''
+        :param obj: The object who the generated docstring will be for. Default
+                    option is None, which means to generate the full docstring
+                    including all type lines.
+        :returns: The docstring represented by this ArgumentData.
+        '''
+        rstr = ":param "
+        if obj:
+            # If the argument is in obj's parameter list and has a type
+            # hint then we don't add the type information.
+            signature = inspect.signature(obj)
+            val = signature.parameters.get(self.name)
+            if (val is not None and val.annotation is not
+                    inspect.Parameter.empty):
+                rstr += f"{self.name}: {self.desc}"
+                return rstr
+
+        if self.inline_type:
+            rstr += f"{self.datatype} {self.name}: {self.desc}"
+        else:
+            rstr += f"{self.name}: {self.desc}{os.linesep}"
+            rstr += f":type {self.name}: {self.datatype}"
+
+        return rstr
 
 
 @dataclass
 class RaisesData():
+    ''' Dataclass object to represent a :raises...: docstring element.
+
+    :param str desc: The description of the raises docstring.
+    :param str exception: The exception or error raised.
+    '''
     desc: str
     exception: str
+
+    def gen_docstring(self) -> str:
+        '''
+        :returns: The docstring for the input raisedata.
+        '''
+        return f":raises {self.exception}: {self.desc}"
 
 
 @dataclass
 class ReturnsData():
+    ''' Dataclass object to represent a :returns: docstring element.
+
+    :param str desc: The description of the returns docstring.
+    :param str datatype: The string representation of the return datatype.
+    :param bool inline_type: whether the type of this return should be
+                             inline or a separate :rtype: docstring line.
+    '''
     desc: str
     datatype: object
     inline_type: bool
 
+    def gen_docstring(self) -> str:
+        '''
+        :returns: The docstring for this ReturnsData object.
+        '''
+        if self.inline_type:
+            return f":returns {self.datatype}: {self.desc}"
+        else:
+            rstr = f":returns: {self.desc}{os.linesep}"
+            rstr += f":rtype: {self.datatype}"
+            return rstr
+
 
 @dataclass
 class DocstringData():
+    '''
+    Dataclass object representing a full docstring.
+
+    :param str desc: The description of the docstring.
+    :param OrderedDict[str, ArgumentData] arguments: An OrderedDict containing
+        the ArgumentData that respresents the parameter section of the
+        docstring.
+    :param list[RaisesData] raises: A list containing the RaisesData that
+        represents the raises section of the docstring.
+    :param Union[ReturnsData, None] returns: The ReturnsData that represents
+        the returns section of the docstring. Can be set to None if there is
+        no return docstring.
+    '''
     desc: str
     arguments: OrderedDict
     raises: list
@@ -94,6 +192,9 @@ class DocstringData():
 
         :docstring_element: The docstring_element object to be added to the
                             DocstringData.
+
+        :raises DocParseError: If a docstring element not supported by
+                               PSyclone is found.
         '''
         # FIXME We can do some checking that its not already present? But
         # maybe we want to allow overwriting sometimes - optional argument.
@@ -106,7 +207,7 @@ class DocstringData():
         elif isinstance(docstring_element, str):
             self.desc = docstring_element
         else:
-            raise InternalError(
+            raise DocParseError(
                 f"Found docstring element not supported by PSyclone, expected"
                 f" :raise, :param, :returns, :type, or :rtype but found "
                 f"'{docstring_element}'."
@@ -151,6 +252,91 @@ class DocstringData():
                 and other_data.returns is not None):
             self.returns = other_data.returns
 
+    def gen_docstring(
+            self, indentation: str = "    ", obj: Union[None, Any] = None
+    ) -> str:
+        '''
+        Generates the docstring from the input docdata. The indentation of the
+        docstring can be specified and by default is 4 spaces.
+
+        :param docdata: The docdata object to convert to docstring.
+        :param indentation: The indentation to use. Default is "    ".
+        :param obj: The object who the generated docstring will be for. Default
+                    option is None, which means to generate the full docstring
+                    including all type lines.
+
+        :returns: The docstring representation of this DocData object.
+        '''
+        if self.desc is not None:
+            # Need to indent the docstring description if it is multiline.
+            if "\n" in self.desc:
+                lines = self.desc.split("\n")
+                description = ""
+                for line in lines:
+                    description += indentation + line + os.linesep
+            else:
+                description = indentation + self.desc + os.linesep
+        else:
+            description = ""
+
+        argstrings = []
+        for arg in self.arguments:
+            argstring = self.arguments[arg].gen_docstring(obj)
+            if "\n" in argstring:
+                lines = argstring.split("\n")
+                argstring = indentation + lines[0] + os.linesep
+                for line in lines[1:]:
+                    if ":type" not in line:
+                        argstring += indentation*2 + line + os.linesep
+                    else:
+                        argstring += indentation + line + os.linesep
+                # Remove the last newline character
+                argstring = argstring[:-1]
+            else:
+                argstring = indentation + argstring
+            argstrings.append(argstring)
+
+        raisestrings = []
+        for element in self.raises:
+            raisesdocstring = element.gen_docstring()
+            if "\n" in raisesdocstring:
+                lines = raisesdocstring.split("\n")
+                raisestring = indentation + lines[0] + os.linesep
+                for line in lines[1:]:
+                    raisestring += indentation*2 + line.rstrip() + os.linesep
+                # Remove the last \n from the generated string
+                raisestring = raisestring[:-1]
+            else:
+                raisestring = indentation + raisesdocstring
+            raisestrings.append(raisestring)
+
+        if self.returns is not None:
+            returnstring = self.returns.gen_docstring()
+            if "\n" in returnstring:
+                lines = returnstring.split("\n")
+                returnstring = ""
+                for line in lines:
+                    returnstring += indentation + line + os.linesep
+            else:
+                returnstring = indentation + returnstring + "\n"
+        else:
+            returnstring = ""
+
+        docstring = description
+        docstring += os.linesep.join(argstrings)
+        if len(argstrings) > 0:
+            docstring += "\n"
+
+        # Add an empty line between param and raises
+        if len(argstrings) > 0 and len(raisestrings) > 0:
+            docstring += "\n"
+        docstring += os.linesep.join(raisestrings)
+        if len(raisestrings) > 0:
+            docstring += "\n"
+        docstring += returnstring
+
+        return docstring
+
 
 def create_docstring_data(args: List[str], desc: str, obj: Any) ->\
         Union[ArgumentData, RaisesData, ReturnsData]:
@@ -163,33 +349,34 @@ def create_docstring_data(args: List[str], desc: str, obj: Any) ->\
     :param desc: The description corresponding to the docstring element.
     :param obj: The object that is having its docstring analysed.
 
-    :raises InternalError: If an unsupported docstring input is found.
+    :raises DocParseError: If an unsupported docstring input is found.
 
     :returns: An object representing the input arg and desc.
     '''
     # If its a param then we can create an ArgumentData for this.
     if args[0] == "param":
         if len(args) == 2:
+            # Parameter of form :param name: desc.
             inline_type = False
             datatype = None
             name = args[1]
             # Check if there is a datatype on the argument itself and store
             # it.
             signature = inspect.signature(obj)
-            for k, v in signature.parameters.items():
-                if k != name:
-                    continue
-                if v.annotation is not inspect.Parameter.empty:
-                    datatype = stringify_annotation(
-                        v.annotation
-                    )
-                    inline_type = True
+            val = signature.parameters.get(name, None)
+            if (val is not None and val.annotation
+                    is not inspect.Parameter.empty):
+                datatype = stringify_annotation(
+                    val.annotation
+                )
+                inline_type = True
         elif len(args) == 3:
+            # Parameter of form :param type name: desc.
             inline_type = True
             datatype = args[1]
             name = args[2]
         else:
-            raise InternalError(
+            raise DocParseError(
                 f"Found parameter docstring of unsupported type, expected "
                 f":param arg: or :param type arg: but found "
                 f":{' '.join(args)}:"
@@ -198,21 +385,24 @@ def create_docstring_data(args: List[str], desc: str, obj: Any) ->\
             name=name, desc=desc, datatype=datatype, inline_type=inline_type
         )
     elif args[0] == "raises":
+        # Raises must be of form :raises Error: desc
         if len(args) != 2:
-            raise InternalError(
+            raise DocParseError(
                 f"Found raises docstring of unsupported type, expected "
                 f":raises Error: but found :{' '.join(args)}:"
             )
         return RaisesData(exception=args[1], desc=desc)
     elif args[0] == "returns":
         if len(args) == 1:
+            # Return of form :returns: desc
             inline_type = False
             datatype = None
         elif len(args) == 2:
+            # Return of form :returns datatype: desc
             inline_type = True
             datatype = args[1]
         else:
-            raise InternalError(
+            raise DocParseError(
                 f"Found return docstring of unsupported type, expected "
                 f":returns: or :returns type: but found :{' '.join(args)}:"
             )
@@ -220,149 +410,9 @@ def create_docstring_data(args: List[str], desc: str, obj: Any) ->\
             inline_type=inline_type, datatype=datatype, desc=desc
         )
     # Any other docstring is unsupported
-    raise InternalError(
+    raise DocParseError(
         f"Found unsupported docstring: :{' '.join(args)}: "
     )
-
-
-def gen_docstring_from_RaisesData(raisedata: RaisesData) -> str:
-    '''
-    :param raisedata: The RaisesData object to create docstring for.
-    :returns: The docstring for the input raisedata.
-    '''
-
-    return f":raises {raisedata.exception}: {raisedata.desc}"
-
-
-def gen_docstring_from_ArgumentData(
-        argdata: ArgumentData, obj: Union[None, Any] = None
-) -> str:
-    '''
-    :param argdata: The ArgumentData object to create docstring for.
-    :returns: The docstring for the input argdata.
-    '''
-    rstr = ":param "
-    if obj:
-        signature = inspect.signature(obj)
-        for k, v in signature.parameters.items():
-            if k != argdata.name:
-                continue
-            if v.annotation is not inspect.Parameter.empty:
-                rstr += f"{argdata.name}: {argdata.desc}"
-                return rstr
-
-    if argdata.inline_type:
-        rstr += f"{argdata.datatype} {argdata.name}: {argdata.desc}"
-    else:
-        rstr += f"{argdata.name}: {argdata.desc}{os.linesep}"
-        rstr += f":type {argdata.name}: {argdata.datatype}"
-
-    return rstr
-
-
-def gen_docstring_from_ReturnsData(rdata: ReturnsData) -> str:
-    '''
-    :param rdata: The ReturnsData object to create docstring for.
-    :returns: The docstring for the input rdata.
-    '''
-    if rdata.inline_type:
-        return f":returns {rdata.datatype}: {rdata.desc}"
-    else:
-        rstr = f":returns: {rdata.desc}{os.linesep}"
-        rstr += f":rtype: {rdata.datatype}"
-        return rstr
-
-
-def gen_docstring_from_DocstringData(
-        docdata: DocstringData, indentation: str = "    ",
-        obj: Union[None, Any] = None
-) -> str:
-    '''
-    Generates the docstring from the input docdata. The indentation of the
-    docstring can be specified and by default is 4 spaces.
-
-    :param docdata: The docdata object to convert to docstring.
-    :param indentation: The indentation to use. Default is "    ".
-    :param obj: The object who the generated docstring will be for. Default
-                option is None, which means to generate the full docstring
-                including all type lines.
-
-    :returns: The docstring for the input docdata.
-    '''
-    if docdata.desc is not None:
-        # Need to indent the docstring description if it is multiline.
-        if "\n" in docdata.desc:
-            lines = docdata.desc.split("\n")
-            description = ""
-            for line in lines:
-                description += indentation + line + os.linesep
-        else:
-            description = indentation + docdata.desc + os.linesep
-    else:
-        description = ""
-
-    argstrings = []
-    for arg in docdata.arguments:
-        argstring = gen_docstring_from_ArgumentData(
-                docdata.arguments[arg], obj
-        )
-        if "\n" in argstring:
-            lines = argstring.split("\n")
-            argstring = indentation + lines[0] + os.linesep
-            for line in lines[1:]:
-                if ":type" not in line:
-                    argstring += indentation*2 + line + os.linesep
-                else:
-                    argstring += indentation + line + os.linesep
-            # Remove the last newline character
-            argstring = argstring[:-1]
-        else:
-            argstring = indentation + argstring
-        argstrings.append(argstring)
-
-    raisestrings = []
-    for element in docdata.raises:
-        raisesdocstring = gen_docstring_from_RaisesData(element)
-        if "\n" in raisesdocstring:
-            lines = raisesdocstring.split("\n")
-            raisestring = indentation + lines[0] + os.linesep
-            for line in lines[1:]:
-                raisestring += indentation*2 + line.rstrip() + os.linesep
-            # Remove the last \n from the generated string
-            raisestring = raisestring[:-1]
-        else:
-            raisestring = indentation + gen_docstring_from_RaisesData(element)
-        raisestrings.append(raisestring)
-
-    if docdata.returns is not None:
-        returnstring = gen_docstring_from_ReturnsData(docdata.returns)
-        if "\n" in returnstring:
-            first_line, rest = returnstring.split("\n", 1)
-            lines = returnstring.split("\n")
-            returnstring = ""
-            for line in lines:
-                returnstring += indentation + line + os.linesep
-        else:
-            returnstring = indentation + returnstring + "\n"
-    else:
-        returnstring = ""
-
-    docstring = description
-
-    docstring += os.linesep.join(argstrings)
-    if len(argstrings) > 0:
-        docstring += "\n"
-
-    # Add an empty line between param and raises
-    if len(argstrings) > 0 and len(raisestrings) > 0:
-        docstring += "\n"
-    docstring += os.linesep.join(raisestrings)
-    if len(raisestrings) > 0:
-        docstring += "\n"
-
-    docstring += returnstring
-
-    return docstring
 
 
 def parse_psyclone_docstring_from_object(
@@ -374,8 +424,8 @@ def parse_psyclone_docstring_from_object(
 
     :param Any obj: The object whose docstring will be parsed.
 
-    :raises ValueError: if a docstring element cannot be parsed.
-    :raises InternalError: if a type docstring is found with no correspdongin
+    :raises DocParseError: if a docstring element cannot be parsed.
+    :raises DocParseError: if a type docstring is found with no corresponding
                            parameter docstring.
 
     :returns: A DocstringData object representing the objects docstring or
@@ -390,7 +440,7 @@ def parse_psyclone_docstring_from_object(
     text = inspect.cleandoc(text)
 
     # Find the first instance of ^: as the start of the meta information.
-    match = re.search("^:", text, flags=re.M)
+    match = re.search("^:(param|type|raise|returns|rtype)", text, flags=re.M)
     if match:
         desc_chunk = text[:match.start()]
         meta_chunk = text[match.start():]
@@ -398,8 +448,6 @@ def parse_psyclone_docstring_from_object(
         desc_chunk = text
         meta_chunk = ""
 
-    # Can break the ValueError with something like this
-    #    meta_chunk += "\n::"
     # We don't care about breaking down the description in PSyclone
     # for now, so just keep the desc_chunk as text.
 
@@ -413,7 +461,7 @@ def parse_psyclone_docstring_from_object(
 
     docstring_data.add_data(desc_chunk)
 
-    # Loop through the meta chunk for each line that section that has
+    # Loop through the meta chunk for each line in that section that has
     # :...:
     for match in re.finditer(
         r"(^:.*?)(?=^:|\Z)", meta_chunk, flags=re.S | re.M
@@ -424,7 +472,8 @@ def parse_psyclone_docstring_from_object(
         try:
             args_chunk, desc_chunk = chunk.lstrip(":").split(":", 1)
         except ValueError as ex:
-            raise ValueError(
+            # Can be cause by something like "\n::" in the docstring.
+            raise DocParseError(
                 f'Error parsing meta information near "{chunk}".'
             ) from ex
         args = args_chunk.split()
@@ -434,14 +483,26 @@ def parse_psyclone_docstring_from_object(
         # docstring already removes the \n if it contains \ , so we remove the
         # leftover indentation
         if "  " in desc:
-            first_line, rest = desc.split("  ", 1)
-            desc = first_line + "\n" + inspect.cleandoc(rest)
+            lines = desc.split("  ")
+            desc = lines[0] + "\n"
+            for line in lines[1:]:
+                desc_line = inspect.cleandoc(line)
+                # If this section of the split was only whitespace
+                # we can ignore it.
+                if desc_line != "":
+                    desc = desc + desc_line + "\n"
+            # Remove the trailing \n
+            desc = desc[:-1]
 
         # If we have a multiline description without \ to break lines then it
         # instead contains \n which we can clean up similarly.
         if "\n" in desc:
-            first_line, rest = desc.split("\n", 1)
-            desc = first_line + "\n" + inspect.cleandoc(rest)
+            lines = desc.split("\n")
+            desc = lines[0] + os.linesep
+            for line in lines[1:]:
+                desc += inspect.cleandoc(line) + os.linesep
+            # Remove the trailing \n
+            desc = desc[:-1]
 
         # Special handling for :type: or :rtype: lines.
         if len(args) == 2 and args[0] == "type":
@@ -453,15 +514,18 @@ def parse_psyclone_docstring_from_object(
             docdata = create_docstring_data(args, desc, obj)
             docstring_data.add_data(docdata)
 
+    # Store the separate (i.e. not inline) type information that was
+    # extracted.
     for param in types:
         if param not in docstring_data.arguments.keys():
-            raise InternalError(
+            raise DocParseError(
                 f"Found a type string with no corresponding parameter: "
                 f"'{param}' type found with no parameter docstring."
             )
         docstring_data.arguments[param].datatype = types[param]
         docstring_data.arguments[param].inline_type = False
 
+    # Store the return type if specified.
     if rtype:
         docstring_data.returns.datatype = rtype
         docstring_data.returns.inline_type = False
@@ -471,8 +535,5 @@ def parse_psyclone_docstring_from_object(
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ['ArgumentData', 'RaisesData', 'ReturnsData', 'DocstringData',
-           'create_docstring_data', 'gen_docstring_from_RaisesData',
-           'gen_docstring_from_ArgumentData',
-           'gen_docstring_from_ReturnsData',
-           'gen_docstring_from_DocstringData',
+           'create_docstring_data',
            'parse_psyclone_docstring_from_object']

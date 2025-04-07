@@ -196,9 +196,8 @@ def test_transformation_get_options():
 
     with pytest.raises(ValueError) as excinfo:
         trans.get_option("invalid")
-    assert ("'TestTrans' failed to get option 'invalid' as it is not "
-            "provided as a keyword argument to the apply method." in
-            str(excinfo.value))
+    assert ("option 'invalid' is not a valid option for 'TestTrans'. "
+            "Valid options are '['valid']." in str(excinfo.value))
 
 
 def test_transformation_get_valid_options():
@@ -240,9 +239,8 @@ def test_transformation_validate_options():
 
     with pytest.raises(ValueError) as excinfo:
         instance.validate_options(not_valid=True)
-    assert ("'TestTrans' received invalid options ['not_valid']. Please "
-            "see the documentation and check the available options." in
-            str(excinfo.value))
+    assert ("'TestTrans' received invalid options ['not_valid']. "
+            "Valid options are '['valid']." in str(excinfo.value))
 
 
 # TransInfo class unit tests

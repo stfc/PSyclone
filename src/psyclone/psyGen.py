@@ -2772,6 +2772,12 @@ class Transformation(metaclass=abc.ABCMeta):
         :type options: Optional[Dict[str, Any]]
 
         '''
+        # TODO 2668: options are now deprecated:
+        if options is not None:
+            print("Deprecation Warning: The options parameter to "
+                  "Transformation.apply is now deprecated. Please use "
+                  "the individual arguments, or unpack the options with "
+                  "**options. See the documentation for more details.")
 
     def validate(self, node, options=None, **kwargs):
         '''Method that validates that the input data is correct.
@@ -2802,6 +2808,12 @@ class Transformation(metaclass=abc.ABCMeta):
         :type options: Optional[Dict[str, Any]]
         '''
         # pylint: disable=unused-argument
+        # TODO 2668: options are now deprecated:
+        if options is not None:
+            print("Deprecation Warning: The options parameter to "
+                  "Transformation.validate is now deprecated. Please use "
+                  "the individual arguments, or unpack the options with "
+                  "**options. See the documentation for more details.")
 
     def get_option(self, option_name: str, **kwargs) -> Any:
         '''Finds the value of the option_name from the kwargs.
@@ -2815,9 +2827,9 @@ class Transformation(metaclass=abc.ABCMeta):
         '''
         valid_options = type(self).get_valid_options()
         if option_name not in valid_options.keys():
-            raise ValueError(f"'{type(self).__name__}' failed to get option "
-                             f"'{option_name}' as it is not provided as a "
-                             f"keyword argument to the apply method.")
+            raise ValueError(f"option '{option_name}' is not a valid option "
+                             f"for '{type(self).__name__}'. Valid options "
+                             f"are '{list(valid_options.keys())}.")
         return kwargs.get(option_name, valid_options[option_name].default)
 
     @classmethod
@@ -2901,9 +2913,9 @@ class Transformation(metaclass=abc.ABCMeta):
                 invalid_options_detail.append(f"'{invalid}'")
             invalid_options_list = ", ".join(invalid_options_detail)
             raise ValueError(f"'{type(self).__name__}' received invalid "
-                             f"options [{invalid_options_list}]. Please see "
-                             f"the documentation and check the available "
-                             f"options.")
+                             f"options [{invalid_options_list}]. "
+                             f"Valid options are "
+                             f"'{list(valid_options.keys())}.")
         if len(wrong_types.keys()) > 0:
             wrong_types_detail = []
             for name in wrong_types.keys():

@@ -44,7 +44,6 @@ from psyclone.psyGen import Transformation
 from psyclone.docstring_parser import (
     DocstringData,
     parse_psyclone_docstring_from_object,
-    gen_docstring_from_DocstringData,
 )
 
 
@@ -123,7 +122,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         added_parameters.returns = None
 
         func_data.merge(added_parameters, replace_args=False)
-        func.__doc__ = gen_docstring_from_DocstringData(func_data)
+        func.__doc__ = func_data.gen_docstring(obj=func)
 
     def wrapper():
         '''

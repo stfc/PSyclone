@@ -40,13 +40,10 @@ import pytest
 from collections import OrderedDict
 from psyclone.docstring_parser import (
     ArgumentData, RaisesData, ReturnsData, DocstringData,
-    create_docstring_data, gen_docstring_from_RaisesData,
-    gen_docstring_from_ArgumentData,
-    gen_docstring_from_ReturnsData,
-    gen_docstring_from_DocstringData,
+    create_docstring_data,
     parse_psyclone_docstring_from_object,
 )
-from psyclone.errors import InternalError
+from psyclone.errors import DocParseError
 
 
 def test_argumentdata():
@@ -117,7 +114,7 @@ def test_docstringdata_add_data():
     docdata.add_data(rdata)
     assert docdata.raises[1] is rdata
 
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(DocParseError) as excinfo:
         docdata.add_data(1)
     assert ("Found docstring element not supported by PSyclone, expected"
             " :raise, :param, :returns, :type, or :rtype but found "
@@ -231,7 +228,7 @@ def test_create_docstring_data():
 
     # Test invalid param string
     args = ["param", "one", "two", "three"]
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(DocParseError) as excinfo:
         create_docstring_data(args, "desc", dummy_function)
     assert ("Found parameter docstring of unsupported type, expected "
             ":param arg: or :param type arg: but found "
@@ -239,21 +236,21 @@ def test_create_docstring_data():
 
     # Test invalid raises string
     args = ["raises", "one", "two"]
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(DocParseError) as excinfo:
         create_docstring_data(args, "desc", dummy_function)
     assert ("Found raises docstring of unsupported type, expected "
             ":raises Error: but found :raises one two:" in str(excinfo.value))
 
     # Test valid raises string
-    args = ["raises", "InternalError"]
+    args = ["raises", "DocParseError"]
     output = create_docstring_data(args, "desc", dummy_function)
     assert isinstance(output, RaisesData)
-    assert output.exception == "InternalError"
+    assert output.exception == "DocParseError"
     assert output.desc == "desc"
 
     # Test invalid returns string
     args = ["returns", "one", "two"]
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(DocParseError) as excinfo:
         create_docstring_data(args, "desc", dummy_function)
     assert ("Found return docstring of unsupported type, expected "
             ":returns: or :returns type: but found :returns one two"
@@ -277,63 +274,63 @@ def test_create_docstring_data():
 
     # Test invalid input.
     args = ["invalid", "input"]
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(DocParseError) as excinfo:
         create_docstring_data(args, "desc", dummy_function)
     assert ("Found unsupported docstring: :invalid input:"
             in str(excinfo.value))
 
 
-def test_gen_docstring_from_RaisesData():
-    '''Test the gen_docstring_from_RaisesData function.'''
+def test_RaisesData_gen_docstring():
+    '''Test the RaisesData class gen_docstring function.'''
     rdata = RaisesData(desc="desc", exception="Error")
-    output = gen_docstring_from_RaisesData(rdata)
+    output = rdata.gen_docstring()
     assert output == ":raises Error: desc"
 
 
-def test_gen_docstring_from_ArgumentData():
-    '''Test the gen_docstring_from_ArgumentData function.'''
+def test_ArgumentData_gen_docstring():
+    '''Test the ArgumentData class gen_docstring function.'''
     adata = ArgumentData(name="name", datatype="datatype",
                          desc="desc", inline_type=True)
-    output = gen_docstring_from_ArgumentData(adata)
+    output = adata.gen_docstring()
     assert output == ":param datatype name: desc"
 
     adata = ArgumentData(name="name", datatype="datatype",
                          desc="desc", inline_type=False)
-    output = gen_docstring_from_ArgumentData(adata)
+    output = adata.gen_docstring()
     assert output == ":param name: desc\n:type name: datatype"
     # Test looking in dummy_functions argument list and not finding the
     # argument.
-    output = gen_docstring_from_ArgumentData(adata, dummy_function)
+    output = adata.gen_docstring(dummy_function)
     assert output == ":param name: desc\n:type name: datatype"
 
     adata = ArgumentData(name="typed_arg", datatype="int",
                          desc="desc", inline_type=False)
-    output = gen_docstring_from_ArgumentData(adata, dummy_function)
+    output = adata.gen_docstring(dummy_function)
     assert output == ":param typed_arg: desc"
 
 
-def test_gen_docstring_from_ReturnsData():
-    '''Test the gen_docstring_from_ReturnsData function.'''
+def test_ReturndData_gen_docstring():
+    '''Test the ReturnsData class gen_docstring function.'''
     rdata = ReturnsData(desc="desc", datatype="datatype", inline_type=False)
-    output = gen_docstring_from_ReturnsData(rdata)
+    output = rdata.gen_docstring()
     assert output == ":returns: desc\n:rtype: datatype"
 
     rdata = ReturnsData(desc="desc", datatype="datatype", inline_type=True)
-    output = gen_docstring_from_ReturnsData(rdata)
+    output = rdata.gen_docstring()
     assert output == ":returns datatype: desc"
 
 
-def test_gen_docstring_from_DocstringData():
-    ''' Test the gen_docstring_from_DocstringData function.'''
+def test_DocstringData_gen_docstring_():
+    ''' Test the DocstringData class gen_docstring function.'''
 
     # Check we get nothing for an empty DocstringData
     docdata = DocstringData(desc=None, arguments=OrderedDict(), raises=[],
                             returns=None)
-    output = gen_docstring_from_DocstringData(docdata)
+    output = docdata.gen_docstring()
     assert output == ""
 
     docdata.desc = "desc"
-    output = gen_docstring_from_DocstringData(docdata)
+    output = docdata.gen_docstring()
     assert output == "    desc\n"
 
     adata = ArgumentData(name="name", datatype="datatype",
@@ -341,42 +338,47 @@ def test_gen_docstring_from_DocstringData():
     docdata.add_data(adata)
 
     adata = ArgumentData(name="name2", datatype="datatype",
-                         desc="desc", inline_type=False)
+                         desc="multiline\ndesc", inline_type=False)
     docdata.add_data(adata)
 
-    output = gen_docstring_from_DocstringData(docdata)
+    output = docdata.gen_docstring()
     correct = '''    desc
     :param datatype name: desc
-    :param name2: desc
+    :param name2: multiline
+        desc
     :type name2: datatype
 '''
     assert output == correct
 
     rdata = RaisesData(desc="desc", exception="Error")
     docdata.add_data(rdata)
-    rdata = RaisesData(desc="desc2", exception="Error2")
+    rdata = RaisesData(desc="multiline\ndesc2", exception="Error2")
     docdata.add_data(rdata)
-    output = gen_docstring_from_DocstringData(docdata)
+    output = docdata.gen_docstring()
     correct = '''    desc
     :param datatype name: desc
-    :param name2: desc
+    :param name2: multiline
+        desc
     :type name2: datatype
 
     :raises Error: desc
-    :raises Error2: desc2
+    :raises Error2: multiline
+        desc2
 '''
     assert output == correct
 
     rdata = ReturnsData(desc="desc", datatype="datatype", inline_type=False)
     docdata.add_data(rdata)
-    output = gen_docstring_from_DocstringData(docdata)
+    output = docdata.gen_docstring()
     correct = '''    desc
     :param datatype name: desc
-    :param name2: desc
+    :param name2: multiline
+        desc
     :type name2: datatype
 
     :raises Error: desc
-    :raises Error2: desc2
+    :raises Error2: multiline
+        desc2
     :returns: desc
     :rtype: datatype
 '''
@@ -384,14 +386,16 @@ def test_gen_docstring_from_DocstringData():
 
     rdata = ReturnsData(desc="desc", datatype="datatype", inline_type=True)
     docdata.add_data(rdata)
-    output = gen_docstring_from_DocstringData(docdata)
+    output = docdata.gen_docstring()
     correct = '''    desc
     :param datatype name: desc
-    :param name2: desc
+    :param name2: multiline
+        desc
     :type name2: datatype
 
     :raises Error: desc
-    :raises Error2: desc2
+    :raises Error2: multiline
+        desc2
     :returns datatype: desc
 '''
     assert output == correct
@@ -429,9 +433,10 @@ def test_parse_psyclone_docstring_from_object():
         :param bool myparam2: a second parameter
         with a multiline docstring.
         :param bool myparam3: a third parameter with\
-                a backslash docstring.
+                a backslash docstring spanning\
+                many lines.
 
-        :raises InternalError: an error
+        :raises DocParseError: an error
 
         :returns: something
         :rtype: type
@@ -447,22 +452,33 @@ def test_parse_psyclone_docstring_from_object():
     assert (out_data.arguments["myparam2"].desc == "a second parameter\n"
             "with a multiline docstring.")
     assert (out_data.arguments["myparam3"].desc == "a third parameter with\n"
-            "a backslash docstring.")
+            "a backslash docstring spanning\nmany lines.")
     assert len(out_data.raises) == 1
-    assert out_data.raises[0].exception == "InternalError"
+    assert out_data.raises[0].exception == "DocParseError"
     assert out_data.raises[0].desc == "an error"
     assert out_data.returns.desc == "something"
     assert out_data.returns.datatype == "type"
     assert not out_data.returns.inline_type
+
+    # Method with only a description should return a DocstringData with
+    # only a description. Here we test we can support a single colon in the
+    # description.
+    def desc_colon():
+        '''A description with a
+        : colon in it.'''
+
+    out_data = parse_psyclone_docstring_from_object(desc_colon)
+    assert "A description with a\n: colon in it." == out_data.desc
 
     # Test the ValueError.
 
     def valueerror_docstring():
         ''' Some description with only one colon after.
 
+        :param thingone: thing
         :nothing here '''
 
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(DocParseError) as excinfo:
         out_data = parse_psyclone_docstring_from_object(valueerror_docstring)
     assert ('Error parsing meta information near ":nothing here "' in
             str(excinfo.value))
@@ -473,7 +489,7 @@ def test_parse_psyclone_docstring_from_object():
         :type param: uhoh
         '''
 
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(DocParseError) as excinfo:
         out_data = parse_psyclone_docstring_from_object(
             internalerror_docstring
         )
@@ -521,7 +537,7 @@ def test_docstring_is_reversible():
     assert basedata.desc is not None
 
     # Create a processed docstring
-    processed_doc = gen_docstring_from_DocstringData(basedata)
+    processed_doc = basedata.gen_docstring()
 
     # Generate a new basedata from the generated docstring.
     docstring_object.__doc__ = processed_doc
@@ -541,7 +557,7 @@ def test_docstring_is_reversible():
     basedata.merge(doc2data)
     assert "param4" in basedata.arguments.keys()
 
-    processed_doc = gen_docstring_from_DocstringData(basedata)
+    processed_doc = basedata.gen_docstring()
 
     # Generate a new basedata from the meregd docstring
     docstring_object.__doc__ = processed_doc
