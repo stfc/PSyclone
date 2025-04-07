@@ -50,12 +50,13 @@ be added in Issue #298.
 '''
 
 from psyclone.configuration import Config
+from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.nodes.assignment import Assignment
-from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, REAL8_TYPE, ArrayType, ContainerSymbol,
     ImportInterface)
@@ -170,8 +171,10 @@ class ExtractNode(PSyDataNode):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
         from psyclone.psyGen import Kern
-        from psyclone.psyir.nodes import CodeBlock, Routine
         module_name = self._module_name
         if not self._region_name:
             kerns = self.walk(Kern)
@@ -209,9 +212,6 @@ class ExtractNode(PSyDataNode):
 
         self.flatten_references()
 
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
         # Determine the variables to write:
         ctu = CallTreeUtils()
         read_write_info = ctu.get_in_out_parameters(

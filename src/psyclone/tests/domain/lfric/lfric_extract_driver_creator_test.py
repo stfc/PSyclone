@@ -45,7 +45,8 @@ from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Literal, Routine, Schedule
+from psyclone.psyir.nodes import (
+    Literal, Routine, Schedule, Call, StructureReference)
 from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.tests.utilities import Compile, get_base_path, get_invoke
 
@@ -81,45 +82,6 @@ def init_module_manager():
 
     # Enforce loading of the default ModuleManager
     ModuleManager._instance = None
-
-
-# ----------------------------------------------------------------------------
-# @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
-# def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
-#     '''
-#     Test that _create_read_in_code() handles the case where a symbol
-#     cannot be found.
-#     '''
-#     _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
-#                            "symbols.f90",
-#                            API,
-#                            dist_mem=False, idx=0)
-#     ctu = CallTreeUtils()
-#     rw_info = ctu.get_in_out_parameters([invoke.schedule[0]],
-#                                         collect_non_local_symbols=True)
-#     new_routine = Routine.create("driver_test")
-#     for mod_name, sig in rw_info.set_of_all_used_vars:
-#         if not mod_name:
-#             new_routine.symbol_table.find_or_create_tag(
-#                 str(sig), symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-#     ledc = LFRicExtractDriverCreator()
-#     # To limit the scope of the test we monkeypatch _create_output_var_code
-#     # so that it doesn't do anything.
-#     monkeypatch.setattr(ledc, "_create_output_var_code",
-#                         lambda _1, _2, _3, _4, _5, index=None,
-#                         module_name="": None)
-#     mod_man = ModuleManager.get()
-#     minfo = mod_man.get_module_info("module_with_var_mod")
-#     cntr = minfo.get_psyir()
-#     # We can't use 'remove()' with a DataSymbol.
-#     cntr.symbol_table._symbols.pop("module_var_b")
-#     ledc._create_read_in_code(new_routine,
-#                               DataSymbol("psy1", INTEGER_TYPE),
-#                               invoke.schedule.symbol_table,
-#                               rw_info, "my_postfix")
-#     out, _ = capsys.readouterr()
-#     assert ("Error finding symbol 'module_var_b' in 'module_with_var_mod'"
-#             in out)
 
 
 # ----------------------------------------------------------------------------
@@ -283,6 +245,43 @@ def test_lfric_driver_simple_test():
     build = Compile(".")
     build.compile_file("driver-field-test.F90")
 
+
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+def test_lfric_driver_dm_test():
+    '''Test the full pipeline with DM:  '''
+
+    psy, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
+                             dist_mem=True, idx=0)
+
+    extract = LFRicExtractTrans()
+
+    kern_call = invoke.schedule.children[-1]
+    extract.apply(kern_call,
+                  options={"create_driver": True,
+                           "region_name": ("field", "test")})
+    code = psy.gen
+    print(code)
+    filename = "driver-field-test.F90"
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
+    # Check that DM infrastructure calls such as "set_dirty" are still in the
+    # psylayer, so following extraction regions still have the correct values,
+    # while it has been removed from the driver (because it is executed in a)
+    # single rank (and without the infrastructure imported).
+    assert "set_dirty" in code
+    assert "ser_dirty" not in driver
+
+    # If there is a method call other than the ones from the DM infrastructure
+    # it will fail
+    base_symbol = invoke.schedule.symbol_table.lookup('x_ptr_vector')
+    kern_call.parent.addchild(
+        Call.create(
+            StructureReference.create(base_symbol, ["method"])))
+    with pytest.raises(VisitorError) as err:
+        code = psy.gen
+    assert ("The provided PSyIR should not have StructureReferences, "
+            "but found: x_ptr_vector%method" in str(err.value))
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
