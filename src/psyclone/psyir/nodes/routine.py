@@ -51,7 +51,7 @@ from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.symbols import (
-    DataSymbol, DefaultModuleInterface, ImportInterface,
+    DataSymbol, DefaultModuleInterface,
     RoutineSymbol, SymbolError, UnresolvedInterface)
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 
@@ -196,10 +196,6 @@ class Routine(Schedule, CommentableMixin):
         Check for unresolved symbols or for any declared in the outer scope
         Container of the target routine.
 
-        If a Symbol in this Routine was previously unresolved but it turns out
-        that there is only one wildcard import that can be bringing it into
-        scope then its interface is updated accordingly.
-
         :param call: the node representing the call to the routine that is to
             be inlined.
         :type call: Union[CodedKern, Call]
@@ -232,25 +228,19 @@ class Routine(Schedule, CommentableMixin):
                     f"unknown.")
             if symbol.is_unresolved:
                 routine_wildcards = table.wildcard_imports()
-                if len(routine_wildcards) == 1:
-                    (csym,) = routine_wildcards
-                    # Now we know the origin of this symbol we can update it.
-                    symbol.interface = ImportInterface(csym)
-                else:
-                    # We have more than one wildcard import so we don't know
-                    # the origin of this unresolved symbol.
-                    if permit_unresolved:
-                        continue
-                    if (ignore_non_data_accesses and
-                            not vai[sig].has_data_access()):
-                        continue
-                    raise SymbolError(
-                        f"{kern_or_call} '{name}' contains accesses to "
-                        f"'{symbol.name}' which is unresolved. It is being "
-                        f"brought into scope from one of "
-                        f"{[sym.name for sym in routine_wildcards]}. It may be"
-                        f" resolved by adding these to RESOLVE_IMPORTS in the "
-                        f"transformation script.")
+                # We can't be certain of the origin of this unresolved symbol.
+                if permit_unresolved:
+                    continue
+                if (ignore_non_data_accesses and
+                        not vai[sig].has_data_access()):
+                    continue
+                raise SymbolError(
+                    f"{kern_or_call} '{name}' contains accesses to "
+                    f"'{symbol.name}' which is unresolved. It is probably "
+                    f"brought into scope from one of "
+                    f"{[sym.name for sym in routine_wildcards]}. It may be"
+                    f" resolved by adding these to RESOLVE_IMPORTS in the "
+                    f"transformation script.")
             if not symbol.is_import and symbol.name not in table:
                 sym_at_call_site = call.scope.symbol_table.lookup(
                     sig.var_name, otherwise=None)

@@ -1605,8 +1605,7 @@ class Node():
         self._children = ChildrenList(self, self._validate_child,
                                       self._children_valid_format)
         # And make a recursive copy of each child instead
-        self.children.extend([child.copy() for
-                              child in other.children])
+        self.children.extend([child.copy() for child in other.children])
         self._disable_tree_update = False
 
     def copy(self):

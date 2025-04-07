@@ -297,7 +297,7 @@ def test_routine_copy_in_container(fortran_reader):
     assert "trouble" not in rt1.symbol_table
     ref = rt1.walk(Reference)[0]
     assert ref.symbol.name == "trouble"
-    # TODO #723 - these dangling References should be handled when the Routine
+    # TODO #2947 - these dangling References should be handled when the Routine
     # is attached to a new parent.
 
 
@@ -569,8 +569,8 @@ def test_outer_scope_accesses_unresolved(fortran_reader):
     # Remove the CodeBlock and repeat.
     rt0.children[0].detach()
     rt0.check_outer_scope_accesses(call, "call")
-    # The interface should have been updated as there's only 1 wildcard import
-    assert sym.interface.container_symbol.name == "another_mod"
+    # The interface should have been left unchanged.
+    assert sym.is_unresolved
 
 
 def test_outer_scope_accesses_multi_wildcards(fortran_reader):
@@ -599,14 +599,14 @@ def test_outer_scope_accesses_multi_wildcards(fortran_reader):
     with pytest.raises(SymbolError) as err:
         rt0.check_outer_scope_accesses(call, "call", permit_unresolved=False)
     assert ("'call_it' contains accesses to 'a_routine' which is unresolved. "
-            "It is being brought into" in str(err.value))
+            "It is probably brought into" in str(err.value))
     # Remove the call.
     rt0.children[0].detach()
     # Now the kind parameter 'r_def' should be flagged.
     with pytest.raises(SymbolError) as err:
         rt0.check_outer_scope_accesses(call, "call", permit_unresolved=False)
     assert ("'call_it' contains accesses to 'r_def' which is unresolved. It "
-            "is being brought into scope from one of ['another_mod', "
+            "is probably brought into scope from one of ['another_mod', "
             "'this_one']" in str(err.value))
     # But not if we ignore non-data accesses.
     rt0.check_outer_scope_accesses(call, "call", permit_unresolved=False,
