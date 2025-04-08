@@ -347,7 +347,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             else:
                 list_of_names = ignore_dependencies_for
         else:
-            if(len(options.keys()) > 0):
+            if len(options.keys()) > 0:
                 print("Deprecation Warning: The options parameter to "
                       "Transformation.apply is now deprecated. Please use "
                       "the individual arguments, or unpack the options with "
