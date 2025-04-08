@@ -38,11 +38,9 @@
 
 ''' This module provides the OMPTargetTrans PSyIR transformation '''
 
-from typing import List
-
 from psyclone.psyir.nodes import (
     CodeBlock, OMPTargetDirective, Call, Routine, Reference,
-    OMPTaskwaitDirective, Node, Directive, Schedule)
+    OMPTaskwaitDirective, Directive, Schedule)
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
@@ -93,14 +91,15 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
     '''
     excluded_node_types = (CodeBlock, )
 
-    def _add_asynchronicity(self, nodes: List[Node], instance: Directive):
+    def _add_asynchronicity(self, instance: Directive):
         '''Adds asynchronicity to the provided directive if possible. If
         PSyclone's analysis suggests that it is not possible, the directive
         is left unchanged.
 
-        :param nodes: The Loop or code region to execute asynchronously.
         :param instance: The directive to become asynchronous if possible.
         '''
+        # Nodes is all the children of the OmpTargetDirective
+        nodes = instance.dir_body.children[:]
         next_depend = self._find_next_dependency(nodes, instance)
 
         # If find_next_dependency returns False, then this loop is its own
@@ -210,4 +209,4 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         parent.children.insert(start_index, directive)
 
         if nowait:
-            self._add_asynchronicity(node_list, directive)
+            self._add_asynchronicity(directive)

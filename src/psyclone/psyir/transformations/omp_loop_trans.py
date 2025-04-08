@@ -37,7 +37,7 @@
 
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import (
-    Directive, Loop, Schedule,
+    Directive, Schedule,
     Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
     OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
     OMPScheduleClause, OMPBarrierDirective, OMPParallelDirective,
@@ -138,14 +138,13 @@ class OMPLoopTrans(ParallelLoopTrans):
     def __str__(self):
         return "Adds an OpenMP directive to parallelise the target loop"
 
-    def _add_asynchronicity(self, node: Loop, instance: Directive):
+    def _add_asynchronicity(self, instance: Directive):
         ''' Adds asynchronicity to the provided directive if possible. If
         PSyclone's analysis suggests that it is not possible, the directive
         is left unchanged.
 
         The only directive that this method can act on is the OMPDoDirective.
 
-        :param nodes: The Loop or code region to execute asynchronously.
         :param instance: The directive to make asynchronous if possible.
         '''
         # Of the various directives supported by this transformation, only the
@@ -153,6 +152,8 @@ class OMPLoopTrans(ParallelLoopTrans):
         # exact type check
         if type(instance) is not OMPDoDirective:
             return
+        # The loop is the first child of the schedule of an OMPDoDirective.
+        node = instance.dir_body.children[0]
         # Otherwise find the next dependency.
         next_depend = self._find_next_dependency(node, instance)
         # If find_next_dependency returns False, then this loop is its own

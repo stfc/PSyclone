@@ -49,14 +49,13 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
     support asynchronous additions to parallel or region transformations, e.g.
     OpenMP's nowait clause.'''
 
-    def _add_asynchronicity(self, nodes: Union[Loop, List[Node]],
-                            instance: Directive):
+    def _add_asynchronicity(self, instance: Directive):
         ''' Function to enable child classes to handle adding asynchronicity
         (e.g. nowait or dynamic queue choices) as part of the transformation.
 
         This must implemented by the child class.
 
-        :param nodes: The Loop or code region to execute asynchronously.
+        :param instance: The Directive to execute asynchronously.
         '''
         # TODO #11: If the base function is called then we should log that
         # the user asked asynchronicity to be added to a transformation that

@@ -68,7 +68,9 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
     attempt to add the relevant asynchronous option to the directive, if
     supported. If its not supported, or PSyclone's analysis suggests that it
     cannot be launched asynchronously, the transformation will occur as though
-    the nowait option was not supplied.
+    the nowait option was not supplied. If the asynchronous option is added,
+    PSyclone will also generate a corresponding barrier before the next
+    dependent statement.
 
     '''
     # The types of node that must be excluded from the section of PSyIR
@@ -422,4 +424,4 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         node_parent.addchild(directive, index=node_position)
 
         if nowait:
-            self._add_asynchronicity(node, directive)
+            self._add_asynchronicity(directive)
