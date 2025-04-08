@@ -1,3 +1,5 @@
+   7) PR #2945 for #2943. Fix broken documentation links.
+
    6) PR #2921 for #2532. Changes the documentation so that the User,
    Developer and Reference Guides are all in a single build. Updates
    RTD so that a pdf is made available (and removes the local copy).
