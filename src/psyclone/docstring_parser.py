@@ -337,6 +337,125 @@ class DocstringData():
 
         return docstring
 
+    @classmethod
+    def create_from_object(cls, obj: Any):
+        '''
+        Converts the docstring of obj into a DocstringData object. Only
+        supports docstring used in PSyclone, so some valid docstring may
+        result in failure.
+
+        :param Any obj: The object whose docstring will be parsed.
+
+        :raises DocParseError: if a docstring element cannot be parsed.
+        :raises DocParseError: if a type docstring is found with no
+                               corresponding parameter docstring.
+
+        :returns: A DocstringData object representing the objects docstring or
+                  None if obj has no docstring.
+        :rtype: Union[:py:class:`psyclone.docstring_parser.DocData`, None]
+        '''
+        text = obj.__doc__
+
+        if text is None:
+            return None
+
+        # Remove indentation from the documentation
+        text = inspect.cleandoc(text)
+
+        # Find the first instance of ^: as the start of the meta information.
+        match = re.search("^:(param|type|raise|returns|rtype)", text,
+                          flags=re.M)
+        if match:
+            desc_chunk = text[:match.start()]
+            meta_chunk = text[match.start():]
+        else:
+            desc_chunk = text
+            meta_chunk = ""
+
+        # We don't care about breaking down the description in PSyclone
+        # for now, so just keep the desc_chunk as text.
+
+        # Store types and return types as separate things to integrate later.
+        types = {}
+        rtype = None
+        docstring_data = DocstringData(
+            desc="", arguments=OrderedDict(), raises=[],
+            returns=None
+        )
+
+        docstring_data.add_data(desc_chunk)
+
+        # Loop through the meta chunk for each line in that section that has
+        # :...:
+        for match in re.finditer(
+            r"(^:.*?)(?=^:|\Z)", meta_chunk, flags=re.S | re.M
+        ):
+            chunk = match.group(0)
+
+            # Split the text into the section between the two :s and after.
+            try:
+                args_chunk, desc_chunk = chunk.lstrip(":").split(":", 1)
+            except ValueError as ex:
+                # Can be cause by something like "\n::" in the docstring.
+                raise DocParseError(
+                    f'Error parsing meta information near "{chunk}".'
+                ) from ex
+            args = args_chunk.split()
+            desc = desc_chunk.strip()
+
+            # If we have a multiline description then we need to clean it up.
+            # The docstring already removes the \n if it contains \ , so
+            # we remove the leftover indentation
+            if "  " in desc:
+                lines = desc.split("  ")
+                desc = lines[0] + "\n"
+                for line in lines[1:]:
+                    desc_line = inspect.cleandoc(line)
+                    # If this section of the split was only whitespace
+                    # we can ignore it.
+                    if desc_line != "":
+                        desc = desc + desc_line + "\n"
+                # Remove the trailing \n
+                desc = desc[:-1]
+
+            # If we have a multiline description without \ to break lines then
+            # it instead contains \n which we can clean up similarly.
+            if "\n" in desc:
+                lines = desc.split("\n")
+                desc = lines[0] + os.linesep
+                for line in lines[1:]:
+                    desc += inspect.cleandoc(line) + os.linesep
+                # Remove the trailing \n
+                desc = desc[:-1]
+
+            # Special handling for :type: or :rtype: lines.
+            if len(args) == 2 and args[0] == "type":
+                types[args[1]] = desc
+            elif len(args) in [1, 2] and args[0] == "rtype":
+                rtype = desc
+            else:
+                # Get the information.
+                docdata = create_docstring_data(args, desc, obj)
+                docstring_data.add_data(docdata)
+
+        # Store the separate (i.e. not inline) type information that was
+        # extracted.
+        for param in types:
+            if param not in docstring_data.arguments.keys():
+                raise DocParseError(
+                    f"Found a type string with no corresponding parameter: "
+                    f"'{param}' type found with no parameter docstring."
+                )
+            docstring_data.arguments[param].datatype = types[param]
+            docstring_data.arguments[param].inline_type = False
+
+        # Store the return type if specified.
+        if rtype:
+            docstring_data.returns.datatype = rtype
+            docstring_data.returns.inline_type = False
+
+        return docstring_data
+
 
 def create_docstring_data(args: List[str], desc: str, obj: Any) ->\
         Union[ArgumentData, RaisesData, ReturnsData]:
@@ -415,125 +534,6 @@ def create_docstring_data(args: List[str], desc: str, obj: Any) ->\
     )
 
 
-def parse_psyclone_docstring_from_object(
-        obj: Any
-) -> Union[DocstringData, None]:
-    '''
-    Converts the docstring of obj into a DocstringData object. Only supports
-    docstring used in PSyclone, so some valid docstring may result in failure.
-
-    :param Any obj: The object whose docstring will be parsed.
-
-    :raises DocParseError: if a docstring element cannot be parsed.
-    :raises DocParseError: if a type docstring is found with no corresponding
-                           parameter docstring.
-
-    :returns: A DocstringData object representing the objects docstring or
-              None if obj has no docstring.
-    '''
-    text = obj.__doc__
-
-    if text is None:
-        return None
-
-    # Remove indentation from the documentation
-    text = inspect.cleandoc(text)
-
-    # Find the first instance of ^: as the start of the meta information.
-    match = re.search("^:(param|type|raise|returns|rtype)", text, flags=re.M)
-    if match:
-        desc_chunk = text[:match.start()]
-        meta_chunk = text[match.start():]
-    else:
-        desc_chunk = text
-        meta_chunk = ""
-
-    # We don't care about breaking down the description in PSyclone
-    # for now, so just keep the desc_chunk as text.
-
-    # Store types and return types as separate things to integrate later.
-    types = {}
-    rtype = None
-    docstring_data = DocstringData(
-        desc="", arguments=OrderedDict(), raises=[],
-        returns=None
-    )
-
-    docstring_data.add_data(desc_chunk)
-
-    # Loop through the meta chunk for each line in that section that has
-    # :...:
-    for match in re.finditer(
-        r"(^:.*?)(?=^:|\Z)", meta_chunk, flags=re.S | re.M
-    ):
-        chunk = match.group(0)
-
-        # Split the text into the section between the two :s and after.
-        try:
-            args_chunk, desc_chunk = chunk.lstrip(":").split(":", 1)
-        except ValueError as ex:
-            # Can be cause by something like "\n::" in the docstring.
-            raise DocParseError(
-                f'Error parsing meta information near "{chunk}".'
-            ) from ex
-        args = args_chunk.split()
-        desc = desc_chunk.strip()
-
-        # If we have a multiline description then we need to clean it up. The
-        # docstring already removes the \n if it contains \ , so we remove the
-        # leftover indentation
-        if "  " in desc:
-            lines = desc.split("  ")
-            desc = lines[0] + "\n"
-            for line in lines[1:]:
-                desc_line = inspect.cleandoc(line)
-                # If this section of the split was only whitespace
-                # we can ignore it.
-                if desc_line != "":
-                    desc = desc + desc_line + "\n"
-            # Remove the trailing \n
-            desc = desc[:-1]
-
-        # If we have a multiline description without \ to break lines then it
-        # instead contains \n which we can clean up similarly.
-        if "\n" in desc:
-            lines = desc.split("\n")
-            desc = lines[0] + os.linesep
-            for line in lines[1:]:
-                desc += inspect.cleandoc(line) + os.linesep
-            # Remove the trailing \n
-            desc = desc[:-1]
-
-        # Special handling for :type: or :rtype: lines.
-        if len(args) == 2 and args[0] == "type":
-            types[args[1]] = desc
-        elif len(args) in [1, 2] and args[0] == "rtype":
-            rtype = desc
-        else:
-            # Get the information.
-            docdata = create_docstring_data(args, desc, obj)
-            docstring_data.add_data(docdata)
-
-    # Store the separate (i.e. not inline) type information that was
-    # extracted.
-    for param in types:
-        if param not in docstring_data.arguments.keys():
-            raise DocParseError(
-                f"Found a type string with no corresponding parameter: "
-                f"'{param}' type found with no parameter docstring."
-            )
-        docstring_data.arguments[param].datatype = types[param]
-        docstring_data.arguments[param].inline_type = False
-
-    # Store the return type if specified.
-    if rtype:
-        docstring_data.returns.datatype = rtype
-        docstring_data.returns.inline_type = False
-
-    return docstring_data
-
-
 # For Sphinx AutoAPI documentation generation
 __all__ = ['ArgumentData', 'RaisesData', 'ReturnsData', 'DocstringData',
-           'create_docstring_data',
-           'parse_psyclone_docstring_from_object']
+           'create_docstring_data']

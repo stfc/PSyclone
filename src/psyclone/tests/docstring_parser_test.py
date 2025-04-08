@@ -41,7 +41,6 @@ from collections import OrderedDict
 from psyclone.docstring_parser import (
     ArgumentData, RaisesData, ReturnsData, DocstringData,
     create_docstring_data,
-    parse_psyclone_docstring_from_object,
 )
 from psyclone.errors import DocParseError
 
@@ -401,8 +400,8 @@ def test_DocstringData_gen_docstring_():
     assert output == correct
 
 
-def test_parse_psyclone_docstring_from_object():
-    ''' Test the parse_psyclone_docstring_from_object call. '''
+def test_DocstringData_create_from_object():
+    ''' Test the DocstringData.create_from_object call. '''
 
     # Method with no docstring should return None.
     def no_docs():
@@ -411,14 +410,14 @@ def test_parse_psyclone_docstring_from_object():
     # To avoid coverage complaint.
     no_docs()
 
-    assert parse_psyclone_docstring_from_object(no_docs) is None
+    assert DocstringData.create_from_object(no_docs) is None
 
     # Method with only a description should return a DocstringData with
     # only a description
     def desc_only():
         '''A description and nothing else'''
 
-    out_data = parse_psyclone_docstring_from_object(desc_only)
+    out_data = DocstringData.create_from_object(desc_only)
     assert out_data.desc == "A description and nothing else"
     assert len(out_data.arguments.keys()) == 0
     assert len(out_data.raises) == 0
@@ -442,7 +441,7 @@ def test_parse_psyclone_docstring_from_object():
         :rtype: type
         '''
 
-    out_data = parse_psyclone_docstring_from_object(docstring)
+    out_data = DocstringData.create_from_object(docstring)
     assert out_data.desc == "The description\n\n"
     assert len(out_data.arguments.keys()) == 3
     assert out_data.arguments["myparam"].name == "myparam"
@@ -467,7 +466,7 @@ def test_parse_psyclone_docstring_from_object():
         '''A description with a
         : colon in it.'''
 
-    out_data = parse_psyclone_docstring_from_object(desc_colon)
+    out_data = DocstringData.create_from_object(desc_colon)
     assert "A description with a\n: colon in it." == out_data.desc
 
     # Test the ValueError.
@@ -479,7 +478,7 @@ def test_parse_psyclone_docstring_from_object():
         :nothing here '''
 
     with pytest.raises(DocParseError) as excinfo:
-        out_data = parse_psyclone_docstring_from_object(valueerror_docstring)
+        out_data = DocstringData.create_from_object(valueerror_docstring)
     assert ('Error parsing meta information near ":nothing here "' in
             str(excinfo.value))
 
@@ -490,7 +489,7 @@ def test_parse_psyclone_docstring_from_object():
         '''
 
     with pytest.raises(DocParseError) as excinfo:
-        out_data = parse_psyclone_docstring_from_object(
+        out_data = DocstringData.create_from_object(
             internalerror_docstring
         )
     assert ("Found a type string with no corresponding parameter: "
@@ -529,7 +528,7 @@ def test_docstring_is_reversible():
         :type param4: param4type
         '''
 
-    basedata = parse_psyclone_docstring_from_object(docstring_object)
+    basedata = DocstringData.create_from_object(docstring_object)
     # Functionality of these is tested in other tests, this is a sanity check.
     assert len(basedata.arguments) == 3
     assert len(basedata.raises) == 1
@@ -541,7 +540,7 @@ def test_docstring_is_reversible():
 
     # Generate a new basedata from the generated docstring.
     docstring_object.__doc__ = processed_doc
-    basedata2 = parse_psyclone_docstring_from_object(docstring_object)
+    basedata2 = DocstringData.create_from_object(docstring_object)
     assert len(basedata2.arguments) == 3
     assert list(basedata2.arguments.keys())[0] == "param1"
     assert list(basedata2.arguments.keys())[1] == "param2"
@@ -551,7 +550,7 @@ def test_docstring_is_reversible():
     assert basedata2.desc is not None
 
     # Get the docstring object 2 docdata
-    doc2data = parse_psyclone_docstring_from_object(docstring_object2)
+    doc2data = DocstringData.create_from_object(docstring_object2)
 
     # Merge it into basedata
     basedata.merge(doc2data)
@@ -561,7 +560,7 @@ def test_docstring_is_reversible():
 
     # Generate a new basedata from the meregd docstring
     docstring_object.__doc__ = processed_doc
-    basedata3 = parse_psyclone_docstring_from_object(docstring_object)
+    basedata3 = DocstringData.create_from_object(docstring_object)
     assert len(basedata3.arguments) == 4
     assert list(basedata3.arguments.keys())[0] == "param1"
     assert list(basedata3.arguments.keys())[1] == "param2"

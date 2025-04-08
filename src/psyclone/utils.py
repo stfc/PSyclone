@@ -43,7 +43,6 @@ from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
 from psyclone.docstring_parser import (
     DocstringData,
-    parse_psyclone_docstring_from_object,
 )
 
 
@@ -114,7 +113,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         :param added_parameters: The DocstringData to add into the
                                  docstring of func.
         '''
-        func_data = parse_psyclone_docstring_from_object(func)
+        func_data = DocstringData.create_from_object(func)
 
         # We only merge the arguments.
         added_parameters.desc = None
@@ -141,11 +140,11 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                 raises=[], returns=None)
             for superclass in inherit:
                 inherited_params = \
-                    parse_psyclone_docstring_from_object(superclass.apply)
+                    DocstringData.create_from_object(superclass.apply)
                 added_parameters.merge(inherited_params)
         elif inherit:
             added_parameters = \
-                parse_psyclone_docstring_from_object(
+                DocstringData.create_from_object(
                     cls.__mro__[1].__dict__["apply"]
                  )
         else:
@@ -153,7 +152,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         if added_parameters is not None:
             update_func_docstring(cls.apply, added_parameters)
         # Update the validate docstring
-        added_parameters = parse_psyclone_docstring_from_object(cls.apply)
+        added_parameters = DocstringData.create_from_object(cls.apply)
         if added_parameters is not None:
             update_func_docstring(cls.validate, added_parameters)
 
