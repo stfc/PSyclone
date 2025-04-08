@@ -214,7 +214,7 @@ class KernelModuleInlineTrans(Transformation):
         # Since we will be detaching Routines, we work with a copy of
         # the Container that encapsulates them.
         source_container = orig_container.copy()
-        new_routines = dict()
+        new_routines = {}
         for routine in source_container.walk(Routine):
             new_routines[routine.name] = routine
 
@@ -327,6 +327,12 @@ class KernelModuleInlineTrans(Transformation):
         imported no longer has any imports associated with it then the
         ContainerSymbol is also removed.
 
+        TODO #2846 - this method is only required because at present we do not
+        rename inlined routines. However, not only is removing an imported
+        routine symbol dangerous, it also will not work if it should happen
+        that the same Routine is brought into scope through multiple
+        wildcard imports.
+
         :param symbol: the symbol to remove.
         :param schedule: the Routine that is associated with this symbol.
         :type table: the table from which to remove the symbol.
@@ -365,10 +371,6 @@ class KernelModuleInlineTrans(Transformation):
             # The Routine is brought into scope via a wildcard import. We have
             # to rename it on import to avoid a clash with the newly inlined
             # Routine.
-            # TODO #2846 - if the same Routine is also brought into scope
-            # through some other wildcard import then this renaming doesn't
-            # help. The only solution to this is to rename the module-inlined
-            # Routine (or proceed to fully inline it).
             KernelModuleInlineTrans._rename_import(ctable, csym, symbol.name)
         # pylint:disable-next=protected-access
         actual_table._symbols.pop(symbol.name.lower())
