@@ -347,10 +347,11 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             else:
                 list_of_names = ignore_dependencies_for
         else:
-            print("Deprecation Warning: The options parameter to "
-                  "Transformation.apply is now deprecated. Please use "
-                  "the individual arguments, or unpack the options with "
-                  "**options. See the documentation for more details.")
+            if(len(options.keys()) > 0):
+                print("Deprecation Warning: The options parameter to "
+                      "Transformation.apply is now deprecated. Please use "
+                      "the individual arguments, or unpack the options with "
+                      "**options. See the documentation for more details.")
             verbose = options.get("verbose", False)
             collapse = options.get("collapse", False)
             ignore_dep_analysis = options.get("force", False)
