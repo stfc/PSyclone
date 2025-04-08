@@ -200,6 +200,23 @@ def test_transformation_get_options():
             "Valid options are '['valid']." in str(excinfo.value))
 
 
+def test_transformation_apply_deprecation_message(capsys):
+    '''Test that passing the options dict to the Transformation.apply
+    function gets the expected deprecation message.'''
+    class TestTrans(Transformation):
+        '''Utility transformation to test methods.'''
+        def apply(self, node=None, options=None):
+            super().apply(node, options=options)
+
+    instance = TestTrans()
+    instance.apply(options={"dict": True})
+    out, err = capsys.readouterr()
+    assert ("Deprecation Warning: The options parameter to "
+            "Transformation.apply is now deprecated. Please use "
+            "the individual arguments, or unpack the options with "
+            "**options. See the documentation for more details." in out)
+
+
 def test_transformation_get_valid_options():
     '''Test that the get_valid_options method behaves in the expected
     way.'''
