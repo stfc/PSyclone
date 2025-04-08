@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -459,7 +459,49 @@ def test_get_local_arrays_not_parameters(fortran_reader):
     assert symbols[0].name == "b"
 
 
-# validate
+def test_get_local_arrays_reshape(fortran_reader):
+    '''Check that the _get_local_arrays() helper method ignores any local
+    arrays that are an argument to RESHAPE.
+
+    '''
+    code = (
+        "module my_mod\n"
+        "contains\n"
+        "subroutine test\n"
+        "  integer, dimension(2) :: a\n"
+        "  real :: b(1, 2)\n"
+        "  a = (/1, 2/)\n"
+        "  b(:,:) = RESHAPE(b, a)\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    symbols = hoist_trans._get_local_arrays(routine)
+    # For now it avoid any argument inside RESHAPE, so symbols is empty
+    assert len(symbols) == 0
+
+
+def test_get_local_arrays_with_other_symbols(fortran_reader):
+    '''Check that the _get_local_arrays() helper method ignores any local
+    arrays that has references to other symbols in its type.
+
+    '''
+    code = (
+        "module my_mod\n"
+        "contains\n"
+        "subroutine test\n"
+        "  use other\n"
+        "  type(myt), dimension(2) :: a\n"
+        "  integer(kind=i_def), dimension(2) :: b\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    symbols = hoist_trans._get_local_arrays(routine)
+    assert len(symbols) == 0
+
 
 def test_validate_node():
     ''' Test the expected exception is raised if an invalid node is

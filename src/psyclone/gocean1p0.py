@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -138,7 +138,6 @@ class GOInvokes(Invokes):
 
     '''
     def __init__(self, alg_calls, psy):
-        self._0_to_n = GOInvoke(None, None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, GOInvoke, psy)
 
         index_offsets = []
@@ -1221,13 +1220,6 @@ class GOKern(CodedKern):
         super().reference_accesses(var_accesses)
         var_accesses.next_location()
 
-    def local_vars(self):
-        '''Return a list of the variable (names) that are local to this loop
-        (and must therefore be e.g. threadprivate if doing OpenMP)
-
-        '''
-        return []
-
     @property
     def index_offset(self):
         ''' The grid index-offset convention that this kernel expects '''
@@ -1287,8 +1279,6 @@ class GOKernelArguments(Arguments):
     '''
     def __init__(self, call, parent_call, check=True):
         # pylint: disable=unused-argument
-        if False:  # pylint: disable=using-constant-test
-            self._0_to_n = GOKernelArgument(None, None, None)  # for pyreverse
         Arguments.__init__(self, parent_call)
 
         self._args = []

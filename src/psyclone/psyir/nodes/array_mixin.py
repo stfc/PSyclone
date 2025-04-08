@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -610,15 +610,14 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :rtype: list[:py:class:`psyclone.psyir.nodes.DataNode`]
 
         :raises NotImplementedError: if any of the array-indices involve a
-                                     function call or an expression or are
-                                     of unknown type.
+                                     function call or are of unknown type.
         '''
         shape = []
         for idx, idx_expr in enumerate(self.indices):
             if isinstance(idx_expr, Range):
                 shape.append(self._extent(idx))
 
-            elif isinstance(idx_expr, Reference):
+            elif isinstance(idx_expr, (Reference, Operation)):
                 dtype = idx_expr.datatype
                 if isinstance(dtype, ArrayType):
                     # An array slice can be defined by a 1D slice of another
@@ -634,9 +633,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                     if isinstance(idx_expr, ArrayMixin):
                         shape.append(idx_expr._extent(idx))
                     else:
-                        # We have a Reference (to an array) with no explicit
+                        # We have some expression with a shape but no explicit
                         # indexing. The extent of this is then the SIZE of
-                        # that array.
+                        # that array (expression).
                         sizeop = IntrinsicCall.create(
                             IntrinsicCall.Intrinsic.SIZE, [idx_expr.copy()])
                         shape.append(sizeop)
@@ -647,13 +646,13 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         f"'{self.debug_string()}' is of '{dtype}' type and "
                         f"therefore whether it is an array slice (i.e. an "
                         f"indirect access) cannot be determined.")
-            elif isinstance(idx_expr, (Call, Operation, CodeBlock)):
+            elif isinstance(idx_expr, (Call, CodeBlock)):
                 # We can't yet straightforwardly query the type of a function
-                # call or Operation - TODO #1799.
+                # call - TODO #1799.
                 raise NotImplementedError(
                     f"The array index expressions for access "
                     f"'{self.debug_string()}' include a function call or "
-                    f"expression. Querying the return type of "
+                    f"unsupported feature. Querying the return type of "
                     f"such things is yet to be implemented.")
 
         return shape

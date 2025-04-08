@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,46 +44,66 @@ from psyclone.configuration import Config
 class AccessType(Enum):
     '''A simple enum-class for the various valid access types.
     '''
-
+    #: Data associated with the symbol is read.
     READ = 1
+    #: Data associated with the symbols is written.
     WRITE = 2
+    #: Data associated with the symbol is both read and written (e.g. is passed
+    #: to a routine with intent(inout)).
     READWRITE = 3
+    #: Incremented from more than one cell column (see the LFRic API section
+    #: of the User Guide).
     INC = 4
+    #: Read before incrementing. Requires that the outermost halo be clean (see
+    #: the LFRic API section of the User Guide).
     READINC = 5
+    #: Is the output of a SUM reduction.
     SUM = 6
-    # This is used internally to indicate unknown access type of
-    # a variable, e.g. when a variable is passed to a subroutine
-    # and the access type of this variable in the subroutine
-    # is unknown
+    #: This is used internally to indicate unknown access type of
+    #: a variable, e.g. when a variable is passed to a subroutine
+    #: and the access type of this variable in the subroutine
+    #: is unknown.
+    #: TODO #2863 - VariablesAccessInfo does not currently consider
+    #: UNKNOWN accesses and it should!
     UNKNOWN = 7
+    #: A symbol representing a routine is called.
+    CALL = 8
+    #: The property/ies of a symbol is/are queried but the data it
+    #: represents is not accessed (e.g. 'var' in SIZE(var, dim=1)).
+    INQUIRY = 9
+    #: The symbol is used to access its type information (available at compile
+    #: time) - e.g. precision values such as 'wp' in 1.0_wp.
+    TYPE_INFO = 10
 
-    def __str__(self):
+    def __str__(self) -> str:
         '''Convert to a string representation, returning just the
-        enum (e.g. 'WRITE')..
-        :return: API name for this string.
-        :rtype: str
+        enum (e.g. 'WRITE').
         '''
         # pylint complains without str() that the return type is not a str
         return str(self.name)
 
-    def api_specific_name(self):
+    def api_specific_name(self) -> str:
         '''This convenience function returns the name of the type in the
-        current API. E.g. in a lfric API, WRITE --> "gh_write"
+        current API. E.g. in the lfric API, WRITE --> "gh_write". If no
+        mapping is available then the generic name is returned.
+
         :returns: The API specific name.
-        :rtype: str
         '''
         api_config = Config.get().api_conf()
         rev_access_mapping = api_config.get_reverse_access_mapping()
-        return rev_access_mapping[self]
+        return rev_access_mapping.get(self, str(self).lower())
 
     @staticmethod
-    def from_string(access_string):
+    def from_string(access_string: str):
         '''Convert a string (e.g. "read") into the corresponding
         AccessType enum value (AccessType.READ).
 
-        :param str access_string: Access type as string.
+        :param access_string: Access type as a string.
+
         :returns: Corresponding AccessType enum.
-        :Raises: ValueError if access_string is not a valid access type.
+        :rtype: :py:class:`psyclone.core.access_type.AccessType`
+
+        :raises ValueError: if access_string is not a valid access type.
         '''
         for access in AccessType:
             if access.name == access_string.upper():
@@ -126,6 +146,15 @@ class AccessType(Enum):
         '''
         return [access.api_specific_name() for access in
                 AccessType.get_valid_reduction_modes()]
+
+    @staticmethod
+    def non_data_accesses():
+        '''
+        :returns: all access types that do not touch any data associated with
+                  a symbol.
+        :rtype: list[:py:class:`psyclone.core.AccessType`]
+        '''
+        return [AccessType.CALL, AccessType.TYPE_INFO, AccessType.INQUIRY]
 
 
 # ---------- Documentation utils -------------------------------------------- #

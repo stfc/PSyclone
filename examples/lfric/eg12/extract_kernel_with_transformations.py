@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council
+# Copyright (c) 2019-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,7 @@ from psyclone.psyGen import InvokeSchedule
 
 # Specify the Kernel name as it appears in the Kernel calls
 # (ending with "_code")
-KERNEL_NAME = "dg_matrix_vector_kernel_code"
+KERNEL_NAME = "dg_matrix_vector_code"
 # Specify the name of Invoke containing the Kernel call. If the name
 # does not correspond to Invoke names in the Algorithm file no Kernels
 # will be extracted.

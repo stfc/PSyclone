@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -441,7 +441,7 @@ def test_domain_plus_cma_kernels(dist_mem, tmpdir):
     assert "ncell_2d_no_halos = mesh%get_last_edge_cell()" in gen_code
     assert ("call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, b, "
             "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
-    assert ("call columnwise_op_asm_kernel_code(cell, nlayers_cma_op1, "
+    assert ("call columnwise_op_asm_kernel_code(cell, nlayers_lma_op1, "
             "ncell_2d, lma_op1_proxy%ncell_3d," in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,11 +50,14 @@ from psyclone.psyad.domain.lfric import (generate_lfric_adjoint,
 from psyclone.psyad.transformations.preprocess import preprocess_trans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
-    Call, Container, BinaryOperation, IntrinsicCall, ArrayReference, Range
-from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
-    ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
-    INTEGER_TYPE, UnresolvedType, UnsupportedType
+from psyclone.psyir.nodes import (
+    ArrayReference, Assignment, BinaryOperation, Call, Container,
+    IntrinsicCall, Literal, Range, Reference, Routine)
+from psyclone.psyir.symbols import (
+    SymbolTable, ImportInterface, Symbol,
+    ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol,
+    INTEGER_TYPE, UnresolvedType, UnsupportedType)
+from psyclone.psyir.transformations import TransformationError
 
 
 #: The extent we will allocate to each dimension of arrays used in the
@@ -92,6 +95,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     :rtype: Tuple[str, str]
 
     :raises NotImplementedError: if the tangent-linear code is a function.
+    :raises NotImplementedError: if the pre-processing of the TL code fails.
     :raises NotImplementedError: if an unsupported API is specified.
 
     '''
@@ -115,7 +119,12 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
 
     # Apply any required transformations to the TL PSyIR
     logger.debug("Preprocessing")
-    preprocess_trans(tl_psyir, active_variables)
+    try:
+        preprocess_trans(tl_psyir, active_variables)
+    except TransformationError as err:
+        raise NotImplementedError(
+            f"PSyAD failed to pre-process the supplied tangent-linear code. "
+            f"The error was: {str(err.value)}") from err
 
     logger.debug("PSyIR after TL preprocessing\n%s",
                  tl_psyir.view(colour=False))

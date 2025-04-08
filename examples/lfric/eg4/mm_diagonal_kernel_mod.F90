@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2024,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -70,13 +70,13 @@ type, public, extends(kernel_type) :: mm_diagonal_kernel_type
        /)
   integer :: operates_on = CELL_COLUMN
 contains
-  procedure, nopass :: mm_diagonal_kernel_code
+  procedure, nopass :: mm_diagonal_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public mm_diagonal_kernel_code
+public mm_diagonal_code
 
 contains
 
@@ -89,12 +89,12 @@ contains
 !! @param[in] ndf Number of degrees of freedom per cell
 !! @param[in] undf Unique number of degrees of freedom
 !! @param[in] map Dofmap for the cell at the base of the column
-subroutine mm_diagonal_kernel_code(cell,        &
-                                   nlayers,     &
-                                   mm_diag,     &
-                                   ncell_3d,    &
-                                   mass_matrix, &
-                                   ndf, undf, map)
+subroutine mm_diagonal_code(cell,        &
+                            nlayers,     &
+                            mm_diag,     &
+                            ncell_3d,    &
+                            mass_matrix, &
+                            ndf, undf, map)
 
   implicit none
 
@@ -103,7 +103,7 @@ subroutine mm_diagonal_kernel_code(cell,        &
   integer(kind=i_def),                   intent(in) :: undf, ncell_3d
   integer(kind=i_def), dimension(ndf),   intent(in) :: map
   real(kind=r_def), dimension(undf), intent(inout) :: mm_diag
-  real(kind=r_def), dimension(ndf,ndf,ncell_3d), intent(in) :: mass_matrix
+  real(kind=r_def), dimension(ncell_3d,ndf,ndf), intent(in) :: mass_matrix
 
   ! Internal variables
   integer(kind=i_def) :: df, k, ik
@@ -111,10 +111,10 @@ subroutine mm_diagonal_kernel_code(cell,        &
   do k = 0, nlayers-1
     ik = (cell-1)*nlayers + k + 1
     do df = 1,ndf
-       mm_diag(map(df)+k) = mm_diag(map(df)+k) + mass_matrix(df,df,ik)
+       mm_diag(map(df)+k) = mm_diag(map(df)+k) + mass_matrix(ik,df,df)
     end do
   end do
 
-end subroutine mm_diagonal_kernel_code
+end subroutine mm_diagonal_code
 
 end module mm_diagonal_kernel_mod

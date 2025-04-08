@@ -25,13 +25,13 @@ directory containing the dl_esm_inf directory can be specified in the
 Makefile (SHARED_DIR) but defaults to the location of the git submodle
 (`../../../external/dl_esm_inf`). The compiler and flags to use are
 picked up from environment variables (and must be the same as used for
-the dl_esm_inf library). e.g. to use the PGI compiler for an NVIDIA
+the dl_esm_inf library). e.g. to use the NVIDIA compiler for an NVIDIA
 Volta:
 
 ```sh
-export F90=pgf90
-export F90FLAGS="-O3 -Minfo=all -acc -ta=tesla,cc70"
-export LDFLAGS="-acc -ta=tesla,cc70"
+export F90=nvfortran
+export F90FLAGS="-O3 -Minfo=all -acc -gpu=cc70"
+export LDFLAGS="-acc -gpu=cc70"
 ```
 
 ## Profiling
@@ -61,7 +61,7 @@ a kernel that has been transformed for use with OpenACC -
 [issue #229](https://github.com/stfc/PSyclone/issues/229).)
 
 Also, the kernel currently has the extents of the field array
-as explicit arguments. This is because PGI does not support
+as explicit arguments. This is because the NVIDIA compiler does not support
 assumed-size arrays within compute regions. Once PSyclone has been
 extended to automatically provide this information - [issue #230](https://github.com/stfc/PSyclone/issues/230),
 these arguments can be removed from the kernel meta-data and algorithm
@@ -73,7 +73,7 @@ layer.
 
 BSD 3-Clause License
 
-Copyright (c) 2018-2024, Science and Technology Facilities Council.
+Copyright (c) 2018-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

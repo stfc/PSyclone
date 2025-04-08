@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -319,11 +319,14 @@ class DataSymbol(TypedSymbol):
             new_datatype = self.datatype.copy()
         else:
             new_datatype = self.datatype
-        return DataSymbol(self.name, new_datatype,
+        copy = DataSymbol(self.name, new_datatype,
                           visibility=self.visibility,
                           interface=self.interface.copy(),
                           is_constant=self.is_constant,
                           initial_value=new_init_value)
+        copy.preceding_comment = self.preceding_comment
+        copy.inline_comment = self.inline_comment
+        return copy
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
@@ -341,6 +344,8 @@ class DataSymbol(TypedSymbol):
         super().copy_properties(symbol_in)
         self._is_constant = symbol_in.is_constant
         self._initial_value = symbol_in.initial_value
+        self.preceding_comment = symbol_in.preceding_comment
+        self.inline_comment = symbol_in.inline_comment
 
     def replace_symbols_using(self, table):
         '''

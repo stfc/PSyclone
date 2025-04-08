@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ include ../../common.mk
 # variable.
 #
 # export F90=nvfortran
-# export F90FLAGS = -Minfo -acc -ta=tesla:cc70
+# export F90FLAGS = -Minfo -acc -gpu=cc70
 # export LDFLAGS=""
 # Currently only compatible with F90=nvfortran
 

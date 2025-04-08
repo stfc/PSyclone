@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -747,9 +747,6 @@ def test_call_abstract_methods():
 
     dummy_call = DummyClass(my_ktype)
     my_call = Kern(None, dummy_call, "dummy", DummyArguments)
-    with pytest.raises(NotImplementedError) as excinfo:
-        my_call.local_vars()
-    assert "Kern.local_vars should be implemented" in str(excinfo.value)
 
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.gen_code(None)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,8 @@ from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import (
     DynACCEnterDataDirective, DynBoundaryConditions, DynGlobalSum,
-    DynKernelArguments, DynProxies, HaloReadAccess, KernCallArgList)
+    DynKernelArgument, DynKernelArguments, DynProxies, HaloReadAccess,
+    KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
@@ -464,7 +465,7 @@ def test_op_any_discontinuous_space_1(tmpdir):
     assert "ndf_adspc3_op4 = op4_proxy%fs_to%get_ndf()" in generated_code
     assert "ndf_adspc7_op4 = op4_proxy%fs_from%get_ndf()" in generated_code
     assert ("CALL testkern_any_discontinuous_space_op_1_code(cell, "
-            "nlayers_op4, f1_1_data, f1_2_data, f1_3_data, "
+            "nlayers_f1, f1_1_data, f1_2_data, f1_3_data, "
             "f2_data, op3_proxy%ncell_3d, op3_local_stencil, "
             "op4_proxy%ncell_3d, op4_local_stencil, rdt, "
             "ndf_adspc1_f1, undf_adspc1_f1, map_adspc1_f1(:,cell), "
@@ -3056,6 +3057,25 @@ def test_kernel_args_has_op():
     with pytest.raises(GenerationError) as excinfo:
         _ = dka.has_operator(op_type="gh_field")
     assert "'op_type' must be a valid operator type" in str(excinfo.value)
+
+
+def test_dynkernelargs_first_field_or_op(monkeypatch):
+    '''Test the first_field_or_operator property of DynKernelArguments.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api=TEST_API)
+    # Find the parsed code's Call class
+    call = invoke_info.calls[0].kcalls[0]
+    dka = DynKernelArguments(call, None)
+    arg = dka.first_field_or_operator
+    assert isinstance(arg, DynKernelArgument)
+    assert arg.is_field
+    # Monkeypatch the argument list to make it invalid.
+    monkeypatch.setattr(dka, "_args", [])
+    with pytest.raises(InternalError) as err:
+        dka.first_field_or_operator
+    assert ("Invalid LFRic kernel: failed to find a DynKernelArgument that is "
+            "a field or operator in ''" in str(err.value))
 
 
 def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):

@@ -1,7 +1,7 @@
 
 
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2017-2020 Met Office. All rights reserved.
+! (C) Crown copyright 2017-2025 Met Office. All rights reserved.
 ! For further details please refer to the file LICENCE which you should have
 ! received as part of this distribution.
 !-----------------------------------------------------------------------------

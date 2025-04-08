@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council.
+# Copyright (c) 2018-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -367,7 +367,7 @@ def test_omplooptrans_properties():
         omplooptrans.omp_directive = "invalid"
     assert ("The OMPLoopTrans.omp_directive property must be a str with "
             "the value of ['do', 'paralleldo', 'teamsdistributeparalleldo', "
-            "'loop'] but found a 'str' with value 'invalid'."
+            "'teamsloop', 'loop'] but found a 'str' with value 'invalid'."
             in str(err.value))
 
     with pytest.raises(TypeError) as err:

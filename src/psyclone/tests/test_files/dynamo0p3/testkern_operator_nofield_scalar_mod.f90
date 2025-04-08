@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2024, Science and Technology Facilities Council
+! Copyright (c) 2017-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -70,7 +70,7 @@ contains
     integer(kind=i_def), intent(in) :: ndf_w2
     integer(kind=i_def), intent(in) :: box_b
     integer(kind=i_def), intent(in) :: np_xy, np_z
-    real(kind=r_def), intent(inout), dimension(ndf_w2,ndf_w2,ncell_3d) :: local_stencil
+    real(kind=r_def), intent(inout), dimension(ncell_3d,ndf_w2,ndf_w2) :: local_stencil
     real(kind=r_def), intent(in), dimension(3,ndf_w2,np_xy,np_z) :: basis_w2
     real(kind=r_def), intent(in), dimension(np_xy) :: weights_xy
     real(kind=r_def), intent(in), dimension(np_z)  :: weights_z

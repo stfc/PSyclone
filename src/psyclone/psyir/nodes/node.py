@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1258,23 +1258,50 @@ class Node():
         from psyclone.psyGen import Kern
         return self.walk(Kern)
 
-    def following(self, routine=True):
-        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes after this
-        node. Ordering is depth first. If the `routine` argument is
-        set to `True` then nodes are only returned if they are
-        descendents of this node's closest ancestor routine if one
-        exists.
+    def following_node(self, same_routine_scope=True):
+        '''
+        :param bool same_routine_scope: an optional (default `True`) argument
+            that enables returing only nodes from the same ancestor routine.
 
-        :param bool routine: an optional (default `True`) argument \
-            that only returns nodes that are within this node's \
-            closest ancestor Routine node if one exists.
+        :returns: the next node (the next sibiling, or if it doesn't have one
+            the first next sibiling of its ancestors).
+        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
-        :returns: a list of nodes.
-        :rtype: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        if not self.parent:
+            return None
+
+        if len(self.parent.children) > self.position + 1:
+            return self.parent.children[self.position + 1]
+
+        # Import here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Routine
+        if same_routine_scope and isinstance(self.parent, Routine):
+            return None
+
+        return self.parent.following_node(same_routine_scope)
+
+    def following(self, same_routine_scope=True, include_children=True):
+        ''' Return all nodes after itself. Ordering is depth first. If the
+        `same_routine_scope` argument is set to `True` (default) then only
+        nodes inside the same ancestor routine are returned.
+        If `include_children` is set to `True` (default) children of itself
+        are also returned, otherwise it starts at the next sibiling.
+
+        :param bool same_routine_scope: an optional (default `True`) argument
+            that restricts the returned nodes to those belonging to the same
+            ancestor routine.
+        :param bool include_children: an optional (default `True`) argument
+            that enables including own children, instead of starting from
+            the next sibiling.
+
+        :returns: the list of nodes that follow this one.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         '''
         root = self.root
-        if routine:
+        if same_routine_scope:
             # Import here to avoid circular dependencies
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.nodes import Routine
@@ -1283,37 +1310,45 @@ class Node():
             routine_node = self.ancestor(Routine)
             if routine_node:
                 root = routine_node
+
+        if include_children:
+            starting_node = self
+        else:
+            starting_node = self.following_node(same_routine_scope)
+            if starting_node is None:
+                return []
+
         all_nodes = root.walk(Node)
         position = None
         for index, node in enumerate(all_nodes):
-            if node is self:
-                position = index
+            if node is starting_node:
+                if include_children:
+                    position = index + 1  # Skip self
+                else:
+                    position = index
                 break
 
-        return all_nodes[position+1:]
+        return all_nodes[position:]
 
-    def preceding(self, reverse=False, routine=True):
-        '''Return all :py:class:`psyclone.psyir.nodes.Node` nodes before this
-        node. Ordering is depth first. If the `reverse` argument is
-        set to `True` then the node ordering is reversed
-        i.e. returning the nodes closest to this node first. if the
-        `routine` argument is set to `True` then nodes are only
-        returned if they are descendents of this node's closest
-        ancestor routine if one exists.
+    def preceding(self, reverse=False, same_routine_scope=True):
+        ''' Return all nodes before itself. Ordering is depth first. If the
+        `same_routine_scope` argument is set to `True` (default) then only
+        nodes inside the same ancestor routine are returned. If the `reverse`
+        argument is set to `True` then the node ordering is reversed i.e.
+        returning the nodes closest to this node first.
 
-        :param bool reverse: an optional (default `False`) argument \
-            that reverses the order of any returned nodes (i.e. makes \
-            them 'closest first' if set to true.
-        :param bool routine: an optional (default `True`) argument \
-            that only returns nodes that are within this node's \
-            closest ancestor Routine node if one exists.
+        :param bool reverse: an optional (default `False`) argument that
+            reverses the order of any returned nodes (i.e. makes them 'closest
+            first').
+        :param bool same_routine_scope: an optional (default `True`) argument
+            that restricts the returned nodes to those belonging to the same
+            ancestor routine.
 
-        :returns: a list of nodes.
-        :rtype: :func:`list` of :py:class:`psyclone.psyir.nodes.Node`
-
+        :returns: the nodes preceding this one in the PSyIR tree.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         root = self.root
-        if routine:
+        if same_routine_scope:
             # Import here to avoid circular dependencies
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.nodes import Routine
@@ -1333,28 +1368,30 @@ class Node():
             nodes.reverse()
         return nodes
 
-    def immediately_precedes(self, node_2):
+    def immediately_precedes(self, node):
         '''
-        :returns: True if this node immediately precedes `node_2`, False
-                  otherwise
+        :param node: the node to compare it to.
+
+        :returns: whether this node immediately precedes the given `node`.
         :rtype: bool
         '''
         return (
-            self.sameParent(node_2)
-            and self in node_2.preceding()
-            and self.position + 1 == node_2.position
+            self.sameParent(node)
+            and self in node.preceding()
+            and self.position + 1 == node.position
         )
 
-    def immediately_follows(self, node_1):
+    def immediately_follows(self, node):
         '''
-        :returns: True if this node immediately follows `node_1`, False
-                  otherwise
+        :param node: the node to compare it to.
+
+        :returns: whether this node immediately follows the given `node`.
         :rtype: bool
         '''
         return (
-            self.sameParent(node_1)
-            and self in node_1.following()
-            and self.position == node_1.position + 1
+            self.sameParent(node)
+            and self in node.following()
+            and self.position == node.position + 1
         )
 
     def coded_kernels(self):
@@ -1744,6 +1781,23 @@ class Node():
         :type new_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
         '''
+
+    def is_descendent_of(self, potential_ancestor) -> bool:
+        '''
+        Checks if this node is a descendant of the `potential_ancestor` node.
+
+        :param potential_ancestor: The Node to check whether its an ancestor
+                                   of self.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: whether potential_ancestor is an ancestor of this node.
+        '''
+        current_node = self
+        while (current_node is not potential_ancestor and
+               current_node.parent is not None):
+            current_node = current_node.parent
+
+        return current_node is potential_ancestor
 
 
 # For automatic documentation generation

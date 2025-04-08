@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,11 +53,10 @@ class LFRicInvokes(Invokes):
                       information.
     :type alg_calls: List[:py:class:`psyclone.parse.algorithm.InvokeCall`]
     :param psy: The PSy object containing this LFRicInvokes object.
-    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+    :type psy: :py:class:`psyclone.domain.lfric.LFRicPSy`
 
     '''
     def __init__(self, alg_calls, psy):
-        self._0_to_n = LFRicInvoke(None, None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, LFRicInvoke, psy)
 
 

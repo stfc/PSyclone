@@ -72,11 +72,11 @@ END TYPE
     real(kind=r_def), dimension(undf_w2), intent(in) :: u_normalisation
     real(kind=r_def), dimension(undf_w2), intent(in) :: w2_mask
     real(kind=r_def), dimension(undf_wt), intent(in) :: mt_lumped_inv
-    real(kind=r_def), dimension(ndf_w2,ndf_w3,ncell_3d_1), intent(in) :: div_star
-    real(kind=r_def), dimension(ndf_w3,ndf_w2,ncell_3d_2), intent(inout) :: compound_div
-    real(kind=r_def), dimension(ndf_w3,ndf_wt,ncell_3d_3), intent(inout) :: p3theta
-    real(kind=r_def), dimension(ndf_wt,ndf_w2,ncell_3d_4), intent(in) :: ptheta2v
-    real(kind=r_def), dimension(ndf_w3,ndf_w3,ncell_3d_5), intent(inout) :: m3_exner_star
+    real(kind=r_def), dimension(ncell_3d_1,ndf_w2,ndf_w3), intent(in) :: div_star
+    real(kind=r_def), dimension(ncell_3d_2,ndf_w3,ndf_w2), intent(inout) :: compound_div
+    real(kind=r_def), dimension(ncell_3d_3,ndf_w3,ndf_wt), intent(inout) :: p3theta
+    real(kind=r_def), dimension(ncell_3d_4,ndf_wt,ndf_w2), intent(in) :: ptheta2v
+    real(kind=r_def), dimension(ncell_3d_5,ndf_w3,ndf_w3), intent(inout) :: m3_exner_star
     integer(kind=i_def) :: k
     integer(kind=i_def) :: ik
     integer(kind=i_def) :: kk
@@ -122,7 +122,7 @@ END TYPE
         e = 1
         stencil_ik = k + nlayers * cell_stencil(e) - nlayers + 1
         a_op(df,:,e - 1) = -u_normalisation(smap_w2(df,e) + k) * w2_mask(smap_w2(df,e) + k) * hb_lumped_inv(smap_w2(df,e) + k) * &
-&div_star(df,:,stencil_ik)
+&div_star(stencil_ik,df,:)
         do e = 1, stencil_size, 1
           a_op(df,:,e) = 0.0
         enddo
@@ -130,33 +130,33 @@ END TYPE
           dir = wsen_map(e - 1)
           stencil_ik = k + nlayers * cell_stencil(e) - nlayers + 1
           a_op(df,:,dir) = -u_normalisation(smap_w2(df,e) + k) * w2_mask(smap_w2(df,e) + k) * hb_lumped_inv(smap_w2(df,e) + k) * &
-&div_star(df,:,stencil_ik)
+&div_star(stencil_ik,df,:)
         enddo
         kk = -2
         if (k > 1) then
           a_op(df,:,downdown) = -u_normalisation(map_w2(df) + k + kk) * w2_mask(map_w2(df) + k + kk) * hb_lumped_inv(map_w2(df) + &
-&k + kk) * div_star(df,:,ik + kk)
+&k + kk) * div_star(ik + kk,df,:)
         else
           a_op(df,:,downdown) = 0.0_r_def
         end if
         kk = -1
         if (k > 0) then
           a_op(df,:,down) = -u_normalisation(map_w2(df) + k + kk) * w2_mask(map_w2(df) + k + kk) * hb_lumped_inv(map_w2(df) + k + &
-&kk) * div_star(df,:,ik + kk)
+&kk) * div_star(ik + kk,df,:)
         else
           a_op(df,:,down) = 0.0_r_def
         end if
         kk = 1
         if (k < nlayers - 1) then
           a_op(df,:,up) = -u_normalisation(map_w2(df) + k + kk) * w2_mask(map_w2(df) + k + kk) * hb_lumped_inv(map_w2(df) + k + &
-&kk) * div_star(df,:,ik + kk)
+&kk) * div_star(ik + kk,df,:)
         else
           a_op(df,:,up) = 0.0_r_def
         end if
         kk = 2
         if (k < nlayers - 2) then
           a_op(df,:,upup) = -u_normalisation(map_w2(df) + k + kk) * w2_mask(map_w2(df) + k + kk) * hb_lumped_inv(map_w2(df) + k + &
-&kk) * div_star(df,:,ik + kk)
+&kk) * div_star(ik + kk,df,:)
         else
           a_op(df,:,upup) = 0.0_r_def
         end if
@@ -181,13 +181,13 @@ END TYPE
       end if
       do df = 1, ndf_wt, 1
         if (k > 0) then
-          b_op(df,:,-1) = mt_lumped_inv(map_wt(df) + k - 1) * ptheta2v(df,5:6,ik - 1)
+          b_op(df,:,-1) = mt_lumped_inv(map_wt(df) + k - 1) * ptheta2v(ik - 1,df,5:6)
         else
           b_op(df,:,-1) = 0.0_r_def
         end if
-        b_op(df,:,0) = mt_lumped_inv(map_wt(df) + k) * ptheta2v(df,5:6,ik)
+        b_op(df,:,0) = mt_lumped_inv(map_wt(df) + k) * ptheta2v(ik,df,5:6)
         if (k < nlayers - 1) then
-          b_op(df,:,1) = mt_lumped_inv(map_wt(df) + k + 1) * ptheta2v(df,5:6,ik + 1)
+          b_op(df,:,1) = mt_lumped_inv(map_wt(df) + k + 1) * ptheta2v(ik + 1,df,5:6)
         else
           b_op(df,:,1) = 0.0_r_def
         end if
@@ -232,19 +232,19 @@ END TYPE
       helm_e(map_w3(1) + k) = 0.0
       do idx_2 = ndf_w3, 1, -1
         do idx_3 = ndf_w3, 1, -1
-          m3_exner_star(idx_3,idx_2,ik) = m3_exner_star(idx_3,idx_2,ik) + f_op(idx_3,idx_2)
+          m3_exner_star(ik,idx_3,idx_2) = m3_exner_star(ik,idx_3,idx_2) + f_op(idx_3,idx_2)
           f_op(idx_3,idx_2) = 0.0
         enddo
       enddo
       do idx_1 = ndf_wt, 1, -1
         do idx_2 = ndf_w3, 1, -1
-          p3theta(idx_2,idx_1,ik) = p3theta(idx_2,idx_1,ik) + (-d_op(idx_2,idx_1))
+          p3theta(ik,idx_2,idx_1) = p3theta(ik,idx_2,idx_1) + (-d_op(idx_2,idx_1))
           d_op(idx_2,idx_1) = 0.0
         enddo
       enddo
       do idx = ndf_w2, 1, -1
         do idx_1 = ndf_w3, 1, -1
-          compound_div(idx_1,idx,ik) = compound_div(idx_1,idx,ik) + (-ec_op(idx_1,idx))
+          compound_div(ik,idx_1,idx) = compound_div(ik,idx_1,idx) + (-ec_op(idx_1,idx))
           ec_op(idx_1,idx) = 0.0
         enddo
       enddo

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019-2024, Science and Technology Facilities Council.
+! Copyright (c) 2019-2025, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -108,15 +108,15 @@ module profile_psy_data_mod
      end subroutine nvtxRangePop
   end interface nvtxRangePop
 
-  ! Requires that the application be linked with CUDA (-Mcuda flag to
-  ! PGI)
+  ! Requires that the application be linked with CUDA (-cuda flag to
+  ! NVIDIA compiler)
   interface cudaProfilerStart
      subroutine cudaProfilerStart() bind(C, name='cudaProfilerStart')
      end subroutine cudaProfilerStart
   end interface cudaProfilerStart
 
-  ! Requires that the application be linked with CUDA (-Mcuda flag to
-  ! PGI)
+  ! Requires that the application be linked with CUDA (-cuda flag to
+  ! NVIDIA compiler)
   interface cudaProfilerStop
      subroutine cudaProfilerStop() bind(C, name='cudaProfilerStop')
      end subroutine cudaProfilerStop
@@ -137,8 +137,8 @@ contains
 
   !> Enables profiling (if it is not already enabled). May be manually added
   !! to source code in order to limit the amount of profiling performed at
-  !! run time. Requires that the application be linked with CUDA (-Mcuda flag
-  !! to PGI).
+  !! run time. Requires that the application be linked with CUDA (-cuda flag
+  !! to NVIDIA compiler).
   subroutine profile_PSyDataStart()
     implicit none
     call cudaProfilerStart()
@@ -147,7 +147,7 @@ contains
   !> Turns off profiling. All subsequent calls to the profiling API
   !! will have no effect. Use in combination with profile_PSyDataStart() to
   !! limit the amount of profiling performed at runtime. Requires that the
-  !! application be linked with CUDA (-Mcuda flag to PGI).
+  !! application be linked with CUDA (-cuda flag to NVIDIA compiler).
   subroutine profile_PSyDataStop()
     implicit none
     call cudaProfilerStop()

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -205,6 +205,26 @@ def test_generate_adjoint_str_trans(tmpdir):
     assert expected in result
     assert not test_harness
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_generate_adjoint_str_trans_error(tmpdir):
+    '''Test that the generate_adjoint_str() function successfully catches
+    an error from the preprocess_trans() function.
+
+    '''
+    code = (
+        "program test\n"
+        "use other_mod, only: func\n"
+        "real, dimension(10,10,10) :: a,b,c,d,e,f\n"
+        "integer, dimension(10) :: map\n"
+        "integer, parameter :: i = 5\n"
+        "a(:,1,:) = b(:,1,:) * c(:,1+int(real(complex(1.0,1.0))),:)\n"
+        "end program test\n")
+    with pytest.raises(NotImplementedError) as err:
+        _ = generate_adjoint_str(code, ["a", "c"])
+    assert ("failed to pre-process the supplied tangent-linear code. The error"
+            " was: Transformation Error: ArrayAssignment2LoopsTrans does not"
+            in str(err.value))
 
 
 def test_generate_adjoint_str_generate_harness_no_api(tmpdir):

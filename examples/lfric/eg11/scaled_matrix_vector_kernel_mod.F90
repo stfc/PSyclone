@@ -9,7 +9,7 @@
 !
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified I. Kavcic, Met Office
+! Modified by I. Kavcic, Met Office
 
 module scaled_matrix_vector_kernel_mod
 
@@ -133,23 +133,19 @@ subroutine scaled_matrix_vector_code(cell,              &
 
   real(kind=r_def), dimension(undf2),              intent(in)    :: x
   real(kind=r_def), dimension(undf1),              intent(inout) :: lhs
-  real(kind=r_def), dimension(ndf1,ndf2,ncell_3d), intent(in)    :: matrix
+  real(kind=r_def), dimension(ncell_3d,ndf1,ndf2), intent(in)    :: matrix
   real(kind=r_def), dimension(undf1),              intent(in)    :: y
   real(kind=r_def), dimension(undf1),              intent(in)    :: z
 
   ! Internal variables
-  integer(kind=i_def)               :: df, k, ik
-  real(kind=r_def), dimension(ndf2) :: x_e
-  real(kind=r_def), dimension(ndf1) :: lhs_e
+  integer(kind=i_def) :: df, df2, k, ik
 
-  do k = 0, nlayers-1
-    do df = 1, ndf2
-      x_e(df) = x(map2(df)+k)
-    end do
-    ik = (cell-1)*nlayers + k + 1
-    lhs_e = matmul(matrix(:,:,ik),x_e)
-    do df = 1,ndf1
-       lhs(map1(df)+k) = lhs(map1(df)+k) + lhs_e(df)*y(map1(df)+k)*z(map1(df)+k)
+  do df = 1, ndf1
+    do df2 = 1, ndf2
+      do k = 0, nlayers-1
+        ik = (cell-1)*nlayers + k + 1
+        lhs(map1(df)+k) = lhs(map1(df)+k) + matrix(ik,df,df2)*x(map2(df2)+k)*y(map1(df)+k)*z(map1(df)+k)
+      end do
     end do
   end do
 
@@ -193,19 +189,19 @@ subroutine opt_scaled_matrix_vector_code(cell,              &
   integer(kind=i_def), dimension(ndf2),  intent(in) :: map2
   real(kind=r_def), dimension(undf2),        intent(in)    :: x
   real(kind=r_def), dimension(undf1),        intent(inout) :: lhs
-  real(kind=r_def), dimension(6,1,ncell_3d), intent(in)    :: matrix
+  real(kind=r_def), dimension(ncell_3d,6,1), intent(in)    :: matrix
   real(kind=r_def), dimension(undf1),        intent(in)    :: y
   real(kind=r_def), dimension(undf1),        intent(in)    :: z
 
   ! Internal variables
-  integer(kind=i_def) :: k, ik, df
+  integer(kind=i_def) :: df, k, ik
 
   ! Hard wired optimisation for desired configuration
-  do df = 1,6
+  do df = 1, ndf1
     do k = 0, nlayers-1
       ik = (cell-1)*nlayers + k + 1
-      lhs(map1(df)+k) = lhs(map1(df)+k) + matrix(df,1,ik)*x(map2(1)+k)*y(map1(df)+k)*z(map1(df)+k)
-    end do
+      lhs(map1(df)+k) = lhs(map1(df)+k) + matrix(ik,df,1)*x(map2(1)+k)*y(map1(df)+k)*z(map1(df)+k)
+      end do
   end do
 
   ! Apply zero flux boundary conditions

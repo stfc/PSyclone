@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,9 @@
 
 ''' PSyIR nodes package module '''
 
-from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
-                                              ACCCopyOutClause)
+from psyclone.psyir.nodes.acc_clauses import (
+    ACCAsyncQueueClause, ACCCopyClause, ACCCopyInClause,
+    ACCCopyOutClause)
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.array_of_structures_reference import (
     ArrayOfStructuresReference)
@@ -84,7 +85,7 @@ from psyclone.psyir.nodes.acc_directives import (
     ACCDirective, ACCLoopDirective, ACCEnterDataDirective,
     ACCParallelDirective, ACCKernelsDirective, ACCDataDirective,
     ACCUpdateDirective, ACCStandaloneDirective, ACCRegionDirective,
-    ACCRoutineDirective, ACCAtomicDirective)
+    ACCRoutineDirective, ACCAtomicDirective, ACCWaitDirective)
 from psyclone.psyir.nodes.omp_directives import (
     OMPDirective, OMPDoDirective, OMPParallelDirective,
     OMPParallelDoDirective, OMPSingleDirective, OMPMasterDirective,
@@ -92,7 +93,7 @@ from psyclone.psyir.nodes.omp_directives import (
     OMPStandaloneDirective, OMPRegionDirective, OMPTargetDirective,
     OMPLoopDirective, OMPDeclareTargetDirective,
     OMPTeamsDistributeParallelDoDirective, OMPAtomicDirective,
-    OMPSimdDirective)
+    OMPSimdDirective, OMPTeamsLoopDirective)
 from psyclone.psyir.nodes.clause import Clause, OperandClause
 from psyclone.psyir.nodes.omp_clauses import (
     OMPGrainsizeClause, OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause,
@@ -184,6 +185,7 @@ __all__ = [
         'OMPDeclareTargetDirective',
         'OMPSimdDirective',
         'OMPTeamsDistributeParallelDoDirective',
+        'OMPTeamsLoopDirective',
         # OMP Clause Nodes
         'OMPGrainsizeClause',
         'OMPNogroupClause',

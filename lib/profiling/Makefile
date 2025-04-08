@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,11 +41,12 @@ F90 ?= gfortran
 F90FLAGS ?= -g
 # -----------------------------------------------------------------------------
 
-# We don't build dl_timer, drhook, nvidia, and tau since they require
-# external libraries to be available.
+# We don't build dl_timer, drhook, nvidia, Vernier, and tau by default
+# since they require external libraries to be available.
 ALL_LIBS = lfric_timer simple_timing template
 
-.PHONY: default all $(ALL_LIBS) clean allclean
+.PHONY: default all $(ALL_LIBS) clean allclean \
+	dl_timer drhook nvidia tau vernier
 
 default: all
 
@@ -53,7 +54,7 @@ all: $(ALL_LIBS)
 
 # Invoke make in the corresponding subdirectory, and also support
 # the wrapper that need additional software to be installed
-$(ALL_LIBS) dl_timer drhook nvidia tau:
+$(ALL_LIBS) dl_timer drhook nvidia tau vernier:
 		$(MAKE) -C $@
 
 clean:
@@ -62,7 +63,8 @@ clean:
 allclean: clean
 	# These libs are not cleaned by 'clean' (since they
 	# depend on external libraries)
-	$(MAKE) -C nvidia clean
-	$(MAKE) -C drhook clean
 	$(MAKE) -C dl_timer clean
+	$(MAKE) -C drhook clean
+	$(MAKE) -C nvidia clean
 	$(MAKE) -C tau clean
+	$(MAKE) -C vernier clean

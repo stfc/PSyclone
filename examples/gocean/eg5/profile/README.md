@@ -17,6 +17,7 @@ profile wrapper libraries:
 - drhook
 - lfric
 - tau
+- vernier
 
 By default (``make`` without an argument) the ``template`` library will 
 be used, which just prints the name of the regions called.
@@ -43,9 +44,9 @@ it yourself, and make sure that the ``tau_f90.sh`` compiler wrapper
 is in your path. The Makefile will automatically call ``tau_f90.sh``, there
 is no need to set ``$F90`` in this case.
 
-If you are using ``dl_timer`` or ``drhook``, you need to compile these
-libraries yourself first, and modify the ``Makefile`` in this directory
-to specify the required linking parameters. The ``Makefile``
+If you are using ``dl_timer``, ``vernier`` or ``drhook``, you need to
+compile these libraries yourself first, and modify the ``Makefile`` in
+this directory to specify the required linking parameters. The ``Makefile``
 supports the following environment variables that can be defined
 to find the various software packages:
 
@@ -70,6 +71,10 @@ The location of the LFRic infrastructure library. It defaults to
 which is the small, stand-alone LFRic infrastructure library that
 is included in PSyclone. In spite of the dependence on LFRic, this
 profiling wrapper library can be used with with any application.
+### VERNIER_DIR
+The location of the Vernier library. It defaults to
+``../../../../../Vernier``, i.e. it is assumed that Vernier is
+installed next to PSyclone.
 
 The makefile here will invoke psyclone with the ``--profile invokes``
 flag, which will add profiling around the two invokes used in the example.
@@ -103,7 +108,7 @@ library, you should see:
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2024, Science and Technology Facilities Council.
+Copyright (c) 2020-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

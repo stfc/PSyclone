@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2025, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -99,7 +99,7 @@ install PSyclone itself. Again, the simplest way of doing this is to use
 where ``-e`` requests an 'editable' installation so that changes to
 the PSyclone source are immediately reflected in the installed
 package.  (For alternatives to using pip please see the
-:ref:`user_guide:getting-going` section.)
+:ref:`getting-going` section.)
 
 .. _test_suite:
 
@@ -108,7 +108,7 @@ Test Suite
 
 The PSyclone test suite is integral to the development process and all
 new code must be covered (i.e. executed) by one or more tests. As
-described in :ref:`user_guide:getting-going`, the test suite is
+described in :ref:`getting-going`, the test suite is
 written for use with ``pytest``.
 
 Tests should be run from the ``<PSYCLONEHOME>/src/psyclone/tests`` 
@@ -215,6 +215,12 @@ Additionally html output can be created by adding the option ``--cov-report html
 
 The html output can be viewed with a browser at ``file:///.../tests/htmlcov/index.html``
 and it highlights all source lines in red that are not covered by at least one test.
+
+For convenience, there is also a script in ``<PSYCLONEHOME>/utils/run_pytest_cov.sh``
+running the coverage tests for all relevant files.
+This also creates a ``cov.xml`` file which can be used by, e.g., vscode.
+See the respective comments in this script for further information.
+
 
 .. _parallel_execution:
 
@@ -442,8 +448,8 @@ computational cost (so that we 'fail fast'):
  1. All examples in the Developer Guide are checked for correctness by
     running ``make doctest``.
 
- 2. The code base, examples and tutorials are lint'ed with flake8.
-    (Configuration of flake8 is performed in ``setup.cfg``.)
+ 2. The code base, examples and tutorials are Lint'ed with flake8, see
+    also :ref:`flake8`.
 
  3. All links within the Sphinx documentation (rst files) are checked (see
     note below);
@@ -597,6 +603,29 @@ psyclone scripts suffered from each change for LFRic and NEMO applications.
 However, one must note that the test runner does not have exclusive access to
 the testing system, and some results may be impacted by other users using the
 system at the same time.
+
+
+.. _flake8:
+
+Flake8
+------------------
+
+All code is linted by flake8 and must be free from errors to be merged with
+master.
+It can be installed with::
+  
+  > pip install flake8
+
+and executed with::
+
+  > flake8 src/psyclone
+
+An existing configuration of flake8 is given in ``setup.cfg``.
+A check with flake8 is performed automatically by the CI and it can be useful
+to setup a git pre-push hook at ``.git/hooks/pre-push`` to do this check before
+pushing to the repository.
+For convenience, such a script where a such a hook can be linked to is available
+in ``utils/run_flake8.sh``.
 
 
 Performance

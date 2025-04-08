@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024 Science and Technology Facilities Council.
+# Copyright (c) 2019-2025 Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir import symbols
 
-# constants
+# Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
@@ -917,44 +917,44 @@ def test_operators():
         "ndf_w2vtrace, ndf_w3, ndf_wtheta, ndf_aspc1_op_12, ndf_adspc1_op_13\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w0,ndf_w0,"
-        "op_1_ncell_3d) :: op_1\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_1_ncell_3d,"
+        "ndf_w0,ndf_w0) :: op_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
-        "op_2_ncell_3d) :: op_2\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_2_ncell_3d,"
+        "ndf_w1,ndf_w1) :: op_2\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_3_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2,ndf_w2,"
-        "op_3_ncell_3d) :: op_3\n"
+        "      REAL(KIND=r_def), intent(in), dimension(op_3_ncell_3d,"
+        "ndf_w2,ndf_w2) :: op_3\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2h,ndf_w2h,"
-        "op_4_ncell_3d) :: op_4\n"
+        "      REAL(KIND=r_def), intent(in), dimension(op_4_ncell_3d,"
+        "ndf_w2h,ndf_w2h) :: op_4\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_5_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2v,ndf_w2v,"
-        "op_5_ncell_3d) :: op_5\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_5_ncell_3d,"
+        "ndf_w2v,ndf_w2v) :: op_5\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2broken,"
-        "ndf_w2broken,op_6_ncell_3d) :: op_6\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_6_ncell_3d,"
+        "ndf_w2broken,ndf_w2broken) :: op_6\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_7_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2trace,"
-        "ndf_w2trace,op_7_ncell_3d) :: op_7\n"
+        "      REAL(KIND=r_def), intent(in), dimension(op_7_ncell_3d,"
+        "ndf_w2trace,ndf_w2trace) :: op_7\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_8_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2htrace,"
-        "ndf_w2htrace,op_8_ncell_3d) :: op_8\n"
+        "      REAL(KIND=r_def), intent(in), dimension(op_8_ncell_3d,"
+        "ndf_w2htrace,ndf_w2htrace) :: op_8\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_9_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2vtrace,"
-        "ndf_w2vtrace,op_9_ncell_3d) :: op_9\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_9_ncell_3d,"
+        "ndf_w2vtrace,ndf_w2vtrace) :: op_9\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w3,ndf_w3,"
-        "op_10_ncell_3d) :: op_10\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_10_ncell_3d,"
+        "ndf_w3,ndf_w3) :: op_10\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_11_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_wtheta,"
-        "ndf_wtheta,op_11_ncell_3d) :: op_11\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_11_ncell_3d,"
+        "ndf_wtheta,ndf_wtheta) :: op_11\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_aspc1_op_12,"
-        "ndf_aspc1_op_12,op_12_ncell_3d) :: op_12\n"
+        "      REAL(KIND=r_def), intent(in), dimension(op_12_ncell_3d,"
+        "ndf_aspc1_op_12,ndf_aspc1_op_12) :: op_12\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_13_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_adspc1_op_13,"
-        "ndf_adspc1_op_13,op_13_ncell_3d) :: op_13\n"
+        "      REAL(KIND=r_def), intent(in), dimension(op_13_ncell_3d,"
+        "ndf_adspc1_op_13,ndf_adspc1_op_13) :: op_13\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code
@@ -990,7 +990,7 @@ def test_stub_operator_different_spaces():
     kernel.load_meta(metadata)
     result = str(kernel.gen_stub)
     assert "(cell, nlayers, op_1_ncell_3d, op_1, ndf_w0, ndf_w1)" in result
-    assert "dimension(ndf_w0,ndf_w1,op_1_ncell_3d)" in result
+    assert "dimension(op_1_ncell_3d,ndf_w0,ndf_w1)" in result
     # Check for discontinuous to- and from- spaces
     code = OPERATOR_DIFFERENT_SPACES.replace(
         "(gh_operator, gh_real, gh_write, w0, w1)",
@@ -1002,7 +1002,7 @@ def test_stub_operator_different_spaces():
     result = str(kernel.gen_stub)
     assert ("(cell, nlayers, op_1_ncell_3d, op_1, ndf_w3, ndf_adspc2_op_1)"
             in result)
-    assert "dimension(ndf_w3,ndf_adspc2_op_1,op_1_ncell_3d)" in result
+    assert "dimension(op_1_ncell_3d,ndf_w3,ndf_adspc2_op_1)" in result
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
     assert "function_space_to[3]='w3'" in result

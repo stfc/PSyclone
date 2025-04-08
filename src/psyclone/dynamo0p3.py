@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,20 +56,20 @@ from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (
     FunctionSpace, KernCallAccArgList, KernCallArgList, LFRicCollection,
     LFRicConstants, LFRicSymbolTable, LFRicKern,
-    LFRicInvokes, LFRicTypes, LFRicLoop)
+    LFRicTypes, LFRicLoop)
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeallocateGen, DeclGen, DoGen,
-                              ModuleGen, TypeDeclGen, UseGen, PSyIRGen)
+                              DeallocateGen, DeclGen, DoGen, PSyIRGen,
+                              TypeDeclGen, UseGen)
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
+from psyclone.psyGen import (InvokeSchedule, Arguments,
                              KernelArgument, HaloExchange, GlobalSum,
                              DataAccess)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Assignment, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
+    Assignment, ACCEnterDataDirective, ArrayOfStructuresReference,
     Reference, Schedule, StructureReference, Literal, IfBlock, Call,
     BinaryOperation, IntrinsicCall, Container)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
@@ -367,133 +367,6 @@ class MeshPropertiesMetaData():
 # --------------------------------------------------------------------------- #
 
 # ---------- Classes -------------------------------------------------------- #
-
-
-class DynamoPSy(PSy):
-    '''
-    The LFRic-specific PSy class. This creates an LFRic-specific
-    Invokes object (which controls all the required invocation calls).
-    It also overrides the PSy gen method so that we generate
-    LFRic-specific PSy module code.
-
-    :param invoke_info: object containing the required invocation information \
-                        for code optimisation and generation.
-    :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
-
-    '''
-    def __init__(self, invoke_info):
-        # Make sure the scoping node creates LFRicSymbolTables
-        # TODO #1954: Remove the protected access using a factory
-        ScopingNode._symbol_table_class = LFRicSymbolTable
-        Config.get().api = "lfric"
-        PSy.__init__(self, invoke_info)
-        self._invokes = LFRicInvokes(invoke_info.calls, self)
-        # Initialise the dictionary that holds the names of the required
-        # LFRic constants, data structures and data structure proxies for
-        # the "use" statements in modules that contain PSy-layer routines.
-        const = LFRicConstants()
-        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        infmod_list = [const_mod]
-        # Add all field and operator modules that might be used in the
-        # algorithm layer. These do not appear in the code unless a
-        # variable is added to the "only" part of the
-        # '_infrastructure_modules' map.
-        for data_type_info in const.DATA_TYPE_MAP.values():
-            infmod_list.append(data_type_info["module"])
-
-        # This also removes any duplicates from infmod_list
-        self._infrastructure_modules = OrderedDict(
-            (k, set()) for k in infmod_list)
-
-        kind_names = set()
-
-        # The infrastructure declares integer types with default
-        # precision so always add this.
-        api_config = Config.get().api_conf("lfric")
-        kind_names.add(api_config.default_kind["integer"])
-
-        # Datatypes declare precision information themselves. However,
-        # that is not the case for literals. Therefore deal
-        # with these separately here.
-        for invoke in self.invokes.invoke_list:
-            schedule = invoke.schedule
-            for kernel in schedule.kernels():
-                for arg in kernel.args:
-                    if arg.is_literal:
-                        kind_names.add(arg.precision)
-        # Add precision names to the dictionary storing the required
-        # LFRic constants.
-        self._infrastructure_modules[const_mod] = kind_names
-
-    @property
-    def name(self):
-        '''
-        :returns: a name for the PSy layer. This is used as the PSy module \
-                  name. We override the default value as the Met Office \
-                  prefer "_psy" to be appended, rather than prepended.
-        :rtype: str
-
-        '''
-        return self._name + "_psy"
-
-    @property
-    def orig_name(self):
-        '''
-        :returns: the unmodified PSy-layer name.
-        :rtype: str
-
-        '''
-        return self._name
-
-    @property
-    def infrastructure_modules(self):
-        '''
-        :returns: the dictionary that holds the names of the required \
-                  LFRic infrastructure modules to create "use" \
-                  statements in the PSy-layer modules.
-        :rtype: dict of set
-
-        '''
-        return self._infrastructure_modules
-
-    @property
-    def gen(self):
-        '''
-        Generate PSy code for the LFRic API.
-
-        :returns: root node of generated Fortran AST.
-        :rtype: :py:class:`psyir.nodes.Node`
-
-        '''
-        # Create an empty PSy layer module
-        psy_module = ModuleGen(self.name)
-
-        # If the container has a Routine that is not an InvokeSchedule
-        # it should also be added to the generated module.
-        for routine in self.container.children:
-            if not isinstance(routine, InvokeSchedule):
-                psy_module.add(PSyIRGen(psy_module, routine))
-
-        # Add all invoke-specific information
-        self.invokes.gen_code(psy_module)
-
-        # Include required constants and infrastructure modules. The sets of
-        # required LFRic data structures and their proxies are updated in
-        # the relevant field and operator subclasses of LFRicCollection.
-        # Here we sort the inputs in reverse order to have "_type" before
-        # "_proxy_type" and "operator_" before "columnwise_operator_".
-        # We also iterate through the dictionary in reverse order so the
-        # "use" statements for field types are before the "use" statements
-        # for operator types.
-        for infmod in reversed(self._infrastructure_modules):
-            if self._infrastructure_modules[infmod]:
-                infmod_types = sorted(
-                    list(self._infrastructure_modules[infmod]), reverse=True)
-                psy_module.add(UseGen(psy_module, name=infmod,
-                                      only=True, funcnames=infmod_types))
-
-        # Return the root node of the generated code
-        return psy_module.root
 
 
 class LFRicMeshProperties(LFRicCollection):
@@ -1652,8 +1525,8 @@ class DynLMAOperators(LFRicCollection):
             ndf_name_to = arg.function_space_to.ndf_name
             ndf_name_from = arg.function_space_from.ndf_name
             parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
-                               dimension=",".join([ndf_name_to,
-                                                   ndf_name_from, size]),
+                               dimension=",".join([size, ndf_name_to,
+                                                   ndf_name_from]),
                                intent=arg.intent,
                                entity_decls=[arg.name]))
 
@@ -4935,10 +4808,6 @@ class DynKernelArguments(Arguments):
     '''
     def __init__(self, call, parent_call, check=True):
         # pylint: disable=too-many-branches
-        if False:  # pylint: disable=using-constant-test
-            # For pyreverse
-            self._0_to_n = DynKernelArgument(None, None, None, None)
-
         Arguments.__init__(self, parent_call)
 
         # check that the arguments provided by the algorithm layer are
@@ -5119,6 +4988,24 @@ class DynKernelArguments(Arguments):
         arguments of this kernel. The names are unmangled (i.e. as
         specified in the kernel metadata) '''
         return self._unique_fs_names
+
+    @property
+    def first_field_or_operator(self):
+        '''
+        :returns: the first field or operator argument in the list.
+        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :raises InternalError: if no field or operator argument is found.
+
+        '''
+        for arg in self._args:
+            arg: DynKernelArgument
+            if arg.is_field or arg.is_operator:
+                return arg
+
+        raise InternalError(
+            f"Invalid LFRic kernel: failed to find a DynKernelArgument that is"
+            f" a field or operator in '{self.names}'.")
 
     def iteration_space_arg(self):
         '''
@@ -6100,7 +5987,6 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 # documentation for. (See https://psyclone-ref.readthedocs.io)
 __all__ = [
     'DynFuncDescriptor03',
-    'DynamoPSy',
     'DynFunctionSpaces',
     'DynProxies',
     'DynLMAOperators',

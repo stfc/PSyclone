@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -225,4 +225,4 @@ def test_standalonedirective_children_validation():
     with pytest.raises(GenerationError) as excinfo:
         cdir.addchild(schedule)
     assert ("Item 'Schedule' can't be child 0 of 'StandaloneDirective'. The "
-            "valid format is: 'None'." in str(excinfo.value))
+            "valid format is: 'Clause*'." in str(excinfo.value))

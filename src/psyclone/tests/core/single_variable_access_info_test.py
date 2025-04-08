@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -180,12 +180,14 @@ def test_variable_access_info():
     assert vai.all_write_accesses == []
     assert vai.signature == Signature("var_name")
 
+    vai.add_access_with_location(AccessType.INQUIRY, 3, Node(),
+                                 component_indices=None)
     vai.add_access_with_location(AccessType.READ, 2, Node(),
                                  component_indices=None)
-    assert str(vai) == "var_name:READ(2)"
+    assert str(vai) == "var_name:INQUIRY(3),READ(2)"
     assert vai.is_read()
     assert vai.is_read_only()
-    assert vai.all_read_accesses == [vai[0]]
+    assert vai.all_read_accesses == [vai[1]]
     assert vai.all_write_accesses == []
     assert not vai.is_written()
     assert not vai.is_written_first()
@@ -195,34 +197,40 @@ def test_variable_access_info():
     assert vai.is_written_first()
     assert not vai.is_read_only()
     assert vai.all_read_accesses == []
-    assert vai.all_write_accesses == [vai[0]]
+    assert vai.all_write_accesses == [vai[1]]
 
     # Now we have one write access, which we should not be able to
     # change to write again:
     with pytest.raises(InternalError) as err:
         vai.change_read_to_write()
-    assert "Trying to change variable 'var_name' to 'WRITE' which "\
-        "does not have 'READ' access." in str(err.value)
+    assert ("Variable 'var_name' has a 'WRITE' access. change_read_to_write() "
+            "expects only inquiry accesses and a single 'READ' access."
+            in str(err.value))
 
     assert vai.all_accesses[0] == vai[0]
     with pytest.raises(IndexError) as err:
-        _ = vai[1]
+        _ = vai[2]
 
-    # Add a READ access - now we should not be able to
-    # change read to write anymore:
+    # Add a READ access - we should not be able to
+    # change this read to write as there's already a WRITE access.
     vai.add_access_with_location(AccessType.READ, 1, Node(),
                                  component_indices=None)
     with pytest.raises(InternalError) as err:
         vai.change_read_to_write()
-    assert "Variable 'var_name' had 2 accesses listed, "\
-           "not one in change_read_to_write." in str(err.value)
-
+    assert ("Variable 'var_name' has a 'WRITE' access. change_read_to_write() "
+            "expects only inquiry accesses and a single 'READ' access."
+            in str(err.value))
     # And make sure the variable is not read_only if a write is added
     vai.add_access_with_location(AccessType.WRITE, 3, Node(),
                                  component_indices=None)
     assert vai.is_read_only() is False
-    assert vai.all_read_accesses == [vai[1]]
-    assert vai.all_write_accesses == [vai[0], vai[2]]
+    assert vai.all_read_accesses == [vai[2]]
+    assert vai.all_write_accesses == [vai[1], vai[3]]
+    # Check that we catch a case where there are no accesses at all.
+    vai = SingleVariableAccessInfo(Signature("var_name"))
+    with pytest.raises(InternalError) as err:
+        vai.change_read_to_write()
+    assert "but it does not have a 'READ' access" in str(err.value)
 
 
 # -----------------------------------------------------------------------------

@@ -8,7 +8,7 @@
 ! ----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2021-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,8 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified: R. W. Ford, STFC Daresbury Lab
+! Modified by R. W. Ford, STFC Daresbury Lab
+! Modified by I. Kavcic, Met Office
 
 module impose_min_flux_kernel_mod
 
@@ -121,8 +122,8 @@ subroutine impose_min_flux_code(cell,              &
   integer(kind=i_def), dimension(ndf2), intent(in) :: map2
   real(kind=r_def), dimension(undf2),               intent(inout) :: flux
   real(kind=r_def), dimension(undf1),               intent(in)    :: field
-  real(kind=r_def), dimension(ndf1,ndf2,ncell_3d1), intent(in)    :: div
-  real(kind=r_def), dimension(ndf1,ndf1,ncell_3d2), intent(in)    :: div_multiplier
+  real(kind=r_def), dimension(ncell_3d1,ndf1,ndf2), intent(in)    :: div
+  real(kind=r_def), dimension(ncell_3d2,ndf1,ndf1), intent(in)    :: div_multiplier
   real(kind=r_def), intent(in)                                    :: field_min
   real(kind=r_def), intent(in)                                    :: dts
 
@@ -147,7 +148,7 @@ subroutine impose_min_flux_code(cell,              &
        flux_change_id = 0_i_def
 
        do df2 = 1, ndf2
-         inc = - dts*div(df1,df2,ik)*div_multiplier(df1,df1,ik)*cell_fluxes(df2)
+         inc = - dts*div(ik,df1,df2)*div_multiplier(ik,df1,df1)*cell_fluxes(df2)
          if ( inc < 0.0_r_def ) then
              inc_n = inc_n - inc
              flux_change_id(df2) = 1_i_def

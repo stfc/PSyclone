@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council
+# Copyright (c) 2022-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@ import pytest
 from psyclone.psyad.transformations.preprocess import preprocess_trans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import Compile
 
 
@@ -182,7 +183,7 @@ def test_preprocess_matmul(tmpdir, fortran_reader, fortran_writer):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_preprocess_arrayrange2loop(tmpdir, fortran_reader, fortran_writer):
+def test_preprocess_arrayassign2loop(tmpdir, fortran_reader, fortran_writer):
     '''Test that the preprocess script replaces active assignments that
     contain arrays that use range notation with equivalent code that
     uses explicit loops. Also check that they are not modified if they
@@ -192,24 +193,19 @@ def test_preprocess_arrayrange2loop(tmpdir, fortran_reader, fortran_writer):
     code = (
         "program test\n"
         "real, dimension(10,10,10) :: a,b,c,d,e,f\n"
-        "a(:,1,:) = b(:,1,:) * c(:,1,:)\n"
+        "integer, dimension(10) :: map\n"
+        "integer, parameter :: i = 5\n"
+        "a(:,1,:) = b(:,1,:) * c(:,1+map(i),:)\n"
         "d(1,1,1) = 0.0\n"
         "e(:,:,:) = f(:,:,:)\n"
         "print *, \"hello\"\n"
         "end program test\n")
     expected = (
-        "program test\n"
-        "  real, dimension(10,10,10) :: a\n"
-        "  real, dimension(10,10,10) :: b\n"
-        "  real, dimension(10,10,10) :: c\n"
-        "  real, dimension(10,10,10) :: d\n"
-        "  real, dimension(10,10,10) :: e\n"
-        "  real, dimension(10,10,10) :: f\n"
         "  integer :: idx\n"
         "  integer :: idx_1\n\n"
         "  do idx = LBOUND(a, dim=3), UBOUND(a, dim=3), 1\n"
         "    do idx_1 = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
-        "      a(idx_1,1,idx) = b(idx_1,1,idx) * c(idx_1,1,idx)\n"
+        "      a(idx_1,1,idx) = b(idx_1,1,idx) * c(idx_1,map(i) + 1,idx)\n"
         "    enddo\n"
         "  enddo\n"
         "  d(1,1,1) = 0.0\n"
@@ -221,8 +217,29 @@ def test_preprocess_arrayrange2loop(tmpdir, fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     preprocess_trans(psyir, ["a", "c"])
     result = fortran_writer(psyir)
-    assert result == expected
+    assert expected in result
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_preprocess_arrayassign2loop_failure(fortran_reader, fortran_writer):
+    '''
+    Check that we catch the case where the array-assignment transformation
+    fails.
+
+    '''
+    code = (
+        "program test\n"
+        "use other_mod, only: func\n"
+        "real, dimension(10,10,10) :: a,b,c,d,e,f\n"
+        "integer, dimension(10) :: map\n"
+        "integer, parameter :: i = 5\n"
+        "a(:,1,:) = b(:,1,:) * c(:,1+int(real(complex(1.0,1.0))),:)\n"
+        "end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    with pytest.raises(TransformationError) as err:
+        preprocess_trans(psyir, ["a", "c"])
+    assert (" ArrayAssignment2LoopsTrans does not accept calls which are "
+            "not guaranteed" in str(err.value))
 
 
 @pytest.mark.parametrize("operation", ["+", "-"])

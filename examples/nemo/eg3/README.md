@@ -10,7 +10,7 @@ the resulting code.
 
 A more sophisticated `acc_kernels_trans.py` script is provided in the
 `../scripts` directory. This is designed to work with the NVIDIA (PGI)
-compiler's 'managed memory' option (`-ta=tesla:managed`) and therefore makes
+compiler's 'managed memory' option (`-gpu=mem:managed`) and therefore makes
 no attempt to control data movement to/from the GPU. It also adds
 profiling instrumentation around those parts of the code that have
 not been enclosed within an OpenACC KERNELS region.
@@ -55,12 +55,12 @@ this library is also required. It is available from
 Once dl_timer has been downloaded, the supplied Makefile must be
 edited to supply the location of the library. The compiler and flags
 must be specified via the F90 and F90FLAGS environment variables, e.g.
-to use PGI and OpenACC:
+to use the NVIDIA compiler and OpenACC:
 
 ```sh
-export F90=pgf90
-export F90FLAGS="-O1 -acc -ta=tesla,cc70 -Minfo=all"
-export LDFLAGS="-acc -ta=tesla,cc70"
+export F90=nvfortran
+export F90FLAGS="-O1 -acc -gpu=cc70 -Minfo=all"
+export LDFLAGS="-acc -gpu=cc70"
 ```
 
 The size of domain and number of time-steps are also picked-up from
@@ -73,7 +73,7 @@ environment variables. Some example settings are provided in the
 
 BSD 3-Clause License
 
-Copyright (c) 2018-2024, Science and Technology Facilities Council.
+Copyright (c) 2018-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

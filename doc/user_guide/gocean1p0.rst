@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2024, Science and Technology Facilities Council
+.. Copyright (c) 2017-2025, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -881,36 +881,36 @@ the GOcean 1.0 API. For an overview of transformations in general see
 
 .. autoclass:: psyclone.domain.gocean.transformations.GOceanExtractTrans
     :members:
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.domain.gocean.transformations.GOceanLoopFuseTrans
    :members:
-   :noindex:
+   :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.GOceanOMPParallelLoopTrans
    :members:
-   :noindex:
+   :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.GOceanOMPLoopTrans
    :members:
-   :noindex:
+   :no-index:
 
 ####
 
 .. autoclass:: psyclone.domain.gocean.transformations.GOConstLoopBoundsTrans
    :members:
-   :noindex:
+   :no-index:
 
 
 ####
 
 .. autoclass:: psyclone.domain.gocean.transformations.GOMoveIterationBoundariesInsideKernelTrans
     :members:
-    :noindex:
+    :no-index:
 

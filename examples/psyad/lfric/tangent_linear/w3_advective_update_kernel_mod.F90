@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (c) Crown copyright 2021 Met Office. All rights reserved.
+! (c) Crown copyright 2021-2025 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
@@ -93,7 +93,7 @@ subroutine w3_advective_update_code( cell,                 &
   real(kind=r_def), dimension(undf_w2), intent(in)    :: wind
   real(kind=r_def), dimension(undf_w2), intent(in)    :: tracer
 
-  real(kind=r_def), dimension(ndf_w3, ndf_w3, ncell_3d), intent(in) :: m3_inv
+  real(kind=r_def), dimension(ncell_3d, ndf_w3, ndf_w3), intent(in) :: m3_inv
 
   ! Internal variables
   integer(kind=i_def) :: k, ik
@@ -107,7 +107,7 @@ subroutine w3_advective_update_code( cell,                 &
     dtdy = tracer(map_w2(4) + k) - tracer(map_w2(2) + k)
     dtdz = tracer(map_w2(6) + k) - tracer(map_w2(5) + k)
     ik = 1 + k + (cell-1)*nlayers
-    advective_increment(map_w3(1)+k) = m3_inv(1,1,ik)*(u*dtdx + v*dtdy + w*dtdz)
+    advective_increment(map_w3(1)+k) = m3_inv(ik,1,1)*(u*dtdx + v*dtdy + w*dtdz)
   end do
 
 end subroutine w3_advective_update_code

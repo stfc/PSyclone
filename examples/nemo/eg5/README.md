@@ -57,7 +57,7 @@ Note that driver creation is not yet supported in NEMO, see issue #2058.
 
 BSD 3-Clause License
 
-Copyright (c) 2023-2024, Science and Technology Facilities Council.
+Copyright (c) 2023-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -280,7 +280,7 @@ def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
     assert not create_arg_list._arglist
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'cell', 'nlayers_cma_op1', 'ncell_2d', 'lma_op1_proxy%ncell_3d',
+        'cell', 'nlayers_lma_op1', 'ncell_2d', 'lma_op1_proxy%ncell_3d',
         'lma_op1_local_stencil', 'cma_op1_cma_matrix', 'cma_op1_nrow',
         'cma_op1_ncol', 'cma_op1_bandwidth', 'cma_op1_alpha', 'cma_op1_beta',
         'cma_op1_gamma_m', 'cma_op1_gamma_p', 'ndf_adspc1_lma_op1',

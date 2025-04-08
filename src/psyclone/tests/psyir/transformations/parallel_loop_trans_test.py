@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -82,7 +82,7 @@ def test_paralooptrans_validate_force(fortran_reader):
     trans = ParaTrans()
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
-    assert "because the dependency analysis reported" in str(err.value)
+    assert "Loop cannot be parallelised because:" in str(err.value)
     # Set the 'force' option to True - no exception should be raised.
     trans.validate(loop, {"force": True})
 
@@ -93,13 +93,13 @@ def test_paralooptrans_validate_pure_calls(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_sub()
-          use other, only: my_sub
+          use other, only: my_sub2
           integer :: i
           real :: var(10) = 1
 
           do i = LBOUND(var), UBOUND(var)  ! Inquiry calls are pure
             var(i) = max(i, 3)             ! max is pure
-            call my_sub(i)                 ! purity is unknown
+            call my_sub2(i)                ! purity is unknown
           end do
         end subroutine my_sub''')
 
@@ -109,12 +109,12 @@ def test_paralooptrans_validate_pure_calls(fortran_reader):
     with pytest.raises(TransformationError) as err:
         trans.validate(loop, {"verbose": True})
     assert ("Loop cannot be parallelised because it cannot guarantee that "
-            "the following calls are pure: {'my_sub'}" in str(err.value))
+            "the following calls are pure: ['my_sub2']" in str(err.value))
 
     # Check that forcing the transformation or setting it to "pure" let the
     # validation pass
     trans.validate(loop.copy(), {"force": True})
-    loop.scope.symbol_table.lookup("my_sub").is_pure = True
+    loop.scope.symbol_table.lookup("my_sub2").is_pure = True
     trans.validate(loop)
 
 
@@ -183,12 +183,12 @@ def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader,
     trans = ParaTrans()
     with pytest.raises(TransformationError) as err:
         trans.validate(loop, options={"verbose": True})
-    assert ("Loop cannot be parallelised because the dependency analysis "
-            "reported:\nWarning: Variable 'sum' is read first, which indicates"
-            " a reduction. Variable: 'sum'.") in str(err.value)
+    assert ("Loop cannot be parallelised because:\nWarning: Variable 'sum' is "
+            "read first, which indicates a reduction. Variable: 'sum'."
+            in str(err.value))
     # With the verbose option, the dependency will be reported in a comment
-    assert ("PSyclone: Loop cannot be parallelised because the dependency"
-            " analysis reported:" in loop.preceding_comment)
+    assert ("PSyclone: Loop cannot be parallelised because:"
+            in loop.preceding_comment)
 
     # Test that the inner loop does not log again the same error message
     with pytest.raises(TransformationError) as err:
@@ -200,7 +200,7 @@ def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader,
     loop.preceding_comment = ""
     with pytest.raises(TransformationError) as err:
         trans.validate(loop.loop_body[0], options={"verbose": True})
-    assert ("PSyclone: Loop cannot be parallelised because the dependency"
+    assert ("PSyclone: Loop cannot be parallelised because:"
             in loop.loop_body[0].preceding_comment)
 
     # Now use the 'ignore_dependencies_for' option
@@ -372,7 +372,7 @@ def test_paralooptrans_validate_sequential(fortran_reader):
     trans = ParaTrans()
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
-    assert "because the dependency analysis reported" in str(err.value)
+    assert "Loop cannot be parallelised because" in str(err.value)
     # Set the 'sequential' option to True - no exception should be raised.
     trans.validate(loop, {"sequential": True})
 
@@ -494,9 +494,6 @@ end subroutine my_sub
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
     err_text = str(err.value)
-    # Should have two messages (the first being the one that is ignored by
-    # validate).
-    assert "'ipivot' is only written once" in err_text
     assert ("Variable 'zval1' is read first, which indicates a reduction"
             in err_text)
 
@@ -530,3 +527,93 @@ def test_paralooptrans_apply(fortran_reader):
     trans = ParaTrans()
     trans.apply(loop, {"force": True})
     assert isinstance(loop.parent.parent, OMPParallelDoDirective)
+
+
+def test_paralooptrans_with_array_privatisation(fortran_reader,
+                                                fortran_writer):
+    '''
+    Check that the 'privatise_arrays' transformation option allows to ignore
+    write-write dependencies by setting the associated variable as 'private'
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer ji, jj
+          real :: var1(10,10)
+          real :: ztmp(10)
+          real :: ztmp2(10)
+          var1 = 1.0
+          ztmp2 = 1.0
+
+          do ji = 1, 10
+            do jj = 1, 10
+              if (jj == 4) then
+                ztmp2(jj) = 4
+              end if  ! the rest get the value from before the loop
+              ztmp(jj) = var1(ji, jj) + ztmp2(jj)
+            end do
+            do jj = 1, 10
+              var1(ji, jj) = ztmp(jj) * 2
+            end do
+          end do
+        end subroutine my_sub''')
+
+    loop = psyir.walk(Loop)[0]
+    trans = ParaTrans()
+
+    # By default this can not be parallelised because 'ztmp' is shared
+    with pytest.raises(TransformationError) as err:
+        trans.apply(loop)
+    assert "ztmp(jj)\' causes a write-write race condition." in str(err.value)
+    assert "ztmp2(jj)\' causes a write-write race condition." in str(err.value)
+
+    # Now enable array privatisation
+    trans.apply(loop, {"privatise_arrays": True})
+    assert ("!$omp parallel do default(shared), private(ji,jj,ztmp), "
+            "firstprivate(ztmp2)" in fortran_writer(psyir))
+
+    # If the array is accessed after the loop, or is a not an automatic
+    # interface, or is not a plain array, the privatisation will fail
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          use other, only: mystruct
+          integer ji, jj
+          real :: ztmp(10)  ! This one is fine
+          real :: ztmp_after(10)
+          real, save :: ztmp_nonlocal(10)
+          var1 = 1.0
+          ztmp = 3.0
+
+          do ji = 1, 10
+            do jj = 1, 10
+              ztmp(jj) = 3
+              ztmp_nonlocal(jj) = 3
+              ztmp_after(jj) = 3
+              mystruct%array(jj) = 3
+            end do
+          end do
+          call something(ztmp_after)
+        end subroutine my_sub''')
+
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        trans.apply(loop, {"privatise_arrays": True})
+    # with and updated error messages
+    assert "ztmp(jj)\' causes a write-write race " not in str(err.value)
+    assert "ztmp_after(jj)\' causes a write-write race " not in str(err.value)
+    assert ("ztmp_nonlocal(jj)\' causes a write-write race "
+            not in str(err.value))
+    assert ("The write-write dependency in 'ztmp_after' cannot be solved by "
+            "array privatisation because it is not a plain local array or it "
+            "is used after the loop" in str(err.value))
+    assert ("The write-write dependency in 'ztmp_nonlocal' cannot be solved "
+            "by array privatisation because it is not a plain local array or "
+            "it is used after the loop" in str(err.value))
+    assert ("The write-write dependency in 'mystruct%array' cannot be solved "
+            "by array privatisation because it is not a plain local array or "
+            "it is used after the loop" in str(err.value))
+
+    # The privatise_arrays only accepts bools
+    with pytest.raises(TypeError) as err:
+        trans.apply(loop, {"privatise_arrays": 3})
+    assert ("The 'privatise_arrays' option must be a bool but got an object "
+            "of type int" in str(err.value))

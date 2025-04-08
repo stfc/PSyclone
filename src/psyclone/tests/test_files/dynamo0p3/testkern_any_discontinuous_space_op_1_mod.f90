@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019-2024, Science and Technology Facilities Council
+! Copyright (c) 2019-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -94,8 +94,8 @@ contains
       real(kind=r_def), intent(in), dimension(undf1)    :: field1_x, field1_y, &
                                                            field1_z
       real(kind=r_def), intent(inout), dimension(undf2) :: field2
-      real(kind=r_def), intent(in), dimension(ndf1,ndf1,ncell_3d_op3)                  :: op3
-      real(kind=r_def), intent(inout), dimension(ndf_to_op4,ndf_from_op4,ncell_3d_op4) :: op4
+      real(kind=r_def), intent(in), dimension(ncell_3d_op3,ndf1,ndf1)                  :: op3
+      real(kind=r_def), intent(inout), dimension(ncell_3d_op4,ndf_to_op4,ndf_from_op4) :: op4
 
   end subroutine testkern_any_discontinuous_space_op_1_code
 

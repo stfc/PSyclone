@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -694,6 +694,27 @@ class PSyDataNode(Statement):
 
         self._add_call("PostEnd", parent)
 
+    def fix_gen_code(self, parent):
+        '''This function might be called from LFRicLoop.gen_code if a PSyData
+        node is inside a loop (typically they are outside of the loop and the
+        code creation in LFRIc is still fully handled by gen_code). In this
+        case the symbol for the variable is added to the symbol table, but
+        nothing adds this symbol to the fparser tree of the parent. So while
+        we are still having a mixture of gen_code and PSyir for LFRic
+        (TODO #1010), we need to manually declare this variable in the
+        fparser tree:
+
+        :parent: the parent node in the AST to which the declaration is added.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        set_private = self.ancestor(Routine) is None
+        var_decl = TypeDeclGen(parent,
+                               datatype=self.type_name,
+                               entity_decls=[self._var_name],
+                               save=True, target=True, private=set_private)
+        parent.add(var_decl)
+
     def lower_to_language_level(self, options=None):
         # pylint: disable=arguments-differ
         # pylint: disable=too-many-branches, too-many-statements
@@ -753,7 +774,7 @@ class PSyDataNode(Statement):
                 argument_str += ",".join([str(arg) for arg in argument_list])
                 argument_str += ")"
 
-            ParserFactory().create(std="f2008")
+            ParserFactory().create(std=Config.get().fortran_standard)
             reader = FortranStringReader(
                 f"CALL {typename}%{methodname}{argument_str}")
             # Tell the reader that the source is free format

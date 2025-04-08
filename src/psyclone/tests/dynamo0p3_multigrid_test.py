@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council
+# Copyright (c) 2017-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -355,7 +355,7 @@ def test_field_prolong(tmpdir, dist_mem):
         assert "loop0_stop = field2_proxy%vspace%get_ncell()\n" in gen_code
 
     expected = (
-        "        CALL prolong_test_kernel_code(nlayers_field2, "
+        "        CALL prolong_test_kernel_code(nlayers_field1, "
         "cell_map_field2(:,:,cell), ncpc_field1_field2_x, "
         "ncpc_field1_field2_y, ncell_field1, field1_data, "
         "field2_data, ndf_w1, undf_w1, map_w1, undf_w2, "
@@ -662,14 +662,14 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
         assert "loop3_stop = cmap_fld_c_proxy%vspace%get_ncell()\n" in output
         expected = (
             "      DO cell = loop0_start, loop0_stop, 1\n"
-            "        CALL prolong_test_kernel_code(nlayers_cmap_fld_c, "
+            "        CALL prolong_test_kernel_code(nlayers_fld_m, "
             "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
             "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, fld_m_data, "
             "cmap_fld_c_data, ndf_w1, undf_w1, map_w1, undf_w2, "
             "map_w2(:,cell))\n"
             "      END DO\n"
             "      DO cell = loop1_start, loop1_stop, 1\n"
-            "        CALL prolong_test_kernel_code(nlayers_fld_m, "
+            "        CALL prolong_test_kernel_code(nlayers_fld_f, "
             "cell_map_fld_m(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y,"
             " ncell_fld_f, fld_f_data, fld_m_data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cell))\n"

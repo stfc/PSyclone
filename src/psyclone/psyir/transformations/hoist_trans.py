@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -210,7 +210,7 @@ class HoistTrans(Transformation):
         # and which are read-only:
         read_only_sigs = []
         write_sigs = []
-        for sig in all_statement_vars.all_signatures:
+        for sig in all_statement_vars.all_data_accesses:
             if all_statement_vars[sig].is_written():
                 write_sigs.append(sig)
             else:

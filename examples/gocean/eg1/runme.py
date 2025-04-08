@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council
+# Copyright (c) 2017-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@ In order to use it you must first install PSyclone like so:
 
  >>> pip install --user psyclone
 
-(or see the Getting Going section in ../../psyclone.pdf). Once PSyclone
+(or see the Getting Going section in the User Guide). Once PSyclone
 is installed this script may be run by doing:
 
  >>> python runme.py

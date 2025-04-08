@@ -2,7 +2,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2024, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2025, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,7 @@ domain-specific classes (using the ``RaisePSyIR2LFRicKernelTrans`` and
 GOcean API's, respectively). These classes allow the metadata to be
 simply read when generating psy-layer code, but also to be simply
 modified if required (e.g. when generating adjoint code - see the
-:ref:`user guide <psyad_user_guide:introduction>` for more
+:ref:`user guide <psyad_introduction>` for more
 details). As with existing code, these domain-specific classes can be
 'lowered' to produce generic PSyIR and PSyclone's back-ends used to
 output the resultant metadata and code.
@@ -143,6 +143,7 @@ look for associated kernel files can be provided and a particular
 maximum line length can be specified.
 
 .. autoclass:: psyclone.parse.algorithm.Parser
+	:no-index:
 
 Once an instance of the `Parser()` class is created and configured
 with required values for the optional arguments, then the parse method
@@ -377,15 +378,14 @@ more kernels and/or implements any required Built-in operations.
 
 All these classes can be specialised in each PSyclone API to support the
 specific features of a particular API. The class diagram for the above base classes
-is shown below using the LFRic API as an illustration. This class diagram
-was generated from the source code with pyreverse and edited with inkscape.
+is shown below using the LFRic API as an illustration.
 
 .. image:: dynamo0p3_topclasses.png
     :width: 80%
     :align: center
 
 The InvokeSchedule can currently contain nodes of type: **Loop**,
-**Kernel**, **Built-in** (see the :ref:`built-ins` section),
+**Kernel**, **Built-in** (see the :ref:`psykal-built-ins` section),
 **Directive** (of various types), **HaloExchange**, or
 **GlobalSum** (the latter two are only used if distributed memory is
 supported and is switched on; see the :ref:`psykal_usage`

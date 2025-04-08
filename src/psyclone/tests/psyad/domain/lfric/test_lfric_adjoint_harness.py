@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified by: J. Dendy, Met Office
+#              T. Vockerodt, Met Office
 
 '''Provides py.test tests of LFRic-specific PSyclone adjoint test-harness
    functionality.'''
@@ -248,7 +250,7 @@ def test_init_fields_random_vector(type_map):
     '''
     table = LFRicSymbolTable()
     idef_sym = table.add_lfric_precision_symbol("i_def")
-    idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
+    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef_sym)
 
     fld_type = DataTypeSymbol(type_map["field"]["type"],
                               datatype=UnresolvedType())
@@ -575,7 +577,8 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
     adjt_name = "adjoint_test_alg"
     psyir = generate_lfric_adjoint_harness(tl_psyir, test_name=adjt_name)
     gen = fortran_writer(psyir).lower()
-    assert "use finite_element_config_mod, only : element_order" in gen
+    assert ("use finite_element_config_mod, only : element_order_h, "
+            "element_order_v" in gen)
     assert "module adjoint_test_alg_mod" in gen
     assert "subroutine adjoint_test_alg(mesh, chi, panel_id)" in gen
     # We should have a field, a copy of that field and an inner-product value
@@ -682,9 +685,9 @@ def test_generate_lfric_adjoint_harness_operator(fortran_reader,
     gen = fortran_writer(psyir)
     assert "type(operator_type) :: op\n" in gen
     assert ("vector_space_w0_ptr => function_space_collection%get_fs(mesh,"
-            "element_order,w0)\n" in gen)
+            "element_order_h,element_order_v,w0)\n" in gen)
     assert ("vector_space_w3_ptr => function_space_collection%get_fs(mesh,"
-            "element_order,w3)\n" in gen)
+            "element_order_h,element_order_v,w3)\n" in gen)
     # Initialise takes the *to* and *from* spaces as arguments in that order.
     assert ("call op%initialise(vector_space_w3_ptr, vector_space_w0_ptr)"
             in gen)

@@ -1,7 +1,7 @@
 <!--
 BSD 3-Clause License
 
-Copyright (c) 2018-2024, Science and Technology Facilities Council.
+Copyright (c) 2018-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -103,10 +103,10 @@ These scripts are a *work in progress* and are being developed to work on the
 MO_GO8 configuration of NEMO supplied by the Met Office. This configuration is
 based on version 4.0.2 of NEMO and is compiled using:
 
-    ./makenemo -n MO_GO8_GPU -r SPITZ12 -m linux_pgf90_gpu \
+    ./makenemo -n MO_GO8_GPU -r SPITZ12 -m linux_nvfortran_gpu \
         del_key "key_iomput key_mpp_mpi" add_key "key_nosignedzero"
 
-(where you will need an `arch/arch-linux_pgf90_gpu.fcm` FCM configuration
+(where you will need an `arch/arch-linux_nvfortran_gpu.fcm` FCM configuration
 file specifying how to use the NVIDIA compiler).
 
 If you are applying PSyclone to any other version or configuration of NEMO then
@@ -140,3 +140,9 @@ benchmark.
 
 Extraction of kernel data. Using the tra_adv benchmark, this example
 shows the extraction of kernel input- and output-data.
+
+## Example 6
+
+A simple stand-alone example that shows verification that read-only data
+is not modified, e.g. by out-of-bounds accesses to other variables.
+This uses the PSyData interface to instrument generic Fortran code.

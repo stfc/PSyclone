@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2021-2024, Science and Technology Facilities Council.
+   Copyright (c) 2021-2025, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -263,16 +263,17 @@ DataAccess class i.e. the `_field_write_arguments()` and
 Variable Accesses
 =================
 
-Especially in the NEMO API, it is not possible to rely on pre-defined
-kernel information to determine dependencies between loops. So an additional,
-somewhat lower-level API has been implemented that can be used to determine
-variable accesses (READ, WRITE etc.), which is based on the PSyIR information.
-The only exception to this is if a kernel is called, in which case the
-metadata for the kernel declaration will be used to determine the variable
-accesses for the call statement. The information about all variable usage
-of a PSyIR node or a list of nodes can be gathered by creating an object of
-type `psyclone.core.VariablesAccessInfo`.
-This class uses a `Signature` object to keep track of the variables used.
+When using PSyclone with generic Fortran code, it is not possible to
+rely on pre-defined kernel information to determine dependencies
+between loops. So an additional, somewhat lower-level API has been
+implemented that can be used to determine variable accesses (READ,
+WRITE etc.), which is based on the PSyIR information.  The only
+exception to this is if a kernel is called, in which case the metadata
+for the kernel declaration will be used to determine the variable
+accesses for the call statement. The information about all variable
+usage of a PSyIR node or a list of nodes can be gathered by creating
+an object of type `psyclone.core.VariablesAccessInfo`.  This class
+uses a `Signature` object to keep track of the variables used.
 
 Signature
 ---------
@@ -286,9 +287,19 @@ A simple variable such as `a` is stored as a one-element tuple `(a, )`, having
 a single component.
 
 .. autoclass:: psyclone.core.Signature
+    :no-index:
     :members:
     :special-members: __hash__, __eq__, __lt__
 
+AccessType
+----------
+
+An individual access to a ``Signature`` is described by an instance of the
+``AccessType`` enumeration:
+
+.. autoclass:: psyclone.core.access_type.AccessType
+    :no-index:
+    :members:
 
 VariablesAccessInfo
 -------------------
@@ -300,8 +311,10 @@ It will add the accesses for the PSyIR subtree to the specified instance
 of `VariablesAccessInfo`.
 
 .. automethod:: psyclone.psyir.nodes.Node.reference_accesses
+    :no-index:
 
 .. autoclass:: psyclone.core.VariablesAccessInfo
+    :no-index:
     :members:
     :special-members: __str__
 
@@ -319,22 +332,7 @@ instance is holding information about.
 VariablesAccessInfo Options
 +++++++++++++++++++++++++++
 
-By default, `VariablesAccessInfo` will not report the first argument of
-the PSyIR operators `lbound`, `ubound`, or `size` as read accesses,
-since these functions do not actually access the content of the array,
-they only query the size. If these accesses are required (e.g. in kernel
-extraction this could be important if an array is only used in these
-intrinsic - a driver would still need these arrays in order to query
-the size), the optional `options` parameter of the `VariablesAccessInfo`
-constructor can be used: add the key
-`COLLECT-ARRAY-SHAPE-READS` and set it to true::
-
-    vai = VariablesAccessInfo(options={'COLLECT-ARRAY-SHAPE-READS': True})
-
-In this case all arrays specified as first parameter to one of the
-PSyIR operators above will be reported as read access.
-
-Fortran also allows to rename a symbol locally when it is being imported,
+Fortran allows an imported symbol to be renamed locally
 (`use some_mod, only: renamed => original_name`). Depending on use case,
 it might be useful to get the non-local, original name. By default,
 `VariablesAccessInfo` will report the local name (i.e. the renamed name),
@@ -354,6 +352,7 @@ via `add_access()`, a new instance of `SingleVariableAccessInfo` is added,
 which in turn stores all access to the specified variable.
 
 .. autoclass:: psyclone.core.SingleVariableAccessInfo
+    :no-index:
     :members:
 
 AccessInfo
@@ -365,6 +364,7 @@ is appended to the list whenever `add_access_with_location()`
 is called.
 
 .. autoclass:: psyclone.core.AccessInfo
+    :no-index:
     :members:
 
 Indices
@@ -377,6 +377,7 @@ ComponentIndices object that each access has, which can be accessed
 using the `component_indices` property of an `AccessInfo` object.
 
 .. autoclass:: psyclone.core.ComponentIndices
+    :no-index:
     :members:
     :special-members: __getitem__, __len__
 
@@ -620,10 +621,11 @@ messages for the user to indicate why parallelisation was not possible. It
 uses `SymPy` internally to compare expressions symbolically.
 
 .. autoclass:: psyclone.psyir.tools.dependency_tools.DependencyTools
+    :no-index:
     :members:
 
 
-.. note:: PSyclone provides :ref:`user_guide:replace_induction_variable_trans`,
+.. note:: PSyclone provides :ref_guide:`ReplaceInductionVariableTrans psyclone.psyir.transformations.replace_induction_variables_trans.html#psyclone.psyir.transformations.replace_induction_variables_trans.ReplaceInductionVariablesTrans`,
           a transformation that can be very useful to improve the ability of
           the dependency analysis to provide useful information. It is
           recommended to run this transformation on a copy of the tree, since
@@ -666,12 +668,12 @@ can be parallelised:
 DefinitionUseChain
 ==================
 PSyclone also provides a DefinitionUseChain class, which can search for forward
-dependencies (backward NYI) for a given Reference inside a region of code. This
+and backward dependencies for a given Reference inside a region of code. This
 implementation differs from the DependencyTools as it is control-flow aware, so
 can find many dependencies for a single Reference in a given Routine or scope.
 
-This is primarily used to implement the `References.next_accesses` function, but can be
-used directly as follows:
+This is primarily used to implement the `Reference.next_accesses` and
+`Reference.previous_accessess` functions, but can be used directly as follows:
 
 .. code::
 

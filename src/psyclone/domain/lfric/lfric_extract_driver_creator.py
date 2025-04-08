@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -492,8 +492,18 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                 # If it is not indexed then `name` will already end in "_data"
                 post_tag = f"{name}{postfix}"
         name_lit = Literal(post_tag, CHARACTER_TYPE)
-        BaseDriverCreator.add_call(program, read_var,
-                                   [name_lit, Reference(post_sym)])
+
+        if sym.is_array and not sym.datatype.is_allocatable:
+            # In case of a non-allocatable array (e.g. a constant
+            # size array from a module), call the ReadVariable
+            # function that does not require an allocatable field
+            BaseDriverCreator.add_call(program, read_var+"NonAlloc",
+                                       [name_lit, Reference(post_sym)])
+        else:
+            # In case of an allocatable array, call the ReadVariable
+            # function that will also allocate this array.
+            BaseDriverCreator.add_call(program, read_var,
+                                       [name_lit, Reference(post_sym)])
 
         # Now if a variable is written to, but not read, the variable
         # is not allocated. So we need to allocate it and set it to 0.
@@ -583,6 +593,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
             sig_str = self._flatten_signature(signature)
+
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
                 orig_sym = mod_info.get_symbol(signature[0])
@@ -619,8 +630,20 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             else:
                 sym = symbol_table.lookup_with_tag(str(signature))
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
-            self.add_call(program, read_var,
-                          [name_lit, Reference(sym)])
+
+            # TODO #2898: the test for array can be removed if
+            # `is_allocatable` is supported for non-arrays.
+            if sym.is_array and not sym.datatype.is_allocatable:
+                # In case of a non-allocatable array (e.g. a constant
+                # size array from a module), call the ReadVariable
+                # function that does not require an allocatable field
+                self.add_call(program, read_var+"NonAlloc",
+                              [name_lit, Reference(sym)])
+            else:
+                # In case of an allocatable array, call the ReadVariable
+                # function that will also allocate this array.
+                self.add_call(program, read_var,
+                              [name_lit, Reference(sym)])
 
         # Then handle all variables that are written (note that some
         # variables might be read and written)
@@ -984,7 +1007,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                             if isinstance(symbol, ContainerSymbol))
 
         mod_manager = ModuleManager.get()
-        return mod_manager.get_all_dependencies_recursively(all_mods)
+        return mod_manager.get_all_dependencies_recursively(
+            list(all_mods))
 
     # -------------------------------------------------------------------------
     def get_driver_as_string(self, nodes, read_write_info, prefix, postfix,

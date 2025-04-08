@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council
+# Copyright (c) 2019-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -171,8 +171,7 @@ class ExtractNode(PSyDataNode):
             from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
             # Determine the variables to write:
             ctu = CallTreeUtils()
-            self._read_write_info = \
-                ctu.get_in_out_parameters(self, options=self.options)
+            self._read_write_info = ctu.get_in_out_parameters(self)
 
         options = {'pre_var_list': self._read_write_info.read_list,
                    'post_var_list': self._read_write_info.write_list,
@@ -209,8 +208,8 @@ class ExtractNode(PSyDataNode):
             from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
             # Determine the variables to write:
             ctu = CallTreeUtils()
-            self._read_write_info = \
-                ctu.get_in_out_parameters(self, options=self.options)
+            self._read_write_info = ctu.get_in_out_parameters(
+                self, include_non_data_accesses=True)
 
         options = {'pre_var_list': self._read_write_info.read_list,
                    'post_var_list': self._read_write_info.write_list,

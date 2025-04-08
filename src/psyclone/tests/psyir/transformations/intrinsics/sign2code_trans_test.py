@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -191,7 +191,7 @@ def test_correct_expr(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_correct_2sign(tmpdir):
+def test_correct_2sign(tmpdir, fortran_writer):
     '''Check that a valid example produces the expected output when there
     is more than one SIGN in an expression.
 
@@ -205,12 +205,11 @@ def test_correct_2sign(tmpdir):
     intr_call.detach()
     intr_call2 = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.SIGN,
-        [Literal("1.0", REAL_TYPE), Literal("1.0", REAL_TYPE)])
+        [Literal("1", REAL_TYPE), Literal("1", REAL_TYPE)])
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  intr_call2, intr_call)
     assignment.addchild(op1)
-    writer = FortranWriter()
-    result = writer(root)
+    result = fortran_writer(root)
     assert (
         "subroutine sign_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -221,7 +220,7 @@ def test_correct_2sign(tmpdir):
     trans = Sign2CodeTrans()
     trans.apply(intr_call, root.symbol_table)
     trans.apply(intr_call2, root.symbol_table)
-    result = writer(root)
+    result = fortran_writer(root)
     assert (
         "subroutine sign_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -260,6 +259,64 @@ def test_correct_2sign(tmpdir):
         "  psyir_tmp = res_sign_1 + res_sign\n\n"
         "end subroutine sign_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_sign_with_integer_arg(fortran_reader, fortran_writer, tmpdir):
+    '''
+    Test that the transformation works when the SIGN argument is an
+    integer.
+
+    '''
+    code = '''\
+    program test_prog
+      integer, parameter :: idef = kind(1)
+      integer(idef) :: my_arg, other_arg
+      my_arg = SIGN(my_arg, other_arg)
+    end program test_prog'''
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Sign2CodeTrans()
+    sgn_call = psyir.walk(IntrinsicCall)[0]
+    trans.apply(sgn_call)
+    result = fortran_writer(psyir)
+    assert "integer(kind=idef) :: res_abs" in result
+    assert "integer(kind=idef) :: tmp_abs" in result
+    assert "if (tmp_abs > 0_idef) then" in result
+    assert "res_abs = tmp_abs * -1_idef" in result
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_sign_of_unknown_type(fortran_reader):
+    '''
+    Check that we refuse to apply the transformation if the argument
+    is of array or unknown type.
+
+    '''
+    code = '''\
+    program test_prog
+      integer, parameter :: wp = kind(1.0d0)
+      integer, parameter, dimension(0:4) :: A2D = (/1, 2, 3, 4, 5/)
+      REAL(wp), DIMENSION(A2D(0)) :: ztmp1
+      ztmp1 = 0.0
+      ! Can't handle because we don't know the type of MAX or ABS
+      ztmp1 = SIGN( MAX(ABS(ztmp1),1.E-6_wp), ztmp1 )
+      ! Can't handle because ztmp1 is an array
+      ztmp1 = SIGN( ztmp1, 1.0 )
+    end program test_prog'''
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Sign2CodeTrans()
+    sgn_calls = [call for call in psyir.walk(IntrinsicCall)
+                 if call.intrinsic.name == "SIGN"]
+    with pytest.raises(TransformationError) as err:
+        trans.validate(sgn_calls[0])
+    assert ("Sign2CodeTrans cannot be applied to 'SIGN(MAX(ABS(ztmp1), "
+            "1.e-6_wp), ztmp1) because the type of the argument"
+            in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        trans.validate(sgn_calls[1])
+    assert ("Sign2CodeTrans cannot be applied to SIGN calls which have an "
+            "array as argument but 'ztmp1' is of array type. It may be "
+            "possible to use the ArrayAssignment2LoopsTrans to convert this "
+            "to a scalar argument" in str(err.value))
 
 
 def test_invalid():

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,6 @@ the invokes. When the transformed program is compiled and run, it
 will create one NetCDF file for each of the two invokes. A separate
 driver program is also created for each invoke which can read the
 created NetCDF files, execute the invokes and then compare the results.
-At this stage it does not compile (TODO: #644), and the comparison is
-missing (TODO: #647)
 '''
 
 from psyclone.domain.lfric.transformations import LFRicExtractTrans

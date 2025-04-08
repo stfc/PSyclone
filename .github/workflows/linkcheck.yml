@@ -4,7 +4,8 @@ jobs:
   check-links:
     if: ${{ github.repository != 'stfc/PSyclone-mirror' }}
     name: Run linkspector
-    runs-on: ubuntu-latest
+    # TODO 2838: linkspector doesn't support ubuntu-latest at the moment.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Run linkspector

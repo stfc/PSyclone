@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     KernelSchedule, CodeBlock, Assignment, ArrayOfStructuresReference,
     StructureReference, Member, StructureMember, ArrayOfStructuresMember,
-    ArrayMember, Literal, Reference, Range, IntrinsicCall)
+    ArrayMember, Literal, Reference, Range, IntrinsicCall, Container)
 from psyclone.psyir.symbols import (
     SymbolError, UnresolvedType, StructureType, DataTypeSymbol, ScalarType,
     RoutineSymbol, Symbol, ArrayType, UnsupportedFortranType, DataSymbol,
@@ -185,7 +185,10 @@ def test_name_clash_derived_type_def(f2008_parser):
     # This should raise an error because the Container symbol table will
     # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
+        processor.process_declarations(fake_parent,
+                                       walk(fparser2spec.content,
+                                            Fortran2003.Derived_Type_Def),
+                                       [])
     assert ("Error processing definition of derived type 'my_type'. The "
             "symbol table already contains an entry with this name but it is a"
             " 'RoutineSymbol' when it should be a 'DataTypeSymbol' (for the "
@@ -200,7 +203,10 @@ def test_name_clash_derived_type_def(f2008_parser):
                             "  end type my_type2\n"
                             "end subroutine my_sub2\n"))
     with pytest.raises(SymbolError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
+        processor.process_declarations(fake_parent,
+                                       walk(fparser2spec.content,
+                                            Fortran2003.Derived_Type_Def),
+                                       [])
     assert ("Error processing definition of derived type 'my_type2'. The "
             "symbol table already contains a DataTypeSymbol with this name but"
             " it is of type 'UnsupportedFortranType' when it should be of "
@@ -231,6 +237,42 @@ def test_existing_symbol_derived_type_def(f2008_parser):
     assert typ.visibility == Symbol.Visibility.PRIVATE
     assert typ.name == "my_type"
     assert isinstance(typ.interface, ImportInterface)
+
+
+def test_preceding_comments(f2008_parser):
+    ''' Check that the frontend correctly handles comments that precede
+    a derived type definition. '''
+    fake_parent = Container("dummy_container")
+    processor = Fparser2Reader()
+    fparser2spec = f2008_parser(
+        FortranStringReader("subroutine my_sub\n"
+                            "! This is a comment\n"
+                            "! This is another comment\n"
+                            "type :: my_type\n"
+                            "  integer :: flag\n"
+                            "end type my_type ! Inline comment\n"
+                            "end subroutine my_sub\n",
+                            ignore_comments=False))
+    sub_decl = walk(fparser2spec, types=Fortran2003.Subroutine_Subprogram)
+    sub = processor._subroutine_handler(sub_decl[0], fake_parent)
+    typ = sub.symbol_table.lookup("my_type")
+    assert typ.preceding_comment == ("This is a comment\n"
+                                     "This is another comment")
+    assert typ.inline_comment == "Inline comment"
+
+    fake_parent = Container("dummy_container")
+    processor = Fparser2Reader()
+    fparser2spec = f2008_parser(FortranStringReader("subroutine my_sub\n"
+                                                    "type :: my_type\n"
+                                                    "  integer :: flag\n"
+                                                    "end type my_type\n"
+                                                    "end subroutine my_sub\n",
+                                                    ignore_comments=False))
+    sub_decl = walk(fparser2spec, types=Fortran2003.Subroutine_Subprogram)
+    sub = processor._subroutine_handler(sub_decl[0], fake_parent)
+    typ = sub.symbol_table.lookup("my_type")
+    assert typ.preceding_comment == ""
+    assert typ.inline_comment == ""
 
 
 @pytest.mark.usefixtures("f2008_parser")

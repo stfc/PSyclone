@@ -1,5 +1,5 @@
 !-------------------------------------------------------------------------------
-! Copyright (c) 2017-2024,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-------------------------------------------------------------------------------
@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -174,10 +174,10 @@ subroutine apply_variable_hx_code(cell,        &
   real(kind=r_def), dimension(undf_w3), intent(in)    :: pressure
   real(kind=r_def),                     intent(in)    :: tau, dt
 
-  real(kind=r_def), dimension(ndf_w3,ndf_w2,ncell_3d_1), intent(in) :: div
-  real(kind=r_def), dimension(ndf_wt,ndf_w2,ncell_3d_2), intent(in) :: pt2
-  real(kind=r_def), dimension(ndf_w3,ndf_wt,ncell_3d_3), intent(in) :: p3t
-  real(kind=r_def), dimension(ndf_w3,ndf_w3,ncell_3d_4), intent(in) :: m3
+  real(kind=r_def), dimension(ncell_3d_1,ndf_w3,ndf_w2), intent(in) :: div
+  real(kind=r_def), dimension(ncell_3d_2,ndf_wt,ndf_w2), intent(in) :: pt2
+  real(kind=r_def), dimension(ncell_3d_3,ndf_w3,ndf_wt), intent(in) :: p3t
+  real(kind=r_def), dimension(ncell_3d_4,ndf_w3,ndf_w3), intent(in) :: m3
 
   ! Internal variables
   integer(kind=i_def)                 :: df, k, ik, is, ie
@@ -201,7 +201,7 @@ subroutine apply_variable_hx_code(cell,        &
     end do
     ik = (cell-1)*nlayers + k + 1
 
-    t_e = matmul(pt2(:,:,ik),x_e)
+    t_e = matmul(pt2(ik,:,:),x_e)
     do df = 1,ndf_wt
       t(map_wt(df)+k) = t(map_wt(df)+k) + t_e(df)
     end do
@@ -221,7 +221,7 @@ subroutine apply_variable_hx_code(cell,        &
 
     ik = (cell-1)*nlayers + k + 1
 
-    lhs_e = matmul(m3(:,:,ik),p_e) + dt*(matmul(div(:,:,ik),x_e) + matmul(p3t(:,:,ik),t_e))
+    lhs_e = matmul(m3(ik,:,:),p_e) + dt*(matmul(div(ik,:,:),x_e) + matmul(p3t(ik,:,:),t_e))
     do df = 1,ndf_w3
        lhs(map_w3(df)+k) = lhs_e(df)
     end do
@@ -241,20 +241,20 @@ end subroutine apply_variable_hx_code
 !>        operators as well as the application of the mass matrix M
 !> @param[in] cell Horizontal cell index
 !> @param[in] nlayers Number of layers
-!> @param[inout] lhs pressure field with helmholtz operator applied to it
-!> @param[in] x gradient of the pressure field in the velocity space
-!> @param[in] mt_inv lumped inverse mass matrix for the temperature space
-!> @param[in] pressure field that helmholtz operator is being applied to
+!> @param[in,out] lhs Pressure field with helmholtz operator applied to it
+!> @param[in] x Gradient of the pressure field in the velocity space
+!> @param[in] mt_inv Lumped inverse mass matrix for the temperature space
+!> @param[in] pressure Field that helmholtz operator is being applied to
 !> @param[in] ncell_3d_1 Total number of cells for divergence matrix
-!> @param[in] div generalised divergence matrix
+!> @param[in] div Generalised divergence matrix
 !> @param[in] ncell_3d_2 Total number of cells for p3t matrix
-!> @param[in] p3t mapping from temperature space to pressure space
+!> @param[in] p3t Mapping from temperature space to pressure space
 !> @param[in] ncell_3d_3 Total number of cells for pt2 matrix
-!> @param[in] pt2 mapping from velocity space to temperature space
+!> @param[in] pt2 Mapping from velocity space to temperature space
 !> @param[in] ncell_3d_4 Total number of cells for m3 matrix
-!> @param[in] m3 mass matrix for the pressure space
-!> @param[in] tau relaxtation weight
-!> @param[in] dt weight based upon the timestep
+!> @param[in] m3 Mass matrix for the pressure space
+!> @param[in] tau Relaxation weight
+!> @param[in] dt Weight based upon the timestep
 !> @param[in] ndf_w3 Number of degrees of freedom per cell for the pressure space
 !> @param[in] undf_w3 Unique number of degrees of freedom  for the pressure space
 !> @param[in] map_w3 Dofmap for the cell at the base of the column for the pressure space
@@ -301,10 +301,10 @@ subroutine opt_apply_variable_hx_code(cell,        &
   real(kind=r_def), dimension(undf_w3), intent(in)    :: pressure
   real(kind=r_def),                     intent(in)    :: tau, dt
 
-  real(kind=r_def), dimension(1,6,ncell_3d_1), intent(in) :: div
-  real(kind=r_def), dimension(2,6,ncell_3d_2), intent(in) :: pt2
-  real(kind=r_def), dimension(1,2,ncell_3d_3), intent(in) :: p3t
-  real(kind=r_def), dimension(1,1,ncell_3d_4), intent(in) :: m3
+  real(kind=r_def), dimension(ncell_3d_1,1,6), intent(in) :: div
+  real(kind=r_def), dimension(ncell_3d_2,2,6), intent(in) :: pt2
+  real(kind=r_def), dimension(ncell_3d_3,1,2), intent(in) :: p3t
+  real(kind=r_def), dimension(ncell_3d_4,1,1), intent(in) :: m3
 
   ! Internal variables
   integer(kind=i_def)            :: df, k, ik
@@ -317,30 +317,30 @@ subroutine opt_apply_variable_hx_code(cell,        &
   ik = (cell-1)*nlayers + k + 1
   t_e(1:2) = 0.0_r_def
   do df = 1,6
-    t_e(1) = t_e(1) + pt2(1,df,ik)*x(map_w2(df)+k)
-    t_e(2) = t_e(2) + pt2(2,df,ik)*x(map_w2(df)+k) + pt2(1,df,ik+1)*x(map_w2(df)+k+1)
+    t_e(1) = t_e(1) + pt2(ik,1,df)*x(map_w2(df)+k)
+    t_e(2) = t_e(2) + pt2(ik,2,df)*x(map_w2(df)+k) + pt2(ik+1,1,df)*x(map_w2(df)+k+1)
   end do
-  t_e(1) = mt_inv(map_wt(1)+k)*p3t(1,1,ik)*t_e(1)
-  t_e(2) = mt_inv(map_wt(2)+k)*p3t(1,2,ik)*t_e(2)
+  t_e(1) = mt_inv(map_wt(1)+k)*p3t(ik,1,1)*t_e(1)
+  t_e(2) = mt_inv(map_wt(2)+k)*p3t(ik,1,2)*t_e(2)
 
-  div_u = div(1,1,ik)*x(map_w2(1)+k) + div(1,2,ik)*x(map_w2(2)+k) + div(1,3,ik)*x(map_w2(3)+k) &
-        + div(1,4,ik)*x(map_w2(4)+k) + div(1,5,ik)*x(map_w2(5)+k) + div(1,6,ik)*x(map_w2(6)+k)
-  lhs(map_w3(1)+k) = m3(1,1,ik)*pressure(map_w3(1)+k) &
+  div_u = div(ik,1,1)*x(map_w2(1)+k) + div(ik,1,2)*x(map_w2(2)+k) + div(ik,1,3)*x(map_w2(3)+k) &
+        + div(ik,1,4)*x(map_w2(4)+k) + div(ik,1,5)*x(map_w2(5)+k) + div(ik,1,6)*x(map_w2(6)+k)
+  lhs(map_w3(1)+k) = m3(ik,1,1)*pressure(map_w3(1)+k) &
                    + dt*(div_u + tau*(t_e(1) + t_e(2)))
 
   do k = 1,nlayers-2
     ik = (cell-1)*nlayers + k + 1
     t_e(1:2) = 0.0_r_def
     do df = 1,6
-      t_e(1) = t_e(1) + pt2(1,df,ik)*x(map_w2(df)+k) + pt2(2,df,ik-1)*x(map_w2(df)+k-1)
-      t_e(2) = t_e(2) + pt2(2,df,ik)*x(map_w2(df)+k) + pt2(1,df,ik+1)*x(map_w2(df)+k+1)
+      t_e(1) = t_e(1) + pt2(ik,1,df)*x(map_w2(df)+k) + pt2(ik-1,2,df)*x(map_w2(df)+k-1)
+      t_e(2) = t_e(2) + pt2(ik,2,df)*x(map_w2(df)+k) + pt2(ik+1,1,df)*x(map_w2(df)+k+1)
     end do
-    t_e(1) = mt_inv(map_wt(1)+k)*p3t(1,1,ik)*t_e(1)
-    t_e(2) = mt_inv(map_wt(2)+k)*p3t(1,2,ik)*t_e(2)
+    t_e(1) = mt_inv(map_wt(1)+k)*p3t(ik,1,1)*t_e(1)
+    t_e(2) = mt_inv(map_wt(2)+k)*p3t(ik,1,2)*t_e(2)
 
-    div_u = div(1,1,ik)*x(map_w2(1)+k) + div(1,2,ik)*x(map_w2(2)+k) + div(1,3,ik)*x(map_w2(3)+k) &
-          + div(1,4,ik)*x(map_w2(4)+k) + div(1,5,ik)*x(map_w2(5)+k) + div(1,6,ik)*x(map_w2(6)+k)
-    lhs(map_w3(1)+k) = m3(1,1,ik)*pressure(map_w3(1)+k) &
+    div_u = div(ik,1,1)*x(map_w2(1)+k) + div(ik,1,2)*x(map_w2(2)+k) + div(ik,1,3)*x(map_w2(3)+k) &
+          + div(ik,1,4)*x(map_w2(4)+k) + div(ik,1,5)*x(map_w2(5)+k) + div(ik,1,6)*x(map_w2(6)+k)
+    lhs(map_w3(1)+k) = m3(ik,1,1)*pressure(map_w3(1)+k) &
                      + dt*(div_u + tau*(t_e(1) + t_e(2)))
   end do
 
@@ -348,15 +348,15 @@ subroutine opt_apply_variable_hx_code(cell,        &
   ik = (cell-1)*nlayers + k + 1
   t_e(1:2) = 0.0_r_def
   do df = 1,6
-    t_e(1) = t_e(1) + pt2(1,df,ik)*x(map_w2(df)+k) + pt2(2,df,ik-1)*x(map_w2(df)+k-1)
-    t_e(2) = t_e(2) + pt2(2,df,ik)*x(map_w2(df)+k)
+    t_e(1) = t_e(1) + pt2(ik,1,df)*x(map_w2(df)+k) + pt2(ik-1,2,df)*x(map_w2(df)+k-1)
+    t_e(2) = t_e(2) + pt2(ik,2,df)*x(map_w2(df)+k)
   end do
-  t_e(1) = mt_inv(map_wt(1)+k)*p3t(1,1,ik)*t_e(1)
-  t_e(2) = mt_inv(map_wt(2)+k)*p3t(1,2,ik)*t_e(2)
+  t_e(1) = mt_inv(map_wt(1)+k)*p3t(ik,1,1)*t_e(1)
+  t_e(2) = mt_inv(map_wt(2)+k)*p3t(ik,1,2)*t_e(2)
 
-  div_u = div(1,1,ik)*x(map_w2(1)+k) + div(1,2,ik)*x(map_w2(2)+k) + div(1,3,ik)*x(map_w2(3)+k) &
-        + div(1,4,ik)*x(map_w2(4)+k) + div(1,5,ik)*x(map_w2(5)+k) + div(1,6,ik)*x(map_w2(6)+k)
-  lhs(map_w3(1)+k) = m3(1,1,ik)*pressure(map_w3(1)+k) &
+  div_u = div(ik,1,1)*x(map_w2(1)+k) + div(ik,1,2)*x(map_w2(2)+k) + div(ik,1,3)*x(map_w2(3)+k) &
+        + div(ik,1,4)*x(map_w2(4)+k) + div(ik,1,5)*x(map_w2(5)+k) + div(ik,1,6)*x(map_w2(6)+k)
+  lhs(map_w3(1)+k) = m3(ik,1,1)*pressure(map_w3(1)+k) &
                    + dt*(div_u + tau*(t_e(1) + t_e(2)))
 
 end subroutine opt_apply_variable_hx_code

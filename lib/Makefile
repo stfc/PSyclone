@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,6 +60,12 @@ all:
 	$(MAKE) -C profiling all
 	$(MAKE) -C read_only all
 	$(MAKE) -C value_range_check all
+
+allclean:
+	$(MAKE) -C extract clean
+	$(MAKE) -C profiling clean
+	$(MAKE) -C read_only clean
+	$(MAKE) -C value_range_check clean
 
 %.f90:	%.jinja process.py
 	$$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py $< > $*.f90

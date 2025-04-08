@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council
+# Copyright (c) 2022-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,7 @@
 # Modified by: R. W. Ford, STFC Daresbury Lab
 #              L. Turner, Met Office
 #              T. Vockerodt, Met Office
+#              J. Dendy, Met Office
 
 ''' pytest tests for the LFRic-specific algorithm-generation functionality. '''
 
@@ -66,7 +67,7 @@ def setup():
 
 
 @pytest.fixture(name="prog", scope="function")
-def create_prog_fixture(parser):
+def create_prog_fixture():
     '''
     :returns: a PSyIR Routine node representing a program.
     :rtype: :py:class:`psyclone.psyir.nodes.Routine`
@@ -132,9 +133,12 @@ def test_create_function_spaces_no_spaces(prog):
     are no actual function spaces. '''
     LFRicAlg()._create_function_spaces(prog, [])
     fe_config_mod = prog.symbol_table.lookup("finite_element_config_mod")
-    element_order = prog.symbol_table.lookup("element_order")
-    assert element_order.interface.container_symbol == fe_config_mod
-    assert prog.symbol_table.lookup("element_order")
+    element_order_h = prog.symbol_table.lookup("element_order_h")
+    element_order_v = prog.symbol_table.lookup("element_order_v")
+    assert element_order_h.interface.container_symbol == fe_config_mod
+    assert element_order_v.interface.container_symbol == fe_config_mod
+    assert prog.symbol_table.lookup("element_order_h")
+    assert prog.symbol_table.lookup("element_order_v")
     assert isinstance(prog.symbol_table.lookup("fs_continuity_mod"),
                       ContainerSymbol)
 
@@ -155,8 +159,10 @@ def test_create_function_spaces(prog, fortran_writer):
     # produce consistent ordering in the algorithm.
     LFRicAlg()._create_function_spaces(prog, set(["w3", "w1"]))
     fe_config_mod = prog.symbol_table.lookup("finite_element_config_mod")
-    element_order = prog.symbol_table.lookup("element_order")
-    assert element_order.interface.container_symbol == fe_config_mod
+    element_order_h = prog.symbol_table.lookup("element_order_h")
+    assert element_order_h.interface.container_symbol == fe_config_mod
+    element_order_v = prog.symbol_table.lookup("element_order_v")
+    assert element_order_v.interface.container_symbol == fe_config_mod
     fs_mod_sym = prog.symbol_table.lookup("fs_continuity_mod")
     gen = fortran_writer(prog)
     for space in ["w1", "w3"]:
@@ -168,9 +174,9 @@ def test_create_function_spaces(prog, fortran_writer):
             "TYPE(function_space_type), POINTER :: "
             "vector_space_w3_ptr" in gen)
     assert ("vector_space_w1_ptr => function_space_collection%"
-            "get_fs(mesh,element_order,w1)\n  "
+            "get_fs(mesh,element_order_h,element_order_v,w1)\n  "
             "vector_space_w3_ptr => function_space_collection%"
-            "get_fs(mesh,element_order,w3)" in gen)
+            "get_fs(mesh,element_order_h,element_order_v,w3)" in gen)
 
 
 def test_initialise_field(prog, fortran_writer):
@@ -213,7 +219,9 @@ def test_initialise_quadrature(prog, fortran_writer):
     ''' Tests for the initialise_quadrature function with the supported
     XYoZ shape. '''
     table = prog.symbol_table
-    table.new_symbol("element_order", tag="element_order",
+    table.new_symbol("element_order_h", tag="element_order_h",
+                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    table.new_symbol("element_order_v", tag="element_order_v",
                      symbol_type=DataSymbol, datatype=INTEGER_TYPE)
     # Setup symbols that would normally be created in KernCallInvokeArgList.
     quad_container = table.new_symbol(
@@ -231,7 +239,8 @@ def test_initialise_quadrature(prog, fortran_writer):
     assert qrule.datatype is qtype
     # Check that the constructor is called in the generated code.
     gen = fortran_writer(prog)
-    assert ("qr = quadrature_xyoz_type(element_order + 3,quadrature_rule)"
+    assert ("qr = quadrature_xyoz_type(element_order_h + 3,element_order_h + "
+            "3,element_order_v + 3,quadrature_rule)"
             in gen)
 
 
@@ -239,7 +248,9 @@ def test_initialise_quadrature_unsupported_shape(prog):
     ''' Test that the initialise_quadrature function raises the expected error
     for an unsupported quadrature shape. '''
     table = prog.symbol_table
-    table.new_symbol("element_order", tag="element_order",
+    table.new_symbol("element_order_h", tag="element_order_h",
+                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    table.new_symbol("element_order_v", tag="element_order_v",
                      symbol_type=DataSymbol, datatype=INTEGER_TYPE)
     # Setup symbols that would normally be created in KernCallInvokeArgList.
     quad_container = table.new_symbol(
@@ -323,11 +334,11 @@ def test_construct_kernel_args(prog, lfrickern, fortran_writer):
 
     for space in spaces:
         assert (f"vector_space_{space}_ptr => function_space_collection%"
-                f"get_fs(mesh,element_order,{space})" in gen)
+                f"get_fs(mesh,element_order_h,element_order_v,{space})" in gen)
     for idx in range(2, 7):
         assert f"call field_{idx}" in gen
-    assert ("qr_xyoz = quadrature_xyoz_type(element_order + 3,"
-            "quadrature_rule)" in gen)
+    assert ("qr_xyoz = quadrature_xyoz_type(element_order_h + 3,"
+            "element_order_h + 3,element_order_v + 3,quadrature_rule)" in gen)
     # TODO #240 - test for compilation.
 
 

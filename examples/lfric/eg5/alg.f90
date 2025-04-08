@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2024,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 !------------------------------------------------------------------------------
 ! Modified by I. Kavcic, Met Office
+!             J. Dendy, Met Office
 
 module oned_conservative_flux_alg_mod
 
@@ -48,7 +49,8 @@ module oned_conservative_flux_alg_mod
   use function_space_collection_mod,     only: function_space_collection
   use quadrature_mod,                    only: quadrature_type, GAUSSIAN
   use fs_continuity_mod,                 only: W0, W3
-  use finite_element_config_mod,         only: element_order
+  use finite_element_config_mod,         only: element_order_h,                &
+                                               element_order_v
   use subgrid_config_mod,                only: transport_stencil_length,       &
                                                rho_stencil_length
 
@@ -81,8 +83,9 @@ module oned_conservative_flux_alg_mod
 
     type(function_space_type), pointer :: rho_fs   => null()
 
-    rho_fs => function_space_collection%get_fs( mesh_id, element_order,      &
-                                              rho_in%which_function_space() )
+    rho_fs => function_space_collection%get_fs( mesh_id, element_order_h, &
+                                                element_order_v,          &
+                                                rho_in%which_function_space() )
 
     a0 = field_type( vector_space = rho_fs )
     a1 = field_type( vector_space = rho_fs )

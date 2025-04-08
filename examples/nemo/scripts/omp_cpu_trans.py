@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,20 +37,31 @@
 ''' PSyclone transformation script to insert OpenMP for CPU
 directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 
+import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT)
+    enhance_tree_information, PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT,
+    PRIVATISATION_ISSUES)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
+# Enable the insertion of profiling hooks during the transformation script
 PROFILING_ENABLED = False
 
+# List of all module names that PSyclone will chase during the creation of the
+# PSyIR tree in order to use the symbol information from those modules
+RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
+
+# A environment variable can inform if this is targeting NEMOv4, in which case
+# array privatisation is disabled.
+NEMOV4 = os.environ.get('NEMOV4', False)
+
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT + [
-    "asminc.f90",
-    "trosk.f90",
-    "vremap.f90",
-]
+FILES_TO_SKIP = []
+
+if PROFILING_ENABLED:
+    # Fails with profiling enabled. issue #2723
+    FILES_TO_SKIP.append("mppini.f90")
 
 
 def trans(psyir):
@@ -61,15 +72,15 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    # If the environemnt has ONLY_FILE defined, only process that one file and
+    # nothing else. This is useful for file-by-file exhaustive tests.
+    only_do_file = os.environ.get('ONLY_FILE', False)
+    if only_do_file and psyir.name != only_do_file:
+        return
+
     omp_parallel_trans = None
     omp_loop_trans = OMPLoopTrans(omp_schedule="static")
     omp_loop_trans.omp_directive = "paralleldo"
-
-    # TODO #2317: Has structure accesses that can not be offloaded and has
-    # a problematic range to loop expansion of (1:1)
-    if psyir.name.startswith("obs_"):
-        print("Skipping file", psyir.name)
-        return
 
     for subroutine in psyir.walk(Routine):
         print(f"Adding OpenMP threading to subroutine: {subroutine.name}")
@@ -79,29 +90,21 @@ def trans(psyir):
 
         enhance_tree_information(subroutine)
 
-        if subroutine.name in ("eos_rprof", "load_nml", "prt_ctl_write_sum",
-                               "sbc_blk", "lbc_lnk_pt2pt_sp",
-                               "lbc_lnk_neicoll_sp", "lbc_lnk_iprobe_sp",
-                               "lbc_lnk_waitany_sp"):
-            # TODO #1959: 'eos_rprof' make the ECMWF compilation fail
-            # because it moves a statement function outside of the
-            # specification part.
-            # The rest are due to Subroutine wrongly parsed as Arrays?
-            print("Skipping normalisation for ", subroutine.name)
-
-        else:
-            normalise_loops(
-                    subroutine,
-                    hoist_local_arrays=False,
-                    convert_array_notation=True,
-                    convert_range_loops=True,
-                    hoist_expressions=False
-            )
-
-        insert_explicit_loop_parallelism(
+        normalise_loops(
                 subroutine,
-                region_directive_trans=omp_parallel_trans,
-                loop_directive_trans=omp_loop_trans,
-                # Collapse may be useful in some architecture/compiler
-                collapse=False,
+                hoist_local_arrays=False,
+                convert_array_notation=True,
+                convert_range_loops=True,
+                hoist_expressions=False,
+                scalarise_loops=False
         )
+
+        if psyir.name not in PARALLELISATION_ISSUES:
+            insert_explicit_loop_parallelism(
+                    subroutine,
+                    region_directive_trans=omp_parallel_trans,
+                    loop_directive_trans=omp_loop_trans,
+                    collapse=False,
+                    privatise_arrays=(not NEMOV4 and
+                                      psyir.name not in PRIVATISATION_ISSUES)
+            )

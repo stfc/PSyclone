@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -622,38 +622,45 @@ def test_get_effective_shape(fortran_reader):
         "  b(indices(2:3,1:2), 2:5) = 2.0\n"
         "  a(f()) = 2.0\n"
         "  a(2+3) = 1.0\n"
+        "  b(idx, 1+indices(1,1):) = 1\n"
         "  b(idx, a) = -1.0\n"
         "  b(scalarval, arrayval) = 1\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     # Direct array slice.
+    #   a(1:10) = 0.0
     child_idx = 0
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert isinstance(shape[0], Literal)
     assert shape[0].value == "10"
     # Array slice with non-unit step.
+    #   a(1:10:3) = 0.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert shape[0].debug_string() == "(10 - 1) / 3 + 1"
     # Full array slice without bounds.
+    #   a(:) = 0.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert "SIZE(a, dim=1)" in shape[0].debug_string()
     # Array slice with only lower-bound specified.
+    #   a(2:) = 0.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert shape[0].debug_string() == "UBOUND(a, dim=1) - 2 + 1"
     # Array slice with only upper-bound specified.
+    #   a(:5) = 0.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert shape[0].debug_string() == "5 - LBOUND(a, dim=1) + 1"
     # Array slice with only step specified.
+    #   a(::4) = 0.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
@@ -663,11 +670,13 @@ def test_get_effective_shape(fortran_reader):
             "(UBOUND(a, dim=1) - LBOUND(a, dim=1)) / 4 + 1")
     # Array slice defined using LBOUND and UBOUND intrinsics but for a
     # different array altogether.
+    #   a(lbound(b,1):ubound(b,2)) = 0.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert shape[0].debug_string() == "UBOUND(b, 2) - LBOUND(b, 1) + 1"
     # Indirect array slice.
+    #   b(indices(2:3,1), 2:5) = 2.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 2
@@ -679,29 +688,40 @@ def test_get_effective_shape(fortran_reader):
     assert shape[1].debug_string() == "5 - 2 + 1"
     # An indirect array slice can only be 1D.
     child_idx += 1
+    #   b(indices(2:3,1:2), 2:5) = 2.0
     with pytest.raises(NotImplementedError) as err:
         _ = routine.children[child_idx].lhs._get_effective_shape()
     assert ("array defining a slice of a dimension of another array must be "
             "1D but 'indices' used to index into 'b' has 2 dimensions" in
             str(err.value))
     # Indirect array access using function call.
+    #   a(f()) = 2.0
     child_idx += 1
     with pytest.raises(NotImplementedError) as err:
         _ = routine.children[child_idx].lhs._get_effective_shape()
-    assert "include a function call or expression" in str(err.value)
-    # Array access with expression in indices.
+    assert "include a function call or unsupported feature" in str(err.value)
+    # Array access with simple expression in indices.
+    #   a(2+3) = 1.0
     child_idx += 1
-    with pytest.raises(NotImplementedError) as err:
-        _ = routine.children[child_idx].lhs._get_effective_shape()
-    assert "include a function call or expression" in str(err.value)
+    shape = routine.children[child_idx].lhs._get_effective_shape()
+    assert shape == []
+    # Array access with expression involving indirect access in indices.
+    #   b(idx, 1+indices(1,1):) = 1
+    child_idx += 1
+    shape = routine.children[child_idx].lhs._get_effective_shape()
+    assert len(shape) == 1
+    assert (shape[0].debug_string().lower() ==
+            "ubound(b, dim=2) - (1 + indices(1,1)) + 1")
     # Array access with indices given by another array that is not explicitly
     # indexed.
+    #   b(idx, a) = -1.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert "SIZE(a)" in shape[0].debug_string()
     # Array-index expressions are symbols of unknown type so we don't know
     # whether we have an array slice or just a scalar.
+    #   b(scalarval, arrayval) = 1
     child_idx += 1
     with pytest.raises(NotImplementedError) as err:
         _ = routine.children[child_idx].lhs._get_effective_shape()

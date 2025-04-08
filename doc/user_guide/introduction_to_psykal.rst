@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2024, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2025, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -268,7 +268,7 @@ depending on the precision of the fields being passed to them::
     end interface   
 
 
-.. _built-ins:
+.. _psykal-built-ins:
 
 Built-ins
 ---------
@@ -313,7 +313,7 @@ the Built-ins since they are provided as part of the environment.
 
   module solver_mod
     ...
-    use matrix_vector_mm_mod, only: matrix_vector_kernel_mm_type
+    use matrix_vector_mm_kernel_mod, only: matrix_vector_kernel_mm_type
     ...
 
     subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)

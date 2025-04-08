@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2024, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2025, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 .. Modified by R. W. Ford, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
 
-.. _profiling:
+.. _userguide-profiling:
 
 Profiling
 =========
@@ -51,10 +51,10 @@ transformation within a transformation script.
 
 
 PSyclone can be used with a variety of existing profiling tools.
-It currently supports dl_timer, TAU, Dr Hook, the NVIDIA GPU profiling
-tools and it comes with a simple stand-alone timer library. The
-:ref:`PSyData API <psy_data>` (see also the
-:ref:`Developer Guide <dev_guide:psy_data>`)
+It currently supports dl_timer, TAU, Vernier, Dr Hook, the NVIDIA GPU
+profiling tools and it comes with a simple stand-alone timer library.
+The :ref:`PSyData API <psy_data>` (see also the
+:ref:`Developer Guide <devguide_psy_data>`)
 is utilised to implement wrapper libraries that connect the PSyclone
 application to the profiling libraries. Certain adjustments to
 the application's build environment are required:
@@ -77,8 +77,8 @@ Interface to Third Party Profiling Tools
 ----------------------------------------
 
 PSyclone comes with :ref:`wrapper libraries <libraries>` to support
-usage of TAU, Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension library),
-and a simple non-thread-safe timing library. Support for further
+usage of TAU, Vernier, Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension
+library), and a simple non-thread-safe timing library. Support for further
 profiling libraries will be added in the future. To compile the
 wrapper libraries, change into the directory ``lib/profiling``
 of PSyclone and type ``make`` to compile all wrappers. If only
@@ -107,23 +107,29 @@ libraries that come with PSyclone:
 ``lib/profiling/dl_timer``
     This wrapper uses the apeg-dl_timer library. In order to use
     this wrapper, you must download and install the dl_timer library
-    from ``https://bitbucket.org/apeg/dl_timer``. This library has
+    from https://bitbucket.org/apeg/dl_timer. This library has
     various compile-time options and may be built with MPI or OpenMP
     support. Additional link options might therefore be required
     (e.g. enabling OpenMP, or linking with MPI).
 
 ``lib/profiling/tau``
     This wrapper uses TAU profiling and tracing toolkit. It can be
-    downloaded from ``https://www.cs.uoregon.edu/research/tau``.
+    downloaded from https://www.cs.uoregon.edu/research/tau.
 
 ``lib/profiling/drhook``
     This wrapper uses the Dr Hook library. You need to contact
     ECMWF to obtain a copy of Dr Hook.
 
+``lib/profiling/vernier``
+    This wrapper uses the UK Met Office's Vernier library. It can be
+    downloaded from https://github.com/MetOffice/Vernier. This
+    library writes its output to files ``vernier-out-<RANK>``, and
+    will overwrite existing output files.
+
 ``lib/profiling/nvidia``
     This is a wrapper library that maps the PSyclone profiling API
     to the NVIDIA Tools Extension library (NVTX). This library is
-    available from ``https://developer.nvidia.com/cuda-toolkit``.
+    available from https://developer.nvidia.com/cuda-toolkit.
 
 ``lib/profiling/lfric_timer``
     This profile wrapper uses the timer functionality provided by
@@ -146,7 +152,7 @@ libraries that come with PSyclone:
 Any user can create similar wrapper libraries for
 other profiling tools by providing a corresponding Fortran
 module. The functions that need to be implemented are described in
-the developer's guide (:ref:`dev_guide:psy_data`).
+the Developer Guide (:ref:`devguide_psy_data`).
 
 Most libraries in ``lib/profiling`` need to be linked in
 with the corresponding 3rd party profiling tool, or use a compiler
@@ -456,7 +462,7 @@ By default PSyclone will generate appropriate names to uniquely
 determine a particular region. Since those names can be
 somewhat cryptic, alternative names can be specified by the user
 when adding profiling via a transformation script, see
-:ref:`dev_guide:psy_data_parameters_to_constructor`.
+:ref:`psy_data_parameters_to_constructor`.
 
 The automatic name generation depends on whether you are using a
 PSyKAl DSL or only the transformation capabilities of PSyclone. If

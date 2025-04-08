@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,8 +50,8 @@ from psyclone.f2pygen import CallGen, CommentGen
 from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (ArrayReference, ACCRegionDirective, DataNode,
-                                  Loop, Literal, OMPRegionDirective, Reference,
-                                  Routine, Schedule)
+                                  Loop, Literal, OMPRegionDirective,
+                                  PSyDataNode, Reference, Routine, Schedule)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
@@ -893,8 +893,12 @@ class LFRicLoop(PSyLoop):
                                   "OpenMP parallel region.")
 
         super().gen_code(parent)
+
+        for psydata_node in self.walk(PSyDataNode):
+            psydata_node.fix_gen_code(parent)
+
         # TODO #1010: gen_code of this loop calls the PSyIR lowering version,
-        # but that method can not currently provide sibiling nodes because the
+        # but that method can not currently provide sibling nodes because the
         # ancestor is not PSyIR, so for now we leave the remainder of the
         # gen_code logic here instead of removing the whole method.
 

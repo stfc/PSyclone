@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council.
+# Copyright (c) 2018-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ have already been preprocessed (if required).
 The transformation script attempts to insert Kernels directives at the
 highest possible location(s) in the schedule tree (i.e. to enclose as
 much code as possible in each Kernels region). However, due to
-limitations in the PGI compiler, we must take care to exclude certain
+limitations in the NVIDIA compiler, we must take care to exclude certain
 nodes (such as If blocks) from within Kernel regions. If a proposed
 region is found to contain such a node (by the ``valid_kernel``
 routine) then the script moves a level down the tree and then repeats

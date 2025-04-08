@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2023-2024, Science and Technology Facilities Council.
+! Copyright (c) 2023-2025, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@ module module_with_var_mod
 
   integer :: module_var_a, module_var_b
   integer, parameter :: module_const = 123
+  real, dimension(100) :: const_size_array
 
 contains
 
@@ -47,6 +48,7 @@ contains
 
   subroutine module_subroutine()
     module_var_b = module_var_b + 1
+    const_size_array (module_var_b) = const_size_array(module_var_b) + 1
   end subroutine module_subroutine
 
 
