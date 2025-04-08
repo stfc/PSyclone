@@ -866,7 +866,7 @@ class SymbolTable():
                 return
 
             if self._has_same_name(old_sym.interface.container_symbol,
-                                     self_csym):
+                                   self_csym):
                 # The Containers have the same name so must in fact be the
                 # same. Update the symbol's interface to point to the Container
                 # that is in scope here.
