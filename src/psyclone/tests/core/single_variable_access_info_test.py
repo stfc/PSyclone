@@ -130,7 +130,7 @@ def test_access_info_description():
     osym = Symbol("something")
     asym = DataSymbol("test", INTEGER_TYPE, initial_value=Reference(osym))
     ainfo = AccessInfo(AccessType.INQUIRY, location, asym)
-    assert ("definition of symbol test: datasymbol<scalar" in
+    assert ("definition of symbol 'test: datasymbol<scalar" in
             ainfo.description.lower())
 
 

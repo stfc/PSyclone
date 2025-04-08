@@ -184,7 +184,7 @@ class AccessInfo():
         from psyclone.psyir.nodes import Statement
         from psyclone.psyir.symbols import Symbol
         if isinstance(self.node, Symbol):
-            text = f"the definition of Symbol {self.node}"
+            text = f"the definition of Symbol '{self.node}'"
         else:
             stmt = self.node.ancestor(Statement, include_self=True)
             if stmt:

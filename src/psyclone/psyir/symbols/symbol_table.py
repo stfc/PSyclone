@@ -708,7 +708,7 @@ class SymbolTable():
                     f"A symbol named '{this_sym.name}' is present but "
                     f"unresolved in both tables.")
 
-            elif other_sym.is_unresolved or this_sym.is_unresolved:
+            if other_sym.is_unresolved or this_sym.is_unresolved:
                 # Only one is unresolved. If the resolved one is imported,
                 # could the unresolved one be imported from the same
                 # location?
@@ -865,7 +865,7 @@ class SymbolTable():
             if old_sym.interface.container_symbol is self_csym:
                 return
 
-            elif self._has_same_name(old_sym.interface.container_symbol,
+            if self._has_same_name(old_sym.interface.container_symbol,
                                      self_csym):
                 # The Containers have the same name so must in fact be the
                 # same. Update the symbol's interface to point to the Container
@@ -1020,8 +1020,6 @@ class SymbolTable():
             otherwise ancestors of the scope_limit node are not
             searched.
         :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
-        :param symbol_type: restrict the search to symbols of the specified
-            type.
         :param otherwise: an optional value to return if the named symbol
             cannot be found (rather than raising a KeyError).
 
@@ -1232,6 +1230,7 @@ class SymbolTable():
                         if ref.symbol is symbol:
                             raise ValueError()
         except ValueError:
+            # pylint: disable-next=raise-missing-from
             raise ValueError(
                 f"Cannot remove RoutineSymbol '{symbol.name}' because it is "
                 f"referenced by {access.description}")
@@ -1789,6 +1788,10 @@ class SymbolTable():
 
         '''
         norm_name = self._normalize(symbol.name)
+        # Keep a record of any wildcard imports in this scope as they can be
+        # ignored since two symbols with the same name but of different types
+        # can't be imported from >1 location.
+        wildcards_to_skip = set(self.wildcard_imports(scope_limit=self.node))
         # Import here to avoid circular dependencies
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import ScopingNode
@@ -1806,23 +1809,22 @@ class SymbolTable():
                 # same name as the imported one or it does but it is
                 # resolved (and thus shadows this one) so we ignore it.
                 continue
-            # Check whether there are any wildcard imports in this scope
-            # or a parent one that could be bringing this symbol into scope.
-            # First, get all wildcard imports into the current scope, up to
-            # and including the scope where the new import is.
-            wildcard_imports = symbol_table.wildcard_imports(
-                scope_limit=self.node)
-            # We can ignore any wildcard imports in the scope where the new
-            # import is (i.e. this SymbolTable) as a symbol of the same name
-            # can't be imported from more than one location.
-            if not all(csym in self.containersymbols for
-                       csym in wildcard_imports):
+
+            # Check whether there are any wildcard imports in this scope (we've
+            # already looked at any parent scopes) that could be bringing this
+            # symbol into scope.
+            # Get all wildcard imports into the current scope.
+            wildcard_imports = set(symbol_table.wildcard_imports(
+                scope_limit=self.node))
+            if wildcard_imports != wildcards_to_skip:
                 # There are wildcard imports so we can't be certain of
-                # the origin of this symbol so we leave it alone.
+                # the origin of this symbol and therefore leave it as is. We
+                # can't immediately return here because there may be siblings
+                # of this ScopingNode that do not have a wildcard import.
                 continue
 
             # We want to replace the local symbol with the newly
-            # imported one in the outer scope (`isym`).
+            # imported one in the outer scope (`symbol`).
             # Update any references to it within the SymbolTable itself.
             for sym in symbol_table.symbols:
                 sym.replace_symbols_using(symbol)
@@ -1908,23 +1910,6 @@ class SymbolTable():
                 # we must have now resolved that symbol so move it to this
                 # symbol table.
                 self._update_with_resolved_symbol(isym)
-
-                # Need to check whether this symbol itself depends on other
-                # symbols (in its precision, shape or initial value).
-                if c_symbol.wildcard_import:
-                    from psyclone.core import VariablesAccessInfo
-                    vai = VariablesAccessInfo()
-                    isym.reference_accesses(vai)
-                    for sig in vai.all_signatures:
-                        # It does - if they're not already in scope then also
-                        # add them to this table with the same interface as the
-                        # imported symbol.
-                        if not self.lookup(sig.var_name, otherwise=None):
-                            self.add(
-                                Symbol(
-                                    sig.var_name,
-                                    interface=ImportInterface(
-                                        isym.interface.container_symbol)))
 
                 if symbol_target:
                     # If we were looking just for this symbol we don't need

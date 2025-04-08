@@ -262,21 +262,24 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         else:
             self._datatype.replace_symbols_using(table_or_symbol)
 
-    def reference_accesses(self, access_info):
+    def reference_accesses(self, access_info) -> None:
         '''
         Update the supplied VariablesAccessInfo with information on the symbols
         referenced by the definition of this Symbol.
 
-        A generic (untyped) symbol cannot refer to anything else so this base
-        implementation does nothing.
-
         :param access_info: the object in which to accumulate access
                             information.
         :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+
         '''
         super().reference_accesses(access_info)
 
+        if self.is_import:
+            # We ignore any dependencies associated with imported symbols.
+            return
+
         if isinstance(self.datatype, DataTypeSymbol):
+            # pylint: disable=import-outside-toplevel
             from psyclone.core.signature import Signature
             from psyclone.core.access_type import AccessType
             access_info.add_access(
