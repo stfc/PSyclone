@@ -299,3 +299,8 @@ def test_typed_symbol_reference_accesses():
     vai2 = VariablesAccessInfo()
     struc_sym.reference_accesses(vai2)
     assert vai2.all_signatures == [Signature("some_type")]
+    # Dependencies are ignored for imported symbols.
+    struc_sym.interface = ImportInterface(ContainerSymbol("somewhere"))
+    vai3 = VariablesAccessInfo()
+    struc_sym.reference_accesses(vai3)
+    assert not vai3.all_signatures
