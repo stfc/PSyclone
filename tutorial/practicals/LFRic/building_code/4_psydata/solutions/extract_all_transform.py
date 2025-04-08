@@ -61,7 +61,7 @@ def trans(psyir):
         extract.apply(subroutine, {"region_name": ("time_evolution",
                                                    subroutine.name),
                                    "create_driver": True})
-    
+
         # Just as feedback: show the modified PSyIR, which should have
         # a new node at the top:
         print(subroutine.view())
