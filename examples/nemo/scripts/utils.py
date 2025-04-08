@@ -406,7 +406,7 @@ def insert_explicit_loop_parallelism(
             continue  # Skip if an outer loop is already parallelised
 
         opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
-                "verbose": True}
+                "verbose": True, "nowait": True}
 
         routine_name = loop.ancestor(Routine).name
 
