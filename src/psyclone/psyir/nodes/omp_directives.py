@@ -48,7 +48,7 @@ import itertools
 import sympy
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.core import AccessType
 from psyclone.errors import (GenerationError,
                              UnresolvedDependencyError)
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
@@ -57,9 +57,11 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
+        DataSharingAttributeMixin,
+)
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
-from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.loop import Loop
@@ -73,8 +75,7 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.nodes.while_loop import WhileLoop
-from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType, DataSymbol
+from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -192,28 +193,6 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
     Class representing an OpenMP TASKWAIT directive in the PSyIR.
 
     '''
-    def validate_global_constraints(self):
-        '''
-        Perform validation checks that can only be done at code-generation
-        time.
-
-        :raises GenerationError: if this OMPTaskwait is not enclosed
-                                 within some OpenMP parallel region.
-
-        '''
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user
-        # can apply transformations to the code). As a Parallel Child
-        # directive, we must have an OMPParallelDirective as an ancestor
-        # somewhere back up the tree.
-        if not self.ancestor(OMPParallelDirective,
-                             excluding=OMPParallelDoDirective):
-            raise GenerationError(
-                "OMPTaskwaitDirective must be inside an OMP parallel region "
-                "but could not find an ancestor OMPParallelDirective node")
-
-        super().validate_global_constraints()
-
     def gen_code(self, parent):
         '''Generate the fortran OMP Taskwait Directive and any associated
         code
@@ -229,16 +208,53 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
         parent.add(DirectiveGen(parent, "omp", "begin", "taskwait", ""))
         # No children or end code for this node
 
-    def begin_string(self):
+    def begin_string(self) -> str:
         '''Returns the beginning statement of this directive, i.e.
         "omp taskwait". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the opening statement of this directive.
-        :rtype: str
 
         '''
         return "omp taskwait"
+
+
+class OMPBarrierDirective(OMPStandaloneDirective):
+    '''
+    Class representing an OpenMP BARRIER directive in the PSyIR.
+
+    '''
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this OMPBarrier is not enclosed
+                                 within some OpenMP parallel region.
+
+        '''
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). As a Parallel Child
+        # directive, we must have an OMPParallelDirective as an ancestor
+        # somewhere back up the tree.
+        if not self.ancestor(OMPParallelDirective,
+                             excluding=OMPParallelDoDirective):
+            raise GenerationError(
+                "OMPBarrierDirective must be inside an OMP parallel region "
+                "but could not find an ancestor OMPParallelDirective node")
+
+        super().validate_global_constraints()
+
+    def begin_string(self) -> str:
+        '''Returns the beginning statement of this directive, i.e.
+        "omp barrier". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+
+        '''
+        return "omp barrier"
 
 
 class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
@@ -1116,8 +1132,8 @@ class OMPSingleDirective(OMPSerialDirective):
     '''
     Class representing an OpenMP SINGLE directive in the PSyIR.
 
-    :param bool nowait: argument describing whether this single should have
-                        a nowait clause applied. Default value is False.
+    :param nowait: argument describing whether this single should have
+                   a nowait clause applied. Default value is False.
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
@@ -1126,7 +1142,7 @@ class OMPSingleDirective(OMPSerialDirective):
     # Textual description of the node
     _text_name = "OMPSingleDirective"
 
-    def __init__(self, nowait=False, **kwargs):
+    def __init__(self, nowait: bool = False, **kwargs):
 
         self._nowait = nowait
         # Call the init method of the base class once we've stored
@@ -1268,7 +1284,7 @@ class OMPMasterDirective(OMPSerialDirective):
         return "omp end master"
 
 
-class OMPParallelDirective(OMPRegionDirective):
+class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
     ''' Class representing an OpenMP Parallel directive.
     '''
 
@@ -1573,137 +1589,7 @@ class OMPParallelDirective(OMPRegionDirective):
                                   " the private clause when its default "
                                   "data sharing attribute in its default "
                                   "clause is not 'shared'.")
-
-        # TODO #598: Improve the handling of scalar variables, there are
-        # remaining issues when we have accesses after the parallel region
-        # of variables that we currently declare as private. We could use
-        # the DefinitionUseChain to prove that there are no more uses after
-        # the loop.
-        # e.g:
-        # !$omp parallel do <- will set private(ji, my_index)
-        # do ji = 1, jpk
-        #   my_index = ji+1
-        #   array(my_index) = 2
-        # enddo
-        # #end do
-        # call func(my_index) <- my_index has not been updated
-
-        private = set()
-        fprivate = set()
-        need_sync = set()
-
-        # Determine variables that must be private, firstprivate or need_sync
-        var_accesses = VariablesAccessInfo()
-        self.reference_accesses(var_accesses)
-        for signature in var_accesses.all_signatures:
-            if not var_accesses[signature].has_data_access():
-                continue
-            accesses = var_accesses[signature].all_accesses
-            # TODO #2094: var_name only captures the top-level
-            # component in the derived type accessor. If the attributes
-            # only apply to a sub-component, this won't be captured
-            # appropriately.
-            name = signature.var_name
-            symbol = accesses[0].node.scope.symbol_table.lookup(
-                name, otherwise=None)
-
-            # If it is manually marked as a local symbol, add it to private or
-            # firstprivate set
-            if (isinstance(symbol, DataSymbol) and
-                    isinstance(self.dir_body[0], Loop) and
-                    symbol in self.dir_body[0].explicitly_private_symbols):
-                if any(ref.symbol is symbol for ref in self.preceding()
-                       if isinstance(ref, Reference)):
-                    # If it's used before the loop, make it firstprivate
-                    fprivate.add(symbol)
-                else:
-                    private.add(symbol)
-                continue
-
-            # All arrays not explicitly marked as threadprivate are shared
-            if any(accs.is_array() for accs in accesses):
-                continue
-
-            # If a variable is only accessed once, it is either an error
-            # or a shared variable - anyway it is not private
-            if len(accesses) == 1:
-                continue
-
-            # TODO #598: If we only have writes, it must be need_sync:
-            # do ji = 1, jpk
-            #   if ji=3:
-            #      found = .true.
-            # Or lastprivate in order to maintain the serial semantics
-            # do ji = 1, jpk
-            #   found = ji
-
-            # We consider private variables as being the ones that are written
-            # in every iteration of a loop.
-            # If one such scalar is potentially read before it is written, it
-            # will be considered firstprivate.
-            has_been_read = False
-            last_read_position = 0
-            for access in accesses:
-                if access.access_type == AccessType.READ:
-                    has_been_read = True
-                    last_read_position = access.node.abs_position
-
-                if access.access_type == AccessType.WRITE:
-
-                    # Check if the write access is outside a loop. In this case
-                    # it will be marked as shared. This is done because it is
-                    # likely to be re-used later. e.g:
-                    # !$omp parallel
-                    # jpk = 100
-                    # !omp do
-                    # do ji = 1, jpk
-                    loop_ancestor = access.node.ancestor(
-                        (Loop, WhileLoop),
-                        limit=self,
-                        include_self=True)
-                    if not loop_ancestor:
-                        # If we find it at least once outside a loop we keep it
-                        # as shared
-                        break
-
-                    # Otherwise, the assignment to this variable is inside a
-                    # loop (and it will be repeated for each iteration), so
-                    # we declare it as private or need_synch
-                    name = signature.var_name
-                    # TODO #2094: var_name only captures the top-level
-                    # component in the derived type accessor. If the attributes
-                    # only apply to a sub-component, this won't be captured
-                    # appropriately.
-                    symbol = access.node.scope.symbol_table.lookup(name)
-
-                    # If it has been read before we have to check if ...
-                    if has_been_read:
-                        loop_pos = loop_ancestor.loop_body.abs_position
-                        if last_read_position < loop_pos:
-                            # .. it was before the loop, so it is fprivate
-                            fprivate.add(symbol)
-                        else:
-                            # or inside the loop, in which case it needs sync
-                            need_sync.add(symbol)
-                        break
-
-                    # If the write is not guaranteed, we make it firstprivate
-                    # so that in the case that the write doesn't happen we keep
-                    # the original value
-                    conditional_write = access.node.ancestor(
-                        IfBlock,
-                        limit=loop_ancestor,
-                        include_self=True)
-                    if conditional_write:
-                        fprivate.add(symbol)
-                        break
-
-                    # Already found the first write and decided if it is
-                    # shared, private or firstprivate. We can stop looking.
-                    private.add(symbol)
-                    break
-
-        return private, fprivate, need_sync
+        return super().infer_sharing_attributes()
 
     def validate_global_constraints(self):
         '''
@@ -1911,7 +1797,7 @@ class OMPTaskloopDirective(OMPRegionDirective):
         return "omp end taskloop"
 
 
-class OMPDoDirective(OMPRegionDirective):
+class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
     '''
     Class representing an OpenMP DO directive in the PSyIR.
 
@@ -1925,13 +1811,17 @@ class OMPDoDirective(OMPRegionDirective):
                                   run-reproducible OpenMP reductions (if not
                                   specified the value is provided by the
                                   PSyclone Config file).
+    :param nowait: whether or not to add a nowait clause onto this directive.
+        Default is False.
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
     '''
     _directive_string = "do"
 
-    def __init__(self, omp_schedule="none", collapse=None, reprod=None,
+    def __init__(self, omp_schedule: str = "none",
+                 collapse: int = None, reprod: bool = None,
+                 nowait: bool = False,
                  **kwargs):
 
         super().__init__(**kwargs)
@@ -1943,6 +1833,7 @@ class OMPDoDirective(OMPRegionDirective):
         self._omp_schedule = omp_schedule
         self._collapse = None
         self.collapse = collapse  # Use setter with error checking
+        self.nowait = nowait
 
     def __eq__(self, other):
         '''
@@ -1961,6 +1852,30 @@ class OMPDoDirective(OMPRegionDirective):
         is_eq = is_eq and self.collapse == other.collapse
 
         return is_eq
+
+    @property
+    def nowait(self) -> bool:
+        '''
+        :returns: whether this directive has a nowait clause.
+        '''
+        return self._nowait
+
+    @nowait.setter
+    def nowait(self, value: bool):
+        '''
+        Sets whether this directive should have a nowait clause attached.
+
+        :param value: whether this directive should have a nowait clause
+                      attached.
+
+        :raises TypeError: if value is not a bool.
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"The {type(self).__name__} nowait clause must be a bool, "
+                f"but value '{value}' has been given."
+            )
+        self._nowait = value
 
     @property
     def collapse(self):
@@ -2208,7 +2123,10 @@ class OMPDoDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        return f"omp end {self._directive_string}"
+        string = f"omp end {self._directive_string}"
+        if self.nowait:
+            string += " nowait"
+        return string
 
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
@@ -2417,13 +2335,49 @@ class OMPTeamsDistributeParallelDoDirective(OMPParallelDoDirective):
 
 
 class OMPTeamsLoopDirective(OMPParallelDoDirective):
-    ''' Class representing the OMP teams loop directive. '''
+    ''' Class representing the OMP teams loop directive.
+
+    '''
     _directive_string = "teams loop"
 
 
-class OMPTargetDirective(OMPRegionDirective):
+class OMPTargetDirective(OMPRegionDirective, DataSharingAttributeMixin):
     ''' Class for the !$OMP TARGET directive that offloads the code contained
-    in its region into an accelerator device. '''
+    in its region into an accelerator device.
+
+    :param nowait: whether or not to add a nowait clause onto this directive.
+                   Default is False.
+    '''
+
+    def __init__(self, nowait: bool = False,
+                 **kwargs):
+
+        super().__init__(**kwargs)
+        self.nowait = nowait
+
+    @property
+    def nowait(self) -> bool:
+        '''
+        :returns: whether this directive has a nowait clause.
+        '''
+        return self._nowait
+
+    @nowait.setter
+    def nowait(self, value: bool):
+        '''
+        Sets whether this directive should have a nowait clause attached.
+
+        :param value: whether this directive should have a nowait clause
+                      attached.
+
+        :raises TypeError: if value is not a bool.
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"The {type(self).__name__} nowait clause must be a bool, "
+                f"but value '{value}' has been given."
+            )
+        self._nowait = value
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -2434,7 +2388,10 @@ class OMPTargetDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        return "omp target"
+        string = "omp target"
+        if self.nowait:
+            string += " nowait"
+        return string
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
@@ -2480,14 +2437,17 @@ class OMPLoopDirective(OMPRegionDirective):
     :param Optional[int] collapse: optional number of nested loops to
                                    collapse into a single iteration space to
                                    parallelise. Defaults to None.
+    :param nowait: whether or not to add a nowait clause onto this directive.
+        Default is False.
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
     '''
 
-    def __init__(self, collapse=None, **kwargs):
+    def __init__(self, collapse=None, nowait: bool = False, **kwargs):
         super().__init__(**kwargs)
         self._collapse = None
         self.collapse = collapse  # Use setter with error checking
+        self.nowait = nowait
 
     def __eq__(self, other):
         '''
@@ -2504,6 +2464,30 @@ class OMPLoopDirective(OMPRegionDirective):
         is_eq = is_eq and self.collapse == other.collapse
 
         return is_eq
+
+    @property
+    def nowait(self) -> bool:
+        '''
+        :returns: whether this directive has a nowait clause.
+        '''
+        return self._nowait
+
+    @nowait.setter
+    def nowait(self, value: bool):
+        '''
+        Sets whether this directive should have a nowait clause attached.
+
+        :param value: whether this directive should have a nowait clause
+                      attached.
+
+        :raises TypeError: if value is not a bool.
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"The {type(self).__name__} nowait clause must be a bool, "
+                f"but value '{value}' has been given."
+            )
+        self._nowait = value
 
     @property
     def collapse(self):
@@ -2570,6 +2554,8 @@ class OMPLoopDirective(OMPRegionDirective):
         string = "omp loop"
         if self._collapse:
             string += f" collapse({self._collapse})"
+        if self.nowait:
+            string += " nowait"
         return string
 
     def end_string(self):
@@ -2764,4 +2750,4 @@ __all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPSerialDirective", "OMPTaskloopDirective", "OMPTargetDirective",
            "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective",
            "OMPLoopDirective", "OMPDeclareTargetDirective",
-           "OMPAtomicDirective", "OMPSimdDirective"]
+           "OMPAtomicDirective", "OMPSimdDirective", "OMPBarrierDirective"]
