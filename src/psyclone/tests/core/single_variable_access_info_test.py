@@ -44,7 +44,8 @@ from psyclone.core import (AccessInfo, ComponentIndices, Signature,
                            SingleVariableAccessInfo)
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Assignment, Node
+from psyclone.psyir.nodes import Assignment, Node, Reference, Return
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, Symbol
 
 
 def test_access_info():
@@ -112,6 +113,25 @@ def test_access_info_exceptions():
         access_info.component_indices = 123
     assert "The component_indices object in the setter of AccessInfo must " \
            "be an instance of ComponentIndices, got '123'" in str(err.value)
+
+
+def test_access_info_description():
+    '''
+    Test for the description() method of AccessInfo.
+    '''
+    location = 12
+    # When associated location is not a Statement.
+    ainfo = AccessInfo(AccessType.READ, location, Node())
+    assert "< node[] >" in ainfo.description.lower()
+    # When it is a Statement.
+    ainfo = AccessInfo(AccessType.READ, location, Return())
+    assert "return" in ainfo.description.lower()
+    # When it is a Symbol.
+    osym = Symbol("something")
+    asym = DataSymbol("test", INTEGER_TYPE, initial_value=Reference(osym))
+    ainfo = AccessInfo(AccessType.INQUIRY, location, asym)
+    assert ("definition of symbol 'test: datasymbol<scalar" in
+            ainfo.description.lower())
 
 
 # -----------------------------------------------------------------------------
@@ -317,7 +337,6 @@ def test_is_accessed_before():
     '''Tests that the 'is_accessed_before' function works as expected.
 
     '''
-
     # First check a write access before the specified node:
     var_sig = Signature("a")
     accesses = SingleVariableAccessInfo(var_sig)
