@@ -39,8 +39,9 @@
 ''' This module provides the LFRicLoopBounds Class that handles all variables
     required for specifying loop limits within an LFRic PSy-layer routine.'''
 
-from psyclone.domain.lfric import LFRicCollection, LFRicLoop
+from psyclone.domain.lfric import LFRicCollection, LFRicLoop, LFRicTypes
 from psyclone.psyir.nodes import Assignment, Reference
+from psyclone.psyir.symbols import DataSymbol
 
 
 class LFRicLoopBounds(LFRicCollection):
@@ -71,11 +72,20 @@ class LFRicLoopBounds(LFRicCollection):
 
             # Set the lower bound
             root_name = f"loop{idx}_start"
-            lbound = self.symtab.find_or_create_integer_symbol(
-                root_name, tag=root_name)
+            lbound = self.symtab.new_symbol(
+                root_name, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             assignment = Assignment.create(
                     lhs=Reference(lbound),
                     rhs=loop.lower_bound_psyir())
+            if isinstance(loop.children[0], Reference):
+                symbol = loop.children[0].symbol
+                if symbol.name.startswith('uninitialised'):
+                    # Remove uninitialised leftover symbols
+                    try:
+                        self.symtab.remove(symbol)
+                    except KeyError:
+                        pass  # Is wasn't in the symbol table
             loop.children[0] = Reference(lbound)
             self._invoke.schedule.addchild(assignment, cursor)
             cursor += 1
@@ -87,14 +97,23 @@ class LFRicLoopBounds(LFRicCollection):
             # Set the upper bound
             if loop.loop_type != "colour":
                 root_name = f"loop{idx}_stop"
-                ubound = self.symtab.find_or_create_integer_symbol(
-                    root_name, tag=root_name)
+                ubound = self.symtab.new_symbol(
+                    root_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                 self._invoke.schedule.addchild(
                     Assignment.create(
                         lhs=Reference(ubound),
                         rhs=loop.upper_bound_psyir()
                     ), cursor)
                 cursor += 1
+                if isinstance(loop.children[1], Reference):
+                    symbol = loop.children[1].symbol
+                    if symbol.name.startswith('uninitialised'):
+                        # Remove uninitialised leftover symbols
+                        try:
+                            self.symtab.remove(symbol)
+                        except KeyError:
+                            pass  # Is wasn't in the symbol table
                 loop.children[1] = Reference(ubound)
             else:
                 # If it needs a color look-up, it has to be in-place

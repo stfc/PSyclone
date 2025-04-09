@@ -98,8 +98,6 @@ def test_field_xyoz(tmpdir):
     integer(kind=i_def), intent(in) :: istp
     type(quadrature_xyoz_type), intent(in) :: qr
     integer(kind=i_def) :: cell
-    integer(kind=i_def) :: loop0_start
-    integer(kind=i_def) :: loop0_stop
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
     real(kind=r_def), pointer, dimension(:) :: f1_data => null()
@@ -133,6 +131,8 @@ def test_field_xyoz(tmpdir):
     real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
     real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
     real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)
+    integer(kind=i_def) :: loop0_start
+    integer(kind=i_def) :: loop0_stop
 """ in generated_code
     init_output = (
         "\n"
@@ -310,8 +310,6 @@ def test_face_qr(tmpdir, dist_mem):
     type(field_type), intent(in) :: m2
     type(quadrature_face_type), intent(in) :: qr
     integer(kind=i_def) :: cell
-    integer(kind=i_def) :: loop0_start
-    integer(kind=i_def) :: loop0_stop
 """ in generated_code
 
     if dist_mem:
@@ -352,6 +350,8 @@ def test_face_qr(tmpdir, dist_mem):
     real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
     real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
     real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)
+    integer(kind=i_def) :: loop0_start
+    integer(kind=i_def) :: loop0_stop
 """ in generated_code
     init_output = (
         "\n"

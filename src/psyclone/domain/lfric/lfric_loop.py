@@ -113,10 +113,12 @@ class LFRicLoop(PSyLoop):
                 "argument is mandatory when they are created.")
         # The loop bounds names are given by the number of previous LFRic loops
         # already present in the Schedule. Since this are inserted in order it
-        # will produce sequentially ascending loop bound names.
+        # will produce sequentially ascending loop bound names. Currently we
+        # prefix them as uninitialised because this will be initialised and
+        # renamed in the lowering.
         idx = len(ischedule.loops())
-        start_name = f"loop{idx}_start"
-        stop_name = f"loop{idx}_stop"
+        start_name = f"uninitialised_loop{idx}_start"
+        stop_name = f"uninitialised_loop{idx}_stop"
         lbound = ischedule.symbol_table.find_or_create_integer_symbol(
             start_name, tag=start_name)
         ubound = ischedule.symbol_table.find_or_create_integer_symbol(
