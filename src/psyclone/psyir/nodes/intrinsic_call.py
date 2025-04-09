@@ -978,3 +978,7 @@ class IntrinsicCall(Call):
 REDUCTION_INTRINSICS = [
     IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.MINVAL,
     IntrinsicCall.Intrinsic.MAXVAL]
+
+
+# For AutoAPI documentation generation
+__all__ = ["IntrinsicCall"]

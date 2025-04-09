@@ -62,8 +62,8 @@ from utils import (add_profiling, enhance_tree_information, inline_calls,
 from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
-    IfBlock, ArrayReference, Assignment, BinaryOperation, Loop, Routine,
-    Literal, ACCLoopDirective)
+    IfBlock, ArrayReference, Assignment, BinaryOperation, IntrinsicCall,
+    Literal, Loop, Routine, ACCLoopDirective)
 from psyclone.psyir.transformations import (ACCKernelsTrans, ACCUpdateTrans,
                                             TransformationError, ProfileTrans)
 from psyclone.transformations import ACCEnterDataTrans
@@ -194,10 +194,16 @@ def valid_acc_kernel(node):
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_types = (IfBlock, Loop)
+    excluded_types = (IfBlock, Loop, IntrinsicCall)
     excluded_nodes = node.walk(excluded_types)
 
     for enode in excluded_nodes:
+
+        if isinstance(enode, IntrinsicCall):
+            if (enode.intrinsic == IntrinsicCall.Intrinsic.MAXVAL and
+                    "dim" in enode.argument_names):
+                log_msg(routine_name, "MAXVAL with dim argument", enode)
+                return False
 
         if isinstance(enode, IfBlock):
             # We permit IF blocks originating from WHERE constructs and
