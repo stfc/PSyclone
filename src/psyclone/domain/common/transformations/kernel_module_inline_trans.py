@@ -457,8 +457,9 @@ class KernelModuleInlineTrans(Transformation):
         callsite_table = node.scope.symbol_table
 
         if interface_sym:
-            local_sym = local_table.lookup(interface_sym.name, otherwise=None)
-            if interface_sym is local_sym and not local_sym.is_import:
+            called_sym = callsite_table.lookup(interface_sym.name,
+                                               otherwise=None)
+            if interface_sym is called_sym and not called_sym.is_import:
                 # Interface symbol is already local so nothing to do.
                 if isinstance(node, CodedKern):
                     node.module_inline = True
@@ -470,8 +471,8 @@ class KernelModuleInlineTrans(Transformation):
                 # N.B.in a PSyKAl DSL, we won't have a RoutineSymbol for the
                 # Kernel that is being called, so we look it up instead of
                 # using node.symbol.
-                called_sym = local_table.lookup(caller_name,
-                                                otherwise=None)
+                called_sym = callsite_table.lookup(caller_name,
+                                                   otherwise=None)
                 if (not called_sym or called_sym is not routine.symbol or
                         (called_sym.is_import or called_sym.is_unresolved)):
                     # This routine is not module-inlined.
@@ -494,7 +495,7 @@ class KernelModuleInlineTrans(Transformation):
                 # update any other Calls to it (at the end of this method).
                 sym_in_ctr = called_sym
 
-            self._rm_imported_routine_symbol(called_sym, code_to_inline,
+            self._rm_imported_routine_symbol(called_sym, codes_to_inline[0],
                                              table)
 
             # Double check that this import is not shadowing a routine we've
@@ -595,7 +596,9 @@ class KernelModuleInlineTrans(Transformation):
                         call.routine.symbol = target_sym
 
         if interface_sym:
-            self._rm_imported_routine_symbol(interface_sym.name, local_table)
+            self._rm_imported_routine_symbol(interface_sym,
+                                             codes_to_inline[0],
+                                             callsite_table)
             if interface_sym.name not in container.symbol_table:
                 container.symbol_table.add(interface_sym)
                 interface_sym.replace_symbols_using(container.symbol_table)

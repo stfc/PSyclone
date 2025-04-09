@@ -422,66 +422,68 @@ class MarkRoutineForGPUMixin:
             kernel_schedules = [node]
             k_or_r = "routine"
 
-        # Check that the routine does not access any data that is imported via
-        # a 'use' statement.
-        vai = VariablesAccessInfo()
-        kernel_schedule.reference_accesses(vai)
-        ktable = kernel_schedule.symbol_table
-        for sig in vai.all_signatures:
-            name = sig.var_name
-            first = vai[sig].all_accesses[0].node
-            if isinstance(first, Symbol):
-                table = ktable
-            else:
-                try:
-                    table = first.scope.symbol_table
-                except SymbolError:
-                    # The node associated with this access is not within a
-                    # scoping region.
+        # Check that the routine(s) do(oes) not access any data that is
+        # imported via a 'use' statement.
+        for sched in kernel_schedules:
+            vai = VariablesAccessInfo()
+            sched.reference_accesses(vai)
+            ktable = sched.symbol_table
+            for sig in vai.all_signatures:
+                name = sig.var_name
+                first = vai[sig].all_accesses[0].node
+                if isinstance(first, Symbol):
                     table = ktable
-            symbol = table.lookup(name)
-            if symbol.is_import:
-                # resolve_type does nothing if the Symbol type is known.
-                try:
-                    symbol.resolve_type()
-                except (SymbolError, FileNotFoundError):
-                    # TODO #11 - log that we failed to resolve this Symbol.
-                    pass
-                if (isinstance(symbol, DataSymbol) and symbol.is_constant):
-                    # An import of a compile-time constant is fine.
-                    continue
-                raise TransformationError(
-                    f"{k_or_r} '{node.name}' accesses the symbol "
-                    f"'{symbol}' which is imported. If this symbol "
-                    f"represents data then it must first be converted to a "
-                    f"{k_or_r} argument using the KernelImportsToArguments "
-                    f"transformation.")
-
-        # We forbid CodeBlocks because we can't be certain that what they
-        # contain can be executed on a GPU. However, we do permit the user
-        # to override this check.
-        cblocks = kernel_schedule.walk(CodeBlock)
-        if not force:
-            if cblocks:
-                cblock_txt = ("\n  " + "\n  ".join(str(node) for node in
-                                                   cblocks[0].get_ast_nodes)
-                              + "\n")
-                option_txt = "options={'force': True}"
-                raise TransformationError(
-                    f"Cannot safely apply {type(self).__name__} to {k_or_r} "
-                    f"'{node.name}' because its PSyIR contains one or more "
-                    f"CodeBlocks:{cblock_txt}You may use '{option_txt}' to "
-                    f"override this check.")
-
-            calls = ksched.walk(Call)
-            for call in calls:
-                if not call.is_available_on_device():
-                    call_str = call.debug_string().rstrip("\n")
+                else:
+                    try:
+                        table = first.scope.symbol_table
+                    except SymbolError:
+                        # The node associated with this access is not within a
+                        # scoping region.
+                        table = ktable
+                symbol = table.lookup(name)
+                if symbol.is_import:
+                    # resolve_type does nothing if the Symbol type is known.
+                    try:
+                        symbol.resolve_type()
+                    except (SymbolError, FileNotFoundError):
+                        # TODO #11 - log that we failed to resolve this Symbol.
+                        pass
+                    if (isinstance(symbol, DataSymbol) and symbol.is_constant):
+                        # An import of a compile-time constant is fine.
+                        continue
                     raise TransformationError(
-                        f"{k_or_r} '{node.name}' calls another routine "
-                        f"'{call_str}' which is not available on the "
-                        f"accelerator device and therefore cannot have "
-                        f"{type(self).__name__} applied to it (TODO #342).")
+                        f"{k_or_r} '{node.name}' accesses the symbol "
+                        f"'{symbol}' which is imported. If this symbol "
+                        f"represents data then it must first be converted to a"
+                        f" {k_or_r} argument using the "
+                        f"KernelImportsToArguments transformation.")
+
+            # We forbid CodeBlocks because we can't be certain that what they
+            # contain can be executed on a GPU. However, we do permit the user
+            # to override this check.
+            cblocks = sched.walk(CodeBlock)
+            if not force:
+                if cblocks:
+                    cblock_txt = ("\n  " + "\n  ".join(
+                        str(node) for node in cblocks[0].get_ast_nodes)
+                                  + "\n")
+                    option_txt = "options={'force': True}"
+                    raise TransformationError(
+                        f"Cannot safely apply {type(self).__name__} to "
+                        f"{k_or_r} '{node.name}' because its PSyIR contains "
+                        f"one or more CodeBlocks:{cblock_txt}You may use "
+                        f"'{option_txt}' to override this check.")
+
+                calls = sched.walk(Call)
+                for call in calls:
+                    if not call.is_available_on_device():
+                        call_str = call.debug_string().rstrip("\n")
+                        raise TransformationError(
+                            f"{k_or_r} '{node.name}' calls another routine "
+                            f"'{call_str}' which is not available on the "
+                            f"accelerator device and therefore cannot have "
+                            f"{type(self).__name__} applied to it (TODO "
+                            f"#342).")
 
 
 class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
@@ -2903,14 +2905,17 @@ class KernelImportsToArguments(Transformation):
                 f"Kernel '{node.name}' contains undeclared symbol: "
                 f"{err.value}") from err
 
-        try:
-            kernel.check_outer_scope_accesses(node, "Kernel",
-                                              permit_unresolved=False,
-                                              ignore_non_data_accesses=True)
-        except SymbolError as err:
-            raise TransformationError(
-                f"Cannot apply {self.name} to Kernel '{node.name}' because it "
-                f"accesses data from its outer scope: {err.value}") from err
+        for kernel in kernels:
+            try:
+                kernel.check_outer_scope_accesses(
+                    node, "Kernel",
+                    permit_unresolved=False,
+                    ignore_non_data_accesses=True)
+            except SymbolError as err:
+                raise TransformationError(
+                    f"Cannot apply {self.name} to Kernel '{node.name}' "
+                    f"because it accesses data from its outer scope: "
+                    f"{err.value}") from err
 
     def apply(self, node, options=None):
         '''

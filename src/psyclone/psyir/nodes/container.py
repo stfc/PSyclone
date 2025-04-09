@@ -237,8 +237,10 @@ class Container(ScopingNode, CommentableMixin):
         if not rsym:
             # TODO for some reason, a module-inlined KernelSchedule does not
             # have a corresponding entry in a symbol table so we double check
-            # here...
-            for routine in self.walk(Routine):
+            # here. We have stop_type=Container so that if this method is
+            # called for a FileContainer, it does *not* walk down into child
+            # Containers.
+            for routine in self.walk(Routine, stop_type=Container):
                 if routine.name.lower() == name.lower():
                     return [name]
             return []

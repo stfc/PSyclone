@@ -41,7 +41,7 @@ from typing import List
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, PSycloneError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.statement import Statement
@@ -603,16 +603,17 @@ class Call(Statement, DataNode):
                         # bringing it into scope so we stop searching (the
                         # alternative is to resolve every wildcard import we
                         # encounter and that is very costly).
-                        msg = (f"Failed to find the source code of the unresolved "
-                               f"routine '{rsym.name}'. It may be being brought "
-                               f"into scope from one of {wildcard_names}")
+                        msg = (f"Failed to find the source code of the "
+                               f"unresolved routine '{rsym.name}'. It may be "
+                               f"being brought into scope from one of "
+                               f"{wildcard_names}")
                         if have_codeblock:
-                            msg += (" or it may be within a CodeBlock. If it isn't"
-                                    ", you ")
+                            msg += (" or it may be within a CodeBlock. If it "
+                                    "isn't, you ")
                         else:
                             msg += ". You "
-                        msg += ("may wish to add the appropriate module name to "
-                                "the `RESOLVE_IMPORTS` variable in the "
+                        msg += ("may wish to add the appropriate module name "
+                                "to the `RESOLVE_IMPORTS` variable in the "
                                 "transformation script.")
                         raise NotImplementedError(msg)
                 parent = cursor.parent

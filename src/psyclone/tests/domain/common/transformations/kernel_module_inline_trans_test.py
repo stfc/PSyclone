@@ -871,28 +871,6 @@ def test_module_inline_with_interfaces(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_get_psyir_to_inline(monkeypatch):
-    '''
-    Test that _get_psyir_to_inline() raises the expected error if more than
-    one potential routine implementation is found.
-
-    '''
-    sym = RoutineSymbol("my_sym")
-    rout = Routine.create("my_sym", SymbolTable(), [])
-    node = Call.create(sym)
-    # For simplicity we just monkeypatch Call.get_callees() so that it appears
-    # to return more than one Routine.
-    monkeypatch.setattr(node, "get_callees", lambda: [rout, rout])
-    with pytest.raises(TransformationError) as err:
-        KernelModuleInlineTrans._get_psyir_to_inline(node)
-    # The duplicated symbol name below is purely a result of the monkeypatch
-    # - in reality these names will come from a generic interface and be
-    # different.
-    assert ("The target of the call to 'my_sym' cannot be inserted because "
-            "multiple implementations were found: ['my_sym', 'my_sym']." in
-            str(err.value))
-
-
 def test_rm_imported_routine_symbol(fortran_reader):
     '''
     Tests for the _rm_imported_routine_symbol() utility method.
