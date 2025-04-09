@@ -1,3 +1,8 @@
+   9) PR #2848 for #2845, #1792, #2336, #2271 and #649. Extends
+   reference_access and other symbol table methods to consider
+   symbols that are part of other symbols (e.g. precisions, shapes,
+   initialisations, ...)
+
    8) PR #2908 towards #2551. Adds support for nowait and barriers for
    omp do and omp target.
 
