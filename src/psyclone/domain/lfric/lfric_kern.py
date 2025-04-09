@@ -91,11 +91,6 @@ class LFRicKern(CodedKern):
         # The super-init is called from the _setup() method which in turn
         # is called from load().
         # pylint: disable=super-init-not-called
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        if False:  # pylint: disable=using-constant-test
-            from psyclone.dynamo0p3 import DynKernelArguments
-            self._arguments = DynKernelArguments(None, None)  # for pyreverse
         self._parent = None
         self._base_name = ""
         self._func_descriptors = None
@@ -719,9 +714,8 @@ class LFRicKern(CodedKern):
         :rtype: tuple[Optional[:py:class:`psyclone.psyir.symbols.Symbol`],
                       list[:py:class:`psyclone.psyGen.KernelSchedule`]]
 
-        :raises GenerationError: if no subroutine matching this kernel can
-            be found in the parse tree of the associated source code.
-
+        :raises GenerationError: if 0 or >1 subroutines matching this kernel
+            can be found in the parse tree of the associated source code.
         '''
         if self._kern_schedules:
             return self._interface_symbol, self._kern_schedules
@@ -779,10 +773,39 @@ class LFRicKern(CodedKern):
             table = routines[0].scope.symbol_table
             sym = table.lookup(self.name)
         else:
-            sym = None
-
-        self._interface_symbol = sym
-        self._kern_schedules = routines
+            # The kernel name corresponds to an interface block. Find which
+            # of the routines matches the precision of the arguments.
+            matched_routines = []
+            for routine in routines:
+                try:
+                    # The validity check for the kernel arguments will raise
+                    # an exception if the precisions don't match.
+                    self.validate_kernel_code_args(routine.symbol_table)
+                    # TODO #2716 - this code will be reworked.
+                    matched_routines.append(routine)
+                except GenerationError:
+                    pass
+            if not matched_routines:
+                raise GenerationError(
+                    f"Failed to find a kernel implementation with an interface"
+                    f" that matches the invoke of '{self.name}'. (Tried "
+                    f"routines {[item.name for item in routines]}.)")
+            if len(matched_routines) > 1:
+                raise GenerationError(
+                    f"Found multiple kernel implementations ("
+                    f"{[rt.name for rt in matched_routines]}) that apparently "
+                    f"match the interface of this call to '{self.name}'. This "
+                    f"is a known bug - TODO #2716.")
+            sched = matched_routines[0]
+        # TODO #935 - replace the PSyIR argument data symbols with LFRic data
+        # symbols. For the moment we just return the unmodified PSyIR schedule
+        # but this should use RaisePSyIR2LFRicKernTrans once KernelInterface
+        # is fully functional (#928).
+        ksched = KernelSchedule(sched.symbol,
+                                symbol_table=sched.symbol_table.detach())
+        for child in sched.pop_all_children():
+            ksched.addchild(child)
+        sched.replace_with(ksched)
 
         return self._interface_symbol, self._kern_schedules
 
@@ -1021,5 +1044,5 @@ class LFRicKern(CodedKern):
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for.
 __all__ = ['LFRicKern']

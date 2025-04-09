@@ -71,8 +71,6 @@ def test_kernelimportstoargumentstrans_wrongapi():
            "type:" in str(err.value)
 
 
-@pytest.mark.xfail(reason="#649 symbols declared in outer, module scope but "
-                   "accessed inside kernel are not identified.")
 def test_kernelimportsstoargumentstrans_no_outer_module_import():
     ''' Check that we reject kernels that access data that is declared in the
     enclosing module. '''
@@ -85,9 +83,9 @@ def test_kernelimportsstoargumentstrans_no_outer_module_import():
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
     with pytest.raises(TransformationError) as err:
-        trans.apply(kernel)
-    assert ("accesses a variable that is not declared in local scope" in
-            str(err.value))
+        trans.validate(kernel)
+    assert ("contains accesses to 'alpha' which is declared in the callee "
+            "module scope." in str(err.value))
 
 
 def test_kernelimportstoargumentstrans_no_wildcard_import():

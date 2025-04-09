@@ -795,10 +795,13 @@ class InlineTrans(Transformation):
 
         # Check for unresolved symbols or for any accessed from the Container
         # containing the target routine.
-        # TODO refactor this functionality
-        from psyclone.domain.common.transformations import (
-            KernelModuleInlineTrans)
-        KernelModuleInlineTrans.check_data_accesses(node, routine, "routine")
+        try:
+            routine.check_outer_scope_accesses(node, "routine",
+                                               permit_unresolved=False)
+        except SymbolError as err:
+            raise TransformationError(
+                f"Cannot inline '{routine.name}' because it accesses data "
+                f"from its outer scope: {err.value}") from err
 
         # Check that the shapes of any formal array arguments are the same as
         # those at the call site.

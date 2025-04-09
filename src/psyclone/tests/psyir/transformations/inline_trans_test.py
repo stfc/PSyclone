@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import (
     Assignment, Call, CodeBlock, IntrinsicCall, Loop, Reference, Routine,
     Statement)
 from psyclone.psyir.symbols import (
-    AutomaticInterface, DataSymbol, UnresolvedType)
+    AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType)
 from psyclone.psyir.transformations import (
     InlineTrans, TransformationError)
 from psyclone.tests.utilities import Compile
@@ -262,8 +262,10 @@ def test_apply_gocean_kern(fortran_reader, fortran_writer, monkeypatch):
     # Set up include_path to import the proper module
     src_dir = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "../../../external/dl_esm_inf/finite_difference/src")
+        "../../../../../external/dl_esm_inf/finite_difference/src")
     monkeypatch.setattr(Config.get(), '_include_paths', [str(src_dir)])
+    monkeypatch.setattr(fortran_reader._processor, "_modules_to_resolve",
+                        ["kind_params_mod"])
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
@@ -929,6 +931,11 @@ def test_apply_struct_array(fortran_reader, fortran_writer, tmpdir,
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
     if "use some_mod" in type_decln:
+        # In order to get to the error we want, we resolve `big_type` within
+        # the subroutine 'sub'.
+        sub = psyir.walk(Routine)[1]
+        csym = sub.symbol_table.lookup("some_mod")
+        sub.symbol_table.lookup("big_type").interface = ImportInterface(csym)
         with pytest.raises(TransformationError) as err:
             inline_trans.apply(psyir.walk(Call)[0])
         assert ("Routine 'sub' cannot be inlined because the type of the "
@@ -1228,8 +1235,8 @@ def test_apply_callsite_rename(fortran_reader, fortran_writer):
     inline_trans.apply(call)
     output = fortran_writer(psyir)
     assert ("  subroutine run_it()\n"
-            "    use a_mod, only : a_clash\n"
             "    use kinds_mod, only : i_def, r_def\n"
+            "    use a_mod, only : a_clash\n"
             "    integer :: i\n"
             "    integer :: a_clash_1\n\n"
             "    a_clash_1 = 2\n"
@@ -1265,8 +1272,8 @@ def test_apply_callsite_rename_container(fortran_reader, fortran_writer):
     inline_trans.apply(call)
     output = fortran_writer(psyir)
     assert ("  subroutine run_it()\n"
-            "    use a_mod, only : a_clash\n"
             "    use kinds_mod, only : i_def, r_def\n"
+            "    use a_mod, only : a_clash\n"
             "    integer :: i\n"
             "    integer :: a_mod_1\n\n"
             "    a_mod_1 = 2\n"
@@ -1521,16 +1528,12 @@ def test_apply_multi_function(fortran_reader, fortran_writer, tmpdir):
 
 @pytest.mark.parametrize("start, end, indent", [
     ("", "", ""),
-    ("module test_mod\ncontains\n", "end module test_mod\n", "  "),
-    ("module test_mod\nuse formal\ncontains\n", "end module test_mod\n",
-     "  ")])
+    ("module test_mod\ncontains\n", "end module test_mod\n", "  ")])
 def test_apply_raw_subroutine(
         fortran_reader, fortran_writer, tmpdir, start, end, indent):
     '''Test the apply method works correctly when the routine to be
     inlined is a raw subroutine and is called directly from another
-    raw subroutine, a subroutine within a module but without a use
-    statement and a subroutine within a module with a wildcard use
-    statement.
+    raw subroutine and a subroutine within a module.
 
     '''
     code = (
@@ -1594,6 +1597,10 @@ def test_apply_container_subroutine(
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
+    if "only" not in [use1, use2]:
+        sym = call.scope.symbol_table.lookup("sub")
+        csym = call.scope.symbol_table.lookup("inline_mod")
+        sym.interface = ImportInterface(csym)
     modinline_trans = KernelModuleInlineTrans()
     modinline_trans.apply(call)
     inline_trans = InlineTrans()
@@ -1655,10 +1662,45 @@ def test_validate_calls_find_routine(fortran_reader):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because its source cannot be found: "
-            "Failed to find the source code of the unresolved routine 'sub' - "
-            "looked at any routines in the same source file and attempted to "
-            "resolve the wildcard imports from ['some_mod']. However, failed "
-            "to find the source for ['some_mod']" in str(err.value))
+            "Failed to find the source code of the unresolved routine 'sub'. "
+            "It may be being brought into scope from one of ['some_mod']."
+            in str(err.value))
+
+
+def test_validate_fail_to_get_psyir_due_to_wildcard(fortran_reader,
+                                                    config_instance):
+    '''
+    Test that the validate() method raises the expected error if we cannot
+    be certain of the origin of the called routine. In this case this is
+    because there's a wildcard import into the scope containing the call.
+
+    '''
+    # Ensure no include paths are set.
+    config_instance.include_paths = []
+    intrans = InlineTrans()
+    code = '''\
+    module a_mod
+    contains
+      subroutine my_sub(b)
+        ! This *might* be the target of the call but only if a subroutine
+        ! named 'my_sub' is not imported from 'other_mod'.
+        real, intent(in) :: b
+      end subroutine my_sub
+      subroutine a_sub()
+        use other_mod
+        real, dimension(10) :: a
+        call my_sub(a)
+      end subroutine a_sub
+    end module a_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    with pytest.raises(TransformationError) as err:
+        intrans.validate(call)
+    assert ("Cannot inline routine 'my_sub' because its source cannot be "
+            "found: Failed to find the source code of the unresolved routine "
+            "'my_sub'. It may be being brought into scope from one of "
+            "['other_mod']." in str(err.value))
 
 
 def test_validate_allocatable_local_array(fortran_reader):
@@ -1730,7 +1772,7 @@ def test_validate_routine_in_same_container(fortran_reader):
     '''
     code = (
         "module test_mod\n"
-        "use other_mod\n"
+        "use other_mod, only: sub\n"
         "contains\n"
         "  subroutine run_it()\n"
         "    integer :: i\n"
@@ -1937,25 +1979,18 @@ def test_validate_unresolved_precision_sym(fortran_reader, code_body,
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
     call = psyir.walk(Call)[0]
-    if use_stmt:
-        # There is a module import within the called routine and therefore
-        # we don't know which module any unresolved symbols come from.
-        with pytest.raises(TransformationError) as err:
-            inline_trans.validate(call)
-        assert ("routine 'sub' contains accesses to '" in str(err.value))
-    else:
-        # There is only one module import and it is common to the target
-        # routine and the call site.
+    with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
+    assert ("routine 'sub' contains accesses to '" in str(err.value))
 
 
 def test_validate_resolved_precision_sym(fortran_reader, monkeypatch,
                                          tmpdir):
     '''Test that a routine that uses a resolved precision symbol from its
-    parent Container is rejected.'''
+    parent Container is accepted when we can be sure it's the same symbol.'''
     code = (
         "module test_mod\n"
-        "  use kinds_mod\n"
+        "  use kinds_mod, only: i_def\n"
         "contains\n"
         "  subroutine run_it()\n"
         "    integer :: i\n"
@@ -2092,7 +2127,10 @@ def test_validate_unresolved_import(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    inline_trans.validate(call)
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("routine 'sub' contains accesses to 'trouble' which is "
+            "unresolved" in str(err.value))
 
 
 def test_validate_unresolved_array_dim(fortran_reader):
@@ -2119,7 +2157,10 @@ def test_validate_unresolved_array_dim(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    inline_trans.validate(call)
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("routine 'sub' contains accesses to 'some_size' which is "
+            "unresolved" in str(err.value))
 
 
 def test_validate_array_reshape(fortran_reader):

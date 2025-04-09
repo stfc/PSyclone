@@ -391,7 +391,7 @@ def test_gpumixin_validate_no_cblock(fortran_reader):
     '''
     code = '''\
 module my_mod
-  use other_mod, only: some_data
+  integer :: some_data
 contains
   subroutine my_sub(arg)
     integer :: arg
@@ -409,13 +409,18 @@ end module my_mod'''
             "  WRITE(*, *)" in str(err.value))
     assert ("You may use 'options={'force': True}' to override this check."
             in str(err.value))
-    # Using 'force' will force the variable accesses to be checked.
+    # Using 'force' will override the check.
+    rtrans.validate(routine, options={'force': True})
+    # However, if the CodeBlock contains a problematic data access then
+    # that is still picked up.
+    new_code = code.replace("integer :: some_data",
+                            "use some_mod, only: some_data")
+    psyir = fortran_reader.psyir_from_source(new_code)
+    routine = psyir.walk(Routine)[0]
     with pytest.raises(TransformationError) as err:
         rtrans.validate(routine, options={'force': True})
     assert ("Transformation Error: routine 'my_sub' accesses the symbol "
-            "'some_data' within a CodeBlock and this symbol is imported. "
-            "ACCRoutineTrans cannot be applied to such a routine."
-            in str(err.value))
+            "'some_data: Symbol<Import" in str(err.value))
 
 
 def test_gpumixin_validate_no_call():

@@ -51,6 +51,9 @@ from psyclone.transformations import (
 # This environment variable informs if profiling hooks have to be inserted.
 PROFILING_ENABLED = os.environ.get('ENABLE_PROFILING', False)
 
+# By default, we don't do module inlining as it's still under development.
+INLINING_ENABLED = os.environ.get('ENABLE_INLINING', False)
+
 # This environment variable informs if this is targeting NEMOv4, in which case
 # array privatisation is disabled and some more files excluded
 NEMOV4 = os.environ.get('NEMOV4', False)
@@ -155,7 +158,9 @@ def trans(psyir):
                 convert_range_loops=True,
                 hoist_expressions=True
         )
-        inline_calls(subroutine)
+        # Perform module-inlining of called routines.
+        if INLINING_ENABLED:
+            inline_calls(subroutine)
 
         # These are functions that are called from inside parallel regions,
         # annotate them with 'omp declare target'

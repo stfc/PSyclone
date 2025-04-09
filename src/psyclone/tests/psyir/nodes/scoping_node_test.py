@@ -42,9 +42,8 @@ from psyclone.psyir.nodes import (
     Schedule, Assignment, Reference, Container, Loop, Literal,
     Routine, ArrayReference)
 from psyclone.psyir.symbols import (
-    ArrayType, ArgumentInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    ImportInterface, INTEGER_TYPE, REAL_TYPE, RoutineSymbol, ScalarType,
-    StructureType, Symbol,
+    ArrayType, ArgumentInterface, DataSymbol, DataTypeSymbol,
+    INTEGER_TYPE, REAL_TYPE, ScalarType, StructureType, Symbol,
     SymbolTable, UnsupportedFortranType)
 from psyclone.tests.utilities import Compile
 
@@ -105,29 +104,6 @@ def test_scoping_node_copy():
     assert new_schedule[0].lhs.symbol in new_schedule.symbol_table.symbols
     assert new_schedule[0].rhs.symbol not in schedule.symbol_table.symbols
     assert new_schedule[0].rhs.symbol in new_schedule.symbol_table.symbols
-
-
-def test_scoping_node_copy_with_imported_symbols(fortran_reader):
-    '''
-    Test the deep-copying of a tree when a Symbol is imported from a
-    Container in an outer scope.
-
-    '''
-    my_mod = Container("my_mod")
-    csym = ContainerSymbol("other_mod")
-    my_mod.symbol_table.add(csym)
-    my_sub_sym = RoutineSymbol("my_sub")
-    my_sub = Routine(my_sub_sym)
-    my_mod.addchild(my_sub)
-    sub_table = my_sub.symbol_table
-    sub_table.add(Symbol("jpnij", interface=ImportInterface(csym)))
-    new_mod = my_mod.copy()
-    new_sub = new_mod.children[0]
-    new_csym = new_mod.symbol_table.lookup("other_mod")
-    assert new_csym is not csym
-    new_jpnij = new_sub.symbol_table.lookup("jpnij")
-    interface_sym = new_jpnij.interface.container_symbol
-    assert new_csym is interface_sym
 
 
 def test_scoping_node_replace_symbols():

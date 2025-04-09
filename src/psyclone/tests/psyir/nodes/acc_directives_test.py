@@ -33,8 +33,10 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
-# Modified A. B. G. Chalk, STFC Daresbury Lab
-# Modified J. G. Wallwork, Met Office / University of Cambridge
+#          A. B. G. Chalk, STFC Daresbury Lab
+#          J. G. Wallwork, Met Office / University of Cambridge
+#          S. Valat, Inria / Laboratoire Jean Kuntzmann
+#          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenACC PSyIR Directive nodes. '''
@@ -47,25 +49,20 @@ from psyclone.errors import GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import (ACCKernelsDirective,
-                                  ACCLoopDirective,
-                                  ACCParallelDirective,
-                                  ACCRegionDirective,
-                                  ACCRoutineDirective,
-                                  ACCUpdateDirective,
-                                  ACCAtomicDirective,
-                                  Assignment,
-                                  Literal,
-                                  Reference,
-                                  Return,
-                                  Routine)
+from psyclone.psyir.nodes.array_reference import ArrayReference
+from psyclone.psyir.nodes.acc_directives import ACCAsyncMixin
+from psyclone.psyir.nodes import (
+    ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective,
+    ACCParallelDirective, ACCRegionDirective, ACCRoutineDirective,
+    ACCUpdateDirective, ACCAtomicDirective, ACCWaitDirective, Assignment,
+    BinaryOperation, Literal, Reference, Return, Routine, Schedule)
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import (
+    Symbol, SymbolTable, DataSymbol, INTEGER_TYPE, UnresolvedType)
 from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (
     ACCDataTrans, ACCEnterDataTrans, ACCLoopTrans,
-    ACCParallelTrans, ACCRoutineTrans)
+    ACCParallelTrans, ACCRoutineTrans, TransformationError)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -219,6 +216,39 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
         "      !$acc enter data copyin(f1_data,f2_data,f3_data,m1_data,"
         "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
         "nlayers_f1,undf_w1,undf_w2,undf_w3)\n" in code)
+
+
+# (3/4) Method gen_code
+def test_accenterdatadirective_gencode_3_async():
+    '''Test that we can add the async directive on enter data.'''
+    API = "lfric"
+    acc_trans = ACCKernelsTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(distributed_memory=False, api=API).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    acc_trans.apply(sched.children, options={"async_queue": 3})
+    acc_enter_trans.apply(sched, options={"async_queue": 3})
+    code = str(psy.gen)
+    assert (
+        "      !$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,map_w1,"
+        "map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
+        "undf_w1,undf_w2,undf_w3) async(3)\n" in code)
+
+
+# (3/4) Method gen_code
+def test_accenterdatadirective_gencode_3_async_error():
+    '''Test that we can add the async directive on enter data.'''
+    API = "lfric"
+    acc_trans = ACCKernelsTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(distributed_memory=False, api=API).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    acc_trans.apply(sched.children)
+    with pytest.raises(TransformationError) as error:
+        acc_enter_trans.apply(sched, options={"async_queue": 3})
+    assert 'async_queue different' in str(error.value)
 
 
 # Class ACCLoopDirective start
@@ -427,6 +457,51 @@ def test_acckernelsdirective_gencode(default_present):
         "      !$acc end kernels\n" in code)
 
 
+# (1/1) Method gen_code
+@pytest.mark.parametrize("async_queue", [
+                          False, True, 1, 0,
+                          Reference(Symbol('stream1')),
+                          ArrayReference.create(DataSymbol(
+                              'stream2',
+                              UnresolvedType()),
+                              [Literal("1", INTEGER_TYPE)]
+                            )
+                        ])
+def test_acckernelsdirective_gencode_async_queue(async_queue):
+    '''Check that the gen_code method in the ACCKernelsDirective class
+    generates the expected code. Use the dynamo0.3 API.
+
+    '''
+    API = "lfric"
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(distributed_memory=False, api=API).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+
+    trans = ACCKernelsTrans()
+    trans.apply(sched, {"async_queue": async_queue})
+
+    code = str(psy.gen)
+    string = ""
+    if async_queue is None:
+        string = ""
+    elif isinstance(async_queue, bool) and async_queue is True:
+        string = " async"
+    elif isinstance(async_queue, bool) and async_queue is False:
+        string = ""
+    elif isinstance(async_queue, int):
+        string = f" async({async_queue})"
+    elif isinstance(async_queue, ArrayReference):
+        string = " async(stream2(1))"
+    elif isinstance(async_queue, Reference):
+        string = " async(stream1)"
+    assert (
+        f"      !$acc kernels{string}\n"
+        f"      DO cell = loop0_start, loop0_stop, 1\n" in code)
+    assert (
+        "      END DO\n"
+        "      !$acc end kernels\n" in code)
+
+
 def test_acckerneldirective_equality():
     ''' Test the __eq__ method of ACCKernelsDirective node. '''
     # We need to manually set the same SymbolTable instance in both directives
@@ -472,14 +547,14 @@ def test_acc_routine_parallelism():
     assert target.parallelism == "seq"
     target.parallelism = "vector"
     assert target.parallelism == "vector"
-    with pytest.raises(TypeError) as err:
+    with pytest.raises(TypeError) as einfo:
         target.parallelism = 1
     assert ("Expected a str to specify the level of parallelism but got 'int'"
-            in str(err.value))
-    with pytest.raises(ValueError) as err:
+            in str(einfo.value))
+    with pytest.raises(ValueError) as einfo:
         target.parallelism = "sequential"
-    assert ("Expected one of ['seq', 'vector', 'worker', 'gang'] for the level"
-            " of parallelism but got 'sequential'" in str(err.value))
+    assert ("Expected one of ['gang', 'seq', 'vector', 'worker'] for the level"
+            " of parallelism but got 'sequential'" in str(einfo.value))
 
 # Class ACCUpdateDirective
 
@@ -515,6 +590,17 @@ def test_accupdatedirective_init():
 
     directive = ACCUpdateDirective(sig, "host", if_present=False)
     assert directive.if_present is False
+    assert directive.async_queue is False
+
+    directive = ACCUpdateDirective(sig, "host", async_queue=True)
+    assert directive.async_queue is True
+
+    directive = ACCUpdateDirective(sig, "host", async_queue=1)
+    assert directive.async_queue.value == "1"
+
+    directive = ACCUpdateDirective(sig, "host",
+                                   async_queue=Reference(Symbol("var")))
+    assert directive.async_queue == Reference(Symbol("var"))
 
 
 def test_accupdatedirective_begin_string():
@@ -524,9 +610,21 @@ def test_accupdatedirective_begin_string():
     directive_host = ACCUpdateDirective(sig, "host", if_present=False)
     directive_device = ACCUpdateDirective(sig, "device")
     directive_empty = ACCUpdateDirective(set(), "host", if_present=False)
+    directive_async_default = ACCUpdateDirective(sig, "device",
+                                                 async_queue=True)
+    directive_async_queue_int = ACCUpdateDirective(sig, "device",
+                                                   async_queue=1)
+    directive_async_queue_str = ACCUpdateDirective(
+        sig, "device", async_queue=Reference(Symbol("var")))
 
     assert directive_host.begin_string() == "acc update host(x)"
     assert directive_device.begin_string() == "acc update if_present device(x)"
+    assert (directive_async_default.begin_string() ==
+            "acc update if_present device(x) async")
+    assert (directive_async_queue_int.begin_string() ==
+            "acc update if_present device(x) async(1)")
+    assert (directive_async_queue_str.begin_string() ==
+            "acc update if_present device(x) async(var)")
 
     with pytest.raises(GenerationError) as err:
         directive_empty.begin_string()
@@ -552,6 +650,129 @@ def test_accupdatedirective_equality():
     # Check equality fails when different if_present settings
     directive5 = ACCUpdateDirective(sig, "device", if_present=False)
     assert directive1 != directive5
+
+
+# Class ACCWaitDirective
+
+def test_accwaitdirective_init():
+    '''Test init of ACCWaitDirective.'''
+
+    directive1 = ACCWaitDirective(None)
+    assert directive1.wait_queue is None
+
+    directive2 = ACCWaitDirective(0)
+    assert directive2.wait_queue == 0
+
+    directive3 = ACCWaitDirective(1)
+    assert directive3.wait_queue == 1
+
+    directive4 = ACCWaitDirective(Reference(Symbol("variable_name")))
+    assert directive4.wait_queue == Reference(Symbol("variable_name"))
+
+    with pytest.raises(TypeError) as error:
+        _ = ACCWaitDirective(3.5)
+    assert 'Invalid value type as wait_group' in str(error)
+
+
+def test_accwaitdirective_begin_string():
+    '''Test begin_string of ACCWaitDirective.'''
+
+    directive1 = ACCWaitDirective(None)
+    assert directive1.begin_string() == "acc wait"
+
+    directive2 = ACCWaitDirective(1)
+    assert directive2.begin_string() == "acc wait (1)"
+
+    directive3 = ACCWaitDirective(Reference(Symbol("variable_name")))
+    assert directive3.begin_string() == "acc wait (variable_name)"
+
+
+def test_accwaitdirective_gencode():
+    '''Test gen code of ACCWaitDirective'''
+    API = "lfric"
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(distributed_memory=False, api=API).create(info)
+    routines = psy.container.walk(Routine)
+    routines[0].children.append(ACCWaitDirective(1))
+    code = str(psy.gen)
+    assert '$acc wait (1)' in code
+
+
+def test_accwaitdirective_eq():
+    '''Test the __eq__ implementation of ACCWaitDirective.'''
+
+    # build some
+    directive1 = ACCWaitDirective(1)
+    directive2 = ACCWaitDirective(1)
+    directive3 = ACCWaitDirective(Reference(Symbol('stream1')))
+
+    # check equality
+    assert directive1 == directive2
+    assert not (directive1 == directive3)
+
+# async keyword on all classes
+
+
+@pytest.mark.parametrize("directive_type",
+                         [ACCKernelsDirective, ACCParallelDirective,
+                          ACCUpdateDirective, ACCEnterDataDirective])
+def test_directives_async_queue(directive_type):
+    '''Validate the various usage of async_queue parameter'''
+
+    # args
+    args = []
+    if directive_type == ACCUpdateDirective:
+        args = [[Signature('x')], 'host']
+
+    # set value at init
+    directive = directive_type(*args, async_queue=1)
+
+    # need to have some data in
+    if directive_type == ACCEnterDataDirective:
+        directive._sig_set.add(Signature("x"))
+
+    # check initial status
+    assert directive.async_queue.value == "1"
+    assert 'async(1)' in directive._build_async_string()
+
+    # change value to true
+    directive.async_queue = True
+    assert directive.async_queue is True
+    assert 'async' in directive._build_async_string()
+
+    # change value to False
+    directive.async_queue = False
+    assert directive.async_queue is False
+    assert 'async' not in directive._build_async_string()
+
+    # change value afterward
+    directive.async_queue = Reference(Symbol("stream"))
+    assert directive.async_queue == Reference(Symbol("stream"))
+    assert 'async(stream)' in directive._build_async_string()
+
+    # Value is a PSyIR expression
+    directive.async_queue = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        Literal("1", INTEGER_TYPE),
+        Reference(Symbol("stream")))
+    assert 'async(1 + stream)' in directive._build_async_string()
+
+    # put wrong type
+    with pytest.raises(TypeError) as error:
+        directive.async_queue = 3.5
+    assert "Invalid async_queue" in str(error)
+
+
+def test_mixin_constructor_error():
+    '''
+    Check constructor with an unexpected value type (float instead of int)
+
+    '''
+    with pytest.raises(TypeError) as error:
+        _ = ACCAsyncMixin(3.5)
+
+    assert ("Invalid async_queue value, expected DataNode, integer "
+            "or bool, got : 3.5" in str(error))
 
 
 def test_accdatadirective_update_data_movement_clauses(fortran_reader,
@@ -609,9 +830,13 @@ def test_accparalleldirective():
     assert accpar._default_present is True
 
     # Also without default(present)
-    accpar = ACCParallelDirective(default_present=False)
-    assert isinstance(accpar, ACCParallelDirective)
-    assert accpar._default_present is False
+    accpar2 = ACCParallelDirective(default_present=False)
+    assert isinstance(accpar2, ACCParallelDirective)
+    assert accpar2._default_present is False
+
+    # Call __eq__
+    eq_result = accpar == accpar2
+    assert eq_result is False
 
     # But only with boolean values
     with pytest.raises(TypeError) as err:
@@ -620,22 +845,22 @@ def test_accparalleldirective():
             "boolean but value '3' has been given." in str(err.value))
 
     # The default present value has getter and setter
-    accpar.default_present = True
-    assert accpar.default_present is True
+    accpar2.default_present = True
+    assert accpar2.default_present is True
 
     with pytest.raises(TypeError) as err:
-        accpar.default_present = "invalid"
+        accpar2.default_present = "invalid"
     assert ("The ACCParallelDirective default_present property must be a "
             "boolean but value 'invalid' has been given." in str(err.value))
 
     # The begin string depends on the default present value
-    accpar.default_present = True
-    assert accpar.begin_string() == "acc parallel default(present)"
-    accpar.default_present = False
-    assert accpar.begin_string() == "acc parallel"
+    accpar2.default_present = True
+    assert accpar2.begin_string() == "acc parallel default(present)"
+    accpar2.default_present = False
+    assert accpar2.begin_string() == "acc parallel"
 
     # It has an end_string
-    assert accpar.end_string() == "acc end parallel"
+    assert accpar2.end_string() == "acc end parallel"
 
 
 def test_acc_atomics_is_valid_atomic_statement(fortran_reader):

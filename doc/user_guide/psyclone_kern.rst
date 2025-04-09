@@ -514,7 +514,7 @@ is useful for a number of reasons:
 1) Starting point for creating a test for a kernel;
 2) Benchmarking an individual kernel;
 3) Constructing a test harness for the adjoint of a kernel produced by
-   :ref:`PSyAD <psyad:introduction>`.
+   :ref:`PSyAD <psyad_introduction>`.
 
 Currently algorithm generation is only supported for the LFRic API but it
 could be extended to the GOcean API if desired.
@@ -589,7 +589,7 @@ Once that's done, the interesting part is the `invoke` call:
                   simple_type(field_1))
 
 (where a line-break has been added for clarity). In this example the `invoke`
-is for two kernels: the first is a :ref:`Built-in <built-ins>` that gives
+is for two kernels: the first is a :ref:`Built-in <psykal-built-ins>` that gives
 `field_1` the value `1.0` everywhere and the second is the 'simple' kernel
 itself which is passed the now initialised `field_1`.
 

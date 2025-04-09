@@ -125,6 +125,7 @@ def trans(psyir):
     otrans = Dynamo0p3OMPLoopTrans()
     const = LFRicConstants()
     cpu_parallel = OMPParallelTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
 
     if OFFLOAD_DIRECTIVES == "omp":
         # Use OpenMP offloading
@@ -188,20 +189,15 @@ def trans(psyir):
                 if offload:
                     for kern in loop.kernels():
                         try:
-                            _inline_calls(kern)
-                            # At this point we would like to fully inline the
-                            # kernel but InlineTrans does not accept a
-                            # CodedKern. If we lower this kernel first then we
-                            # get errors later (at code-generation time).
-                            # Hopefully this will be resolved when we move
-                            # LFRic to use the PSyIR backend for code
-                            # generation.
+                            mod_inline_trans.apply(kern)
+                            print(f"Module-inlined kernel '{kern.name}'")
                         except TransformationError as err:
                             failed_inline.add(kern.name.lower())
                             print(f"Failed to module-inline kernel "
                                   f"'{kern.name}' due to:\n{err.value}")
                         try:
                             gpu_annotation_trans.apply(kern)
+                            print(f"Annotated kernel '{kern.name}'")
                         except TransformationError as err:
                             failed_to_offload.add(kern.name.lower())
                             print(f"Failed to annotate '{kern.name}' with "
@@ -255,3 +251,5 @@ def trans(psyir):
                 if loop.loop_type not in ["colours", "null"]:
                     cpu_parallel.apply(loop)
                     otrans.apply(loop, options={"reprod": True})
+                    kernel_names = [kn.name for kn in loop.kernels()]
+                    print(f"Added OMP threading to loop with {kernel_names}")

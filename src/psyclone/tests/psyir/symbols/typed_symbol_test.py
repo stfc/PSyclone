@@ -46,8 +46,8 @@ from psyclone.psyir.symbols import (
     ImportInterface, UnresolvedInterface, ScalarType, ArrayType,
     REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, REAL8_TYPE,
     INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE,
-    BOOLEAN_TYPE, CHARACTER_TYPE, UnresolvedType, Symbol, SymbolTable,
-    DataTypeSymbol)
+    BOOLEAN_TYPE, CHARACTER_TYPE, Symbol, SymbolTable,
+    DataTypeSymbol, UnresolvedType, UnsupportedFortranType)
 from psyclone.psyir.nodes import Literal, Reference
 
 
@@ -236,12 +236,23 @@ def test_typed_symbol_resolve_type(monkeypatch):
 
 
 def test_typed_symbol_shape():
-    ''' Test that shape returns [] if the symbol is a scalar.'''
+    ''' Test that shape works for both scalars and arrays.'''
     data_symbol = TSymbol("a", REAL4_TYPE)
     assert data_symbol.shape == []
+    symbol2 = TSymbol("b", ArrayType(INTEGER_SINGLE_TYPE, [5]))
+    assert len(symbol2.shape) == 1
+    assert symbol2.shape[0].upper.value == "5"
+    symbol3 = TSymbol("c", UnsupportedFortranType("integer, pointer :: c"))
+    assert symbol3.shape == []
+    symbol4 = TSymbol("d", UnsupportedFortranType(
+        "integer, pointer :: c",
+        partial_datatype=ArrayType(INTEGER_SINGLE_TYPE, [10])))
+    assert len(symbol4.shape) == 1
+    assert symbol4.shape[0].upper.value == "10"
 
 
-def test_typed_symbol_replace_symbols_using():
+@pytest.mark.parametrize("table", [None, SymbolTable()])
+def test_typed_symbol_replace_symbols_using(table):
     '''
     Test that replace_symbols_using() updates any symbols within the
     definition of a TypedSymbol.
@@ -250,18 +261,24 @@ def test_typed_symbol_replace_symbols_using():
     kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
     real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, kind)
     sym = TSymbol("a", real_kind_type)
-    table = SymbolTable()
     new_kind = kind.copy()
-    table.add(new_kind)
-    sym.replace_symbols_using(table)
+    if table is not None:
+        table.add(new_kind)
+        sym.replace_symbols_using(table)
+    else:
+        sym.replace_symbols_using(new_kind)
     assert sym.datatype.precision is new_kind
     tsym = DataTypeSymbol("a_type", UnresolvedType())
     sym2 = TSymbol("b", tsym)
-    sym2.replace_symbols_using(table)
-    assert sym2.datatype is tsym
+    if table is not None:
+        sym2.replace_symbols_using(table)
+        assert sym2.datatype is tsym
     new_tsym = tsym.copy()
-    table.add(new_tsym)
-    sym2.replace_symbols_using(table)
+    if table is not None:
+        table.add(new_tsym)
+        sym2.replace_symbols_using(table)
+    else:
+        sym2.replace_symbols_using(new_tsym)
     assert sym2.datatype is new_tsym
 
 
@@ -282,3 +299,8 @@ def test_typed_symbol_reference_accesses():
     vai2 = VariablesAccessInfo()
     struc_sym.reference_accesses(vai2)
     assert vai2.all_signatures == [Signature("some_type")]
+    # Dependencies are ignored for imported symbols.
+    struc_sym.interface = ImportInterface(ContainerSymbol("somewhere"))
+    vai3 = VariablesAccessInfo()
+    struc_sym.reference_accesses(vai3)
+    assert not vai3.all_signatures

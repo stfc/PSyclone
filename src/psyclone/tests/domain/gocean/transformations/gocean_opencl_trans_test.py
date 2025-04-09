@@ -307,9 +307,9 @@ def test_invoke_opencl_initialisation_grid():
     # Check that device grid initialisation routine is generated
     expected = '''
     subroutine initialise_grid_device_buffers(field)
-      use field_mod
       use fortcl, only: create_ronly_buffer
       use iso_c_binding, only: c_size_t
+      use field_mod
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
 
@@ -331,9 +331,9 @@ c_sizeof(field%grid%'''
     # Check that device grid write routine is generated
     expected = '''
     subroutine write_grid_buffers(field)
-      use clfortran
       use fortcl, only: get_cmd_queues
       use iso_c_binding, only: c_intptr_t, c_size_t, c_sizeof
+      use clfortran
       use ocl_utils_mod, only: check_status
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
@@ -424,11 +424,11 @@ def test_opencl_routines_initialisation(kernel_outputdir):
     # Check that the read_from_device routine has been generated
     expected = '''\
     subroutine read_from_device(from, to, startx, starty, nx, ny, blocking)
+      use iso_c_binding, only: c_intptr_t, c_ptr, c_size_t, c_sizeof
+      use ocl_utils_mod, only: check_status
+      use kind_params_mod, only: go_wp
       use clfortran
       use fortcl, only: get_cmd_queues
-      use iso_c_binding, only: c_intptr_t, c_ptr, c_size_t, c_sizeof
-      use kind_params_mod, only: go_wp
-      use ocl_utils_mod, only: check_status
       type(c_ptr), intent(in) :: from
       real(kind=go_wp), intent(inout), dimension(:, :), target :: to
       integer, intent(in) :: startx
@@ -472,11 +472,11 @@ offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
     # Check that the write_to_device routine has been generated
     expected = '''\
     subroutine write_to_device(from, to, startx, starty, nx, ny, blocking)
+      use iso_c_binding, only: c_intptr_t, c_ptr, c_size_t, c_sizeof
+      use ocl_utils_mod, only: check_status
+      use kind_params_mod, only: go_wp
       use clfortran
       use fortcl, only: get_cmd_queues
-      use iso_c_binding, only: c_intptr_t, c_ptr, c_size_t, c_sizeof
-      use kind_params_mod, only: go_wp
-      use ocl_utils_mod, only: check_status
       real(kind=go_wp), intent(in), dimension(:, :), target :: from
       type(c_ptr), intent(in) :: to
       integer, intent(in) :: startx
@@ -520,9 +520,9 @@ offset_in_bytes,size_in_bytes,c_loc(from(1,starty)),0,c_null_ptr,c_null_ptr)
     # Check that the device buffer initialisation routine has been generated
     expected = '''\
     subroutine initialise_device_buffer(field)
-      use field_mod
       use fortcl, only: create_rw_buffer
       use iso_c_binding, only: c_size_t
+      use field_mod
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
 
@@ -634,8 +634,8 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
 
     expected = '''
     subroutine psy_init()
-      use fortcl, only: add_kernels, ocl_env_init
       use parallel_mod, only: get_rank
+      use fortcl, only: add_kernels, ocl_env_init
       character(len=30) kernel_names(1)
       integer, save :: ocl_device_num = 1
       logical, save :: initialised = .false.
@@ -1289,5 +1289,5 @@ def test_opencl_kernel_with_use():
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched)
     assert ("'kernel_with_use_code' contains the following symbols with "
-            "'global' scope: ['rdt', 'magic']. An OpenCL kernel cannot call "
-            "other kernels and all of the data" in str(err.value))
+            "'global' scope: ['magic', 'rdt']. An OpenCL kernel "
+            "cannot call other kernels and all of the data" in str(err.value))

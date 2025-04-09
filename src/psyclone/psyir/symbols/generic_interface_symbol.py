@@ -38,6 +38,7 @@
 
 from dataclasses import dataclass
 
+from psyclone.psyir.symbols.symbol import Symbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 
 
@@ -208,25 +209,35 @@ class GenericInterfaceSymbol(RoutineSymbol):
             new_values.append((new_sym, info.from_container))
         self.routines = new_values
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        Before performing any replacement, the supplied symbol is specialised
+        to a RoutineSymbol, if necessary.
+
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         # Construct a new list of RoutineSymbols.
         new_routines = []
         for routine in self.routines:
-            try:
-                new_rt = table.lookup(routine.symbol.name)
-                if not isinstance(new_rt, RoutineSymbol):
-                    new_rt.specialise(RoutineSymbol)
-            except KeyError:
-                new_rt = routine.symbol
+            if isinstance(table_or_symbol, Symbol):
+                if table_or_symbol.name.lower() == routine.symbol.name.lower():
+                    new_rt = table_or_symbol
+                else:
+                    new_rt = routine.symbol
+            else:
+                new_rt = table_or_symbol.lookup(routine.symbol.name,
+                                                otherwise=routine.symbol)
+            if not isinstance(new_rt, RoutineSymbol):
+                new_rt.specialise(RoutineSymbol)
             new_routines.append((new_rt, routine.from_container))
         self.routines = new_routines
 

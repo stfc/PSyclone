@@ -32,7 +32,7 @@ dl_esm_inf, and the corresponding profile wrapper library in
 ``lib/profiling``. By default, the compilation uses the version
 of the dl_esm_inf library provided as a git submodule (under
 ``external/dl_esm_inf ``- see
-https://psyclone-dev.readthedocs.io/en/latest/working_practises.html)
+https://psyclone.readthedocs.io/en/latest/developer_guide/working_practises.html)
 within the PSyclone repository (set the environment variable``INF_DIR``
 for the ``make`` command to pick a different version). The default build
 uses the "template" profiling library in ``lib/profiling/template``.

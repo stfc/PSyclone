@@ -50,7 +50,7 @@ from psyclone.transformations import TransformationError
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
-    "oce", "par_oce", "dom_oce", "phycst", "ice",
+    "oce", "par_oce", "par_kind", "dom_oce", "phycst", "ice",
     "obs_fbm", "flo_oce", "sbc_ice", "wet_dry"
 ]
 
@@ -248,7 +248,10 @@ def inline_calls(schedule):
 
     '''
     excluding = ["ctl_nam", "ctl_stop", "ctl_warn", "prt_ctl", "eos",
-                 "iom_", "hist", "mpi_", "timing_", "oasis_"]
+                 "iom_", "hist", "mpi_", "timing_", "oasis_",
+                 "fatal_error"  # TODO #2846 - is brought into scope via
+                                # multiple wildcard imports
+                 ]
     ignore_codeblocks = ["bdy_dyn3d_frs", "bdy_dyn3d_spe", "bdy_dyn3d_zro",
                          "bdy_dyn3d_zgrad"]
     mod_inline_trans = KernelModuleInlineTrans()
@@ -415,7 +418,7 @@ def insert_explicit_loop_parallelism(
             continue  # Skip if an outer loop is already parallelised
 
         opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
-                "verbose": True}
+                "verbose": True, "nowait": True}
 
         routine_name = loop.ancestor(Routine).name
 

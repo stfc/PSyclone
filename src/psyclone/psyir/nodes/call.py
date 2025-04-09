@@ -41,7 +41,8 @@ from typing import List
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.errors import GenerationError, PSycloneError
+from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
@@ -49,6 +50,7 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
     GenericInterfaceSymbol,
+    DefaultModuleInterface,
     RoutineSymbol,
     Symbol,
     SymbolError,
@@ -437,20 +439,20 @@ class Call(Statement, DataNode):
     def __str__(self):
         return self.node_str(False)
 
-    def copy(self, new_parent=None):
+    def copy(self):
         '''Return a copy of this node. This is a bespoke implementation for
         a Call node that ensures that any internal id's are
         consistent before and after copying.
 
         :returns: a copy of this node and its children.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
+        :rtype: :py:class:`psyclone.psyir.node.Call`
 
         '''
         # ensure _argument_names is consistent with actual arguments
         # before copying.
         self._reconcile()
         # copy
-        new_copy = super().copy(new_parent=new_parent)
+        new_copy = super().copy()
         # Fix invalid id's in _argument_names after copying.
         # pylint: disable=protected-access
         new_list = []
@@ -538,13 +540,14 @@ class Call(Statement, DataNode):
     def get_callees(self):
         '''
         Searches for the implementation(s) of all potential target routines
-        for this Call without any arguments check.
+        for this Call without resolving static polymorphism by checking the
+        argument types.
 
         :returns: the Routine(s) that this call targets.
         :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
 
-        :raises NotImplementedError: if the routine is not local and not found
-            in any containers in scope at the call site.
+        :raises NotImplementedError: if the routine is not found or a
+            limitation prevents definite determination of the target routine.
 
         '''
         def _location_txt(node):
@@ -567,90 +570,68 @@ class Call(Statement, DataNode):
             return f"code:\n'{out_lines[0]}\n...\n{last_line}'"
 
         rsym = self.routine.symbol
-        if rsym.is_unresolved or rsym.is_modulevar:
+        if rsym.is_unresolved:
+            # Search for the Routine in the current file. This search is
+            # stopped if we encouter a wildcard import that could be
+            # responsible for shadowing the routine name with an external
+            # implementation.
+            table = rsym.find_symbol_table(self)
+            cursor = table.node
+            have_codeblock = False
+            while cursor:
+                if isinstance(cursor, Container):
+                    routines = []
+                    for name in cursor.resolve_routine(rsym.name):
+                        # Since we're looking in the local Container, the
+                        # target is permitted to be private.
+                        psyir = cursor.find_routine_psyir(rsym.name,
+                                                          allow_private=True)
+                        if psyir:
+                            routines.append(psyir)
+                    if routines:
+                        rsym.interface = DefaultModuleInterface()
+                        return routines
+                    if not have_codeblock:
+                        have_codeblock = any(isinstance(child, CodeBlock) for
+                                             child in cursor.children)
+                    wildcard_names = [csym.name for csym in
+                                      cursor.symbol_table.wildcard_imports(
+                                          scope_limit=cursor)]
+                    if wildcard_names:
+                        # We haven't yet found an implementation of the Routine
+                        # but we have found a wildcard import and that could be
+                        # bringing it into scope so we stop searching (the
+                        # alternative is to resolve every wildcard import we
+                        # encounter and that is very costly).
+                        msg = (f"Failed to find the source code of the unresolved "
+                               f"routine '{rsym.name}'. It may be being brought "
+                               f"into scope from one of {wildcard_names}")
+                        if have_codeblock:
+                            msg += (" or it may be within a CodeBlock. If it isn't"
+                                    ", you ")
+                        else:
+                            msg += ". You "
+                        msg += ("may wish to add the appropriate module name to "
+                                "the `RESOLVE_IMPORTS` variable in the "
+                                "transformation script.")
+                        raise NotImplementedError(msg)
+                parent = cursor.parent
+                cursor = parent.scope if parent else None
 
-            # Check for any "raw" Routines, i.e. ones that are not
-            # in a Container.  Such Routines would exist in the PSyIR
-            # as a child of a FileContainer (if the PSyIR contains a
-            # FileContainer). Note, if the PSyIR does contain a
-            # FileContainer, it will be the root node of the PSyIR.
-            container = None
-            if rsym.is_modulevar:
-                # Take care here in case the Routine is an orphan.
-                table = rsym.find_symbol_table(self)
-                if table:
-                    container = table.node
+            # We haven't found a Routine and nor have we encountered any
+            # wildcard imports.
+            msg = (f"Failed to find the source code of the unresolved routine "
+                   f"'{rsym.name}'. There are no wildcard imports that could "
+                   f"be bringing it into scope")
+            if have_codeblock:
+                msg += (" but it might be within a CodeBlock. If it isn't "
+                        "then it ")
             else:
-                container = self.root
-            if container:
-                routines = []
-                for name in container.resolve_routine(rsym.name):
-                    # Since we're looking in the local Container, the target
-                    # is permitted to be private.
-                    psyir = container.find_routine_psyir(name,
-                                                         allow_private=True)
-                    if psyir:
-                        routines.append(psyir)
-                if routines:
-                    return routines
-
-            if rsym.is_modulevar:
-                root_node = container if container else self.root
-                raise SymbolError(
-                    f"The RoutineSymbol for Routine '{rsym.name}' is "
-                    f"marked as being local but failed to find the "
-                    f"corresponding implementation in "
-                    f"{_location_txt(root_node)}")
-
-            # Now check for any wildcard imports and see if they can
-            # be used to resolve the symbol.
-            wildcard_names = []
-            containers_not_found = []
-            current_table = self.scope.symbol_table
-            callee_name = rsym.name.lower()
-            while current_table:
-                for container_symbol in current_table.containersymbols:
-                    if container_symbol.wildcard_import:
-                        wildcard_names.append(container_symbol.name)
-                        try:
-                            container = container_symbol.find_container_psyir(
-                                local_node=self)
-                        except SymbolError:
-                            container = None
-                        if not container:
-                            # Failed to find/process this Container.
-                            containers_not_found.append(container_symbol.name)
-                            continue
-                        routines = []
-                        for name in container.resolve_routine(rsym.name):
-                            # If 'name' doesn't match callee_name then we are
-                            # dealing with an interface. Routines referenced
-                            # by an interface may be private to the host
-                            # container.
-                            psyir = container.find_routine_psyir(
-                                name,
-                                allow_private=(name.lower() != callee_name))
-                            if psyir:
-                                routines.append(psyir)
-                        if routines:
-                            return routines
-                current_table = current_table.parent_symbol_table()
-            if not wildcard_names:
-                wc_text = "there are no wildcard imports"
-            else:
-                if containers_not_found:
-                    wc_text = (
-                        f"attempted to resolve the wildcard imports from"
-                        f" {wildcard_names}. However, failed to find the "
-                        f"source for {containers_not_found}. The module search"
-                        f" path is set to {Config.get().include_paths}")
-                else:
-                    wc_text = (f"wildcard imports from {wildcard_names}")
-            raise NotImplementedError(
-                f"Failed to find the source code of the unresolved routine "
-                f"'{rsym.name}' - looked at any routines in the same source "
-                f"file and {wc_text}. Searching for external routines "
-                f"that are only resolved at link time is not supported.")
+                msg += ". It "
+            msg += ("must be an external routine that is only resolved at "
+                    "link time and searching for such routines is not "
+                    "supported.")
+            raise NotImplementedError(msg)
 
         root_node = self.ancestor(Container)
         if not root_node:
@@ -704,7 +685,7 @@ class Call(Statement, DataNode):
         # routine - we just need to locate it. It may be in a Container or
         # it may be in the parent FileContainer.
         cursor = container
-        while isinstance(cursor, Container):
+        while cursor and isinstance(cursor, Container):
             routines = []
             all_names = container.resolve_routine(rsym.name)
             if isinstance(rsym, GenericInterfaceSymbol):
@@ -719,8 +700,6 @@ class Call(Statement, DataNode):
             if len(routines) == len(all_names):
                 # We've resolved everything.
                 return routines
-            if not cursor.parent:
-                break
             cursor = cursor.parent
 
         raise SymbolError(

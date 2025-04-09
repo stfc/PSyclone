@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import (
     Container, Routine, CodeBlock, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, ImportInterface, RoutineSymbol, REAL_TYPE,
-    Symbol, SymbolError, SymbolTable)
+    Symbol, SymbolError, SymbolTable, UnresolvedInterface)
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import ACCRoutineTrans, OMPDeclareTargetTrans
 from psyclone.tests.gocean_build import GOceanBuild
@@ -62,101 +62,6 @@ def test_module_inline_constructor_and_str():
     inline_trans = KernelModuleInlineTrans()
     assert (str(inline_trans) == "Copy the routine associated with a (Kernel) "
             "call into the Container of the call site.")
-
-
-def test_check_data_accesses(config_instance):
-    '''
-    Tests for the check_data_accesses() method.
-    '''
-    trans = KernelModuleInlineTrans()
-    _, invoke = get_invoke("single_invoke_three_kernels_with_use.f90",
-                           "gocean", idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    kcall = schedule.walk(CodedKern)[1]
-    config_instance.include_paths = []
-    _, kschedules = kcall.get_kernel_schedule()
-    with pytest.raises(TransformationError) as err:
-        trans.check_data_accesses(kcall, kschedules[0], "Kernel")
-    assert ("Kernel 'kernel_with_use2_code' contains accesses to 'go_wp' which"
-            " is unresolved. It is being brought into scope from one of "
-            "['argument_mod', 'grid_mod', 'kernel_mod', 'kind_params_mod']"
-            in str(err.value))
-    # Now try where there's only a single wildcard import so we know the origin
-    # of the symbol.
-    kcall0 = schedule.walk(CodedKern)[0]
-    _, (ksched,) = kcall0.get_kernel_schedule()
-    ctable = ksched.ancestor(Container).symbol_table
-    # To do this, we manually remove all ContainerSymbols apart from the one
-    # from which 'go_wp' is imported.
-    for sym in ctable.wildcard_imports():
-        if sym.name != "kind_params_mod":
-            ctable._symbols.pop(sym.name)
-
-    trans.check_data_accesses(kcall0, ksched, "Kernel")
-    table = ksched.symbol_table
-    assert (table.lookup("go_wp").interface.container_symbol.name ==
-            "kind_params_mod")
-
-
-def test_check_data_accesses_indirect_import(monkeypatch):
-    '''
-    Test the case where a symbol cannot be resolved because it is imported
-    indirectly.
-
-    '''
-    _, invoke = get_invoke("single_invoke_three_kernels_with_use.f90",
-                           "gocean", idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    kcall = schedule.walk(CodedKern)[1]
-    _, (ksched,) = kcall.get_kernel_schedule()
-    # Monkeypatch SymbolTable.resolve_imports() so that it does nothing. This
-    # then exercises the code path where we quietly fail to resolve a symbol.
-    monkeypatch.setattr(ksched.symbol_table, "resolve_imports",
-                        lambda container_symbols=None,
-                        symbol_target=None: None)
-    with pytest.raises(TransformationError) as err:
-        KernelModuleInlineTrans.check_data_accesses(kcall, ksched, "Kernel")
-    assert ("Kernel 'kernel_with_use2_code' contains accesses to 'go_wp' "
-            "which is unresolved" in str(err.value))
-    assert ("Failed to resolve the type of Symbol 'go_wp'. It is probably an "
-            "indirect import." in str(err.value))
-
-
-def test_check_data_accesses_import_clash(fortran_reader):
-    '''
-    Check that check_data_accesses() spots a clash with an imported
-    Symbol.
-
-    '''
-    psyir = fortran_reader.psyir_from_source('''\
-    module my_mod
-      use my_kernel_mod, only: a_routine
-    contains
-      subroutine call_it()
-
-        if(.TRUE.)then
-          call a_routine()
-        end if
-      end subroutine call_it
-    end module my_mod
-    ''')
-    rt_psyir = fortran_reader.psyir_from_source('''\
-    subroutine a_routine()
-      use other_mod, only: a_clash
-    end subroutine a_routine
-    ''')
-    kern_call = psyir.walk(Call)[0]
-    csym = ContainerSymbol("money")
-    kern_call.scope.symbol_table.add(csym)
-    kern_call.scope.symbol_table.add(Symbol("a_clash",
-                                            interface=ImportInterface(csym)))
-    sched = rt_psyir.children[0]
-    with pytest.raises(TransformationError) as err:
-        KernelModuleInlineTrans.check_data_accesses(kern_call, sched, "Call")
-    assert ("One or more symbols from routine 'a_routine' cannot be added to "
-            "the table at the call site" in str(err.value))
-    assert ("This table has an import of 'a_clash' via interface" in
-            str(err.value))
 
 
 def test_validate_inline_error_if_not_kernel(fortran_reader):
@@ -246,8 +151,7 @@ def test_validate_no_inline_global_var(parser):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kernels[0])
     assert ("Kernel 'kernel_with_global_code' contains accesses to 'alpha' "
-            "which is declared in the callee module scope. Cannot inline such "
-            "a Kernel." in str(err.value))
+            "which is declared in the callee module scope" in str(err.value))
 
     # Check that the issue is also reported if the symbol is inside a
     # Codeblock
@@ -265,8 +169,7 @@ def test_validate_no_inline_global_var(parser):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kernels[0])
     assert ("'kernel_with_global_code' contains accesses to 'alpha' which is "
-            "declared in the callee module scope. Cannot "
-            "inline such a Kernel." in str(err.value))
+            "declared in the callee module scope." in str(err.value))
 
     # Check that a symbol of unknown origin within a CodeBlock is caught.
     reader = FortranStringReader('''
@@ -467,13 +370,9 @@ def test_validate_fail_to_get_psyir(fortran_reader, config_instance):
     with pytest.raises(TransformationError) as err:
         intrans.validate(call)
     assert ("failed to retrieve PSyIR for routine 'my_sub' due to: Failed to "
-            "find the source code of the unresolved routine 'my_sub' - looked "
-            "at any routines in the same source file and attempted to resolve "
-            "the wildcard imports from ['my_mod', 'other_mod']. However, "
-            "failed to find the source for ['my_mod', 'other_mod']. The module"
-            " search path is set to []. Searching for external routines that "
-            "are only resolved at link time is not supported."
-            in str(err.value))
+            "find the source code of the unresolved routine 'my_sub'. It may "
+            "be being brought into scope from one of ['my_mod', "
+            "'other_mod']." in str(err.value))
 
 
 def test_validate_nested_scopes(fortran_reader, monkeypatch):
@@ -972,30 +871,58 @@ def test_module_inline_with_interfaces(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_rm_imported_routine_symbol():
+def test_get_psyir_to_inline(monkeypatch):
+    '''
+    Test that _get_psyir_to_inline() raises the expected error if more than
+    one potential routine implementation is found.
+
+    '''
+    sym = RoutineSymbol("my_sym")
+    rout = Routine.create("my_sym", SymbolTable(), [])
+    node = Call.create(sym)
+    # For simplicity we just monkeypatch Call.get_callees() so that it appears
+    # to return more than one Routine.
+    monkeypatch.setattr(node, "get_callees", lambda: [rout, rout])
+    with pytest.raises(TransformationError) as err:
+        KernelModuleInlineTrans._get_psyir_to_inline(node)
+    # The duplicated symbol name below is purely a result of the monkeypatch
+    # - in reality these names will come from a generic interface and be
+    # different.
+    assert ("The target of the call to 'my_sym' cannot be inserted because "
+            "multiple implementations were found: ['my_sym', 'my_sym']." in
+            str(err.value))
+
+
+def test_rm_imported_routine_symbol(fortran_reader):
     '''
     Tests for the _rm_imported_routine_symbol() utility method.
     '''
     intrans = KernelModuleInlineTrans()
     table = SymbolTable()
-    # Does nothing if the named symbol cannot be found
-    intrans._rm_imported_routine_symbol("missing", table)
-    # ...or is not an import.
+    # Does nothing if the symbol is not an import.
     here = table.new_symbol("here")
-    intrans._rm_imported_routine_symbol("here", table)
+    intrans._rm_imported_routine_symbol(here, None, table)
     assert "here" in table
     csym = table.new_symbol("from_here", symbol_type=ContainerSymbol)
     # Update the symbol so that it is imported from a Container.
     here.interface = ImportInterface(csym)
-    intrans._rm_imported_routine_symbol("here", table)
+    intrans._rm_imported_routine_symbol(here, None, table)
     # Both it and the Container should have been removed.
     assert "here" not in table
     assert "from_here" not in table
     # Repeat for the case where the Container has a wildcard import.
     csym = table.new_symbol("from_here", symbol_type=ContainerSymbol)
+    psyir = fortran_reader.psyir_from_source('''
+    module from_here
+    contains
+      subroutine here
+      end subroutine here
+    end module from_here
+    ''')
+    sched = psyir.walk(Routine)[0]
     csym.wildcard_import = True
     here = table.new_symbol("here", interface=ImportInterface(csym))
-    intrans._rm_imported_routine_symbol("here", table)
+    intrans._rm_imported_routine_symbol(here, sched, table)
     # Only the Symbol should have been removed (not the ContainerSymbol).
     assert "here" not in table
     assert "from_here" in table
@@ -1004,7 +931,7 @@ def test_rm_imported_routine_symbol():
     assert table.lookup("old_here").interface.orig_name == "here"
     # Repeat - we should not get another imported symbol.
     here = table.new_symbol("here", interface=ImportInterface(csym))
-    intrans._rm_imported_routine_symbol("here", table)
+    intrans._rm_imported_routine_symbol(here, sched, table)
     assert len(table.symbols_imported_from(csym)) == 1
 
 
@@ -1170,6 +1097,11 @@ def test_mod_inline_from_wildcard_import(fortran_reader, fortran_writer,
     end program my_prog
     '''
     prog_psyir = fortran_reader.psyir_from_source(code)
+    # Manually update the interface to `my_sub` so that we find it (since
+    # searching through wildcard imports is disabled.)
+    prog = prog_psyir.walk(Routine)[0]
+    csym = prog.symbol_table.lookup("my_mod")
+    prog.symbol_table.lookup("my_sub").interface = ImportInterface(csym)
     calls = prog_psyir.walk(Call)
     intrans.apply(calls[0])
     output = fortran_writer(prog_psyir)
@@ -1231,9 +1163,12 @@ def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader,
     '''
     prog_psyir = fortran_reader.psyir_from_source(code)
     container = prog_psyir.children[0]
+    do_it = container.find_routine_psyir("do_it")
+    # Workaround the fact that we don't follow wildcard imports.
+    csym = do_it.symbol_table.lookup("my_mod")
+    do_it.symbol_table.lookup("my_sub").interface = ImportInterface(csym)
     calls = prog_psyir.walk(Call)
     intrans.apply(calls[0])
-    do_it = container.find_routine_psyir("do_it")
     assert (do_it.walk(Call)[0].routine.symbol is
             container.symbol_table.lookup("my_sub"))
     # Call in second subroutine still refers to imported Symbol in local table.
@@ -1246,4 +1181,111 @@ def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader,
     assert calls[1].routine.symbol is container.symbol_table.lookup("my_sub")
     assert "my_mod" not in again.symbol_table
     assert len(container.walk(Routine)) == 3
-    assert Compile(tmpdir).string_compiles(fortran_writer(prog_psyir))
+    # Cannot compile this because we still have a wildcard import from my_mod.
+    output = fortran_writer(prog_psyir)
+    assert "use my_mod, old_my_sub_1=>my_sub" in output
+
+
+def test_mod_inline_all_calls_updated(monkeypatch, fortran_reader):
+    '''
+    Check that all Calls to a RoutineSymbol in scope at the Container level
+    are updated by the transformation.
+
+    '''
+    # Create the module containing the subroutine definition.
+    make_external_module(monkeypatch, fortran_reader, "my_mod",
+                         '''\
+    module my_mod
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = 1.0
+      end subroutine my_sub
+    end module my_mod
+    ''')
+
+    intrans = KernelModuleInlineTrans()
+    # The named import of the routine ensures the RoutineSymbol is in
+    # the table of the Container.
+    code = '''\
+    module this_mod
+      use my_mod, only: my_sub
+    contains
+      subroutine do_it()
+        real, dimension(10) :: a
+        call my_sub(a)
+      end subroutine do_it
+      subroutine and_again()
+        real, dimension(10) :: b
+        call my_sub(b)
+      end subroutine and_again
+    end module this_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.children[0]
+    calls = container.walk(Call)
+    rt_sym0 = container.symbol_table.lookup("my_sub")
+    for call in calls:
+        assert call.routine.symbol is rt_sym0
+    intrans.apply(calls[0])
+    # Since all calls previously referenced the same symbol, they should now
+    # all reference the new one.
+    rt_sym1 = container.symbol_table.lookup("my_sub")
+    assert rt_sym0 is not rt_sym1
+    for call in calls:
+        assert call.routine.symbol is rt_sym1
+
+
+def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
+    '''
+    Test that module inlining proceeeds successfully when the parent
+    Container happens to contain an unresolved RoutineSymbol representing
+    the target Routine. In the usual scheme of things this should never
+    happen as the frontend will put an unresolved Symbol in the table that
+    is most local to its use.
+
+    '''
+    # Create the module containing the subroutine definition.
+    make_external_module(monkeypatch, fortran_reader, "my_mod",
+                         '''\
+    module my_mod
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = 1.0
+      end subroutine my_sub
+    end module my_mod
+    ''')
+
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    module this_mod
+      use my_mod
+    contains
+      subroutine do_it()
+        use my_mod
+        integer :: old_my_sub
+        real, dimension(10) :: a
+        call my_sub(a)
+      end subroutine do_it
+    end module this_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.children[0]
+    # As explained above, we wouldn't normally have an unresolved Symbol for
+    # the Routine in the Container scope in this situation so we artificially
+    # add one.
+    container.symbol_table.new_symbol("my_sub", symbol_type=RoutineSymbol,
+                                      interface=UnresolvedInterface())
+    calls = container.walk(Call)
+    # Workaround the fact that we don't follow wildcard imports by updating
+    # the interface of the RoutineSymbol that is the target of the call.
+    rsym = calls[0].scope.symbol_table.lookup("my_sub")
+    csym = calls[0].scope.symbol_table.lookup("my_mod")
+    rsym.interface = ImportInterface(csym)
+    intrans.apply(calls[0])
+    new_rt = container.symbol_table.lookup("my_sub")
+    assert not (new_rt.is_import or new_rt.is_unresolved)
+    ctr_sym = container.symbol_table.lookup("my_mod")
+    (isym,) = container.symbol_table.symbols_imported_from(ctr_sym)
+    assert isym.interface.orig_name == "my_sub"
