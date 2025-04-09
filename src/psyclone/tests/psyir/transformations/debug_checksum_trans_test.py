@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,12 @@
 
 ''' This module contains the tests for the DebugChecksumTrans.'''
 
+from psyclone.psyir.nodes import Routine
 from psyclone.psyir.transformations import DebugChecksumTrans
+from psyclone.tests.utilities import Compile
 
 
-def test_checksum(fortran_reader, fortran_writer):
+def test_checksum(fortran_reader, fortran_writer, tmpdir):
     ''' Test the behaviour of the debug_checksum_trans'''
 
     code = """
@@ -61,29 +63,17 @@ def test_checksum(fortran_reader, fortran_writer):
 
     DebugChecksumTrans().apply(psyir.children[0].children[0])
 
-    correct = """subroutine test()
-  integer, dimension(100) :: a
-  integer, dimension(100) :: b
-  integer, dimension(100) :: c
-  logical, dimension(100) :: f
-  integer :: i
-  integer :: d
-  integer :: PSYCLONE_INTERNAL_line_
-
-  do i = 1, 100, 1
-    a(i) = c(i) + d
-    b(i) = 2 * i
-    f(i) = .true.
-  enddo
-  PSYCLONE_INTERNAL_line_ = __LINE__
-  PRINT *, "checksums from test at line:", PSYCLONE_INTERNAL_line_ + 1
-  PRINT *, "b checksum", SUM(b)
-  PRINT *, "a checksum", SUM(a)
-
-end subroutine test
-"""
     out = fortran_writer(psyir)
-    assert out == correct
+    correct = "integer :: PSYCLONE_INTERNAL_line_"
+    assert correct in out
+    correct = """  enddo
+  PSYCLONE_INTERNAL_line_ = __LINE__
+  ! PSyclone DebugChecksumTrans-generated checksums
+  PRINT *, "PSyclone checksums from test at line:", PSYCLONE_INTERNAL_line_ + 1
+  PRINT *, "b checksum", SUM(b(:))
+  PRINT *, "a checksum", SUM(a(:))"""
+    assert correct in out
+    assert Compile(tmpdir).string_compiles(out)
 
     # Check the checksums are in the right place if there's no hierarchy of
     # nodes.
@@ -97,20 +87,68 @@ end subroutine test
     psyir = fortran_reader.psyir_from_source(code)
 
     DebugChecksumTrans().apply(psyir.children[0].children[:])
-
-    correct = """subroutine test()
-  integer, dimension(100) :: a
-  integer, dimension(100) :: b
-  integer :: PSYCLONE_INTERNAL_line_
-
-  a(:) = 1
-  b(:) = 2
-  PSYCLONE_INTERNAL_line_ = __LINE__
-  PRINT *, "checksums from test at line:", PSYCLONE_INTERNAL_line_ + 1
-  PRINT *, "b checksum", SUM(b)
-  PRINT *, "a checksum", SUM(a)
-
-end subroutine test
-"""
     out = fortran_writer(psyir)
-    assert correct == out
+
+    correct = "integer :: PSYCLONE_INTERNAL_line_"
+    assert correct in out
+    correct = """PSYCLONE_INTERNAL_line_ = __LINE__
+  ! PSyclone DebugChecksumTrans-generated checksums
+  PRINT *, "PSyclone checksums from test at line:", PSYCLONE_INTERNAL_line_ + 1
+  PRINT *, "b checksum", SUM(b(:))
+  PRINT *, "a checksum", SUM(a(:))
+"""
+    assert correct in out
+    assert Compile(tmpdir).string_compiles(out)
+
+    # Check non-checksum types are excluded.
+    code = """
+    module my_mod
+        type :: superval
+            integer :: j(100)
+        end type
+        type :: vals
+          integer :: i(100)
+          real :: x(100)
+          character :: b(100)
+          type(superval) :: s
+        end type
+        contains
+        subroutine test_sub
+            type(vals) :: values
+            type(vals) :: values2(2)
+            character, dimension(100) :: char_array
+            logical, dimension(100) :: logicals
+            values%i(:) = 1
+            values%x(:) = 2.0
+            values%s%j(100) = 1
+            values2(1)%i(:) = 1
+            values%b(:) = "a"
+            logicals(:) = .true.
+            char_array(:) = "b"
+        end subroutine
+    end module
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    DebugChecksumTrans().apply(psyir.walk(Routine)[0].children[:])
+    out = fortran_writer(psyir)
+    correct = """char_array(:) = 'b'
+    PSYCLONE_INTERNAL_line_ = __LINE__
+    ! PSyclone DebugChecksumTrans-generated checksums
+    PRINT *, "PSyclone checksums from test_sub at line:", \
+PSYCLONE_INTERNAL_line_ + 1
+    PRINT *, "values2%i checksum", SUM(values2(1) % i(1 : 100))
+    PRINT *, "values%s%j checksum", SUM(values % s % j(1 : 100))
+    PRINT *, "values%x checksum", SUM(values % x(1 : 100))
+    PRINT *, "values%i checksum", SUM(values % i(1 : 100))"""
+    assert correct in out
+
+    # Check Unknown types are exlcuded
+    code = """subroutine test()
+    use my_mod
+
+    something(:) = 1
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    DebugChecksumTrans().apply(psyir.walk(Routine)[0].children[:])
+    out = fortran_writer(psyir)
+    assert "! PSyclone DebugChecksumTrans-generated checksums" not in out

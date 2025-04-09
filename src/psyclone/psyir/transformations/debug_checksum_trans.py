@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,18 +37,21 @@
 
 from typing import Union, List
 
-from psyclone.core import VariablesAccessInfo
-from psyclone.psyir.nodes import Assignment, Node, Reference, Routine
-from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import Assignment, Node, Reference, Routine
+from psyclone.psyir.nodes.structure_accessor_mixin import (
+    StructureAccessorMixin
+)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, PreprocessorInterface, ScalarType
 )
+from psyclone.psyir.transformations.region_trans import RegionTrans
 
 
 class DebugChecksumTrans(RegionTrans):
     '''
-    Creates a set of checksums (written via print) for all written to arrays
+    Creates a set of checksums (written via print) for all written arrays
     inside the provided region.
 
     For example:
@@ -84,83 +87,119 @@ class DebugChecksumTrans(RegionTrans):
         enddo
       enddo
       PSYCLONE_INTERNAL_line_ = __LINE__
-      PRINT *, "checksums from mysubroutine at line:", PSYCLONE_INTERNAL_line_\
-+ 1
+      PRINT *, "PSyclone checksums from mysubroutine at line:", \
+PSYCLONE_INTERNAL_line_ + 1
       PRINT *, "a checksum", SUM(a)
     <BLANKLINE>
     end subroutine mysubroutine
     <BLANKLINE>
 
     '''
-
     def apply(self, node: Union[Node, List[Node]], options=None) -> None:
         '''
-            Applies the checksum transformation to the provided node(s).
+        Applies the checksum transformation to the provided node(s).
 
-            :param nodes: The node or list of nodes to apply the
-                          transformation to.
-            :param options: a dictionary with options for transformations.
-            :type options: Optional[Dict[str, Any]]
+        :param node: The node or list of nodes to apply the
+                      transformation to.
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node)
+        self.validate(node, options={"node-type-check": False})
 
         node_list = self.get_node_list(node)
+        routine = node_list[0].ancestor(Routine)
+        routine_table = routine.symbol_table
 
-        # Find all the writes.
-        vai = VariablesAccessInfo(node_list)
-
+        fwriter = FortranWriter()
         writes = []
-        for sig in vai.all_data_accesses:
-            if vai.is_written(sig) and vai[sig].is_array():
-                sym = vai[sig].all_accesses[0].node.symbol
-                if (isinstance(sym, DataSymbol) and sym.datatype.intrinsic in
+        # Loop over the assignments in the region
+        assigns = []
+        for node in node_list:
+            assigns.extend(node.walk(Assignment))
+        # Loop through the assignments and find the arrays
+        for assign in assigns:
+            if isinstance(assign.lhs, StructureAccessorMixin):
+                # Find the last member.
+                member = assign.lhs.member
+                while isinstance(member, StructureAccessorMixin):
+                    member = member.member
+                datatype = assign.lhs.datatype
+                while not isinstance(datatype, ScalarType):
+                    datatype = datatype.datatype
+                if (member.is_array and datatype.intrinsic in
                         [ScalarType.Intrinsic.REAL,
                          ScalarType.Intrinsic.INTEGER]):
-                    writes.append(sym)
+                    writes.append(assign.lhs)
+            elif (assign.lhs.is_array and assign.lhs.datatype.intrinsic in
+                  [ScalarType.Intrinsic.REAL, ScalarType.Intrinsic.INTEGER]):
+                writes.append(assign.lhs)
+
         # For each write, add a checksum after.
         checksum_nodes = []
         freader = FortranReader()
-        for sym in writes:
-            sym_name = sym.name
+        for lhs in writes:
+            # Need to convert the lhs to a full range variant.
+            copy = lhs.copy()
+            name, _ = copy.get_signature_and_indices()
+            if isinstance(name, list):
+                name = "%".join(name)
+            if isinstance(lhs, StructureAccessorMixin):
+                member = copy.member
+                while isinstance(member, StructureAccessorMixin):
+                    member = member.member
+                datatype = assign.lhs.datatype
+                for i in range(len(member.indices)):
+                    new_index = member.get_full_range(i)
+                    member.indices[i].replace_with(new_index)
+                array = fwriter(copy)
+            else:
+                for i in range(len(copy.indices)):
+                    new_index = copy.get_full_range(i)
+                    copy.indices[i].replace_with(new_index)
+                array = fwriter(copy)
+
             checksum = freader.psyir_from_statement(
-                    f'print *, "{sym_name} checksum", SUM({sym_name})',
+                    f'print *, "{name} checksum", SUM({array})',
                     node_list[0].ancestor(Routine).symbol_table)
             # Remove the comment about this being a code block.
             checksum.preceding_comment = ""
             checksum_nodes.append(checksum)
 
-        # Find the last node in the region
-        depth = 10000000
-        position = -1
-        for node in node_list:
-            if node.depth < depth:
-                depth = node.depth
-                position = node.position
-            elif node.depth == depth and node.position > position:
-                position = node.position
+        # If we didn't add any checksums then stop.
+        # TODO #11: Add logging that we asked for checksums but didn't add
+        # any.
+        if len(checksum_nodes) == 0:
+            return
 
-        parent = node.parent
+        # Find the position of the last node in the region
+        position = node_list[-1].position
+
+        parent = node_list[-1].parent
         for node in checksum_nodes:
             parent.addchild(node, position+1)
 
-        internal_line = \
-            node_list[0].ancestor(Routine).symbol_table.find_or_create(
+        # Add a symbol to store the line number in PSyclone. This is needed as
+        # fparser can't process __LINE__, so we can't use that in the print
+        # statement. Instead we create an assignment with this symbol and
+        # __LINE__, and use the internal symbol to create the print statement.
+        internal_line = routine_table.find_or_create(
                 "PSYCLONE_INTERNAL_line_", symbol_type=DataSymbol,
                 datatype=INTEGER_TYPE,
                 )
-        line = node_list[0].ancestor(Routine).symbol_table.find_or_create(
+        line = routine_table.find_or_create(
                 "__LINE__", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
                 interface=PreprocessorInterface())
         # Tell us where we are to output the checksums.
         explanation_statement = freader.psyir_from_statement(
-                f'print *, "checksums from '
+                f'print *, "PSyclone checksums from '
                 f'{node_list[0].ancestor(Routine).name} at line:"'
                 f', PSYCLONE_INTERNAL_line_ + 1',
-                node_list[0].ancestor(Routine).symbol_table
+                routine_table
                 )
         # Remove the comment about this being a code block.
-        explanation_statement.preceding_comment = ""
+        explanation_statement.preceding_comment = \
+            "PSyclone DebugChecksumTrans-generated checksums"
         assign = Assignment.create(Reference(internal_line), Reference(line))
         parent.addchild(explanation_statement, position+1)
         parent.addchild(assign, position+1)
