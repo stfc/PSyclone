@@ -232,7 +232,7 @@ def valid_acc_kernel(node):
             # if they themselves contain several 2D loops.
             # In general, this heuristic will depend upon how many levels the
             # model configuration will contain.
-            child = enode.loop_body[0]
+            child = enode.loop_body[0] if enode.loop_body.children else None
             if isinstance(child, Loop) and child.loop_type == "levels":
                 # We have a loop around a loop over levels
                 log_msg(routine_name, "Loop is around a loop over levels",

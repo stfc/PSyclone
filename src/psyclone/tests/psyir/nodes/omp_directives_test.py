@@ -58,7 +58,7 @@ from psyclone.psyir.nodes import (
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause,
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective,
     OMPAtomicDirective, OMPFirstprivateClause, OMPSimdDirective,
-    StructureReference, IfBlock, OMPTeamsLoopDirective)
+    StructureReference, IfBlock, OMPTeamsLoopDirective, OMPBarrierDirective)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, SymbolTable, ArrayType, RoutineSymbol,
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, StructureType,
@@ -293,6 +293,22 @@ def test_ompdo_constructor():
     assert ompdo.collapse == 4
     assert ompdo.reprod
     assert str(ompdo) == "OMPDoDirective[omp_schedule=dynamic,collapse=4]"
+
+    # Constructor with nowait parameter
+    ompdo = OMPDoDirective(nowait=True)
+    assert ompdo.nowait
+    assert ompdo.end_string() == "omp end do nowait"
+
+
+def test_omp_do_directive_nowait_setter():
+    ''' Test the OMPDoDirective nowait property setter.'''
+    ompdo = OMPDoDirective()
+    ompdo.nowait = True
+
+    with pytest.raises(TypeError) as err:
+        ompdo.nowait = "string"
+    assert ("The OMPDoDirective nowait clause must be a bool, but value "
+            "'string' has been given." in str(err.value))
 
 
 def test_omp_do_directive_collapse_getter_and_setter():
@@ -1203,31 +1219,46 @@ def test_omp_master_nested_validate_global_constraints(monkeypatch):
             "region") in str(excinfo.value)
 
 
-def test_omptaskwait_strings():
-    ''' Test the begin_string and method of the OMPTaskwait directive '''
-    taskwait = OMPTaskwaitDirective()
+def test_omp_barrier_strings():
+    ''' Test the begin_string method of the OMPBarrierDirective.'''
+    barrier = OMPBarrierDirective()
 
-    assert taskwait.begin_string() == "omp taskwait"
+    assert barrier.begin_string() == "omp barrier"
 
 
-def test_omp_taskwait_validate_global_constraints():
-    ''' Test the validate_global_constraints method of the OMPTaskwait
+def test_omp_barrier_validate_global_constraints():
+    ''' Test the validate_global_constraints method of the OMPBarrier
         directive '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="lfric")
     psy = PSyFactory("lfric", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    taskwait = OMPTaskwaitDirective()
-    schedule.addchild(taskwait, 0)
+    barrier = OMPBarrierDirective()
+    schedule.addchild(barrier, 0)
     with pytest.raises(GenerationError) as excinfo:
-        taskwait.validate_global_constraints()
-    assert ("OMPTaskwaitDirective must be inside an OMP parallel region but "
+        barrier.validate_global_constraints()
+    assert ("OMPBarrierDirective must be inside an OMP parallel region but "
             "could not find an ancestor OMPParallelDirective node"
             in str(excinfo.value))
-    parallel = OMPParallelDirective.create(children=[taskwait.detach()])
-    schedule.addchild(parallel, 0)
-    taskwait.validate_global_constraints()
+    # Valid case.
+    barrier = OMPBarrierDirective()
+    parallel = OMPParallelDirective()
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    parallel.children[0].addchild(barrier)
+    schedule.addchild(parallel)
+    barrier.validate_global_constraints()
+
+
+def test_omptaskwait_strings():
+    ''' Test the begin_string method of the OMPTaskwait directive '''
+    taskwait = OMPTaskwaitDirective()
+
+    assert taskwait.begin_string() == "omp taskwait"
 
 
 def test_omp_taskwait_clauses():
@@ -1333,6 +1364,23 @@ def test_omp_target_directive_constructor_and_strings():
     assert target.end_string() == "omp end target"
     assert str(target) == "OMPTargetDirective[]"
 
+    target = OMPTargetDirective(nowait=True)
+    assert target.begin_string() == "omp target nowait"
+
+
+def test_omp_target_nowait_getter_setter():
+    ''' Test the OMPTargetDirective nowait getter and setter. '''
+    target = OMPTargetDirective()
+    target.nowait = True
+    assert target.nowait
+    target.nowait = False
+    assert not target.nowait
+
+    with pytest.raises(TypeError) as excinfo:
+        target.nowait = 1
+    assert ("The OMPTargetDirective nowait clause must be a bool, "
+            "but value '1' has been given." in str(excinfo.value))
+
 
 # Test OMPDeclareTargetDirective
 
@@ -1382,6 +1430,17 @@ def test_omp_teamsloop_directive_constructor_and_strings():
     assert str(omploop) == "OMPTeamsLoopDirective[collapse=4]"
 
 
+def test_omp_teamsloop_nowait_setter():
+    ''' Test the nowait property setter on OMPTeamsLoopDirective.'''
+    ompdo = OMPTeamsLoopDirective()
+    ompdo.nowait = True
+
+    with pytest.raises(TypeError) as err:
+        ompdo.nowait = "string"
+    assert ("The OMPTeamsLoopDirective nowait clause must be a bool, "
+            "but value 'string' has been given." in str(err.value))
+
+
 # Test OMPLoopDirective
 
 def test_omp_loop_directive_constructor_and_strings():
@@ -1397,6 +1456,21 @@ def test_omp_loop_directive_constructor_and_strings():
     assert omploop.begin_string() == "omp loop collapse(4)"
     assert omploop.end_string() == "omp end loop"
     assert str(omploop) == "OMPLoopDirective[collapse=4]"
+
+    omploop = OMPLoopDirective(nowait=True)
+    assert omploop.nowait
+    assert omploop.begin_string() == "omp loop nowait"
+
+
+def test_omp_loop_nowait_setter():
+    ''' Test the nowait property setter on OMPLoopDirective.'''
+    ompdo = OMPLoopDirective()
+    ompdo.nowait = True
+
+    with pytest.raises(TypeError) as err:
+        ompdo.nowait = "string"
+    assert ("The OMPLoopDirective nowait clause must be a bool, "
+            "but value 'string' has been given." in str(err.value))
 
 
 def test_omp_loop_directive_collapse_getter_and_setter():

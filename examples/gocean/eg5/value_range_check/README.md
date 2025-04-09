@@ -14,7 +14,7 @@ it will compile the dl_esm_inf library and the value_range_check
 wrapper library. By default, the compilation uses the version
 of the dl_esm_inf library provided as a git submodule (under
 ``../../../external/dl_esm_inf/finite_difference``- see
-https://psyclone-dev.readthedocs.io/en/latest/working_practises.html)
+https://psyclone.readthedocs.io/en/latest/developer_guide/working_practises.html)
 within the PSyclone repository. You can set the environment variable
 ``INF_DIR`` for the ``make`` command to pick a different version.
 

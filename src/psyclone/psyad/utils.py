@@ -138,5 +138,5 @@ def negate_expr(orig_expr):
 
 # =============================================================================
 # Documentation utils: The list of module members that we wish AutoAPI to
-# generate documentation for (see https://psyclone-ref.readthedocs.io).
+# generate documentation for.
 __all__ = ["node_is_active", "node_is_passive", "negate_expr"]

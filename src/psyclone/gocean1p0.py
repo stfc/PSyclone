@@ -72,9 +72,9 @@ from psyclone.psyir.nodes import (
     ACCKernelsDirective, Container, ACCUpdateDirective, Routine,
     BinaryOperation)
 from psyclone.psyir.symbols import (
-    ScalarType, INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol,
-    UnresolvedType, DataTypeSymbol, UnresolvedInterface, BOOLEAN_TYPE,
-    REAL_TYPE)
+    ImportInterface, INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol,
+    ScalarType, UnresolvedType, DataTypeSymbol, UnresolvedInterface,
+    BOOLEAN_TYPE, REAL_TYPE)
 from psyclone.psyir.tools import DependencyTools
 
 
@@ -1357,9 +1357,11 @@ class GOKernelArgument(KernelArgument):
         # Gocean scalars can be REAL or INTEGER
         if self.argument_type == "scalar":
             if self.space.lower() == "go_r_scalar":
+                csym = symtab.find_or_create("kind_params_mod",
+                                             symbol_type=ContainerSymbol)
                 go_wp = symtab.find_or_create_tag(
                     "go_wp", symbol_type=DataSymbol, datatype=UnresolvedType(),
-                    interface=UnresolvedInterface())
+                    is_constant=True, interface=ImportInterface(csym))
                 return ScalarType(ScalarType.Intrinsic.REAL, go_wp)
             if self.space.lower() == "go_i_scalar":
                 return INTEGER_TYPE

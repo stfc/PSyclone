@@ -48,7 +48,6 @@ from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.acc_directives import ACCAsyncMixin
 from psyclone.psyir.nodes import (
     ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective,
@@ -58,11 +57,11 @@ from psyclone.psyir.nodes import (
     ACCDirective)
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.symbols import (
-    Symbol, SymbolTable, DataSymbol, INTEGER_TYPE, UnresolvedType)
+    Symbol, SymbolTable, DataSymbol, INTEGER_TYPE)
 from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (
     ACCDataTrans, ACCEnterDataTrans, ACCLoopTrans,
-    ACCParallelTrans, ACCRoutineTrans, TransformationError)
+    ACCParallelTrans, ACCRoutineTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
