@@ -174,6 +174,25 @@ class AccessInfo():
         :rtype: :py:class:`psyclone.psyir.nodes.Node` '''
         return self._node
 
+    @property
+    def description(self) -> str:
+        '''
+        :returns: a textual description of this access for use in error
+                  messages.
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Statement
+        from psyclone.psyir.symbols import Symbol
+        if isinstance(self.node, Symbol):
+            text = f"the definition of Symbol '{self.node}'"
+        else:
+            stmt = self.node.ancestor(Statement, include_self=True)
+            if stmt:
+                text = f"'{stmt.debug_string()}'"
+            else:
+                text = f"'{self.node.debug_string()}'"
+        return text
+
 
 # =============================================================================
 class SingleVariableAccessInfo():
