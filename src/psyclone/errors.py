@@ -133,6 +133,18 @@ class InternalError(PSycloneError):
         self.value = "PSyclone internal error: "+str(value)
 
 
+class DocParseError(PSycloneError):
+    '''
+    PSyclone-specific exception for use when an error is found in a docstring
+    while parsing in the docstring_parser.
+
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value):
+        PSycloneError.__init__(self, value)
+        self.value = "Docstring parsing error: "+str(value)
+
+
 # For Sphinx AutoAPI documentation generation
 __all__ = ["LazyString", "PSycloneError", "GenerationError",
            "FieldNotFoundError", "InternalError"]
