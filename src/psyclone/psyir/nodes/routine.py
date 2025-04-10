@@ -415,13 +415,18 @@ class Routine(Schedule, CommentableMixin):
                 self.parent.symbol_table.rename_symbol(symbol, new_name)
             else:
                 # Check if the symbol in our own symbol table is the symbol
-                try:
-                    sym = self.symbol_table.lookup(symbol.name)
-                    if sym is self._symbol:
-                        self.symbol_table.rename_symbol(symbol, new_name)
-                except KeyError:
-                    # Symbol isn't in a symbol table so we can modify its
-                    # name freely
+                # During a copy it is possible for a Routine to not yet
+                # have a SymbolTable so allow for that.
+                if self.symbol_table:
+                    try:
+                        sym = self.symbol_table.lookup(symbol.name)
+                        if sym is self._symbol:
+                            self.symbol_table.rename_symbol(symbol, new_name)
+                    except KeyError:
+                        # Symbol isn't in a symbol table so we can modify its
+                        # name freely
+                        symbol._name = new_name
+                else:
                     symbol._name = new_name
 
     def __str__(self):
