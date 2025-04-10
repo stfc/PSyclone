@@ -273,11 +273,11 @@ class BaseDriverCreator:
                 orig_sym = original_symtab.lookup(signature[0])
                 sym = orig_sym.copy()
                 sym.interface = AutomaticInterface()
-                if symbol_table.lookup(sym.name, otherwise=None) is not None:
+                # if symbol_table.lookup(sym.name, otherwise=None) is not None:
                     # We can edit the name because we know the copied symbol is
                     # not in a symbol table yet
                     # pylint: disable=protected-access
-                    sym._name = symbol_table.next_available_name(sym.name)
+                    # sym._name = symbol_table.next_available_name(sym.name)
                 symbol_table.add(sym)
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
                 read_stmts.append((name_lit, sym))
@@ -327,3 +327,18 @@ class BaseDriverCreator:
             output_symbols.append(sym_tuple)
 
         return output_symbols
+
+    @staticmethod
+    def _make_valid_unit_name(name):
+        '''Valid program or routine names are restricted to 63 characters,
+        and no special characters like '-' (which is used when adding
+        invoke and region numbers).
+
+        :param str name: a proposed unit name.
+
+        :returns: a valid program or routine  name with special characters
+            removed and restricted to a length of 63 characters.
+        :rtype: str
+
+        '''
+        return name.replace("-", "")[:63]

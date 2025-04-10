@@ -179,22 +179,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _make_valid_unit_name(name):
-        '''Valid program or routine names are restricted to 63 characters,
-        and no special characters like '-' (which is used when adding
-        invoke and region numbers).
-
-        :param str name: a proposed unit name.
-
-        :returns: a valid program or routine  name with special characters
-            removed and restricted to a length of 63 characters.
-        :rtype: str
-
-        '''
-        return name.replace("-", "")[:63]
-
-    # -------------------------------------------------------------------------
-    @staticmethod
     def _import_modules(symbol_table, sched):
         '''This function adds all the import statements required for the
         actual kernel calls. It finds all calls in the schedule and

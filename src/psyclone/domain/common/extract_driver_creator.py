@@ -148,7 +148,7 @@ class ExtractDriverCreator(BaseDriverCreator):
         # we check that the list of nodes is what it expects. This is done
         # by invoking the validate function of the basic extract function.
         module_name, local_name = region_name
-        unit_name = f"{module_name}_{local_name}"
+        unit_name = self._make_valid_unit_name(f"{module_name}_{local_name}")
 
         # First create the file container, which will only store the program:
         file_container = FileContainer(unit_name)
