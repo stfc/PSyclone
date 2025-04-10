@@ -126,7 +126,7 @@ def test_profile_errors2():
 
 
 # -----------------------------------------------------------------------------
-def test_profile_invokes_gocean1p0():
+def test_profile_invokes_gocean1p0(fortran_writer):
     '''Check that an invoke is instrumented correctly
     '''
     Profiler.set_options([Profiler.INVOKES], "gocean")
@@ -136,16 +136,16 @@ def test_profile_invokes_gocean1p0():
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
-    code = str(invoke.gen()).replace("\n", "")
+    code = fortran_writer(invoke.schedule).replace("\n", "")
 
     # First a simple test that the nesting is correct - the
     # profile regions include both loops. Note that indeed
     # the function 'compute_cv_code' is in the module file
     # kernel_ne_offset_mod.
     correct_re = ("subroutine invoke.*"
-                  "use profile_psy_data_mod, ONLY: profile_PSyDataType.*"
-                  r"TYPE\(profile_PsyDataType\), target, save :: profile_"
-                  r"psy_data.*call profile_psy_data%PreStart\(\"psy_single_"
+                  "use profile_psy_data_mod, only : profile_PSyDataType.*"
+                  r"type\(profile_PsyDataType\), save, target :: profile_"
+                  r"psy_data.*call profile_psy_data % PreStart\(\"psy_single_"
                   r"invoke_different_iterates_over\", \"invoke_0-r0\", 0, "
                   r"0\).*"
                   "do j.*"
@@ -153,12 +153,12 @@ def test_profile_invokes_gocean1p0():
                   "call.*"
                   "end.*"
                   "end.*"
-                  r"call profile_psy_data%PostEnd")
+                  r"call profile_psy_data % PostEnd")
     assert re.search(correct_re, code, re.I) is not None
 
     # Check that if gen() is called more than once the same profile
     # variables and region names are created:
-    code_again = str(invoke.gen()).replace("\n", "")
+    code_again = fortran_writer(invoke.schedule).replace("\n", "")
     assert code == code_again
 
     # Test that two kernels in one invoke get instrumented correctly.
@@ -168,13 +168,13 @@ def test_profile_invokes_gocean1p0():
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
-    code = str(invoke.gen()).replace("\n", "")
+    code = fortran_writer(invoke.schedule).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profile_psy_data_mod, only: profile_PSyDataType.*"
-                  r"TYPE\(profile_PSyDataType\), target, save :: "
+                  "use profile_psy_data_mod, only : profile_PSyDataType.*"
+                  r"type\(profile_PSyDataType\), save, target :: "
                   "profile_psy_data.*"
-                  r"call profile_psy_data%PreStart\(\"psy_single_invoke_two"
+                  r"call profile_psy_data % PreStart\(\"psy_single_invoke_two"
                   r"_kernels\", \"invoke_0-r0\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
@@ -186,13 +186,13 @@ def test_profile_invokes_gocean1p0():
                   "call.*"
                   "end.*"
                   "end.*"
-                  r"call profile_psy_data%PostEnd")
+                  r"call profile_psy_data % PostEnd")
     assert re.search(correct_re, code, re.I) is not None
     Profiler._options = []
 
 
 # -----------------------------------------------------------------------------
-def test_unique_region_names():
+def test_unique_region_names(fortran_writer):
     '''Test that unique region names are created even when the kernel
     names are identical.'''
 
@@ -204,18 +204,18 @@ def test_unique_region_names():
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
 
-    code = str(invoke.gen()).replace("\n", "")
+    code = fortran_writer(invoke.schedule).replace("\n", "")
 
     # This regular expression puts the region names into groups.
     # Make sure that the created regions have different names, even
     # though the kernels have the same name.
     correct_re = ("subroutine invoke.*"
-                  "use profile_psy_Data_mod, only: profile_PSyDataType.*"
-                  r"TYPE\(profile_PSyDataType\), target, save :: "
+                  "use profile_psy_Data_mod, only : profile_PSyDataType.*"
+                  r"type\(profile_PSyDataType\), save, target :: "
                   "profile_psy_data.*"
-                  r"TYPE\(profile_PSyDataType\), target, save :: "
+                  r"type\(profile_PSyDataType\), save, target :: "
                   "profile_psy_data.*"
-                  r"call profile_psy_data.*%PreStart\(\"psy_single_invoke_two"
+                  r"call profile_psy_data.*% PreStart\(\"psy_single_invoke_two"
                   r"_kernels\", "
                   r"\"invoke_0-compute_cu_code-r0\", 0, 0\).*"
                   "do j.*"
@@ -223,21 +223,20 @@ def test_unique_region_names():
                   "call compute_cu_code.*"
                   "end.*"
                   "end.*"
-                  r"call profile_psy_data.*%PostEnd.*"
-                  r"call profile_psy_data.*%PreStart\(\"psy_single_invoke_two_"
-                  r"kernels\", \"invoke_0-compute_cu_code-r1\", 0, 0\).*"
+                  r"call profile_psy_data.*% PostEnd.*"
+                  r"call profile_psy_data.*% PreStart\(\"psy_single_invoke_"
+                  r"two_kernels\", \"invoke_0-compute_cu_code-r1\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call compute_cu_code.*"
                   "end.*"
                   "end.*"
-                  r"call profile_psy_data.*%PostEnd")
-
+                  r"call profile_psy_data.*% PostEnd")
     assert re.search(correct_re, code, re.I) is not None
 
 
 # -----------------------------------------------------------------------------
-def test_profile_kernels_gocean1p0():
+def test_profile_kernels_gocean1p0(fortran_writer):
     '''Check that all kernels are instrumented correctly
     '''
     Profiler.set_options([Profiler.KERNELS], "gocean")
@@ -247,7 +246,7 @@ def test_profile_kernels_gocean1p0():
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
-    code = str(invoke.gen()).replace("\n", "")
+    code = fortran_writer(invoke.schedule).replace("\n", "")
 
     # Test that kernel profiling works in case of two kernel calls
     # in a single invoke subroutine - i.e. we need to have one profile
@@ -257,27 +256,27 @@ def test_profile_kernels_gocean1p0():
     # the name could be changed to avoid duplicates (depending on order
     # in which the tests are executed).
     correct_re = ("subroutine invoke.*"
-                  "use profile_psy_data_mod, only: profile_PSyDataType.*"
-                  r"TYPE\(profile_PSyDataType\), target, save :: "
+                  "use profile_psy_data_mod, only : profile_PSyDataType.*"
+                  r"type\(profile_PSyDataType\), save, target :: "
                   "profile_psy_data.*"
-                  r"TYPE\(profile_PSyDataType\), target, save :: "
+                  r"type\(profile_PSyDataType\), save, target :: "
                   "profile_psy_data.*"
-                  r"call (?P<profile1>\w*)%PreStart\(\"psy_single_invoke_two"
+                  r"call (?P<profile1>\w*) % PreStart\(\"psy_single_invoke_two"
                   r"_kernels\", \"invoke_0-compute_cu_code-r0\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
                   "end.*"
                   "end.*"
-                  r"call (?P=profile1)%PostEnd.*"
-                  r"call (?P<profile2>\w*)%PreStart\(\"psy_single_invoke_two"
+                  r"call (?P=profile1) % PostEnd.*"
+                  r"call (?P<profile2>\w*) % PreStart\(\"psy_single_invoke_two"
                   r"_kernels\", \"invoke_0-time_smooth_code-r1\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
                   "end.*"
                   "end.*"
-                  r"call (?P=profile2)%PostEnd")
+                  r"call (?P=profile2) % PostEnd")
     groups = re.search(correct_re, code, re.I)
     assert groups is not None
     assert groups.group(1) != groups.group(2)
@@ -286,7 +285,7 @@ def test_profile_kernels_gocean1p0():
 
 
 # -----------------------------------------------------------------------------
-def test_profile_named_gocean1p0():
+def test_profile_named_gocean1p0(fortran_writer):
     '''Check that the gocean 1.0 API is instrumented correctly when the
     profile name is supplied by the user.
 
@@ -297,14 +296,14 @@ def test_profile_named_gocean1p0():
     profile_trans = ProfileTrans()
     options = {"region_name": (psy.name, invoke.name)}
     profile_trans.apply(schedule.children, options=options)
-    result = str(invoke.gen())
-    assert ("CALL profile_psy_data%PreStart("
+    result = fortran_writer(invoke.schedule)
+    assert ("CALL profile_psy_data % PreStart("
             "\"psy_single_invoke_different_iterates_over\", "
             "\"invoke_0\", 0, 0)") in result
 
 
 # -----------------------------------------------------------------------------
-def test_profile_invokes_dynamo0p3():
+def test_profile_invokes_dynamo0p3(fortran_writer):
     '''Check that a Dynamo 0.3 invoke is instrumented correctly
     '''
     Profiler.set_options([Profiler.INVOKES], "lfric")
@@ -315,18 +314,18 @@ def test_profile_invokes_dynamo0p3():
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
-    code = str(invoke.gen()).replace("\n", "")
+    code = fortran_writer(invoke.schedule).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profile_psy_data_mod, only: profile_PSyDataType.*"
-                  r"TYPE\(profile_PSyDataType\), target, save :: "
+                  "use profile_psy_data_mod, only : profile_PSyDataType.*"
+                  r"type\(profile_PSyDataType\), save, target :: "
                   "profile_psy_data.*"
-                  r"call profile_psy_data%PreStart\(\"single_invoke_psy\", "
+                  r"call profile_psy_data % PreStart\(\"single_invoke_psy\", "
                   r"\"invoke_0_testkern_type-testkern_code-r0\", 0, 0\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  r"call profile_psy_data%PostEnd")
+                  r"call profile_psy_data % PostEnd")
     assert re.search(correct_re, code, re.I) is not None
 
     # Next test two kernels in one invoke:
@@ -334,15 +333,15 @@ def test_profile_invokes_dynamo0p3():
     Profiler.add_profile_nodes(invoke.schedule, Loop)
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
-    code = str(invoke.gen()).replace("\n", "")
+    code = fortran_writer(invoke.schedule).replace("\n", "")
 
     # The .* after testkern_code is necessary since the name can be changed
     # by PSyclone to avoid name duplications.
     correct_re = ("subroutine invoke.*"
-                  "use profile_psy_data_mod, only: profile_PSyDataType.*"
-                  r"TYPE\(profile_PSyDataType\), target, save :: "
+                  "use profile_psy_data_mod, only : profile_PSyDataType.*"
+                  r"type\(profile_PSyDataType\), save, target :: "
                   "profile_psy_data.*"
-                  r"call profile_psy_data%PreStart\(\"multi_invoke_psy\", "
+                  r"call profile_psy_data % PreStart\(\"multi_invoke_psy\", "
                   r"\"invoke_0-r0.*\", 0, 0\).*"
                   "do cell.*"
                   "call.*"
@@ -350,25 +349,25 @@ def test_profile_invokes_dynamo0p3():
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  r"call profile_psy_data%PostEnd")
+                  r"call profile_psy_data % PostEnd")
     assert re.search(correct_re, code, re.I) is not None
 
     # Lastly, test an invoke whose first kernel is a builtin
     _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
-    code = str(invoke.gen())
-    assert "USE profile_psy_data_mod, ONLY: profile_PSyDataType" in code
-    assert "TYPE(profile_PSyDataType), target, save :: profile_psy_data" \
+    code = fortran_writer(invoke.schedule)
+    assert "use profile_psy_data_mod, only : profile_PSyDataType" in code
+    assert "type(profile_PSyDataType), save, target :: profile_psy_data" \
         in code
-    assert "CALL profile_psy_data%PreStart(\"single_invoke_psy\", "\
+    assert "CALL profile_psy_data % PreStart(\"single_invoke_psy\", "\
            "\"invoke_0-x_plus_y-r0\", 0, 0)" in code
-    assert "CALL profile_psy_data%PostEnd" in code
+    assert "CALL profile_psy_data % PostEnd" in code
 
     Profiler._options = []
 
 
 # -----------------------------------------------------------------------------
-def test_profile_kernels_dynamo0p3():
+def test_profile_kernels_dynamo0p3(fortran_writer):
     '''Check that all kernels are instrumented correctly in a
     Dynamo 0.3 invoke.
     '''
@@ -378,50 +377,35 @@ def test_profile_kernels_dynamo0p3():
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
-    code = str(invoke.gen()).replace("\n", "")
+    code = fortran_writer(invoke.schedule).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profile_psy_data_mod, only: profile_PSyDataType.*"
-                  r"TYPE\(profile_PSyDataType\), target, save :: "
+                  "use profile_psy_data_mod, only : profile_PSyDataType.*"
+                  r"type\(profile_PSyDataType\), save, target :: "
                   "profile_psy_data.*"
-                  r"call profile_psy_data%PreStart\(\"single_invoke_psy\", "
+                  r"CALL profile_psy_data % PreStart\(\"single_invoke_psy\", "
                   r"\"invoke_0_testkern_type-testkern_code-r0.*\", 0, 0\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  r"call profile_psy_data%PostEnd")
+                  r"CALL profile_psy_data % PostEnd")
     assert re.search(correct_re, code, re.I) is not None
 
     _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
-    # Convert the invoke to code, and remove all new lines, to make
-    # regex matching easier
-    code = str(invoke.gen()).replace("\n", "")
+    # Convert the invoke to code
+    code = fortran_writer(invoke.schedule)
 
-    correct_re = ("subroutine invoke.*"
-                  "use profile_psy_data_mod, only: profile_PSyDataType.*"
-                  r"TYPE\(profile_PSyDataType\), target, save :: "
-                  r"(?P<profile2>\w*) .*"
-                  r"TYPE\(profile_PSyDataType\), target, save :: "
-                  r"(?P<profile1>\w*) .*"
-                  r"call (?P=profile1)%PreStart\(\"multi_invoke_psy\", "
-                  r"\"invoke_0-testkern_code-r0\", 0, 0\).*"
-                  "do cell.*"
-                  "call.*"
-                  "end.*"
-                  r"call (?P=profile1)%PostEnd.*"
-                  r"call (?P=profile2)%PreStart\(\"multi_invoke_psy\", "
-                  r"\"invoke_0-testkern_code-r1\", 0, 0\).*"
-                  "do cell.*"
-                  "call.*"
-                  "end.*"
-                  r"call (?P=profile2)%PostEnd")
-
-    groups = re.search(correct_re, code, re.I)
-    assert groups is not None
     # Check that the variables are different
-    assert groups.group(1) != groups.group(2)
+    assert ("type(profile_PSyDataType), save, target :: profile_psy_data\n"
+            in code)
+    assert ("type(profile_PSyDataType), save, target :: profile_psy_data_1\n"
+            in code)
+    assert ("CALL profile_psy_data % PreStart(\"multi_invoke_psy\", "
+            "\"invoke_0-testkern_code-r0\", 0, 0)" in code)
+    assert ("CALL profile_psy_data_1 % PreStart(\"multi_invoke_psy\", "
+            "\"invoke_0-testkern_code-r1\", 0, 0)" in code)
 
     Profiler._options = []
 
@@ -433,25 +417,25 @@ def test_profile_fused_kernels_dynamo0p3():
     one Kernel inside a loop).
     '''
     Profiler.set_options([Profiler.KERNELS], "lfric")
-    _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0,
-                           dist_mem=False)
+    psy, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0,
+                             dist_mem=False)
 
     fuse_trans = LFRicLoopFuseTrans()
     loops = invoke.schedule.walk(Loop)
     fuse_trans.apply(loops[0], loops[1])
     Profiler.add_profile_nodes(invoke.schedule, Loop)
-    code = str(invoke.gen())
+    code = psy.gen
     expected = '''\
-      CALL profile_psy_data%PreStart("multi_invoke_psy", "invoke_0-r0", 0, 0)
-      DO cell = loop0_start, loop0_stop, 1
-        CALL testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, m2_data, \
+    CALL profile_psy_data % PreStart("multi_invoke_psy", "invoke_0-r0", 0, 0)
+    do cell = loop0_start, loop0_stop, 1
+      call testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, m2_data, \
 ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
 undf_w3, map_w3(:,cell))
-        CALL testkern_code(nlayers_f1, a, f1_data, f3_data, m2_data, m1_data, \
+      call testkern_code(nlayers_f1, a, f1_data, f3_data, m2_data, m1_data, \
 ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
 undf_w3, map_w3(:,cell))
-      END DO
-      CALL profile_psy_data%PostEnd
+    enddo
+    CALL profile_psy_data % PostEnd
 '''
     assert expected in code
 
@@ -484,24 +468,24 @@ def test_profile_kernels_in_directive_dynamo0p3():
     Check that a kernel is instrumented correctly if it is within a directive.
     '''
     Profiler.set_options([Profiler.KERNELS], "lfric")
-    _, invoke = get_invoke("1_single_invoke_w3.f90", "lfric", idx=0,
-                           dist_mem=False)
+    psy, invoke = get_invoke("1_single_invoke_w3.f90", "lfric", idx=0,
+                             dist_mem=False)
     ktrans = ACCKernelsTrans()
     loop = invoke.schedule.walk(Loop)[0]
     ktrans.apply(loop)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
-    code = str(invoke.gen())
+    code = psy.gen
     expected = '''\
-      CALL profile_psy_data%PreStart("single_invoke_w3_psy", \
+    CALL profile_psy_data % PreStart("single_invoke_w3_psy", \
 "invoke_0_testkern_w3_type-testkern_w3_code-r0", 0, 0)
-      !$acc kernels
-      DO cell = loop0_start, loop0_stop, 1
+    !$acc kernels
+    do cell = loop0_start, loop0_stop, 1
 '''
     assert expected in code
 
 
 # -----------------------------------------------------------------------------
-def test_profile_named_dynamo0p3():
+def test_profile_named_dynamo0p3(fortran_writer):
     '''Check that the Dynamo 0.3 API is instrumented correctly when the
     profile name is supplied by the user.
 
@@ -511,8 +495,8 @@ def test_profile_named_dynamo0p3():
     profile_trans = ProfileTrans()
     options = {"region_name": (psy.name, invoke.name)}
     profile_trans.apply(schedule.children, options=options)
-    result = str(invoke.gen())
-    assert ("CALL profile_psy_data%PreStart(\"single_invoke_psy\", "
+    result = fortran_writer(invoke.schedule)
+    assert ("CALL profile_psy_data % PreStart(\"single_invoke_psy\", "
             "\"invoke_0_testkern_type\", 0, 0)") in result
 
 
@@ -616,7 +600,7 @@ def test_transform_errors():
 
 
 # -----------------------------------------------------------------------------
-def test_region():
+def test_region(fortran_writer):
     ''' Tests that the profiling transform works correctly when a region of
     code is specified that does not cover the full invoke and also
     contains multiple kernels.
@@ -630,22 +614,22 @@ def test_region():
     prt.apply(schedule[0:4])
     # Two loops.
     prt.apply(schedule[1:3])
-    result = str(invoke.gen())
-    assert ("CALL profile_psy_data%PreStart(\"multi_functions_multi_invokes_"
+    result = fortran_writer(invoke.schedule)
+    assert ("CALL profile_psy_data % PreStart(\"multi_functions_multi_invokes_"
             "psy\", \"invoke_0-r0\", 0, 0)" in result)
-    assert ("CALL profile_psy_data_1%PreStart(\"multi_functions_multi_"
+    assert ("CALL profile_psy_data_1 % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r1\", 0, 0)" in result)
     # Make nested profiles.
     prt.apply(schedule[1].psy_data_body[1])
     prt.apply(schedule)
-    result = str(invoke.gen())
-    assert ("CALL profile_psy_data_3%PreStart(\"multi_functions_multi_"
+    result = fortran_writer(invoke.schedule)
+    assert ("CALL profile_psy_data_3 % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r0\", 0, 0)" in result)
-    assert ("CALL profile_psy_data%PreStart(\"multi_functions_multi_"
+    assert ("CALL profile_psy_data % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r1\", 0, 0)" in result)
-    assert ("CALL profile_psy_data_1%PreStart(\"multi_functions_multi_"
+    assert ("CALL profile_psy_data_1 % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r2\", 0, 0)" in result)
-    assert ("CALL profile_psy_data_2%PreStart(\"multi_functions_multi_"
+    assert ("CALL profile_psy_data_2 % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-testkern_code-r3\", 0, 0)" in result)
 
 
@@ -655,8 +639,8 @@ def test_multi_prefix_profile(monkeypatch):
     different profiling tools in the same invoke.
 
     '''
-    _, invoke = get_invoke("3.1_multi_functions_multi_invokes.f90",
-                           "lfric", name="invoke_0", dist_mem=True)
+    psy, invoke = get_invoke("3.1_multi_functions_multi_invokes.f90",
+                             "lfric", name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
     prt = ProfileTrans()
     config = Config.get()
@@ -667,34 +651,32 @@ def test_multi_prefix_profile(monkeypatch):
     prt.apply(schedule[0:4], options={"prefix": "tool1"})
     # Use the default prefix for the two loops.
     prt.apply(schedule[1:3])
-    result = str(invoke.gen())
+    result = psy.gen
 
-    assert ("      USE profile_psy_data_mod, ONLY: profile_PSyDataType\n" in
+    assert ("  use profile_psy_data_mod, only : profile_PSyDataType\n" in
             result)
-    assert "      USE tool1_psy_data_mod, ONLY: tool1_PSyDataType" in result
-    assert ("      TYPE(profile_PSyDataType), target, save :: "
-            "profile_psy_data\n"
-            "      TYPE(tool1_PSyDataType), target, save :: tool1_psy_data"
+    assert "  use tool1_psy_data_mod, only : tool1_PSyDataType" in result
+    assert ("  type(profile_PSyDataType), save, target :: "
+            "profile_psy_data\n" in result)
+    assert ("  type(tool1_PSyDataType), save, target :: tool1_psy_data"
             in result)
-    assert ("      ! Call kernels and communication routines\n"
-            "      !\n"
-            "      CALL tool1_psy_data%PreStart(\"multi_functions_multi_"
+    assert (
+            "    CALL tool1_psy_data % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r0\", 0, 0)\n"
-            "      IF (f1_proxy%is_dirty(depth=1)) THEN\n" in result)
+            "    if (f1_proxy%is_dirty(depth=1)) then\n" in result)
     assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in result
     assert "loop2_stop = mesh%get_last_halo_cell(1)\n" in result
-    assert ("      CALL tool1_psy_data%PostEnd\n"
-            "      CALL profile_psy_data%PreStart(\"multi_functions_multi_"
+    assert ("    CALL tool1_psy_data % PostEnd\n"
+            "    CALL profile_psy_data % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r1\", 0, 0)\n"
-            "      DO cell = loop0_start, loop0_stop, 1\n" in result)
-    assert ("      CALL f1_proxy%set_dirty()\n"
-            "      !\n"
-            "      CALL profile_psy_data%PostEnd\n"
-            "      DO cell = loop2_start, loop2_stop, 1\n" in result)
+            "    do cell = loop0_start, loop0_stop, 1\n" in result)
+    assert ("    call f1_proxy%set_dirty()\n"
+            "    CALL profile_psy_data % PostEnd\n"
+            "    do cell = loop2_start, loop2_stop, 1\n" in result)
 
 
 # -----------------------------------------------------------------------------
-def test_omp_transform():
+def test_omp_transform(fortran_writer):
     '''Tests that the profiling transform works correctly with OMP
      parallelisation.'''
 
@@ -712,43 +694,43 @@ def test_omp_transform():
     prt.apply(schedule[0])
 
     correct = (
-        "      CALL profile_psy_data%PreStart(\"psy_test27_loop_swap\", "
+        "  CALL profile_psy_data % PreStart(\"psy_test27_loop_swap\", "
         "\"invoke_loop1-bc_ssh_code-r0\", 0, 0)\n"
-        "      !$omp parallel default(shared), private(i,j)\n"
-        "      !$omp do schedule(static)\n"
-        "      DO j = t%internal%ystart, t%internal%ystop, 1\n"
-        "        DO i = t%internal%xstart, t%internal%xstop, 1\n"
-        "          CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      !$omp end do\n"
-        "      !$omp end parallel\n"
-        "      CALL profile_psy_data%PostEnd")
-    code = str(invoke.gen())
+        "  !$omp parallel default(shared), private(i,j)\n"
+        "  !$omp do schedule(static)\n"
+        "  do j = t%internal%ystart, t%internal%ystop, 1\n"
+        "    do i = t%internal%xstart, t%internal%xstop, 1\n"
+        "      call bc_ssh_code(i, j, 1, t%data, t%grid%tmask)\n"
+        "    enddo\n"
+        "  enddo\n"
+        "  !$omp end do\n"
+        "  !$omp end parallel\n"
+        "  CALL profile_psy_data % PostEnd")
+    code = fortran_writer(invoke.schedule)
     assert correct in code
 
     # Now add another profile node between the omp parallel and omp do
     # directives:
     prt.apply(schedule[0].psy_data_body[0].dir_body[0])
 
-    code = str(invoke.gen())
+    code = fortran_writer(invoke.schedule)
 
-    correct = \
-        "CALL profile_psy_data%PreStart(\"psy_test27_loop_swap\", " + \
-        '''"invoke_loop1-bc_ssh_code-r0", 0, 0)
-      !$omp parallel default(shared), private(i,j)
-      CALL profile_psy_data_1%PreStart("psy_test27_loop_swap", ''' + \
-        '''"invoke_loop1-bc_ssh_code-r1", 0, 0)
-      !$omp do schedule(static)
-      DO j = t%internal%ystart, t%internal%ystop, 1
-        DO i = t%internal%xstart, t%internal%xstop, 1
-          CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)
-        END DO
-      END DO
-      !$omp end do
-      CALL profile_psy_data_1%PostEnd
-      !$omp end parallel
-      CALL profile_psy_data%PostEnd'''
+    correct = '''
+  CALL profile_psy_data % PreStart(\"psy_test27_loop_swap\", \
+"invoke_loop1-bc_ssh_code-r0", 0, 0)
+  !$omp parallel default(shared), private(i,j)
+  CALL profile_psy_data_1 % PreStart("psy_test27_loop_swap", \
+"invoke_loop1-bc_ssh_code-r1", 0, 0)
+  !$omp do schedule(static)
+  do j = t%internal%ystart, t%internal%ystop, 1
+    do i = t%internal%xstart, t%internal%xstop, 1
+      call bc_ssh_code(i, j, 1, t%data, t%grid%tmask)
+    enddo
+  enddo
+  !$omp end do
+  CALL profile_psy_data_1 % PostEnd
+  !$omp end parallel
+  CALL profile_psy_data % PostEnd'''
 
     assert correct in code
 

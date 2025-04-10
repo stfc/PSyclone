@@ -39,11 +39,8 @@
 
 ''' Performs py.test tests on the Loop PSyIR node. '''
 
-import os
 import pytest
 from psyclone.errors import InternalError, GenerationError
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import (
     Assignment, Loop, Literal, Schedule, Return, Reference, Routine)
 from psyclone.psyir.symbols import (
@@ -137,15 +134,6 @@ def test_loop_navigation_properties():
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
         _ = loop.loop_body
-    assert error_str in str(err.value)
-    with pytest.raises(InternalError) as err:
-        loop.start_expr = Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE)
-    assert error_str in str(err.value)
-    with pytest.raises(InternalError) as err:
-        loop.stop_expr = Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE)
-    assert error_str in str(err.value)
-    with pytest.raises(InternalError) as err:
-        loop.step_expr = Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE)
     assert error_str in str(err.value)
 
     # Check that Getters properties work
@@ -270,30 +258,6 @@ def test_loop_independent_iterations():
     msgs = dtools.get_all_messages()
     assert len(msgs) == 1
     assert "variable 'tmp' is only written once" in str(msgs[0])
-
-
-def test_loop_gen_code():
-    ''' Check that the Loop gen_code method prints the proper loop '''
-    base_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))), "test_files", "dynamo0p3")
-    _, invoke_info = parse(os.path.join(base_path,
-                                        "1.0.1_single_named_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-
-    # By default LFRicLoop has step = 1 and it is not printed in the Fortran DO
-    gen = str(psy.gen)
-    assert "loop0_start = 1" in gen
-    assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
-    assert "DO cell = loop0_start, loop0_stop" in gen
-
-    # Change step to 2
-    loop = psy.invokes.get('invoke_important_invoke').schedule[4]
-    loop.step_expr = Literal("2", INTEGER_SINGLE_TYPE)
-
-    # Now it is printed in the Fortran DO with the expression  ",2" at the end
-    gen = str(psy.gen)
-    assert "DO cell = loop0_start, loop0_stop, 2" in gen
 
 
 def test_invalid_loop_annotations():

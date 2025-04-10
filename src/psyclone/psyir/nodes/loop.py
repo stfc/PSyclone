@@ -46,7 +46,6 @@ from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
-from psyclone.f2pygen import DeclGen, PSyIRGen, UseGen
 
 
 class Loop(Statement):
@@ -550,65 +549,3 @@ class Loop(Statement):
         return dtools.can_loop_be_parallelised(
             self, test_all_variables=test_all_variables,
             signatures_to_ignore=signatures_to_ignore)
-
-    def gen_code(self, parent):
-        '''
-        Generate the Fortran Loop and any associated code.
-
-        :param parent: the node in the f2pygen AST to which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import zero_reduction_variables
-
-        if not self.is_openmp_parallel():
-            calls = self.reductions()
-            zero_reduction_variables(calls, parent)
-
-        # TODO #1010: The Fortran backend operates on a copy of the node so
-        # that the lowering changes are not reflected in the provided node.
-        # This is the correct behaviour but it means that the lowering changes
-        # to ancestors will be lost here because the ancestors use gen_code
-        # instead of lowering+backend.
-        # So we need to do the "rename_and_write" here for the invoke symbol
-        # table to be updated.
-        from psyclone.psyGen import CodedKern
-        for kernel in self.walk(CodedKern):
-            if not kernel.module_inline:
-                if kernel.modified:
-                    kernel.rename_and_write()
-
-        # Use the Fortran Backend from this point
-        parent.add(PSyIRGen(parent, self))
-
-        # TODO #1010: The Fortran backend operates on a copy of the node so
-        # that the lowering changes are not reflected in the provided node.
-        # This is the correct behaviour but it means that the lowering changes
-        # to ancestors will be lost here because the ancestors use gen_code
-        # instead of lowering+backend.
-        # Therefore we need to replicate the lowering ancestor changes
-        # manually here (all this can be removed when the invoke schedule also
-        # uses the lowering+backend), these are:
-        # - Declaring the loop variable symbols
-        for loop in self.walk(Loop):
-            # pylint: disable=protected-access
-            if loop._variable is None:
-                # This is the dummy iteration variable
-                name = "dummy"
-                kind_gen = None
-            else:
-                name = loop.variable.name
-                kind = loop.variable.datatype.precision.name
-                kind_gen = None if kind == "UNDEFINED" else kind
-            my_decl = DeclGen(parent, datatype="integer",
-                              kind=kind_gen,
-                              entity_decls=[name])
-            parent.add(my_decl)
-
-        # - Add the kernel module import statements
-        for kernel in self.walk(CodedKern):
-            if not kernel.module_inline:
-                parent.add(UseGen(parent, name=kernel.module_name, only=True,
-                                  funcnames=[kernel.name]))

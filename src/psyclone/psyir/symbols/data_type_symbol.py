@@ -37,7 +37,6 @@
 
 ''' This module contains the DataTypeSymbol. '''
 
-from __future__ import absolute_import
 from psyclone.psyir.symbols.symbol import Symbol
 
 

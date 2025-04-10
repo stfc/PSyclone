@@ -42,7 +42,6 @@
 import os
 import pytest
 
-from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import ACCDataDirective, Schedule, Routine
 from psyclone.psyir.transformations import TransformationError, ACCKernelsTrans
@@ -80,17 +79,17 @@ def test_explicit(fortran_reader, fortran_writer):
     schedule = psyir.walk(Routine)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
-    gen_code = fortran_writer(psyir)
+    code = fortran_writer(psyir)
 
     assert ("  real, dimension(jpi,jpj,jpk) :: umask\n"
             "\n"
             "  !$acc data copyout(umask)\n"
-            "  do jk = 1, jpk") in gen_code
+            "  do jk = 1, jpk") in code
 
     assert ("  enddo\n"
             "  !$acc end data\n"
             "\n"
-            "end program explicit_do") in gen_code
+            "end program explicit_do") in code
 
 
 def test_data_single_node(fortran_reader):
@@ -101,19 +100,6 @@ def test_data_single_node(fortran_reader):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule[0])
     assert isinstance(schedule[0], ACCDataDirective)
-
-
-def test_data_no_gen_code(fortran_reader):
-    ''' Check that the ACCDataDirective.gen_code() method raises the
-    expected InternalError as it should not be called. '''
-    psyir = fortran_reader.psyir_from_source(EXPLICIT_DO)
-    schedule = psyir.walk(Routine)[0]
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    acc_trans.apply(schedule.children[0:2])
-    with pytest.raises(InternalError) as err:
-        schedule.children[0].gen_code(schedule)
-    assert ("ACCDataDirective.gen_code should not have "
-            "been called" in str(err.value))
 
 
 def test_explicit_directive(fortran_reader, fortran_writer):
@@ -127,19 +113,19 @@ def test_explicit_directive(fortran_reader, fortran_writer):
     acc_trans.apply(schedule.children, {"default_present": True})
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
-    gen_code = fortran_writer(psyir)
+    code = fortran_writer(psyir)
 
     assert ("  real, dimension(jpi,jpj,jpk) :: umask\n"
             "\n"
             "  !$acc data copyout(umask)\n"
             "  !$acc kernels default(present)\n"
-            "  do jk = 1, jpk, 1") in gen_code
+            "  do jk = 1, jpk, 1") in code
 
     assert ("  enddo\n"
             "  !$acc end kernels\n"
             "  !$acc end data\n"
             "\n"
-            "end program explicit_do") in gen_code
+            "end program explicit_do") in code
 
 
 def test_array_syntax(fortran_reader, fortran_writer):
@@ -167,18 +153,18 @@ def test_array_syntax(fortran_reader, fortran_writer):
     # regions so just put two of the loops into regions.
     acc_trans.apply([schedule.children[0]])
     acc_trans.apply([schedule.children[-1]])
-    gen_code = fortran_writer(psyir)
+    code = fortran_writer(psyir)
 
     assert ("  real(kind=wp), dimension(jpi,jpj,jpk) :: ztfw\n"
             "\n"
             "  !$acc data copyout(zftv)\n"
-            "  zftv(:,:,:) = 0.0d0" in gen_code)
+            "  zftv(:,:,:) = 0.0d0" in code)
 
     assert ("  !$acc data copyout(tmask)\n"
             "  tmask(:,:) = jpi\n"
             "  !$acc end data\n"
             "\n"
-            "end subroutine tra_ldf_iso" in gen_code)
+            "end subroutine tra_ldf_iso" in code)
 
 
 def test_multi_data(fortran_reader, fortran_writer):
@@ -189,22 +175,22 @@ def test_multi_data(fortran_reader, fortran_writer):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children[0].loop_body[0:2])
     acc_trans.apply(schedule.children[0].loop_body[1:3])
-    gen_code = fortran_writer(psyir)
+    code = fortran_writer(psyir)
 
     assert ("  do jk = 1, jpkm1, 1\n"
             "    !$acc data copyin(ptb,wmask), copyout(zdk1t,zdkt)\n"
-            "    do jj = 1, jpj, 1") in gen_code
+            "    do jj = 1, jpj, 1") in code
 
     assert ("    end if\n"
             "    !$acc end data\n"
             "    !$acc data copyin(e2_e1u,e2u,e3t_n,e3u_n,pahu,r1_e1e2t,"
             "umask,uslp,wmask,zdit,zdk1t,zdkt,zftv), copyout(zftu), "
             "copy(pta)\n"
-            "    do jj = 1, jpjm1, 1") in gen_code
+            "    do jj = 1, jpjm1, 1") in code
 
     assert ("    enddo\n"
             "    !$acc end data\n"
-            "  enddo") in gen_code
+            "  enddo") in code
 
 
 def test_replicated_loop(fortran_reader, fortran_writer, tmpdir):
@@ -223,15 +209,15 @@ def test_replicated_loop(fortran_reader, fortran_writer, tmpdir):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children[0:1])
     acc_trans.apply(schedule.children[1:2])
-    gen_code = fortran_writer(psyir)
+    code = fortran_writer(psyir)
 
     assert ("  !$acc data copyout(zwx)\n"
             "  zwx(:,:) = 0.e0\n"
             "  !$acc end data\n"
             "  !$acc data copyout(zwx)\n"
             "  zwx(:,:) = 0.e0\n"
-            "  !$acc end data" in gen_code)
-    assert Compile(tmpdir).string_compiles(gen_code)
+            "  !$acc end data" in code)
+    assert Compile(tmpdir).string_compiles(code)
 
 
 def test_data_ref(fortran_reader, fortran_writer):
@@ -252,8 +238,8 @@ def test_data_ref(fortran_reader, fortran_writer):
     schedule = psyir.walk(Routine)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
-    gen_code = fortran_writer(psyir)
-    assert "!$acc data copyin(a), copyout(prof,prof%npind)" in gen_code
+    code = fortran_writer(psyir)
+    assert "!$acc data copyin(a), copyout(prof,prof%npind)" in code
 
 
 def test_data_ref_read(fortran_reader, fortran_writer):
@@ -272,8 +258,8 @@ def test_data_ref_read(fortran_reader, fortran_writer):
     schedule = psyir.walk(Routine)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
-    gen_code = fortran_writer(psyir)
-    assert "copyin(fld,fld%data)" in gen_code
+    code = fortran_writer(psyir)
+    assert "copyin(fld,fld%data)" in code
 
 
 def test_multi_array_derived_type(fortran_reader, fortran_writer):
@@ -295,9 +281,9 @@ def test_multi_array_derived_type(fortran_reader, fortran_writer):
     schedule = psyir.walk(Schedule)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
-    gen_code = fortran_writer(psyir)
+    code = fortran_writer(psyir)
     assert ("!$acc data copyin(small_holding,small_holding(2)%data), "
-            "copyout(sto_tmp)" in gen_code)
+            "copyout(sto_tmp)" in code)
 
 
 def test_multi_array_derived_type_error(fortran_reader):
@@ -350,8 +336,8 @@ def test_array_section(fortran_reader, fortran_writer):
     schedule = psyir.walk(Schedule)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
-    gen_code = fortran_writer(psyir)
-    assert "!$acc data copyin(b,c), copyout(a)" in gen_code
+    code = fortran_writer(psyir)
+    assert "!$acc data copyin(b,c), copyout(a)" in code
 
 
 def test_kind_parameter(fortran_reader, fortran_writer):
@@ -369,9 +355,9 @@ def test_kind_parameter(fortran_reader, fortran_writer):
     schedule = psyir.walk(Schedule)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children[0:1])
-    gen_code = fortran_writer(psyir)
+    code = fortran_writer(psyir)
 
-    assert "copyin(wp)" not in gen_code.lower()
+    assert "copyin(wp)" not in code.lower()
 
 
 def test_no_copyin_intrinsics(fortran_reader, fortran_writer):
@@ -391,9 +377,9 @@ def test_no_copyin_intrinsics(fortran_reader, fortran_writer):
         psy = fortran_reader.psyir_from_source(code)
         schedule = psy.walk(Routine)[0]
         acc_trans.apply(schedule.children[0:1])
-        gen_code = fortran_writer(psy)
+        code = fortran_writer(psy)
         idx = intrinsic.index("(")
-        assert f"copyin({intrinsic[0:idx]})" not in gen_code.lower()
+        assert f"copyin({intrinsic[0:idx]})" not in code.lower()
 
 
 def test_no_code_blocks(fortran_reader):
@@ -486,8 +472,8 @@ def test_array_access_in_ifblock(fortran_reader, fortran_writer):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     # Put the second loop nest inside a data region
     acc_trans.apply(schedule.children[1:])
-    gen_code = fortran_writer(psyir)
-    assert " copyin(zmask)" in gen_code
+    code = fortran_writer(psyir)
+    assert " copyin(zmask)" in code
 
 
 def test_array_access_loop_bounds(fortran_reader, fortran_writer):
@@ -509,5 +495,5 @@ def test_array_access_loop_bounds(fortran_reader, fortran_writer):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     # Put the second loop nest inside a data region
     acc_trans.apply(schedule.children)
-    gen_code = fortran_writer(psyir)
-    assert "copyin(trim_width)" in gen_code
+    code = fortran_writer(psyir)
+    assert "copyin(trim_width)" in code

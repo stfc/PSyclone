@@ -193,12 +193,12 @@ def test_lower_to_lang_level_multi_node():
     ptree = cblocks[0].get_ast_nodes
     code = str(ptree[0]).lower()
     assert ("call profile_psy_data % prestart(\"psy_single_invoke_two_"
-            "kernels\", \"invoke_0-r0\"" in code)
+            "kernels\", \"invoke_0-compute_cu_code-r0\"" in code)
     assert cblocks[0].annotations == ["psy-data-start"]
     assert cblocks[1].annotations == []
     ptree = cblocks[2].get_ast_nodes
     code = str(ptree[0]).lower()
     assert ("call profile_psy_data_1 % prestart(\"psy_single_invoke_two_"
-            "kernels\", \"invoke_0-r1\"" in code)
+            "kernels\", \"invoke_0-time_smooth_code-r1\"" in code)
     assert cblocks[2].annotations == ["psy-data-start"]
     assert cblocks[3].annotations == []
