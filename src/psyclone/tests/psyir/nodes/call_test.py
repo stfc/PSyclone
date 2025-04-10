@@ -1525,8 +1525,7 @@ end module my_mod
     call = top_routine.walk(Call)[0]
     with pytest.raises(SymbolError) as err:
         _ = call.get_callees()
-    assert ("The RoutineSymbol for Routine 'bottom' is marked as being local "
-            "but failed to find the corresponding implementation in code:\n'"
+    assert ("Failed to find a Routine named 'bottom' in code:\n'"
             "subroutine top()" in str(err.value))
 
 

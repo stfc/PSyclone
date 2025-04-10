@@ -463,80 +463,6 @@ class Call(Statement, DataNode):
 
         return new_copy
 
-    def _get_unresolved_callee(self):
-        '''
-        Searches for the implementation(s) of the target routine for this Call
-        when it is unresolved.
-
-        :returns: the Routine(s) that this call targets.
-        :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
-
-        :raises NotImplementedError: if the routine is not found
-            in any containers in scope at the call site.
-        '''
-        rsym = self.routine.symbol
-        # Check for any "raw" Routines, i.e. any that are not in a Container.
-        # Such Routines would exist in the PSyIR as a child of a FileContainer
-        # (if the PSyIR contains a FileContainer). Note, if the PSyIR does
-        # contain a FileContainer, it will be the root node of the PSyIR.
-        for routine in self.root.children:
-            if (isinstance(routine, Routine) and
-                    routine.name.lower() == rsym.name.lower()):
-                return [routine]
-
-        # Now check for any wildcard imports and see if they can
-        # be used to resolve the symbol.
-        wildcard_names = []
-        containers_not_found = []
-        current_table = self.scope.symbol_table
-        while current_table:
-            for container_symbol in current_table.containersymbols:
-                if container_symbol.wildcard_import:
-                    wildcard_names.append(container_symbol.name)
-                    try:
-                        container = container_symbol.find_container_psyir(
-                            local_node=self)
-                    except SymbolError:
-                        container = None
-                    if not container:
-                        # Failed to find/process this Container.
-                        containers_not_found.append(container_symbol.name)
-                        continue
-                    routines = []
-                    target_sym = container.symbol_table.lookup(rsym.name,
-                                                               otherwise=None)
-                    if target_sym:
-                        # If the target of the call turns out to be an
-                        # interface then the routines themselves are allowed
-                        # to be private.
-                        can_be_private = isinstance(target_sym,
-                                                    GenericInterfaceSymbol)
-                        for name in container.resolve_routine(rsym.name):
-                            psyir = container.find_routine_psyir(
-                                name,
-                                allow_private=can_be_private)
-                            if psyir:
-                                routines.append(psyir)
-                    if routines:
-                        return routines
-            current_table = current_table.parent_symbol_table()
-        if not wildcard_names:
-            wc_text = "there are no wildcard imports"
-        else:
-            if containers_not_found:
-                wc_text = (
-                    f"attempted to resolve the wildcard imports from"
-                    f" {wildcard_names}. However, failed to find the "
-                    f"source for {containers_not_found}. The module search"
-                    f" path is set to {Config.get().include_paths}")
-            else:
-                wc_text = (f"wildcard imports from {wildcard_names}")
-        raise NotImplementedError(
-            f"Failed to find the source code of the unresolved routine "
-            f"'{rsym.name}' - looked at any routines in the same source "
-            f"file and {wc_text}. Searching for external routines "
-            f"that are only resolved at link time is not supported.")
-
     def get_callees(self):
         '''
         Searches for the implementation(s) of all potential target routines
@@ -591,31 +517,31 @@ class Call(Statement, DataNode):
                     if routines:
                         rsym.interface = DefaultModuleInterface()
                         return routines
-                    if not have_codeblock:
-                        have_codeblock = any(isinstance(child, CodeBlock) for
-                                             child in cursor.children)
-                    wildcard_names = [csym.name for csym in
-                                      cursor.symbol_table.wildcard_imports(
-                                          scope_limit=cursor)]
-                    if wildcard_names:
-                        # We haven't yet found an implementation of the Routine
-                        # but we have found a wildcard import and that could be
-                        # bringing it into scope so we stop searching (the
-                        # alternative is to resolve every wildcard import we
-                        # encounter and that is very costly).
-                        msg = (f"Failed to find the source code of the "
-                               f"unresolved routine '{rsym.name}'. It may be "
-                               f"being brought into scope from one of "
-                               f"{wildcard_names}")
-                        if have_codeblock:
-                            msg += (" or it may be within a CodeBlock. If it "
-                                    "isn't, you ")
-                        else:
-                            msg += ". You "
-                        msg += ("may wish to add the appropriate module name "
-                                "to the `RESOLVE_IMPORTS` variable in the "
-                                "transformation script.")
-                        raise NotImplementedError(msg)
+                if not have_codeblock:
+                    have_codeblock = any(isinstance(child, CodeBlock) for
+                                         child in cursor.children)
+                wildcard_names = [csym.name for csym in
+                                  cursor.symbol_table.wildcard_imports(
+                                      scope_limit=cursor)]
+                if wildcard_names:
+                    # We haven't yet found an implementation of the Routine
+                    # but we have found a wildcard import and that could be
+                    # bringing it into scope so we stop searching (the
+                    # alternative is to resolve every wildcard import we
+                    # encounter and that is very costly).
+                    msg = (f"Failed to find the source code of the "
+                           f"unresolved routine '{rsym.name}'. It may be "
+                           f"being brought into scope from one of "
+                           f"{wildcard_names}")
+                    if have_codeblock:
+                        msg += (" or it may be within a CodeBlock. If it "
+                                "isn't, you ")
+                    else:
+                        msg += ". You "
+                    msg += ("may wish to add the appropriate module name "
+                            "to the `RESOLVE_IMPORTS` variable in the "
+                            "transformation script.")
+                    raise NotImplementedError(msg)
                 parent = cursor.parent
                 cursor = parent.scope if parent else None
 
@@ -688,17 +614,17 @@ class Call(Statement, DataNode):
         cursor = container
         while cursor and isinstance(cursor, Container):
             routines = []
-            all_names = container.resolve_routine(rsym.name)
+            all_names = cursor.resolve_routine(rsym.name)
             if isinstance(rsym, GenericInterfaceSymbol):
                 # Although the interface must be public, the routines to which
                 # it points may themselves be private.
                 can_be_private = True
             for name in all_names:
-                psyir = container.find_routine_psyir(
+                psyir = cursor.find_routine_psyir(
                     name, allow_private=can_be_private)
                 if psyir:
                     routines.append(psyir)
-            if len(routines) == len(all_names):
+            if all_names and len(routines) == len(all_names):
                 # We've resolved everything.
                 return routines
             cursor = cursor.parent

@@ -374,6 +374,8 @@ class KernelModuleInlineTrans(Transformation):
                         symbol.name not in table else table)
         # Find the table containing the ContainerSymbol from which
         # the symbol is imported.
+        # TODO #1734 - this *should* always be the same as `actual_table` but
+        # this is not currently guaranteed.
         ctable = (csym.find_symbol_table(table.node) if
                   csym.name not in table else table)
         remove_csym = (ctable.symbols_imported_from(csym) == [symbol] and
@@ -486,6 +488,7 @@ class KernelModuleInlineTrans(Transformation):
 
         # Deal with the RoutineSymbol that is in scope at the call site.
         sym_in_ctr = None
+        shadowed_sym = None
 
         if called_sym and (called_sym.is_import or called_sym.is_unresolved):
             table = called_sym.find_symbol_table(node)
@@ -506,18 +509,18 @@ class KernelModuleInlineTrans(Transformation):
                 caller_cntr_table = table.node.parent.scope.symbol_table
                 # Look to see whether it also contains a symbol matching
                 # the name of the called routine.
-                caller_cntr_sym = caller_cntr_table.lookup(called_sym.name,
-                                                           otherwise=None)
-                if caller_cntr_sym:
-                    caller_cntr_table = caller_cntr_sym.find_symbol_table(
+                shadowed_sym = caller_cntr_table.lookup(called_sym.name,
+                                                        otherwise=None)
+                if shadowed_sym:
+                    caller_cntr_table = shadowed_sym.find_symbol_table(
                         table.node.parent)
                     if not isinstance(caller_cntr_table.node, FileContainer):
                         # It is shadowing an outer symbol that is in a
                         # Container (not a FileContainer) so we just need to
                         # update the call to point to the outer symbol.
-                        node.routine.symbol = caller_cntr_sym
-                        if not (caller_cntr_sym.is_import or
-                                caller_cntr_sym.is_unresolved):
+                        node.routine.symbol = shadowed_sym
+                        if not (shadowed_sym.is_import or
+                                shadowed_sym.is_unresolved):
                             # The outer symbol is local to this Container so
                             # there's nothing else to do.
                             return
@@ -599,9 +602,12 @@ class KernelModuleInlineTrans(Transformation):
             self._rm_imported_routine_symbol(interface_sym,
                                              codes_to_inline[0],
                                              callsite_table)
-            if interface_sym.name not in container.symbol_table:
-                container.symbol_table.add(interface_sym)
-                interface_sym.replace_symbols_using(container.symbol_table)
+            if shadowed_sym:
+                self._rm_imported_routine_symbol(shadowed_sym,
+                                                 codes_to_inline[0],
+                                                 caller_cntr_table)
+            container.symbol_table.add(interface_sym)
+            interface_sym.replace_symbols_using(container.symbol_table)
 
         # Set the module-inline flag to avoid generating the kernel imports
         # TODO #1823. If the kernel imports were generated at PSy-layer

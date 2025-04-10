@@ -233,7 +233,8 @@ class Container(ScopingNode, CommentableMixin):
         :raises TypeError: if the Symbol with the supplied name is not a
             RoutineSymbol, GenericInterfaceSymbol or imported Symbol.
         '''
-        rsym = self.symbol_table.lookup(name, otherwise=None)
+        rsym = self.symbol_table.lookup(name, otherwise=None,
+                                        scope_limit=self)
         if not rsym:
             # TODO for some reason, a module-inlined KernelSchedule does not
             # have a corresponding entry in a symbol table so we double check
