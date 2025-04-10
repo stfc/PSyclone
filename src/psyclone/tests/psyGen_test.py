@@ -247,7 +247,7 @@ def test_transformation_get_valid_options():
     assert options['untyped'].default is False
     assert options['untyped'].type is None
     assert options['untyped'].typename is None
-    assert options['valid2'].default is 1
+    assert options['valid2'].default == 1
     assert options['valid2'].type is int
     assert options['valid2'].typename == "int"
 

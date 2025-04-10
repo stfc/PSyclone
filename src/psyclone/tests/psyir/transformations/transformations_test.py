@@ -586,6 +586,141 @@ def test_omploop_trans_new_options(sample_psyir):
                 in str(excinfo.value))
 
 
+def test_omplooptrans_apply_nowait(fortran_reader, fortran_writer):
+    '''Test the behaviour of the OMPLoopTrans is as expected when
+    we request nowait.'''
+    code = """
+    subroutine x()
+        integer :: i
+        integer, dimension(100) :: arr
+        do i = 1, 100
+            arr(i) = i
+        end do
+        do i = 1, 100
+            arr(i) = i
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    otrans = OMPParallelTrans()
+    looptrans = OMPLoopTrans(omp_directive="do")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    otrans.apply(routine.children[:])
+    looptrans.apply(loops[0], options={"nowait": True})
+    looptrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    correct = """subroutine x()
+  integer :: i
+  integer, dimension(100) :: arr
+
+  !$omp parallel default(shared), private(i)
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    arr(i) = i
+  enddo
+  !$omp end do nowait
+  !$omp barrier
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    arr(i) = i
+  enddo
+  !$omp end do nowait
+  !$omp barrier
+  !$omp end parallel
+
+end subroutine x"""
+    assert correct in out
+
+    code = """
+    subroutine x()
+        integer :: i, j
+        integer, dimension(100) :: arr, arr2
+        do i = 1, 100
+           j = i + i
+            arr(i) = j
+        end do
+        do i = 1, 100
+            j = i + i
+            arr2(i) = j
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    otrans = OMPParallelTrans()
+    looptrans = OMPLoopTrans(omp_directive="do")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    otrans.apply(routine.children[:])
+    looptrans.apply(loops[0], options={"nowait": True})
+    looptrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    correct = """subroutine x()
+  integer :: i
+  integer :: j
+  integer, dimension(100) :: arr
+  integer, dimension(100) :: arr2
+
+  !$omp parallel default(shared), private(i,j)
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    j = i + i
+    arr(i) = j
+  enddo
+  !$omp end do nowait
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    j = i + i
+    arr2(i) = j
+  enddo
+  !$omp end do nowait
+  !$omp barrier
+  !$omp end parallel
+
+end subroutine x"""
+    assert correct in out
+
+    # Check nowait is ignored on OMPParallelDo
+    code = """
+    subroutine x()
+        integer :: i
+        integer, dimension(100) :: arr
+        do i = 1, 100
+            arr(i) = i
+        end do
+        do i = 1, 100
+            arr(i) = i
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    looptrans = OMPLoopTrans(omp_directive="paralleldo")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    looptrans.apply(loops[0], options={"nowait": True})
+    looptrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    assert "nowait" not in out
+
+    # Check nowait is ignored when loop is its own dependency
+    code = """
+    subroutine x()
+        integer :: i, j
+        integer, dimension(100) :: arr
+        do j = 1, 5
+        do i = 1, 100
+            arr(i) = i
+        end do
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    otrans = OMPParallelTrans()
+    looptrans = OMPLoopTrans(omp_directive="do")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    otrans.apply(loops[1])
+    looptrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    assert "nowait" not in out
+
+
 def test_ifblock_children_region():
     ''' Check that we reject attempts to transform the conditional part of
     an If statement or to include both the if- and else-clauses in a region

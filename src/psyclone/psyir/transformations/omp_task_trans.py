@@ -73,6 +73,13 @@ class OMPTaskTrans(ParallelLoopTrans):
         '''
         Validity checks for input arguments.
 
+        Note that currently this implementation calls the `apply` methods
+        of KernelModuleInlineTrans and FoldConditionalReturnExpressionsTrans.
+        Although a copy of the provided node is used for this (so as to
+        avoid any modifications to it in case the validation fails), this
+        pattern indicates we should possibly re-write this transformation to
+        require that those transformations have been applied first.
+
         :param node: the Loop node to validate.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
@@ -89,6 +96,10 @@ class OMPTaskTrans(ParallelLoopTrans):
         # nodes
         root_ancestor = node.root
         path_to_node = node.path_from(root_ancestor)
+        # We create a copy of the Routine because, in order to perform
+        # validation, we have to first apply some other transformations.
+        # Probably this means that we should mandate that those other
+        # transformations have been applied before this one.
         routine_copy = root_ancestor.copy()
         node_copy = routine_copy
         for index in path_to_node:
@@ -98,6 +109,7 @@ class OMPTaskTrans(ParallelLoopTrans):
         kintrans = KernelModuleInlineTrans()
         cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()
+
         for kern in kerns:
             kintrans.validate(kern)
             cond_trans.validate(kern.get_kernel_schedule())
@@ -112,6 +124,7 @@ class OMPTaskTrans(ParallelLoopTrans):
             # Skip over intrinsic calls as we can't inline them
             if isinstance(call, IntrinsicCall):
                 continue
+            kintrans.apply(call)
             intrans.validate(call)
 
     def _directive(self, children, collapse=None):
