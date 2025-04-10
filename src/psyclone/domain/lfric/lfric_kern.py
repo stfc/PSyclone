@@ -745,8 +745,10 @@ class LFRicKern(CodedKern):
                         routines.append(rt_psyir)
                 if routines:
                     break
-        if not routines:
-            raise InternalError("oh dear")
+            else:
+                raise InternalError(
+                    f"Failed to find any routines for Kernel '{self.name}'. "
+                    f"Source of Kernel is:\n{self.ast}")
 
         self._interface_symbol = None
         if len(routines) > 1:

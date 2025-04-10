@@ -476,25 +476,6 @@ class Call(Statement, DataNode):
             limitation prevents definite determination of the target routine.
 
         '''
-        def _location_txt(node):
-            '''
-            Utility to generate meaningful location text.
-
-            :param node: a PSyIR node.
-            :type node: :py:class:`psyclone.psyir.nodes.Node`
-
-            :returns: description of location of node.
-            :rtype: str
-            '''
-            if isinstance(node, Container):
-                return f"Container '{node.name}'"
-            out_lines = node.debug_string().split("\n")
-            idx = -1
-            while not out_lines[idx]:
-                idx -= 1
-            last_line = out_lines[idx]
-            return f"code:\n'{out_lines[0]}\n...\n{last_line}'"
-
         rsym = self.routine.symbol
         if rsym.is_unresolved:
             # Search for the Routine in the current file. This search is
@@ -629,9 +610,19 @@ class Call(Statement, DataNode):
                 return routines
             cursor = cursor.parent
 
+        if isinstance(root_node, Container):
+            location_txt = f"Container '{root_node.name}'"
+        else:
+            out_lines = root_node.debug_string().split("\n")
+            idx = -1
+            while not out_lines[idx]:
+                idx -= 1
+            last_line = out_lines[idx]
+            location_txt = f"code:\n'{out_lines[0]}\n...\n{last_line}'"
+
         raise SymbolError(
             f"Failed to find a Routine named '{rsym.name}' in "
-            f"{_location_txt(root_node)}. This is normally because the routine"
+            f"{location_txt}. This is normally because the routine"
             f" is within a CodeBlock.")
 
     def _check_argument_type_matches(
@@ -820,3 +811,7 @@ class Call(Statement, DataNode):
             f"No matching routine found for '{self.debug_string()}':"
             "\n" + error_msg
         )
+
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["Call"]

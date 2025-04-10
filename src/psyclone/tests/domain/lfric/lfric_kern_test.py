@@ -53,7 +53,8 @@ from psyclone.domain.lfric import (LFRicConstants, LFRicTypes, LFRicKern,
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Reference, KernelSchedule
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import Container, Reference, KernelSchedule
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
     INTEGER_TYPE, ArrayType
 from psyclone.tests.utilities import get_invoke
@@ -136,7 +137,7 @@ def test_kern_ncolours(monkeypatch):
             in str(err.value))
 
 
-def test_get_kernel_schedule():
+def test_get_kernel_schedule(monkeypatch):
     '''Test that a PSyIR kernel schedule is created by get_kernel_schedule
     if one does not exist and that the same kernel schedule is
     returned if one has already been created.
@@ -159,6 +160,16 @@ def test_get_kernel_schedule():
 
     _, kernel_schedules_2 = kernel.get_kernel_schedule()
     assert kernel_schedules[0] is kernel_schedules_2[0]
+    # Check the internal error for the case where we fail to get any
+    # implementation for the kernel.
+    kernel._kern_schedules = None
+    # Monkeypatch the frontend so that it just returns an empty Container.
+    monkeypatch.setattr(Fparser2Reader, "generate_psyir",
+                        lambda _1, _2: Container("dummy_mod"))
+    with pytest.raises(InternalError) as err:
+        kernel.get_kernel_schedule()
+    assert ("Failed to find any routines for Kernel 'matrix_vector_code'"
+            in str(err.value))
 
 
 @pytest.mark.xfail(reason="get_kernel_schedule has been extended to return all"
