@@ -50,8 +50,7 @@ from psyclone.domain.gocean.transformations import (GOceanExtractTrans,
                                                     GOConstLoopBoundsTrans)
 from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
-from psyclone.psyir.tools import ReadWriteInfo
-from psyclone.psyir.transformations import PSyDataTrans, TransformationError
+from psyclone.psyir.transformations import PSyDataTrans
 from psyclone.tests.utilities import get_invoke
 
 # API names

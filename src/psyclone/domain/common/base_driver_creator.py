@@ -93,8 +93,10 @@ class BaseDriverCreator:
         :param program: the PSyIR Routine to which any code must be added.
         :type program: :py:class:`psyclone.psyir.nodes.Routine`
         :param name_lit: the name of the field in the data file.
+        :type name_lit: :py:class:`psyclone.psyir.nodes.Literal`
         :param sym: the symbol to store the read data.
-        :read_var: the method name to read the data.
+        :type sym: :py:class:`psyclone.psyir.symbol.Symbol`
+        :param str read_var: the method name to read the data.
         '''
         # TODO #2898: the test for array can be removed if
         # `is_allocatable` is supported for non-arrays.
@@ -274,10 +276,10 @@ class BaseDriverCreator:
                 sym = orig_sym.copy()
                 sym.interface = AutomaticInterface()
                 # if symbol_table.lookup(sym.name, otherwise=None) is not None:
-                    # We can edit the name because we know the copied symbol is
-                    # not in a symbol table yet
-                    # pylint: disable=protected-access
-                    # sym._name = symbol_table.next_available_name(sym.name)
+                #    # We can edit the name because we know the copied symbol
+                #    # is not in a symbol table yet
+                #    # pylint: disable=protected-access
+                #    sym._name = symbol_table.next_available_name(sym.name)
                 symbol_table.add(sym)
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
                 read_stmts.append((name_lit, sym))
