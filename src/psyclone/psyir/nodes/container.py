@@ -236,14 +236,6 @@ class Container(ScopingNode, CommentableMixin):
         rsym = self.symbol_table.lookup(name, otherwise=None,
                                         scope_limit=self)
         if not rsym:
-            # TODO for some reason, a module-inlined KernelSchedule does not
-            # have a corresponding entry in a symbol table so we double check
-            # here. We have stop_type=Container so that if this method is
-            # called for a FileContainer, it does *not* walk down into child
-            # Containers.
-            for routine in self.walk(Routine, stop_type=Container):
-                if routine.name.lower() == name.lower():
-                    return [name]
             return []
         if isinstance(rsym, GenericInterfaceSymbol):
             return [rt.symbol.name.lower() for rt in rsym.routines]
