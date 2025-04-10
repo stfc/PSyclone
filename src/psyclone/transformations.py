@@ -35,6 +35,8 @@
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
+#          S. Valat, Inria / Laboratoire Jean Kuntzmann
+#          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
 #          J. Dendy, Met Office
 
 ''' This module provides the various transformations that can be applied to
@@ -45,6 +47,7 @@
 # pylint: disable=too-many-lines
 
 import abc
+from typing import Any, Dict, Optional
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -59,11 +62,12 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Directive, Literal, Loop, Node,
+    Call, CodeBlock, Container, Directive, Literal, Loop, Node,
     OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
-    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
-    Return, Routine, Schedule)
+    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Return,
+    Routine, Schedule)
+from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
@@ -413,15 +417,17 @@ class MarkRoutineForGPUMixin:
                     f"Failed to create PSyIR for kernel '{node.name}'. "
                     f"Cannot transform such a kernel.") from error
 
-            # Check that it's not a mixed-precision kernel (which will have
-            # more than one Routine implementing it). We can't transform
-            # these at the moment because we can't correctly manipulate their
-            # metadata - TODO #1946.
-            routines = kernel_schedule.root.walk(Routine)
-            if len(routines) > 1:
-                raise TransformationError(
-                    f"Cannot apply {self.name} to kernel '{node.name}' as "
-                    f"it has multiple implementations - TODO #1946")
+            if not node.ancestor(Container, shared_with=kernel_schedule):
+                # The KernelSchedule to be transformed has not been inlined
+                # into the Container of the call-site. Therefore we can
+                # Check that it's not a mixed-precision kernel (which will have
+                # more than one Routine implementing it). We can't transform
+                # these at the moment because we can't correctly manipulate
+                # their metadata - TODO #1946.
+                if len(kernel_schedule.root.walk(Routine)) > 1:
+                    raise TransformationError(
+                        f"Cannot apply {self.name} to kernel '{node.name}' as "
+                        f"it has multiple implementations - TODO #1946")
 
             k_or_r = "Kernel"
         else:
@@ -431,24 +437,35 @@ class MarkRoutineForGPUMixin:
 
         # Check that the routine does not access any data that is imported via
         # a 'use' statement.
-        # TODO #2271 - this implementation will not catch symbols from literal
-        # precisions or intialisation expressions.
-        refs = kernel_schedule.walk(Reference)
-        for ref in refs:
-            if ref.symbol.is_import:
+        vai = VariablesAccessInfo()
+        kernel_schedule.reference_accesses(vai)
+        ktable = kernel_schedule.symbol_table
+        for sig in vai.all_signatures:
+            name = sig.var_name
+            first = vai[sig].all_accesses[0].node
+            if isinstance(first, Symbol):
+                table = ktable
+            else:
+                try:
+                    table = first.scope.symbol_table
+                except SymbolError:
+                    # The node associated with this access is not within a
+                    # scoping region.
+                    table = ktable
+            symbol = table.lookup(name)
+            if symbol.is_import:
                 # resolve_type does nothing if the Symbol type is known.
                 try:
-                    ref.symbol.resolve_type()
+                    symbol.resolve_type()
                 except (SymbolError, FileNotFoundError):
                     # TODO #11 - log that we failed to resolve this Symbol.
                     pass
-                if (isinstance(ref.symbol, DataSymbol) and
-                        ref.symbol.is_constant):
+                if (isinstance(symbol, DataSymbol) and symbol.is_constant):
                     # An import of a compile-time constant is fine.
                     continue
                 raise TransformationError(
                     f"{k_or_r} '{node.name}' accesses the symbol "
-                    f"'{ref.symbol}' which is imported. If this symbol "
+                    f"'{symbol}' which is imported. If this symbol "
                     f"represents data then it must first be converted to a "
                     f"{k_or_r} argument using the KernelImportsToArguments "
                     f"transformation.")
@@ -468,20 +485,6 @@ class MarkRoutineForGPUMixin:
                     f"'{node.name}' because its PSyIR contains one or more "
                     f"CodeBlocks:{cblock_txt}You may use '{option_txt}' to "
                     f"override this check.")
-        else:
-            # Check any accesses within CodeBlocks.
-            # TODO #2271 - this will be handled as part of the checking to be
-            # implemented using the dependence analysis.
-            for cblock in cblocks:
-                names = cblock.get_symbol_names()
-                for name in names:
-                    sym = kernel_schedule.symbol_table.lookup(name)
-                    if sym.is_import:
-                        raise TransformationError(
-                            f"{k_or_r} '{node.name}' accesses the symbol "
-                            f"'{sym.name}' within a CodeBlock and this symbol "
-                            f"is imported. {type(self).__name__} cannot be "
-                            f"applied to such a {k_or_r}.")
 
         calls = kernel_schedule.walk(Call)
         for call in calls:
@@ -2618,19 +2621,20 @@ class ACCEnterDataTrans(Transformation):
         '''
         return "ACCEnterDataTrans"
 
-    def apply(self, sched, options=None):
-        # pylint: disable=arguments-renamed
+    def apply(self, node: Schedule, options: Optional[Dict[str, Any]] = {}):
         '''Adds an OpenACC "enter data" directive to the invoke associated
         with the supplied Schedule. Any fields accessed by OpenACC kernels
         within this schedule will be added to this data region in
         order to ensure they remain on the target device.
 
-        :param sched: schedule to which to add an "enter data" directive.
-        :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
+        :param node: schedule to which to add an "enter data" directive.
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
+        :param options["async_queue"]: force the transformation to use the
+            specified async stream if not False.
+        :type options["async_queue"]: Union[bool, int]
 
         '''
+        sched = node
         # Ensure that the proposed transformation is valid
         self.validate(sched, options)
 
@@ -2656,12 +2660,39 @@ class ACCEnterDataTrans(Transformation):
                 current = current.parent
             posn = sched.children.index(current)
 
+        # extract async. Default to False.
+        async_queue = options.get('async_queue', False)
+
+        # check
+        self.check_child_async(sched, async_queue)
+
         # Add the directive at the position determined above, i.e. just before
         # the first statement containing an OpenACC compute construct.
-        data_dir = AccEnterDataDir(parent=sched, children=[])
+        data_dir = AccEnterDataDir(parent=sched, children=[],
+                                   async_queue=async_queue)
         sched.addchild(data_dir, index=posn)
 
-    def validate(self, sched, options=None):
+    def check_child_async(self, sched, async_queue):
+        '''
+        Common function to check that all kernel/parallel childs have the
+        same async queue.
+
+        :param sched: schedule to which to add an "enter data" directive.
+        :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :param async_queue: The async queue to expect in childs.
+        :type async_queue: \
+            Optional[bool,int,:py:class:`psyclone.core.Reference`]
+        '''
+        qval = ACCAsyncMixin.convert_queue(async_queue)
+        directive_cls = (ACCParallelDirective, ACCKernelsDirective)
+        for dirv in sched.walk(directive_cls):
+            if qval != dirv.async_queue:
+                raise TransformationError(
+                    'Try to make an ACCEnterDataTrans with async_queue '
+                    'different than the one in child kernels !')
+
+    def validate(self, sched, options={}):
         # pylint: disable=arguments-differ, arguments-renamed
         '''
         Check that we can safely apply the OpenACC enter-data transformation
@@ -2688,6 +2719,11 @@ class ACCEnterDataTrans(Transformation):
         if sched.walk(directive_cls, stop_type=directive_cls):
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
+
+        async_queue = options.get('async_queue', False)
+
+        # check consistency with childs about async_queue
+        self.check_child_async(sched, async_queue)
 
 
 class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
@@ -2983,16 +3019,14 @@ class KernelImportsToArguments(Transformation):
                 f"Kernel '{node.name}' contains undeclared symbol: "
                 f"{err.value}") from err
 
-        symtab = kernel.symbol_table
-        for container in symtab.containersymbols:
-            if container.wildcard_import:
-                raise TransformationError(
-                    f"Kernel '{node.name}' has a wildcard import of symbols "
-                    f"from container '{container.name}'. This is not "
-                    f"supported.")
-
-        # TODO #649. Check for variables accessed by the kernel but declared
-        # in an outer scope.
+        try:
+            kernel.check_outer_scope_accesses(node, "Kernel",
+                                              permit_unresolved=False,
+                                              ignore_non_data_accesses=True)
+        except SymbolError as err:
+            raise TransformationError(
+                f"Cannot apply {self.name} to Kernel '{node.name}' because it "
+                f"accesses data from its outer scope: {err.value}") from err
 
     def apply(self, node, options=None):
         '''
@@ -3006,7 +3040,6 @@ class KernelImportsToArguments(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-
         self.validate(node, options)
 
         kernel = node.get_kernel_schedule()
@@ -3018,17 +3051,23 @@ class KernelImportsToArguments(Transformation):
         # TODO #11: When support for logging is added, we could warn the user
         # if no imports are found in the kernel.
         for imported_var in kernel.symbol_table.imported_symbols[:]:
-            count_imported_vars_removed += 1
 
             # Resolve the data type information if it is not available
-            # pylint: disable=unidiomatic-typecheck
+            updated_sym = imported_var
+            # pylint: disable-next=unidiomatic-typecheck
             if (type(imported_var) is Symbol or
                     isinstance(imported_var.datatype, UnresolvedType)):
                 updated_sym = imported_var.resolve_type()
                 # If we have a new symbol then we must update the symbol table
                 if updated_sym is not imported_var:
                     kernel.symbol_table.swap(imported_var, updated_sym)
-            # pylint: enable=unidiomatic-typecheck
+
+            if updated_sym in kernel.symbol_table.precision_datasymbols:
+                # Symbols specifying compile-time precision can't be passed
+                # as arguments.
+                continue
+
+            count_imported_vars_removed += 1
 
             # Copy the imported symbol into the InvokeSchedule SymbolTable
             invoke_symtab.copy_external_import(

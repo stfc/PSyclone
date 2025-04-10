@@ -267,6 +267,7 @@ unchanged.) As mentioned in the previous section, the ``node.copy()`` method
 provides this functionality:
 
 .. automethod:: psyclone.psyir.nodes.Node.copy
+    :no-index:
 
 As part of this copy operation, all Symbols referred to in the new tree must
 also be replaced with their equivalents from the symbol tables in the new tree.
@@ -274,6 +275,7 @@ Since these symbol tables are associated with instances of ``ScopingNode``, it
 is ``ScopingNode._refine_copy`` which handles this:
 
 .. automethod:: psyclone.psyir.nodes.ScopingNode._refine_copy
+    :no-index:
 
 .. _update_signals_label:
 
@@ -1018,12 +1020,13 @@ call, ``LFRicBuiltinFunctor`` and ``LFRicKernelFunctor`` respectively.
 
 The ``LFRicBuiltinFunctorFactory`` class dynamically creates a
 subclass of ``LFRicBuiltInFunctor`` for every LFRic
-:ref:`Builtin <user_guide:lfric-built-ins>`. These are named following the
+:ref:`Builtin <lfric-built-ins>`. These are named following the
 scheme ``LFRic_<BUILTIN_NAME>_Functor`` so that, for example, the ``Setval_X``
 builtin is represented by the ``LFRic_Setval_X_Functor`` class. An instance
 of the appropriate class may be obtained using the factory's create method:
 
 .. automethod:: psyclone.domain.lfric.algorithm.psyir.LFRicBuiltinFunctorFactory.create
+    :no-index:
 
 Kernel-layer Classes
 --------------------
@@ -1071,6 +1074,7 @@ etc). This could be modified if a single class turns out to be
 preferable.
 
 .. autoclass:: psyclone.domain.lfric.LFRicTypes
+    :no-index:
 
 
 Kernel arguments

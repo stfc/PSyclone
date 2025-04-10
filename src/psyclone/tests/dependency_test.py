@@ -45,7 +45,7 @@ from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Assignment, IfBlock, Loop
+from psyclone.psyir.nodes import Assignment, CodeBlock, IfBlock, Loop
 from psyclone.tests.utilities import get_invoke, get_ast
 
 # Constants
@@ -126,14 +126,9 @@ def test_double_variable_lhs(fortran_reader):
              integer :: g(10)
              g(g(1)) = 1
            end program test_prog''')
-
-    indirect_addressing = psyir.children[0].children[0]
-    assert isinstance(indirect_addressing, Assignment)
-    var_accesses = VariablesAccessInfo()
-    with pytest.raises(NotImplementedError) as err:
-        indirect_addressing.reference_accesses(var_accesses)
+    assert isinstance(psyir, CodeBlock)
     assert ("The variable 'g' appears more than once on the left-hand side "
-            "of an assignment." in str(err.value))
+            "of an assignment." in psyir.preceding_comment)
 
 
 def test_if_statement(fortran_reader):
@@ -285,11 +280,12 @@ def test_lfric():
     var_accesses = VariablesAccessInfo(schedule)
     assert str(var_accesses) == (
         "a: READ, cell: READ+WRITE, f1_data: READ+WRITE, f2_data: READ, "
-        "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, loop0_start: "
-        "READ, loop0_stop: READ, m1_data: READ, m2_data: READ, map_w1: READ, "
+        "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, m1_data: READ, "
+        "m2_data: READ, map_w1: READ, "
         "map_w2: READ, map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ,"
         " nlayers_f1: READ, r_def: NO_DATA_ACCESS, undf_w1: READ, undf_w2: "
-        "READ, undf_w3: READ")
+        "READ, undf_w3: READ, uninitialised_loop0_start: READ, "
+        "uninitialised_loop0_stop: READ")
 
 
 def test_lfric_kern_cma_args():

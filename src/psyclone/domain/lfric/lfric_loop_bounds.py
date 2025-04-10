@@ -39,8 +39,9 @@
 ''' This module provides the LFRicLoopBounds Class that handles all variables
     required for specifying loop limits within an LFRic PSy-layer routine.'''
 
-from psyclone.domain.lfric import LFRicCollection, LFRicLoop
+from psyclone.domain.lfric import LFRicCollection, LFRicLoop, LFRicTypes
 from psyclone.psyir.nodes import Assignment, Reference
+from psyclone.psyir.symbols import DataSymbol
 
 
 class LFRicLoopBounds(LFRicCollection):
@@ -71,8 +72,9 @@ class LFRicLoopBounds(LFRicCollection):
 
             # Set the lower bound
             root_name = f"loop{idx}_start"
-            lbound = self.symtab.find_or_create_integer_symbol(
-                root_name, tag=root_name)
+            lbound = self.symtab.new_symbol(
+                root_name, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             assignment = Assignment.create(
                     lhs=Reference(lbound),
                     rhs=loop.lower_bound_psyir())
@@ -87,8 +89,9 @@ class LFRicLoopBounds(LFRicCollection):
             # Set the upper bound
             if loop.loop_type not in ("colour", "colourtiles", "tile"):
                 root_name = f"loop{idx}_stop"
-                ubound = self.symtab.find_or_create_integer_symbol(
-                    root_name, tag=root_name)
+                ubound = self.symtab.new_symbol(
+                    root_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                 self._invoke.schedule.addchild(
                     Assignment.create(
                         lhs=Reference(ubound),
@@ -112,5 +115,5 @@ class LFRicLoopBounds(LFRicCollection):
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for.
 __all__ = ['LFRicLoopBounds']

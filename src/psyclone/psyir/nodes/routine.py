@@ -43,12 +43,16 @@
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
+from psyclone.core import VariablesAccessInfo
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol
+from psyclone.psyir.nodes.scoping_node import ScopingNode
+from psyclone.psyir.symbols import (
+    DataSymbol, DefaultModuleInterface,
+    RoutineSymbol, SymbolError, UnresolvedInterface)
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 
 
@@ -184,6 +188,90 @@ class Routine(Schedule, CommentableMixin):
         '''
         return self.coloured_name(colour) + "[name:'" + self.name + "']"
 
+    def check_outer_scope_accesses(self, call,
+                                   kern_or_call: str,
+                                   permit_unresolved: bool = True,
+                                   ignore_non_data_accesses: bool = False):
+        '''
+        Check for unresolved symbols or for any declared in the outer scope
+        Container of the target routine.
+
+        :param call: the node representing the call to the routine that is to
+            be inlined.
+        :type call: Union[CodedKern, Call]
+        :param kern_or_call: text appropriate to whether we have a PSyKAl
+            Kernel or a generic routine.
+        :param permit_unresolved: whether or not the presence of unresolved
+            symbols will result in an error being raised.
+        :param ignore_non_data_accesses: ignore unresolved symbols if they
+            do not represent data accesses (e.g. provide type information).
+
+        :raises SymbolError: if there is an access to an unresolved
+            symbol and `permit_unresolved` is False.
+        :raises SymbolError: if there is an access to a symbol that is
+            declared in the parent scope of this routine.
+
+        '''
+        # TODO #2424 - this suffers from the limitation that
+        # VariablesAccessInfo does not work with nested scopes. (e.g. 2
+        # different symbols with the same name but declared in different,
+        # nested scopes will be assumed to be the same symbol).
+        vai = VariablesAccessInfo(self)
+        table = self.symbol_table
+        name = self.name
+        for sig in vai.all_signatures:
+            symbol = table.lookup(sig.var_name, otherwise=None)
+            if not symbol:
+                raise SymbolError(
+                    f"{kern_or_call} '{name}' contains accesses to "
+                    f"'{sig.var_name}' but the origin of this signature is "
+                    f"unknown.")
+            if symbol.is_unresolved:
+                routine_wildcards = table.wildcard_imports()
+                # We can't be certain of the origin of this unresolved symbol.
+                if permit_unresolved:
+                    continue
+                if (ignore_non_data_accesses and
+                        not vai[sig].has_data_access()):
+                    continue
+                raise SymbolError(
+                    f"{kern_or_call} '{name}' contains accesses to "
+                    f"'{symbol.name}' which is unresolved. It is probably "
+                    f"brought into scope from one of "
+                    f"{[sym.name for sym in routine_wildcards]}. It may be"
+                    f" resolved by adding these to RESOLVE_IMPORTS in the "
+                    f"transformation script.")
+            if not symbol.is_import and symbol.name not in table:
+                sym_at_call_site = call.scope.symbol_table.lookup(
+                    sig.var_name, otherwise=None)
+                if sym_at_call_site is not symbol:
+                    raise SymbolError(
+                        f"{kern_or_call} '{name}' contains accesses to "
+                        f"'{symbol.name}' which is declared in the callee "
+                        f"module scope.")
+
+        # We can't handle a clash between (apparently) different symbols that
+        # share a name but are imported from different containers.
+        routine_arg_list = self.symbol_table.argument_list[:]
+        callsite_scopes = []
+        cursor = call
+        while cursor.ancestor(ScopingNode):
+            callsite_scopes.append(cursor.ancestor(ScopingNode))
+            cursor = cursor.ancestor(ScopingNode)
+        for scope in self.walk(ScopingNode):
+            scope_table = scope.symbol_table
+            for callsite_scope in callsite_scopes:
+                table = callsite_scope.symbol_table
+                try:
+                    table.check_for_clashes(
+                        scope_table,
+                        symbols_to_skip=routine_arg_list)
+                except SymbolError as err:
+                    raise SymbolError(
+                        f"One or more symbols from routine '{name}' "
+                        f"cannot be added to the table at the call site. "
+                        f"Error was: {err}") from err
+
     def update_parent_symbol_table(self, new_parent):
         ''' Update the Routine's new parent's symbol tables with the
         corresponding RoutineSymbol.
@@ -207,7 +295,9 @@ class Routine(Schedule, CommentableMixin):
                         is self._symbol):
                     self._parent.symbol_table.remove(self._symbol)
             except ValueError:
-                pass
+                # It can't be removed so we make it Unresolved. This will be
+                # undone when a Routine is re-attached.
+                self._symbol.interface = UnresolvedInterface()
             except KeyError:
                 pass
         elif new_parent is not None:
@@ -227,15 +317,17 @@ class Routine(Schedule, CommentableMixin):
             # whether the scope already has a Routine or CodeBlock
             # with this name and error if so.
             try:
-                sym = new_parent.symbol_table.lookup(self.name)
-                # If the found symbol is not the symbol used to initialise
-                # this Routine then we raise an error, as we won't be able
-                # to add it to the parent.
-                if sym is not self._symbol:
+                sym = new_parent.symbol_table.lookup(self.name,
+                                                     scope_limit=new_parent)
+                # If the found symbol is resolved and is not the symbol used
+                # to initialise this Routine then we raise an error, as we
+                # won't be able to add it to the parent.
+                if sym is not self._symbol and not sym.is_unresolved:
                     raise GenerationError(
-                            f"Can't add routine '{self.name}' into a "
-                            f"scope that already contains a symbol with "
-                            f"the same name.")
+                        f"Can't add routine '{self.name}' into a scope "
+                        f"that already contains a resolved symbol with "
+                        f"the same name.")
+
                 # Check that the scope doens't contain a Routine or
                 # CodeBlock representing a Routine with this name.
                 routines = new_parent.walk(Routine)
@@ -270,6 +362,10 @@ class Routine(Schedule, CommentableMixin):
                     new_parent.symbol_table.lookup(self._symbol.name)
                 except KeyError:
                     new_parent.symbol_table.add(self._symbol)
+                # As we now have the RoutineSymbol back in a Container, we
+                # can give it the right interface.
+                self._symbol.interface = DefaultModuleInterface()
+
         elif self.symbol_table:
             # Otherwise if new_parent is None, then we place the symbol
             # into this Routine's symbol table if possible. Not all Routine

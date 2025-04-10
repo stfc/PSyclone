@@ -199,3 +199,36 @@ def test_labelled_call():
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [ast])
     assert isinstance(fake_parent[0], CodeBlock)
+
+
+def test_unresolved_shadowed_routine(fortran_reader):
+    '''
+    For the situation where we can't be certain of the source of the target
+    of a call, check that an unresolved RoutineSymbol is created.
+    '''
+    code = '''\
+    module this_mod
+      implicit none
+    contains
+      subroutine do_it()
+        use my_mod
+        integer :: old_my_sub
+        real, dimension(10) :: a
+        ! This call could be to the routine defined in the same module *or*
+        ! to one of the same name brought in by the wildcard import from
+        ! `my_mod`
+        call my_sub(a)
+      end subroutine do_it
+      subroutine my_sub()
+        real, dimension(10) :: b
+        b = 1.0
+      end subroutine my_sub
+    end module this_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    do_it = psyir.children[0].find_routine_psyir("do_it")
+    calls = psyir.walk(Call)
+    assert calls[0].routine.symbol.is_unresolved
+    assert isinstance(calls[0].routine.symbol, RoutineSymbol)
+    # Symbol should be in the table of the Routine containing the call.
+    assert calls[0].routine.symbol.find_symbol_table(calls[0]).node is do_it

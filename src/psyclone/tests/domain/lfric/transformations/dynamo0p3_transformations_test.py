@@ -3781,8 +3781,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + ref + "[name:'loop0_start']\n" +
-            6*indent + ref + "[name:'loop0_stop']\n" +
+            6*indent + ref + "[name:'uninitialised_loop0_start']\n" +
+            6*indent + ref + "[name:'uninitialised_loop0_stop']\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
@@ -3797,8 +3797,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='nannexed']\n" +
-            6*indent + ref + "[name:'loop1_start']\n" +
-            6*indent + ref + "[name:'loop1_stop']\n" +
+            6*indent + ref + "[name:'uninitialised_loop1_start']\n" +
+            6*indent + ref + "[name:'uninitialised_loop1_stop']\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
@@ -3812,8 +3812,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + ref + "[name:'loop2_start']\n" +
-            6*indent + ref + "[name:'loop2_stop']\n" +
+            6*indent + ref + "[name:'uninitialised_loop2_start']\n" +
+            6*indent + ref + "[name:'uninitialised_loop2_stop']\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
@@ -3833,8 +3833,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + ref + "[name:'loop0_start']\n" +
-            6*indent + ref + "[name:'loop0_stop']\n" +
+            6*indent + ref + "[name:'uninitialised_loop0_start']\n" +
+            6*indent + ref + "[name:'uninitialised_loop0_stop']\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
@@ -3848,8 +3848,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + ref + "[name:'loop1_start']\n" +
-            6*indent + ref + "[name:'loop1_stop']\n" +
+            6*indent + ref + "[name:'uninitialised_loop1_start']\n" +
+            6*indent + ref + "[name:'uninitialised_loop1_stop']\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
@@ -3863,8 +3863,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + ref + "[name:'loop2_start']\n" +
-            6*indent + ref + "[name:'loop2_stop']\n" +
+            6*indent + ref + "[name:'uninitialised_loop2_start']\n" +
+            6*indent + ref + "[name:'uninitialised_loop2_stop']\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +

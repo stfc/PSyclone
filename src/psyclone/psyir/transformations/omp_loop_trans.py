@@ -37,9 +37,11 @@
 
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import (
-    OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
+    Directive, Schedule,
+    Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
     OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
-    OMPScheduleClause)
+    OMPScheduleClause, OMPBarrierDirective, OMPParallelDirective,
+)
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
 
@@ -50,6 +52,11 @@ MAP_STR_TO_LOOP_DIRECTIVES = {
     "teamsdistributeparalleldo": OMPTeamsDistributeParallelDoDirective,
     "teamsloop": OMPTeamsLoopDirective,
     "loop": OMPLoopDirective
+}
+
+#: Mapping from simple string to corresponding barrier type.
+MAP_STR_TO_BARRIER_DIRECTIVE = {
+    "do": OMPBarrierDirective,
 }
 #: List containing the valid names for OMP directives.
 VALID_OMP_DIRECTIVES = list(MAP_STR_TO_LOOP_DIRECTIVES.keys())
@@ -129,6 +136,65 @@ class OMPLoopTrans(ParallelLoopTrans):
 
     def __str__(self):
         return "Adds an OpenMP directive to parallelise the target loop"
+
+    def _add_asynchronicity(self, instance: Directive):
+        ''' Adds asynchronicity to the provided directive if possible. If
+        PSyclone's analysis suggests that it is not possible, the directive
+        is left unchanged.
+
+        The only directive that this method can act on is the OMPDoDirective.
+
+        :param instance: The directive to make asynchronous if possible.
+        '''
+        # Of the various directives supported by this transformation, only the
+        # OMPDoDirective supports the nowait clause. This needs to be an
+        # exact type check
+        if type(instance) is not OMPDoDirective:
+            return
+        # The loop is the first child of the schedule of an OMPDoDirective.
+        node = instance.dir_body.children[0]
+        # Otherwise find the next dependency.
+        next_depend = self._find_next_dependency(node, instance)
+        # If find_next_dependency returns False, then this loop is its own
+        # next dependency so we can't add an asynchronous clause.
+        if not next_depend:
+            return
+
+        barrier_type = MAP_STR_TO_BARRIER_DIRECTIVE[self.omp_directive]
+        # If find next_dependency returns True there is no follow up
+        # dependency, so we just need a barrier at the end of the containing
+        # Routine.
+        if next_depend is True:
+            # Add nowait to the instance.
+            instance.nowait = True
+            # Add a barrier to the end of the containing Routine if there
+            # isn't one already.
+            containing_routine = node.ancestor((Routine, OMPParallelDirective))
+            containing_schedule = containing_routine.walk(Schedule)[0]
+            # Check barrier that corresponds to self.omp_directive and add the
+            # correct barrier type
+            if not isinstance(containing_schedule.children[-1], barrier_type):
+                containing_schedule.addchild(barrier_type())
+            return
+
+        # Otherwise we have the next dependency and we need to find where the
+        # correct place for the preceding barrier is. Need to find a
+        # guaranteed control flow path to place it.
+
+        # Find the deepest schedule in the tree containing both.
+        sched = next_depend.ancestor(Schedule, shared_with=node)
+        routine = node.ancestor(Routine)
+        if sched and sched.is_descendent_of(routine):
+            # Get the path from sched to next_depend
+            path = next_depend.path_from(sched)
+            # The first element of path is the position of the ancestor
+            # of next_depend that is in sched, so we add the barrier there.
+            sched.addchild(barrier_type(), path[0])
+            instance.nowait = True
+
+        # If we didn't find anywhere to put the barrier then we just don't
+        # add the nowait.
+        # TODO #11: If we fail to have nowait added then log it.
 
     @property
     def omp_directive(self):

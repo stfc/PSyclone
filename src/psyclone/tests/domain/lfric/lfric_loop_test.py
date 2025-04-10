@@ -81,12 +81,12 @@ def test_constructor_loop_bound_names():
     schedule.addchild(LFRicLoop(parent=schedule))
     schedule.addchild(LFRicLoop(parent=schedule))
     loops = schedule.loops()
-    assert loops[0].start_expr.name == "loop0_start"
-    assert loops[1].start_expr.name == "loop1_start"
-    assert loops[2].start_expr.name == "loop2_start"
-    assert loops[0].stop_expr.name == "loop0_stop"
-    assert loops[1].stop_expr.name == "loop1_stop"
-    assert loops[2].stop_expr.name == "loop2_stop"
+    assert loops[0].start_expr.name == "uninitialised_loop0_start"
+    assert loops[1].start_expr.name == "uninitialised_loop1_start"
+    assert loops[2].start_expr.name == "uninitialised_loop2_start"
+    assert loops[0].stop_expr.name == "uninitialised_loop0_stop"
+    assert loops[1].stop_expr.name == "uninitialised_loop1_stop"
+    assert loops[2].stop_expr.name == "uninitialised_loop2_stop"
 
 
 def test_constructor_invalid_loop_type(monkeypatch):
@@ -258,7 +258,7 @@ def test_lower_to_language_normal_loop():
                            dist_mem=False, idx=0)
     sched = invoke.schedule
     loop1 = sched.children[1]
-    assert loop1.start_expr.symbol.name == "loop1_start"
+    assert loop1.start_expr.symbol.name == "uninitialised_loop1_start"
 
     # The same test with the lowered schedule should not change the
     # symbol anymore:
@@ -275,9 +275,9 @@ def test_lower_to_language_normal_loop():
 
     # Verify that after lowering the symbol name does not change
     # anymore if a previous loop is removed:
-    assert loop1.start_expr.symbol.name == "loop1_start"
+    assert loop1.start_expr.symbol.name == "uninitialised_loop1_start"
     sched.children.pop(0)
-    assert loop1.start_expr.symbol.name == "loop1_start"
+    assert loop1.start_expr.symbol.name == "uninitialised_loop1_start"
 
 
 def test_lower_to_language_domain_loops():

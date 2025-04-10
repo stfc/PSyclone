@@ -126,7 +126,8 @@ class PSyDataNode(Statement):
         # in the configuration file. If it *is* listed then it is assumed
         # that a matching PSyData wrapper library is available at compile time.
         # See the User Guide for more information:
-        # https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psy-data
+        # https://psyclone.readthedocs.io/en/latest/developer_guide/
+        # psy_data.html#psy-data
         if prefix and prefix not in Config.get().valid_psy_data_prefixes:
             raise InternalError(
                 f"Invalid 'prefix' parameter: found '{prefix}', expected one "

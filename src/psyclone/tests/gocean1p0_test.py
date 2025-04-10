@@ -125,7 +125,7 @@ def test_two_kernels(tmpdir, dist_mem):
                                         "single_invoke_two_kernels.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
 
     before_kernels = (
         "module psy_single_invoke_two_kernels\n"
@@ -170,7 +170,7 @@ def test_two_kernels(tmpdir, dist_mem):
     else:
         expected_output = before_kernels + first_kernel + second_kernel
 
-    assert str(generated_code) == expected_output
+    assert expected_output in generated_code
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 

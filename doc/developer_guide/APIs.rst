@@ -448,7 +448,7 @@ to uninitialised data).
 
 To avoid this problem the user guide currently recommends that all
 ``setval_c`` and ``setval_x`` Built-in calls (see
-:ref:`user_guide:built-ins` for more details) compute to the level-1
+:ref:`psykal-built-ins` for more details) compute to the level-1
 halo (by using the redundant computation transformation). This will
 guarantee that all modified halo data has been initialised with a
 value. If redundant computation transformations have been added then
@@ -1033,8 +1033,8 @@ BuiltIns
 ++++++++
 
 In the LFRic PSyIR, calls to BuiltIn kernels are represented by a
-single Node which is a subclass of `LFRicBuiltIn
-<https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1domain_1_1lfric_1_1lfric__builtins_1_1LFRicBuiltIn.html>`_.
+single Node which is a subclass of
+:ref_guide:`LFRicBuiltIn psyclone.domain.lfric.lfric_builtins.html#psyclone.domain.lfric.lfric_builtins.LFRicBuiltIn`.
 The ``lower_to_language_level()`` methods of these BuiltIn nodes must
 therefore replace that single Node with the
 PSyIR for the arithmetic operations required by the particular BuiltIn.

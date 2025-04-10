@@ -267,23 +267,30 @@ class Reference(DataNode):
         chain = DefinitionUseChain(self)
         return chain.find_forward_accesses()
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Update any Symbols referenced by this Node with those in the
-        supplied table with matching names. If there is no match for a given
+        supplied table (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given
         Symbol then it is left unchanged.
 
-        :param table: the symbol table in which to look up replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        try:
-            self.symbol = table.lookup(self.symbol.name)
-        except KeyError:
-            pass
+        if isinstance(table_or_symbol, Symbol):
+            if self.symbol.name.lower() == table_or_symbol.name.lower():
+                self.symbol = table_or_symbol
+        else:
+            try:
+                self.symbol = table_or_symbol.lookup(self.symbol.name)
+            except KeyError:
+                pass
 
         # Walk on down the tree.
-        super().replace_symbols_using(table)
+        super().replace_symbols_using(table_or_symbol)
 
 
 # For AutoAPI documentation generation

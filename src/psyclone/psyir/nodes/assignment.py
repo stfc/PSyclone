@@ -47,6 +47,7 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall, REDUCTION_INTRINSICS)
 from psyclone.psyir.nodes.ranges import Range
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.structure_reference import StructureReference
 
@@ -187,18 +188,23 @@ class Assignment(Statement):
         # from the original object to the new object.
         accesses_left = VariablesAccessInfo(options=var_accesses.options())
         self.lhs.reference_accesses(accesses_left)
-        # Now change the (one) access to the assigned variable to be WRITE:
-        sig, _ = self.lhs.get_signature_and_indices()
-        var_info = accesses_left[sig]
-        try:
-            var_info.change_read_to_write()
-        except InternalError as err:
-            # An internal error typically indicates that the same variable
-            # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
-            # supported in PSyclone.
-            raise NotImplementedError(f"The variable '{self.lhs.name}' appears"
-                                      f" more than once on the left-hand side "
-                                      f"of an assignment.") from err
+        # Now change the (one) access to the assigned variable to be WRITE.
+        # Note that if the LHS is a CodeBlock then reference_accesses() will
+        # already have given all Signatures READWRITE access. This is not
+        # strictly correct (they should probably be UNKNOWN) and is the
+        # subject of #2863.
+        if isinstance(self.lhs, Reference):
+            sig, _ = self.lhs.get_signature_and_indices()
+            var_info = accesses_left[sig]
+            try:
+                var_info.change_read_to_write()
+            except InternalError as err:
+                # An internal error typically indicates that the same variable
+                # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
+                # supported in PSyclone.
+                raise NotImplementedError(
+                    f"The variable '{self.lhs.name}' appears more than once on"
+                    f" the left-hand side of an assignment.") from err
 
         # Merge the data (that shows now WRITE for the variable) with the
         # parameter to this function. It is important that first the
