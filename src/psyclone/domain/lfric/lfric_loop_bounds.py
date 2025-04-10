@@ -78,14 +78,6 @@ class LFRicLoopBounds(LFRicCollection):
             assignment = Assignment.create(
                     lhs=Reference(lbound),
                     rhs=loop.lower_bound_psyir())
-            if isinstance(loop.children[0], Reference):
-                symbol = loop.children[0].symbol
-                if symbol.name.startswith('uninitialised'):
-                    # Remove uninitialised leftover symbols
-                    try:
-                        self.symtab.remove(symbol)
-                    except KeyError:
-                        pass  # Is wasn't in the symbol table
             loop.children[0] = Reference(lbound)
             self._invoke.schedule.addchild(assignment, cursor)
             cursor += 1
@@ -106,14 +98,6 @@ class LFRicLoopBounds(LFRicCollection):
                         rhs=loop.upper_bound_psyir()
                     ), cursor)
                 cursor += 1
-                if isinstance(loop.children[1], Reference):
-                    symbol = loop.children[1].symbol
-                    if symbol.name.startswith('uninitialised'):
-                        # Remove uninitialised leftover symbols
-                        try:
-                            self.symtab.remove(symbol)
-                        except KeyError:
-                            pass  # Is wasn't in the symbol table
                 loop.children[1] = Reference(ubound)
             else:
                 # If it needs a color look-up, it has to be in-place
