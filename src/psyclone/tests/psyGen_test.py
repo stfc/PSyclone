@@ -211,8 +211,9 @@ def test_transformation_apply_deprecation_message(capsys):
     instance = TestTrans()
     instance.apply(options={"dict": True})
     out, err = capsys.readouterr()
-    assert ("Deprecation Warning: The options parameter to "
-            "Transformation.apply is now deprecated. Please use "
+    assert ("PSyclone Deprecation Warning: The options parameters to "
+            "Transformation.apply and Transformation.validate are now "
+            "deprecated. Please use "
             "the individual arguments, or unpack the options with "
             "**options. See the documentation for more details." in out)
 
@@ -224,7 +225,7 @@ def test_transformation_get_valid_options():
         '''Utilty transformation to test methods of the abstract
         Transformation class.'''
         def apply(self, node, valid: bool = True, untyped=False):
-            pass  # pragma: no cover
+            '''Apply method of TestTrans.'''
 
     options = TestTrans.get_valid_options()
     assert options['valid'].default
@@ -233,6 +234,22 @@ def test_transformation_get_valid_options():
     assert options['untyped'].default is False
     assert options['untyped'].type is None
     assert options['untyped'].typename is None
+
+    class InheritTrans(TestTrans):
+        '''Utility transformation to test inheriting arguments'''
+        def apply(self, node, valid2: int = 1):
+            '''Apply method of InheritTrans.'''
+
+    options = InheritTrans.get_valid_options()
+    assert options['valid'].default
+    assert options['valid'].type is bool
+    assert options['valid'].typename == "bool"
+    assert options['untyped'].default is False
+    assert options['untyped'].type is None
+    assert options['untyped'].typename is None
+    assert options['valid2'].default is 1
+    assert options['valid2'].type is int
+    assert options['valid2'].typename == "int"
 
 
 def test_transformation_validate_options():

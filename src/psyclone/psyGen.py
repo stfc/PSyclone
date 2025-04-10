@@ -2727,7 +2727,11 @@ class TransInfo():
 
 @dataclass
 class ValidOption:
-    '''Class used to specify the valid options dict for a Transformation.'''
+    '''Class used to specify the valid options dict for a Transformation.
+    :param default: The default value for this option.
+    :param type: The type of this option.
+    :param typename: The (doc)string representation of type.
+    '''
     default: object
     type: object
     typename: str
@@ -2738,6 +2742,13 @@ class Transformation(metaclass=abc.ABCMeta):
     can not be instantiated.
 
     '''
+    _deprecation_warning = (
+        "PSyclone Deprecation Warning: The options parameters to "
+        "Transformation.apply and Transformation.validate are now "
+        "deprecated. Please use the individual arguments, or unpack "
+        "the options with **options. See the documentation for more details."
+    )
+
     @property
     def name(self):
         '''
@@ -2774,10 +2785,7 @@ class Transformation(metaclass=abc.ABCMeta):
         '''
         # TODO 2668: options are now deprecated:
         if options is not None:
-            print("Deprecation Warning: The options parameter to "
-                  "Transformation.apply is now deprecated. Please use "
-                  "the individual arguments, or unpack the options with "
-                  "**options. See the documentation for more details.")
+            print(self._deprecation_warning)
 
     def validate(self, node, options=None, **kwargs):
         '''Method that validates that the input data is correct.
@@ -2810,10 +2818,7 @@ class Transformation(metaclass=abc.ABCMeta):
         # pylint: disable=unused-argument
         # TODO 2668: options are now deprecated:
         if options is not None:
-            print("Deprecation Warning: The options parameter to "
-                  "Transformation.validate is now deprecated. Please use "
-                  "the individual arguments, or unpack the options with "
-                  "**options. See the documentation for more details.")
+            print(self._deprecation_warning)
 
     def get_option(self, option_name: str, **kwargs) -> Any:
         '''Finds the value of the option_name from the kwargs.

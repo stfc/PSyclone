@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified: L. Turner, Met Office
+# Modified: A. B. G. Chalk, STFC Darebury Lab
 
 ''' Module containing tests for the LoopTrans class. Since it is abstract we
 have to test it using various sub-classes. '''
@@ -185,7 +186,7 @@ def test_all_loop_trans_base_validate(monkeypatch):
                     f"{name}.validate() does not call LoopTrans.validate()"
 
 
-def test_loop_trans_base_apply(fortran_reader):
+def test_loop_trans_base_apply(fortran_reader, fortran_writer):
     '''Test the new base apply method for loop_trans. This now exists as we
     need to specify the new options.'''
     class fake_class(LoopTrans):
@@ -203,3 +204,17 @@ def test_loop_trans_base_apply(fortran_reader):
     ''')
     loop = psyir_test.walk(Loop)[0]
     fake_class().apply(loop)
+    # Check that base apply hasn't modified the code.
+    out = fortran_writer(psyir_test)
+    correct = """subroutine test()
+  integer :: i
+  INTEGER, TARGET :: a
+  INTEGER, POINTER :: b
+
+  do i = 1, 10, 1
+    b => a
+  enddo
+
+end subroutine test
+"""
+    assert correct == out

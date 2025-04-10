@@ -34,7 +34,7 @@
 # Authors: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 #
-# This code is influenced by the docstring_parser packaged created by Marcin
+# This code is influenced by the docstring_parser package created by Marcin
 # Kurczewski. Their licence is:
 #
 # The MIT License (MIT)
@@ -99,8 +99,9 @@ class ArgumentData():
     def gen_docstring(self, obj: Union[None, Any] = None) -> str:
         '''
         :param obj: The object who the generated docstring will be for. Default
-                    option is None, which means to generate the full docstring
-                    including all type lines.
+                    option is None. If no object is supplied, there can be no
+                    type annotation and so the type information is included
+                    inline in the :param or in a separate :type entry.
         :returns: The docstring represented by this ArgumentData.
         '''
         rstr = ":param "
@@ -146,23 +147,18 @@ class ReturnsData():
 
     :param str desc: The description of the returns docstring.
     :param str datatype: The string representation of the return datatype.
-    :param bool inline_type: whether the type of this return should be
-                             inline or a separate :rtype: docstring line.
     '''
     desc: str
     datatype: object
-    inline_type: bool
 
     def gen_docstring(self) -> str:
         '''
         :returns: The docstring for this ReturnsData object.
         '''
-        if self.inline_type:
-            return f":returns {self.datatype}: {self.desc}"
-        else:
-            rstr = f":returns: {self.desc}{os.linesep}"
-            rstr += f":rtype: {self.datatype}"
-            return rstr
+        rstr = f":returns: {self.desc}"
+        if self.datatype is not None:
+            rstr += f"{os.linesep}:rtype: {self.datatype}"
+        return rstr
 
 
 @dataclass
@@ -173,7 +169,7 @@ class DocstringData():
     :param str desc: The description of the docstring.
     :param OrderedDict[str, ArgumentData] arguments: An OrderedDict containing
         the ArgumentData that respresents the parameter section of the
-        docstring.
+        docstring, indexed by the parameter name.
     :param list[RaisesData] raises: A list containing the RaisesData that
         represents the raises section of the docstring.
     :param Union[ReturnsData, None] returns: The ReturnsData that represents
@@ -188,7 +184,9 @@ class DocstringData():
     def add_data(self, docstring_element:
                  Union[ArgumentData, RaisesData, ReturnsData, str]) -> None:
         '''
-        Adds the docstring_element to the DocstringData object.
+        Adds the docstring_element to the DocstringData object. If there is a
+        previous docstring_element in this DocstringData it will be
+        overwritten.
 
         :docstring_element: The docstring_element object to be added to the
                             DocstringData.
@@ -196,8 +194,6 @@ class DocstringData():
         :raises DocParseError: If a docstring element not supported by
                                PSyclone is found.
         '''
-        # FIXME We can do some checking that its not already present? But
-        # maybe we want to allow overwriting sometimes - optional argument.
         if isinstance(docstring_element, ArgumentData):
             self.arguments[docstring_element.name] = docstring_element
         elif isinstance(docstring_element, RaisesData):
@@ -262,15 +258,16 @@ class DocstringData():
         :param docdata: The docdata object to convert to docstring.
         :param indentation: The indentation to use. Default is "    ".
         :param obj: The object who the generated docstring will be for. Default
-                    option is None, which means to generate the full docstring
-                    including all type lines.
+                    option is None. If no object is supplied, there can be no
+                    type annotation and so the type information is included
+                    inline in the :param or in a separate :type entry.
 
         :returns: The docstring representation of this DocData object.
         '''
         if self.desc is not None:
             # Need to indent the docstring description if it is multiline.
-            if "\n" in self.desc:
-                lines = self.desc.split("\n")
+            if os.linesep in self.desc:
+                lines = self.desc.split(os.linesep)
                 description = ""
                 for line in lines:
                     description += indentation + line + os.linesep
@@ -282,8 +279,8 @@ class DocstringData():
         argstrings = []
         for arg in self.arguments:
             argstring = self.arguments[arg].gen_docstring(obj)
-            if "\n" in argstring:
-                lines = argstring.split("\n")
+            if os.linesep in argstring:
+                lines = argstring.split(os.linesep)
                 argstring = indentation + lines[0] + os.linesep
                 for line in lines[1:]:
                     if ":type" not in line:
@@ -299,8 +296,8 @@ class DocstringData():
         raisestrings = []
         for element in self.raises:
             raisesdocstring = element.gen_docstring()
-            if "\n" in raisesdocstring:
-                lines = raisesdocstring.split("\n")
+            if os.linesep in raisesdocstring:
+                lines = raisesdocstring.split(os.linesep)
                 raisestring = indentation + lines[0] + os.linesep
                 for line in lines[1:]:
                     raisestring += indentation*2 + line.rstrip() + os.linesep
@@ -312,27 +309,27 @@ class DocstringData():
 
         if self.returns is not None:
             returnstring = self.returns.gen_docstring()
-            if "\n" in returnstring:
-                lines = returnstring.split("\n")
+            if os.linesep in returnstring:
+                lines = returnstring.split(os.linesep)
                 returnstring = ""
                 for line in lines:
                     returnstring += indentation + line + os.linesep
             else:
-                returnstring = indentation + returnstring + "\n"
+                returnstring = indentation + returnstring + os.linesep
         else:
             returnstring = ""
 
         docstring = description
         docstring += os.linesep.join(argstrings)
         if len(argstrings) > 0:
-            docstring += "\n"
+            docstring += os.linesep
 
         # Add an empty line between param and raises
         if len(argstrings) > 0 and len(raisestrings) > 0:
-            docstring += "\n"
+            docstring += os.linesep
         docstring += os.linesep.join(raisestrings)
         if len(raisestrings) > 0:
-            docstring += "\n"
+            docstring += os.linesep
         docstring += returnstring
 
         return docstring
@@ -363,7 +360,7 @@ class DocstringData():
         text = inspect.cleandoc(text)
 
         # Find the first instance of ^: as the start of the meta information.
-        match = re.search("^:(param|type|raise|returns|rtype)", text,
+        match = re.search("^:(param|type|raise|return|rtype)", text,
                           flags=re.M)
         if match:
             desc_chunk = text[:match.start()]
@@ -408,25 +405,25 @@ class DocstringData():
             # we remove the leftover indentation
             if "  " in desc:
                 lines = desc.split("  ")
-                desc = lines[0] + "\n"
+                desc = lines[0] + os.linesep
                 for line in lines[1:]:
                     desc_line = inspect.cleandoc(line)
                     # If this section of the split was only whitespace
                     # we can ignore it.
                     if desc_line != "":
-                        desc = desc + desc_line + "\n"
+                        desc = desc + desc_line + os.linesep
                 # Remove the trailing \n
                 desc = desc[:-1]
 
             # If we have a multiline description without \ to break lines then
             # it instead contains \n which we can clean up similarly.
-            if "\n" in desc:
-                lines = desc.split("\n")
+            if os.linesep in desc:
+                lines = desc.split(os.linesep)
                 desc = lines[0] + os.linesep
                 for line in lines[1:]:
                     desc += inspect.cleandoc(line) + os.linesep
                 # Remove the trailing \n
-                desc = desc[:-1]
+                desc = desc.rstrip()
 
             # Special handling for :type: or :rtype: lines.
             if len(args) == 2 and args[0] == "type":
@@ -452,7 +449,6 @@ class DocstringData():
         # Store the return type if specified.
         if rtype:
             docstring_data.returns.datatype = rtype
-            docstring_data.returns.inline_type = False
 
         return docstring_data
 
@@ -511,22 +507,17 @@ def create_docstring_data(args: List[str], desc: str, obj: Any) ->\
                 f":raises Error: but found :{' '.join(args)}:"
             )
         return RaisesData(exception=args[1], desc=desc)
-    elif args[0] == "returns":
+    elif args[0] in ["return", "returns"]:
         if len(args) == 1:
             # Return of form :returns: desc
-            inline_type = False
             datatype = None
-        elif len(args) == 2:
-            # Return of form :returns datatype: desc
-            inline_type = True
-            datatype = args[1]
         else:
             raise DocParseError(
                 f"Found return docstring of unsupported type, expected "
-                f":returns: or :returns type: but found :{' '.join(args)}:"
+                f":returns: but found :{' '.join(args)}:"
             )
         return ReturnsData(
-            inline_type=inline_type, datatype=datatype, desc=desc
+            datatype=datatype, desc=desc
         )
     # Any other docstring is unsupported
     raise DocParseError(

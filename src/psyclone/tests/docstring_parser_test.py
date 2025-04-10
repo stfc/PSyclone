@@ -64,16 +64,15 @@ def test_raisesdata():
 
 def test_returnsdata():
     '''Test the ReturnsData dataclass behaves as expected.'''
-    rdata = ReturnsData(desc="desc", datatype="datatype", inline_type=False)
+    rdata = ReturnsData(desc="desc", datatype="datatype")
     assert rdata.desc == "desc"
     assert rdata.datatype == "datatype"
-    assert not rdata.inline_type
 
 
 def test_docstringdata_base():
     '''Test the DocstringData dataclass behaves as expected.'''
     arguments = OrderedDict()
-    returns = ReturnsData(desc="desc", datatype="datatype", inline_type=False)
+    returns = ReturnsData(desc="desc", datatype="datatype")
     raises = []
 
     docdata = DocstringData(desc="desc", arguments=arguments, raises=raises,
@@ -102,7 +101,7 @@ def test_docstringdata_add_data():
     docdata.add_data(adata)
     assert docdata.arguments["name2"] is adata
 
-    rdata = ReturnsData(desc="desc", datatype="datatype", inline_type=False)
+    rdata = ReturnsData(desc="desc", datatype="datatype")
     docdata.add_data(rdata)
     assert docdata.returns is rdata
 
@@ -175,7 +174,7 @@ def test_docstringdata_merge():
     # Merge returns
     docdata7 = DocstringData(desc="desc", arguments=OrderedDict(), raises=[],
                              returns=None)
-    rdata = ReturnsData(desc="desc", datatype="datatype", inline_type=False)
+    rdata = ReturnsData(desc="desc", datatype="datatype")
     docdata7.add_data(rdata)
     docdata.merge(docdata7)
     assert docdata.returns is rdata
@@ -183,7 +182,7 @@ def test_docstringdata_merge():
     # Don't overwrite without param
     docdata8 = DocstringData(desc="desc", arguments=OrderedDict(), raises=[],
                              returns=None)
-    rdata2 = ReturnsData(desc="desc2", datatype="datatype", inline_type=False)
+    rdata2 = ReturnsData(desc="desc2", datatype="datatype")
     docdata8.add_data(rdata2)
     docdata.merge(docdata8)
     assert docdata.returns is not rdata2
@@ -252,23 +251,14 @@ def test_create_docstring_data():
     with pytest.raises(DocParseError) as excinfo:
         create_docstring_data(args, "desc", dummy_function)
     assert ("Found return docstring of unsupported type, expected "
-            ":returns: or :returns type: but found :returns one two"
+            ":returns: but found :returns one two"
             in str(excinfo.value))
 
     # Test valid returns string without type info.
     args = ["returns"]
     output = create_docstring_data(args, "desc", dummy_function)
     assert isinstance(output, ReturnsData)
-    assert not output.inline_type
     assert output.datatype is None
-    assert output.desc == "desc"
-
-    # Test valid returns string with type info.
-    args = ["returns", "str"]
-    output = create_docstring_data(args, "desc", dummy_function)
-    assert isinstance(output, ReturnsData)
-    assert output.inline_type
-    assert output.datatype == "str"
     assert output.desc == "desc"
 
     # Test invalid input.
@@ -308,15 +298,15 @@ def test_ArgumentData_gen_docstring():
     assert output == ":param typed_arg: desc"
 
 
-def test_ReturndData_gen_docstring():
+def test_ReturnsData_gen_docstring():
     '''Test the ReturnsData class gen_docstring function.'''
-    rdata = ReturnsData(desc="desc", datatype="datatype", inline_type=False)
+    rdata = ReturnsData(desc="desc", datatype="datatype")
     output = rdata.gen_docstring()
     assert output == ":returns: desc\n:rtype: datatype"
 
-    rdata = ReturnsData(desc="desc", datatype="datatype", inline_type=True)
+    rdata = ReturnsData(desc="desc", datatype=None)
     output = rdata.gen_docstring()
-    assert output == ":returns datatype: desc"
+    assert output == ":returns: desc"
 
 
 def test_DocstringData_gen_docstring_():
@@ -366,7 +356,7 @@ def test_DocstringData_gen_docstring_():
 '''
     assert output == correct
 
-    rdata = ReturnsData(desc="desc", datatype="datatype", inline_type=False)
+    rdata = ReturnsData(desc="desc", datatype="datatype")
     docdata.add_data(rdata)
     output = docdata.gen_docstring()
     correct = '''    desc
@@ -383,7 +373,7 @@ def test_DocstringData_gen_docstring_():
 '''
     assert output == correct
 
-    rdata = ReturnsData(desc="desc", datatype="datatype", inline_type=True)
+    rdata = ReturnsData(desc="desc", datatype=None)
     docdata.add_data(rdata)
     output = docdata.gen_docstring()
     correct = '''    desc
@@ -395,7 +385,7 @@ def test_DocstringData_gen_docstring_():
     :raises Error: desc
     :raises Error2: multiline
         desc2
-    :returns datatype: desc
+    :returns: desc
 '''
     assert output == correct
 
@@ -437,7 +427,7 @@ def test_DocstringData_create_from_object():
 
         :raises DocParseError: an error
 
-        :returns: something
+        :return: something
         :rtype: type
         '''
 
@@ -457,7 +447,6 @@ def test_DocstringData_create_from_object():
     assert out_data.raises[0].desc == "an error"
     assert out_data.returns.desc == "something"
     assert out_data.returns.datatype == "type"
-    assert not out_data.returns.inline_type
 
     # Method with only a description should return a DocstringData with
     # only a description. Here we test we can support a single colon in the
@@ -517,7 +506,7 @@ def test_docstring_is_reversible():
 
         :raises Error: when bad things happen.
 
-        :returns int: if things go well.
+        :returns: if things go well.
         '''
 
     def docstring_object2(param4):

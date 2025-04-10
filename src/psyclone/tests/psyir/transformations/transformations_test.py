@@ -569,6 +569,7 @@ def test_omploop_trans_new_options(sample_psyir):
 
     # Check python version, as this tests have different behaviour for
     # new python versions vs 3.8 or 3.7.
+    # TODO #2837: This can be removed when Python 3.7 and 3.8 are retired.
     if sys.version_info[1] < 11:
         with pytest.raises(TypeError) as excinfo:
             omplooptrans.apply(tree.walk(Loop)[0], collapse="x")

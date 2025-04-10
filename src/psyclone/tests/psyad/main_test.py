@@ -626,13 +626,16 @@ def test_main_otest_lfric(tmpdir, capsys):
     assert error == ""
     # TODO 2668: This deprecation of options causes this test to see the
     # deprecation message.
-    correct = '''Deprecation Warning: The options parameter to \
-Transformation.validate is now deprecated. Please use the individual \
+    correct = '''PSyclone Deprecation Warning: The options parameters to \
+Transformation.apply and Transformation.validate are \
+now deprecated. Please use the individual \
 arguments, or unpack the options with **options. \
 See the documentation for more details.
-Deprecation Warning: The options parameter to Transformation.validate \
-is now deprecated. Please use the individual arguments, or unpack the \
-options with **options. See the documentation for more details.
+PSyclone Deprecation Warning: The options parameters to \
+Transformation.apply and Transformation.validate are \
+now deprecated. Please use the individual \
+arguments, or unpack the options with **options. \
+See the documentation for more details.
 '''
     assert output == correct
     with open(harness_out, 'r', encoding='utf-8') as my_file:
