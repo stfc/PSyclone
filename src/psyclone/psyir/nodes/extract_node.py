@@ -49,7 +49,17 @@ wrapping up settings for generating driver for the extracted code, will
 be added in Issue #298.
 '''
 
+from psyclone.configuration import Config
+from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
+from psyclone.psyir.nodes.structure_reference import StructureReference
+from psyclone.psyir.nodes.routine import Routine
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.symbols import (
+    DataSymbol, INTEGER_TYPE, REAL8_TYPE, ArrayType, ContainerSymbol,
+    ImportInterface)
 
 
 class ExtractNode(PSyDataNode):
@@ -89,6 +99,12 @@ class ExtractNode(PSyDataNode):
     # The default prefix to add to the PSyData module name and PSyDataType
     _default_prefix = "extract"
 
+    # This dictionary keeps track of region+module names that are already
+    # used. For each key (which is module_name+"|"+region_name) it contains
+    # how many regions with that name have been created. This number will
+    # then be added as an index to create unique region identifiers.
+    _used_kernel_names = {}
+
     def __init__(self, ast=None, children=None, parent=None, options=None):
         super().__init__(ast=ast, children=children,
                          parent=parent, options=options)
@@ -112,6 +128,7 @@ class ExtractNode(PSyDataNode):
 
         # Keep a copy of the argument list:
         self._read_write_info = options.get("read_write_info")
+        self._driver_creator = None
 
     def __eq__(self, other):
         '''
@@ -154,27 +171,260 @@ class ExtractNode(PSyDataNode):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        if self._read_write_info is None:
-            # Typically, _read_write_info should be set at the constructor,
-            # but some tests do not provide the required information. To
-            # support these tests, allow creation of the read_write info
-            # here (it can't be done in the constructor, since this node
-            # is not yet integrated into the PSyIR, so the dependency tool
-            # cannot determine variable usage at that time):
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
+        from psyclone.psyGen import Kern
+        module_name = self._module_name
+        if not self._region_name:
+            kerns = self.walk(Kern)
+            if len(kerns) == 1:
+                # This PSyData region only has one kernel within it,
+                # so append the kernel name.
+                region_name = f"{kerns[0].name}-"
+            else:
+                region_name = ""
+            # Create a name for this region by finding where this PSyDataNode
+            # is in the list of PSyDataNodes in this Invoke. We allow for any
+            # previously lowered PSyDataNodes by checking for CodeBlocks with
+            # the "psy-data-start" annotation.
+            routine_schedule = self.ancestor(Routine)
+            pnodes = routine_schedule.walk((PSyDataNode, CodeBlock))
+            region_idx = 0
+            for node in pnodes[0:pnodes.index(self)]:
+                if (isinstance(node, PSyDataNode) or
+                        "psy-data-start" in node.annotations):
+                    region_idx += 1
+            region_name = f"{region_name}r{region_idx}"
+            # If the routine name is not used as 'module name' (in case of a
+            # subroutine outside of any modules), add the routine name
+            # to the region. Otherwise just use the number
+            if module_name != routine_schedule.name:
+                region_name = f"{routine_schedule.name}-{region_name}"
+            self._region_name = region_name
 
-            # Avoid circular dependency
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
-            # Determine the variables to write:
-            ctu = CallTreeUtils()
-            self._read_write_info = ctu.get_in_out_parameters(
-                self, include_non_data_accesses=True)
+        # get_non_local_read_write_info doesn't work with the lowered tree,
+        # so we save a copy of the higher dsl tree
+        copy_dsl_tree = self.copy()
 
-        options = {'pre_var_list': self._read_write_info.read_list,
-                   'post_var_list': self._read_write_info.write_list,
+        for child in self.children:
+            child.lower_to_language_level()
+
+        self.flatten_references()
+
+        # Determine the variables to write:
+        ctu = CallTreeUtils()
+        read_write_info = ctu.get_in_out_parameters(
+            self, include_non_data_accesses=False)
+        # Use the copy of the dsl_tree to get the external symbols
+        ctu.get_non_local_read_write_info(copy_dsl_tree.children,
+                                          read_write_info)
+
+        options = {'pre_var_list': read_write_info.read_list,
+                   'post_var_list': read_write_info.write_list,
                    'post_var_postfix': self._post_name}
 
+        if self._driver_creator:
+            nodes = self.children
+            region_name_tuple = self.get_unique_region_name(nodes)
+
+            self.bring_external_symbols(read_write_info,
+                                        self.ancestor(Routine).symbol_table)
+
+            # Even variables that are output-only need to be written with their
+            # values at the time the kernel is called: many kernels will only
+            # write to part of a field (e.g. in case of MPI the halo region
+            # will not be written). Since the comparison in the driver uses
+            # the whole field (including values not updated), we need to write
+            # the current value of an output-only field as well. This is
+            # achieved by adding any written-only field to the list of fields
+            # read. This will trigger to write the values in the extraction,
+            # and the driver code created will read in their values.
+            for sig in read_write_info.write_list:
+                if sig not in read_write_info.read_list:
+                    read_write_info.read_list.append(sig)
+
+            # Determine a unique postfix to be used for output variables
+            # that avoid any name clashes
+            postfix = self.determine_postfix(read_write_info,
+                                             postfix="_post")
+            # Remove the spurious "_" at the end of the prefix or use default
+            prefix = self._prefix[:-1] if self._prefix else "extract"
+            # We need to create the driver before inserting the ExtractNode
+            # (since some of the visitors used in driver creation do not
+            # handle an ExtractNode in the tree)
+            self._driver_creator.write_driver(self.children,
+                                              read_write_info,
+                                              postfix=postfix,
+                                              prefix=prefix,
+                                              region_name=region_name_tuple)
+
         return super().lower_to_language_level(options)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def determine_postfix(read_write_info, postfix="_post"):
+        '''
+        This function prevents any name clashes that can occur when adding
+        the postfix to output variable names. For example, if there is an
+        output variable 'a', the driver (and the output file) will contain
+        two variables: 'a' and 'a_post'. But if there is also another variable
+        called 'a_post', a name clash would occur (two identical keys in the
+        output file, and two identical local variables in the driver). In
+        order to avoid this, the suffix 'post' is changed (to 'post0',
+        'post1', ...) until any name clashes are avoided. This works for
+        structured and non-structured types.
+
+        :param read_write_info: information about all input and output \
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
+        :param str postfix: the postfix to append to each output variable.
+
+        :returns: a postfix that can be added to each output variable without
+            generating a name clash.
+        :rtype: str
+
+        '''
+        suffix = ""
+        # Create the a set of all input and output variables (to avoid
+        # checking input+output variables more than once)
+        all_vars = read_write_info.set_of_all_used_vars
+        # The signatures in the input/output list need to be converted
+        # back to strings to easily append the suffix.
+        all_vars_string = [str(input_var) for _, input_var in all_vars]
+        while any(str(out_sig)+postfix+str(suffix) in all_vars_string
+                  for out_sig in read_write_info.signatures_written):
+            if suffix == "":
+                suffix = 0
+            else:
+                suffix += 1
+        return postfix+str(suffix)
+
+    def get_unique_region_name(self, nodes):
+        '''This function returns the region and module name. If they are
+        specified in the user options, these names will just be returned (it
+        is then up to the user to guarantee uniqueness). Otherwise a name
+        based on the module and invoke will be created using indices to
+        make sure the name is unique.
+
+        :param nodes: a list of nodes.
+        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
+
+        '''
+        from psyclone.psyGen import InvokeSchedule
+        invoke = nodes[0].ancestor(InvokeSchedule).invoke
+        module_name = invoke.invokes.psy.name
+        return (module_name, self._region_name)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _flatten_signature(signature):
+        '''Creates a 'flattened' string for a signature by using ``_`` to
+        separate the parts of a signature. For example, in Fortran
+        a reference to ``a%b`` would be flattened to be ``a_b``.
+
+        :param signature: the signature to be flattened.
+        :type signature: :py:class:`psyclone.core.Signature`
+
+        :returns: a flattened string (all '%' replaced with '_'.)
+        :rtype: str
+
+        '''
+        return str(signature).replace("%", "_")
+
+    # -------------------------------------------------------------------------
+    def flatten_references(self):
+        '''Replace StructureReferencces with a simple Reference and a flattened
+        name (replacing all % with _).
+
+        '''
+        already_flattened = {}  # dict of name: symbol
+
+        for structure_ref in self.walk(StructureReference)[:]:
+            if isinstance(structure_ref.parent, Call):
+                if structure_ref.position == 0:
+                    return  # Method calls are fine
+
+            signature, _ = structure_ref.get_signature_and_indices()
+            flattened_name = self._flatten_signature(signature)
+            try:
+                symbol = already_flattened[flattened_name]
+            except KeyError:
+                symtab = structure_ref.ancestor(Routine).symbol_table
+                symbol = symtab.new_symbol(
+                            flattened_name,
+                            symbol_type=DataSymbol,
+                            datatype=self._flatten_datatype(structure_ref))
+                already_flattened[flattened_name] = symbol
+                # We also need two assignments to copy the initial and final
+                # values to/from the flattened temporary
+                self.parent.addchild(Assignment.create(Reference(symbol),
+                                                       structure_ref.copy()),
+                                     index=self.position)
+                self.parent.addchild(Assignment.create(structure_ref.copy(),
+                                                       Reference(symbol)),
+                                     index=self.position+1)
+
+            # Replace the structure access with the flattened reference
+            structure_ref.replace_with(Reference(symbol))
+
+    @staticmethod
+    def _flatten_datatype(structure_reference):
+        ''' Ideally this should be replaces by structure_reference.datatype
+        but until it works, this utility method provides hardcoded type
+        information depending on the PSyKAL DSL and names involved
+        '''
+        signature, _ = structure_reference.get_signature_and_indices()
+        if Config.get().api == "gocean":
+            if signature[-1] in ("data", "gphiu"):
+                return ArrayType(REAL8_TYPE, [ArrayType.Extent.DEFERRED,
+                                              ArrayType.Extent.DEFERRED])
+            if signature[-1] == "tmask":
+                return ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED,
+                                                ArrayType.Extent.DEFERRED])
+            if signature[-1] == "dx":
+                return REAL8_TYPE
+
+        # Everything else defaults to integer
+        return INTEGER_TYPE
+
+    @staticmethod
+    def bring_external_symbols(read_write_info, symbol_table):
+        from psyclone.parse import ModuleManager
+        mod_man = ModuleManager.get()
+        for module_name, signature in read_write_info.set_of_all_used_vars:
+            if not module_name:
+                # Ignore local symbols, which will have been added above
+                continue
+            container = symbol_table.find_or_create(
+                module_name, symbol_type=ContainerSymbol)
+
+            # Now look up the original symbol. While the variable could
+            # be declared Unresolved here (i.e. just imported), we need the
+            # type information for the output variables (VAR_post), which
+            # are created later and which will query the original symbol for
+            # its type. And since they are not imported, they need to be
+            # explicitly declared.
+            mod_info = mod_man.get_module_info(module_name)
+            container_symbol = mod_info.get_symbol(signature[0])
+            if not container_symbol:
+                # TODO #2120: This typically indicates a problem with parsing
+                # a module: the psyir does not have the full tree structure.
+                continue
+
+            # It is possible that external symbol name (signature[0]) already
+            # exist in the symbol table (the same name is used in the local
+            # subroutine and in a module). In this case, the imported symbol
+            # must be renamed:
+            if signature[0] in symbol_table:
+                interface = ImportInterface(container, orig_name=signature[0])
+            else:
+                interface = ImportInterface(container)
+
+            symbol_table.find_or_create_tag(
+                tag=f"{signature[0]}@{module_name}", root_name=signature[0],
+                symbol_type=DataSymbol, interface=interface,
+                datatype=container_symbol.datatype)
 
 
 # For AutoAPI documentation generation
