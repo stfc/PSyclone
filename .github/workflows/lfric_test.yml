@@ -79,7 +79,7 @@ jobs:
     - name: LFRic passthrough (with DistributedMemory)
       run: |
         # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%gcc@14
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
@@ -110,7 +110,7 @@ jobs:
     - name: LFRic GungHo with OpenMP offload
       run: |
         # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%nvhpc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
@@ -158,7 +158,7 @@ jobs:
     - name: LFRic GungHo with OpenACC offload
       run: |
         # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%nvhpc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
@@ -206,7 +206,7 @@ jobs:
     - name: LFRic with all transformations
       run: |
         # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%gcc@14
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
