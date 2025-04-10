@@ -751,13 +751,13 @@ def test_dependency_on_scalar_non_exhaustive_write_write(fortran_reader):
     '''Tests can_loop_be_parallelised finds the loop-carried use of a scalar
     when a write happends on only some iterations of a loop.'''
     source = '''program test
-                integer :: i, my_val
+                integer :: i, my_val, x
                 real, dimension(10) :: array
 
                 do i = 1, 10
                   if (array(i) > 3) then
                     my_val = array(i)
-                    array(i) = my_val
+                    array(i) = my_val + x + x
                   else
                     array(i) = my_val
                   endif

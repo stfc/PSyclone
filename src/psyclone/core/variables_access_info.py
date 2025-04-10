@@ -40,7 +40,7 @@
 '''This module provides management of variable access information.'''
 
 
-from typing import List
+from typing import Dict, List, Tuple
 
 from psyclone.core.access_type import AccessType
 from psyclone.core.component_indices import ComponentIndices
@@ -393,8 +393,11 @@ class VariablesAccessInfo(dict):
         var_access_info = self[signature]
         return var_access_info.has_read_write()
 
-    def set_conditional_accesses(self, if_branch, else_branch):
-        '''This function adds the accesses from `if_branch` and `else_branch`,
+    def set_conditional_accesses(self, node, if_branch, else_branch):
+        '''This function adds the accesses from `if_branch` and `else_branch`
+        as accesses as part of `node`, and if required marks these accesses
+        as conditional.
+
         marking them as conditional if the accesses are already conditional,
         or only happen in one of the two branches. While this function is
         at the moment only used for if-statements, it can also be used for
@@ -419,62 +422,48 @@ class VariablesAccessInfo(dict):
         all_sigs.update(set(var_else.keys()))
 
         for sig in all_sigs:
+            print("@@", sig)
             if sig not in var_if or sig not in var_else:
-                # Signature is only in one branch. Mark all existing accesses
-                # as conditional
+                # Access using this signature is only in one of the branches.
+                # Add all these accesses as conditional accesses to the
+                # specified node (exactly once in case of multiple accesses)
+                done = []
                 var_access = var_if[sig] if sig in var_if else var_else[sig]
                 for access in var_access.all_accesses:
-                    print("conditional 1", sig.to_language(
-                          component_indices=access.component_indices))
-
-                    access.conditional = True
+                    if any(access.component_indices.equal(i) for i in done):
+                        # Duplicate, ignore
+                        continue
+                    self.add_access(sig, access.access_type, node,
+                                    access.component_indices,
+                                    conditional=True)
+                    done.append(access.component_indices)
                 continue
 
-            # Now we have a signature that is accessed in both
-            # the if and else block. In case of array variables, we need to
-            # distinguish between different indices, e.g. a(i) might be
-            # written to unconditionally, but a(i+1) might be written
-            # conditionally. Additionally, we should support mathematically
-            # equivalent statements (e.g. a(i+1), and a(1+i)).
             # As a first step, split all the accesses into equivalence
-            # classes. Each equivalent class stores two lists as a pair: the
+            # classes (e.g. a(i) and a(i+1) are different, but a(1+i)
+            # and a(i+2-1) are in the same class, since the indices are
+            # mathematically equivalent)
+            # Each equivalent class stores two lists as a pair: the
             # first one with the accesses from the if branch, the second with
             # the accesses from the else branch.
-            equiv = {}
-            for access in var_if[sig].all_accesses:
-                for comp_access in equiv.keys():
-                    if access.component_indices.equal(comp_access):
-                        equiv[comp_access][0].append(access)
-                        break
-                else:
-                    # New component index:
-                    equiv[access.component_indices] = ([access], [])
-            # While we know that the signature is used in both branches, the
-            # accesses for a given equivalence class of indices could still
-            # be in only in one of them (e.g.
-            # if () then a(i)=1 else a(i+1)=2 endif). So it is still possible
-            # that we a new equivalence class in the second branch
-            for access in var_else[sig].all_accesses:
-                for comp_access in equiv.keys():
-                    if access.component_indices.equal(comp_access):
-                        equiv[comp_access][1].append(access)
-                        break
-                else:
-                    # New component index:
-                    equiv[access.component_indices] = ([], [access])
+
+            equiv = self._equivalence_classes(var_if[sig].all_accesses,
+                                              var_else[sig].all_accesses)
 
             print("===============================")
             # Now handle each equivalent set of component indices:
-            for comp_index in equiv.keys():
-                # print("evaluating equivalence", sig.to_language(
-                #           component_indices=comp_index))
+            for comp_index in equiv:
                 if_accesses, else_accesses = equiv[comp_index]
-                # If the access is not in both branches, it is conditional:
                 if not if_accesses or not else_accesses:
                     # Only accesses in one section, therefore conditional:
                     var_access = if_accesses if if_accesses else else_accesses
+
                     for access in var_access:
                         access.conditional = True
+                        self.add_access(sig, access.access_type, node,
+                                        access.component_indices,
+                                        conditional=True)
+
                     continue
 
                 # Now we have accesses to the same indices in both branches.
@@ -541,6 +530,52 @@ class VariablesAccessInfo(dict):
                 print("-----------------------------")
         self.merge(var_if)
         self.merge(var_else)
+
+    @staticmethod
+    def _equivalence_classes(if_accesses, else_accesses) -> \
+            Dict[ComponentIndices, tuple(List[SingleVariableAccessInfo],
+                                         List[SingleVariableAccessInfo])]:
+        '''This function is called when the specified signature is accessed
+        in both the if and else block. In case of array variables, we need to
+        distinguish between different indices, e.g. a(i) might be
+        written to unconditionally, but a(i+1) might be written
+        conditionally. Additionally, we should support mathematically
+        equivalent statements (e.g. a(i+1), and a(1+i)).
+
+        This function creates a dictionary. The keys are ComponentIndices
+        The values for a given key is a Pair of lists, the first one containing
+        all accesses to the same index in the if-branch, the second one
+        containing all accesses to the same index in the else-branch.
+
+        It returns dict[ComponentIndices, Pair(List[access], List[access])]
+        '''
+        equiv = {}
+        for access in if_accesses:
+            for comp_access in equiv:
+                if access.component_indices.equal(comp_access):
+                    equiv[comp_access][0].append(access)
+                    break
+            else:
+                # New component index equivalence class
+                equiv[access.component_indices] = ([access], [])
+        # While we know that the signature is used in both branches, the
+        # accesses for a given equivalence class of indices could still
+        # be in only in one of them (e.g.
+        # if () then a(i)=1 else a(i+1)=2 endif). The access to `i+1`
+        # happens only in the else branch:
+        for access in else_accesses:
+            for comp_access in equiv:
+                if access.component_indices.equal(comp_access):
+                    equiv[comp_access][1].append(access)
+                    break
+            else:
+                # New component index equivalence class:
+                equiv[access.component_indices] = ([], [access])
+
+        return equiv
+
+    def _add_accesses_and_conditional_to_node(self):
+        pass
 
 
 # ---------- Documentation utils -------------------------------------------- #

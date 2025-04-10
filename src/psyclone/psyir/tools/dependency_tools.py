@@ -814,7 +814,7 @@ class DependencyTools():
                             f"instance of class Loop but got "
                             f"'{type(loop).__name__}'")
 
-        var_accesses = VariablesAccessInfo(loop)
+        var_accesses = VariablesAccessInfo(loop, options={"FLATTEN": True})
         if not signatures_to_ignore:
             signatures_to_ignore = []
 

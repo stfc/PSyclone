@@ -65,8 +65,8 @@ class AccessInfo():
     :param node: Node in PSyIR in which the access happens.
     :type node: :py:class:`psyclone.psyir.nodes.Node`
     :param component_indices: indices used in the access, defaults to None.
-    :type component_indices: None, [], a list or a list of lists of \
-        :py:class:`psyclone.psyir.nodes.Node` objects, or an object of type \
+    :type component_indices: None, [], a list or a list of lists of
+        :py:class:`psyclone.psyir.nodes.Node` objects, or an object of type
         :py:class:`psyclone.core.component_indices.ComponentIndices`
     :param bool conditional: if the access is a conditional access.
 
@@ -95,7 +95,7 @@ class AccessInfo():
         where the LHS is first considered to be READ,
         and which is then changed to be WRITE.
 
-        :raises InternalError: if the variable originally does not have\
+        :raises InternalError: if the variable originally does not have
             READ access.
 
         '''
@@ -127,10 +127,10 @@ class AccessInfo():
         index expression).
 
         :param component_indices: indices used in the access.
-        :type component_indices: \
+        :type component_indices:
             :py:class:`psyclone.core.component_indices.ComponentIndices`
 
-        :raises InternalError: if component_indices is not an instance \
+        :raises InternalError: if component_indices is not an instance
             of :py:class:`psyclone.core.component_indices.ComponentIndices`.
 
         '''
@@ -145,7 +145,7 @@ class AccessInfo():
         '''Test if any of the components has an index. E.g. an access like
         a(i)%b would still be considered an array.
 
-        :returns: if any of the variable components uses an index, i.e.\
+        :returns: if any of the variable components uses an index, i.e.
             the variable is an array.
         :rtype: bool
         '''
@@ -166,10 +166,9 @@ class AccessInfo():
         return self._access_type not in AccessType.non_data_accesses()
 
     @property
-    def location(self):
-        ''':returns: the location information for this access.\
-        Please see the Developers' Guide for more information.
-        :rtype: int
+    def location(self) -> int:
+        ''':returns: the location information for this access. Please see
+        the Developers' Guide for more information.
         '''
         return self._location
 
@@ -372,15 +371,15 @@ class SingleVariableAccessInfo():
         '''Adds access information to this variable.
 
         :param access_type: the type of access (READ, WRITE, ....)
-        :type access_type: \
+        :type access_type:
             :py:class:`psyclone.core.access_type.AccessType`
         :param location: location information
         :type location: int
         :param node: Node in PSyIR in which the access happens.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param component_indices: indices used for each component of the \
+        :param component_indices: indices used for each component of the
             access.
-        :type component_indices:  \
+        :type component_indices:
             :py:class:`psyclone.core.component_indices.ComponentIndices`
         :param bool conditional: if the access is conditional
         '''
@@ -427,11 +426,11 @@ class SingleVariableAccessInfo():
         this variable must be used in (at least one) index access in order
         for this variable to be considered as an array.
 
-        :param str index_variable: only considers this variable to be used \
-            as array if there is at least one access using this \
+        :param str index_variable: only considers this variable to be used
+            as array if there is at least one access using this
             index_variable.
 
-        :returns: true if there is at least one access to this variable \
+        :returns: true if there is at least one access to this variable
             that uses an index.
         :rtype: bool
 
@@ -463,11 +462,11 @@ class SingleVariableAccessInfo():
         :param reference: the reference at which to stop for access checks.
         :type reference: :py:class:`psyclone.psyir.nodes.Reference`
 
-        :returns: True if this variable is written before the specified \
+        :returns: True if this variable is written before the specified
             reference, and False if not.
         :rtype: bool
 
-        :raises ValueError: if the specified reference is not in the list of \
+        :raises ValueError: if the specified reference is not in the list of
             all accesses.
 
         '''
@@ -488,11 +487,11 @@ class SingleVariableAccessInfo():
         :param reference: the reference at which to stop for access checks.
         :type reference: :py:class:`psyclone.psyir.nodes.Reference`
 
-        :returns: True if this variable is read before the specified \
+        :returns: True if this variable is read before the specified
             reference, and False if not.
         :rtype: bool
 
-        :raises ValueError: if the specified reference is not in the list of \
+        :raises ValueError: if the specified reference is not in the list of
             all accesses.
 
         '''
@@ -515,11 +514,11 @@ class SingleVariableAccessInfo():
         :param reference: the reference at which to stop for access checks.
         :type reference: :py:class:`psyclone.psyir.nodes.Reference`
 
-        :returns: True if this variable is read before the specified \
+        :returns: True if this variable is read before the specified
             reference, and False if not.
         :rtype: bool
 
-        :raises ValueError: if the specified reference is not in the list of \
+        :raises ValueError: if the specified reference is not in the list of
             all accesses.
 
         '''
