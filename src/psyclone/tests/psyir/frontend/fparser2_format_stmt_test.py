@@ -36,7 +36,6 @@
 '''Module containing pytest tests for the handling of labelled format
 statements.'''
 
-from __future__ import absolute_import
 from fparser.two import Fortran2003
 from psyclone.psyir.nodes import Container, Routine, CodeBlock
 
