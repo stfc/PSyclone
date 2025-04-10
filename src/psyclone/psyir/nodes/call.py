@@ -811,7 +811,3 @@ class Call(Statement, DataNode):
             f"No matching routine found for '{self.debug_string()}':"
             "\n" + error_msg
         )
-
-
-# For AutoAPI auto-documentation generation.
-__all__ = ["Call"]
