@@ -204,10 +204,6 @@ def test_lfric_driver_simple_test():
         "call extract_psy_data%OpenReadModuleRegion('field', 'test')",
         "end if",
         "call extract_psy_data%ReadVariable('a', a)",
-        "call extract_psy_data%ReadVariable('loop0_start', "
-        "loop0_start)",
-        "call extract_psy_data%ReadVariable('loop0_stop', "
-        "loop0_stop)",
         "call extract_psy_data%ReadVariable('m1_data', m1_data)",
         "call extract_psy_data%ReadVariable('m2_data', m2_data)",
         "call extract_psy_data%ReadVariable('map_w1', map_w1)",

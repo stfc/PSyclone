@@ -36,20 +36,22 @@
 
 ''' Test utilities including support for testing that code compiles. '''
 
-import difflib
 from contextlib import contextmanager
+import difflib
 import os
 from pprint import pprint
 import subprocess
 import sys
+from typing import Tuple
 
 import pytest
 
 from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
+from psyclone.parse import ModuleInfo, FileInfo, ModuleManager
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import Invoke, PSyFactory, PSy
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import ScopingNode
 
@@ -535,24 +537,46 @@ def get_base_path(api):
                         "test_files", dir_name)
 
 
+def get_infrastructure_path(api: str) -> str:
+    '''
+    :returns: the location of the infrastructure source files for the
+              specified API/DSL.
+
+    :raises RuntimeError: if an invalid api is supplied.
+
+    '''
+    this_loc = os.path.dirname(os.path.abspath(__file__))
+    if api == "lfric":
+        return os.path.join(this_loc,
+                            "test_files", "dynamo0p3", "infrastructure")
+    elif api == "gocean":
+        root_dir = this_loc
+        for depth in range(3):
+            root_dir = os.path.dirname(root_dir)
+        return os.path.join(root_dir, "external", "dl_esm_inf",
+                            "finite_difference", "src")
+    else:
+        raise RuntimeError(f"The API '{api}' is not supported. "
+                           f"Supported values are 'lfric' and 'gocean'.")
+
+
 # =============================================================================
-def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
+def get_invoke(algfile: str, api: str, idx: int = None, name: str = None,
+               dist_mem: bool = None) -> Tuple[PSy, Invoke]:
     '''
     Utility method to get the idx'th or named invoke from the algorithm
     in the specified file.
 
-    :param str algfile: name of the Algorithm source file (Fortran).
-    :param str api: which PSyclone API this Algorithm uses.
-    :param int idx: the index of the invoke from the Algorithm to return
-                    or None if name is specified.
-    :param str name: the name of the required invoke or None if an index
-                     is supplied.
-    :param bool dist_mem: if the psy instance should be created with or \
-                          without distributed memory support.
+    :param algfile: name of the Algorithm source file (Fortran).
+    :param api: which PSyclone API this Algorithm uses.
+    :param idx: the index of the invoke from the Algorithm to return
+                or None if name is specified.
+    :param name: the name of the required invoke or None if an index
+                 is supplied.
+    :param dist_mem: if the psy instance should be created with or
+                     without distributed memory support.
 
     :returns: (psy object, invoke object)
-    :rtype: Tuple[:py:class:`psyclone.psyGen.PSy`, \
-                  :py:class:`psyclone.psyGen.Invoke`]
 
     :raises RuntimeError: if neither idx or name are supplied or if
                           both are supplied
@@ -564,7 +588,11 @@ def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
         raise RuntimeError("Either the index or the name of the "
                            "requested invoke must be specified")
 
-    Config.get().api = api
+    config = Config.get()
+    config.api = api
+    # Ensure infrastructure module files can be discovered.
+    config.include_paths.append(get_infrastructure_path(api))
+
     _, info = parse(os.path.join(get_base_path(api), algfile), api=api)
     psy = PSyFactory(api, distributed_memory=dist_mem).create(info)
     if name:
@@ -613,3 +641,28 @@ def check_links(parent, children):
     for index, child in enumerate(children):
         assert child.parent is parent
         assert parent.children[index] is child
+
+
+def make_external_module(monkeypatch,
+                         fortran_reader,
+                         mod_name: str,
+                         code: str):
+    '''
+    Utility to add an 'external' module into the ModuleManager. This saves us
+    from having to create and then search for a specific module file.
+
+    :param monkeypatch: the monkeypatch fixture to use.
+    :param fortran_reader: the FortranReader fixture to use.
+    :param mod_name: the name of the module to create.
+    :param code: the Fortran source for the module.
+
+    '''
+    minfo = ModuleInfo(mod_name, FileInfo(f"{mod_name}.f90"))
+    # Create the PSyIR for the provided module and store it in the
+    # ModuleInfo object.
+    cntr = fortran_reader.psyir_from_source(code).children[0]
+    minfo._psyir_container_node = cntr
+    # Monkeypatch an entry for this ModuleInfo into the ModuleManager so
+    # that it will be found when the named module is requested.
+    mman = ModuleManager.get()
+    monkeypatch.setitem(mman._modules, mod_name, minfo)

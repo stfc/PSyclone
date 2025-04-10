@@ -42,12 +42,13 @@
 import pytest
 
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes import (Assignment, CodeBlock, Container,
-                                  Literal, Reference, Routine,
-                                  ScopingNode)
-from psyclone.psyir.symbols import (REAL_TYPE, DataSymbol,
-                                    SymbolTable, RoutineSymbol)
-from psyclone.tests.utilities import check_links
+from psyclone.psyGen import CodedKern
+from psyclone.psyir.nodes import (Assignment, Call, CodeBlock, Container,
+                                  Literal, Reference, Routine, ScopingNode)
+from psyclone.psyir.symbols import (
+    ContainerSymbol, DataSymbol, ImportInterface, REAL_TYPE,
+    Symbol, SymbolError, SymbolTable, RoutineSymbol)
+from psyclone.tests.utilities import check_links, get_invoke
 
 
 def test_routine_constructor():
@@ -87,6 +88,8 @@ def test_routine_properties():
         node3.symbol = "123"
     assert ("Routine symbol must be a RoutineSymbol but got 'str'"
             in str(excinfo.value))
+    node3.symbol = RoutineSymbol("ave")
+    assert node3.symbol.name == "ave"
 
 
 def test_routine_name_setter():
@@ -108,7 +111,18 @@ def test_routine_name_setter():
     node.name = "goodbye"
     assert node.name == "goodbye"
     # Check that the previous symbol has been deleted and the new one created
-    assert node.name != "hello" not in node.symbol_table
+    assert "hello" not in node.symbol_table
+
+    # Repeat when there is no RoutineSymbol present at all.
+    node.symbol_table._symbols.pop("goodbye")
+    node.name = "hello_again"
+    assert node.name == "hello_again"
+
+    # Repeat when the Routine has a parent.
+    cntr = Container("greeting")
+    cntr.addchild(node)
+    node.name = "ave"
+    assert node.name == "ave"
 
 
 def test_routine_return_symbol_setter():
@@ -258,6 +272,35 @@ def test_routine_copy():
     assert routine2.return_symbol not in routine.symbol_table.symbols
 
 
+def test_routine_copy_in_container(fortran_reader):
+    '''
+    Test the copying of a Routine when it is inside a Container and has
+    references to Symbols declared in that Container.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+      use other_mod, only: trouble
+      implicit none
+
+    contains
+      subroutine my_sub()
+        trouble = trouble + 1
+      end subroutine my_sub
+    end module my_mod
+    ''')
+    rt0 = psyir.walk(Routine)[0]
+    rt1 = rt0.copy()
+    assert rt1.parent is None
+    # The copy of just the routine (and not its parent container) leaves
+    # it with dangling References - i.e. References to Symbols that aren't in
+    # any table.
+    assert "trouble" not in rt1.symbol_table
+    ref = rt1.walk(Reference)[0]
+    assert ref.symbol.name == "trouble"
+    # TODO #2947 - these dangling References should be handled when the Routine
+    # is attached to a new parent.
+
+
 def test_routine_replace_with(fortran_reader):
     '''Test that the replace_with method correctly replaces the Routine
     with another Routine. '''
@@ -317,7 +360,7 @@ def test_routine_update_parent_symbol_table_illegal_parent(fortran_reader):
     with pytest.raises(GenerationError) as excinfo:
         module.addchild(alt_routine)
     assert ("Can't add routine 'routine' into a scope that already contains "
-            "a symbol with the same name." in str(excinfo.value))
+            "a resolved symbol with the same name." in str(excinfo.value))
 
     alt_routine = Routine(module.symbol_table.lookup("routine"))
     with pytest.raises(GenerationError) as excinfo:
@@ -352,6 +395,7 @@ def test_routine_update_parent_symbol_table():
 
     assert routine.symbol_table.lookup("test") is not None
     container.addchild(routine)
+    assert container.symbol_table.lookup("test").is_modulevar
     # Routine's symbol table should no longer contain the RoutineSymbol
     with pytest.raises(KeyError):
         routine.symbol_table.lookup("test", scope_limit=routine)
@@ -371,3 +415,233 @@ def test_routine_update_parent_symbol_table():
     routine2.update_parent_symbol_table(None)
     assert (routine2.symbol_table.lookup("test", scope_limit=routine2) is
             routine.symbol)
+
+
+def test_routine_update_parent_symbol_table_when_referenced(fortran_reader):
+    ''' Test the update_parent_symbol_table function of the Routine class when
+    the target RoutineSymbol cannot be removed because of other references to
+    it.
+
+    '''
+    code = '''\
+    module my_mod
+      interface do_it
+        module procedure :: do_64, do_32
+      end interface
+    contains
+      subroutine do_64(var)
+        real*8 :: var
+      end subroutine do_64
+      subroutine do_32(var)
+        real*4 :: var
+      end subroutine do_32
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    cntr = psyir.children[0]
+    do_64_sym = cntr.symbol_table.lookup("do_64")
+    assert do_64_sym.is_modulevar
+    do_64 = cntr.children[0]
+    do_64.detach()
+    # The RoutineSymbol must still be in the symbol table because it is
+    # referred to by the Interface.
+    assert "do_64" in cntr.symbol_table
+    assert do_64_sym.is_unresolved
+    cntr.addchild(do_64)
+    assert do_64_sym.is_modulevar
+
+
+def test_routine_update_parent_symbol_table_missing_symbol(fortran_reader):
+    '''
+    Test that update_parent_symbol_table() works correctly when the symbol
+    representing the Routine is missing from the parent symbol table.
+
+    TODO #2702 - the code that this test covers is marked with this TODO.
+    '''
+    code = '''\
+    module my_mod
+    contains
+      subroutine do_64(var)
+        real*8 :: var
+      end subroutine do_64
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    cntr = psyir.children[0]
+    # Remove the RoutineSymbol from the parent Container.
+    cntr.symbol_table._symbols.pop("do_64")
+    do_64 = cntr.children[0]
+    # Then detach the routine.
+    do_64.detach()
+    assert len(cntr.symbol_table._symbols.keys()) == 0
+
+
+def test_check_outer_scope_accesses(config_instance):
+    '''
+    Tests for the check_outer_scope_accesses() method.
+    '''
+    _, invoke = get_invoke("single_invoke_three_kernels_with_use.f90",
+                           "gocean", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    kcall = schedule.walk(CodedKern)[1]
+    config_instance.include_paths = []
+    # Multiple wildcard imports are handled by bringing them into the routine
+    # and so aren't a problem.
+    kcall.get_kernel_schedule().check_outer_scope_accesses(kcall, "Kernel")
+    # Now try where there's only a single wildcard import so we know the origin
+    # of the symbol.
+    kcall0 = schedule.walk(CodedKern)[0]
+    ksched = kcall0.get_kernel_schedule()
+    ctable = ksched.ancestor(Container).symbol_table
+    # To do this, we manually remove all ContainerSymbols apart from the one
+    # from which 'go_wp' is imported.
+    for sym in ctable.wildcard_imports():
+        if sym.name != "kind_params_mod":
+            ctable._symbols.pop(sym.name)
+
+    ksched.check_outer_scope_accesses(kcall0, "Kernel")
+    table = ksched.symbol_table
+    assert (table.lookup("go_wp").interface.container_symbol.name ==
+            "kind_params_mod")
+
+
+def test_check_outer_scope_accesses_import_clash(fortran_reader):
+    '''
+    Check that check_outer_scope_accesses() spots a clash with an imported
+    Symbol.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+      use my_kernel_mod, only: a_routine
+    contains
+      subroutine call_it()
+
+        if(.TRUE.)then
+          call a_routine()
+        end if
+      end subroutine call_it
+    end module my_mod
+    ''')
+    rt_psyir = fortran_reader.psyir_from_source('''\
+    subroutine a_routine()
+      use other_mod, only: a_clash
+    end subroutine a_routine
+    ''')
+    kern_call = psyir.walk(Call)[0]
+    csym = ContainerSymbol("money")
+    kern_call.scope.symbol_table.add(csym)
+    kern_call.scope.symbol_table.add(Symbol("a_clash",
+                                            interface=ImportInterface(csym)))
+    sched = rt_psyir.children[0]
+    with pytest.raises(SymbolError) as err:
+        sched.check_outer_scope_accesses(kern_call, "Call")
+    assert ("One or more symbols from routine 'a_routine' cannot be added to "
+            "the table at the call site" in str(err.value))
+    assert ("This table has an import of 'a_clash' via interface" in
+            str(err.value))
+
+
+def test_outer_scope_accesses_unresolved(fortran_reader):
+    '''
+    Test that check_outer_scope_accesses() raises the expected errors for
+    symbols that aren't found or are unresolved.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+      use another_mod
+    contains
+      subroutine call_it()
+        write(*,*) unresolved()
+        call a_routine()
+      end subroutine call_it
+    end module my_mod
+    ''')
+    rt0 = psyir.children[0].children[0]
+    sym = rt0.symbol_table.lookup("a_routine")
+    assert sym.is_unresolved
+    call = Call.create(RoutineSymbol("a_routine"), [])
+    # The access to 'unresolved' is in a CodeBlock and we don't have a
+    # Symbol for it.
+    with pytest.raises(SymbolError) as err:
+        rt0.check_outer_scope_accesses(call, "call")
+    assert ("'call_it' contains accesses to 'unresolved' but the origin of "
+            "this" in str(err.value))
+    # Remove the CodeBlock and repeat.
+    rt0.children[0].detach()
+    rt0.check_outer_scope_accesses(call, "call")
+    # The interface should have been left unchanged.
+    assert sym.is_unresolved
+
+
+def test_outer_scope_accesses_multi_wildcards(fortran_reader):
+    '''
+    Test that check_outer_scope_accesses() raises the expected errors when it's
+    not known which wildcard import is bringing a symbol into scope..
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+      use another_mod
+      use this_one
+    contains
+      subroutine call_it(vaar)
+        real, intent(inout) :: vaar
+        call a_routine()
+        vaar = 1.0_r_def
+      end subroutine call_it
+    end module my_mod
+    ''')
+    rt0 = psyir.children[0].children[0]
+    call = Call.create(RoutineSymbol("a_routine"), [])
+    # By default we allow unresolved Symbols.
+    rt0.check_outer_scope_accesses(call, "call")
+    # But not if we disable that.
+    with pytest.raises(SymbolError) as err:
+        rt0.check_outer_scope_accesses(call, "call", permit_unresolved=False)
+    assert ("'call_it' contains accesses to 'a_routine' which is unresolved. "
+            "It is probably brought into" in str(err.value))
+    # Remove the call.
+    rt0.children[0].detach()
+    # Now the kind parameter 'r_def' should be flagged.
+    with pytest.raises(SymbolError) as err:
+        rt0.check_outer_scope_accesses(call, "call", permit_unresolved=False)
+    assert ("'call_it' contains accesses to 'r_def' which is unresolved. It "
+            "is probably brought into scope from one of ['another_mod', "
+            "'this_one']" in str(err.value))
+    # But not if we ignore non-data accesses.
+    rt0.check_outer_scope_accesses(call, "call", permit_unresolved=False,
+                                   ignore_non_data_accesses=True)
+
+
+def test_outer_scope_accesses_module_data(fortran_reader):
+    '''
+    Test that check_outer_scope_accesses() raises the expected errors when a
+    routine accesses module data.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+      use kinds_mod
+      real(kind=r_def) :: vaar
+    contains
+      subroutine call_it()
+        call second()
+      end subroutine call_it
+      subroutine second()
+        vaar = 2.0_r_def
+      end subroutine second
+    end module my_mod
+    ''')
+    rt1 = psyir.children[0].children[1]
+    call = psyir.walk(Call)[0]
+    # No error because `vaar` at the call site is the same Symbol that is
+    # accessed within the called routine.
+    rt1.check_outer_scope_accesses(call, "call")
+    rt0 = psyir.children[0].children[0]
+    # Add a new `vaar` Symbol at the call site that shadows the module
+    # variable.
+    rt0.symbol_table.new_symbol("vaar", shadowing=True)
+    with pytest.raises(SymbolError) as err:
+        rt1.check_outer_scope_accesses(call, "call")
+    assert ("'second' contains accesses to 'vaar' which is declared in the "
+            "callee module scope" in str(err.value))

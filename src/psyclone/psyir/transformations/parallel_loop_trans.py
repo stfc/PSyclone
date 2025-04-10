@@ -45,20 +45,32 @@ from psyclone import psyGen
 from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import Loop, Reference, Call, Routine
+from psyclone.psyir.nodes import (
+        Call, Loop, Reference, Routine
+)
 from psyclone.psyir.symbols import AutomaticInterface
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.psyir.transformations.loop_trans import LoopTrans
+from psyclone.psyir.transformations.async_trans_mixin import \
+    AsyncTransMixin
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
 
-class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
+class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
     '''
     Adds an abstract directive (it needs to be specified by sub-classing this
     transformation) to a loop indicating that it should be parallelised. It
     performs some data dependency checks to guarantee that the loop can be
     parallelised without changing the semantics of it.
+
+    If the nowait option is supplied to the apply function, then PSyclone will
+    attempt to add the relevant asynchronous option to the directive, if
+    supported. If its not supported, or PSyclone's analysis suggests that it
+    cannot be launched asynchronously, the transformation will occur as though
+    the nowait option was not supplied. If the asynchronous option is added,
+    PSyclone will also generate a corresponding barrier before the next
+    dependent statement.
 
     '''
     # The types of node that must be excluded from the section of PSyIR
@@ -308,6 +320,9 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :param bool options["sequential"]: whether this is a sequential loop.
         :param bool options["verbose"]: whether to report the reasons the
             validate and collapse steps have failed.
+        :param bool options["nowait"]: whether to add a nowait clause and a
+            corresponding barrier (or equivalent) to enable asynchronous
+            execution.
 
         '''
         if not options:
@@ -319,6 +334,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         ignore_dep_analysis = options.get("force", False)
         list_of_names = options.get("ignore_dependencies_for", [])
         privatise_arrays = options.get("privatise_arrays", False)
+        nowait = options.get("nowait", False)
         list_of_signatures = [Signature(name) for name in list_of_names]
         dtools = DependencyTools()
 
@@ -406,3 +422,6 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
+
+        if nowait:
+            self._add_asynchronicity(directive)

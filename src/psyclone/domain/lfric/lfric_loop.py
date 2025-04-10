@@ -113,14 +113,15 @@ class LFRicLoop(PSyLoop):
                 "argument is mandatory when they are created.")
         # The loop bounds names are given by the number of previous LFRic loops
         # already present in the Schedule. Since this are inserted in order it
-        # will produce sequentially ascending loop bound names.
+        # will produce sequentially ascending loop bound names. Currently they
+        # are purposely not in the symbol table and prefixed with uninitialised
+        # because the LFRicLoopBound class will replace them at lowering, but
+        # this will be improved by TODO #2905
         idx = len(ischedule.loops())
-        start_name = f"loop{idx}_start"
-        stop_name = f"loop{idx}_stop"
-        lbound = ischedule.symbol_table.find_or_create_integer_symbol(
-            start_name, tag=start_name)
-        ubound = ischedule.symbol_table.find_or_create_integer_symbol(
-            stop_name, tag=stop_name)
+        start_name = f"uninitialised_loop{idx}_start"
+        stop_name = f"uninitialised_loop{idx}_stop"
+        lbound = DataSymbol(start_name, datatype=INTEGER_TYPE)
+        ubound = DataSymbol(stop_name, datatype=INTEGER_TYPE)
         self.addchild(Reference(lbound))  # start
         self.addchild(Reference(ubound))  # stop
         self.addchild(Literal("1", INTEGER_TYPE, parent=self))  # step
@@ -1030,5 +1031,5 @@ class LFRicLoop(PSyLoop):
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for.
 __all__ = ['LFRicLoop']

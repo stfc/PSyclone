@@ -520,8 +520,6 @@ assemble_weak_derivative_w3_w2_kernel_code
     type(field_type), dimension(3), intent(in) :: coord
     type(quadrature_xyoz_type), intent(in) :: qr
     integer(kind=i_def) :: cell
-    integer(kind=i_def) :: loop0_start
-    integer(kind=i_def) :: loop0_stop
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
     real(kind=r_def), pointer, dimension(:) :: coord_1_data => null()
@@ -548,6 +546,8 @@ null()
     real(kind=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:)
     real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
     real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
+    integer(kind=i_def) :: loop0_start
+    integer(kind=i_def) :: loop0_stop
 
     ! Initialise field and/or operator proxies
     mapping_proxy = mapping%get_proxy()

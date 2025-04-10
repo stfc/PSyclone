@@ -82,8 +82,6 @@ def test_field(tmpdir):
         "    type(field_type), intent(in) :: m1\n"
         "    type(field_type), intent(in) :: m2\n"
         "    integer(kind=i_def) :: cell\n"
-        "    integer(kind=i_def) :: loop0_start\n"
-        "    integer(kind=i_def) :: loop0_stop\n"
         "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "    real(kind=r_def), pointer, dimension(:) :: f2_data => null()\n"
         "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
@@ -102,6 +100,8 @@ def test_field(tmpdir):
         "    type(field_proxy_type) :: f2_proxy\n"
         "    type(field_proxy_type) :: m1_proxy\n"
         "    type(field_proxy_type) :: m2_proxy\n"
+        "    integer(kind=i_def) :: loop0_start\n"
+        "    integer(kind=i_def) :: loop0_stop\n"
         "\n"
         "    ! Initialise field and/or operator proxies\n"
         "    f1_proxy = f1%get_proxy()\n"
@@ -181,8 +181,6 @@ def test_field_deref(tmpdir, dist_mem):
         "    type(field_type), intent(in) :: m1\n"
         "    type(field_type), intent(in) :: est_m2\n"
         "    integer(kind=i_def) :: cell\n"
-        "    integer(kind=i_def) :: loop0_start\n"
-        "    integer(kind=i_def) :: loop0_stop\n"
     )
     assert output in generated_code
     output = (
@@ -206,6 +204,8 @@ def test_field_deref(tmpdir, dist_mem):
         "    type(field_proxy_type) :: est_f2_proxy\n"
         "    type(field_proxy_type) :: m1_proxy\n"
         "    type(field_proxy_type) :: est_m2_proxy\n"
+        "    integer(kind=i_def) :: loop0_start\n"
+        "    integer(kind=i_def) :: loop0_stop\n"
     )
     assert output in generated_code
     if dist_mem:
@@ -333,8 +333,6 @@ f6, m5, m6, m7)
     type(field_type), intent(in) :: m6
     type(field_type), intent(in) :: m7
     integer(kind=i_def) :: cell
-    integer(kind=i_def) :: loop0_start
-    integer(kind=i_def) :: loop0_stop
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
     real(kind=r_def), pointer, dimension(:) :: f1_data => null()
@@ -403,6 +401,8 @@ f6, m5, m6, m7)
     type(field_proxy_type) :: m5_proxy
     type(field_proxy_type) :: m6_proxy
     type(field_proxy_type) :: m7_proxy
+    integer(kind=i_def) :: loop0_start
+    integer(kind=i_def) :: loop0_stop
 """
     assert output in generated_code
     output = (
@@ -668,8 +668,6 @@ m4, f5, f6, m5, m6, f7, f8, m7)
     type(integer_field_type), intent(in) :: f8
     type(integer_field_type), intent(in) :: m7
     integer(kind=i_def) :: cell
-    integer(kind=i_def) :: loop0_start
-    integer(kind=i_def) :: loop0_stop
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
     integer(kind=i_def), pointer, dimension(:) :: f1_data => null()
@@ -748,6 +746,8 @@ m4, f5, f6, m5, m6, f7, f8, m7)
     type(integer_field_proxy_type) :: f7_proxy
     type(integer_field_proxy_type) :: f8_proxy
     type(integer_field_proxy_type) :: m7_proxy
+    integer(kind=i_def) :: loop0_start
+    integer(kind=i_def) :: loop0_stop
 """ in generated_code
     output = (
         "    ! Initialise field and/or operator proxies\n"

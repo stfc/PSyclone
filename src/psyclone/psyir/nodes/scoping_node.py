@@ -36,11 +36,10 @@
 
 ''' This module contains the ScopingNode implementation.'''
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import (
-    ArrayType, DataType, DataTypeSymbol, RoutineSymbol, StructureType, Symbol,
-    SymbolError, SymbolTable, UnsupportedFortranType)
+    RoutineSymbol, SymbolError, SymbolTable)
 
 
 class ScopingNode(Node):
@@ -129,8 +128,7 @@ class ScopingNode(Node):
         '''
         # Reorganise the symbol table construction to occur before we add
         # the children.
-        self._symbol_table = other.symbol_table.deep_copy()
-        self._symbol_table._node = self  # Associate to self
+        self._symbol_table = other.symbol_table.deep_copy(self)
 
         # Remove symbols corresponding to Routines that are contained in this
         # ScopingNode. These symbols will be added automatically by the Routine
@@ -176,85 +174,41 @@ class ScopingNode(Node):
     def reference_accesses(self, access_info: VariablesAccessInfo):
         '''
         Get all variable access information. This specialisation is required
-        to query the SymbolTable associated with a Scoping node and ensure
-        that any Symbols appearing in precision specifications, array shapes or
-        initialisation expressions are captured.
+        to query the SymbolTable associated with a Scoping node.
 
         :param var_accesses: VariablesAccessInfo instance that stores the
             information about variable accesses.
 
         '''
-        def _get_accesses(dtype: DataType, info: VariablesAccessInfo):
-            '''
-            Store information on any symbols referenced within the supplied
-            datatype.
-
-            :param dtype: the datatype to query.
-            :param info: the VariablesAccessInfo instance in which to store
-                         information.
-            '''
-            if (hasattr(dtype, "precision") and isinstance(dtype.precision,
-                                                           Symbol)):
-                # The use of a Symbol to specify precision does not constitute
-                # a read (since it is resolved at compile time).
-                access_info.add_access(
-                    Signature(dtype.precision.name),
-                    AccessType.TYPE_INFO, self)
-
-            if isinstance(dtype, DataTypeSymbol):
-                # The use of a DataTypeSymbol in a declaration is a compile-
-                # time access.
-                info.add_access(Signature(dtype.name),
-                                AccessType.TYPE_INFO, self)
-            elif isinstance(dtype, StructureType):
-                for cmpt in sym.datatype.components.values():
-                    # Recurse for members of a StructureType
-                    _get_accesses(cmpt.datatype, info)
-                    if cmpt.initial_value:
-                        cmpt.initial_value.reference_accesses(info)
-            elif isinstance(dtype, ArrayType):
-                for dim in dtype.shape:
-                    if isinstance(dim, ArrayType.ArrayBounds):
-                        dim.lower.reference_accesses(access_info)
-                        dim.upper.reference_accesses(access_info)
-            elif (isinstance(dtype, UnsupportedFortranType) and
-                  dtype.partial_datatype):
-                # Recurse to examine partial datatype information.
-                _get_accesses(dtype.partial_datatype, info)
-
-        # Examine the datatypes and initial values of all DataSymbols.
-        for sym in self._symbol_table.datasymbols:
-            _get_accesses(sym.datatype, access_info)
-
-            if sym.initial_value:
-                sym.initial_value.reference_accesses(access_info)
-
-        # Examine the definition of each DataTypeSymbol.
-        for sym in self._symbol_table.datatypesymbols:
-            _get_accesses(sym.datatype, access_info)
-
+        # During the updating process when moving a Routine (and its
+        # associated Symbol), it's possible that we won't have a SymbolTable.
+        if self._symbol_table:
+            self._symbol_table.reference_accesses(access_info)
         super().reference_accesses(access_info)
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Update any Symbols referenced by this Node (and its descendants) with
-        those in the supplied table with matching names. If there is no match
-        for a given Symbol then it is left unchanged.
+        those in the supplied table (or just the supplied Symbol instance) if
+        they have matching names. If there is no match for a given Symbol then
+        it is left unchanged.
 
         Since this is a ScopingNode, it is associated with a symbol table.
         Therefore, if the supplied table is the one for the scope containing
         this node (if any), the one passed to the child nodes is updated to be
         the one associated with this node.
 
-        :param table: the symbol table in which to look up replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        next_table = table
-        if self.parent:
+        next_table = table_or_symbol
+        if self.parent and isinstance(table_or_symbol, SymbolTable):
             try:
                 # If this node is not within a scope we get a SymbolError
-                if table is self.parent.scope.symbol_table:
+                if table_or_symbol is self.parent.scope.symbol_table:
                     next_table = self.symbol_table
             except SymbolError:
                 pass

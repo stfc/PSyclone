@@ -70,48 +70,6 @@ def test_extract_node_constructor():
     assert en.extract_body is schedule
 
 
-def test_extract_node_lowering(fortran_writer):
-    '''Test the ExtractNode's lowering function if there is no ReadWriteInfo
-    object specified in the options. Since the transformations will always
-    do that, we need to manually insert the ExtractNode into a schedule:
-
-    '''
-    _, invoke = get_invoke("1.0.1_single_named_invoke.f90",
-                           "lfric", idx=0, dist_mem=False)
-    loop = invoke.schedule.children[0]
-    loop.detach()
-    en = ExtractNode()
-    en._var_name = "psydata"
-    en.addchild(Schedule(children=[loop]))
-    invoke.schedule.addchild(en)
-
-    code = fortran_writer(invoke.schedule)
-    expected = [
-        'CALL psydata % PreStart("single_invoke_psy", '
-        '"invoke_important_invoke-testkern_code-r0", 17, 16)',
-        'CALL psydata % PreDeclareVariable("a", a)',
-        'CALL psydata % PreDeclareVariable("f1_data", f1_data)',
-        'CALL psydata % PreDeclareVariable("f2_data", f2_data)',
-        'CALL psydata % PreDeclareVariable("loop0_start", loop0_start)',
-        'CALL psydata % PreDeclareVariable("loop0_stop", loop0_stop)',
-        'CALL psydata % PreDeclareVariable("m1_data", m1_data)',
-        'CALL psydata % PreDeclareVariable("m2_data", m2_data)',
-        'CALL psydata % PreDeclareVariable("map_w1", map_w1)',
-        'CALL psydata % PreDeclareVariable("map_w2", map_w2)',
-        'CALL psydata % PreDeclareVariable("map_w3", map_w3)',
-        'CALL psydata % PreDeclareVariable("ndf_w1", ndf_w1)',
-        'CALL psydata % PreDeclareVariable("ndf_w2", ndf_w2)',
-        'CALL psydata % PreDeclareVariable("ndf_w3", ndf_w3)',
-        'CALL psydata % PreDeclareVariable("nlayers_f1", nlayers_f1)',
-        'CALL psydata % PreDeclareVariable("undf_w1", undf_w1)',
-        'CALL psydata % PreDeclareVariable("undf_w2", undf_w2)',
-        'CALL psydata % PreDeclareVariable("undf_w3", undf_w3)',
-        'CALL psydata % PreDeclareVariable("cell_post", cell)',
-        'CALL psydata % PreDeclareVariable("f1_data_post", f1_data)']
-    for line in expected:
-        assert line in code, line + "\n---\n" + code
-
-
 # ---------------------------------------------------------------------------
 def test_extract_node_equality():
     ''' Test the __eq__ method of ExtractNode. '''
