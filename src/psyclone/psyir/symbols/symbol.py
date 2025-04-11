@@ -248,10 +248,18 @@ class Symbol(CommentableMixin):
                   examining the Container from which it is imported.
         :rtype: subclass of :py:class:`psyclone.psyir.symbols.Symbol`
 
+        :raises SymbolError: if the type could not be resolved.
         '''
         if self.is_import:
             extern_symbol = self.get_external_symbol()
+            # pylint: disable=import-outside-toplevel
             from psyclone.psyir.symbols import RoutineSymbol
+            # pylint: disable=unidiomatic-typecheck
+            if type(extern_symbol) is Symbol:
+                raise SymbolError(
+                    f"The external symbol '{extern_symbol.name}' was found "
+                    f"but it does not have a type. Maybe it is a transitive "
+                    f"import which is currently not resolvable.")
             if isinstance(extern_symbol, RoutineSymbol):
                 # Specialise the existing Symbol in-place so that all
                 # References to it remain valid.
