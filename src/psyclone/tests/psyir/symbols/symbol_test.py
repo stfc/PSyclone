@@ -392,6 +392,18 @@ def test_symbol_resolve_type(monkeypatch):
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
     assert new_sym.visibility == Symbol.Visibility.PRIVATE
     assert new_sym.is_import
+    # Repeat the test but get_external_symbol() just returns
+    # a new bare Symbol (e.g. because it is a transitive import)
+    bsym = Symbol("b", visibility=Symbol.Visibility.PRIVATE,
+                  interface=ImportInterface(other_container))
+    monkeypatch.setattr(bsym, "get_external_symbol",
+                        lambda: Symbol("b"))
+    with pytest.raises(SymbolError) as err:
+        new_sym = bsym.resolve_type()
+    assert ("The external symbol 'b' was found but it does not have a "
+            "type. Maybe it is a transitive import which is currently "
+            "not resolvable." in str(err.value))
+
     # Repeat but test when the imported Symbol is a parameter.
     csym = Symbol("c", visibility=Symbol.Visibility.PRIVATE,
                   interface=ImportInterface(other_container))
