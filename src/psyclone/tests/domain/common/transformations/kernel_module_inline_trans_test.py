@@ -491,13 +491,11 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
             inline_trans.apply(coded_kern)
             artrans.apply(coded_kern)
     gen = str(psy.gen)
-
-    # After this, one invoke uses the inlined top-level subroutine
-    # and the other imports it (shadowing the top-level symbol)
-    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 1
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 0
     assert gen.count("END SUBROUTINE testkern_qr_code") == 1
 
-    # Module inline kernel in invoke 2
+    # After this, both invokes use the inlined top-level subroutine.
+    # Module-inlining kernel in invoke 2 should have no effect.
     schedule1 = psy.invokes.invoke_list[1].schedule
     for coded_kern in schedule1.walk(CodedKern):
         if coded_kern.name == "testkern_qr_code":
@@ -533,35 +531,14 @@ def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
     assert "subroutine mixed_code_32" in output
     assert "!$acc routine seq" in output
     assert "subroutine mixed_code_64" in output
+    # Since we don't currently rename module-inlined kernels, module-inlining
+    # just one instance means that call to that same Kernel the whole module
+    # uses the newly-inlined version.
     assert ("""subroutine invoke_1(scalar_r_phys, field_r_phys, \
 operator_r_def, f1, f2, m1, a, m2, istp, qr)
       use testkern_qr_mod, only: testkern_qr_code
-      use mixed_kernel_mod, only: mixed_code
       use quadrature""" in output)
-
-    success = LFRicBuild(tmpdir).code_compiles(psy)
-    if not success:
-        if LFRicBuild.F90 == "nvfortran":
-            pytest.xfail(
-                reason="nvfortran has a bug when a local import of a generic "
-                "interface overrides an interface of the same name in an "
-                "outer scope.")
-        else:
-            assert False
-
-    # Module inline kernel in invoke 2
-    schedule2 = psy.invokes.invoke_list[1].schedule
-    for coded_kern in schedule2.walk(CodedKern):
-        if coded_kern.name == "mixed_code":
-            inline_trans.apply(coded_kern)
-
-    output2 = str(psy.gen)
-    assert ("""SUBROUTINE invoke_1(scalar_r_phys, field_r_phys, \
-operator_r_def, f1, f2, m1, a, m2, istp, qr)
-      USE testkern_qr_mod, ONLY: testkern_qr_code
-      USE quadrature""" in output2)
-
-    assert "mixed_kernel_mod" not in output2
+    assert "mixed_kernel_mod" not in output
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 

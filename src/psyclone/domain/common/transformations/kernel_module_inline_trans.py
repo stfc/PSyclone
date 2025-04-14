@@ -527,15 +527,6 @@ class KernelModuleInlineTrans(Transformation):
 
         updated_routines = self._prepare_code_to_inline(codes_to_inline)
 
-        # Update the Kernel to point to the updated PSyIR.
-        if isinstance(node, CodedKern):
-            # pylint: disable=protected-access
-            node._kern_schedules = updated_routines
-            if interface_sym:
-                node._interface_symbol = (
-                    updated_routines[0].scope.symbol_table.lookup(
-                        interface_sym.name))
-
         # The Container into which we will inline the Routine(s).
         container = node.ancestor(Container)
 
@@ -609,9 +600,26 @@ class KernelModuleInlineTrans(Transformation):
             container.symbol_table.add(interface_sym)
             interface_sym.replace_symbols_using(container.symbol_table)
 
-        # Set the module-inline flag to avoid generating the kernel imports
+        # Update the Kernel to point to the updated PSyIR and set
+        # the module-inline flag to avoid generating the kernel imports
         # TODO #1823. If the kernel imports were generated at PSy-layer
         # creation time, we could just remove it here instead of setting a
         # flag.
         if isinstance(node, CodedKern):
-            node.module_inline = True
+            cntr = node.ancestor(Container)
+            # TODO #2846 - since we do not currently rename module-inlined
+            # routines, inlining just one instance of a Kernel call and
+            # subsequently transforming it (e.g. by adding ACC ROUTINE) would
+            # inhibit all further transformations of any other calls to that
+            # kernel (that relied upon inlining). Therefore, for now, we update
+            # *all* calls to this particular kernel in the current module to
+            # point to the module-inlined version.
+            for kern in cntr.walk(CodedKern, stop_type=CodedKern):
+                if kern.name == node.name:
+                    kern.module_inline = True
+                    # pylint: disable=protected-access
+                    kern._kern_schedules = updated_routines
+                    if interface_sym:
+                        kern._interface_symbol = (
+                            updated_routines[0].scope.symbol_table.lookup(
+                                interface_sym.name))
