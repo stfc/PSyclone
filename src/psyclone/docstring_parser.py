@@ -405,7 +405,7 @@ class DocstringData():
             # we remove the leftover indentation
             if "  " in desc:
                 lines = desc.split("  ")
-                desc = lines[0] + os.linesep
+                desc = inspect.cleandoc(lines[0]) + os.linesep
                 for line in lines[1:]:
                     desc_line = inspect.cleandoc(line)
                     # If this section of the split was only whitespace
