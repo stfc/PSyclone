@@ -39,8 +39,6 @@
 
 '''Tests for class storing API-specific constants.'''
 
-from __future__ import absolute_import, print_function
-
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 

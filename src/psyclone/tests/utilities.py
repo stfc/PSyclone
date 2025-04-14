@@ -339,19 +339,19 @@ class Compile():
             raise CompileError(output)
 
     def _code_compiles(self, psy_ast, dependencies=None):
-        '''Attempts to build the Fortran code supplied as an AST of
-        f2pygen objects. Returns True for success, False otherwise.
+        '''
+        Use the given PSy class to generate the necessary PSyKAl components
+        to compile the psy-layer. Returns True for success, False otherwise.
         It is meant for internal test uses only, and must only be
         called when compilation is actually enabled (use code_compiles
         otherwse). All files produced are deleted.
 
-        :param psy_ast: The AST of the generated PSy layer.
+        :param psy_ast: The PSy object to build.
         :type psy_ast: :py:class:`psyclone.psyGen.PSy`
-        :param dependencies: optional module- or file-names on which \
-                    one or more of the kernels/PSy-layer depend (and \
-                    that are not part of e.g. the GOcean or LFRic \
-                    infrastructure).  These dependencies will be built \
-                    in the order they occur in this list.
+        :param dependencies: optional module- or file-names on which one or
+            more of the kernels/PSy-layer depend (and that are not part of
+            e.g. the GOcean or LFRic infrastructure).  These dependencies will
+            be built in the order they occur in this list.
         :type dependencies: List[str]
 
         :return: True if generated code compiles, False otherwise.
@@ -367,12 +367,10 @@ class Compile():
                 for symbol in scope.symbol_table.containersymbols:
                     modules.add(symbol.name)
 
-            # Not everything is captured by PSyIR yet (some API PSy-layers are
-            # fully or partially f2pygen), in these cases we still need to
-            # import the kernel modules used in these PSy-layers.
-            # By definition, built-ins do not have associated Fortran modules.
-            for call in invoke.schedule.coded_kernels():
-                modules.add(call.module_name)
+        # Then also get all the CodedKernels used in all Invokes
+        for invoke in psy_ast.invokes.invoke_list:
+            for kernelcall in invoke.schedule.coded_kernels():
+                modules.add(kernelcall.module_name)
 
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
@@ -383,7 +381,21 @@ class Compile():
                 # We limit the line lengths of the generated code so that
                 # we don't trip over compiler limits.
                 fll = FortLineLength()
-                psy_file.write(fll.process(str(psy_ast.gen)))
+                code = str(psy_ast.gen)
+                psy_file.write(fll.process(code))
+
+            # Not all dependencies are captured by PSyIR as ContainerSymbols
+            # (e.g. multiple versions of coded kernels are not given a module
+            # name until code-generation dependening on what already exist in
+            # the filesystem), in these cases we take advantage that PSy-layer
+            # always use the _mod convention to look into the output code for
+            # these additional dependencies that we need to compile.
+            for name in code.split():
+                if name.endswith(('_mod', '_mod,')):
+                    # Delete the , if the case of 'use name, only ...'
+                    if name[-1] == ',':
+                        name = name[:-1]
+                    modules.add(name)
 
             success = True
 
@@ -415,7 +427,7 @@ class Compile():
                 except IOError:
                     # Not all modules need to be found, for example API
                     # infrastructure modules will be provided already built.
-                    print(f"File {fort_file} not found for compilation.")
+                    print(f"File '{fort_file}' not found for compilation.")
                     paths = [self.base_path, str(self._tmpdir)]
                     print(f"It was searched in: {paths}")
                 except CompileError:
@@ -432,12 +444,12 @@ class Compile():
         return success
 
     def code_compiles(self, psy_ast, dependencies=None):
-        '''Attempts to build the Fortran code supplied as an AST of
-        f2pygen objects. Returns True for success, False otherwise.
+        '''Attempts to build the Fortran code supplied as a PSy object.
+        Returns True for success, False otherwise.
         If compilation is not enabled returns true. Uses _code_compiles
-        for the actual compilation. All files produced are deleted.
+        for the actual compilation.
 
-        :param psy_ast: The AST of the generated PSy layer.
+        :param psy_ast: The generated PSy layer.
         :type psy_ast: :py:class:`psyclone.psyGen.PSy`
         :param dependencies: optional module- or file-names on which \
                     one or more of the kernels/PSy-layer depend (and \

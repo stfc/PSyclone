@@ -141,27 +141,6 @@ TBD
 .. classname being provided. This allow them to instantiate the
 .. appropriate objects without knowing what they are.
 ..
-.. gen_code()
-.. ++++++++++
-..
-.. All of the above classes (with the exception of PSy which supports a
-.. gen() method) have the gen_code() method. This method passes the
-.. parent of the generation tree and expect the object to add the code
-.. associated with the object as a child of the parent. The object is
-.. then expected to call any children. This approach is powerful as it
-.. lets each object concentrate on the code that it is responsible for.
-..
-.. Adding code in gen_code()
-.. +++++++++++++++++++++++++
-..
-.. The f2pygen classes have been developed to help create appropriate
-.. fortran code in the gen_code() method.
-..
-.. When writing a gen_code() method for a particular object and API it is
-.. natural to add code as a child of the parent provided by the callee of
-.. the method. However, in some cases we do not want code to appear at
-.. the current position in the hierarchy.
-..
 .. The add() method
 .. ++++++++++++++++
 ..
@@ -633,8 +612,7 @@ operator are computed redundantly in the halo up to depth-1 (see the
 requires a check that any loop which includes a kernel that reads from
 an operator is limited to iterating in the halo up to
 depth-1. PSyclone will raise an exception if an optimisation attempts
-to increase the iteration space beyond this (see the ``gen_code()``
-method in the ``LFRicKern`` class).
+to increase the iteration space beyond this point.
 
 To alleviate the above restriction one could add a configurable depth with
 which to compute operators e.g. operators are always computed up to
@@ -1200,50 +1178,6 @@ metadata values. For example, if a `meta_func` entry is specified for
 the `w0` function space then at least one of the the `meta_arg`
 arguments must be on the `w0` function space. However, this is not
 checked in the current implementation.
-
-GOcean1.0
-=========
-
-TBD
-
-.. OpenMP Support
-.. --------------
-..
-.. Loop directives are treated as first class entities in the psyGen
-.. package. Therefore they can be added to psyGen's high level
-.. representation of the fortran code structure in the same way as calls
-.. and loops. Obviously it is only valid to add a loop directive outside
-.. of a loop.
-..
-.. When adding a call inside a loop the placement of any additional calls
-.. or declarations must be specified correctly to ensure that they are
-.. placed at the correct location in the hierarchy. To avoid accidentally
-.. splitting the loop directive from its loop the start_parent_loop()
-.. method can be used. This is available as a method in all fortran
-.. generation calls. *We could have placed it in psyGen instead of
-.. f2pygen*.  This method returns the location at the top of any loop
-.. hierarchy and before any comments immediately before the top level
-.. loop.
-..
-.. The OpenMPLoopDirective object needs to know which variables are
-.. shared and which are private. In the current implementation default
-.. shared is used and private variables are listed. To determine the
-.. objects private variables the OpenMP implementation uses its internal
-.. xxx_get_private_list() method. This method first finds all loops
-.. contained within the directive and adds each loops variable name as a
-.. private variable. this method then finds all calls contained within
-.. the directive and adds each calls list of private variables, returned
-.. with the local_vars() method. Therefore the OpenMPLoopDirective object
-.. relies on calls specifying which variables they require being local.
-..
-.. Next ...
-..
-.. Update transformation for colours
-..
-.. OpenMPLoop transformation in transformations.py.
-..
-.. Create third transformation which goes over all loops in a schedule and
-.. applies the OpenMP loop transformation.
 
 NEMO
 ====

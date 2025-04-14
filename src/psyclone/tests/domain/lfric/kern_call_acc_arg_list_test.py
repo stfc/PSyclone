@@ -180,6 +180,7 @@ def test_lfric_acc_operator():
 
     # Find the first kernel:
     kern = invoke.schedule.walk(psyGen.CodedKern)[0]
+    invoke.setup_psy_layer_symbols()
     create_acc_arg_list = KernCallAccArgList(kern)
     var_accesses = VariablesAccessInfo()
     create_acc_arg_list.generate(var_accesses=var_accesses)

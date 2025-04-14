@@ -39,7 +39,6 @@
    a region of code."
 '''
 
-from __future__ import absolute_import
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import (Literal, Loop, ReadOnlyVerifyNode, Directive,
                                   Reference, Schedule, OMPParallelDirective,

@@ -46,7 +46,6 @@ from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicKernMetadata
 from psyclone.dynamo0p3 import LFRicMeshProperties, MeshProperty
 from psyclone.errors import InternalError
-from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, Kern
@@ -170,7 +169,7 @@ def test_mesh_properties():
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    # Check that the kern_args() and _stub_declarations() methods raise the
+    # Check that the kern_args() and stub_declarations() methods raise the
     # expected error if the LFRicMeshProperties class has been created for
     # an Invoke.
     with pytest.raises(InternalError) as err:
@@ -178,19 +177,15 @@ def test_mesh_properties():
     assert ("only be called when LFRicMeshProperties has been instantiated "
             "for a kernel" in str(err.value))
     with pytest.raises(InternalError) as err:
-        invoke.mesh_properties._stub_declarations(None)
-    assert ("cannot be called because LFRicMeshProperties has been "
-            "instantiated for an invoke and not a kernel" in str(err.value))
+        invoke.mesh_properties.stub_declarations()
+    assert ("stub_declarations() can only be called with a LFRicMeshProperties"
+            " instantiated for a kernel (not an invoke)." in str(err.value))
     # Break the list of mesh properties
     invoke.mesh_properties._properties.append("not-a-property")
     with pytest.raises(InternalError) as err:
-        invoke.mesh_properties._invoke_declarations(ModuleGen("test_mod"))
+        invoke.mesh_properties.invoke_declarations()
     assert ("Found unsupported mesh property 'not-a-property' when "
             "generating invoke declarations. Only " in str(err.value))
-    with pytest.raises(InternalError) as err:
-        invoke.mesh_properties.initialise(ModuleGen("test_mod"))
-    assert ("Found unsupported mesh property 'not-a-property' when generating"
-            " initialisation code" in str(err.value))
     sched = invoke.schedule
     # Get hold of the Kernel object
     kernel = sched.walk(Kern)[0]
@@ -208,11 +203,12 @@ def test_mesh_properties():
             "Only members of the MeshProperty Enum are"
             in str(err.value))
     with pytest.raises(InternalError) as err:
-        mesh_props._invoke_declarations(ModuleGen("test_mod"))
-    assert ("cannot be called because LFRicMeshProperties has been "
-            "instantiated for a kernel and not an invoke." in str(err.value))
+        mesh_props.invoke_declarations()
+    assert ("invoke_declarations() can only be called with a LFRicMesh"
+            "Properties instantiated for an invoke (not a kernel)."
+            in str(err.value))
     with pytest.raises(InternalError) as err:
-        mesh_props._stub_declarations(ModuleGen("test_mod"))
+        mesh_props.stub_declarations()
     assert ("Found unsupported mesh property 'not-a-property' when "
             "generating declarations for kernel stub. Only " in str(err.value))
 
@@ -231,8 +227,8 @@ def test_mesh_gen(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
     # In order to provide the mesh property we need the reference element
-    assert "use reference_element_mod, only: reference_element_type" in gen
-    assert "integer(kind=i_def) nfaces_re_h" in gen
+    assert "use reference_element_mod, only : reference_element_type" in gen
+    assert "integer(kind=i_def) :: nfaces_re_h" in gen
     assert ("integer(kind=i_def), pointer :: adjacent_face(:,:) => null()"
             in gen)
     assert ("class(reference_element_type), pointer :: reference_element "
@@ -288,12 +284,12 @@ def test_mesh_prop_plus_ref_elem_gen(tmpdir):
     gen = str(psy.gen).lower()
 
     assert (
-        "      reference_element => mesh%get_reference_element()\n"
-        "      nfaces_re_h = reference_element%get_number_horizontal_faces()\n"
-        "      nfaces_re_v = reference_element%get_number_vertical_faces()\n"
-        "      call reference_element%get_normals_to_horizontal_faces("
+        "    reference_element => mesh%get_reference_element()\n"
+        "    nfaces_re_h = reference_element%get_number_horizontal_faces()\n"
+        "    nfaces_re_v = reference_element%get_number_vertical_faces()\n"
+        "    call reference_element%get_normals_to_horizontal_faces("
         "normals_to_horiz_faces)\n"
-        "      call reference_element%get_normals_to_vertical_faces("
+        "    call reference_element%get_normals_to_vertical_faces("
         "normals_to_vert_faces)\n" in gen)
     assert ("call testkern_mesh_ref_elem_props_code(nlayers_f1, a, "
             "f1_data, ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, "
@@ -312,24 +308,22 @@ def test_mesh_plus_face_quad_gen(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
 
-    assert ("      qr_proxy = qr%get_quadrature_proxy()\n"
-            "      np_xyz_qr = qr_proxy%np_xyz\n"
-            "      nfaces_qr = qr_proxy%nfaces\n"
-            "      weights_xyz_qr => qr_proxy%weights_xyz\n"
-            "      !\n"
-            "      ! allocate basis/diff-basis arrays\n"
-            "      !\n"
-            "      dim_w1 = f1_proxy%vspace%get_dim_space()\n"
-            "      allocate (basis_w1_qr(dim_w1, ndf_w1, np_xyz_qr, "
+    assert ("    qr_proxy = qr%get_quadrature_proxy()\n"
+            "    np_xyz_qr = qr_proxy%np_xyz\n"
+            "    nfaces_qr = qr_proxy%nfaces\n"
+            "    weights_xyz_qr => qr_proxy%weights_xyz\n"
+            "\n"
+            "    ! allocate basis/diff-basis arrays\n"
+            "    dim_w1 = f1_proxy%vspace%get_dim_space()\n"
+            "    allocate(basis_w1_qr(dim_w1,ndf_w1,np_xyz_qr,"
             "nfaces_qr))" in gen)
 
-    assert ("      reference_element => mesh%get_reference_element()\n"
-            "      nfaces_re_h = reference_element%"
+    assert ("    reference_element => mesh%get_reference_element()\n"
+            "    nfaces_re_h = reference_element%"
             "get_number_horizontal_faces()\n"
-            "      !\n"
-            "      ! initialise mesh properties\n"
-            "      !\n"
-            "      adjacent_face => mesh%get_adjacent_face()" in gen)
+            "\n"
+            "    ! initialise mesh properties\n"
+            "    adjacent_face => mesh%get_adjacent_face()" in gen)
 
     assert ("call testkern_mesh_prop_face_qr_code(nlayers_f1, a, f1_data, "
             "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, "
@@ -350,22 +344,27 @@ def test_multi_kernel_mesh_props(tmpdir):
     gen = str(psy.gen).lower()
 
     # Declarations
-    assert (
-        "      real(kind=r_def), pointer :: weights_xyz_qr(:,:) => null()\n"
-        "      integer(kind=i_def) np_xyz_qr, nfaces_qr\n"
-        "      integer(kind=i_def), pointer :: adjacent_face(:,:) => null()\n"
-        "      real(kind=r_def), allocatable :: normals_to_horiz_faces(:,:), "
-        "normals_to_vert_faces(:,:)\n"
-        "      integer(kind=i_def) nfaces_re_h, nfaces_re_v\n"
-        "      class(reference_element_type), pointer :: reference_element => "
-        "null()\n" in gen)
+    assert ("real(kind=r_def), pointer, dimension(:,:) :: weights_xyz_qr => "
+            "null()\n") in gen
+    assert "integer(kind=i_def) :: np_xyz_qr\n" in gen
+    assert "integer(kind=i_def) :: nfaces_qr\n" in gen
+    assert ("integer(kind=i_def), pointer :: adjacent_face(:,:) => null()\n"
+            in gen)
+    assert ("real(kind=r_def), allocatable, dimension(:,:) :: "
+            "normals_to_horiz_faces" in gen)
+    assert ("real(kind=r_def), allocatable, dimension(:,:) :: "
+            "normals_to_vert_faces" in gen)
+    assert "integer(kind=i_def) :: nfaces_re_h\n" in gen
+    assert "integer(kind=i_def) :: nfaces_re_v\n" in gen
+    assert ("class(reference_element_type), pointer :: reference_element => "
+            "null()\n" in gen)
     # Initialisations
     assert "type(mesh_type), pointer :: mesh => null()" in gen
     assert "nfaces_qr = qr_proxy%nfaces" in gen
     assert (
-        "      reference_element => mesh%get_reference_element()\n"
-        "      nfaces_re_h = reference_element%get_number_horizontal_faces()\n"
-        "      nfaces_re_v = reference_element%get_number_vertical_faces()"
+        "    reference_element => mesh%get_reference_element()\n"
+        "    nfaces_re_h = reference_element%get_number_horizontal_faces()\n"
+        "    nfaces_re_v = reference_element%get_number_vertical_faces()"
         in gen)
     assert "adjacent_face => mesh%get_adjacent_face()" in gen
     # Call to kernel requiring props of the reference element & adjacent faces

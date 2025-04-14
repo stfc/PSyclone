@@ -702,8 +702,7 @@ psyclone.psyir.nodes.html#psyclone.psyir.nodes.Directive`.
 .. warning::
     Some parts of some Clauses are still under development, and not all clauses
     are encoded in Clauses classes yet (for example OpenACC clauses). These
-    clause strings are instead generated inside the ``begin_string`` or
-    ``gen_code`` methods during code generation.
+    clause strings are instead generated inside the ``begin_string``.
 
 .. _named_arguments-label:
 
@@ -993,9 +992,7 @@ The Kernel-layer subclasses will be used to:
    translated into LFRic PSyIR using the expected datatypes as
    specified by the kernel metadata and associated LFRic rules.
 
-3) replace the existing kernel stub generation implementation so that
-   the PSyIR back ends can be used and PSyclone will rely less on
-   ``f2pygen`` and ``fparser1``. At the moment ``kernel_interface``
+3) At the moment ``kernel_interface``
    provides the same functionality as ``kern_stub_arg_list``, except
    that it uses the symbol table (which keeps datatypes and their
    declarations together).
@@ -1091,9 +1088,8 @@ correspond to and how the arguments relate to each other (they just
 output strings).
 
 The logic and declaration of kernel variables is handled separately by
-the ``gen_stub`` method in ``LFRicKern`` and the ``gen_code`` method in
-``LFRicInvoke``. In both cases these methods make use of the subclasses
-of ``LFRicCollection`` to declare variables.
+the ``stub_declarations`` and ``invoke_declarations`` methods in the
+appropriate ``LFRicCollection``.
 
 When using the symbol table in the LFRic PSyIR we naturally capture
 arguments and datatypes together. The ``KernelInterface`` class is

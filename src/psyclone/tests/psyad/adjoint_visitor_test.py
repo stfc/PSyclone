@@ -37,7 +37,6 @@
 adjoint_visitor.py file within the psyad directory.
 
 '''
-from __future__ import absolute_import
 import logging
 import pytest
 

@@ -94,6 +94,7 @@ LFRIC_INCLUDE_FLAGS += -I$(EXTRACT_DIR)
 
 transform: main_psy.f90 main_alg.f90
 
+	
 compile: transform $(EXEC)
 
 run: compile

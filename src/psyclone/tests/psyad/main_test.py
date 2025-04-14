@@ -132,17 +132,22 @@ EXPECTED_HARNESS_CODE = '''program adj_test
   ! initialise the kernel arguments and keep copies of them
   call random_number(field)
   field_input = field
+
   ! call the tangent-linear kernel
   call kern(field)
+
   ! compute the inner product of the results of the tangent-linear kernel
   inner1 = 0.0
   inner1 = inner1 + field * field
+
   ! call the adjoint of the kernel
   call adj_kern(field)
+
   ! compute inner product of results of adjoint kernel with the original \
 inputs to the tangent-linear kernel
   inner2 = 0.0
   inner2 = inner2 + field * field_input
+
   ! test the inner-product values for equality, allowing for the precision \
 of the active variables
   machinetol = spacing(max(abs(inner1), abs(inner2)))
