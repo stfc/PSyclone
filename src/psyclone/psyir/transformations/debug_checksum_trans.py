@@ -142,8 +142,6 @@ PSYCLONE_INTERNAL_line_ + 1
             # Need to convert the lhs to a full range variant.
             copy = lhs.copy()
             name, _ = copy.get_signature_and_indices()
-            if isinstance(name, list):
-                name = "%".join(name)
             if isinstance(lhs, StructureAccessorMixin):
                 member = copy.member
                 while isinstance(member, StructureAccessorMixin):
