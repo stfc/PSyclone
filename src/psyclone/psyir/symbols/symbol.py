@@ -253,9 +253,8 @@ class Symbol(CommentableMixin):
         if self.is_import:
             extern_symbol = self.get_external_symbol()
             # pylint: disable-next=import-outside-toplevel
-            from psyclone.psyir.symbols import RoutineSymbol
-            # pylint: disable-next=unidiomatic-typecheck
-            if type(extern_symbol) is Symbol:
+            from psyclone.psyir.symbols import RoutineSymbol, TypedSymbol
+            if not isinstance(extern_symbol, TypedSymbol):
                 raise SymbolError(
                     f"The external symbol '{extern_symbol.name}' was found "
                     f"but it does not have a type. Maybe it is a transitive "
