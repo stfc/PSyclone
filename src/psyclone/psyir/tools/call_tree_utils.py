@@ -38,7 +38,6 @@
 across different subroutines and modules.'''
 
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.errors import PSycloneError
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import Container, Reference

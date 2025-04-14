@@ -43,7 +43,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     CHARACTER_TYPE, ContainerSymbol, ImportInterface, INTEGER_TYPE, NoType,
     RoutineSymbol, DataSymbol, UnsupportedFortranType, ArrayType,
-    AutomaticInterface)
+    AutomaticInterface, UnresolvedType)
 
 
 class BaseDriverCreator:
@@ -344,3 +344,32 @@ class BaseDriverCreator:
 
         '''
         return name.replace("-", "")[:63]
+
+    @staticmethod
+    def import_modules(program):
+        '''This function adds all the import statements required for the
+        actual kernel calls. It finds all calls in the PSyIR tree and
+        checks for calls with a ImportInterface. Any such call will
+        get a ContainerSymbol added for the module, and a RoutineSymbol
+        with an import interface pointing to this module.
+
+        :param program: the PSyIR Routine to which any code must be added.
+        :type program: :py:class:`psyclone.psyir.nodes.Routine`
+
+        '''
+        symbol_table = program.scope.symbol_table
+        for call in program.walk(Call):
+            routine = call.routine.symbol
+            if not isinstance(routine.interface, ImportInterface):
+                continue
+            if routine.name in symbol_table:
+                # Symbol has already been added - ignore
+                continue
+            # We need to create a new symbol for the module and the routine
+            # called (the PSyIR backend will then create a suitable import
+            # statement).
+            module = ContainerSymbol(routine.interface.container_symbol.name)
+            symbol_table.add(module)
+            new_routine_sym = RoutineSymbol(routine.name, UnresolvedType(),
+                                            interface=ImportInterface(module))
+            symbol_table.add(new_routine_sym)

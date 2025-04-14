@@ -58,7 +58,7 @@ from psyclone.psyir.symbols import (
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
-                                    RoutineSymbol, UnsupportedFortranType)
+                                    UnsupportedFortranType)
 
 
 class LFRicExtractDriverCreator(BaseDriverCreator):
@@ -176,38 +176,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         self._all_field_types = ["integer_field_type", "field_type",
                                  "r_bl_field", "r_solver_field_type",
                                  "r_tran_field_type"]
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _import_modules(symbol_table, sched):
-        '''This function adds all the import statements required for the
-        actual kernel calls. It finds all calls in the schedule and
-        checks for calls with an ImportInterface. Any such call will
-        add a ContainerSymbol for the module and a RoutineSymbol (pointing
-        to the container) to the symbol table.
-
-        :param symbol_table: the symbol table to which the symbols are added.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param sched: the schedule to analyse for module imports.
-        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
-
-        '''
-        for call in sched.walk(Call):
-            routine = call.routine.symbol
-            if not isinstance(routine.interface, ImportInterface):
-                # No import required, can be ignored.
-                continue
-            if routine.name in symbol_table:
-                # Symbol has already been added - ignore
-                continue
-            # We need to create a new symbol for the module and the routine
-            # called (the PSyIR backend will then create a suitable import
-            # statement).
-            module = ContainerSymbol(routine.interface.container_symbol.name)
-            symbol_table.add(module)
-            new_routine_sym = RoutineSymbol(routine.name, UnresolvedType(),
-                                            interface=ImportInterface(module))
-            symbol_table.add(new_routine_sym)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -363,26 +331,28 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # Create the program and add it to the file container:
         program = Routine.create(unit_name, is_program=True)
         program_symbol_table = program.symbol_table
+        original_symbol_table = nodes[0].ancestor(InvokeSchedule).symbol_table
         file_container.addchild(program)
 
-        if prefix:
-            prefix = prefix + "_"
-
+        # Add the extraction library symbols
         psy_data_mod = ContainerSymbol("read_kernel_data_mod")
         program_symbol_table.add(psy_data_mod)
         psy_data_type = DataTypeSymbol("ReadKernelDataType", UnresolvedType(),
                                        interface=ImportInterface(psy_data_mod))
         program_symbol_table.add(psy_data_type)
+        if prefix:
+            prefix = prefix + "_"
+        root_name = prefix + "psy_data"
+        psy_data = program_symbol_table.new_symbol(root_name=root_name,
+                                                   symbol_type=DataSymbol,
+                                                   datatype=psy_data_type)
 
-        # The validation of the extract transform guarantees that all nodes
-        # in the node list have the same parent.
-        invoke_sched = nodes[0].ancestor(InvokeSchedule)
-        schedule_copy = Routine.create("name")
-        schedule_copy.children.extend([n.copy() for n in nodes[0].children])
+        # Copy the nodes that are part of the extraction
+        program.children.extend([n.copy() for n in nodes[0].children])
 
-        for sref in schedule_copy.walk(StructureReference):
-            # StructureReference must have been flattened before creating the
-            # driver, or are method calls. In both cases they are not allowed.
+        # StructureReference must have been flattened before creating the
+        # driver, or are method calls. In both cases they are not allowed.
+        for sref in program.walk(StructureReference):
             dm_methods = ("set_dirty", "set_clean")
             if (isinstance(sref.parent, Call) and
                     sref.member.name in dm_methods):
@@ -394,37 +364,22 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                  f"StructureReferences, but found: "
                                  f"{sref.debug_string()}")
 
-        original_symbol_table = invoke_sched.symbol_table
-
-        # Find all imported routines and add them to the symbol table
-        # of the driver, so the driver will have the correct import
-        # statements.
-        self._import_modules(program.scope.symbol_table, schedule_copy)
+        # Find all imported modules and add them to the symbol table
+        self.import_modules(program)
         self._add_precision_symbols(program.scope.symbol_table)
 
-        root_name = prefix + "psy_data"
-        psy_data = program_symbol_table.new_symbol(root_name=root_name,
-                                                   symbol_type=DataSymbol,
-                                                   datatype=psy_data_type)
-
+        # Add cmd line hander, read in, and result comparison for the code
         self._add_command_line_handler(program, psy_data, module_name,
                                        local_name)
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    original_symbol_table,
                                                    read_write_info, postfix)
-        # Move the nodes making up the extracted region into the Schedule
-        # of the driver program
-        all_children = schedule_copy.pop_all_children()
-        for child in all_children:
-            program.addchild(child)
-
         BaseDriverCreator.add_result_tests(program, output_symbols)
 
+        # Replace allocatables with pointers
         for symbol in program_symbol_table.datasymbols:
-
             if isinstance(symbol.datatype, UnsupportedFortranType):
                 symbol.datatype = symbol.datatype.copy()
-
                 newt = symbol.datatype._declaration
                 newt = newt.replace('pointer', 'allocatable')
                 newt = newt.replace('=> null()', '')

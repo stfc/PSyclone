@@ -43,12 +43,12 @@ the output data contained in the input file.
 
 from psyclone.domain.common import BaseDriverCreator
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Call, FileContainer, Literal, Routine
+from psyclone.psyir.nodes import FileContainer, Literal, Routine
 from psyclone.psyir.symbols import (CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
-                                    REAL8_TYPE, RoutineSymbol, ScalarType)
+                                    REAL8_TYPE, ScalarType)
 from psyclone.psyGen import InvokeSchedule
 
 # TODO 1382: once we support LFRic, make this into a proper base class
@@ -76,40 +76,6 @@ class ExtractDriverCreator(BaseDriverCreator):
         # For convenience, also add the names used in the gocean config file:
         self._default_types = {"integer": integer_type,
                                "real": real_type}
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def import_modules(program, sched):
-        '''This function adds all the import statements required for the
-        actual kernel calls. It finds all calls in the PSyIR tree and
-        checks for calls with a ImportInterface. Any such call will
-        get a ContainerSymbol added for the module, and a RoutineSymbol
-        with an import interface pointing to this module.
-
-        :param program: the PSyIR Routine to which any code must
-            be added. It also contains the symbol table to be used.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param sched: the schedule that will be called by the driver
-            program created.
-        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
-
-        '''
-        symbol_table = program.scope.symbol_table
-        for call in sched.walk(Call):
-            routine = call.routine.symbol
-            if not isinstance(routine.interface, ImportInterface):
-                continue
-            if routine.name in symbol_table:
-                # Symbol has already been added - ignore
-                continue
-            # We need to create a new symbol for the module and the routine
-            # called (the PSyIR backend will then create a suitable import
-            # statement).
-            module = ContainerSymbol(routine.interface.container_symbol.name)
-            symbol_table.add(module)
-            new_routine_sym = RoutineSymbol(routine.name, UnresolvedType(),
-                                            interface=ImportInterface(module))
-            symbol_table.add(new_routine_sym)
 
     # -------------------------------------------------------------------------
     def create(self, nodes, read_write_info, prefix, postfix, region_name):
@@ -156,28 +122,27 @@ class ExtractDriverCreator(BaseDriverCreator):
         # Create the program and add it to the file container:
         program = Routine.create(unit_name, is_program=True)
         program_symbol_table = program.symbol_table
+        og_symtab = nodes[0].ancestor(InvokeSchedule).symbol_table
         file_container.addchild(program)
 
-        if prefix:
-            prefix = prefix + "_"
-
+        # Add the extraction library symbols
         psy_data_mod = ContainerSymbol("read_kernel_data_mod")
         program_symbol_table.add(psy_data_mod)
         psy_data_type = DataTypeSymbol("ReadKernelDataType", UnresolvedType(),
                                        interface=ImportInterface(psy_data_mod))
         program_symbol_table.add(psy_data_type)
-
-        # Create a routine with a copy of the region of interest
-        schedule_copy = Routine.create("name")
-        schedule_copy.children.extend([n.copy() for n in nodes[0].children])
-        og_symtab = nodes[0].ancestor(InvokeSchedule).symbol_table
-
-        self.import_modules(program, schedule_copy)
-
+        if prefix:
+            prefix = prefix + "_"
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,
                                                    symbol_type=DataSymbol,
                                                    datatype=psy_data_type)
+
+        # Copy the nodes that are part of the extraction
+        program.children.extend([n.copy() for n in nodes[0].children])
+
+        # Find all imported modules and add them to the symbol table
+        self.import_modules(program)
 
         module_str = Literal(module_name, CHARACTER_TYPE)
         region_str = Literal(local_name, CHARACTER_TYPE)
@@ -188,12 +153,6 @@ class ExtractDriverCreator(BaseDriverCreator):
                                                    og_symtab,
                                                    read_write_info, postfix)
 
-        # Move the nodes making up the extracted region into the Schedule
-        # of the driver program
-        all_children = schedule_copy.pop_all_children()
-        for child in all_children:
-            program.addchild(child)
-
         self.replace_precisions(program)
 
         self.add_result_tests(program, output_symbols)
@@ -203,6 +162,9 @@ class ExtractDriverCreator(BaseDriverCreator):
     def replace_precisions(self, program):
         ''' Replaces the precisions with the values given in the _default_types
         in order to avoid imported precision symbols.
+
+        :param program: the PSyIR Routine in which to replace the symbols.
+        :type program: :py:class:`psyclone.psyir.nodes.Routine`
         '''
         for symbol in program.symbol_table.symbols:
             if isinstance(symbol, DataSymbol):

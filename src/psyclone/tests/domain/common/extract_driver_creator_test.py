@@ -429,7 +429,7 @@ def test_driver_creation_import_modules(fortran_reader):
     # Delete all symbols in the symbol table so we can check if the right
     # symbols are added:
     program.scope._symbol_table = SymbolTable()
-    edc.import_modules(program, psyir.children[0])
+    edc.import_modules(program)
     symbol_table = program.scope.symbol_table
     all_symbols = symbol_table.get_symbols()
     assert len(all_symbols) == 2
