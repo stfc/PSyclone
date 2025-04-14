@@ -401,8 +401,8 @@ def test_symbol_resolve_type(monkeypatch):
     with pytest.raises(SymbolError) as err:
         new_sym = bsym.resolve_type()
     assert ("The external symbol 'b' was found but it does not have a "
-            "type. Maybe it is a transitive import which is currently "
-            "not resolvable." in str(err.value))
+            "type. Maybe it is a transitive (indirect) import which is "
+            "currently not resolvable." in str(err.value))
 
     # Repeat but test when the imported Symbol is a parameter.
     csym = Symbol("c", visibility=Symbol.Visibility.PRIVATE,
