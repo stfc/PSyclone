@@ -47,7 +47,7 @@ from typing import Dict, List, Union
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
-from psyclone.errors import InternalError, PSycloneError, GenerationError
+from psyclone.errors import InternalError, PSycloneError
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import Symbol
 from psyclone.parse import FileInfo, FileInfoFParserError
@@ -265,7 +265,7 @@ class ModuleInfo:
             try:
                 self._psyir_container_node = self._file_info.get_psyir()
             except (
-                    GenerationError,
+                    PSycloneError,
                     FileInfoFParserError) as err:
                 # TODO #11: Add proper logging
                 print(f"Error trying to create PSyIR for '{self.filename}': "
