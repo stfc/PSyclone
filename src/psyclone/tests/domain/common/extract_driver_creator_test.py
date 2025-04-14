@@ -48,7 +48,7 @@ import pytest
 from psyclone.domain.common import ExtractDriverCreator
 from psyclone.domain.gocean.transformations import (GOceanExtractTrans,
                                                     GOConstLoopBoundsTrans)
-from psyclone.psyir.nodes import Routine, Loop
+from psyclone.psyir.nodes import Routine, Loop, ExtractNode, Schedule
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
 from psyclone.psyir.transformations import PSyDataTrans
 from psyclone.tests.utilities import get_invoke

@@ -311,9 +311,13 @@ class ExtractNode(PSyDataNode):
         :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
 
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import InvokeSchedule
-        invoke = nodes[0].ancestor(InvokeSchedule).invoke
-        module_name = invoke.invokes.psy.name
+        invoke = nodes[0].ancestor(InvokeSchedule)
+        if invoke:
+            module_name = invoke.invoke.invokes.psy.name
+        else:
+            module_name = nodes[0].root.name
         return (module_name, self._region_name)
 
     # -------------------------------------------------------------------------

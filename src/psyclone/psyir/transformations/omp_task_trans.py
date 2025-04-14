@@ -105,6 +105,7 @@ class OMPTaskTrans(ParallelLoopTrans):
             node_copy = node_copy.children[index]
 
         kerns = node_copy.walk(Kern)
+        # pylint: disable=import-outside-toplevel
         from psyclone.domain.common.transformations import \
             KernelModuleInlineTrans
         kintrans = KernelModuleInlineTrans()
@@ -168,6 +169,7 @@ class OMPTaskTrans(ParallelLoopTrans):
         '''
 
         kerns = node.walk(Kern)
+        # pylint: disable=import-outside-toplevel
         from psyclone.domain.common.transformations import \
             KernelModuleInlineTrans
         kintrans = KernelModuleInlineTrans()

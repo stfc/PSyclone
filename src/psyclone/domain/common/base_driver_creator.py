@@ -217,18 +217,22 @@ class BaseDriverCreator:
 
         # Now if a variable is written to, but not read, the variable
         # is not allocated. So we need to allocate it and set it to 0.
-        if not is_input:
-            if (isinstance(post_sym.datatype, ArrayType) or
-                    (isinstance(post_sym.datatype, UnsupportedFortranType) and
-                     isinstance(post_sym.datatype.partial_datatype,
-                                ArrayType))):
-                alloc = IntrinsicCall.create(
-                    IntrinsicCall.Intrinsic.ALLOCATE,
-                    [Reference(sym), ("mold", Reference(post_sym))])
-                program.addchild(alloc)
-            set_zero = Assignment.create(Reference(sym),
-                                         Literal("0", INTEGER_TYPE))
-            program.addchild(set_zero)
+        # However, this currently does not happen because all fields are
+        # considered written, in case we just write to part of the field,
+        # but in the future we may want to re-enable it if we can guarantee
+        # that the whole field is written first.
+        # if not is_input:
+        #     if (isinstance(post_sym.datatype, ArrayType) or
+        #            (isinstance(post_sym.datatype, UnsupportedFortranType) and
+        #             isinstance(post_sym.datatype.partial_datatype,
+        #                        ArrayType))):
+        #         alloc = IntrinsicCall.create(
+        #             IntrinsicCall.Intrinsic.ALLOCATE,
+        #             [Reference(sym), ("mold", Reference(post_sym))])
+        #         program.addchild(alloc)
+        #     set_zero = Assignment.create(Reference(sym),
+        #                                  Literal("0", INTEGER_TYPE))
+        #     program.addchild(set_zero)
         return (sym, post_sym)
 
     def _create_read_in_code(self, program, psy_data, original_symtab,

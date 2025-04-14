@@ -49,7 +49,6 @@ from psyclone.psyir.symbols import (CHARACTER_TYPE,
                                     DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
                                     REAL8_TYPE, ScalarType)
-from psyclone.psyGen import InvokeSchedule
 
 # TODO 1382: once we support LFRic, make this into a proper base class
 # and put the domain-specific implementations into the domain/* directories.
@@ -122,7 +121,7 @@ class ExtractDriverCreator(BaseDriverCreator):
         # Create the program and add it to the file container:
         program = Routine.create(unit_name, is_program=True)
         program_symbol_table = program.symbol_table
-        og_symtab = nodes[0].ancestor(InvokeSchedule).symbol_table
+        og_symtab = nodes[0].ancestor(Routine).symbol_table
         file_container.addchild(program)
 
         # Add the extraction library symbols
