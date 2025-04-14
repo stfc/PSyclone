@@ -38,11 +38,10 @@ implementations.
 '''
 
 from psyclone.parse import ModuleManager
-from psyclone.psyir.nodes import (
-    Call, Literal, Reference, ExtractNode, IntrinsicCall, Assignment)
+from psyclone.psyir.nodes import Call, Literal, Reference, ExtractNode
 from psyclone.psyir.symbols import (
     CHARACTER_TYPE, ContainerSymbol, ImportInterface, INTEGER_TYPE, NoType,
-    RoutineSymbol, DataSymbol, UnsupportedFortranType, ArrayType,
+    RoutineSymbol, DataSymbol, UnsupportedFortranType,
     AutomaticInterface, UnresolvedType)
 
 
