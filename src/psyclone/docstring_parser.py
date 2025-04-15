@@ -96,7 +96,8 @@ class ArgumentData():
     desc: str
     inline_type: bool
 
-    def gen_docstring(self, function: Union[None, Callable] = None) -> str:
+    def gen_docstring(self, function: Union[None, Callable[..., Any]] = None)\
+            -> str:
         '''
         :param function: The function who the generated docstring will be for.
                     Default option is None. If no function is supplied, there
@@ -251,7 +252,7 @@ class DocstringData():
 
     def gen_docstring(
             self, indentation: str = "    ",
-            function: Union[None, Callable] = None
+            function: Union[None, Callable[..., Any]] = None
     ) -> str:
         '''
         Generates the docstring from the input docdata. The indentation of the
@@ -461,7 +462,8 @@ class DocstringData():
         return docstring_data
 
 
-def create_docstring_data(args: List[str], desc: str, function: Callable) ->\
+def create_docstring_data(args: List[str], desc: str,
+                          function: Callable[..., Any]) ->\
         Union[ArgumentData, RaisesData, ReturnsData]:
     '''
     Creates a docstring data object (i.e. ArgumentData, RaisesData or
