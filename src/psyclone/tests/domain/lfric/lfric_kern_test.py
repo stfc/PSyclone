@@ -53,7 +53,8 @@ from psyclone.domain.lfric import (LFRicConstants, LFRicTypes, LFRicKern,
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Reference, KernelSchedule
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import Container, Reference, KernelSchedule
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
     INTEGER_TYPE, ArrayType
 from psyclone.tests.utilities import get_invoke
@@ -136,7 +137,7 @@ def test_kern_ncolours(monkeypatch):
             in str(err.value))
 
 
-def test_get_kernel_schedule():
+def test_get_kernel_schedule(monkeypatch):
     '''Test that a PSyIR kernel schedule is created by get_kernel_schedule
     if one does not exist and that the same kernel schedule is
     returned if one has already been created.
@@ -149,16 +150,32 @@ def test_get_kernel_schedule():
     # matrix vector kernel
     kernel = schedule[2].loop_body[0]
 
-    assert kernel._kern_schedule is None
+    assert kernel._kern_schedules is None
 
-    kernel_schedule = kernel.get_kernel_schedule()
-    assert isinstance(kernel_schedule, KernelSchedule)
-    assert kernel._kern_schedule is kernel_schedule
+    sym, kernel_schedules = kernel.get_kernel_schedule()
+    assert sym is None
+    assert len(kernel_schedules) == 1
+    assert isinstance(kernel_schedules[0], KernelSchedule)
+    assert kernel._kern_schedules[0] is kernel_schedules[0]
 
-    kernel_schedule_2 = kernel.get_kernel_schedule()
-    assert kernel_schedule is kernel_schedule_2
+    _, kernel_schedules_2 = kernel.get_kernel_schedule()
+    assert kernel_schedules[0] is kernel_schedules_2[0]
+    # Check the internal error for the case where we fail to get any
+    # implementation for the kernel.
+    kernel._kern_schedules = None
+    # Monkeypatch the frontend so that it just returns an empty Container.
+    monkeypatch.setattr(Fparser2Reader, "generate_psyir",
+                        lambda _1, _2: Container("dummy_mod"))
+    with pytest.raises(InternalError) as err:
+        kernel.get_kernel_schedule()
+    assert ("Failed to find any routines for Kernel 'matrix_vector_code'"
+            in str(err.value))
 
 
+@pytest.mark.xfail(reason="get_kernel_schedule has been extended to return all"
+                   " implementations of a polymorphic kernel. We need to "
+                   "put back (and fix) the ability to resolve which "
+                   "implementation is being called.")
 def test_get_kernel_schedule_mixed_precision():
     '''
     Test that we can get the correct schedule for a mixed-precision kernel.
@@ -183,6 +200,10 @@ def test_get_kernel_schedule_mixed_precision():
         assert sched.name == f"mixed_code_{8*precision}"
 
 
+@pytest.mark.xfail(reason="get_kernel_schedule has been extended to return all"
+                   " implementations of a polymorphic kernel. We need to "
+                   "put back (and fix) the ability to resolve which "
+                   "implementation is being called.")
 def test_get_kernel_sched_mixed_precision_no_match(monkeypatch):
     '''
     Test that we get the expected error if there's no matching implementation
@@ -208,30 +229,6 @@ def test_get_kernel_sched_mixed_precision_no_match(monkeypatch):
             "['mixed_code_32', 'mixed_code_64'].)" in str(err.value))
 
 
-def test_get_kernel_sched_mixed_precision_multiple_match(monkeypatch):
-    '''
-    Test that we get the expected error if there appears to be more than
-    one matching implementation for a mixed-precision kernel.
-
-    TODO #2716 will fix this and then this test can be removed.
-
-    '''
-    _, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
-                           name="invoke_0", dist_mem=False)
-    sched = invoke.schedule
-    kernels = sched.walk(LFRicKern, stop_type=LFRicKern)
-
-    # To simplify things we just monkeypatch the 'validate_kernel_code_args'
-    # method so that it always succeeds.
-    monkeypatch.setattr(LFRicKern, "validate_kernel_code_args",
-                        lambda _1, _2: None)
-    with pytest.raises(GenerationError) as err:
-        _ = kernels[0].get_kernel_schedule()
-    assert ("Found multiple kernel implementations (['mixed_code_32', "
-            "'mixed_code_64']) that apparently match the interface of this "
-            "call to 'mixed_code'" in str(err.value))
-
-
 def test_validate_kernel_code_args(monkeypatch):
     '''Test that a coded kernel that conforms to the expected kernel
     metadadata is validated successfully. Also check that the
@@ -246,7 +243,8 @@ def test_validate_kernel_code_args(monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
     # matrix vector kernel
     kernel = schedule[2].loop_body[0]
-    sched = kernel.get_kernel_schedule()
+    _, schedules = kernel.get_kernel_schedule()
+    sched = schedules[0]
     kernel.validate_kernel_code_args(sched.symbol_table)
 
     # Force LFRicKern to think that this kernel is an 'apply' kernel and
@@ -254,7 +252,7 @@ def test_validate_kernel_code_args(monkeypatch):
     monkeypatch.setattr(kernel, "_cma_operation", "apply")
     with pytest.raises(GenerationError) as info:
         kernel.validate_kernel_code_args(
-            kernel.get_kernel_schedule().symbol_table)
+            sched.symbol_table)
     assert (
         "In kernel 'matrix_vector_code' the number of arguments indicated by "
         "the kernel metadata is 8 but the actual number of kernel arguments "

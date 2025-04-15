@@ -60,8 +60,8 @@ from psyclone.domain.lfric import (
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeallocateGen, DeclGen, DoGen, PSyIRGen,
-                              TypeDeclGen, UseGen)
+                              DeallocateGen, DeclGen, DoGen,
+                              PSyIRGen, TypeDeclGen, UseGen)
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (InvokeSchedule, Arguments,
@@ -72,10 +72,10 @@ from psyclone.psyir.nodes import (
     Assignment, ACCEnterDataDirective, ArrayOfStructuresReference,
     Reference, Schedule, StructureReference, Literal, IfBlock, Call,
     BinaryOperation, IntrinsicCall, Container)
-from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
-                                    UnresolvedType, DataTypeSymbol,
-                                    ContainerSymbol, ImportInterface,
-                                    ArrayType, UnsupportedFortranType)
+from psyclone.psyir.symbols import (
+    ArrayType, INTEGER_TYPE, DataSymbol, DataTypeSymbol,
+    ScalarType, UnresolvedType, ContainerSymbol, ImportInterface,
+    UnsupportedFortranType)
 
 
 # pylint: disable=too-many-lines

@@ -91,7 +91,10 @@ def trans(psyir):
 
     for kernel in psyir.coded_kernels():
         if kernel.name.lower() == "matrix_vector_kernel_code":
-            kernel_schedule = kernel.get_kernel_schedule()
+            _, kernel_schedules = kernel.get_kernel_schedule()
+            # For simplicity, ASSUME that the kernel is not polymorphic and
+            # thus only has one schedule.
+            kernel_schedule = kernel_schedules[0]
             # Replace matmul with inline code
             for icall in kernel_schedule.walk(IntrinsicCall):
                 if icall.intrinsic is IntrinsicCall.Intrinsic.MATMUL:

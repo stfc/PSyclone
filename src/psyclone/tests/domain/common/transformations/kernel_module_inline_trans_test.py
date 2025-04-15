@@ -50,7 +50,7 @@ from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, ImportInterface, RoutineSymbol, REAL_TYPE,
     Symbol, SymbolError, SymbolTable, UnresolvedInterface)
 from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import OMPDeclareTargetTrans
+from psyclone.transformations import ACCRoutineTrans, OMPDeclareTargetTrans
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import (Compile, count_lines, get_invoke,
@@ -102,7 +102,8 @@ def test_validate_with_imported_subroutine_call():
     schedule = invoke.schedule
     kern_call = schedule.walk(CodedKern)[0]
     # Create a call to made up subroutine and module symbols
-    kern_schedule = kern_call.get_kernel_schedule()
+    _, kern_schedules = kern_call.get_kernel_schedule()
+    kern_schedule = kern_schedules[0]
     mymod = kern_schedule.symbol_table.new_symbol(
             "mymod",
             symbol_type=ContainerSymbol)
@@ -160,8 +161,10 @@ def test_validate_no_inline_global_var(parser):
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
     block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
-    kernels[0].get_kernel_schedule().pop_all_children()
-    kernels[0].get_kernel_schedule().addchild(block)
+    _, kschedules = kernels[0].get_kernel_schedule()
+    ksched = kschedules[0]
+    ksched.pop_all_children()
+    ksched.addchild(block)
 
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kernels[0])
@@ -175,9 +178,11 @@ def test_validate_no_inline_global_var(parser):
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
     block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
-    kernels[0].get_kernel_schedule().pop_all_children()
-    kernels[0].get_kernel_schedule().addchild(block)
-    table = kernels[0].get_kernel_schedule().symbol_table
+    _, kschedules = kernels[0].get_kernel_schedule()
+    ksched = kschedules[0]
+    ksched.pop_all_children()
+    ksched.addchild(block)
+    table = ksched.symbol_table
     # Remove symbols that refer to 'go_wp' in outer scope.
     table._symbols.pop("field_old")
     table._symbols.pop("field_new")
@@ -190,8 +195,10 @@ def test_validate_no_inline_global_var(parser):
 
     # But make sure that an IntrinsicCall routine name is not considered
     # a global symbol, as they are implicitly declared everywhere
-    kernels[0].get_kernel_schedule().pop_all_children()
-    kernels[0].get_kernel_schedule().addchild(
+    _, kschedules = kernels[0].get_kernel_schedule()
+    ksched = kschedules[0]
+    ksched.pop_all_children()
+    ksched.addchild(
         IntrinsicCall.create(IntrinsicCall.Intrinsic.DATE_AND_TIME, []))
     inline_trans.validate(kernels[0])
 
@@ -254,7 +261,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    monkeypatch.setattr(kern_call, "_kern_schedule", routine)
+    monkeypatch.setattr(kern_call, "_kern_schedules", [routine])
 
     # and try to apply the transformation
     inline_trans = KernelModuleInlineTrans()
@@ -277,7 +284,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    monkeypatch.setattr(kern_call, "_kern_schedule", routine)
+    monkeypatch.setattr(kern_call, "_kern_schedules", [routine])
 
     # and try to apply the transformation
     with pytest.raises(TransformationError) as err:
@@ -299,7 +306,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    monkeypatch.setattr(kern_call, "_kern_schedule", routine)
+    monkeypatch.setattr(kern_call, "_kern_schedules", [routine])
 
     container = kern_call.ancestor(Container)
     assert "compute_cv_code" not in container.symbol_table
@@ -403,7 +410,7 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
     # Put a new, different symbol (with the same name) into the table of the
     # parent Container.
     routine.parent.scope.symbol_table.add(DataSymbol("a", REAL_TYPE))
-    monkeypatch.setattr(kern_call, "_kern_schedule", routine)
+    monkeypatch.setattr(kern_call, "_kern_schedules", [routine])
 
     # The transformation should succeed (because the symbol named 'a' is
     # actually local to the routine. However, the dependence analysis thinks it
@@ -477,18 +484,18 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
 
     # Module inline kernel in invoke 1
     inline_trans = KernelModuleInlineTrans()
+    artrans = ACCRoutineTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
     for coded_kern in schedule1.walk(CodedKern):
         if coded_kern.name == "testkern_qr_code":
             inline_trans.apply(coded_kern)
+            artrans.apply(coded_kern)
     gen = str(psy.gen)
-
-    # After this, one invoke uses the inlined top-level subroutine
-    # and the other imports it (shadowing the top-level symbol)
-    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 1
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 0
     assert gen.count("END SUBROUTINE testkern_qr_code") == 1
 
-    # Module inline kernel in invoke 2
+    # After this, both invokes use the inlined top-level subroutine.
+    # Module-inlining kernel in invoke 2 should have no effect.
     schedule1 = psy.invokes.invoke_list[1].schedule
     for coded_kern in schedule1.walk(CodedKern):
         if coded_kern.name == "testkern_qr_code":
@@ -500,6 +507,38 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     assert gen.count("END SUBROUTINE testkern_qr_code") == 1
 
     # And it is valid code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
+    ''' Check that module-inline works as expected when the same, polymorphic,
+    kernel is provided in different invokes and is transformed after being
+    inlined. '''
+    psy, _ = get_invoke("3.5_multi_polymorphic_kernels_multi_invokes.f90",
+                        "lfric", idx=0, dist_mem=False)
+
+    # Module inline kernel in invoke 1
+    inline_trans = KernelModuleInlineTrans()
+    artrans = ACCRoutineTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    for coded_kern in schedule1.walk(CodedKern):
+        if coded_kern.name == "mixed_code":
+            inline_trans.apply(coded_kern)
+            # Transform that kernel. We have to use 'force' as it contains
+            # a CodeBlock.
+            artrans.apply(coded_kern, options={"force": True})
+    output = str(psy.gen).lower()
+    assert "subroutine mixed_code_32" in output
+    assert "!$acc routine seq" in output
+    assert "subroutine mixed_code_64" in output
+    # Since we don't currently rename module-inlined kernels, module-inlining
+    # just one instance means that call to that same Kernel the whole module
+    # uses the newly-inlined version.
+    assert ("""subroutine invoke_1(scalar_r_phys, field_r_phys, \
+operator_r_def, f1, f2, m1, a, m2, istp, qr)
+      use testkern_qr_mod, only: testkern_qr_code
+      use quadrature""" in output)
+    assert "mixed_kernel_mod" not in output
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -570,8 +609,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(new_routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1" in result
     assert "use external_mod2" in result
     assert "not_needed" not in result
@@ -592,8 +631,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(new_routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : a" in result
     assert "use external_mod2, only : b=>var1, c=>var2" in result
     assert "not_needed" not in result
@@ -616,8 +655,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(new_routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : a, d" in result
     assert "use external_mod2, only : b=>var1, c=>var2, var1" in result
     assert "not_needed" not in result
@@ -640,8 +679,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(new_routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : r_def" in result
     assert "use external_mod2, only : my_user_type" in result
     assert "use not_needed" not in result
@@ -661,8 +700,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    (new_routine,) = inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(new_routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : r_def" in result
     assert "use not_needed" not in result
 
@@ -681,8 +720,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(new_routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : my_sub" in result
 
     # Also, if they are inside CodeBlocks
@@ -698,8 +737,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(new_routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : a, b" in result
 
     # Check that symbol shadowing is respected (in this example
@@ -718,8 +757,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(new_routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : c" in result
 
     # Another shadowing example where the local module should be
@@ -736,8 +775,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(new_routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod\n" in result
     assert "use external_mod, only : r_def" not in result
 
@@ -752,8 +791,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    (new_routine, ) = inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(new_routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod, only : a" in result
 
 
@@ -791,39 +830,22 @@ def test_module_inline_with_interfaces(tmpdir):
     '''
     psy, invoke = get_invoke("26.8_mixed_precision_args.f90", "lfric",
                              name="invoke_0", dist_mem=False)
-    kern_call = invoke.schedule.walk(CodedKern)[0]
+    kern_calls = invoke.schedule.walk(CodedKern)
     inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(kern_call)
-    gen = str(psy.gen)
-    # Both the caller and the callee are in the file and use the specialized
-    # implementation name.
-    assert "CALL mixed_code_64(" in gen
-    assert "SUBROUTINE mixed_code_64(" in gen
+    inline_trans.apply(kern_calls[0])
+    # Check that module-inlining the second kernel call (which is to the
+    # same interface) doesn't break anything.
+    inline_trans.apply(kern_calls[1])
+    gen = str(psy.gen).lower()
+    # Both the caller and the callee are in the file and use the interface
+    # name.
+    assert "call mixed_code(" in gen
+    assert "interface mixed_code" in gen
+    assert "subroutine mixed_code_64(" in gen
+    assert "subroutine mixed_code_32(" in gen
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_get_psyir_to_inline(monkeypatch):
-    '''
-    Test that _get_psyir_to_inline() raises the expected error if more than
-    one potential routine implementation is found.
-
-    '''
-    sym = RoutineSymbol("my_sym")
-    rout = Routine.create("my_sym", SymbolTable(), [])
-    node = Call.create(sym)
-    # For simplicity we just monkeypatch Call.get_callees() so that it appears
-    # to return more than one Routine.
-    monkeypatch.setattr(node, "get_callees", lambda: [rout, rout])
-    with pytest.raises(TransformationError) as err:
-        KernelModuleInlineTrans._get_psyir_to_inline(node)
-    # The duplicated symbol name below is purely a result of the monkeypatch
-    # - in reality these names will come from a generic interface and be
-    # different.
-    assert ("The target of the call to 'my_sym' cannot be inserted because "
-            "multiple implementations were found: ['my_sym', 'my_sym']." in
-            str(err.value))
 
 
 def test_rm_imported_routine_symbol(fortran_reader):
@@ -868,11 +890,12 @@ def test_rm_imported_routine_symbol(fortran_reader):
     assert len(table.symbols_imported_from(csym)) == 1
 
 
-@pytest.mark.parametrize("mod_use, sub_use",
-                         [("use my_mod, only: my_sub, my_other_sub", ""),
-                          ("", "use my_mod, only: my_sub, my_other_sub"),
-                          ("use my_mod, only: my_sub, my_other_sub",
-                           "use my_mod, only: my_sub, my_other_sub")])
+@pytest.mark.parametrize(
+    "mod_use, sub_use",
+    [("use my_mod, only: my_sub, my_other_sub, my_interface", ""),
+     ("", "use my_mod, only: my_sub, my_other_sub, my_interface"),
+     ("use my_mod, only: my_sub, my_other_sub, my_interface",
+      "use my_mod, only: my_sub, my_other_sub, my_interface")])
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
                           monkeypatch, mod_use, sub_use):
@@ -888,9 +911,11 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     contains
       subroutine a_sub()
         {sub_use}
-        real, dimension(10) :: a
+        real*8, dimension(10) :: a
+        real*4, dimension(10) :: b
         call my_sub(a)
-        call my_other_sub(a)
+        call my_other_sub(b)
+        call my_interface(b)
       end subroutine a_sub
     end module a_mod
     '''
@@ -899,13 +924,16 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     make_external_module(monkeypatch, fortran_reader, "my_mod",
                          '''\
     module my_mod
+      interface my_interface
+        module procedure :: my_sub, my_other_sub
+      end interface my_interface
     contains
       subroutine my_sub(arg)
-        real, dimension(10), intent(inout) :: arg
+        real*8, dimension(10), intent(inout) :: arg
         arg(1:10) = 1.0
       end subroutine my_sub
       subroutine my_other_sub(arg)
-        real, dimension(10), intent(inout) :: arg
+        real*4, dimension(10), intent(inout) :: arg
         arg(1:10) = 1.0
       end subroutine my_other_sub
     end module my_mod
@@ -924,12 +952,29 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     output = fortran_writer(psyir)
     assert "subroutine a_sub" in output
     assert "subroutine my_sub" in output
-    assert "use my_mod, only : my_other_sub\n" in output
-    # Check that repeating the transformation does nothing.
-    intrans.apply(calls[0])
-    output2 = fortran_writer(psyir)
-    assert output2 == output
-    # We can't test the compilation of this code because of the 'use my_mod.'
+    assert "use my_mod, only : my_interface, my_other_sub\n" in output
+
+    # Module inline the target of the second call.
+    intrans.apply(calls[1])
+    # Local copy of routine must be private and in Container symbol table.
+    rsym = container.symbol_table.lookup("my_other_sub")
+    assert rsym.visibility == Symbol.Visibility.PRIVATE
+    output = fortran_writer(psyir)
+    assert "use my_mod, only : my_interface\n" in output
+
+    # Finally, inline the call to the interface. This should then remove all
+    # imports from 'my_mod'.
+    intrans.apply(calls[2])
+    routines = container.walk(Routine)
+    output = fortran_writer(psyir)
+    assert "use my_mod" not in output
+    assert "subroutine my_other_sub" in output
+    assert "interface my_interface" in output
+    # Check that the calls themselves are unaffected.
+    assert "call my_sub(a)" in output
+    assert "call my_other_sub(b)" in output
+    assert "call my_interface(b)" in output
+    assert Compile(tmpdir).string_compiles(output)
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
