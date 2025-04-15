@@ -442,12 +442,19 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
-        cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.append_array_reference(var_sym.name, [cell_ref],
-                                    ScalarType.Intrinsic.INTEGER,
-                                    symbol=var_sym)
-        self.append(f"{var_sym.name}({cell_name})", var_accesses,
-                    var_access_name=var_sym.name)
+        if self._kern.iterates_over == "domain":
+            self.append_array_reference(var_sym.name, [":"],
+                                        ScalarType.Intrinsic.INTEGER,
+                                        symbol=var_sym)
+            self.append(f"{var_sym.name}(:)", var_accesses,
+                        var_access_name=var_sym.name)
+        else:
+            cell_name, cell_ref = self.cell_ref_name(var_accesses)
+            self.append_array_reference(var_sym.name, [cell_ref],
+                                        ScalarType.Intrinsic.INTEGER,
+                                        symbol=var_sym)
+            self.append(f"{var_sym.name}({cell_name})", var_accesses,
+                        var_access_name=var_sym.name)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
         '''Add 2D stencil information to the argument list associated with the
@@ -467,12 +474,19 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
-        cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.append_array_reference(var_sym.name, [":", cell_ref],
-                                    ScalarType.Intrinsic.INTEGER,
-                                    symbol=var_sym)
-        name = f"{var_sym.name}(:,{cell_name})"
-        self.append(name, var_accesses, var_access_name=var_sym.name)
+        if self._kern.iterates_over == "domain":
+            self.append_array_reference(var_sym.name, [":", ":"],
+                                        ScalarType.Intrinsic.INTEGER,
+                                        symbol=var_sym)
+            name = f"{var_sym.name}(:,:)"
+            self.append(name, var_accesses, var_access_name=var_sym.name)
+        else:
+            cell_name, cell_ref = self.cell_ref_name(var_accesses)
+            self.append_array_reference(var_sym.name, [":", cell_ref],
+                                        ScalarType.Intrinsic.INTEGER,
+                                        symbol=var_sym)
+            name = f"{var_sym.name}(:,{cell_name})"
+            self.append(name, var_accesses, var_access_name=var_sym.name)
 
     def stencil_2d_max_extent(self, arg, var_accesses=None):
         '''Add the maximum branch extent for a 2D stencil associated with the
@@ -539,12 +553,19 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_sym = LFRicStencils.dofmap_symbol(self._symtab, arg)
-        cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.append_array_reference(var_sym.name, [":", ":", cell_ref],
-                                    ScalarType.Intrinsic.INTEGER,
-                                    symbol=var_sym)
-        self.append(f"{var_sym.name}(:,:,{cell_name})", var_accesses,
-                    var_access_name=var_sym.name)
+        if self._kern.iterates_over == "domain":
+            self.append_array_reference(var_sym.name, [":", ":", ":"],
+                                        ScalarType.Intrinsic.INTEGER,
+                                        symbol=var_sym)
+            self.append(f"{var_sym.name}(:,:,:)", var_accesses,
+                        var_access_name=var_sym.name)
+        else:
+            cell_name, cell_ref = self.cell_ref_name(var_accesses)
+            self.append_array_reference(var_sym.name, [":", ":", cell_ref],
+                                        ScalarType.Intrinsic.INTEGER,
+                                        symbol=var_sym)
+            self.append(f"{var_sym.name}(:,:,{cell_name})", var_accesses,
+                        var_access_name=var_sym.name)
 
     def stencil_2d(self, arg, var_accesses=None):
         '''Add general 2D stencil information associated with the argument
