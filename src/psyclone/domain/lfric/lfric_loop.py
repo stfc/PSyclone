@@ -628,14 +628,20 @@ class LFRicLoop(PSyLoop):
                 "'inner' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
         if self._upper_bound_name == "ntiles_per_colour":
+            tag = "last_edge_tile_per_colour"
+            if self._kern.is_intergrid:
+                tag += "_" + self._field_name
             result = ArrayReference.create(
-                sym_tab.lookup_with_tag("last_edge_tile_per_colour"),
+                sym_tab.lookup_with_tag(tag),
                 [Reference(sym_tab.lookup_with_tag("colours_loop_idx"))]
             )
             return result
         if self._upper_bound_name == "ncells_per_colour_and_tile":
+            tag = "last_edge_cell_per_colour_and_tile"
+            if self._kern.is_intergrid:
+                tag += "_" + self._field_name
             result = ArrayReference.create(
-                sym_tab.lookup_with_tag("last_edge_cell_per_colour_and_tile"),
+                sym_tab.lookup_with_tag(tag),
                 [Reference(sym_tab.lookup_with_tag("colours_loop_idx")),
                  Reference(sym_tab.lookup_with_tag("tile_loop_idx"))]
             )

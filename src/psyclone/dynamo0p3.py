@@ -2080,50 +2080,92 @@ class DynMeshes():
             # the colourmap variables associated with the coarse
             # mesh (since that determines the iteration space).
             carg_name = call._intergrid_ref.coarse.name
-            # Colour map
-            base_name = "cmap_" + carg_name
-            array_type = ArrayType(
-                LFRicTypes("LFRicRealScalarDataType")(),
-                [ArrayType.Extent.DEFERRED]*2)
-            colour_map = self.symtab.find_or_create_tag(
-                base_name,
-                symbol_type=DataSymbol,
-                datatype=UnsupportedFortranType(
-                    f"integer(kind=i_def), pointer, dimension(:,:) :: "
-                    f"{base_name} => null()",
-                    partial_datatype=array_type))
-            # No. of colours
-            base_name = "ncolour_" + carg_name
-            ncolours = self.symtab.find_or_create_tag(
-                base_name,
-                symbol_type=DataSymbol,
-                datatype=LFRicTypes("LFRicIntegerScalarDataType")()
-            )
-            # Array holding the last cell of a given colour.
-            if (Config.get().distributed_memory and
-                    not call.all_updates_are_writes):
-                # This will require a loop into the halo and so the array is
-                # 2D (indexed by colour *and* halo depth).
-                base_name = "last_halo_cell_all_colours_" + carg_name
-                last_cell = self.symtab.find_or_create_tag(
+
+            # We use different variables if it is a tiled or a regular
+            # colour map
+            if not is_tiled:
+                base_name = "cmap_" + carg_name
+                array_type = ArrayType(
+                    LFRicTypes("LFRicRealScalarDataType")(),
+                    [ArrayType.Extent.DEFERRED]*2)
+                colour_map = self.symtab.find_or_create_tag(
                     base_name,
                     symbol_type=DataSymbol,
-                    datatype=ArrayType(
-                            LFRicTypes("LFRicIntegerScalarDataType")(),
-                            [ArrayType.Extent.DEFERRED]*2))
+                    datatype=UnsupportedFortranType(
+                        f"integer(kind=i_def), pointer, dimension(:,:) :: "
+                        f"{base_name} => null()",
+                        partial_datatype=array_type))
+                # No. of colours
+                base_name = "ncolour_" + carg_name
+                ncolours = self.symtab.find_or_create_tag(
+                    base_name,
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                )
+                # Array holding the last cell of a given colour.
+                if (Config.get().distributed_memory and
+                        not call.all_updates_are_writes):
+                    # This will require a loop into the halo and so the array
+                    # is 2D (indexed by colour *and* halo depth).
+                    base_name = "last_halo_cell_all_colours_" + carg_name
+                    last_cell = self.symtab.find_or_create_tag(
+                        base_name,
+                        symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicIntegerScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*2))
+                else:
+                    # Array holding the last edge cell of a given colour. Just
+                    # 1D as indexed by colour only.
+                    base_name = "last_edge_cell_all_colours_" + carg_name
+                    last_cell = self.symtab.find_or_create_tag(
+                        base_name,
+                        symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicIntegerScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*1))
+                # Add these symbols into the DynInterGrid entry for this kernel
+                call._intergrid_ref.set_colour_info(colour_map, ncolours,
+                                                    last_cell)
             else:
-                # Array holding the last edge cell of a given colour. Just 1D
-                # as indexed by colour only.
-                base_name = "last_edge_cell_all_colours_" + carg_name
-                last_cell = self.symtab.find_or_create_tag(
-                    base_name,
-                    symbol_type=DataSymbol,
-                    datatype=ArrayType(
-                            LFRicTypes("LFRicIntegerScalarDataType")(),
-                            [ArrayType.Extent.DEFERRED]*1))
-            # Add these symbols into the DynInterGrid entry for this kernel
-            call._intergrid_ref.set_colour_info(colour_map, ncolours,
-                                                last_cell)
+                # Tiled colour map
+                base_name = "tmap_" + carg_name
+                tilecolour_map = self.symtab.find_or_create_array(
+                    base_name, 3, ScalarType.Intrinsic.INTEGER,
+                    tag=base_name)
+                base_name = "ntilecolour_" + carg_name
+                ntilecolours = self.symtab.find_or_create_integer_symbol(
+                                    base_name, tag=base_name)
+                # Array holding the last cell of a given colour.
+                if (Config.get().distributed_memory and
+                        not call.all_updates_are_writes):
+                    # This will require a loop into the halo and so the array
+                    # is 2D (indexed by colour *and* halo depth).
+                    base_name = "last_halo_tile_per_colour_" + carg_name
+                    last_tile = self.symtab.find_or_create_array(
+                        base_name, 2, ScalarType.Intrinsic.INTEGER,
+                        tag=base_name)
+                    base_name = ("last_halo_cell_per_colour_and_tile_" +
+                                 carg_name)
+                    last_cell_tile = self.symtab.find_or_create_array(
+                        base_name, 3, ScalarType.Intrinsic.INTEGER,
+                        tag=base_name)
+                else:
+                    # Array holding the last edge cell of a given colour. Just
+                    # 1D as indexed by colour only.
+                    base_name = "last_edge_tile_per_colour_" + carg_name
+                    last_tile = self.symtab.find_or_create_array(
+                        base_name, 1, ScalarType.Intrinsic.INTEGER,
+                        tag=base_name)
+                    base_name = ("last_edge_cell_per_colour_and_tile_"
+                                 + carg_name)
+                    last_cell_tile = self.symtab.find_or_create_array(
+                        base_name, 2, ScalarType.Intrinsic.INTEGER,
+                        tag=base_name)
+                # Add these symbols into the dictionary entry for this
+                # inter-grid kernel
+                call._intergrid_ref.set_tilecolour_info(
+                    tilecolour_map, ntilecolours, last_tile, last_cell_tile)
 
         if non_intergrid_kern and (self._needs_colourmap or
                                    self._needs_colourmap_halo):
@@ -2554,6 +2596,15 @@ class DynInterGrid():
         # and 1D otherwise.
         self._last_cell_var_symbol = None
 
+        # We have no colourmap information when first created
+        self._tilecolourmap_symbol = None
+        # Symbol for the variable holding the number of colours
+        self._ntilecolours_var_symbol = None
+        # Symbol of the variable holding the last tile of a particular colour
+        self._last_tile_var_symbol = None
+        # Symbol of the variable holding the last cell of a particular tile
+        self._last_cell_tile_var_symbol = None
+
     def set_colour_info(self, colour_map, ncolours, last_cell):
         '''Sets the colour_map, number of colours, and
         last cell of a particular colour.
@@ -2569,6 +2620,22 @@ class DynInterGrid():
         self._colourmap_symbol = colour_map
         self._ncolours_var_symbol = ncolours
         self._last_cell_var_symbol = last_cell
+
+    def set_tilecolour_info(self, tilecolour_map, ntilecolours,
+                            last_tile, last_cell_tile):
+        '''Sets the colour_map, number of colours, and
+        last cell of a particular colour.
+        :param colour_map: the colour map symbol.
+        :type: colour_map:py:class:`psyclone.psyir.symbols.Symbol`
+        :param ncolours: the number of colours.
+        :type: ncolours: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param last_cell: the last cell of a particular colour.
+        :type last_cell: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
+        self._tilecolourmap_symbol = tilecolour_map
+        self._ntilecolours_var_symbol = ntilecolours
+        self._last_tile_var_symbol = last_tile
+        self._last_cell_tile_var_symbol = last_cell_tile
 
     @property
     def colourmap_symbol(self):
@@ -2591,6 +2658,33 @@ class DynInterGrid():
         '''
         return self._last_cell_var_symbol
 
+    @property
+    def tilecolourmap_symbol(self):
+        ''':returns: the colour map symbol.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
+        return self._tilecolourmap_symbol
+
+    @property
+    def ntilecolours_var_symbol(self):
+        ''':returns: the symbol for storing the number of colours.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
+        return self._ntilecolours_var_symbol
+
+    @property
+    def last_tile_var_symbol(self):
+        ''':returns: the last cell variable.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
+        return self._last_tile_var_symbol
+
+    @property
+    def last_cell_tile_var_symbol(self):
+        ''':returns: the last cell variable.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
+        return self._last_cell_tile_var_symbol
 
 class DynBasisFunctions(LFRicCollection):
     ''' Holds all information on the basis and differential basis
