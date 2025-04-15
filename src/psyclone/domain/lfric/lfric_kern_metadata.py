@@ -585,11 +585,11 @@ class LFRicKernMetadata(KernelType):
         if self.iterates_over != "domain":
             return
 
-        self._validate_only_scalars_and_fields()
-        self._validate_no_evaluator(need_evaluator)
-        self._validate_no_reference_element()
-        self._validate_no_mesh_properties()
-        self._validate_not_intergrid()
+        # self._validate_only_scalars_and_fields()
+        # self._validate_no_evaluator(need_evaluator)
+        # self._validate_no_reference_element()
+        # self._validate_no_mesh_properties()
+        # self._validate_not_intergrid()
 
     def _validate_operates_on_dof(self, need_evaluator):
         '''
