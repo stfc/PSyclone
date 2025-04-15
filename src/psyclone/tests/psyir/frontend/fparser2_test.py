@@ -2940,3 +2940,24 @@ def test_structures_duplicate_name(f2008_parser):
     # Its shape must refer to "nelem" in the table of the Routine.
     assert isinstance(ycompt.datatype.shape[0].upper, Reference)
     assert ycompt.datatype.shape[0].upper.symbol is nelem
+
+
+def test_structuretype_used_before_def(fortran_reader):
+    '''
+    Test that an existing Symbol of unresolved type is specialised to
+    a DataTypeSymbol.
+
+    '''
+    test_code = '''\
+        module test_mod
+          use some_mod, only: my_type
+        contains
+          subroutine test_code()
+            type(my_type) :: var
+          end subroutine
+        end module test_mod'''
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].symbol_table
+    mytype = sym_table.lookup("my_type")
+    assert isinstance(mytype, DataTypeSymbol)
+    assert mytype.is_import
