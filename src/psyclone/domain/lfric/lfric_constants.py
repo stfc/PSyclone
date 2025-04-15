@@ -208,7 +208,7 @@ class LFRicConstants():
                                            "null"]
 
         # Valid LFRic iteration spaces for built-in kernels
-        LFRicConstants.BUILTIN_ITERATION_SPACES = ["dof"]
+        LFRicConstants.BUILTIN_ITERATION_SPACES = ["dof", "owned_dof"]
 
         # The types of argument that are valid for built-in kernels in the
         # LFRic API
@@ -223,8 +223,11 @@ class LFRicConstants():
         # Valid LFRic iteration spaces for user-supplied kernels and
         # built-in kernels
         LFRicConstants.USER_KERNEL_ITERATION_SPACES = [
-            "cell_column", "domain",
+            "cell_column",
+            "owned_cell_column",
+            "domain",
             "dof",
+            "owned_dof",
             "halo_cell_column",
             "owned_and_halo_cell_column"]
 
@@ -232,6 +235,11 @@ class LFRicConstants():
             list(OrderedDict.fromkeys(
                 LFRicConstants.USER_KERNEL_ITERATION_SPACES +
                 LFRicConstants.BUILTIN_ITERATION_SPACES))
+
+        # Those iteration spaces for which redundant computation is forbidden.
+        LFRicConstants.NO_RC_ITERATION_SPACES = [
+            "owned_cell_column",
+            "owned_dof"]
 
         # ---------- Function spaces (FS) -------------------------------------
         # Discontinuous FS

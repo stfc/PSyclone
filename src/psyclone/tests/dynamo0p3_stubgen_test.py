@@ -73,14 +73,14 @@ def test_kernel_stub_invalid_iteration_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
     assert ("supports kernels that operate on one of "
-            "['cell_column', 'halo_cell_column', "
+            "['cell_column', 'owned_cell_column', 'halo_cell_column', "
             "'owned_and_halo_cell_column'] but found 'dof' in kernel "
             "'testkern_dofs_code'." in str(excinfo.value))
     kernel._iterates_over = "domain"
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
     assert ("supports kernels that operate on one of "
-            "['cell_column', 'halo_cell_column', "
+            "['cell_column', 'owned_cell_column', 'halo_cell_column', "
             "'owned_and_halo_cell_column'] but found 'domain' in kernel "
             "'testkern_dofs_code'." in str(excinfo.value))
 
