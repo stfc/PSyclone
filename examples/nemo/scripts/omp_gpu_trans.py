@@ -69,6 +69,7 @@ NEMOV5_EXCLUSIONS = [
     "trcbbl.f90",
     "bdyice.f90",
     "sedfunc.f90",
+    "stpmlf.f90",
 ]
 
 NEMOV4_EXCLUSIONS = [
