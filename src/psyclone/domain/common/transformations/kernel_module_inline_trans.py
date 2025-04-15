@@ -583,8 +583,9 @@ class KernelModuleInlineTrans(Transformation):
                 name = call.routine.symbol.name.lower()
                 if name == target_name:
                     call.routine.symbol = target_sym
-            # All Calls that referred to this Symbol must also be updated.
-            if sym_in_ctr:
+            # All Calls that referred to this Symbol must also be updated. Take
+            # care that the name matches as sym_in_ctr might be an interface.
+            if sym_in_ctr and sym_in_ctr.name == target_sym.name:
                 for call in container.walk(Call):
                     if call.routine.symbol is sym_in_ctr:
                         call.routine.symbol = target_sym

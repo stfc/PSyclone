@@ -970,6 +970,10 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     assert "use my_mod" not in output
     assert "subroutine my_other_sub" in output
     assert "interface my_interface" in output
+    # Check that the calls themselves are unaffected.
+    assert "call my_sub(a)" in output
+    assert "call my_other_sub(b)" in output
+    assert "call my_interface(b)" in output
     assert Compile(tmpdir).string_compiles(output)
 
 
