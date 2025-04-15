@@ -42,7 +42,7 @@ from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
     normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
     NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
-from psyclone.psyir.nodes import Loop, Routine
+from psyclone.psyir.nodes import Routine
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import (
     OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
@@ -65,7 +65,11 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = []
 
-NEMOV5_EXCLUSIONS = []
+NEMOV5_EXCLUSIONS = [
+    "trcbbl.f90",
+    "bdyice.f90",
+    "sedfunc.f90",
+]
 
 NEMOV4_EXCLUSIONS = [
     "dynspg_ts.f90",
