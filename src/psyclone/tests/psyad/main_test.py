@@ -624,20 +624,7 @@ def test_main_otest_lfric(tmpdir, capsys):
           "-otest", harness_out])
     output, error = capsys.readouterr()
     assert error == ""
-    # TODO 2668: This deprecation of options causes this test to see the
-    # deprecation message.
-    correct = '''PSyclone Deprecation Warning: The options parameters to \
-Transformation.apply and Transformation.validate are \
-now deprecated. Please use the individual \
-arguments, or unpack the options with **options. \
-See the documentation for more details.
-PSyclone Deprecation Warning: The options parameters to \
-Transformation.apply and Transformation.validate are \
-now deprecated. Please use the individual \
-arguments, or unpack the options with **options. \
-See the documentation for more details.
-'''
-    assert output == correct
+    assert output == ""
     with open(harness_out, 'r', encoding='utf-8') as my_file:
         data = my_file.read()
     assert "module atlt_foo_alg_mod" in data.lower()

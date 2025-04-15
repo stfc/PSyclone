@@ -106,6 +106,7 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
                 dictionary.
 
         '''
+        super().validate(node, options=options, **kwargs)
         # pylint: disable=too-many-branches
         if not isinstance(node, Loop):
             raise TransformationError(

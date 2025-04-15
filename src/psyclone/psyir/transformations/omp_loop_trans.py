@@ -77,7 +77,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     same number of OpenMP threads, not for different numbers of OpenMP threads.
 
     :param str omp_schedule: the OpenMP schedule to use. Defaults to 'auto'.
-    :param str omp_directive: choose which OpenMP loop directive to use. \
+    :param str omp_directive: choose which OpenMP loop directive to use.
         Defaults to "omp do"
 
     For example:
@@ -200,7 +200,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     @property
     def omp_directive(self):
         '''
-        :returns: the type of OMP directive that this transformation will \
+        :returns: the type of OMP directive that this transformation will
             insert.
         :rtype: str
         '''
@@ -223,7 +223,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     @property
     def omp_schedule(self):
         '''
-        :returns: the OpenMP schedule that will be specified by \
+        :returns: the OpenMP schedule that will be specified by
             this transformation.
         :rtype: str
 
@@ -233,12 +233,12 @@ class OMPLoopTrans(ParallelLoopTrans):
     @omp_schedule.setter
     def omp_schedule(self, value):
         '''
-        :param str value: Sets the OpenMP schedule value that will be \
-            specified by this transformation, unless adding an OMP Loop \
+        :param str value: Sets the OpenMP schedule value that will be
+            specified by this transformation, unless adding an OMP Loop
             directive (in which case it is not applicable).
 
         :raises TypeError: if the provided value is not a string.
-        :raises ValueError: if the provided string is not a valid OpenMP \
+        :raises ValueError: if the provided string is not a valid OpenMP
             schedule format.
         '''
 
@@ -271,17 +271,17 @@ class OMPLoopTrans(ParallelLoopTrans):
         ''' Creates the type of directive needed for this sub-class of
         transformation.
 
-        :param children: list of Nodes that will be the children of \
+        :param children: list of Nodes that will be the children of
             the created directive.
         :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param int collapse: number of nested loops to collapse or None if \
+        :param int collapse: number of nested loops to collapse or None if
             no collapse attribute is required.
 
         :returns: the new node representing the directive in the AST
-        :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective` | \
-            :py:class:`psyclone.psyir.nodes.OMPParallelDoDirective` | \
-            :py:class:`psyclone.psyir.nodes. \
-            OMPTeamsDistributeParallelDoDirective` | \
+        :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective` |
+            :py:class:`psyclone.psyir.nodes.OMPParallelDoDirective` |
+            :py:class:`psyclone.psyir.nodes.
+            OMPTeamsDistributeParallelDoDirective` |
             :py:class:`psyclone.psyir.nodes.OMPLoopDirective`
         '''
         node = MAP_STR_TO_LOOP_DIRECTIVES[self._omp_directive](
@@ -299,7 +299,7 @@ class OMPLoopTrans(ParallelLoopTrans):
               **kwargs):
         '''Apply the OMPLoopTrans transformation to the specified PSyIR Loop.
 
-        :param node: the supplied node to which we will apply the \
+        :param node: the supplied node to which we will apply the
                      OMPLoopTrans transformation
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param bool reprod: indicating whether reproducible reductions should
@@ -308,7 +308,7 @@ class OMPLoopTrans(ParallelLoopTrans):
                         and validation.
         :type options: Optional[Dict[str, Any]]
         :param bool reprod:
-                whether reproducible reductions should be used. \
+                whether reproducible reductions should be used.
                 By default the value from the config file will be used.
 
         '''

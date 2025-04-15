@@ -213,7 +213,8 @@ as opposed to the old strategy of::
 
 Options dictionaries will continue to remain in the code until they have been
 deprecated for all Transformations, and providing an options dict will
-make the Transformation ignore any other arguments.
+make the Transformation ignore any other arguments (i.e. only the new or
+old method of providing options can be used - the two cannot be mixed).
 
 This new functionality also performs checks on options supplied as arguments.
 All arguments will be checked to see if they are valid options for the

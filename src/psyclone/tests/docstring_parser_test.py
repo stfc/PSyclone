@@ -365,11 +365,12 @@ def test_DocstringData_gen_docstring_():
         desc
     :type name2: datatype
 
+    :returns: desc
+    :rtype: datatype
+
     :raises Error: desc
     :raises Error2: multiline
         desc2
-    :returns: desc
-    :rtype: datatype
 '''
     assert output == correct
 
@@ -382,10 +383,11 @@ def test_DocstringData_gen_docstring_():
         desc
     :type name2: datatype
 
+    :returns: desc
+
     :raises Error: desc
     :raises Error2: multiline
         desc2
-    :returns: desc
 '''
     assert output == correct
 
@@ -538,7 +540,7 @@ def test_docstring_is_reversible():
     assert basedata2.returns is not None
     assert basedata2.desc is not None
 
-    # Get the docstring object 2 docdata
+    # Get the DocstringData object for docstring_object2 function.
     doc2data = DocstringData.create_from_object(docstring_object2)
 
     # Merge it into basedata
@@ -547,7 +549,7 @@ def test_docstring_is_reversible():
 
     processed_doc = basedata.gen_docstring()
 
-    # Generate a new basedata from the meregd docstring
+    # Generate a new basedata from the merged docstring
     docstring_object.__doc__ = processed_doc
     basedata3 = DocstringData.create_from_object(docstring_object)
     assert len(basedata3.arguments) == 4

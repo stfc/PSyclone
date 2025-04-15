@@ -211,11 +211,12 @@ def test_transformation_apply_deprecation_message(capsys):
     instance = TestTrans()
     instance.apply(options={"dict": True})
     out, err = capsys.readouterr()
-    assert ("PSyclone Deprecation Warning: The options parameters to "
+    assert ("PSyclone Deprecation Warning: The 'options' parameter to "
             "Transformation.apply and Transformation.validate are now "
             "deprecated. Please use "
             "the individual arguments, or unpack the options with "
-            "**options. See the documentation for more details." in out)
+            "**options. See the Transformations section of the "
+            "User guide for more details" in out)
 
 
 def test_transformation_get_valid_options():

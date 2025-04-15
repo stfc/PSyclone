@@ -64,7 +64,7 @@ from dataclasses import dataclass
 import inspect
 import os
 import re
-from typing import Any, List, Union
+from typing import Any, Callable, List, Union
 
 from psyclone.errors import DocParseError
 
@@ -96,19 +96,20 @@ class ArgumentData():
     desc: str
     inline_type: bool
 
-    def gen_docstring(self, obj: Union[None, Any] = None) -> str:
+    def gen_docstring(self, function: Union[None, Callable] = None) -> str:
         '''
-        :param obj: The object who the generated docstring will be for. Default
-                    option is None. If no object is supplied, there can be no
-                    type annotation and so the type information is included
-                    inline in the :param or in a separate :type entry.
+        :param function: The function who the generated docstring will be for.
+                    Default option is None. If no function is supplied, there
+                    can be no type annotation and so the type information is
+                    included inline in the :param or in a separate :type
+                    entry.
         :returns: The docstring represented by this ArgumentData.
         '''
         rstr = ":param "
-        if obj:
-            # If the argument is in obj's parameter list and has a type
+        if function:
+            # If the argument is in function's parameter list and has a type
             # hint then we don't add the type information.
-            signature = inspect.signature(obj)
+            signature = inspect.signature(function)
             val = signature.parameters.get(self.name)
             if (val is not None and val.annotation is not
                     inspect.Parameter.empty):
@@ -249,18 +250,20 @@ class DocstringData():
             self.returns = other_data.returns
 
     def gen_docstring(
-            self, indentation: str = "    ", obj: Union[None, Any] = None
+            self, indentation: str = "    ",
+            function: Union[None, Callable] = None
     ) -> str:
         '''
         Generates the docstring from the input docdata. The indentation of the
         docstring can be specified and by default is 4 spaces.
 
-        :param docdata: The docdata object to convert to docstring.
         :param indentation: The indentation to use. Default is "    ".
-        :param obj: The object who the generated docstring will be for. Default
-                    option is None. If no object is supplied, there can be no
-                    type annotation and so the type information is included
-                    inline in the :param or in a separate :type entry.
+        :param function: The function (e.g. apply or validate function of a
+                    Transformation) who the generated docstring will be for.
+                    Default option is None. If no function is supplied, there
+                    can be no type annotations and so the type information
+                    is included inline in the :param or in a separate :type
+                    entry.
 
         :returns: The docstring representation of this DocData object.
         '''
@@ -278,7 +281,7 @@ class DocstringData():
 
         argstrings = []
         for arg in self.arguments:
-            argstring = self.arguments[arg].gen_docstring(obj)
+            argstring = self.arguments[arg].gen_docstring(function)
             if os.linesep in argstring:
                 lines = argstring.split(os.linesep)
                 argstring = indentation + lines[0] + os.linesep
@@ -324,13 +327,18 @@ class DocstringData():
         if len(argstrings) > 0:
             docstring += os.linesep
 
-        # Add an empty line between param and raises
-        if len(argstrings) > 0 and len(raisestrings) > 0:
+        # Add an empty line beturn params and returns.
+        if len(argstrings) > 0 and self.returns is not None:
+            docstring += os.linesep
+        docstring += returnstring
+
+        # Add an empty line between returns and raises
+        if ((self.returns is not None or len(argstrings) > 0)
+                and len(raisestrings) > 0):
             docstring += os.linesep
         docstring += os.linesep.join(raisestrings)
         if len(raisestrings) > 0:
             docstring += os.linesep
-        docstring += returnstring
 
         return docstring
 
@@ -343,13 +351,13 @@ class DocstringData():
 
         :param Any obj: The object whose docstring will be parsed.
 
-        :raises DocParseError: if a docstring element cannot be parsed.
-        :raises DocParseError: if a type docstring is found with no
-                               corresponding parameter docstring.
-
         :returns: A DocstringData object representing the objects docstring or
                   None if obj has no docstring.
         :rtype: Union[:py:class:`psyclone.docstring_parser.DocData`, None]
+
+        :raises DocParseError: if a docstring element cannot be parsed.
+        :raises DocParseError: if a type docstring is found with no
+                               corresponding parameter docstring.
         '''
         text = obj.__doc__
 
@@ -453,7 +461,7 @@ class DocstringData():
         return docstring_data
 
 
-def create_docstring_data(args: List[str], desc: str, obj: Any) ->\
+def create_docstring_data(args: List[str], desc: str, function: Callable) ->\
         Union[ArgumentData, RaisesData, ReturnsData]:
     '''
     Creates a docstring data object (i.e. ArgumentData, RaisesData or
@@ -462,7 +470,7 @@ def create_docstring_data(args: List[str], desc: str, obj: Any) ->\
     :param args: The argument list (e.g. ['param', 'args']) for the docstring
                  entry.
     :param desc: The description corresponding to the docstring element.
-    :param obj: The object that is having its docstring analysed.
+    :param function: The function that is having its docstring analysed.
 
     :raises DocParseError: If an unsupported docstring input is found.
 
@@ -477,7 +485,7 @@ def create_docstring_data(args: List[str], desc: str, obj: Any) ->\
             name = args[1]
             # Check if there is a datatype on the argument itself and store
             # it.
-            signature = inspect.signature(obj)
+            signature = inspect.signature(function)
             val = signature.parameters.get(name, None)
             if (val is not None and val.annotation
                     is not inspect.Parameter.empty):

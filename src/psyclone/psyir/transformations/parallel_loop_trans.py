@@ -142,19 +142,24 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool|int options["collapse"]: if it's a bool and is False
+        :param bool|int collapse: if it's a bool and is False
             (default), it won't collapse. If it's a bool and is True, it will
             collapse as much as possible. If it's an integer, it will attempt
             to collapse until the specified number of loops (if they exist and
-            are safe to collapse). The options 'ignore_dependencies_for'
-            and 'force' also affect the collapse applicability.
-        :param bool options["force"]: whether to force parallelisation of the
+            are safe to collapse them). The options 'ignore_dependencies_for'
+            and 'force' also affect the collapse applicabilty analysis.
+        :param bool force: whether to force parallelisation of the
             target loop (i.e. ignore any dependence analysis).
-        :param list[str] options["ignore_dependencies_for"]: whether to ignore
+        :param list[str] ignore_dependencies_for: whether to ignore
             some symbol names from the dependence analysis checks.
-        :param bool options["sequential"]: whether this is a sequential loop.
-        :param bool options["verbose"]: whether to report the reasons the
+        :param bool sequential: whether this is a sequential loop.
+        :param bool verbose: whether to report the reasons the
             validate and collapse steps have failed.
+        :param bool nowait: whether to add a nowait clause and a
+            corresponding barrier (or equivalent) to enable asynchronous
+            execution.
+        :param bool privatise_arrays: whether to make the write after write
+            dependency symbols declared as private.
 
         :raises TypeError: if 'collapse' is not an int or a bool.
         :raises TypeError: if 'ignore_dependencies_for' is not a list of str.
@@ -364,8 +369,6 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             else:
                 list_of_names = ignore_dependencies_for
         else:
-            if len(options.keys()) > 0:
-                print(self._deprecation_warning)
             verbose = options.get("verbose", False)
             collapse = options.get("collapse", False)
             ignore_dep_analysis = options.get("force", False)

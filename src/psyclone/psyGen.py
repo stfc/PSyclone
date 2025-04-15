@@ -2728,6 +2728,7 @@ class TransInfo():
 @dataclass
 class ValidOption:
     '''Class used to specify the valid options dict for a Transformation.
+
     :param default: The default value for this option.
     :param type: The type of this option.
     :param typename: The (doc)string representation of type.
@@ -2743,10 +2744,11 @@ class Transformation(metaclass=abc.ABCMeta):
 
     '''
     _deprecation_warning = (
-        "PSyclone Deprecation Warning: The options parameters to "
+        "PSyclone Deprecation Warning: The 'options' parameter to "
         "Transformation.apply and Transformation.validate are now "
         "deprecated. Please use the individual arguments, or unpack "
-        "the options with **options. See the documentation for more details."
+        "the options with **options. See the Transformations section of the "
+        "User guide for more details."
     )
 
     @property
@@ -2816,9 +2818,6 @@ class Transformation(metaclass=abc.ABCMeta):
         :type options: Optional[Dict[str, Any]]
         '''
         # pylint: disable=unused-argument
-        # TODO 2668: options are now deprecated:
-        if options is not None:
-            print(self._deprecation_warning)
 
     def get_option(self, option_name: str, **kwargs) -> Any:
         '''Finds the value of the option_name from the kwargs.
