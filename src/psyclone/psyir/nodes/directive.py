@@ -43,6 +43,7 @@
 
 import abc
 from collections import OrderedDict
+from typing import List
 
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
@@ -50,6 +51,7 @@ from psyclone.errors import InternalError
 from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.array_of_structures_reference import (
     ArrayOfStructuresReference)
+from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
@@ -294,8 +296,9 @@ class StandaloneDirective(Directive):
     (e.g. OpenMP, OpenACC, compiler-specific) inherit from this class.
 
     '''
-    # Textual description of the node.
-    _children_valid_format = None
+    # Textual description of the node. A standalone directive may only have
+    # Clauses as children.
+    _children_valid_format = "Clause*"
 
     @staticmethod
     def _validate_child(position, child):
@@ -308,20 +311,15 @@ class StandaloneDirective(Directive):
         :rtype: bool
 
         '''
-        # Children are not allowed for StandaloneDirective
-        return False
+        # Only clauses are permitted.
+        return isinstance(child, Clause)
 
     @property
-    def clauses(self):
+    def clauses(self) -> List[Clause]:
         '''
         :returns: the Clauses associated with this directive.
-        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
         '''
-        # This should be uncommented once a standalone directive with
-        # clauses exists
-        # if len(self.children) > 0:
-        #    return self.children
-        return []
+        return self.children
 
 
 # For automatic API documentation generation

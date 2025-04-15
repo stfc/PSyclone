@@ -201,16 +201,19 @@ def test_loop_node_str(monkeypatch):
     Loop.set_loop_type_inference_rules({})
 
 
-def test_loop_replace_symbols_using():
+@pytest.mark.parametrize("table", [None, SymbolTable()])
+def test_loop_replace_symbols_using(table):
     '''Test the replace_symbols_using() method of Loop.'''
     loop = make_loop()
     assert loop.variable.name == "i"
-    # Create a symbol table containing a replacement symbol.
-    table = SymbolTable()
-    new_i = table.new_symbol("i", symbol_type=DataSymbol,
-                             datatype=INTEGER_TYPE)
+    # Create a replacement symbol.
+    new_i = DataSymbol("i", datatype=INTEGER_TYPE)
     assert loop.variable is not new_i
-    loop.replace_symbols_using(table)
+    if table is not None:
+        table.add(new_i)
+        loop.replace_symbols_using(table)
+    else:
+        loop.replace_symbols_using(new_i)
     # Loop variable should have been updated.
     assert loop.variable is new_i
     # Check that the method has recursed to the children too.
@@ -222,7 +225,24 @@ def test_loop_replace_symbols_using():
     loop.addchild(Literal("1", INTEGER_SINGLE_TYPE))
     loop.addchild(Schedule(parent=loop))
     assert not loop._variable
-    loop.replace_symbols_using(table)
+    if table is not None:
+        loop.replace_symbols_using(table)
+    else:
+        loop.replace_symbols_using(new_i)
+    # Test when the Loop has a list of explicitly-private symbols
+    var = DataSymbol("var", INTEGER_TYPE)
+    var2 = DataSymbol("var2", INTEGER_TYPE)
+    loop.explicitly_private_symbols.add(var)
+    loop.explicitly_private_symbols.add(var2)
+    new_var = DataSymbol("var", INTEGER_TYPE)
+    if table is not None:
+        table.add(new_var)
+        loop.replace_symbols_using(table)
+    else:
+        loop.replace_symbols_using(new_var)
+    assert new_var in loop.explicitly_private_symbols
+    assert var not in loop.explicitly_private_symbols
+    assert var2 in loop.explicitly_private_symbols
 
 
 def test_loop_str():

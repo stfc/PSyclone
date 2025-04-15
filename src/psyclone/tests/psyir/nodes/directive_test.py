@@ -225,4 +225,4 @@ def test_standalonedirective_children_validation():
     with pytest.raises(GenerationError) as excinfo:
         cdir.addchild(schedule)
     assert ("Item 'Schedule' can't be child 0 of 'StandaloneDirective'. The "
-            "valid format is: 'None'." in str(excinfo.value))
+            "valid format is: 'Clause*'." in str(excinfo.value))

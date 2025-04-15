@@ -196,7 +196,7 @@ flags which allow the user to specify that a particular kernel argument
 corresponds to either the field of panel IDs or mesh coordinates, respectively.
 Each of these flags must be followed by the position (indexed from 1) of the
 corresponding argument in the list of ``meta_args`` in the kernel
-:ref:`metadata <user_guide:lfric-api-kernel-metadata>`.
+:ref:`metadata <lfric-api-kernel-metadata>`.
 
 PSyAD will return an error if the specified kernel argument is not consistent
 with the particular geometry field that it is supposed to represent.
@@ -216,4 +216,4 @@ Configuration Options
 By default PSyAD uses the same configuration file used by PSyclone. To
 use a custom configuration file use the ``--config`` command-line option.
 Further documentation of the configuration options can be found in
-:ref:`user_guide:configuration`.
+:ref:`configuration`.

@@ -46,8 +46,8 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
     FortranWriter, precedence
 from psyclone.psyir.nodes import (
-    Assignment, Node, CodeBlock, Container, Literal, UnaryOperation,
-    BinaryOperation, Reference, Call, KernelSchedule,
+    ACCEnterDataDirective, Assignment, Node, CodeBlock, Container, Literal,
+    UnaryOperation, BinaryOperation, Reference, Call, KernelSchedule,
     ArrayReference, ArrayOfStructuresReference, Range, StructureReference,
     Schedule, Routine, Return, FileContainer, IfBlock, OMPTaskloopDirective,
     OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
@@ -58,6 +58,7 @@ from psyclone.psyir.symbols import (
     UnresolvedInterface, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
     CHARACTER_TYPE, BOOLEAN_TYPE, REAL_DOUBLE_TYPE, UnresolvedType,
     UnsupportedType, UnsupportedFortranType, DataTypeSymbol, StructureType)
+from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
 
@@ -578,7 +579,8 @@ def test_fw_gen_use(fortran_writer):
     container_symbol.wildcard_import = True
     result = fortran_writer.gen_use(container_symbol, symbol_table)
     assert "use my_module, only : dummy1=>orig_name, my_sub" not in result
-    assert "use my_module\n" in result
+    # A wildcard import should still preserve any symbol renaming.
+    assert "use my_module, dummy1=>orig_name\n" in result
 
     container_symbol.is_intrinsic = True
     result = fortran_writer.gen_use(container_symbol, symbol_table)
@@ -803,9 +805,10 @@ def test_gen_access_stmts(fortran_writer):
     code = fortran_writer.gen_access_stmts(symbol_table)
     assert "private :: my_sub2\n" in code
     # Check that the interface of the symbol does not matter
+    csym = symbol_table.new_symbol("some_mod", symbol_type=ContainerSymbol)
     symbol_table.add(
         RoutineSymbol("used_sub", visibility=Symbol.Visibility.PRIVATE,
-                      interface=ImportInterface(ContainerSymbol("some_mod"))))
+                      interface=ImportInterface(csym)))
     code = fortran_writer.gen_access_stmts(symbol_table)
     assert "private :: my_sub2, used_sub\n" in code
     # Since the default visibility of the table is PUBLIC, we should not
@@ -1951,6 +1954,33 @@ def test_fw_directive_with_clause(fortran_reader, fortran_writer):
   !$omp end taskloop
   !$omp end master
   !$omp end parallel''' in fortran_writer(container)
+
+
+def test_fw_standalonedirective(fortran_reader, fortran_writer):
+    '''
+    Test the handling of a StandaloneDirective with clauses. We use
+    ACCEnterDataDirective with an async clause.
+    '''
+    code = '''\
+        module test_mod
+        contains
+          subroutine a_sub()
+          integer, parameter :: n=20
+          integer :: i
+          real :: a(n)
+          do i=1,n
+            a(i) = 0.0
+          end do
+          end subroutine a_sub
+        end module test_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    ktrans = ACCKernelsTrans()
+    rt0 = psyir.walk(Routine)[0]
+    ktrans.apply(rt0.children[0])
+    edir = ACCEnterDataDirective(async_queue=1)
+    rt0.addchild(edir, index=0)
+    output = fortran_writer(psyir)
+    assert "!$acc enter data copyin(a,i,n) async(1)\n" in output
 
 
 def test_fw_clause(fortran_writer):
