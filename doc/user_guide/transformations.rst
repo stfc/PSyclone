@@ -316,6 +316,16 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.DebugChecksumTrans
+      :members: apply
+      :no-index:
+
+.. warning::  This transformation generates code that will only work with .F90
+              suffixed files. When using this transformation make sure the
+              output file declared to PSyclone is .F90 and not .f90.
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.DotProduct2CodeTrans
     :members: apply
     :no-index:

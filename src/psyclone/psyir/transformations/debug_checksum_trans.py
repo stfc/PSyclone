@@ -37,9 +37,10 @@
 
 from typing import Union, List
 
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Assignment, Node, Reference, Routine
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin
 )
@@ -54,10 +55,15 @@ class DebugChecksumTrans(RegionTrans):
     Creates a set of checksums (written via print) for all written arrays
     inside the provided region.
 
+    .. warning::
+        This transformation generates code that will only work with .F90
+        suffixed files. When using this transformation make sure the
+        output file declared to PSyclone is .F90 and not .f90.
+
     For example:
 
-    >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.transformations import DebugChecksumTrans
 
     >>> psyir = FortranReader().psyir_from_source("""
@@ -119,17 +125,35 @@ PSYCLONE_INTERNAL_line_ + 1
             assigns.extend(node.walk(Assignment))
         # Loop through the assignments and find the arrays
         for assign in assigns:
+            # If we find a structure, we need to check that the final member
+            # is the only array access and is a supported type.
             if isinstance(assign.lhs, StructureAccessorMixin):
+                # If the reference at assign.lhs is both a Structure
+                # and an Array (e.g. struct(i)%member...) then we
+                # can't know which arrays or indexes to sum over, so
+                # we need to prevent generating a Checksum for this
+                # element.
+                multiple_arrays = isinstance(assign.lhs, ArrayMixin)
                 # Find the last member.
                 member = assign.lhs.member
                 while isinstance(member, StructureAccessorMixin):
+                    # If we have an ArrayMixin Member that isn't the
+                    # final Member in the Structure then we can't
+                    # generate a checksum sensibly, as PSyclone can't know
+                    # which arrays or indexes to sum over.
+                    if (isinstance(member, ArrayMixin) and
+                            member.member is not None):
+                        multiple_arrays = True
                     member = member.member
                 datatype = assign.lhs.datatype
                 while not isinstance(datatype, ScalarType):
                     datatype = datatype.datatype
+                # If the final member is the only array, and its a supported
+                # datatype then we add it to the writes.
                 if (member.is_array and datatype.intrinsic in
                         [ScalarType.Intrinsic.REAL,
-                         ScalarType.Intrinsic.INTEGER]):
+                         ScalarType.Intrinsic.INTEGER] and
+                        not multiple_arrays):
                     writes.append(assign.lhs)
             elif (assign.lhs.is_array and assign.lhs.datatype.intrinsic in
                   [ScalarType.Intrinsic.REAL, ScalarType.Intrinsic.INTEGER]):
@@ -139,23 +163,23 @@ PSYCLONE_INTERNAL_line_ + 1
         checksum_nodes = []
         freader = FortranReader()
         for lhs in writes:
-            # Need to convert the lhs to a full range variant.
             copy = lhs.copy()
             name, _ = copy.get_signature_and_indices()
+            # Find the section that is the array we need to checksum.
             if isinstance(lhs, StructureAccessorMixin):
+                # We know this has the final member as the
+                # only array.
                 member = copy.member
                 while isinstance(member, StructureAccessorMixin):
                     member = member.member
-                datatype = assign.lhs.datatype
-                for i in range(len(member.indices)):
-                    new_index = member.get_full_range(i)
-                    member.indices[i].replace_with(new_index)
-                array = fwriter(copy)
+                array_bit = member
             else:
-                for i in range(len(copy.indices)):
-                    new_index = copy.get_full_range(i)
-                    copy.indices[i].replace_with(new_index)
-                array = fwriter(copy)
+                array_bit = copy
+            # Need to convert the lhs to a full range variant.
+            for i in range(len(array_bit.indices)):
+                new_index = array_bit.get_full_range(i)
+                array_bit.indices[i].replace_with(new_index)
+            array = fwriter(copy)
 
             checksum = freader.psyir_from_statement(
                     f'print *, "{name} checksum", SUM({array})',

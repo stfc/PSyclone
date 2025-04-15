@@ -91,11 +91,14 @@ def test_checksum(fortran_reader, fortran_writer, tmpdir):
 
     correct = "integer :: PSYCLONE_INTERNAL_line_"
     assert correct in out
-    correct = """PSYCLONE_INTERNAL_line_ = __LINE__
+    correct = """  b(:) = 2
+  PSYCLONE_INTERNAL_line_ = __LINE__
   ! PSyclone DebugChecksumTrans-generated checksums
   PRINT *, "PSyclone checksums from test at line:", PSYCLONE_INTERNAL_line_ + 1
   PRINT *, "b checksum", SUM(b(:))
   PRINT *, "a checksum", SUM(a(:))
+
+end subroutine test
 """
     assert correct in out
     assert Compile(tmpdir).string_compiles(out)
@@ -136,7 +139,6 @@ def test_checksum(fortran_reader, fortran_writer, tmpdir):
     ! PSyclone DebugChecksumTrans-generated checksums
     PRINT *, "PSyclone checksums from test_sub at line:", \
 PSYCLONE_INTERNAL_line_ + 1
-    PRINT *, "values2%i checksum", SUM(values2(1) % i(1 : 100))
     PRINT *, "values%s%j checksum", SUM(values % s % j(1 : 100))
     PRINT *, "values%x checksum", SUM(values % x(1 : 100))
     PRINT *, "values%i checksum", SUM(values % i(1 : 100))"""
@@ -152,3 +154,25 @@ PSYCLONE_INTERNAL_line_ + 1
     DebugChecksumTrans().apply(psyir.walk(Routine)[0].children[:])
     out = fortran_writer(psyir)
     assert "! PSyclone DebugChecksumTrans-generated checksums" not in out
+
+    # Check we place checksums in the right place when not all statements
+    # are included
+    code = """subroutine test()
+    integer :: a(100), b(100)
+    integer :: i
+
+    do i = 1, 100
+       a(i) = i
+    end do
+    b(:) = 0
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    DebugChecksumTrans().apply(psyir.walk(Routine)[0].children[0])
+    out = fortran_writer(psyir)
+    correct = """enddo
+  PSYCLONE_INTERNAL_line_ = __LINE__
+  ! PSyclone DebugChecksumTrans-generated checksums
+  PRINT *, "PSyclone checksums from test at line:", PSYCLONE_INTERNAL_line_ + 1
+  PRINT *, "a checksum", SUM(a(:))
+  b(:) = 0"""
+    assert correct in out
