@@ -229,8 +229,7 @@ jobs:
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
-        ./nemo
-        # tail run.stat
+        OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
         export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
@@ -267,7 +266,7 @@ jobs:
         # Run test
         cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
         ln -sf /archive/NEMO_INPUTS/NEMOv5_MO_original_files/ancil/eORCA1/link/* .
-        ./nemo
+        OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca1.nvhpc.10steps run.stat
         export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
@@ -304,7 +303,7 @@ jobs:
         # Run test
         cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
         ln -sf ../../../ORCA2_ICE_v4.2.0/* .
-        ./nemo
+        OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
         export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
