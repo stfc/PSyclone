@@ -214,9 +214,7 @@ and raises an error if they do not conform.
 Line wrapping is not performed by default. There are two reasons for
 this. This first reason is that most compilers are able to cope with
 long lines. The second reason is that the line wrapping implementation
-could fail in certain pathological cases. The implementation and
-limitations of line wrapping are discussed in the
-:ref:`line-length-limitations` section.
+could fail in certain pathological cases.
 
 .. _backend-options:
 

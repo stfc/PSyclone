@@ -722,10 +722,6 @@ The GOcean 1.0 API does not support any built-in operations.
 Conventions
 -----------
 
-The GOcean 1.0 API kernel code conforms to the PSyclone Fortran naming
-conventions (see :ref:`fortran_naming`). However, PSyclone's support
-for the GOcean 1.0 API does not rely on this convention.
-
 The contents of the kernel metadata is usually declared private but this
 does not affect PSyclone.
 

@@ -978,7 +978,7 @@ Since PSyclone is invoked separately for each Algorithm file in an
 application, the naming of the new, transformed kernels is done with
 reference to the kernel output directory. All transformed kernels (and
 the modules that contain them) are re-named following the PSyclone
-Fortran naming conventions (:ref:`fortran_naming`). This enables the
+Fortran naming conventions (:ref:`lfric-conventions`). This enables the
 reliable identification of transformed versions of any given kernel
 within the output directory.
 

@@ -3769,12 +3769,18 @@ be safely performed in parallel (see Section :ref:`lfric-kernel`).
 The ``GH_READWRITE`` access is used for updating discontinuous operators
 (see subsection :ref:`lfric-kernel-valid-access` for more details).
 
+.. _lfric-conventions:
+
 Conventions
 -----------
 
 The naming of LFRic API kernels and associated entities (types,
-subroutines and modules) follows the PSyclone Fortran naming
-conventions (see :ref:`fortran_naming`). However, PSyclone does not need
+subroutines and modules) follows the convention that the kernel file is
+named ``<name>_mod.[fF90]``, the module inside the kernel file is
+``<name>_mod``, the name of the kernel metadata in the module is
+``<name>_type`` and the name of the kernel subroutine in the module is
+``<name>_code``.
+However, PSyclone does not need
 this convention to be followed apart from the stub generator (see the
 :ref:`stub-generation` Section ) where the name of the metadata to be
 parsed is determined from the module name.
