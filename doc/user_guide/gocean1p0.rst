@@ -35,8 +35,8 @@
 
 .. _gocean-api:
 
-GOcean1.0 API
-=============
+The GOcean DSL
+==============
 
 .. highlight:: fortran
 

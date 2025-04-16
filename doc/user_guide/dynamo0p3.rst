@@ -38,8 +38,8 @@
 
 .. _lfric-api:
 
-LFRic API
-=========
+The LFRic DSL
+=============
 
 This section describes the LFRic application programming
 interface (API). This API explains what a user needs to write in order
