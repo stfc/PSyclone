@@ -43,3 +43,4 @@ User Guide
     :caption: Utilities
 
     psyclone_kern
+    psyad

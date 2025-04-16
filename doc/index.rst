@@ -75,13 +75,6 @@ directly-addressed MPI applications such as the
 .. toctree::
     :maxdepth: 1
     :hidden:
-    :caption: PSyAD
-
-    psyad/index
-	
-.. toctree::
-    :maxdepth: 1
-    :hidden:
     :caption: Developer Guide
 
     developer_guide/index

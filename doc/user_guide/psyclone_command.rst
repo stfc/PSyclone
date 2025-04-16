@@ -36,8 +36,8 @@
 
 .. _psyclone_command:
 
-The psyclone command
-====================
+The `psyclone` command
+======================
 
 The ``psyclone`` command is an executable script designed to be run from the
 command line, e.g.:
