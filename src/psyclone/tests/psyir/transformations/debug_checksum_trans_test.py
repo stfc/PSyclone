@@ -113,6 +113,7 @@ end subroutine test
           integer :: i(100)
           real :: x(100)
           character :: b(100)
+          type(superval), dimension(5) :: subtype
           type(superval) :: s
         end type
         contains
@@ -125,6 +126,7 @@ end subroutine test
             values%x(:) = 2.0
             values%s%j(100) = 1
             values2(1)%i(:) = 1
+            values%subtype(2)%j(100) = 1
             values%b(:) = "a"
             logicals(:) = .true.
             char_array(:) = "b"
