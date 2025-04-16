@@ -517,9 +517,10 @@ class LFRicKern(CodedKern):
             except KeyError:
                 # We have to do this here as _init_colourmap (which calls this
                 # method) is only called at code-generation time.
-                tmap = sched.symbol_table.find_or_create_array(
-                    "tmap", 3, ScalarType.Intrinsic.INTEGER,
-                    tag="tmap").name
+                tmap = sched.symbol_table.find_or_create_tag(
+                    "tmap", symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(
+                        "integer(kind=i_def), pointer :: tmap(:,:,:)")).name
 
         return tmap
 

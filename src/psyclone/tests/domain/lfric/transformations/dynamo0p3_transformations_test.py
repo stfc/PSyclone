@@ -7797,7 +7797,7 @@ def test_colour_trans_tiled_non_intergrid(dist_mem, tmpdir):
     code = str(psy.gen).lower()
 
     # Declare and initialise supporting variables
-    assert "integer(kind=i_def), allocatable, dimension(:,:,:) :: tmap" in code
+    assert "integer(kind=i_def), pointer :: tmap(:,:,:)" in code
     assert "integer(kind=i_def) :: ntilecolours" in code
     assert """
     ! get the tiled colourmap
@@ -7807,9 +7807,9 @@ def test_colour_trans_tiled_non_intergrid(dist_mem, tmpdir):
     if not dist_mem:
         # Use last-edge version
         assert """
-    last_edge_tile_per_colour = mesh%get_last_edge_tile_per_colour()
+    last_edge_tile_per_colour = mesh%get_last_edge_tile_all_colours()
     last_edge_cell_per_colour_and_tile = \
-mesh%get_last_edge_cell_per_colour_and_tile()""" in code
+mesh%get_last_edge_cell_all_colours_all_tiles()""" in code
         assert """
     do colour = loop0_start, loop0_stop, 1
       do tile = loop1_start, last_edge_tile_per_colour(colour), 1
@@ -7819,9 +7819,9 @@ mesh%get_last_edge_cell_per_colour_and_tile()""" in code
     else:
         # Use halo version
         assert """
-    last_halo_tile_per_colour = mesh%get_last_halo_tile_per_colour()
+    last_halo_tile_per_colour = mesh%get_last_halo_tile_all_colours()
     last_halo_cell_per_colour_and_tile = \
-mesh%get_last_halo_cell_per_colour_and_tile()""" in code
+mesh%get_last_halo_cell_all_colours_all_tiles()""" in code
         assert """
     do colour = loop0_start, loop0_stop, 1
       do tile = loop1_start, last_halo_tile_per_colour\
@@ -7874,9 +7874,9 @@ def test_colour_tans_tiled_intergrid(dist_mem, tmpdir):
     # Chek inner loops over tiles and cells
     if dist_mem:
         assert ("last_halo_tile_per_colour_fld_m = "
-                "mesh_fld_m%get_last_halo_tile_per_colour()" in gen)
+                "mesh_fld_m%get_last_halo_tile_all_colours()" in gen)
         assert ("last_halo_cell_per_colour_and_tile_fld_m = "
-                "mesh_fld_m%get_last_halo_cell_per_colour_and_tile()"
+                "mesh_fld_m%get_last_halo_cell_all_colours_all_tiles()"
                 in gen)
         assert (
             "do tile = loop2_start, last_halo_tile_per_colour_fld_m"
@@ -7886,9 +7886,9 @@ def test_colour_tans_tiled_intergrid(dist_mem, tmpdir):
             "(colour,tile,1), 1" in gen)
     else:
         assert ("last_edge_tile_per_colour_fld_m = "
-                "mesh_fld_m%get_last_edge_tile_per_colour()" in gen)
+                "mesh_fld_m%get_last_edge_tile_all_colours()" in gen)
         assert ("last_edge_cell_per_colour_and_tile_fld_m = "
-                "mesh_fld_m%get_last_edge_cell_per_colour_and_tile()"
+                "mesh_fld_m%get_last_edge_cell_all_colours_all_tiles()"
                 in gen)
         assert (
             "do tile = loop2_start, last_edge_tile_per_colour_fld_m"
@@ -7923,7 +7923,7 @@ def test_colour_trans_tiled_continuous_writer_intergrid(tmpdir, dist_mem):
     result = psy.gen
     print(result)
     # Declarations.
-    assert ("integer(kind=i_def), allocatable, dimension(:,:,:) :: tmap_field1"
+    assert ("integer(kind=i_def), pointer :: tmap_field1(:,:,:)"
             in result)
     assert "integer(kind=i_def) :: ntilecolour_field1" in result
     assert ("integer(kind=i_def), allocatable, dimension(:) :: "
@@ -7932,9 +7932,9 @@ def test_colour_trans_tiled_continuous_writer_intergrid(tmpdir, dist_mem):
             "last_edge_cell_per_colour_and_tile_field1" in result)
     # Initialisation.
     assert ("last_edge_tile_per_colour_field1 = mesh_field1%"
-            "get_last_edge_tile_per_colour()" in result)
+            "get_last_edge_tile_all_colours()" in result)
     assert ("last_edge_cell_per_colour_and_tile_field1 = mesh_field1%"
-            "get_last_edge_cell_per_colour_and_tile()" in result)
+            "get_last_edge_cell_all_colours_all_tiles()" in result)
     # Usage. Since there is no need to loop into the halo, the upper loop
     # bound should be independent of whether or not DM is enabled.
     assert "loop0_stop = ntilecolour_field1" in result

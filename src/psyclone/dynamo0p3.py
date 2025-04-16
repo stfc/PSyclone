@@ -717,7 +717,7 @@ class LFRicMeshProperties(LFRicCollection):
             assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
-                        mesh, ["get_last_halo_tile_per_colour"])))
+                        mesh, ["get_last_halo_tile_all_colours"])))
             self._invoke.schedule.addchild(assignment, cursor)
             cursor += 1
             lhs = self.symtab.find_or_create_tag(
@@ -725,7 +725,7 @@ class LFRicMeshProperties(LFRicCollection):
             assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
-                        mesh, ["get_last_halo_cell_per_colour_and_tile"])))
+                        mesh, ["get_last_halo_cell_all_colours_all_tiles"])))
             self._invoke.schedule.addchild(assignment, cursor)
             cursor += 1
         if need_tilecolour_limits:
@@ -734,7 +734,7 @@ class LFRicMeshProperties(LFRicCollection):
             assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
-                        mesh, ["get_last_edge_tile_per_colour"])))
+                        mesh, ["get_last_edge_tile_all_colours"])))
             self._invoke.schedule.addchild(assignment, cursor)
             cursor += 1
             lhs = self.symtab.find_or_create_tag(
@@ -742,7 +742,7 @@ class LFRicMeshProperties(LFRicCollection):
             assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
-                        mesh, ["get_last_edge_cell_per_colour_and_tile"])))
+                        mesh, ["get_last_edge_cell_all_colours_all_tiles"])))
             self._invoke.schedule.addchild(assignment, cursor)
             cursor += 1
         return cursor
@@ -2130,9 +2130,10 @@ class DynMeshes():
             else:
                 # Tiled colour map
                 base_name = "tmap_" + carg_name
-                tilecolour_map = self.symtab.find_or_create_array(
-                    base_name, 3, ScalarType.Intrinsic.INTEGER,
-                    tag=base_name)
+                tilecolour_map = self.symtab.find_or_create_tag(
+                    base_name, symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(
+                        f"integer(kind=i_def), pointer :: {base_name}(:,:,:)"))
                 base_name = "ntilecolour_" + carg_name
                 ntilecolours = self.symtab.find_or_create_integer_symbol(
                                     base_name, tag=base_name)
@@ -2331,8 +2332,8 @@ class DynMeshes():
                 cursor += 1
             if self._needs_colourtilemap or self._needs_colourtilemap_halo:
                 # Look-up variable names for colourmap and number of colours
-                tmap = self.symtab.find_or_create_tag("tmap")
-                ntc = self.symtab.find_or_create_tag("ntilecolours")
+                tmap = self.symtab.lookup_with_tag("tmap")
+                ntc = self.symtab.lookup_with_tag("ntilecolours")
                 # Get the number of colours
                 assignment = Assignment.create(
                         lhs=Reference(ntc),
@@ -2520,10 +2521,10 @@ class DynMeshes():
                 sym = dig.last_tile_var_symbol
                 if len(sym.datatype.shape) == 2:
                     # Array is 2D so is a halo access.
-                    name = "get_last_halo_tile_per_colour"
+                    name = "get_last_halo_tile_all_colours"
                 else:
                     # Array is just 1D so go to the last edge cell.
-                    name = "get_last_edge_tile_per_colour"
+                    name = "get_last_edge_tile_all_colours"
                 assignment = Assignment.create(
                         lhs=Reference(sym),
                         rhs=Call.create(StructureReference.create(
@@ -2534,10 +2535,10 @@ class DynMeshes():
                 sym = dig.last_cell_tile_var_symbol
                 if len(sym.datatype.shape) == 3:
                     # Array is 3D so is a halo access.
-                    name = "get_last_halo_cell_per_colour_and_tile"
+                    name = "get_last_halo_cell_all_colours_all_tiles"
                 else:
                     # Array is just 2D so go to the last edge cell.
-                    name = "get_last_edge_cell_per_colour_and_tile"
+                    name = "get_last_edge_cell_all_colours_all_tiles"
                 assignment = Assignment.create(
                         lhs=Reference(sym),
                         rhs=Call.create(StructureReference.create(
