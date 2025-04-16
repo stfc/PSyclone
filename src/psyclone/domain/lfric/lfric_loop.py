@@ -654,8 +654,11 @@ class LFRicLoop(PSyLoop):
                 depth = Reference(sym_tab.find_or_create_tag(
                     f"max_halo_depth_{self._mesh_name}"))
             if Config.get().distributed_memory:
+                tag = "last_halo_tile_per_colour"
+                if self._kern.is_intergrid:
+                    tag += "_" + self._field_name
                 result = ArrayReference.create(
-                    sym_tab.lookup_with_tag("last_halo_tile_per_colour"),
+                    sym_tab.lookup_with_tag(tag),
                     [Reference(sym_tab.lookup_with_tag("colours_loop_idx")),
                      depth]
                 )
@@ -671,9 +674,11 @@ class LFRicLoop(PSyLoop):
                 depth = Reference(sym_tab.find_or_create_tag(
                     f"max_halo_depth_{self._mesh_name}"))
             if Config.get().distributed_memory:
+                tag = "last_halo_cell_per_colour_and_tile"
+                if self._kern.is_intergrid:
+                    tag += "_" + self._field_name
                 result = ArrayReference.create(
-                    sym_tab.lookup_with_tag(
-                                    "last_halo_cell_per_colour_and_tile"),
+                    sym_tab.lookup_with_tag(tag),
                     [Reference(sym_tab.lookup_with_tag("colours_loop_idx")),
                      Reference(sym_tab.lookup_with_tag("tile_loop_idx")),
                      depth]

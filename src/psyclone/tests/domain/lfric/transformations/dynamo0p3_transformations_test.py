@@ -7857,38 +7857,51 @@ def test_colour_tans_tiled_intergrid(dist_mem, tmpdir):
     ctrans.apply(loops[3], options={"tiling": True})
 
     gen = str(psy.gen).lower()
-    print(gen)
     expected = '''\
-    ncolour_fld_m = mesh_fld_m%get_ntilecolours()
+    ntilecolour_fld_m = mesh_fld_m%get_ntilecolours()
     tmap_fld_m => mesh_fld_m%get_coloured_tiling_map()'''
     assert expected in gen
     expected = '''\
-    ncolour_cmap_fld_c = mesh_cmap_fld_c%get_ntilecolours()
-    cmap_cmap_fld_c => mesh_cmap_fld_c%get_coloured_tiling_map()'''
-    # assert expected in gen
-    assert "loop1_stop = ncolour_fld_m" in gen
+    ntilecolour_cmap_fld_c = mesh_cmap_fld_c%get_ntilecolours()
+    tmap_cmap_fld_c => mesh_cmap_fld_c%get_coloured_tiling_map()'''
+    assert expected in gen
+
+    # Check outer loop over colours
+    assert "loop1_stop = ntilecolour_fld_m" in gen
     assert "loop2_stop" not in gen
     assert "    do colour = loop1_start, loop1_stop, 1\n" in gen
+
+    # Chek inner loops over tiles and cells
     if dist_mem:
-        assert ("last_halo_cell_all_colours_fld_m = "
-                "mesh_fld_m%get_last_halo_cell_all_colours()" in gen)
-        expected = (
-            "      do cell = loop2_start, last_halo_cell_all_colours_fld_m"
-            "(colour,1), 1\n")
+        assert ("last_halo_tile_per_colour_fld_m = "
+                "mesh_fld_m%get_last_halo_tile_per_colour()" in gen)
+        assert ("last_halo_cell_per_colour_and_tile_fld_m = "
+                "mesh_fld_m%get_last_halo_cell_per_colour_and_tile()"
+                in gen)
+        assert (
+            "do tile = loop2_start, last_halo_tile_per_colour_fld_m"
+            "(colour,1), 1" in gen)
+        assert (
+            "do cell = loop3_start, last_halo_cell_per_colour_and_tile_fld_m"
+            "(colour,tile,1), 1" in gen)
     else:
-        assert ("last_edge_cell_all_colours_fld_m = "
-                "mesh_fld_m%get_last_edge_cell_all_colours()" in gen)
-        expected = (
-            "      do cell = loop2_start, last_edge_cell_all_colours_fld_m"
-            "(colour), 1\n")
-    assert expected in gen
-    expected = (
-        "        call prolong_test_kernel_code(nlayers_fld_f, cell_map_fld_m"
-        "(:,:,cmap_fld_m(colour,cell)), ncpc_fld_f_fld_m_x, "
+        assert ("last_edge_tile_per_colour_fld_m = "
+                "mesh_fld_m%get_last_edge_tile_per_colour()" in gen)
+        assert ("last_edge_cell_per_colour_and_tile_fld_m = "
+                "mesh_fld_m%get_last_edge_cell_per_colour_and_tile()"
+                in gen)
+        assert (
+            "do tile = loop2_start, last_edge_tile_per_colour_fld_m"
+            "(colour), 1" in gen)
+        assert (
+            "do cell = loop3_start, last_edge_cell_per_colour_and_tile_fld_m"
+            "(colour,tile), 1" in gen)
+    assert (
+        "call prolong_test_kernel_code(nlayers_fld_f, cell_map_fld_m"
+        "(:,:,tmap_fld_m(colour,tile,cell)), ncpc_fld_f_fld_m_x, "
         "ncpc_fld_f_fld_m_y, ncell_fld_f, fld_f_data, fld_m_data, "
         "ndf_w1, undf_w1, map_w1, undf_w2, "
-        "map_w2(:,cmap_fld_m(colour,cell)))\n")
-    assert expected in gen
+        "map_w2(:,tmap_fld_m(colour,tile,cell)))\n" in gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -7898,7 +7911,7 @@ def test_colour_trans_tiled_continuous_writer_intergrid(tmpdir, dist_mem):
     Test the tile-colouring transformation for an inter-grid kernel that has
     a GH_WRITE access to a field on a continuous space. Since it has GH_WRITE
     it does not need to iterate into the halos (to get clean annexed dofs) and
-    therefore should use the 'last_edge_cell' colour map. Still with field
+    therefore should use the 'last_edge_tile' colour map. Still with field
     suffixes in the variables because there are multiple grids.
 
     '''
@@ -7907,18 +7920,29 @@ def test_colour_trans_tiled_continuous_writer_intergrid(tmpdir, dist_mem):
     loop = invoke.schedule[0]
     ctrans = Dynamo0p3ColourTrans()
     ctrans.apply(loop, options={"tiling": True})
-    result = str(psy.gen).lower()
-    # Declarations.
-    assert ("integer(kind=i_def), allocatable, dimension(:) :: "
-            "last_edge_cell_all_colours_field1" in result)
-    # Initialisation.
+    result = psy.gen
     print(result)
-    assert ("last_edge_cell_all_colours_field1 = mesh_field1%"
-            "get_last_edge_cell_all_colours()" in result)
+    # Declarations.
+    assert ("integer(kind=i_def), allocatable, dimension(:,:,:) :: tmap_field1"
+            in result)
+    assert "integer(kind=i_def) :: ntilecolour_field1" in result
+    assert ("integer(kind=i_def), allocatable, dimension(:) :: "
+            "last_edge_tile_per_colour_field1" in result)
+    assert ("integer(kind=i_def), allocatable, dimension(:,:) :: "
+            "last_edge_cell_per_colour_and_tile_field1" in result)
+    # Initialisation.
+    assert ("last_edge_tile_per_colour_field1 = mesh_field1%"
+            "get_last_edge_tile_per_colour()" in result)
+    assert ("last_edge_cell_per_colour_and_tile_field1 = mesh_field1%"
+            "get_last_edge_cell_per_colour_and_tile()" in result)
     # Usage. Since there is no need to loop into the halo, the upper loop
     # bound should be independent of whether or not DM is enabled.
-    upper_bound = "last_edge_cell_all_colours_field1(colour)"
-    assert (f"    do colour = loop0_start, loop0_stop, 1\n"
-            f"      do cell = loop1_start, {upper_bound}, 1\n"
-            f"        call restrict_w2_code(nlayers" in result)
+    assert "loop0_stop = ntilecolour_field1" in result
+    assert "do colour = loop0_start, loop0_stop, 1" in result
+    assert ("do tile = loop1_start, last_edge_tile_per_colour_field1(colour)"
+            in result)
+    assert ("do cell = loop2_start, last_edge_cell_per_colour_and_tile_field1"
+            "(colour,tile), 1" in result)
+    assert ("call restrict_w2_code(nlayers_field1, cell_map_field1(:,:,"
+            "tmap_field1(colour,tile,cell))" in result)
     assert LFRicBuild(tmpdir).code_compiles(psy)

@@ -2499,6 +2499,51 @@ class DynMeshes():
                             coarse_mesh, [name])))
                 self._invoke.schedule.addchild(assignment, cursor)
                 cursor += 1
+            # Colour map for the coarse mesh (if required)
+            if dig.tilecolourmap_symbol:
+                # Number of colours
+                assignment = Assignment.create(
+                        lhs=Reference(dig.ntilecolours_var_symbol),
+                        rhs=Call.create(StructureReference.create(
+                            coarse_mesh, ["get_ntilecolours"])))
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
+                # Colour map itself
+                assignment = Assignment.create(
+                        lhs=Reference(dig.tilecolourmap_symbol),
+                        rhs=Call.create(StructureReference.create(
+                            coarse_mesh, ["get_coloured_tiling_map"])),
+                        is_pointer=True)
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
+                # Last halo/edge tile per colour.
+                sym = dig.last_tile_var_symbol
+                if len(sym.datatype.shape) == 2:
+                    # Array is 2D so is a halo access.
+                    name = "get_last_halo_tile_per_colour"
+                else:
+                    # Array is just 1D so go to the last edge cell.
+                    name = "get_last_edge_tile_per_colour"
+                assignment = Assignment.create(
+                        lhs=Reference(sym),
+                        rhs=Call.create(StructureReference.create(
+                            coarse_mesh, [name])))
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
+                # Last halo/edge cell per colour and tile.
+                sym = dig.last_cell_tile_var_symbol
+                if len(sym.datatype.shape) == 3:
+                    # Array is 3D so is a halo access.
+                    name = "get_last_halo_cell_per_colour_and_tile"
+                else:
+                    # Array is just 2D so go to the last edge cell.
+                    name = "get_last_edge_cell_per_colour_and_tile"
+                assignment = Assignment.create(
+                        lhs=Reference(sym),
+                        rhs=Call.create(StructureReference.create(
+                            coarse_mesh, [name])))
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
         if cursor != comment_cursor:
             self._invoke.schedule[comment_cursor].preceding_comment = (
                 "Look-up mesh objects and loop limits for inter-grid kernels")
@@ -2685,6 +2730,7 @@ class DynInterGrid():
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
         '''
         return self._last_cell_tile_var_symbol
+
 
 class DynBasisFunctions(LFRicCollection):
     ''' Holds all information on the basis and differential basis
