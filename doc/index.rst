@@ -75,6 +75,13 @@ directly-addressed MPI applications such as the
 .. toctree::
     :maxdepth: 1
     :hidden:
+    :caption: Tutorials and Examples
+
+    tutorials_and_examples/index
+    
+.. toctree::
+    :maxdepth: 1
+    :hidden:
     :caption: Developer Guide
 
     developer_guide/index
@@ -88,9 +95,11 @@ directly-addressed MPI applications such as the
 
         reference_guide/index.rst
     
-.. toctree::
-    :maxdepth: 1
-    :hidden:
-    :caption: Bibliography
+.. only:: latex
 
-    bibliography/zz_bibliography
+    .. toctree::
+        :maxdepth: 1
+        :hidden:
+        :caption: Bibliography
+
+        bibliography/zz_bibliography

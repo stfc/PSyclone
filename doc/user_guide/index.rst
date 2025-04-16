@@ -9,13 +9,12 @@ User Guide
     getting_going
     psyclone_command
     configuration
-    tutorials_and_examples
-
 
 .. toctree::
     :maxdepth: 2
     :caption: Code Transformation
 
+    user_scripts
     psyir
     transformations
 
