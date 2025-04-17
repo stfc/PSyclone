@@ -57,7 +57,7 @@ Tested with the NVIDIA HPC SDK version 23.7.
 '''
 
 import logging
-from utils import (add_profiling, enhance_tree_information, inline_calls,
+from utils import (add_profiling, enhance_tree_information,
                    NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
 from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
