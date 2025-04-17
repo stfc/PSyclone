@@ -60,7 +60,7 @@ NOT_PERFORMANT = [
     "icbdia.f90", "icbini.f90", "icbstp.f90", "iom.f90", "iom_nf90.f90",
     "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
     "obs_types.f90", "obs_read_prof.f90", "obs_write.f90", "tide_mod.f90",
-    "zdfosm.f90", "obs_read_surf.f90", 'obs_surf_def.f90', 
+    "zdfosm.f90", "obs_read_surf.f90", 'obs_surf_def.f90',
     'icedyn_adv_umx.f90', 'sbcblk_algo_ice_lg15.f90'
 ]
 
@@ -143,8 +143,8 @@ NEMO_FUNCTIONS = [
     'visc_air', 'visc_air_sclr', 'visc_air_vctr', 'w1', 'w2', 'z0_from_Cd',
     'z0tq_LKB', 'zdf_gls_alloc', 'zdf_iwm_alloc', 'zdf_mfc_alloc',
     'zdf_mxl_alloc', 'zdf_oce_alloc', 'zdf_osm_alloc', 'zdf_phy_alloc',
-    'zdf_tke_alloc', 'zdf_tmx_alloc', 'lbnd_ij', 'ice_dyn_adv_umx', 
-    'adv_umx', 'ri_bulk_vctr', 'ri_bulk', 'cd_from_z0', 
+    'zdf_tke_alloc', 'zdf_tmx_alloc', 'lbnd_ij', 'ice_dyn_adv_umx',
+    'adv_umx', 'ri_bulk_vctr', 'ri_bulk', 'cd_from_z0',
     'cdn_f_lg15_light', 'z0_from_cd'
 ]
 
