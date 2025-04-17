@@ -53,7 +53,7 @@ APIs are discussed separately in the following sections.
 The LFRic API supports the Met Office's finite element (hereafter FEM)
 based GungHo dynamical core.
 This dynamical core with atmospheric physics parameterisation
-schemes is a part of the Met Office LFRic modelling system :cite:`lfric-2019`,
+schemes is a part of the Met Office LFRic modelling system :footcite:t:`lfric-2019`,
 currently being developed in preparation for exascale computing in the 2020s.
 The LFRic repository and the associated wiki are hosted at the `Met Office
 Science Repository Service <https://code.metoffice.gov.uk/trac/home>`_.
@@ -4020,3 +4020,5 @@ transformations have not yet been migrated to this directory.
 .. autoclass:: psyclone.transformations.Dynamo0p3RedundantComputationTrans
     :members:
     :noindex:
+
+.. footbibliography::

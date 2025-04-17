@@ -3,12 +3,14 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+:html_theme.show_nav_level: 2
+
 Reference Guide
 ###############
 
 Welcome to the PSyclone Reference Guide. This consists of auto-generated
 API documentation produced using the AutoAPI Sphinx plugin (see
-left-hand-side menu).
+left-hand-side menu). And the `Doxygen Documentation`_.
 
 .. toctree::
    :hidden:

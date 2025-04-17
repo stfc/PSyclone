@@ -1266,7 +1266,7 @@ Implicit Loops
 
 Many of the loops in NEMO are written using Fortran array notation. Such
 use of array notation is encouraged in the NEMO Coding Conventions
-:cite:`nemo_code_conv` and identifying these loops can be important
+:footcite:t:`nemo_code_conv` and identifying these loops can be important
 when introducing, e.g. OpenMP. These implicit loops are not
 automatically represented as PSyIR Loop instances but can be converted
 to explicit loops using the ``ArrayAssignment2LoopsTrans``
@@ -1303,3 +1303,5 @@ the details of externally declared symbols can be resolved by using the
 
    import_symbol = symbol_table.lookup(module_name)
    symbol_table.resolve_imports(container_symbols=[import_symbol])
+
+.. footbibliography::

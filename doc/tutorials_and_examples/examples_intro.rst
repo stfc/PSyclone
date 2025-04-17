@@ -1,5 +1,5 @@
-Examples Introduction 
-=====================
+Introduction to the examples
+============================
 
 Various examples of the use of PSyclone are provided under the
 ``examples`` directory in the Git repository. If you have installed
