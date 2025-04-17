@@ -1,0 +1,7 @@
+#!/home/imohammad/PSyclone/nemo_env/bin/python
+# EASY-INSTALL-DEV-SCRIPT: 'PSyclone==3.0.1.dev0','psyclone'
+__requires__ = 'PSyclone==3.0.1.dev0'
+__import__('pkg_resources').require('PSyclone==3.0.1.dev0')
+__file__ = '/home/imohammad/PSyclone/bin/psyclone'
+with open(__file__) as f:
+    exec(compile(f.read(), __file__, 'exec'))

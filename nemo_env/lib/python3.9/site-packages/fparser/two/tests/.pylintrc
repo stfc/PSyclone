@@ -1,0 +1,40 @@
+[MESSAGES CONTROL]
+
+# Enable the message, report, category or checker with the given id(s). You can
+# either give multiple identifier separated by comma (,) or put this option
+# multiple time (only on the command line, not in the configuration file where
+# it should appear only once). See also the "--disable" option for examples.
+enable=useless-suppression
+
+
+# Disable the message, report, category or checker with the given id(s). You
+# can either give multiple identifiers separated by comma (,) or put this
+# option multiple times (only on the command line, not in the configuration
+# file where it should appear only once).You can also use "--disable=all" to
+# disable everything first and then reenable specific checks. For example, if
+# you want to run only the similarities checker, you can use "--disable=all
+# --enable=similarities". If you want to run only the classes checker, but have
+# no Warning level messages displayed, use"--disable=all --enable=classes
+# --disable=W"
+disable=suppressed-message,duplicate-code,too-many-locals,too-many-lines,protected-access,locally-disabled,too-few-public-methods,too-many-arguments,use-implicit-booleaness-not-comparison
+
+[FORMAT]
+
+# Maximum number of characters on a single line. Black's default is 88.
+max-line-length=88
+
+[TYPECHECK]
+
+# fparser generates *_List classes at runtime so pylint can't
+# find them (as it's a static checker).
+ignored-modules=fparser.two.Fortran2003,fparser.two.Fortran2008
+generated-members=fparser.two.Fortran2003.*_List,fparser.two.Fortran2008.*_List
+
+[DESIGN]
+# Maximum number of parents for a class (see R0901)
+max-parents=9
+
+# Make sure private functions (_my_private_function) are also
+# documented, but standard double-underscore functions do not
+# need to have a docstring.
+no-docstring-rgx=__.*__

@@ -1,0 +1,20 @@
+[FORMAT]
+
+# Maximum number of characters on a single line. Black's default is 88.
+max-line-length=88
+
+[TYPECHECK]
+
+# fparser generates *_List classes at runtime so pylint can't
+# find them (as it's a static checker).
+ignored-modules=fparser.two.Fortran2003,fparser.two.Fortran2008
+generated-members=fparser.two.Fortran2003.*_List,fparser.two.Fortran2008.*_List
+
+[DESIGN]
+# Maximum number of parents for a class (see R0901)
+max-parents=9
+
+# Make sure private functions (_my_private_function) are also
+# documented, but standard double-underscore functions do not
+# need to have a docstring.
+no-docstring-rgx=__.*__
