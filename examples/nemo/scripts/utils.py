@@ -44,13 +44,13 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
-    Reference2ArrayRangeTrans, ScalarisationTrans)
+    Reference2ArrayRangeTrans)
 from psyclone.transformations import TransformationError
 
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
-    "oce", "par_oce", "par_kind", "dom_oce", "phycst", "ice",
+    "oce", "par_oce", "dom_oce", "phycst", "ice",
     "obs_fbm", "flo_oce", "sbc_ice", "wet_dry"
 ]
 
@@ -60,7 +60,7 @@ NOT_PERFORMANT = [
     "icbdia.f90", "icbini.f90", "icbstp.f90", "iom.f90", "iom_nf90.f90",
     "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
     "obs_types.f90", "obs_read_prof.f90", "obs_write.f90", "tide_mod.f90",
-    "zdfosm.f90", "obs_read_surf.f90",
+    "zdfosm.f90", "obs_read_surf.f90", 'obs_surf_def.f90', 'icedyn_adv_umx.f90', 'sbcblk_algo_ice_lg15.f90'
 ]
 
 # If routine names contain these substrings then we do not profile them
@@ -142,7 +142,8 @@ NEMO_FUNCTIONS = [
     'visc_air', 'visc_air_sclr', 'visc_air_vctr', 'w1', 'w2', 'z0_from_Cd',
     'z0tq_LKB', 'zdf_gls_alloc', 'zdf_iwm_alloc', 'zdf_mfc_alloc',
     'zdf_mxl_alloc', 'zdf_oce_alloc', 'zdf_osm_alloc', 'zdf_phy_alloc',
-    'zdf_tke_alloc', 'zdf_tmx_alloc',
+    'zdf_tke_alloc', 'zdf_tmx_alloc','lbnd_ij', 'ice_dyn_adv_umx', 'adv_umx', 
+    'ri_bulk_vctr', 'ri_bulk','cd_from_z0', 'cdn_f_lg15_light','z0_from_cd'
 ]
 
 # Currently fparser has no way of distinguishing array accesses from statement
@@ -152,12 +153,10 @@ CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 # These files change the results from the baseline when psyclone adds
 # parallelisation dirctives
 PARALLELISATION_ISSUES = [
-    "ldfc1d_c2d.f90",
-    "tramle.f90",
-    "dynspg_ts.f90",
 ]
 
 PRIVATISATION_ISSUES = [
+    "tramle.f90",  # Wrong runtime results
     "ldftra.f90",  # Wrong runtime results
 ]
 
@@ -231,14 +230,9 @@ def inline_calls(schedule):
 
       1. Find the source of the routine being called.
       2. Insert that source into the same Container as the call site.
-
-    where each step is dependent upon the success of the previous one.
-
-    Ideally (#924), this would then be followed by:
-
       3. Replace the call to the routine with the body of the routine.
 
-    but currently this functionality is not robust enough for use here.
+    where each step is dependent upon the success of the previous one.
 
     TODO #924 - this could be InlineAllCallsTrans.apply(schedule,
                                                         excluding={})
@@ -247,16 +241,14 @@ def inline_calls(schedule):
     :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
 
     '''
-    excluding = ["ctl_nam", "ctl_stop", "ctl_warn", "prt_ctl", "eos",
-                 "iom_", "hist", "mpi_", "timing_", "oasis_",
-                 "fatal_error"  # TODO #2846 - is brought into scope via
-                                # multiple wildcard imports
-                 ]
+    excluding = ["ctl_stop", "ctl_warn", "eos", "iom_", "hist", "mpi_",
+                 "timing_", "oasis_"]
     ignore_codeblocks = ["bdy_dyn3d_frs", "bdy_dyn3d_spe", "bdy_dyn3d_zro",
                          "bdy_dyn3d_zgrad"]
     mod_inline_trans = KernelModuleInlineTrans()
     inline_trans = InlineTrans()
-    for call in schedule.walk(Call):
+    all_calls = schedule.walk(Call)
+    for call in all_calls:
         if isinstance(call, IntrinsicCall):
             continue
         rsym = call.routine.symbol
@@ -264,18 +256,13 @@ def inline_calls(schedule):
         if any(name.startswith(excl_name) for excl_name in excluding):
             print(f"Inlining of routine '{name}' is disabled.")
             continue
-        if rsym.is_import or rsym.is_unresolved:
+        if rsym.is_import:
             try:
                 mod_inline_trans.apply(call)
                 print(f"Module-inlined routine '{name}'")
             except TransformationError as err:
                 print(f"Module inline of '{name}' failed:\n{err}")
                 continue
-
-        # TODO #924 - SKIP ACTUAL INLINING FOR NOW. Currently this causes
-        # failures when processing NEMO and this needs further work.
-        continue
-
         try:
             options = {}
             if name in ignore_codeblocks:
@@ -295,7 +282,6 @@ def normalise_loops(
         loopify_array_intrinsics: bool = True,
         convert_range_loops: bool = True,
         hoist_expressions: bool = True,
-        scalarise_loops: bool = False,
         ):
     ''' Normalise all loops in the given schedule so that they are in an
     appropriate form for the Parallelisation transformations to analyse
@@ -312,8 +298,6 @@ def normalise_loops(
         loops.
     :param bool hoist_expressions: whether to hoist bounds and loop invariant
         statements out of the loop nest.
-    :param scalarise_loops: whether to attempt to convert arrays to scalars
-        where possible, default is False.
     '''
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
@@ -353,16 +337,6 @@ def normalise_loops(
                 explicit_loops.apply(assignment)
             except TransformationError:
                 pass
-
-    if scalarise_loops:
-        # Apply scalarisation to every loop. Execute this in reverse order
-        # as sometimes we can scalarise earlier loops if following loops
-        # have already been scalarised.
-        loops = schedule.walk(Loop)
-        loops.reverse()
-        scalartrans = ScalarisationTrans()
-        for loop in loops:
-            scalartrans.apply(loop)
 
     if hoist_expressions:
         # First hoist all possible expressions
@@ -418,7 +392,7 @@ def insert_explicit_loop_parallelism(
             continue  # Skip if an outer loop is already parallelised
 
         opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
-                "verbose": True, "nowait": True}
+                "verbose": True}
 
         routine_name = loop.ancestor(Routine).name
 
