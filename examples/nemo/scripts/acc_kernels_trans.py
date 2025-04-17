@@ -232,7 +232,7 @@ def valid_acc_kernel(node):
 
         elif isinstance(enode, ArrayReference):
             if isinstance(enode.symbol, DataSymbol) and isinstance(enode.symbol.datatype, ArrayType)
-                and isinstance(enode.symbol.datatype.datatype, DataTypeSymbol):
+            and isinstance(enode.symbol.datatype.datatype, DataTypeSymbol):
                 return False
         elif isinstance(enode, Loop):
             # Heuristic:

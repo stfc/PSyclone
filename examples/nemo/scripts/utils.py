@@ -60,8 +60,8 @@ NOT_PERFORMANT = [
     "icbdia.f90", "icbini.f90", "icbstp.f90", "iom.f90", "iom_nf90.f90",
     "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
     "obs_types.f90", "obs_read_prof.f90", "obs_write.f90", "tide_mod.f90",
-    "zdfosm.f90", "obs_read_surf.f90" ,'obs_surf_def.f90','lbclnk.f90',
-    'icedyn_adv_umx.f90', 'sbcblk_algo_ice_lg15.f90', 
+    "zdfosm.f90", "obs_read_surf.f90", 'obs_surf_def.f90', 'lbclnk.f90',
+    'icedyn_adv_umx.f90', 'sbcblk_algo_ice_lg15.f90',
     'lib_mpp.f90', 'lbcnfd.f90', 'timing.f90', 'trcsink.f90'
 ]
 
@@ -104,13 +104,14 @@ NEMO_FUNCTIONS = [
     'gamain', 'gamma_moist', 'get_unit', 'grt_cir_dis', 'grt_cir_dis_saa',
     'icb_alloc', 'icb_utl_bilin', 'icb_utl_bilin_2d_h', 'icb_utl_bilin_3d_h',
     'icb_utl_bilin_e', 'icb_utl_bilin_h', 'icb_utl_bilin_x', 'icb_utl_count',
-    'icb_utl_heat', 'icb_utl_mass', 'icb_utl_yearday', 'ice1D_alloc', 'ice_alloc',
-    'ice_dia_alloc', 'ice_dyn_rdgrft_alloc', 'ice_perm_eff',
+    'icb_utl_heat', 'icb_utl_mass', 'icb_utl_yearday', 'ice1D_alloc',
+    'ice_alloc', 'ice_dia_alloc', 'ice_dyn_rdgrft_alloc', 'ice_perm_eff',
     'ice_thd_pnd_alloc', 'ice_update_alloc', 'ice_var_sshdyn', 'in_hdom',
     'integ_spline', 'interp', 'interp1', 'interp2', 'interp3',
     'iom_axis', 'iom_getszuld', 'iom_nf90_varid', 'iom_sdate', 'iom_use',
     'iom_varid', 'iom_xios_setid', 'iscpl_alloc', 'is_tile', 'kiss',
-    'ksec_week', 'lib_mpp_alloc', 'linquad', 'L_vap', 'm', 'maxdist', 'mynode', 'nblinks', 'nodal_factort',
+    'ksec_week', 'lib_mpp_alloc', 'linquad', 'L_vap', 'm', 'maxdist', 'mynode',
+    'nblinks', 'nodal_factort',
     'oce_alloc', 'oce_SWE_alloc', 'One_on_L', 'p2z_exp_alloc',
     'p2z_lim_alloc', 'p2z_prod_alloc', 'p4z_che_alloc', 'p4z_diaz_alloc',
     'p4z_flx_alloc', 'p4z_lim_alloc', 'p4z_meso_alloc', 'p4z_opt_alloc',
@@ -139,8 +140,8 @@ NEMO_FUNCTIONS = [
     'visc_air', 'w1', 'w2', 'z0_from_Cd',
     'z0tq_LKB', 'zdf_gls_alloc', 'zdf_iwm_alloc', 'zdf_mfc_alloc',
     'zdf_mxl_alloc', 'zdf_oce_alloc', 'zdf_osm_alloc', 'zdf_phy_alloc',
-    'zdf_tke_alloc', 'zdf_tmx_alloc', 'lbnd_ij', 'ice_dyn_adv_umx', 'adv_umx', 
-     'ri_bulk', 'cd_from_z0', 'cdn_f_lg15_light', 'z0_from_cd', 'trc_rad_sms'
+    'zdf_tke_alloc', 'zdf_tmx_alloc', 'lbnd_ij', 'ice_dyn_adv_umx', 'adv_umx',
+    'ri_bulk', 'cd_from_z0', 'cdn_f_lg15_light', 'z0_from_cd', 'trc_rad_sms'
 ]
 
 # Currently fparser has no way of distinguishing array accesses from statement
