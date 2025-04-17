@@ -19,7 +19,7 @@
 #   this software without specific prior written permission.
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# "AS IS" AND ANY
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 # FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
 # COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
@@ -57,16 +57,17 @@ Tested with the NVIDIA HPC SDK version 23.7.
 '''
 
 import logging
-from utils import (add_profiling, enhance_tree_information, inline_calls,
+from utils import (add_profiling, enhance_tree_information,
                    NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
 from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
     IfBlock, ArrayReference, Assignment, BinaryOperation, Loop, Routine,
-    Literal, ACCLoopDirective)
+    Literal, ACCLoopDirective, IntrinsicCall)
 from psyclone.psyir.transformations import (ACCKernelsTrans, ACCUpdateTrans,
                                             TransformationError, ProfileTrans)
 from psyclone.transformations import ACCEnterDataTrans
+from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol, ArrayType
 
 # Set up some loop_type inference rules in order to reference useful domain
 # loop constructs by name
@@ -91,7 +92,7 @@ PROFILE_TRANS = ProfileTrans()
 
 # Whether or not to add profiling calls around unaccelerated regions
 # N.B. this can inhibit PSyclone's ability to inline!
-PROFILE_NONACC = False
+PROFILE_NONACC = True
 
 # Whether or not to add OpenACC enter data and update directives to explicitly
 # move data between host and device memory
@@ -132,6 +133,7 @@ class ExcludeSettings():
 # Routines which are exceptions to the OpenACC Kernels regions exclusion rules.
 EXCLUDING = {"default": ExcludeSettings(),
              # Exclude for better GPU performance (requires further analysis).
+             "cfc_init": ExcludeSettings({"ifs_scalars": True}),
              "dyn_spg_ts": ExcludeSettings({"ifs_scalars": True}),
              "tra_zdf_imp": ExcludeSettings({"ifs_scalars": True}),
              # Exclude due to compiler bug preventing CPU multicore executions.
@@ -194,10 +196,13 @@ def valid_acc_kernel(node):
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_types = (IfBlock, Loop)
+    excluded_types = (IfBlock, Loop, ArrayReference, IntrinsicCall)
     excluded_nodes = node.walk(excluded_types)
 
     for enode in excluded_nodes:
+        if isinstance(enode, IntrinsicCall):
+            if "dim" in enode.argument_names:
+                return False
 
         if isinstance(enode, IfBlock):
             # We permit IF blocks originating from WHERE constructs and
@@ -225,6 +230,13 @@ def valid_acc_kernel(node):
                         "IF references 1D arrays that may be static", enode)
                 return False
 
+        elif isinstance(enode, ArrayReference):
+            if (
+                isinstance(enode.symbol, DataSymbol)
+                and isinstance(enode.symbol.datatype, ArrayType)
+                and isinstance(enode.symbol.datatype.datatype, DataTypeSymbol)
+            ):
+                return False
         elif isinstance(enode, Loop):
             # Heuristic:
             # We don't want to put loops around 3D loops into KERNELS regions
@@ -232,7 +244,7 @@ def valid_acc_kernel(node):
             # if they themselves contain several 2D loops.
             # In general, this heuristic will depend upon how many levels the
             # model configuration will contain.
-            child = enode.loop_body[0] if enode.loop_body.children else None
+            child = enode.loop_body[0]
             if isinstance(child, Loop) and child.loop_type == "levels":
                 # We have a loop around a loop over levels
                 log_msg(routine_name, "Loop is around a loop over levels",
@@ -384,7 +396,6 @@ def trans(psyir):
         if subroutine.name.lower() not in ACC_IGNORE:
             print(f"Transforming {subroutine.name} with acc kernels")
             enhance_tree_information(subroutine)
-            inline_calls(subroutine)
             have_kernels = add_kernels(subroutine.children)
             if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
                 print(f"Transforming {subroutine.name} with acc enter data")

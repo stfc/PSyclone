@@ -44,13 +44,13 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
-    Reference2ArrayRangeTrans, ScalarisationTrans)
+    Reference2ArrayRangeTrans)
 from psyclone.transformations import TransformationError
 
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
-    "oce", "par_oce", "par_kind", "dom_oce", "phycst", "ice",
+    "oce", "par_oce", "dom_oce", "phycst", "ice",
     "obs_fbm", "flo_oce", "sbc_ice", "wet_dry"
 ]
 
@@ -60,7 +60,9 @@ NOT_PERFORMANT = [
     "icbdia.f90", "icbini.f90", "icbstp.f90", "iom.f90", "iom_nf90.f90",
     "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
     "obs_types.f90", "obs_read_prof.f90", "obs_write.f90", "tide_mod.f90",
-    "zdfosm.f90", "obs_read_surf.f90",
+    "zdfosm.f90", "obs_read_surf.f90", 'obs_surf_def.f90', 'lbclnk.f90',
+    'icedyn_adv_umx.f90', 'sbcblk_algo_ice_lg15.f90',
+    'lib_mpp.f90', 'lbcnfd.f90', 'timing.f90', 'trcsink.f90'
 ]
 
 # If routine names contain these substrings then we do not profile them
@@ -81,7 +83,7 @@ NEMO_FUNCTIONS = [
     # $ grep -rhi "end function" src/ | awk '{print $3}' | uniq | sort
     'abl_alloc', 'add_xxx', 'Agrif_CFixed', 'agrif_external_switch_index',
     'Agrif_Fixed', 'agrif_oce_alloc', 'Agrif_Root', 'alfa_charn', 'alngam',
-    'alpha_sw_sclr', 'alpha_sw_vctr', 'arr_hls', 'arr_lbnd', 'arr_lbnd_2d_dp',
+    'alpha_sw', 'arr_hls', 'arr_lbnd', 'arr_lbnd_2d_dp',
     'arr_lbnd_2d_i', 'arr_lbnd_2d_sp', 'arr_lbnd_3d_dp', 'arr_lbnd_3d_i',
     'arr_lbnd_3d_sp', 'arr_lbnd_4d_dp', 'arr_lbnd_4d_i', 'arr_lbnd_4d_sp',
     'arr_lbnd_5d_dp', 'arr_lbnd_5d_i', 'arr_lbnd_5d_sp', 'atg',
@@ -89,60 +91,57 @@ NEMO_FUNCTIONS = [
     'CdN10_f_LU13', 'cd_n10_ncar', 'cd_neutral_10m', 'CdN_f_LG15',
     'CdN_f_LG15_light', 'CdN_f_LU12_eq36', 'ce_n10_ncar', 'charn_coare3p0',
     'charn_coare3p6', 'charn_coare3p6_wave', 'check_hdom', 'ch_n10_ncar',
-    'cp_air', 'cp_air_sclr', 'cp_air_vctr', 'cpl_freq', 'crs_dom_alloc',
+    'cp_air', 'cpl_freq', 'crs_dom_alloc',
     'crs_dom_alloc2', 'dayjul', 'def_newlink', 'delta_skin_layer',
-    'depth', 'dep_to_p', 'de_sat_dt_ice_sclr', 'de_sat_dt_ice_vctr',
+    'depth', 'dep_to_p', 'de_sat_dt_ice',
     'dia_ar5_alloc', 'diadct_alloc', 'dia_hth_alloc', 'dia_ptr_alloc',
-    'dia_wri_alloc', 'dom_oce_alloc', 'dom_vvl_alloc', 'dq_sat_dt_ice_sclr',
-    'dq_sat_dt_ice_vctr', 'dyn_dmp_alloc', 'dyn_ldf_iso_alloc',
-    'dyn_spg_ts_alloc', 'eos_pt_from_ct', 'e_sat_ice_sclr', 'e_sat_ice_vctr',
-    'e_sat_sclr', 'e_sat_vctr', 'exa_mpl_alloc', 'f_h_louis_sclr',
-    'f_h_louis_vctr', 'find_link', 'fintegral', 'fld_filename',
-    'flo_dom_alloc', 'flo_dstnce', 'flo_oce_alloc', 'flo_rst_alloc',
-    'flo_wri_alloc', 'f_m_louis_sclr', 'f_m_louis_vctr', 'frac_solar_abs',
-    'fspott', 'FUNCTION_GLOBMINMAX', 'FUNCTION_GLOBSUM', 'gamain',
-    'gamma_moist', 'gamma_moist_sclr', 'gamma_moist_vctr', 'get_unit',
-    'grt_cir_dis', 'grt_cir_dis_saa', 'icb_alloc', 'icb_utl_bilin',
-    'icb_utl_bilin_2d_h', 'icb_utl_bilin_3d_h', 'icb_utl_bilin_e',
-    'icb_utl_bilin_h', 'icb_utl_bilin_x', 'icb_utl_count', 'icb_utl_heat',
-    'icb_utl_mass', 'icb_utl_yearday', 'ice1D_alloc', 'ice_alloc',
-    'ice_dia_alloc', 'ice_dyn_rdgrft_alloc', 'ice_perm_eff',
+    'dia_wri_alloc', 'dom_oce_alloc', 'dom_vvl_alloc', 'dq_sat_dt_ice',
+    'dyn_dmp_alloc', 'dyn_ldf_iso_alloc', 'dyn_spg_ts_alloc', 'eos_pt_from_ct',
+    'e_sat_ice', 'e_sat', 'exa_mpl_alloc', 'f_h_louis', 'find_link',
+    'fintegral', 'fld_filename', 'flo_dom_alloc', 'flo_dstnce',
+    'flo_oce_alloc', 'flo_rst_alloc', 'flo_wri_alloc', 'f_m_louis',
+    'frac_solar_abs', 'fspott', 'FUNCTION_GLOBMINMAX', 'FUNCTION_GLOBSUM',
+    'gamain', 'gamma_moist', 'get_unit', 'grt_cir_dis', 'grt_cir_dis_saa',
+    'icb_alloc', 'icb_utl_bilin', 'icb_utl_bilin_2d_h', 'icb_utl_bilin_3d_h',
+    'icb_utl_bilin_e', 'icb_utl_bilin_h', 'icb_utl_bilin_x', 'icb_utl_count',
+    'icb_utl_heat', 'icb_utl_mass', 'icb_utl_yearday', 'ice1D_alloc',
+    'ice_alloc', 'ice_dia_alloc', 'ice_dyn_rdgrft_alloc', 'ice_perm_eff',
     'ice_thd_pnd_alloc', 'ice_update_alloc', 'ice_var_sshdyn', 'in_hdom',
     'integ_spline', 'interp', 'interp1', 'interp2', 'interp3',
     'iom_axis', 'iom_getszuld', 'iom_nf90_varid', 'iom_sdate', 'iom_use',
     'iom_varid', 'iom_xios_setid', 'iscpl_alloc', 'is_tile', 'kiss',
-    'ksec_week', 'lib_mpp_alloc', 'linquad', 'L_vap', 'L_vap_sclr',
-    'L_vap_vctr', 'm', 'maxdist', 'mynode', 'nblinks', 'nodal_factort',
+    'ksec_week', 'lib_mpp_alloc', 'linquad', 'L_vap', 'm', 'maxdist', 'mynode',
+    'nblinks', 'nodal_factort',
     'oce_alloc', 'oce_SWE_alloc', 'One_on_L', 'p2z_exp_alloc',
     'p2z_lim_alloc', 'p2z_prod_alloc', 'p4z_che_alloc', 'p4z_diaz_alloc',
     'p4z_flx_alloc', 'p4z_lim_alloc', 'p4z_meso_alloc', 'p4z_opt_alloc',
     'p4z_prod_alloc', 'p4z_rem_alloc', 'p4z_sed_alloc', 'p4z_sink_alloc',
     'p5z_lim_alloc', 'p5z_meso_alloc', 'p5z_prod_alloc',
-    'PHI', 'potemp', 'pres_temp_sclr', 'pres_temp_vctr', 'prt_ctl_sum_2d',
+    'PHI', 'potemp', 'pres_temp', 'prt_ctl_sum_2d',
     'prt_ctl_sum_3d', 'prt_ctl_write_sum', 'psi_h', 'psi_h_andreas',
     'psi_h_coare', 'psi_h_ecmwf', 'psi_h_ice', 'psi_h_mfs', 'psi_h_ncar',
     'psi_m', 'psi_m_andreas', 'psi_m_coare', 'psi_m_ecmwf', 'psi_m_ice',
     'psi_m_mfs', 'psi_m_ncar', 'p_to_dep', 'ptr_ci_2d', 'ptr_sj_2d',
-    'ptr_sj_3d', 'ptr_sjk', 'q_air_rh', 'qlw_net_sclr', 'qlw_net_vctr',
-    'q_sat', 'q_sat_sclr', 'q_sat_vctr', 'qsr_ext_lev', 'rho_air',
-    'rho_air_sclr', 'rho_air_vctr', 'Ri_bulk', 'Ri_bulk_sclr', 'Ri_bulk_vctr',
-    'rough_leng_m', 'rough_leng_tq', 's', 'sbc_blk_alloc', 'sbc_blk_ice_alloc',
+    'ptr_sj_3d', 'ptr_sjk', 'q_air_rh', 'qlw_net',
+    'q_sat', 'qsr_ext_lev', 'rho_air', 'Ri_bulk', 'rough_leng_m',
+    'rough_leng_tq', 's', 'sbc_blk_alloc', 'sbc_blk_ice_alloc',
     'sbc_cpl_alloc', 'sbc_dcy', 'sbc_dcy_alloc', 'sbc_ice_alloc',
     'sbc_ice_cice_alloc', 'sbc_oce_alloc', 'sbc_rnf_alloc',
     'sbc_ssr_alloc', 'sed_adv_alloc', 'sed_alloc', 'sed_oce_alloc',
     'sms_c14_alloc', 'sms_pisces_alloc', 'snw_ent', 'solfrac',
     'sto_par_flt_fac', 'sum2d', 'sw_adtg', 'sw_ptmp', 'theta',
-    'theta_exner_sclr', 'theta_exner_vctr', 't_imp', 'tra_bbl_alloc',
+    'theta_exner', 't_imp', 'tra_bbl_alloc',
     'tra_dmp_alloc', 'trc_alloc', 'trc_dmp_alloc', 'trc_dmp_sed_alloc',
     'trc_oce_alloc', 'trc_oce_ext_lev', 'trc_opt_alloc', 'trc_sms_cfc_alloc',
     'trc_sms_my_trc_alloc', 'trc_sub_alloc', 'trd_ken_alloc', 'trd_mxl_alloc',
     'trdmxl_oce_alloc', 'trd_mxl_trc_alloc', 'trd_pen_alloc', 'trd_tra_alloc',
     'trd_trc_oce_alloc', 'trd_vor_alloc', 'twrk_id', 'UN10_from_CD',
-    'UN10_from_ustar', 'u_star_andreas', 'virt_temp_sclr', 'virt_temp_vctr',
-    'visc_air', 'visc_air_sclr', 'visc_air_vctr', 'w1', 'w2', 'z0_from_Cd',
+    'UN10_from_ustar', 'u_star_andreas', 'virt_temp',
+    'visc_air', 'w1', 'w2', 'z0_from_Cd',
     'z0tq_LKB', 'zdf_gls_alloc', 'zdf_iwm_alloc', 'zdf_mfc_alloc',
     'zdf_mxl_alloc', 'zdf_oce_alloc', 'zdf_osm_alloc', 'zdf_phy_alloc',
-    'zdf_tke_alloc', 'zdf_tmx_alloc',
+    'zdf_tke_alloc', 'zdf_tmx_alloc', 'lbnd_ij', 'ice_dyn_adv_umx', 'adv_umx',
+    'ri_bulk', 'cd_from_z0', 'cdn_f_lg15_light', 'z0_from_cd', 'trc_rad_sms'
 ]
 
 # Currently fparser has no way of distinguishing array accesses from statement
@@ -151,13 +150,11 @@ CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
 # These files change the results from the baseline when psyclone adds
 # parallelisation dirctives
-PARALLELISATION_ISSUES = [
-    "ldfc1d_c2d.f90",
-    "tramle.f90",
-    "dynspg_ts.f90",
-]
+PARALLELISATION_ISSUES = ['dommsk.f90']
+# MAXVAL(DIM=3) gives an memory error
 
 PRIVATISATION_ISSUES = [
+    "tramle.f90",  # Wrong runtime results
     "ldftra.f90",  # Wrong runtime results
 ]
 
@@ -231,14 +228,9 @@ def inline_calls(schedule):
 
       1. Find the source of the routine being called.
       2. Insert that source into the same Container as the call site.
-
-    where each step is dependent upon the success of the previous one.
-
-    Ideally (#924), this would then be followed by:
-
       3. Replace the call to the routine with the body of the routine.
 
-    but currently this functionality is not robust enough for use here.
+    where each step is dependent upon the success of the previous one.
 
     TODO #924 - this could be InlineAllCallsTrans.apply(schedule,
                                                         excluding={})
@@ -247,16 +239,14 @@ def inline_calls(schedule):
     :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
 
     '''
-    excluding = ["ctl_nam", "ctl_stop", "ctl_warn", "prt_ctl", "eos",
-                 "iom_", "hist", "mpi_", "timing_", "oasis_",
-                 "fatal_error"  # TODO #2846 - is brought into scope via
-                                # multiple wildcard imports
-                 ]
+    excluding = ["ctl_stop", "ctl_warn", "eos", "iom_", "hist", "mpi_",
+                 "timing_", "oasis_"]
     ignore_codeblocks = ["bdy_dyn3d_frs", "bdy_dyn3d_spe", "bdy_dyn3d_zro",
                          "bdy_dyn3d_zgrad"]
     mod_inline_trans = KernelModuleInlineTrans()
     inline_trans = InlineTrans()
-    for call in schedule.walk(Call):
+    all_calls = schedule.walk(Call)
+    for call in all_calls:
         if isinstance(call, IntrinsicCall):
             continue
         rsym = call.routine.symbol
@@ -264,18 +254,13 @@ def inline_calls(schedule):
         if any(name.startswith(excl_name) for excl_name in excluding):
             print(f"Inlining of routine '{name}' is disabled.")
             continue
-        if rsym.is_import or rsym.is_unresolved:
+        if rsym.is_import:
             try:
                 mod_inline_trans.apply(call)
                 print(f"Module-inlined routine '{name}'")
             except TransformationError as err:
                 print(f"Module inline of '{name}' failed:\n{err}")
                 continue
-
-        # TODO #924 - SKIP ACTUAL INLINING FOR NOW. Currently this causes
-        # failures when processing NEMO and this needs further work.
-        continue
-
         try:
             options = {}
             if name in ignore_codeblocks:
@@ -295,7 +280,6 @@ def normalise_loops(
         loopify_array_intrinsics: bool = True,
         convert_range_loops: bool = True,
         hoist_expressions: bool = True,
-        scalarise_loops: bool = False,
         ):
     ''' Normalise all loops in the given schedule so that they are in an
     appropriate form for the Parallelisation transformations to analyse
@@ -312,8 +296,6 @@ def normalise_loops(
         loops.
     :param bool hoist_expressions: whether to hoist bounds and loop invariant
         statements out of the loop nest.
-    :param scalarise_loops: whether to attempt to convert arrays to scalars
-        where possible, default is False.
     '''
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
@@ -353,16 +335,6 @@ def normalise_loops(
                 explicit_loops.apply(assignment)
             except TransformationError:
                 pass
-
-    if scalarise_loops:
-        # Apply scalarisation to every loop. Execute this in reverse order
-        # as sometimes we can scalarise earlier loops if following loops
-        # have already been scalarised.
-        loops = schedule.walk(Loop)
-        loops.reverse()
-        scalartrans = ScalarisationTrans()
-        for loop in loops:
-            scalartrans.apply(loop)
 
     if hoist_expressions:
         # First hoist all possible expressions
@@ -418,7 +390,7 @@ def insert_explicit_loop_parallelism(
             continue  # Skip if an outer loop is already parallelised
 
         opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
-                "verbose": True, "nowait": True}
+                "verbose": True}
 
         routine_name = loop.ancestor(Routine).name
 
