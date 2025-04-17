@@ -254,7 +254,7 @@ The second routine created by PSyclone sets the kernel arguments, e.g.:
       ...
     END SUBROUTINE compute_cu_code_set_args
 
-The third routine generated is the ususal psy-layer routine that is
+The third routine generated is the usual psy-layer routine that is
 responsible for calling all of the kernels. However, it must now also
 call ``psy_init``, create buffers on the compute device (if they are
 not already present) and copy data over:

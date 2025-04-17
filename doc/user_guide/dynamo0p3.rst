@@ -2581,7 +2581,7 @@ Kernel type name:
 Subroutine name:
     ``<base_name>_code``
 
-The latest version of the LFRic coding style guidelines are availabe in this
+The latest version of the LFRic coding style guidelines are available in this
 `LFRic wiki page
 <https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicTechnical/FortranCodingStandards>`_
 (requires login access to MOSRS, see the above :ref:`introduction <lfric-api>`

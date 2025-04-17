@@ -819,7 +819,7 @@ mentioned run-time configuration options could look something like::
 OpenACC
 -------
 
-PSyclone supports the generation of code targetting GPUs through the
+PSyclone supports the generation of code targeting GPUs through the
 addition of OpenACC directives. This is achieved by a user applying
 various OpenACC transformations to the PSyIR before the final Fortran
 code is generated. The steps to parallelisation are very similar to

@@ -235,7 +235,7 @@ implementations), at which point it is useful to be able to disable
 them.  The default behaviour may be changed by adding the
 ``BACKEND_CHECKS_ENABLED`` entry to the
 :ref:`configuration file <config-default-section>`. Any
-command-line setting always takes precendence though. It is
+command-line setting always takes precedence though. It is
 recommended that validation only be disabled as a last resort and for
 as few input source files as possible.
 

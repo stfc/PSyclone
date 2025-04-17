@@ -44,7 +44,7 @@ PSyclone User Scripts
 The standard way to transform a codebase using psyclone is through the
 :ref:`psyclone_command` tool, which has an optional ``-s <SCRIPT_NAME>``
 flag that allows users to specify a transformation user script to
-programatically modify the input code::
+programmatically modify the input code::
 
     > psyclone -s optimise.py input_source.f90
 
@@ -63,7 +63,7 @@ the Python search path ``PYTHONPATH`` as before. For example::
 
 A valid PSyclone user script file must contain a ``trans`` function which accepts
 a :ref:`PSyIR node<psyir-ug>` representing the root of the psy-layer
-code (as a FileConatainer):
+code (as a FileContainer):
 
 .. code-block:: python
 

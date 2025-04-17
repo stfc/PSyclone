@@ -511,7 +511,7 @@ just needs to create a loop that iterates from 1 to the total number
 of owned dofs on that partition. The latter value is provided by the
 LFRic API.
 
-When the distributed memory flag is set to ``true`` an aditional
+When the distributed memory flag is set to ``true`` an additional
 configuration option can be set which makes PSyclone always create
 loops which iterate over both owned and annexed dofs. Whilst this is
 not necessary for correctness, it can improve performance by reducing
@@ -666,7 +666,7 @@ initial schedule. There are four cases:
    as ``GH_INC`` which involves a read before a write) will require a
    halo exchange if its annexed dofs are not clean, or if their
    status is unknown. Whilst it is only the annexed dofs that need to
-   be made clean in this case, the only way to acheive this is
+   be made clean in this case, the only way to achieve this is
    via a halo exchange (which updates the halo i.e. more than is
    required). Note, if the ``COMPUTE_ANNEXED_DOFS`` configuration
    variable is set to ``true`` then no halo exchange is required as
@@ -825,7 +825,7 @@ Asynchronous Halo Exchanges
 
 The Dynamo0p3AsynchronousHaloExchange transformation allows the
 default synchronous halo exchange to be split into a halo exchange
-start and a halo exhange end which are represented separately as nodes
+start and a halo exchange end which are represented separately as nodes
 in the schedule. These can then be moved in the schedule to allow
 overlapping of communication and computation, as long as data
 dependencies are honoured.
@@ -857,7 +857,7 @@ having the halo exchange start find and use the methods from the halo
 exchange end, rather than implement them independently. The actual
 methods needed are ``_compute_stencil_type()``,
 ``_compute_halo_depth()`` and ``_required()``. It is unclear how much
-halo exhange start really benefits from inheriting from halo exchange
+halo exchange start really benefits from inheriting from halo exchange
 and this could probably be removed at the expense of returning
 appropriate names for the dag, colourmap, declaration etc.
 
