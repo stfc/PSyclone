@@ -60,8 +60,9 @@ NOT_PERFORMANT = [
     "icbdia.f90", "icbini.f90", "icbstp.f90", "iom.f90", "iom_nf90.f90",
     "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
     "obs_types.f90", "obs_read_prof.f90", "obs_write.f90", "tide_mod.f90",
-    "zdfosm.f90", "obs_read_surf.f90" ,'obs_surf_def.f90','lbclnk.f90', 'icedyn_adv_umx.f90', 'sbcblk_algo_ice_lg15.f90','lib_mpp.f90','lbcnfd.f90', 'timing.f90','trcsink.f90'
-    
+    "zdfosm.f90", "obs_read_surf.f90" ,'obs_surf_def.f90','lbclnk.f90',
+    'icedyn_adv_umx.f90', 'sbcblk_algo_ice_lg15.f90', 
+    'lib_mpp.f90', 'lbcnfd.f90', 'timing.f90', 'trcsink.f90'
 ]
 
 # If routine names contain these substrings then we do not profile them
@@ -94,16 +95,16 @@ NEMO_FUNCTIONS = [
     'crs_dom_alloc2', 'dayjul', 'def_newlink', 'delta_skin_layer',
     'depth', 'dep_to_p', 'de_sat_dt_ice',
     'dia_ar5_alloc', 'diadct_alloc', 'dia_hth_alloc', 'dia_ptr_alloc',
-    'dia_wri_alloc', 'dom_oce_alloc', 'dom_vvl_alloc', 'dq_sat_dt_ice', 'dyn_dmp_alloc', 'dyn_ldf_iso_alloc','dyn_spg_ts_alloc', 'eos_pt_from_ct', 'e_sat_ice',
-    'e_sat', 'exa_mpl_alloc', 'f_h_louis', 'find_link', 'fintegral', 'fld_filename',
-    'flo_dom_alloc', 'flo_dstnce', 'flo_oce_alloc', 'flo_rst_alloc',
-    'flo_wri_alloc', 'f_m_louis', 'frac_solar_abs',
-    'fspott', 'FUNCTION_GLOBMINMAX', 'FUNCTION_GLOBSUM', 'gamain',
-    'gamma_moist', 'get_unit',
-    'grt_cir_dis', 'grt_cir_dis_saa', 'icb_alloc', 'icb_utl_bilin',
-    'icb_utl_bilin_2d_h', 'icb_utl_bilin_3d_h', 'icb_utl_bilin_e',
-    'icb_utl_bilin_h', 'icb_utl_bilin_x', 'icb_utl_count', 'icb_utl_heat',
-    'icb_utl_mass', 'icb_utl_yearday', 'ice1D_alloc', 'ice_alloc',
+    'dia_wri_alloc', 'dom_oce_alloc', 'dom_vvl_alloc', 'dq_sat_dt_ice',
+    'dyn_dmp_alloc', 'dyn_ldf_iso_alloc', 'dyn_spg_ts_alloc', 'eos_pt_from_ct',
+    'e_sat_ice', 'e_sat', 'exa_mpl_alloc', 'f_h_louis', 'find_link',
+    'fintegral', 'fld_filename', 'flo_dom_alloc', 'flo_dstnce',
+    'flo_oce_alloc', 'flo_rst_alloc', 'flo_wri_alloc', 'f_m_louis',
+    'frac_solar_abs', 'fspott', 'FUNCTION_GLOBMINMAX', 'FUNCTION_GLOBSUM',
+    'gamain', 'gamma_moist', 'get_unit', 'grt_cir_dis', 'grt_cir_dis_saa',
+    'icb_alloc', 'icb_utl_bilin', 'icb_utl_bilin_2d_h', 'icb_utl_bilin_3d_h',
+    'icb_utl_bilin_e', 'icb_utl_bilin_h', 'icb_utl_bilin_x', 'icb_utl_count',
+    'icb_utl_heat', 'icb_utl_mass', 'icb_utl_yearday', 'ice1D_alloc', 'ice_alloc',
     'ice_dia_alloc', 'ice_dyn_rdgrft_alloc', 'ice_perm_eff',
     'ice_thd_pnd_alloc', 'ice_update_alloc', 'ice_var_sshdyn', 'in_hdom',
     'integ_spline', 'interp', 'interp1', 'interp2', 'interp3',
@@ -121,9 +122,8 @@ NEMO_FUNCTIONS = [
     'psi_m', 'psi_m_andreas', 'psi_m_coare', 'psi_m_ecmwf', 'psi_m_ice',
     'psi_m_mfs', 'psi_m_ncar', 'p_to_dep', 'ptr_ci_2d', 'ptr_sj_2d',
     'ptr_sj_3d', 'ptr_sjk', 'q_air_rh', 'qlw_net',
-    'q_sat', 'qsr_ext_lev', 'rho_air',
-     'Ri_bulk', 
-    'rough_leng_m', 'rough_leng_tq', 's', 'sbc_blk_alloc', 'sbc_blk_ice_alloc',
+    'q_sat', 'qsr_ext_lev', 'rho_air', 'Ri_bulk', 'rough_leng_m',
+    'rough_leng_tq', 's', 'sbc_blk_alloc', 'sbc_blk_ice_alloc',
     'sbc_cpl_alloc', 'sbc_dcy', 'sbc_dcy_alloc', 'sbc_ice_alloc',
     'sbc_ice_cice_alloc', 'sbc_oce_alloc', 'sbc_rnf_alloc',
     'sbc_ssr_alloc', 'sed_adv_alloc', 'sed_alloc', 'sed_oce_alloc',
@@ -139,8 +139,8 @@ NEMO_FUNCTIONS = [
     'visc_air', 'w1', 'w2', 'z0_from_Cd',
     'z0tq_LKB', 'zdf_gls_alloc', 'zdf_iwm_alloc', 'zdf_mfc_alloc',
     'zdf_mxl_alloc', 'zdf_oce_alloc', 'zdf_osm_alloc', 'zdf_phy_alloc',
-    'zdf_tke_alloc', 'zdf_tmx_alloc','lbnd_ij', 'ice_dyn_adv_umx', 'adv_umx', 
-     'ri_bulk','cd_from_z0', 'cdn_f_lg15_light','z0_from_cd', 'trc_rad_sms'
+    'zdf_tke_alloc', 'zdf_tmx_alloc', 'lbnd_ij', 'ice_dyn_adv_umx', 'adv_umx', 
+     'ri_bulk', 'cd_from_z0', 'cdn_f_lg15_light', 'z0_from_cd', 'trc_rad_sms'
 ]
 
 # Currently fparser has no way of distinguishing array accesses from statement

@@ -196,12 +196,12 @@ def valid_acc_kernel(node):
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_types = (IfBlock, Loop,ArrayReference, IntrinsicCall)
+    excluded_types = (IfBlock, Loop, ArrayReference, IntrinsicCall)
     excluded_nodes = node.walk(excluded_types)
 
     for enode in excluded_nodes:
         if isinstance(enode, IntrinsicCall):
-            if "dim" in enode.argument_names :
+            if "dim" in enode.argument_names:
                 return False
 
         if isinstance(enode, IfBlock):
@@ -231,7 +231,8 @@ def valid_acc_kernel(node):
                 return False
 
         elif isinstance(enode, ArrayReference):
-            if isinstance(enode.symbol, DataSymbol) and isinstance(enode.symbol.datatype, ArrayType) and isinstance(enode.symbol.datatype.datatype, DataTypeSymbol):
+            if isinstance(enode.symbol, DataSymbol) and isinstance(enode.symbol.datatype, ArrayType)
+                and isinstance(enode.symbol.datatype.datatype, DataTypeSymbol):
                 return False
         elif isinstance(enode, Loop):
             # Heuristic:
@@ -392,7 +393,6 @@ def trans(psyir):
         if subroutine.name.lower() not in ACC_IGNORE:
             print(f"Transforming {subroutine.name} with acc kernels")
             enhance_tree_information(subroutine)
-            #inline_calls(subroutine)
             have_kernels = add_kernels(subroutine.children)
             if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
                 print(f"Transforming {subroutine.name} with acc enter data")
