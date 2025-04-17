@@ -38,7 +38,7 @@
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Reference, CodeBlock, ArrayReference,
-    Call, Return, IfBlock, Routine, IntrinsicCall)
+    Call, Return, IfBlock, Routine, IntrinsicCall, StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
 from psyclone.psyir.transformations import (
@@ -154,7 +154,6 @@ CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 PARALLELISATION_ISSUES = [
     "ldfc1d_c2d.f90",
     "tramle.f90",
-    "dynspg_ts.f90",
 ]
 
 PRIVATISATION_ISSUES = [
@@ -349,6 +348,8 @@ def normalise_loops(
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
+            if assignment.walk(StructureReference):
+                continue  # TODO #2951 Fix issues with structure_refs
             try:
                 explicit_loops.apply(assignment)
             except TransformationError:
@@ -412,6 +413,8 @@ def insert_explicit_loop_parallelism(
         write-write race conditions.
 
     '''
+    if schedule.name == "ts_wgt":
+        return  # TODO #2937 WaW dependency incorrectly considered private
     # Add the parallel directives in each loop
     for loop in schedule.walk(Loop):
         if loop.ancestor(Directive):

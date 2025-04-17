@@ -41,7 +41,8 @@ to have them compiled for an OpenACC accelerator. '''
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import Loop
 from psyclone.transformations import (
-    ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans)
+    ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans,
+    TransformationError)
 
 
 def trans(psyir):
@@ -74,5 +75,8 @@ def trans(psyir):
 
             # Put an 'acc routine' directive inside each kernel
             for kern in schedule.coded_kernels():
-                ktrans.apply(kern)
-                itrans.apply(kern)
+                try:
+                    ktrans.apply(kern)
+                    itrans.apply(kern)
+                except TransformationError:
+                    pass  # TODO #2856 Currenly we refuse offloading REAL
