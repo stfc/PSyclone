@@ -150,8 +150,8 @@ CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
 # These files change the results from the baseline when psyclone adds
 # parallelisation dirctives
-PARALLELISATION_ISSUES = ['dommsk.f90'  # MAXVAL(DIM=3) gives an memory error
-]
+PARALLELISATION_ISSUES = ['dommsk.f90']
+# MAXVAL(DIM=3) gives an memory error
 
 PRIVATISATION_ISSUES = [
     "tramle.f90",  # Wrong runtime results
