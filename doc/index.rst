@@ -73,7 +73,7 @@ directly-addressed MPI applications such as the
     user_guide/index
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
     :hidden:
     :caption: Tutorials and Examples
 
@@ -89,7 +89,7 @@ directly-addressed MPI applications such as the
 .. only:: html
 
     .. toctree::
-        :maxdepth: 2
+        :maxdepth: 1
         :hidden:
         :caption: Reference Guide
 
