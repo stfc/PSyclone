@@ -35,8 +35,8 @@
 
 .. _libraries:
 
-Libraries
-=========
+PSyData Libraries
+=================
 
 PSyclone provides :ref:`PSyData-API-based <psy_data>` wrappers to
 various external libraries. These wrapper libraries provide PSyclone

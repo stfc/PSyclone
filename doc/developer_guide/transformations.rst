@@ -140,7 +140,7 @@ and therefore for populating fields with initial values.) Fortunately, OpenACC
 provides support for this kind of situation with the ``enter data`` directive.
 This may be used to "define scalars, arrays and subarrays to be allocated in
 the current device memory for the remaining duration of the program"
-:cite:`openacc_enterdata`. The ``ACCEnterDataTrans`` transformation adds
+:footcite:t:`openacc_enterdata`. The ``ACCEnterDataTrans`` transformation adds
 an ``enter data`` directive to an Invoke or a routine:
 
 .. autoclass:: psyclone.transformations.ACCEnterDataTrans
@@ -192,7 +192,7 @@ description of the ``ACCDataTrans`` transformation in the
 OpenCL
 ======
 
-PSyclone is able to generate an OpenCL :cite:`opencl` version of
+PSyclone is able to generate an OpenCL :footcite:t:`opencl` version of
 PSy-layer code for the GOcean 1.0 API and its associated kernels.
 Such code may then be executed on devices such as GPUs and FPGAs
 (Field-Programmable Gate Arrays).
@@ -254,7 +254,7 @@ The second routine created by PSyclone sets the kernel arguments, e.g.:
       ...
     END SUBROUTINE compute_cu_code_set_args
 
-The third routine generated is the ususal psy-layer routine that is
+The third routine generated is the usual psy-layer routine that is
 responsible for calling all of the kernels. However, it must now also
 call ``psy_init``, create buffers on the compute device (if they are
 not already present) and copy data over:
@@ -515,3 +515,5 @@ If an OpenMP task region contains an `LBOUND`, `UBOUND` or `SIZE` intrinsic insi
 an if condition or a loop condition, and that intrinsic contains an array section
 then PSyclone may generate extra dependencies, which may hurt code performance. If
 this causes issues, please open an issue.
+
+.. footbibliography::

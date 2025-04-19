@@ -113,8 +113,7 @@ written to a particular file. If this is not specified then the Python
 results in the output being printed to the terminal.
 
 The ``-l``, or ``--limit`` option utilises the PSyclone support for
-wrapping of lines within the 132 character limit in the generated Fortran code
-(please see the :ref:`Line Length <line-length>` chapter for more details).
+wrapping of lines within the 132 character limit in the generated Fortran code.
 
 .. _stub-generation:
 

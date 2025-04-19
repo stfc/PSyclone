@@ -164,7 +164,7 @@ When the `Parser` instance parses the code it expects to find Fortran
 code containing a program, module, subroutine or function (and it
 aborts if not). Currently the first of these (there may be more than
 one subroutine for example) is assumed to be the one that is
-required. This limititation is captured in issue #307.
+required. This limitation is captured in issue #307.
 
 The native `fparser2` tree of the Fortran code is then walked and all
 use statement names are captured and stored in a map (called
@@ -318,7 +318,7 @@ are arrays, not functions)::
 But the following are not::
 
     program alg
-      ! delare vars
+      ! declare vars
       call invoke(kern(a%b(), c*d, e+1.0))
     end program alg
 

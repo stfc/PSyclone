@@ -17,9 +17,6 @@ Various examples related to the NEMO API.
 ## [lfric](./lfric)
 Various examples related to the LFRic API.
 
-## [line_length](./line_length)
-This example demonstrates the use of the line length option.
-
 ## [psyir](./psyir)
 This directory contains examples on how to use PSyIR to create
 Fortran and C code as output.

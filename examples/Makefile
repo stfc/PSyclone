@@ -41,7 +41,6 @@ transform compile run notebook clean allclean:
 	${MAKE} -C gocean $@
 	${MAKE} -C nemo $@
 	${MAKE} -C lfric $@
-	${MAKE} -C line_length $@
 	${MAKE} -C psyir $@
 	${MAKE} -C psyad $@
 	${MAKE} -C stub_generation $@

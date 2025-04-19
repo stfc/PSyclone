@@ -71,14 +71,14 @@ directly-addressed MPI applications such as the
     :caption: User Guide
 
     user_guide/index
-	
+
 .. toctree::
     :maxdepth: 1
     :hidden:
-    :caption: PSyAD
+    :caption: Tutorials and Examples
 
-    psyad/index
-	
+    tutorials_and_examples/index
+
 .. toctree::
     :maxdepth: 1
     :hidden:
@@ -94,10 +94,3 @@ directly-addressed MPI applications such as the
         :caption: Reference Guide
 
         reference_guide/index.rst
-    
-.. toctree::
-    :maxdepth: 1
-    :hidden:
-    :caption: Bibliography
-
-    bibliography/zz_bibliography
