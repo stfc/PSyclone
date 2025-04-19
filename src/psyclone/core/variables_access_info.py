@@ -426,17 +426,23 @@ class VariablesAccessInfo(dict):
             if sig not in var_if or sig not in var_else:
                 # Access using this signature is only in one of the branches.
                 # Add all these accesses as conditional accesses to the
-                # specified node (exactly once in case of multiple accesses)
+                # specified node (exactly once in case of multiple accesses).
+                # We need to store the component indices and access mode in
+                # the a field to ensure we add each kind of access once:
                 done = []
                 var_access = var_if[sig] if sig in var_if else var_else[sig]
                 for access in var_access.all_accesses:
-                    if any(access.component_indices.equal(i) for i in done):
+                    print("TESTING", sig, access)
+                    if any((access.component_indices.equal(ind) and
+                            access.access_type == acc_type) for
+                            ind, acc_type in done):
                         # Duplicate, ignore
+                        print("duplicate", sig)
                         continue
                     self.add_access(sig, access.access_type, node,
                                     access.component_indices,
                                     conditional=True)
-                    done.append(access.component_indices)
+                    done.append((access.component_indices, access.access_type))
                 continue
 
             # As a first step, split all the accesses into equivalence
@@ -453,16 +459,25 @@ class VariablesAccessInfo(dict):
             print("===============================")
             # Now handle each equivalent set of component indices:
             for comp_index in equiv:
+                done = []
                 if_accesses, else_accesses = equiv[comp_index]
                 if not if_accesses or not else_accesses:
                     # Only accesses in one section, therefore conditional:
                     var_access = if_accesses if if_accesses else else_accesses
 
                     for access in var_access:
+                        if any((access.component_indices.equal(ind) and
+                                access.access_type == acc_type) for
+                                ind, acc_type in done):
+                            # Duplicate, ignore
+                            print("xxduplicate", sig)
+                            continue
                         access.conditional = True
                         self.add_access(sig, access.access_type, node,
                                         access.component_indices,
                                         conditional=True)
+                        done.append((access.component_indices,
+                                     access.access_type))
 
                     continue
 
@@ -528,13 +543,10 @@ class VariablesAccessInfo(dict):
                               mode,
                               sig.to_language(component_indices=comp_index))
                 print("-----------------------------")
-        self.merge(var_if)
-        self.merge(var_else)
 
     @staticmethod
-    def _equivalence_classes(if_accesses, else_accesses) -> \
-            Dict[ComponentIndices, tuple(List[SingleVariableAccessInfo],
-                                         List[SingleVariableAccessInfo])]:
+    def _equivalence_classes(if_accesses, else_accesses):
+        # -> \ Dict[ComponentIndices, tuple(List[SingleVariableAccessInfo])]:
         '''This function is called when the specified signature is accessed
         in both the if and else block. In case of array variables, we need to
         distinguish between different indices, e.g. a(i) might be
@@ -542,17 +554,19 @@ class VariablesAccessInfo(dict):
         conditionally. Additionally, we should support mathematically
         equivalent statements (e.g. a(i+1), and a(1+i)).
 
-        This function creates a dictionary. The keys are ComponentIndices
+        This function creates a dictionary with ComponentIndices as keys.
         The values for a given key is a Pair of lists, the first one containing
         all accesses to the same index in the if-branch, the second one
         containing all accesses to the same index in the else-branch.
 
-        It returns dict[ComponentIndices, Pair(List[access], List[access])]
         '''
         equiv = {}
         for access in if_accesses:
             for comp_access in equiv:
                 if access.component_indices.equal(comp_access):
+                    # (Mathematically) the same index, add the new
+                    # access to the existing class as entry in the
+                    # if-entry of the pair
                     equiv[comp_access][0].append(access)
                     break
             else:
@@ -562,10 +576,14 @@ class VariablesAccessInfo(dict):
         # accesses for a given equivalence class of indices could still
         # be in only in one of them (e.g.
         # if () then a(i)=1 else a(i+1)=2 endif). The access to `i+1`
-        # happens only in the else branch:
+        # happens only in the else branch, so we have to support adding
+        # new equivalence classes here as well:
         for access in else_accesses:
             for comp_access in equiv:
                 if access.component_indices.equal(comp_access):
+                    # (Mathematically) the same index, add the new
+                    # access to the existing class as entry in the
+                    # else-entry of the pair
                     equiv[comp_access][1].append(access)
                     break
             else:

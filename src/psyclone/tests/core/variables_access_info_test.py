@@ -470,6 +470,36 @@ def test_lfric_access_info():
 
 
 # -----------------------------------------------------------------------------
+def test_variables_access_info_flatten_basic(fortran_reader):
+    '''Test that flatten works as expected.
+    '''
+    code = '''module test
+        contains
+        subroutine tmp()
+          integer :: cond_var
+          integer :: s
+          integer, dimension(10) :: f
+          if (cond_var .eq. 1) then
+              s = 1
+              f(1) = s
+              f(2) = f(2) + 1
+          else
+              !cond_var = s
+          endif
+
+        end subroutine tmp
+        end module test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    node1 = psyir.walk(IfBlock)[0]
+
+    # By default, array shape accesses are not reads.
+    vai = VariablesAccessInfo(node1, options={"FLATTEN": True})
+
+    print("YY", vai)
+    print(vai[Signature("s")])
+    print(vai[Signature("f")])
+
+# -----------------------------------------------------------------------------
 def test_variables_access_info_flatten(fortran_reader):
     '''Test that flatten works as expected.
     '''
@@ -539,9 +569,10 @@ def test_variables_access_info_array_conditional(fortran_reader):
           do i = 1, 10
             if (array(i) > 3) then
                 my_val(1) = 1
+                my_val(1) = 2
                 array(i) = my_val(1)
             else
-                array(i) = my_val(1)
+                array(i) = my_val(2)
             endif
           end do
 
@@ -552,3 +583,5 @@ def test_variables_access_info_array_conditional(fortran_reader):
 
     # By default, array shape accesses are not reads.
     vai = VariablesAccessInfo(node1, options={"FLATTEN": True})
+    print(vai, repr(vai))
+    print(vai[Signature("my_val")])
