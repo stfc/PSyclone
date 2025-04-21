@@ -59,7 +59,7 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Directive, Literal, Loop, Node,
+    Call, CodeBlock, Container, Directive, Literal, Loop, Node,
     OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
@@ -418,7 +418,12 @@ class MarkRoutineForGPUMixin:
             # more than one Routine implementing it). We can't transform
             # these at the moment because we can't correctly manipulate their
             # metadata - TODO #1946.
-            routines = kernel_schedule.root.walk(Routine)
+
+            # TODO #2732: the tutorial (openacc/openmp offloading) fails
+            # when module inlining is used. Apply a temporary fix (see #2872)
+            # till #2732 is fixed.
+            ctr = kernel_schedule.ancestor(Container)
+            routines = ctr.resolve_routine(node.name)
             if len(routines) > 1:
                 raise TransformationError(
                     f"Cannot apply {self.name} to kernel '{node.name}' as "
