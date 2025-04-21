@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,9 @@ all invokes.
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
-from psyclone.psyir.transformations import TransformationError
 from psyclone.gocean1p0 import GOKern, GOLoop
+from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.transformations import TransformationError
 
 
 def trans(psyir):
