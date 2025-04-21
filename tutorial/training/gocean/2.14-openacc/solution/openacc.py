@@ -77,14 +77,11 @@ def trans(psyir):
         # Apply the OpenACC Loop transformation to *every* loop
         # nest in the schedule (which are all outer loops).
         for child in schedule.children:
-            TODO1: apply ltrans
-            TODO1:  bonus points: when using MPI, there could be
-            TODO1:  non-loop statement in the schedule (halo exchange)
-            TODO1:  So only apply this if the child is a loop
-
+            if isinstance(child, Loop):
+                ltrans.apply(child, {"collapse": 2})
 
         # Put all of the loops in a single parallel region
-        TODO2: apply ptrans around the whole schedule
+        ptrans.apply(schedule)
 
         # Add an enter-data directive
-        TODO3: apply dtrans to the schedule
+        dtrans.apply(schedule)

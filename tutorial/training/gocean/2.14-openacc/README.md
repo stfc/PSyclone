@@ -8,45 +8,42 @@ to be used for different code bases. In this exercise though
 we will focus on a custom script for the parallelisation of
 Game of Life.
 
-## OpenACC Transformations of Loops
-Three different transformations need to be applied. We
-first need to make sure that the required data is copied
-to the GPU if required. Then, similar to OpenMP, we need
-to add a directive to each loop to be parallelised, and
-finally surround all parallel loop with a `acc parallel`
-directive.
+There are two distinct steps when using OpenACC: first,
+we need to parallelise the loops. Then we need to mark-up
+all called subroutines that must be executed on the GPU.
 
+## Parallelising Loops
+This is very similar to OpenMP parallelisation: one transformation
+to add ``acc loop independent``, to mark the loops that should
+be executed in parallel. Then all these parallel loops must be
+enclosed with an ``acc parallel`` directive. The corresponding
+OpenACC directives are called ``ACCParallelTrans()`` and
+``ACCLoopTrans()``.
 
-    from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
-                                          ACCLoopTrans)
+TODO1: Apply the ``ACCLoopTrans`` directive to all loops in the schedule
+Note that the solution script adds an additional parameter to the
+transformation to collapse the two nested loops, which will be more
+efficient. These kind of optional parameters will be explained in more
+details later.
 
-    ptrans = ACCParallelTrans()
-    ltrans = ACCLoopTrans()
-    dtrans = ACCEnterDataTrans()
+TODO2: Apply ``ACCParallelTrans`` to the whole schedule.
 
-    invoke = psy.invokes.get("invoke_compute")
-    schedule = invoke.schedule
+## Upload Required Data to GPU
+When using offload (and no automatic memory management is used),
+we need to instruct the CPU to upload the required data to the GPU.
+In PSyclone this is done with the ``ACCEnterDataTrans`` transformation.
+It does not need any parameter, it will analyse the called kernels
+and the required parameters.
 
-    # Apply the OpenACC Loop transformation to *every* loop
-    # nest in the schedule
-    for child in schedule.children:
-        if isinstance(child, Loop):
-            ltrans.apply(child, {"collapse": 2})
+TODO3: apply ``ACCEnterDataTrans`` 
 
-    # Put all of the loops in a single parallel region
-    ptrans.apply(schedule)
-
-    # Add an enter-data directive
-    dtrans.apply(schedule)
-
-This creates a lot of additional, internal code for managing the GPU
-device, and the following directives. Notice that the transformation
-detected automatically which data needs to be transferred to the
-GPU:
+Study the created PSy-layer file ``time_step_alg_mod_psy.f90``.
+It contains a lot of additional, internal code for managing the GPU
+device, and the following directives. 
 
       !$acc enter data copyin(born,born%data,current,current%data,die,die%data,neighbours,neighbours%data)
       !$acc parallel default(present)
-      !$acc loop independent collapse(2)
+      !$acc loop independent
       DO j = neighbours%internal%ystart, neighbours%internal%ystop, 1
         DO i = neighbours%internal%xstart, neighbours%internal%xstop, 1
           CALL count_neighbours_code(i, j, neighbours%data, current%data)
@@ -54,7 +51,7 @@ GPU:
           CALL compute_die_code(i, j, die%data, current%data, neighbours%data)
         END DO
       END DO
-      !$acc loop independent collapse(2)
+      !$acc loop independent
       DO j = current%internal%ystart, current%internal%ystop, 1
         DO i = current%internal%xstart, current%internal%xstop, 1
           CALL combine_code(i, j, current%data, die%data, born%data)
@@ -62,11 +59,22 @@ GPU:
       END DO
       !$acc end parallel
 
+Note that the data is not copied back by default. The only
+output variable required in Game of Life is ``current``
+when outputting the results. The function ``output_field``
+contains a directive to update the CPU data with the
+data on the GPU:
+
+    !$acc update self(field%data)
+
+Where ``field`` is ``current``. This means the data is only
+copied back to CPU, which is a somewhat slow operation, when
+really required.
 
 
-## Additional Directives Required in Kernels
+## Mark up Subroutines for GPU Execution
 As opposed to OpenMP, each routine to be executed on the
-GPU needs the `!$acc routine` directive so the compiler knows
+GPU needs the `!$acc routine` directive added to instruct the compiler
 to create GPU-specific code for it. You can automate this using
 PSyclone with the following code snippet:
 
@@ -86,16 +94,3 @@ The modified, module-inlined kernels are now:
       !$acc routine
       born(i,j) = 0.0
       ...
-
-
-## Copying GPU data back to CPU
-This is required with GPU computing if the data is currently
-on the GPU, but it is needed on the CPU (e.g. to output it).
-But this directive has already been added to `output_field_mod.f90`
-in gol-lib. Which means the data is only copied back from GPU
-if actually required for outputting the result.
-
-
-TODO:
-Additional issue, nvfortran does not support iargc(), so gol.f90 needs to
-be modified as well :(
