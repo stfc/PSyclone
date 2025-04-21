@@ -60,8 +60,6 @@ def trans(psyir):
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
 
-    print(schedule.view())
-
     fuse = GOceanLoopFuseTrans()
     # do j do i count
     # do j do i born
@@ -95,4 +93,3 @@ def trans(psyir):
     fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
     # do j do i count born die
     # do j do i combine
-    print(schedule.view())
