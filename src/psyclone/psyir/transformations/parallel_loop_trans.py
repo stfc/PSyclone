@@ -158,8 +158,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         :param bool nowait: whether to add a nowait clause and a
             corresponding barrier (or equivalent) to enable asynchronous
             execution.
-        :param bool privatise_arrays: whether to make the write after write
-            dependency symbols declared as private.
+        :param bool privatise_arrays: whether to declare as private any
+            write after write dependency symbols.
 
         :raises TypeError: if 'collapse' is not an int or a bool.
         :raises TypeError: if 'ignore_dependencies_for' is not a list of str.

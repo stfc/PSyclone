@@ -328,7 +328,7 @@ class DocstringData():
         if len(argstrings) > 0:
             docstring += os.linesep
 
-        # Add an empty line beturn params and returns.
+        # Add an empty line before params and returns.
         if len(argstrings) > 0 and self.returns is not None:
             docstring += os.linesep
         docstring += returnstring

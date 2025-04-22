@@ -307,9 +307,6 @@ class OMPLoopTrans(ParallelLoopTrans):
         :param options: a dictionary with options for transformations
                         and validation.
         :type options: Optional[Dict[str, Any]]
-        :param bool reprod:
-                whether reproducible reductions should be used.
-                By default the value from the config file will be used.
 
         '''
         # TODO 2668 - options dict is deprecated.
