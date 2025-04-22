@@ -1,3 +1,6 @@
+   11) PR #2930 towards #714. Adds the DebugChecksumTrans transformation
+   which enables a user to add checksum outputs to generic Fortran code.
+
    10) PR #2953 for #2952. Gracefully fail when resolving transitive
    (indirectly imported) type.
 
