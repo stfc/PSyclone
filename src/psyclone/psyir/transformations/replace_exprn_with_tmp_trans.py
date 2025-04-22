@@ -41,14 +41,12 @@ This module contains the ReplaceExprnWithTmp transformation.
 import copy
 
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
-                                  FileContainer, IfBlock, UnaryOperation,
-                                  CodeBlock, ACCRoutineDirective, Literal,
-                                  IntrinsicCall, BinaryOperation, Reference)
+from psyclone.psyir.nodes import (DataNode)
 from psyclone.psyir.symbols import (
-    ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol)
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+    ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol,
+    UnresolvedType, UnsupportedType)
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 
 
 class ReplaceExprnWithTmpTrans(Transformation):
@@ -109,46 +107,19 @@ then
     end module test_mod
     <BLANKLINE>
 
-    By default, the target routine will be rejected if it is found to contain
-    an ACCRoutineDirective since this usually implies that the routine will be
-    launched in parallel on the OpenACC device. This check can be disabled
-    by setting 'allow_accroutine' to True in the `options` dictionary.
-
     '''
-    def apply(self, node, options=None):
-        '''Applies the transformation to the supplied Routine node,
-        moving any local arrays up to Container scope and adding
-        a suitable allocation when they are first accessed. If there
-        are no local arrays or the supplied Routine is a program then
-        this method does nothing.
+    def apply(self, node: DataNode):
+        '''Applies the transformation to the supplied node,
+        TODO
 
-        :param node: target PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine`
-        :param options: a dictionary with options for transformations.
-        :param bool options["allow_accroutine"]: permit the target routine \
-            to contain an ACCRoutineDirective. These are forbidden by default \
-            because their presence usually indicates that the routine will be \
-            run in parallel on the OpenACC device.
-        :type options: Optional[Dict[str, Any]]
+        :param node: target PSyIR expression node.
 
         '''
-        self.validate(node, options)
+        self.validate(node)
 
-        if node.is_program:
-            # Cannot hoist arrays out of a program so do nothing.
-            return
+        datatype = node.datatype
 
-        container = node.ancestor(Container)
-
-        # Identify all arrays that are local to the target routine,
-        # do not explicitly use dynamic memory allocation and are not
-        # accessed within a CodeBlock.
-        automatic_arrays = self._get_local_arrays(node)
-
-        if not automatic_arrays:
-            # No automatic arrays found so nothing to do.
-            return
-
+        return
         # Get the reversed tags map so that we can lookup the tag (if any)
         # associated with the symbol being hoisted.
         tags_dict = node.symbol_table.get_reverse_tags_dict()
@@ -251,135 +222,32 @@ then
             if tag:
                 del node.symbol_table._tags[tag]
 
-    @staticmethod
-    def _get_local_arrays(node):
-        '''
-        Identify all arrays that are local to the target routine, all their
-        bounds/kind/type symbols are also local, do not represent a function's
-        return value, are not constant and do not explicitly use
-        dynamic memory allocation. Also excludes any such arrays that are
-        accessed within CodeBlocks or RESHAPE intrinsics.
-
-        :param node: target PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
-
-        :returns: symbols representing routine-local arrays.
-        :rtype: list[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-
-        '''
-        local_arrays = {}
-        for sym in node.symbol_table.automatic_datasymbols:
-            # Check that the array is not the functions return symbol, or
-            # a constant or has other references in its type declaration.
-            if (sym is node.return_symbol or not sym.is_array or
-                    sym.is_constant):
-                continue
-            if isinstance(sym.datatype.intrinsic, DataTypeSymbol):
-                continue
-            if isinstance(sym.datatype.precision, DataSymbol):
-                continue
-            # Check whether all of the bounds of the array are defined - an
-            # allocatable array will have array dimensions of
-            # ArrayType.Extent.DEFERRED
-            if all(isinstance(dim, ArrayType.ArrayBounds)
-                   for dim in sym.shape):
-                local_arrays[sym.name] = sym
-
-        # Exclude any arrays that are accessed within a CodeBlock (as they
-        # may get renamed as part of the transformation).
-        cblocks = node.walk(CodeBlock)
-        for cblock in cblocks:
-            cblock_names = set(cblock.get_symbol_names())
-            array_names = set(local_arrays.keys())
-            names_in_cblock = cblock_names.intersection(array_names)
-            # TODO #11 - log the fact that we can't hoist the arrays
-            # listed in 'names_in_cblock'.
-            for name in names_in_cblock:
-                del local_arrays[name]
-
-        for intrinsic in node.walk(IntrinsicCall):
-            # Exclude arrays that are used in a RESHAPE expression
-            if intrinsic.intrinsic == IntrinsicCall.Intrinsic.RESHAPE:
-                for ref in intrinsic.walk(Reference):
-                    if ref.symbol.name in local_arrays:
-                        del local_arrays[ref.symbol.name]
-
-        return list(local_arrays.values())
-
-    def validate(self, node, options=None):
+    def validate(self, node):
         '''Checks that the supplied node is a valid target for a hoist-
         local-arrays transformation. It must be a Routine that is within
         a Container (that is not a FileContainer).
 
         :param node: target PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
-        :param options: any options for the transformation.
-        :type options: Optional[Dict[str, Any]]
+        :type node: subclass of :py:class:`psyclone.psyir.nodes.DataNode`
 
-        :raises TransformationError: if the supplied node is not a Routine.
-        :raises TransformationError: if the Routine is not within a Container \
-            (that is not a FileContainer).
-        :raises TransformationError: if the routine contains an OpenACC \
-            routine directive and options['allow_accroutine'] is not True.
-        :raises TransformationError: if any symbols corresponding to local \
-            arrays have a tag that already exists in the table of the parent \
-            Container.
+        :raises TransformationError: if the supplied node is not a DataNode.
 
         '''
-        super().validate(node, options=options)
+        super().validate(node)
 
-        # The node should be a Routine.
-        if not isinstance(node, Routine):
+        # The node should be a DataNode.
+        if not isinstance(node, DataNode):
             raise TransformationError(
-                f"The target of the HoistLocalArraysTrans transformation "
-                f"should be a Routine but found '{type(node).__name__}'.")
+                f"The target of the {self.name} transformation "
+                f"should be a DataNode but found '{type(node).__name__}'.")
 
-        if node.is_program:
-            # We silently ignore routines that are programs - this
-            # transformation will do nothing.
-            return
-
-        # The Routine must be within a Container (otherwise we have nowhere
-        # to hoist any array declarations to).
-        container = node.ancestor(Container)
-        if not container:
+        datatype = node.datatype
+        if isinstance(datatype, (UnsupportedType, UnresolvedType)):
             raise TransformationError(
-                f"The supplied routine '{node.name}' should "
-                f"be within a Container but none was found.")
-        if isinstance(container, FileContainer):
-            raise TransformationError(
-                f"The supplied routine '{node.name}' should be within a "
-                f"Container but the enclosing container is a "
-                f"FileContainer (named '{container.name}').")
-
-        if not (options and options.get("allow_accroutine")):
-            if node.walk(ACCRoutineDirective):
-                raise TransformationError(
-                    f"The supplied routine '{node.name}' contains an ACC "
-                    f"Routine directive which implies it will be run in "
-                    f"parallel. Hoisting local arrays to global scope may "
-                    f"create race conditions in this case. If this routine "
-                    f"will be run in serial on the device then this check can "
-                    f"be disabled by setting 'allow_accroutine' to "
-                    f"True in the transformation options.")
-
-        # Check for clashing tags in the container scope.
-        auto_arrays = self._get_local_arrays(node)
-        tags_dict = node.symbol_table.get_reverse_tags_dict()
-        cont_tags_dict = container.symbol_table.tags_dict
-        for sym in auto_arrays:
-            tag = tags_dict.get(sym)
-            if tag in cont_tags_dict:
-                raise TransformationError(
-                    f"The supplied routine '{node.name}' contains a local "
-                    f"array '{sym.name}' with tag '{tag}' but this tag is "
-                    f"also present in the symbol table of the parent "
-                    f"Container (associated with variable "
-                    f"'{cont_tags_dict[tag].name}').")
+                f"Cannot apply {self.name} to expression "
+                f"'{node.debug_string()}' because "
+                f"the type of the result is unknown "
+                f"({type(datatype).__name__}).")
 
     def __str__(self):
-        return "Hoist all local, automatic arrays to container scope."
-
-
-# For Sphinx AutoAPI documentation generation
-__all__ = ["HoistLocalArraysTrans"]
+        return "Replace the supplied expression with a temporary."

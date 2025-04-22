@@ -101,6 +101,8 @@ from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.read_only_verify_trans \
     import ReadOnlyVerifyTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir.transformations.replace_exprn_with_tmp_trans import (
+    ReplaceExprnWithTmpTrans)
 from psyclone.psyir.transformations.replace_induction_variables_trans import \
      ReplaceInductionVariablesTrans
 from psyclone.psyir.transformations.replace_reference_by_literal_trans import (
@@ -150,6 +152,7 @@ __all__ = [
     "ReadOnlyVerifyTrans",
     "Reference2ArrayRangeTrans",
     "RegionTrans",
+    "ReplaceExprnWithTmpTrans",
     "ReplaceInductionVariablesTrans",
     "ReplaceReferenceByLiteralTrans",
     "TransformationError",
