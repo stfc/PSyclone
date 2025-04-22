@@ -210,7 +210,7 @@ class HoistTrans(Transformation):
         # and which are read-only:
         read_only_sigs = []
         write_sigs = []
-        for sig in all_statement_vars.all_signatures:
+        for sig in all_statement_vars.all_data_accesses:
             if all_statement_vars[sig].is_written():
                 write_sigs.append(sig)
             else:

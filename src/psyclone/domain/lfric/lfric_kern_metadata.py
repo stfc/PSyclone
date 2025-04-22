@@ -35,6 +35,7 @@
 # Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+# Modified A. Pirrie, Met Office
 
 ''' This module implements the PSyclone LFRic API by capturing the Kernel
 subroutine code and metadata describing the subroutine for the LFRic API.'''
@@ -614,20 +615,13 @@ class LFRicKernMetadata(KernelType):
         self._validate_no_mesh_properties()
         self._validate_not_intergrid()
 
-        for arg in self._arg_descriptors:
-            # No vector arguments are permitted
-            if arg.vector_size > 1:
-                raise ParseError(
-                    f"Kernel '{self.name}' operates on 'dof' but has a "
-                    f"vector argument '{arg.argument_type}*{arg.vector_size}'."
-                    f" This is not permitted in the LFRic API.")
-
         # Check function spaces are the same
         # list out all function spaces
         arg_fs_names = set()
         for arg in self._arg_descriptors:
             for fs_name in arg.function_spaces:
                 arg_fs_names.add(fs_name)
+
         # dof kernels should only have one function space so a set of fs
         # names should be of length 1
         if len(arg_fs_names) > 1:

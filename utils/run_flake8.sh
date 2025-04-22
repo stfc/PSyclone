@@ -1,8 +1,8 @@
 #!/bin/bash
 
-SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+FILE="$(realpath "$0")"
+SCRIPTPATH="$( cd -- "$(dirname "$FILE")" >/dev/null 2>&1 ; pwd -P )"
 cd "$SCRIPTPATH/.."
-
 
 #
 # Hint for vscode:
@@ -46,7 +46,6 @@ if ! command -v flake8; then
     echo "WARNING: source not linted because flake8 unavailable"
     exit 0
 fi
-
 
 flake8 src/psyclone
 

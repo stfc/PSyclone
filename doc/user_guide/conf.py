@@ -247,9 +247,9 @@ latex_elements = {
 #  documentclass [howto/manual]).
 latex_documents = [
     ('index', 'psyclone.tex', 'PSyclone User Guide',
-     'Oakley Brunt, Andrew Coughtrie, Rupert Ford, \\\\ '
-     'Joerg Henrichs, Iva Kavcic, Andrew Porter, Sergi Siso \\\ '
-     'and Joseph Wallwork', 'manual'),
+     'Oakley Brunt, Andrew Coughtrie, Joshua Dendy, \\\\ '
+     'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, \\\\ '
+     'Sergi Siso and Joseph Wallwork', 'manual'),
 ]
 
 # Set maximum depth for the nested lists to prevent LaTeX
@@ -308,8 +308,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     ('index', 'psyclone', 'psyclone Documentation',
-     'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, Sergi Siso and'
-     'Joseph Wallwork',
+     'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, Sergi Siso, '
+     'and Joseph Wallwork',
      'psyclone',
      'A domain-specific compiler for Finite-Element/Volume/Difference models.',
      'Miscellaneous'),

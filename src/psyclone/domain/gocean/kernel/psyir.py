@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
+#           J. Henrichs, Bureau of Meteorology
 
 '''This module contains PSyclone Kernel-layer-specific PSyIR classes
 for the GOcean API.
@@ -251,8 +252,9 @@ class GOceanKernelMetadata():
         '''
         kernel_metadata = GOceanKernelMetadata()
 
-        # Ensure the Fortran2003 parser is initialised.
-        _ = ParserFactory().create(std="f2003")
+        # Ensure the Fortran parser is initialised.
+        std = Config.get().fortran_standard
+        _ = ParserFactory().create(std=std)
         reader = FortranStringReader(fortran_string)
         try:
             spec_part = Fortran2003.Derived_Type_Def(reader)

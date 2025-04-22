@@ -39,10 +39,10 @@ EXAMPLES=$(sort $(wildcard eg*))
 include ../top_level.mk
 
 transform:
-        @echo "No transformation supported for xdsl"
+	@echo "No transformation supported for xdsl"
 
 compile: transform
-        @echo "No compilation supported for xdsl"
+	@echo "No compilation supported for xdsl"
 
 run: compile
-        @echo "No run targets for xdsl"
+	@echo "No run targets for xdsl"

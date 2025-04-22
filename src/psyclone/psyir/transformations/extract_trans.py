@@ -80,21 +80,6 @@ class ExtractTrans(PSyDataTrans):
         super().__init__(node_class=node_class)
 
     # -------------------------------------------------------------------------
-    def get_default_options(self):
-        '''Returns a new dictionary with additional options, specific to the
-        transformation, that will be added to the user option. Any values
-        specified by the user will take precedence. For the extract
-        transformation, by default we want VariablesAccessInformation to
-        report array arguments to lbound, ubound and size as read accesses,
-        so we are certain these arrays will be included in the extraction.
-
-        :returns: a dictionary with additional options.
-        :rtype: Dict[str, Any]
-        '''
-
-        return {"COLLECT-ARRAY-SHAPE-READS": True}
-
-    # -------------------------------------------------------------------------
     @staticmethod
     def determine_postfix(read_write_info, postfix="_post"):
         '''

@@ -1221,13 +1221,6 @@ class GOKern(CodedKern):
         super().reference_accesses(var_accesses)
         var_accesses.next_location()
 
-    def local_vars(self):
-        '''Return a list of the variable (names) that are local to this loop
-        (and must therefore be e.g. threadprivate if doing OpenMP)
-
-        '''
-        return []
-
     @property
     def index_offset(self):
         ''' The grid index-offset convention that this kernel expects '''

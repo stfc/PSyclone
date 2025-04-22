@@ -22,54 +22,6 @@ index 2237d181..f075436d 100644
    end if
  
  
-diff --git a/lfric/infrastructure/build/compile.mk b/lfric/infrastructure/build/compile.mk
-index 19c9cff9..b5cd3014 100644
---- a/lfric/infrastructure/build/compile.mk
-+++ b/lfric/infrastructure/build/compile.mk
-@@ -140,18 +140,26 @@ $(LIB_DIR)/lib%.a: $$($$(shell basename $$* | tr a-z A-Z)_OBJS) | $(LIB_DIR)
- .PRECIOUS: %.o
- %.o: %.f90 | $(MOD_DIR)
- 	$(call MESSAGE,Compile,$<)
-+	$(eval TMP_MOD_DIR := $(shell mktemp -d))
-+	mkdir -p $(TMP_MOD_DIR)
- 	$(Q)$(TIME_TOOL) $(FC) $(FFLAGS_BASE) $(FFLAGS_EXTRA)\
--	          $(MODULE_DESTINATION_ARGUMENT) \
-+	          $(F_MOD_DESTINATION_ARG)$(TMP_MOD_DIR) \
- 	          $(MODULE_SOURCE_ARGUMENT) \
--	          $(INCLUDE_ARGS) -c -o $(basename $@).o $<
-+	          $(INCLUDE_ARGS) -Imod -c -o $(basename $@).o $<
-+	bash $(LFRIC_BUILD)/update_mod.sh $(TMP_MOD_DIR) $(MOD_DIR)
-+	rm -rf $(TMP_MOD_DIR)
- 	$(call MESSAGE,Compiled,$<)
- 
- %.o: %.F90 | $(MOD_DIR)
- 	$(call MESSAGE,Pre-process and compile,$<)
-+	$(eval TMP_MOD_DIR := $(shell mktemp -d))
-+	mkdir -p $(TMP_MOD_DIR)
- 	$(Q)$(TIME_TOOL) $(FC) $(FFLAGS_BASE) $(FFLAGS_EXTRA) \
--	          $(MODULE_DESTINATION_ARGUMENT) \
-+	          $(F_MOD_DESTINATION_ARG)$(TMP_MOD_DIR) \
- 	          $(MODULE_SOURCE_ARGUMENT) \
--	          $(INCLUDE_ARGS) $(MACRO_ARGS) -c -o $(basename $@).o $<
-+	          $(INCLUDE_ARGS) -Imod $(MACRO_ARGS) -c -o $(basename $@).o $<
-+	bash $(LFRIC_BUILD)/update_mod.sh $(TMP_MOD_DIR) $(MOD_DIR)
-+	rm -rf $(TMP_MOD_DIR)
- 	$(call MESSAGE,Compiled,$<)
- 
- 
-diff --git a/lfric/infrastructure/build/tools/DependencyRules b/lfric/infrastructure/build/tools/DependencyRules
-index 9d4db390..e37384fc 100755
---- a/lfric/infrastructure/build/tools/DependencyRules
-+++ b/lfric/infrastructure/build/tools/DependencyRules
-@@ -101,6 +101,8 @@ if __name__ == '__main__':
-                         prereq_strings.append(str(prereq))
-                 print(f'{filename} : {" ".join(prereq_strings)}',
-                       file=listFile)
-+            print('%.mod:\n\t@:',
-+                  file=listFile)
-     except:
-         os.unlink(args.output)
-         traceback.print_exc(file=sys.stdout)
 diff --git a/lfric/infrastructure/build/tools/configurator/templates/loader.f90.jinja b/lfric/infrastructure/build/tools/configurator/templates/loader.f90.jinja
 index fbd03f17..ba9f035f 100644
 --- a/lfric/infrastructure/build/tools/configurator/templates/loader.f90.jinja
@@ -309,10 +261,10 @@ index f1c607e9..03b76ff1 100644
      class(key_value_type), allocatable :: key_value_pair
  
    contains
-diff --git a/lfric/infrastructure/source/configuration/namelist_mod.f90 b/lfric/infrastructure/source/configuration/namelist_mod.f90
+diff --git a/lfric/infrastructure/source/configuration/namelist_mod.F90 b/lfric/infrastructure/source/configuration/namelist_mod.F90
 index 5ddacf53..bad1d81a 100644
---- a/lfric/infrastructure/source/configuration/namelist_mod.f90
-+++ b/lfric/infrastructure/source/configuration/namelist_mod.f90
+--- a/lfric/infrastructure/source/configuration/namelist_mod.F90
++++ b/lfric/infrastructure/source/configuration/namelist_mod.F90
 @@ -23,6 +23,13 @@ module namelist_mod
                                    LOG_LEVEL_INFO
    use constants_mod,        only: imdi, rmdi, cmdi, str_def, i_def
@@ -398,15 +350,6 @@ index 5ddacf53..bad1d81a 100644
    !------------------------------------------
    ! 1.4 GENERIC namelist constructor
    !============================================================================
-@@ -118,7 +173,7 @@ contains
-     end if
- 
-     allocate( self%listname, source=listname )
--    allocate( self%members,  source=members )
-+    !allocate( self%members,  source=members )
- 
-   end subroutine namelist_initialise
- 
 diff --git a/lfric/infrastructure/source/field/field_mod.t90 b/lfric/infrastructure/source/field/field_mod.t90
 index 777ec479..0001fc8e 100644
 --- a/lfric/infrastructure/source/field/field_mod.t90
@@ -610,53 +553,6 @@ index 672a462f..10ccfa13 100644
      do i=1, size(twod_names)
        twod_names(i) = trim(twod_names(i))//'_2d'
      end do
-diff --git a/lfric_apps/applications/lfric_atm/build/fortran/nvfortran.mk b/lfric_apps/applications/lfric_atm/build/fortran/nvfortran.mk
-new file mode 100644
-index 00000000..d4a476c7
---- /dev/null
-+++ b/lfric_apps/applications/lfric_atm/build/fortran/nvfortran.mk
-@@ -0,0 +1,18 @@
-+##############################################################################
-+# (c) Crown copyright 2017 Met Office. All rights reserved.
-+# The file LICENCE, distributed with this code, contains details of the terms
-+# under which the code may be used.
-+##############################################################################
-+# Various things specific to the Portland Fortran compiler.
-+##############################################################################
-+
-+$(info Project specials for Portland compiler)
-+
-+export FFLAGS_UM_PHYSICS = -r8
-+
-+# The lfric_atm app defines an extra set of debug flags for
-+# fast-debug. For this compiler use the same as the full-debug
-+# settings
-+FFLAGS_FASTD_INIT         = $(FFLAGS_INIT) 
-+FFLAGS_FASTD_RUNTIME      = $(FFLAGS_RUNTIME)
-+
-diff --git a/lfric_apps/applications/ngarch/build/fortran/nvfortran.mk b/lfric_apps/applications/ngarch/build/fortran/nvfortran.mk
-new file mode 100644
-index 00000000..e95afff3
---- /dev/null
-+++ b/lfric_apps/applications/ngarch/build/fortran/nvfortran.mk
-@@ -0,0 +1,17 @@
-+##############################################################################
-+# (c) Crown copyright 2017 Met Office. All rights reserved.
-+# The file LICENCE, distributed with this code, contains details of the terms
-+# under which the code may be used.
-+##############################################################################
-+# Various things specific to the Portland Fortran compiler.
-+##############################################################################
-+
-+$(info Project specials for Portland compiler)
-+
-+export FFLAGS_UM_PHYSICS = -r8
-+
-+# The lfric_atm app defines an extra set of debug flags for
-+# fast-debug. For this compiler use the same as the full-debug
-+# settings
-+FFLAGS_FASTD_INIT         = $(FFLAGS_INIT) 
-+FFLAGS_FASTD_RUNTIME      = $(FFLAGS_RUNTIME)
 diff --git a/lfric_apps/applications/shallow_water/source/driver/shallow_water_model_mod.F90 b/lfric_apps/applications/shallow_water/source/driver/shallow_water_model_mod.F90
 index 670e2225..5c5aaaeb 100644
 --- a/lfric_apps/applications/shallow_water/source/driver/shallow_water_model_mod.F90
@@ -716,18 +612,6 @@ index 54507eec..4b3859c6 100644
          do i=1, size(double_names)
            double_names(i) = trim(double_names(i))//'_double'
          end do
-diff --git a/lfric_apps/build/extract/target-map.txt b/lfric_apps/build/extract/target-map.txt
-index 1da724e6..036b4cf5 100644
---- a/lfric_apps/build/extract/target-map.txt
-+++ b/lfric_apps/build/extract/target-map.txt
-@@ -1,5 +1,7 @@
- generic-x86:  gfortran: meto-x86-gcc-ifort
- generic-x86:  ifort:    meto-x86-gcc-ifort
-+generic-x86:  nvfortran:meto-x86-gcc-ifort
-+generic-x86:  flang:    meto-x86-gcc-ifort
- meto-spice:   gfortran: meto-x86-gcc-ifort
- meto-spice:   ifort:    meto-x86-gcc-ifort
- meto-xc40:    crayftn:  meto-xc40-cce
 diff --git a/lfric_apps/science/gungho/source/driver/gungho_model_mod.F90 b/lfric_apps/science/gungho/source/driver/gungho_model_mod.F90
 index 0ffb6dde..f136b599 100644
 --- a/lfric_apps/science/gungho/source/driver/gungho_model_mod.F90

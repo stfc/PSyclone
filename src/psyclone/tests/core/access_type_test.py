@@ -32,11 +32,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: Joerg Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified by R. W. Ford, N. Nobre and A. R. Porter, STFC Daresbury Lab
 
 '''This module tests AccessType.'''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
@@ -51,6 +50,10 @@ def test_str():
     assert str(AccessType.INC) == "INC"
     assert str(AccessType.READINC) == "READINC"
     assert str(AccessType.SUM) == "SUM"
+    assert str(AccessType.CALL) == "CALL"
+    assert str(AccessType.INQUIRY) == "INQUIRY"
+    assert str(AccessType.TYPE_INFO) == "TYPE_INFO"
+    assert str(AccessType.UNKNOWN) == "UNKNOWN"
 
 
 def test_api_specific_name():
@@ -65,6 +68,10 @@ def test_api_specific_name():
     assert AccessType.INC.api_specific_name() == "gh_inc"
     assert AccessType.READINC.api_specific_name() == "gh_readinc"
     assert AccessType.SUM.api_specific_name() == "gh_sum"
+    assert AccessType.CALL.api_specific_name() == "call"
+    assert AccessType.INQUIRY.api_specific_name() == "inquiry"
+    assert AccessType.TYPE_INFO.api_specific_name() == "type_info"
+    assert AccessType.UNKNOWN.api_specific_name() == "unknown"
     assert AccessType.get_valid_reduction_modes() == [AccessType.SUM]
     assert AccessType.get_valid_reduction_names() == ["gh_sum"]
     # Use set to make this independent of the order:
@@ -91,6 +98,7 @@ def test_from_string():
     assert AccessType.from_string("readinc") == AccessType.READINC
     assert AccessType.from_string("sum") == AccessType.SUM
     assert AccessType.from_string("unknown") == AccessType.UNKNOWN
+    assert AccessType.from_string("type_info") == AccessType.TYPE_INFO
 
     with pytest.raises(ValueError) as err:
         AccessType.from_string("invalid")
@@ -117,7 +125,23 @@ def test_all_read_accesses():
     all_read_accesses = AccessType.all_read_accesses()
     assert isinstance(all_read_accesses, list)
     assert len(all_read_accesses) == 4
+    # No duplications.
     assert (len(all_read_accesses) ==
             len(set(all_read_accesses)))
     assert all(isinstance(read_access, AccessType)
                for read_access in all_read_accesses)
+
+
+def test_non_data_accesses():
+    '''Test the non_data_accesses() method.'''
+    accesses = AccessType.non_data_accesses()
+    assert isinstance(accesses, list)
+    # No duplications
+    assert (len(accesses) == len(set(accesses)))
+    assert all(isinstance(acc, AccessType) for acc in accesses)
+    all_read_accesses = AccessType.all_read_accesses()
+    all_write_accesses = AccessType.all_write_accesses()
+    all_reductions = AccessType.get_valid_reduction_modes()
+    all_data_accesses = all_read_accesses + all_write_accesses + all_reductions
+    for acc in accesses:
+        assert acc not in all_data_accesses

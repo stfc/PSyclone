@@ -438,19 +438,33 @@ end
     sub = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
-        acc_trans.validate(sub.children[0], options={})
+        acc_trans.validate(sub.children[0])
     assert ("Assumed-size character variables cannot be enclosed in an "
             "OpenACC region but found 'if (assumed_size_char == 'literal')"
             in str(err.value))
     with pytest.raises(TransformationError) as err:
-        acc_trans.validate(sub.children[1], options={})
+        acc_trans.validate(sub.children[1], options={"allow_string": True})
     assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
             " region but found 'assumed_size_char(:LEN(explicit_size_char)) = "
             in str(err.value))
     with pytest.raises(TransformationError) as err:
-        acc_trans.validate(sub.children[2], options={})
+        acc_trans.validate(sub.children[2], options={"allow_string": True})
     assert ("Cannot include 'ACHAR(9)' in an OpenACC region because "
             "it is not available on GPU" in str(err.value))
+    # Check that the character assignment is excluded by default.
+    with pytest.raises(TransformationError) as err:
+        acc_trans.validate(sub.children[2])
+    assert ("ACCKernelsTrans does not permit assignments involving character "
+            "variables by default (use the 'allow_string' option to include "
+            "them), but found:" in str(err.value))
+    # Check the verbose option.
+    with pytest.raises(TransformationError) as err:
+        acc_trans.validate(sub.children[2], options={"verbose": True})
+    assert (sub.children[2].preceding_comment ==
+            "ACCKernelsTrans does not permit assignments involving character "
+            "variables by default (use the 'allow_string' option to include "
+            "them)")
+
     # String with explicit length is fine.
     acc_trans.validate(sub.children[3], options={})
     # CHARACTER*(*) notation is also rejected.

@@ -45,14 +45,17 @@ import re
 
 from psyclone.errors import InternalError
 from psyclone.parse.file_info import FileInfo
-from psyclone.parse.module_info import ModuleInfo
+from psyclone.parse.module_info import ModuleInfo, ModuleInfoError
 
 
 class ModuleManager:
     '''This class implements a singleton that manages module
     dependencies.
 
+    :param use_caching: Whether to use (`True`) or
+        disable (`False`) caching
     '''
+
     # Class variable to store the singleton instance
     _instance = None
 
@@ -62,22 +65,35 @@ class ModuleManager:
 
     # ------------------------------------------------------------------------
     @staticmethod
-    def get():
+    def get(use_caching: bool = None):
         '''Static function that if necessary creates and returns the singleton
         ModuleManager instance.
 
+        :param use_caching: If `True`, a file-based caching of the fparser
+            tree will be used. This can significantly accelerate obtaining
+            a PSyIR from a source file.
+            For parallel builds, parallel race conditions to the cache file
+            can happen, but this shouldn't lead to wrong results. However,
+            that's untested so far.
+
         '''
         if not ModuleManager._instance:
-            ModuleManager._instance = ModuleManager()
+            ModuleManager._instance = ModuleManager(use_caching)
 
         return ModuleManager._instance
 
     # ------------------------------------------------------------------------
-    def __init__(self):
+    def __init__(
+                self,
+                use_caching: bool = None
+            ):
 
         if ModuleManager._instance is not None:
             raise InternalError("You need to use 'ModuleManager.get()' "
                                 "to get the singleton instance.")
+
+        # Disable caching by default
+        self._use_caching = use_caching if use_caching is not None else False
 
         self._modules = {}
         self._visited_files = {}
@@ -149,7 +165,8 @@ class ModuleManager:
                 full_path = os.path.join(directory, entry.name)
                 if full_path in self._visited_files:
                     continue
-                self._visited_files[full_path] = FileInfo(full_path)
+                self._visited_files[full_path] = \
+                    FileInfo(full_path, use_caching=self._use_caching)
                 new_files.append(self._visited_files[full_path])
         return new_files
 
@@ -170,6 +187,7 @@ class ModuleManager:
         '''
         mod_info = None
         for finfo in file_list:
+            finfo: FileInfo
             # We only proceed to read a file to check for a module if its
             # name is sufficiently similar to that of the module.
             score = SequenceMatcher(None,
@@ -227,7 +245,7 @@ class ModuleManager:
         # First check if we have already seen this module. We only end the
         # search early if the file we've found does not require pre-processing
         # (i.e. has a .f90 suffix).
-        mod_info = self._modules.get(mod_lower, None)
+        mod_info: ModuleInfo = self._modules.get(mod_lower, None)
         if mod_info and mod_info.filename.endswith(".f90"):
             return mod_info
         old_mod_info = mod_info
@@ -260,7 +278,7 @@ class ModuleManager:
                                 f"command line option.")
 
     # ------------------------------------------------------------------------
-    def get_modules_in_file(self, finfo):
+    def get_modules_in_file(self, finfo: FileInfo):
         '''
         Uses a regex search to find all modules defined in the file with the
         supplied name.
@@ -276,8 +294,9 @@ class ModuleManager:
         # could be defeated by e.g.
         #   module &
         #    my_mod
-        # `finfo.contents` will read the file if it hasn't already been cached.
-        mod_names = self._module_pattern.findall(finfo.contents)
+        # `finfo.get_source_code()` will read the file if it hasn't already
+        # been cached.
+        mod_names = self._module_pattern.findall(finfo.get_source_code())
 
         return [name.lower() for name in mod_names]
 
@@ -328,7 +347,9 @@ class ModuleManager:
                 continue
             try:
                 mod_deps = self.get_module_info(module).get_used_modules()
-            except FileNotFoundError:
+                # Convert to set since we continue with a set
+                mod_deps = set(mod_deps)
+            except (FileNotFoundError, ModuleInfoError):
                 if module not in not_found:
                     # We don't have any information about this module,
                     # ignore it.

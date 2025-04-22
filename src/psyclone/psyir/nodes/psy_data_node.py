@@ -774,7 +774,7 @@ class PSyDataNode(Statement):
                 argument_str += ",".join([str(arg) for arg in argument_list])
                 argument_str += ")"
 
-            ParserFactory().create(std="f2008")
+            ParserFactory().create(std=Config.get().fortran_standard)
             reader = FortranStringReader(
                 f"CALL {typename}%{methodname}{argument_str}")
             # Tell the reader that the source is free format

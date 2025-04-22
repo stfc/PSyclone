@@ -38,6 +38,7 @@
 ! -----------------------------------------------------------------------------
 ! Modified by I. Kavcic, Met Office
 ! Modified by R. W. Ford, STFC Daresbury Lab
+! Modified by J. Dendy, Met Office
 
 !>@brief Preconditioner for the gravity-wave system
 module gw_mixed_schur_preconditioner_alg_mod
@@ -125,7 +126,6 @@ contains
 						     result(self)
 
     use function_space_mod,            only: function_space_type
-    use finite_element_config_mod,     only: element_order
     use quadrature_xyoz_mod,           only: quadrature_xyoz_type
     use quadrature_rule_gaussian_mod,  only: quadrature_rule_gaussian_type
     use matrix_vector_kernel_mod,      only: matrix_vector_kernel_type

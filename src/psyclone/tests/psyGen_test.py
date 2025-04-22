@@ -747,9 +747,6 @@ def test_call_abstract_methods():
 
     dummy_call = DummyClass(my_ktype)
     my_call = Kern(None, dummy_call, "dummy", DummyArguments)
-    with pytest.raises(NotImplementedError) as excinfo:
-        my_call.local_vars()
-    assert "Kern.local_vars should be implemented" in str(excinfo.value)
 
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.gen_code(None)

@@ -7,7 +7,7 @@
 !-----------------------------------------------------------------------
    cn_exp      =   'BENCH' !  experience name
    nn_it000    =       1   !  first time step
-   nn_itend    =    100   !  last time step 
+   nn_itend    =      10   !  last time step
    nn_stock    =      -1   !  frequency of creation of a restart file (modulo referenced to 1)
    nn_write    =      -1   !  frequency of write in the output file   (modulo referenced to nn_it000)
 /

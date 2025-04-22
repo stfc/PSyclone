@@ -31,6 +31,7 @@
 ! -----------------------------------------------------------------------------
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified: I. Kavcic, Met Office
+!           J. Dendy, Met Office
 
 program operator_example_nofield
 
@@ -49,10 +50,15 @@ program operator_example_nofield
   type(operator_type)                 :: mm_w2
   type(quadrature_xyoz_type), pointer :: qr => null
   integer(i_def)                      :: mesh_id = 1
-  integer(i_def)                      :: element_order = 0
+  integer(i_def)                      :: element_order_h = 0
+  integer(i_def)                      :: element_order_v = 0
 
-  mm_w2 = operator_type(function_space_collection%get_fs(mesh_id,element_order,W2), &
-                        function_space_collection%get_fs(mesh_id,element_order,W2))
+  mm_w2 = operator_type(function_space_collection%get_fs(mesh_id,         &
+                                                         element_order_h, &
+                                                         element_order_v, W2), &
+                        function_space_collection%get_fs(mesh_id,         &
+                                                         element_order_h, &
+                                                         element_order_v, W2))
 
   call invoke(testkern_operator_nofield_type(mm_w2, coord, qr))
 

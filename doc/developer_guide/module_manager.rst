@@ -41,6 +41,8 @@
 
 .. _module_manager:
 
+
+
 Module Manager
 ##############
 
@@ -135,3 +137,65 @@ which prints the filenames of all modules used in ``tl_testkern_mod``:
     Module: constants_mod constants_mod.f90
     Module: fs_continuity_mod fs_continuity_mod.f90
     Module: kernel_mod kernel_mod.f90
+
+
+
+FileInfo
+========
+
+FileInfo is a class that is used to store information about Fortran files.
+
+This information can include:
+
+- The source code itself
+- The fparser tree information
+- The PSyIR tree information
+
+All this information is gathered in this single class since this also
+allows for caching of it, see next section
+
+
+
+Caching
+=======
+
+The `ModuleManager` and `FileInfo` support a caching of the
+fparser tree representation of a source code.
+(Support for PSyIR is planned)
+
+This caching has to be **explicitly enabled** in the constructor
+of `ModuleManager`.
+
+
+.. testcode ::
+
+    mod_manager = ModuleManager.get(use_caching=True)
+
+
+Most of the time in the PSyIR generation is currently spent in the
+fparser tree generation. Consequently, this leads to significant
+speed-ups in the process of reading and parsing the source code
+of modules.
+
+The default cache file is named the same way as the source file,
+but replaces the file extension with `.psycache`. E.g., a cache file
+for the source file `foo.f90` will be called `foo.psycache`.
+
+The caching algorithm to obtain the fparser tree OR PSyIR is briefly described as follows:
+
+- If fparser tree / PSyIR was read before: RETURN fparser tree or PSyIR
+- If source code is not yet read:
+
+    - Read the content of the file
+    - Create the source's checksum.
+- Read cache file if it exists:
+
+    - If the checksum of the cache is the same as the one of the source:
+
+        - load the fparser tree / PSyIR from the cache file and RETURN fparser tree or PSyIR
+- Create the fparser tree / PSyIR from the source code
+- Save cache file IF it was not loaded before:
+
+    - Update cache information
+    - Store to cache file
+- RETURN fparser tree or PSyIR

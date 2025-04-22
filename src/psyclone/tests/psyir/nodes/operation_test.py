@@ -67,6 +67,11 @@ def test_binaryoperation_initialization():
            "BinaryOperation.Operator but found" in str(err.value)
     bop = BinaryOperation(BinaryOperation.Operator.ADD)
     assert bop._operator is BinaryOperation.Operator.ADD
+    assert not bop._has_explicit_grouping  # Defaults to False
+
+    bop = BinaryOperation(BinaryOperation.Operator.ADD,
+                          has_explicit_grouping=True)
+    assert bop._has_explicit_grouping  # But can be set to True
 
 
 def test_binaryoperation_operator():
@@ -76,6 +81,23 @@ def test_binaryoperation_operator():
     '''
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     assert binary_operation.operator == BinaryOperation.Operator.ADD
+
+
+def test_binaryoperation_has_explicit_grouping():
+    ''' Check the setter/getter methods of the has_explicit_grouping' of
+    BinaryOperation.'''
+
+    bop = BinaryOperation(BinaryOperation.Operator.ADD)
+    assert not bop.has_explicit_grouping
+
+    with pytest.raises(TypeError) as err:
+        bop.has_explicit_grouping = "3"
+    assert ("BinaryOperation.has_explicit_grouping must be boolean, but "
+            "found 'str'.") in str(err.value)
+
+    # Try valid setter/getter
+    bop.has_explicit_grouping = True
+    assert bop.has_explicit_grouping
 
 
 def test_binaryoperation_node_str():
@@ -114,9 +136,15 @@ def test_binaryoperation_create():
     rhs = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
     oper = BinaryOperation.Operator.ADD
     binaryoperation = BinaryOperation.create(oper, lhs, rhs)
+    assert not binaryoperation._has_explicit_grouping
     check_links(binaryoperation, [lhs, rhs])
     result = FortranWriter().binaryoperation_node(binaryoperation)
     assert result == "tmp1 + tmp2"
+
+    # Check with the optional has_explicit_grouping parameter
+    binaryoperation = BinaryOperation.create(
+        oper, lhs.copy(), rhs.copy(), has_explicit_grouping=True)
+    assert binaryoperation.has_explicit_grouping
 
 
 def test_binaryoperation_create_invalid():

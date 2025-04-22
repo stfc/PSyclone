@@ -337,14 +337,13 @@ class FortranWriter(LanguageWriter):
         mapping. Any key that does already exist in `reverse_dict`
         is not overwritten, only new keys are added.
 
-        :param reverse_dict: the dictionary to which the new mapping of \
+        :param reverse_dict: the dictionary to which the new mapping of
             operator to string is added.
-        :type reverse_dict: dict from \
-            :py:class:`psyclone.psyir.nodes.BinaryOperation`, \
-            :py:class:`psyclone.psyir.nodes.NaryOperation` or \
-            :py:class:`psyclone.psyir.nodes.UnaryOperation` to str
+        :type reverse_dict: dict[
+                :py:class:`psyclone.psyir.nodes.Operation`, str
+            ]
 
-        :param op_map: mapping from string representation of operator to \
+        :param op_map: mapping from string representation of operator to
                        enumerated type.
         :type op_map: :py:class:`collections.OrderedDict`
 
@@ -577,8 +576,7 @@ class FortranWriter(LanguageWriter):
         datatype = gen_datatype(symbol.datatype, symbol.name)
         result += f"{self._nindent}{datatype}"
 
-        if ArrayType.Extent.DEFERRED in array_shape:
-            # A 'deferred' array extent means this is an allocatable array
+        if array_shape and symbol.datatype.is_allocatable:
             result += ", allocatable"
 
         # Specify Fortran attributes
@@ -1282,14 +1280,16 @@ class FortranWriter(LanguageWriter):
                     return f"({lhs} {fort_oper} {rhs})"
                 if precedence(fort_oper) == precedence(parent_fort_oper):
                     # We still may need to enforce precedence
-                    if (isinstance(parent, UnaryOperation) or
-                            (isinstance(parent, BinaryOperation) and
-                             parent.children[1] == node)):
-                        # We need brackets to enforce precedence
-                        # as a) a unary operator is performed
-                        # before a binary operator and b) floating
-                        # point operations are not actually
-                        # associative due to rounding errors.
+                    if (
+                        # If parent is a UnaryOperation
+                        isinstance(parent, UnaryOperation) or
+                        # Or it is a BinaryOperation ...
+                        (isinstance(parent, BinaryOperation) and
+                            # ... with right-to-left precedence
+                            (parent.children[1] == node) or
+                            # ... or originally had explicit parenthesis
+                            node.has_explicit_grouping)
+                    ):
                         return f"({lhs} {fort_oper} {rhs})"
             return f"{lhs} {fort_oper} {rhs}"
         except KeyError as error:

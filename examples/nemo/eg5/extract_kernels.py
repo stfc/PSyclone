@@ -88,16 +88,7 @@ def trans(psyir):
             if not isinstance(kern, Loop):
                 continue
             try:
-                # TODO #2080: once this is fixed, the option can be removed
-                # The example contains array expressions, e.g.:
-                # zwx(:,:,jpk) = 0.e0
-                # PSyclone represents this internally using Range with LBOUND
-                # and UBOUND intrinsics and currently this results in several
-                # occurrences of zws on the left hand side, which will trigger
-                # an exception in the dependency analysis. Therefore, disable
-                # the collection of read accesses for the shape of an array.
-                extract.apply(kern,
-                              options={"COLLECT-ARRAY-SHAPE-READS": False})
+                extract.apply(kern)
             except TransformationError as err:
                 # Typically that's caused by a kernel having a CodeBlock
                 # inside.

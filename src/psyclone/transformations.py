@@ -35,6 +35,7 @@
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
+#          J. Dendy, Met Office
 
 ''' This module provides the various transformations that can be applied to
     PSyIR nodes. There are both general and API-specific transformation
@@ -58,7 +59,7 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Directive, Literal, Loop, Node,
+    Call, CodeBlock, Container, Directive, Literal, Loop, Node,
     OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
@@ -417,7 +418,12 @@ class MarkRoutineForGPUMixin:
             # more than one Routine implementing it). We can't transform
             # these at the moment because we can't correctly manipulate their
             # metadata - TODO #1946.
-            routines = kernel_schedule.root.walk(Routine)
+
+            # TODO #2732: the tutorial (openacc/openmp offloading) fails
+            # when module inlining is used. Apply a temporary fix (see #2872)
+            # till #2732 is fixed.
+            ctr = kernel_schedule.ancestor(Container)
+            routines = ctr.resolve_routine(node.name)
             if len(routines) > 1:
                 raise TransformationError(
                     f"Cannot apply {self.name} to kernel '{node.name}' as "
@@ -2154,7 +2160,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
     # ndofs per 3D cell for different function spaces on a quadrilateral
     # element for different orders. Formulas kindly provided by Tom Melvin and
-    # Thomas Gibson. See the Qr table at http://femtable.org/background.html,
+    # Thomas Gibson (modified in 2024 to reflect splitting of element orders).
+    # See the Qr table at http://femtable.org/background.html,
     # for computed values of w0, w1, w2 and w3 up to order 7.
     # Note: w2*trace spaces have dofs only on cell faces and no volume dofs.
     # As there is currently no dedicated structure for face dofs in kernel
@@ -2163,18 +2170,22 @@ class Dynamo0p3KernelConstTrans(Transformation):
     # for w2htrace space, in the vertical (2) for w2vtrace space and all (6)
     # for w2trace space.
 
-    space_to_dofs = {"w3":       (lambda n: (n+1)**3),
-                     "w2":       (lambda n: 3*(n+2)*(n+1)**2),
-                     "w1":       (lambda n: 3*(n+2)**2*(n+1)),
-                     "w0":       (lambda n: (n+2)**3),
-                     "wtheta":   (lambda n: (n+2)*(n+1)**2),
-                     "w2h":      (lambda n: 2*(n+2)*(n+1)**2),
-                     "w2v":      (lambda n: (n+2)*(n+1)**2),
-                     "w2broken": (lambda n: 3*(n+1)**2*(n+2)),
-                     "wchi":     (lambda n: (n+1)**3),
-                     "w2trace":  (lambda n: 6*(n+1)**2),
-                     "w2htrace": (lambda n: 4*(n+1)**2),
-                     "w2vtrace": (lambda n: 2*(n+1)**2)}
+    space_to_dofs = {"w3":       (lambda k_h, k_v: (k_h+1)*(k_h+1)*(k_v+1)),
+                     "w2":       (lambda k_h, k_v: 2*(k_h+2)*(k_h+1)*(k_v+1)
+                                  + (k_h+1)*(k_h+1)*(k_v+2)),
+                     "w1":       (lambda k_h, k_v: 2*(k_h+1)*(k_h+2)*(k_v+2)
+                                  + (k_h+2)*(k_h+2)*(k_v+1)),
+                     "w0":       (lambda k_h, k_v: (k_h+2)*(k_h+2)*(k_v+2)),
+                     "wtheta":   (lambda k_h, k_v: (k_h+1)*(k_h+1)*(k_v+2)),
+                     "w2h":      (lambda k_h, k_v: 2*(k_h+1)*(k_h+2)*(k_v+1)),
+                     "w2v":      (lambda k_h, k_v: (k_h+1)*(k_h+1)*(k_v+2)),
+                     "w2broken": (lambda k_h, k_v: 2*(k_h+1)*(k_h+2)*(k_v+1)
+                                  + (k_h+1)*(k_h+1)*(k_v+2)),
+                     "wchi":     (lambda k_h, k_v: (k_h+1)*(k_h+1)*(k_v+1)),
+                     "w2trace":  (lambda k_h, k_v: 4*(k_h+1)*(k_v+1)
+                                  + 2*(k_h+1)**2),
+                     "w2htrace": (lambda k_h, k_v: 4*(k_h+1)*(k_v+1)),
+                     "w2vtrace": (lambda k_h, k_v: 2*(k_h+1)**2)}
 
     def __str__(self):
         return ("Makes the number of degrees of freedom, the number of "
@@ -2192,41 +2203,48 @@ class Dynamo0p3KernelConstTrans(Transformation):
     def apply(self, node, options=None):
         # pylint: disable=too-many-statements, too-many-locals
         '''Transforms a kernel so that the values for the number of degrees of
-        freedom (if a valid value for the element_order arg is
-        provided), the number of quadrature points (if the quadrature
+        freedom (if valid values for the element_order_h and element_order_v
+        args are provided), the number of quadrature points (if the quadrature
         arg is set to True) and the number of layers (if a valid value
         for the number_of_layers arg is provided) are constant in a
         kernel rather than being passed in by argument.
 
-        The "cellshape", "element_order" and "number_of_layers"
-        arguments are provided to mirror the namelist values that are
-        input into an LFRic model when it is run.
+        The "cellshape", "element_order_h", "element_order_v" and
+        "number_of_layers" arguments are provided to mirror the namelist values
+        that are input into an LFRic model when it is run.
 
         Quadrature support is currently limited to XYoZ in ths
         transformation. In the case of XYoZ the number of quadrature
-        points (for horizontal and vertical) are set to the
-        element_order + 3 in the LFRic infrastructure so their value
-        is derived.
+        points in the horizontal are set to element_order_h+3, and in the
+        vertical to element_order_v+3. These values are set in the LFRic
+        infrastructure, so their value is derived.
 
         :param node: a kernel node.
         :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param str options["cellshape"]: the shape of the cells. This is\
-            provided as it helps determine the number of dofs a field has\
-            for a particular function space. Currently only "quadrilateral"\
+        :param str options["cellshape"]: the shape of the cells. This is
+            provided as it helps determine the number of dofs a field has
+            for a particular function space. Currently only "quadrilateral"
             is supported which is also the default value.
-        :param int options["element_order"]: the order of the cell. In \
-            combination with cellshape, this determines the number of \
-            dofs a field has for a particular function space. If it is set \
-            to None (the default) then the dofs values are not set as \
-            constants in the kernel, otherwise they are.
-        :param int options["number_of_layers"]: the number of vertical \
-            layers in the LFRic model mesh used for this particular run. If \
-            this is set to None (the default) then the nlayers value is not \
+        :param int options["element_order_h"]: the polynomial order of the
+            cell in the horizontal. In combination with cellshape and
+            element_order_v, this determines the number of dofs a field has
+            for a particular function space. If it is set to None (the
+            default), then the dofs values are not set as constants in the
+            kernel, otherwise they are.
+        :param int options["element_order_v"]: the polynomial order of the
+            cell in the vertical. In combination with cellshape and
+            element_order_h, this determines the number of dofs a field has
+            for a particular function space. If it is set to None (the
+            default), then the dofs values are not set as constants in the
+            kernel, otherwise they are.
+        :param int options["number_of_layers"]: the number of vertical
+            layers in the LFRic model mesh used for this particular run. If
+            this is set to None (the default) then the nlayers value is not
             set as a constant in the kernel, otherwise it is.
-        :param bool options["quadrature"]: whether the number of quadrature \
-            points values are set as constants in the kernel (True) or not \
+        :param bool options["quadrature"]: whether the number of quadrature
+            points values are set as constants in the kernel (True) or not
             (False). The default is False.
 
         '''
@@ -2297,7 +2315,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
             options = {}
         number_of_layers = options.get("number_of_layers", None)
         quadrature = options.get("quadrature", False)
-        element_order = options.get("element_order", None)
+        element_order_h = options.get("element_order_h", None)
+        element_order_v = options.get("element_order_v", None)
         kernel = node
 
         arg_list_info = KernCallArgList(kernel)
@@ -2320,10 +2339,10 @@ class Dynamo0p3KernelConstTrans(Transformation):
             if kernel.eval_shapes == ["gh_quadrature_xyoz"]:
                 make_constant(symbol_table,
                               arg_list_info.nqp_positions[0]["horizontal"],
-                              element_order+3)
+                              element_order_h+3)
                 make_constant(symbol_table,
                               arg_list_info.nqp_positions[0]["vertical"],
-                              element_order+3)
+                              element_order_v+3)
             else:
                 raise TransformationError(
                     f"Error in Dynamo0p3KernelConstTrans transformation. "
@@ -2331,7 +2350,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
                     f"found {kernel.eval_shapes}.")
 
         const = LFRicConstants()
-        if element_order is not None:
+        if (element_order_h is not None) and (element_order_h is not None):
             # Modify the symbol table for degrees of freedom here.
             for info in arg_list_info.ndf_positions:
                 if (info.function_space.lower() in
@@ -2345,7 +2364,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
                     try:
                         ndofs = Dynamo0p3KernelConstTrans. \
                                 space_to_dofs[
-                                    info.function_space](element_order)
+                                    info.function_space](element_order_h,
+                                                         element_order_v)
                     except KeyError as err:
                         raise InternalError(
                             f"Error in Dynamo0p3KernelConstTrans "
@@ -2368,18 +2388,21 @@ class Dynamo0p3KernelConstTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param str options["cellshape"]: the shape of the elements/cells.
-        :param int options["element_order"]: the order of the elements/cells.
+        :param int options["element_order_h"]: the horizontal order of the\
+               elements/cells.
+        :param int options["element_order_v"]: the vertical order of the\
+               elements/cells.
         :param int options["number_of_layers"]: the number of layers to use.
         :param bool options["quadrature"]: whether quadrature dimension sizes \
             should or shouldn't be set as constants in a kernel.
 
         :raises TransformationError: if the node argument is not a \
             dynamo 0.3 kernel, the cellshape argument is not set to \
-            "quadrilateral", the element_order argument is not a 0 or a \
-            positive integer, the number of layers argument is not a \
-            positive integer, the quadrature argument is not a boolean, \
-            neither element order nor number of layers arguments are set \
-            (as the transformation would then do nothing), or the \
+            "quadrilateral", the element_order_h or element_order_v arguments\
+            are not a 0 or a positive integer, the number of layers argument\
+            is not a positive integer, the quadrature argument is not a\
+            boolean, neither element orders nor number of layers arguments are\
+            set (as the transformation would then do nothing), or the \
             quadrature argument is True but the element order is not \
             provided (as the former needs the latter).
 
@@ -2392,7 +2415,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
         if not options:
             options = {}
         cellshape = options.get("cellshape", "quadrilateral")
-        element_order = options.get("element_order", None)
+        element_order_h = options.get("element_order_h", None)
+        element_order_v = options.get("element_order_v", None)
         number_of_layers = options.get("number_of_layers", None)
         quadrature = options.get("quadrature", False)
         if cellshape.lower() != "quadrilateral":
@@ -2402,13 +2426,17 @@ class Dynamo0p3KernelConstTrans(Transformation):
                 f"cellshape must be set to 'quadrilateral' but found "
                 f"'{cellshape}'.")
 
-        if element_order is not None and \
-           (not isinstance(element_order, int) or element_order < 0):
+        if (element_order_h is not None and element_order_v is not None) and \
+            (not isinstance(element_order_h, int) or
+             not isinstance(element_order_v, int) or
+             element_order_h < 0 or
+             element_order_v < 0):
             # element order must be 0 or a positive integer
             raise TransformationError(
                 f"Error in Dynamo0p3KernelConstTrans transformation. The "
-                f"element_order argument must be >= 0 but found "
-                f"'{element_order}'.")
+                f"element_order_h and element_order_v argument must be >= 0 "
+                f"but found element_order_h = '{element_order_h}', "
+                f"element_order_v = '{element_order_v}'.")
 
         if number_of_layers is not None and \
            (not isinstance(number_of_layers, int) or number_of_layers < 1):
@@ -2425,19 +2453,23 @@ class Dynamo0p3KernelConstTrans(Transformation):
                 f"quadrature argument must be boolean but found "
                 f"'{quadrature}'.")
 
-        if element_order is None and not number_of_layers:
-            # As a minimum, element order or number of layers must have values.
+        if (element_order_h is None or element_order_v is None) and \
+                not number_of_layers:
+            # As a minimum, element orders or number of layers must have
+            # values.
             raise TransformationError(
                 "Error in Dynamo0p3KernelConstTrans transformation. At least "
-                "one of element_order or number_of_layers must be set "
-                "otherwise this transformation does nothing.")
+                "one of [element_order_h, element_order_v] or "
+                "number_of_layers must be set otherwise this transformation "
+                "does nothing.")
 
-        if quadrature and element_order is None:
+        if quadrature and (element_order_h is None or element_order_v is None):
             # if quadrature then element order
             raise TransformationError(
                 "Error in Dynamo0p3KernelConstTrans transformation. If "
-                "quadrature is set then element_order must also be set (as "
-                "the values of the former are derived from the latter.")
+                "quadrature is set then both element_order_h and "
+                "element_order_v must also be set (as the values of the "
+                "former are derived from the latter.")
 
 
 class ACCEnterDataTrans(Transformation):

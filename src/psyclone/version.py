@@ -40,7 +40,7 @@
     doc/{user_guide,developer_guide,reference_guide/source}/conf.py '''
 
 __MAJOR__ = 3
-__MINOR__ = 0
+__MINOR__ = 1
 __MICRO__ = 1
 
 __SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}-dev"

@@ -118,14 +118,6 @@ def test_determine_postfix():
     assert postfix == "_post1"
 
 
-# --------------------------------------------------------------------------- #
-def test_get_default_options():
-    '''Check the default options.'''
-
-    etrans = ExtractTrans()
-    assert etrans.get_default_options() == {"COLLECT-ARRAY-SHAPE-READS": True}
-
-
 # -----------------------------------------------------------------------------
 def test_extract_validate():
     '''Test that the validate function can successfully finish.'''

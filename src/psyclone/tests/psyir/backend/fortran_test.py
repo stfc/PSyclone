@@ -1106,14 +1106,15 @@ def test_fw_binaryoperator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = b * (c + d)\n"
         "    a = b * c + d\n"
         "    a = (b * c) + d\n"
-        "    a = b * c * d * a\n"
-        "    a = (((b * c) * d) * a)\n"
-        "    a = (b * (c * (d * a)))\n"
+        "    a = b * c * d * a\n"  # Left-to-right
+        "    a = (((b * c) * d) * a)\n"  # Left-to-right with explicit par.
+        "    a = (b * (c * (d * a)))\n"  # Right-to-left
         "    a = -(a + b)\n"
         "    e = .not.(e .and. (f .or. g))\n"
         "    e = (((.not.e) .and. f) .or. g)\n"
         "    e = (e .and. (f .eqv. g))\n"
         "    e = (e .and. f .neqv. g)\n"
+        "    a = ((a + b) + (c + d)) / a * b\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
@@ -1124,13 +1125,14 @@ def test_fw_binaryoperator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = b * c + d\n"
         "    a = b * c + d\n"
         "    a = b * c * d * a\n"
-        "    a = b * c * d * a\n"
+        "    a = ((b * c) * d) * a\n"
         "    a = b * (c * (d * a))\n"
         "    a = -(a + b)\n"
         "    e = .NOT.(e .AND. (f .OR. g))\n"
         "    e = .NOT.e .AND. f .OR. g\n"
         "    e = e .AND. (f .EQV. g)\n"
-        "    e = e .AND. f .NEQV. g\n")
+        "    e = e .AND. f .NEQV. g\n"
+        "    a = ((a + b) + (c + d)) / a * b\n")
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
 

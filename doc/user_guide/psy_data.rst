@@ -120,6 +120,7 @@ be printed at runtime, e.g.::
 The transformation that adds read-only-verification to an application
 can be applied for both the :ref:`LFRic <lfric-api>` and
 :ref:`GOcean API <gocean-api>` - no API-specific transformations are required.
+It can also be used to verify existing Fortran code.
 Below is an example that searches for each loop in a PSyKAl invoke code (which
 will always surround kernel calls) and applies the transformation to each one.
 This code has been successfully used as a global transformation with the LFRic
@@ -136,10 +137,10 @@ Gravity Wave application (the executable is named ``gravity_wave``)
             read_only_verify.apply(loop)
 
 Besides the transformation, a library is required to do the actual
-verification at runtime. There are two implementations of the
+verification at runtime. There are three implementations of the
 read-only-verification library included in PSyclone: one for LFRic,
-and one for GOcean.
-Both libraries support the environment variable ``PSYDATA_VERBOSE``.
+one for GOcean, and one for generic Fortran code.
+These libraries support the environment variable ``PSYDATA_VERBOSE``.
 This can be used to control how much output is generated
 by the read-only-verification library at runtime. If the
 variable is not specified or has the value '0', warnings will only
@@ -229,6 +230,25 @@ This will create a library called ``lib_read_only.a``.
 An executable example for using the GOcean read-only-verification
 library is included in ``examples/gocean/eg5/readonly``, see
 :ref:`gocean_example_readonly`.
+
+
+Read-Only-Verification Library for Generic Fortran
+++++++++++++++++++++++++++++++++++++++++++++++++++
+
+This library is contained in the ``lib/read_only/generic`` directory and
+it must be compiled before linking any existing Fortran code that uses
+read-only verification.
+
+Compilation of the library is done by invoking ``make`` and setting
+the required variables:
+
+.. code-block:: shell
+
+    make F90=ifort F90FLAGS="--some-flag"
+
+This will create a library called ``lib_read_only.a``.
+An executable example for using the generic read-only-verification
+library is included in ``examples/nemo/eg6/``.
 
 .. _psydata_value_range_check:
 

@@ -7,6 +7,8 @@ allclean_EXAMPLES=$(addprefix allclean_,$(EXAMPLES))
 
 default: $(EXAMPLES)
 clean: $(clean_EXAMPLES)
+	make -C gol-lib clean
+
 allclean: $(allclean_EXAMPLES)
 
 test: $(EXAMPLES)

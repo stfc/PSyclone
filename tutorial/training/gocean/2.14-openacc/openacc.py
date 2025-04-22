@@ -34,8 +34,8 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel extraction code to
-all invokes.
+function via the -s option. It adds OpenACC directives to execute
+the code on GPUs.
 '''
 
 from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
@@ -43,50 +43,48 @@ from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import Loop
 from psyclone.gocean1p0 import GOKern
+from psyclone.psyGen import InvokeSchedule
 
 from fuse_loops import trans as fuse_trans
 
 
-def trans(psy):
+def trans(psyir):
     '''
     Take the supplied psy object, and fuse the first two loops
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR layer to transform.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
+    # Use existing fuse script to fuse all loops
+    fuse_trans(psyir)
+
+    # Module inline all kernels (so they can be modified)
+    # Then add an acc routine statement to each of them:
+    inline = KernelModuleInlineTrans()
+    ktrans = ACCRoutineTrans()
+    for kern in psyir.walk(GOKern):
+        inline.apply(kern)
+        # Put an 'acc routine' directive inside each kernel
+        ktrans.apply(kern)
+
+    # Now parallelise each schedule with openacc:
     ptrans = ACCParallelTrans()
     ltrans = ACCLoopTrans()
     dtrans = ACCEnterDataTrans()
-    ktrans = ACCRoutineTrans()
-    inline = KernelModuleInlineTrans()
+    for schedule in psyir.walk(InvokeSchedule):
+        # Apply the OpenACC Loop transformation to *every* loop
+        # nest in the schedule (which are all outer loops).
+        for child in schedule.children:
+            TODO1: apply ltrans
+            TODO1:  bonus points: when using MPI, there could be
+            TODO1:  non-loop statement in the schedule (halo exchange)
+            TODO1:  So only apply this if the child is a loop
 
-    invoke = psy.invokes.get("invoke_compute")
-    schedule = invoke.schedule
 
-    fuse_trans(psy)
+        # Put all of the loops in a single parallel region
+        TODO2: apply ptrans around the whole schedule
 
-    # Inline all kernels to help gfortran with inlining.
-    for kern in schedule.walk(GOKern):
-        inline.apply(kern)
-
-    # Apply the OpenACC Loop transformation to *every* loop
-    # nest in the schedule
-    for child in schedule.children:
-        if isinstance(child, Loop):
-            ltrans.apply(child, {"collapse": 2})
-
-    # Put all of the loops in a single parallel region
-    ptrans.apply(schedule)
-
-    # Add an enter-data directive
-    dtrans.apply(schedule)
-
-    # Put an 'acc routine' directive inside each kernel
-    for kern in schedule.coded_kernels():
-        ktrans.apply(kern)
-
-    print(schedule.view())
+        # Add an enter-data directive
+        TODO3: apply dtrans to the schedule

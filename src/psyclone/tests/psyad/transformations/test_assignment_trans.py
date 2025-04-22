@@ -350,7 +350,7 @@ def test_multi_add(tmpdir):
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
         "  integer :: i\n  integer :: j\n  integer :: n\n\n"
-        "  b(j) = b(j) + 3 / n * a(i + 2)\n"
+        "  b(j) = b(j) + (3 / n) * a(i + 2)\n"
         "  c(1) = c(1) + a(i + 2) / (2 * n)\n"
         "  d(n) = d(n) + a(i + 2)\n"
         "  a(i + 2) = 0.0\n\n")

@@ -43,13 +43,13 @@ and move it to psyir/transformations/.
 
 '''
 
-
+from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
-    IntrinsicSymbol, RoutineSymbol, Symbol)
+    RoutineSymbol, Symbol)
 from psyclone.psyir.nodes import (
     Container, Reference, Routine, ScopingNode,
     Literal, CodeBlock, Call, IntrinsicCall)
@@ -154,43 +154,26 @@ class KernelModuleInlineTrans(Transformation):
             ) from error
 
         # We do not support kernels that use symbols representing data
-        # declared in their own parent module (we would need to new imports
-        # from this module for those, and we don't do this yet).
-        # These can only be found in References and CodeBlocks.
-        for var in kernel_schedule.walk(Reference):
-            symbol = var.symbol
-            if isinstance(symbol, IntrinsicSymbol):
-                continue
-            if not symbol.is_import:
-                if not var.scope.symbol_table.lookup(
-                        symbol.name, scope_limit=kernel_schedule,
-                        otherwise=False):
-                    raise TransformationError(
-                        f"{kern_or_call} '{kname}' contains accesses to "
-                        f"'{symbol.name}' which is declared in the same "
-                        f"module scope. Cannot inline such a {kern_or_call}.")
-        for block in kernel_schedule.walk(CodeBlock):
-            for name in block.get_symbol_names():
-                # Is this quantity declared within the kernel?
-                sym = block.scope.symbol_table.lookup(
-                    name, scope_limit=kernel_schedule, otherwise=None)
-                if not sym:
-                    # It isn't declared in the kernel.
-                    # Can we find the corresponding symbol at all?
-                    sym = block.scope.symbol_table.lookup(name, otherwise=None)
-                    if not sym:
-                        raise TransformationError(
-                            f"{kern_or_call} '{kname}' contains accesses to "
-                            f"'{name}' in a CodeBlock but the origin of this "
-                            f"symbol is unknown.")
-                    # We found it in an outer scope - is it from an import or a
-                    # declaration?
-                    if not sym.is_import:
-                        raise TransformationError(
-                            f"{kern_or_call} '{kname}' contains accesses to "
-                            f"'{name}' in a CodeBlock that is declared in the "
-                            f"same module scope. Cannot inline such a "
-                            f"{kern_or_call}.")
+        # declared in their own parent module (we would need to add new imports
+        # from this module at the call site, and we don't do this yet).
+        # TODO #2424 - this suffers from the limitation that
+        # VariablesAccessInfo does not work with nested scopes. (e.g. 2
+        # different symbols with the same name but declared in different,
+        # nested scopes will be assumed to be the same symbol).
+        vai = VariablesAccessInfo(kernel_schedule)
+        table = kernel_schedule.symbol_table
+        for sig in vai.all_signatures:
+            symbol = table.lookup(sig.var_name, otherwise=None)
+            if not symbol:
+                raise TransformationError(
+                    f"{kern_or_call} '{kname}' contains accesses to "
+                    f"'{sig.var_name}' but the origin of this signature is "
+                    f"unknown.")
+            if not symbol.is_import and symbol.name not in table:
+                raise TransformationError(
+                    f"{kern_or_call} '{kname}' contains accesses to "
+                    f"'{symbol.name}' which is declared in the callee "
+                    f"module scope. Cannot inline such a {kern_or_call}.")
 
         # We can't transform subroutines that shadow top-level symbol module
         # names, because we won't be able to bring this into the subroutine

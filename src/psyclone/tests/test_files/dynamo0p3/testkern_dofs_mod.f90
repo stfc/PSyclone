@@ -30,7 +30,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, O. Brunt, Met Office
+! Modified I. Kavcic, O. Brunt, and A. Pirrie, Met Office
 
 module testkern_dofs_mod
 
@@ -42,13 +42,15 @@ module testkern_dofs_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_dofs_type
-     type(arg_type), dimension(5) :: meta_args =          &
-          (/ arg_type(gh_field, gh_real, gh_write, w1),   &
-             arg_type(gh_field, gh_real, gh_read,  w1),   &
-             arg_type(gh_field, gh_real, gh_read,  w1),   &
-             arg_type(gh_field, gh_real, gh_read,  w1),   &
-             arg_type(gh_scalar, gh_real, gh_read)        &
+     type(arg_type), dimension(6) :: meta_args =          &
+          (/ arg_type(gh_field,   gh_real, gh_write, w1), &
+             arg_type(gh_field,   gh_real, gh_read,  w1), &
+             arg_type(gh_field,   gh_real, gh_read,  w1), &
+             arg_type(gh_field,   gh_real, gh_read,  w1), &
+             arg_type(gh_field*3, gh_real, gh_read,  w1), &
+             arg_type(gh_scalar,  gh_real, gh_read)       &
            /)
+
      integer :: operates_on = DOF
    contains
      procedure, nopass :: code => testkern_dofs_code
@@ -56,12 +58,17 @@ module testkern_dofs_mod
 
 contains
 
-  subroutine testkern_dofs_code(a, b, c, d, scalar_arg)
+  subroutine testkern_dofs_code(a, b, c, d,  &
+                                field_vec_1, &
+                                field_vec_2, &
+                                field_vec_3, &
+                                scalar_arg)
     implicit none
 
-    real(kind=r_def),    intent(inout) :: a
-    real(kind=r_def),    intent(in)    :: b, c, d
-    real(kind=r_def),    intent(in)    :: scalar_arg
+    real(kind=r_def), intent(inout) :: a
+    real(kind=r_def), intent(in)    :: b, c, d
+    real(kind=r_def), intent(in)    :: field_vec_1, field_vec_2, field_vec_3
+    real(kind=r_def), intent(in)    :: scalar_arg
 
   end subroutine testkern_dofs_code
 

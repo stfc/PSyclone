@@ -12,16 +12,12 @@
 
 {# The types that are supported. The first entry of each tuple
    is the name used when naming subroutines and in user messages.
-   The second entry is the Fortran declaration. The third entry
-   is the number of bits. There is slightly different code
-   required for 32 and 64 bit values (due to the fact that the
-   Fortran transfer(value, mould) function leaves undefined bits
-   when mould is larger than value.) #}
+   The second entry is the Fortran declaration. #}
 
 {% if ALL_TYPES is not defined %}
-   {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
-                        ("Real",   "real(kind=real32)",   32),
-                        ("Int",    "integer(kind=int32)", 32) ] %}
+   {% set ALL_TYPES = [ ("Double", "real(kind=real64)"  ),
+                        ("Real",   "real(kind=real32)"  ),
+                        ("Int",    "integer(kind=int32)") ] %}
 {% endif %}
 
 ! -----------------------------------------------------------------------------
@@ -110,7 +106,7 @@ module psy_data_base_mod
             {# ------------------------------------------------------------- -#}
             {% set all_declares=[] -%}
             {% set all_provides=[] -%}
-            {% for name, type, bits in ALL_TYPES %}
+            {% for name, type in ALL_TYPES %}
             procedure :: DeclareScalar{{name}}
             procedure :: ProvideScalar{{name}}
               {{- all_declares.append("DeclareScalar"~name) or "" -}}
@@ -316,7 +312,7 @@ contains
     ! =========================================================================
     ! Jinja created code:
     ! =========================================================================
-    {% for name, type, bits in ALL_TYPES %}
+    {% for name, type in ALL_TYPES %}
     ! -------------------------------------------------------------------------
     !> @brief This subroutine declares a scalar {{type}} value. This
     !! implementation only increases the next index, and prints

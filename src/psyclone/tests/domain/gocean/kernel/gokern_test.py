@@ -202,17 +202,3 @@ def test_gok_access_info_scalar_and_property():
     assert isinstance(comp_ind[2][1], Reference)
     assert comp_ind[2][0].symbol.name == "i"
     assert comp_ind[2][1].symbol.name == "j"
-
-
-# -----------------------------------------------------------------------------
-def test_gok_local_vars():
-    '''Tests the local_var function
-
-    '''
-    _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
-                           "gocean", idx=0)
-    schedule = invoke.schedule
-
-    # Get the first kernel
-    kern1 = schedule.walk(GOKern)[0]
-    assert kern1.local_vars() == []

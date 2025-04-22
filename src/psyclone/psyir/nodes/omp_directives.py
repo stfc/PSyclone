@@ -1596,6 +1596,8 @@ class OMPParallelDirective(OMPRegionDirective):
         var_accesses = VariablesAccessInfo()
         self.reference_accesses(var_accesses)
         for signature in var_accesses.all_signatures:
+            if not var_accesses[signature].has_data_access():
+                continue
             accesses = var_accesses[signature].all_accesses
             # TODO #2094: var_name only captures the top-level
             # component in the derived type accessor. If the attributes
@@ -1619,7 +1621,7 @@ class OMPParallelDirective(OMPRegionDirective):
                 continue
 
             # All arrays not explicitly marked as threadprivate are shared
-            if accesses[0].is_array():
+            if any(accs.is_array() for accs in accesses):
                 continue
 
             # If a variable is only accessed once, it is either an error
@@ -2106,17 +2108,17 @@ class OMPDoDirective(OMPRegionDirective):
                                  number of nested Loops.
         '''
         if self._collapse:
-            cursor = self.dir_body.children[0]
+            cursor = self.dir_body
             for depth in range(self._collapse):
-                if (len(cursor.parent.children) != 1 or
-                        not isinstance(cursor, Loop)):
+                if (len(cursor.children) != 1 or
+                        not isinstance(cursor.children[0], Loop)):
                     raise GenerationError(
                         f"{type(self).__name__} must have as many immediately "
                         f"nested loops as the collapse clause specifies but "
                         f"'{self}' has a collapse={self._collapse} and the "
                         f"nested body at depth {depth} cannot be "
                         f"collapsed.")
-                cursor = cursor.loop_body.children[0]
+                cursor = cursor.children[0].loop_body
 
     def _validate_single_loop(self):
         '''
@@ -2412,6 +2414,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 class OMPTeamsDistributeParallelDoDirective(OMPParallelDoDirective):
     ''' Class representing the OMP teams distribute parallel do directive. '''
     _directive_string = "teams distribute parallel do"
+
+
+class OMPTeamsLoopDirective(OMPParallelDoDirective):
+    ''' Class representing the OMP teams loop directive. '''
+    _directive_string = "teams loop"
 
 
 class OMPTargetDirective(OMPRegionDirective):

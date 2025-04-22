@@ -32,6 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: I. Kavcic, Met Office
+! Modified by: J. Dendy, Met Office
 !
 !------------------------------------------------------------------------------
 ! Drives the execution of the algorithms and kernels in Example 3.
@@ -63,7 +64,7 @@ program time_evolution_driver
                               only : domain_top, &
                                      number_of_layers
   use finite_element_config_mod, &
-                              only : element_order
+                              only : element_order_h, element_order_v
   use partitioning_config_mod, &
                               only : panel_xproc, &
                                      panel_yproc
@@ -161,7 +162,8 @@ program time_evolution_driver
   call log_event( "Creating perturbation field on W3 space", LOG_LEVEL_INFO )
 
   ! Create W3 function space with single-valued data points
-  fs_w3 = function_space_type( mesh, element_order, W3, ndata_sz )
+  fs_w3 = function_space_type( mesh, element_order_h, element_order_v, W3, &
+                               ndata_sz )
   fs_w3_ptr => fs_w3
   ! Create perturbation field on W3 function space
   call perturbation%initialise( vector_space = fs_w3_ptr, &

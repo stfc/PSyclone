@@ -62,7 +62,7 @@ by the command:
 .. parsed-literal::
 		
   >>> psyad -h
-    usage: psyad [-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] [-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] -a ACTIVE [ACTIVE ...] -- filename
+    usage: psyad [-h] [-oad OAD] [-c CONFIG] [-v] [-t] [-api API] [-coord-arg COORD_ARG] [-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] -a ACTIVE [ACTIVE ...] -- filename
 
     Run the PSyclone adjoint code generator on a tangent-linear kernel file
 
@@ -73,6 +73,8 @@ by the command:
       -h, --help            show this help message and exit
       -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]
                             name of active variables
+      -c CONFIG, --config CONFIG
+                            config file with PSyclone specific options
       -v, --verbose         increase the verbosity of the output
       -t, --gen-test        generate a standalone unit test for the adjoint code
       -api API              the PSyclone API that the TL kernel conforms to (if any)
@@ -207,3 +209,11 @@ internally you can specify the ``-v`` option. For example
 ::
 
    > psyad -a var1 var2 -oad ad_kern.f90 -v tl_kern.f90
+
+Configuration Options
+---------------------
+
+By default PSyAD uses the same configuration file used by PSyclone. To
+use a custom configuration file use the ``--config`` command-line option.
+Further documentation of the configuration options can be found in
+:ref:`user_guide:configuration`.

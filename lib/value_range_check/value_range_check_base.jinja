@@ -26,16 +26,14 @@
 
 {# The types that are supported. The first entry of each tuple
    is the name used when naming subroutines and in user messages.
-   The second entry is the Fortran declaration. The third entry
-   is the number of bits. There is slightly different code
-   required for 32 and 64 bit values (due to the fact that the
-   Fortran transfer(value, mould) function leaves undefined bits
-   when mould is larger than value.) #}
+   The second entry is the Fortran declaration. #}
 
 {% if ALL_TYPES is not defined %}
-   {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
-                        ("Real",   "real(kind=real32)",   32),
-                        ("Int",    "integer(kind=int32)", 32) ] %}
+   {% set ALL_TYPES = [ ("Double",  "real(kind=real64)"  ),
+                        ("Real",    "real(kind=real32)"  ),
+                        ("Char",    "character",         ),
+                        ("Logical", "logical",           ),
+                        ("Int",     "integer(kind=int32)") ] %}
 {% endif %}
 
 ! -----------------------------------------------------------------------------
@@ -126,7 +124,7 @@ module value_range_check_base_mod
         {# ------------------------------------------------------------------------- -#}
         {% set all_declares=[] -%}
         {% set all_provides=[] -%}
-        {% for name, type, bits in ALL_TYPES %}
+        {% for name, type in ALL_TYPES %}
         procedure :: ProvideScalar{{name}}
           {{- all_provides.append("ProvideScalar"~name) or "" }}
           {% for dim in ALL_DIMS %}
@@ -315,7 +313,7 @@ contains
     ! Jinja created code.
     ! =========================================================================
 
-{% for name, type, bits in ALL_TYPES %}
+{% for name, type in ALL_TYPES %}
 
     ! =========================================================================
     ! Implementation for all {{type}} types
@@ -338,6 +336,11 @@ contains
         character(*), intent(in)                      :: name
         {{type}}, intent(in)                          :: value
 
+        {% if name in ["Logical", "Char"] %}
+        ! We can't compare {{type}} values with a real, nor can
+        ! we check for non-finite values. So do nothing.
+        {% else %}
+        {# Now it's a floating point or integer value #}
         if (.not. is_enabled) return
 
         if (.not. this%env_var_have_been_read) then
@@ -346,11 +349,9 @@ contains
                                   this%value_ranges(this%next_var_index,:))
         endif
 
-        {% if name !="Logical" %}
-
         if (this%has_checks(this%next_var_index) == has_min) then
             {# The spaces take care of proper indentation #}
-            {{indent}}if (value< this%value_ranges(this%next_var_index,1)) then
+            {{indent}}if (value < this%value_ranges(this%next_var_index,1)) then
             {{indent}}    write(stderr, '(11G0)') "PSyData: Variable '",                    &
             {{indent}}                     name,"' has the value ",                         &
             {{indent}}                     value, " in module '", trim(this%module_name),   &
@@ -381,9 +382,11 @@ contains
             {{indent}}                     this%value_ranges(this%next_var_index,2),"'."
             {{indent}}endif
         endif
-        {% endif %}
 
-        {% if name not in ["Int", "Logical"] %}
+        {% if name in ["Int", "Long"] %}
+        ! Variables of type {{type}} do not have NANs, and cannot usefully be
+        ! checked for non-finite values. So nothing to do here.
+        {% else -%}    {# floating point #}
         if (IEEE_SUPPORT_DATATYPE(value)) then
             if (.not. IEEE_IS_FINITE(value)) then
                 write(stderr, '(8G0)') "PSyData: Variable '", name,"' has invalid value ", &
@@ -391,10 +394,8 @@ contains
                                  "', region '", trim(this%region_name),"'."
             endif
         endif
-        {% else %}
-        ! Variables of type {{type}} do not have NANs, and cannot usefully be
-        !  checked for range. So nothing to do here.
-        {% endif %}
+        {% endif %}   {# floating point value #}
+        {% endif %}   {# floating point or integer #}
 
         call this%PSyDataBaseType%ProvideScalar{{name}}(name, value)
 
@@ -430,11 +431,15 @@ contains
         character(*), intent(in) :: name
         {{type}}, dimension({{DIMENSION}}), intent(in) :: value
 
-        {# IEEE_SUPPORT_DATATYPE does not even compile for int data types #}
-        {% if name not in ["Int", "Logical"] %}
         integer :: {{vars}}
 
+        {% if name in ["Logical", "Char"] %}
+        ! We can't compare {{type}} values with a real, nor can
+        ! we check for non-finite values. So do nothing.
+        {% else %}
+        {# Now it's a floating point or integer value #}
         if (.not. is_enabled) return
+
         if (.not. this%env_var_have_been_read) then
             call this%get_min_max(this%module_name, this%region_name,         &
                                   name, this%has_checks(this%next_var_index), &
@@ -496,6 +501,10 @@ contains
             {% endfor %}
         endif
 
+        {% if name in ["Int", "Long"] %}
+        ! Variables of type {{type}} do not have NANs, and cannot usefully be
+        ! checked for non-finite values. So nothing to do here.
+        {% else -%}    {# floating point #}
         if (IEEE_SUPPORT_DATATYPE(value)) then
             {# The spaces take care of proper indentation #}
             {% for j in range(dim, 0, -1) %}
@@ -512,10 +521,8 @@ contains
             {{" "*3*(j-1)}}enddo
             {% endfor %}
         endif
-        {% else %}
-        ! Variables of type {{type}} do not have NANs
-        ! So nothing to do here.
-        {% endif %}
+        {% endif %}   {# floating point value #}
+        {% endif %}   {# floating point or integer #}
 
         call this%PSyDataBaseType%ProvideArray{{dim}}d{{name}}(name, value)
 

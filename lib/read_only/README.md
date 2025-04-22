@@ -38,6 +38,10 @@ Contains the read-only, PSyData-API-based, wrapper library for the
 [LFRic (Dynamo 0.3) API](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
 
+## [``generic``](./generic) directory
+
+Contains the generic read-only wrapper library.
+
 <!--
 ## Licence
 
