@@ -74,7 +74,7 @@ really required.
 
 ## Mark up Subroutines for GPU Execution
 As opposed to OpenMP, each routine to be executed on the
-GPU needs the `!$acc routine` directive added to instruct the compiler
+GPU needs the ``!$acc routine`` directive added to instruct the compiler
 to create GPU-specific code for it. You can automate this using
 PSyclone with the following code snippet:
 
@@ -94,3 +94,6 @@ The modified, module-inlined kernels are now:
       !$acc routine
       born(i,j) = 0.0
       ...
+
+After compilation, you can execute the program (ideally with the configuration in
+``../gol-lib/config.glider-large``, which is a 1000x1000 grid and uses 2000 time steps).
