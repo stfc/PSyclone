@@ -211,6 +211,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.DebugChecksumTrans
+      :members: apply
+      :no-index:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.DotProduct2CodeTrans
     :members: apply
     :no-index:
