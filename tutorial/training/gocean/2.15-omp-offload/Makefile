@@ -5,7 +5,7 @@ OBJ = output_field_mod.o time_step_alg_mod.o time_step_alg_mod_psy.o
 
 # Use nvfortran by default
 F90 ?= nvfortran
-F90FLAGS ?= -fopenmp
+F90FLAGS ?= -O3 -mp=gpu -gpu=managed -Minfo=all
 
 include ../common.mk
 
