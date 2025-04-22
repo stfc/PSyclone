@@ -21,44 +21,38 @@ any subroutines called so that they are compiled for GPU.
 ## Parallelising Loops
 
 Similar to CPU OpenMP parallelisation, OMP offloading uses
-two transformations to parallelise loops: ``OMPLoopTrans``
-is responsible for marking loops to be parallelised, and
-``OMPTargetTrans`` marks a region to be executed in parallel.
+two transformations to parallelise loops: the
+``teams distribute parallel do`` directive executes a loop in parallel,
+and ``target`` marks a region to be executed in parallel. Technically,
+these two directives can be combined as "composite" constructs, but
+this is not yet supported by PSylcone, so we need two different
+transformations. Also be aware that the ``omp target`` directive only
+takes one ``omp teams`` directive. So, while OpenMP for CPUs allows
+one parallel region to have multiple parallel loops, with GPU offloading
+you need a separate ``target`` statement for each loop.
 
-In order to use offloading to parallelise a loop, the
-``OMPLoopTrans`` transformation needs to be created as
+The ``OMPLoopTrans`` transformation needs to be created as
 follows, so that it creates a ``teams distribute parallel do``
 directive:
 
-    loop_offloading_trans = OMPLoopTrans(
+    loop_offloading = OMPLoopTrans(
         omp_directive="teamsdistributeparalleldo",
         omp_schedule="none")
 
 
-TODO1: Apply the ``ACCLoopTrans`` directive to all loops in the schedule
-Note that the solution script adds an additional parameter to the
-transformation to collapse the two nested loops, which will be more
-efficient. These kind of optional parameters will be explained in more
-details later.
+TODO1: Create the ``loop_offloading`` transformation.
 
-TODO2: Apply ``ACCParallelTrans`` to the whole schedule.
 
-## Upload Required Data to GPU
-When using offload (and no automatic memory management is used),
-we need to instruct the CPU to upload the required data to the GPU.
-In PSyclone this is done with the ``ACCEnterDataTrans`` transformation.
-It does not need any parameter, it will analyse the called kernels
-and the required parameters.
+TODO2: Apply ``target trans`` to the directive you have just
+added. There is no direct way of getting the added note as part
+of applying a transformation, so you need to use the loop node,
+and use ``parent`` (or ``ancestor(Directive)``, looking for the
+next directive above the loop, which would be the node you just added.
 
-TODO3: apply ``ACCEnterDataTrans`` 
+In the end, the following code should be created:
 
-Study the created PSy-layer file ``time_step_alg_mod_psy.f90``.
-It contains a lot of additional, internal code for managing the GPU
-device, and the following directives. 
-
-      !$acc enter data copyin(born,born%data,current,current%data,die,die%data,neighbours,neighbours%data)
-      !$acc parallel default(present)
-      !$acc loop independent
+      !$omp target
+      !$omp teams distribute parallel do default(shared), private(i,j)
       DO j = neighbours%internal%ystart, neighbours%internal%ystop, 1
         DO i = neighbours%internal%xstart, neighbours%internal%xstop, 1
           CALL count_neighbours_code(i, j, neighbours%data, current%data)
@@ -66,39 +60,36 @@ device, and the following directives.
           CALL compute_die_code(i, j, die%data, current%data, neighbours%data)
         END DO
       END DO
-      !$acc loop independent
+      !$omp end teams distribute parallel do
+      !$omp end target
+      !$omp target
+      !$omp teams distribute parallel do default(shared), private(i,j)
       DO j = current%internal%ystart, current%internal%ystop, 1
         DO i = current%internal%xstart, current%internal%xstop, 1
           CALL combine_code(i, j, current%data, die%data, born%data)
         END DO
       END DO
-      !$acc end parallel
+      !$omp end teams distribute parallel do
+      !$omp end target
 
-Note that the data is not copied back by default. The only
-output variable required in Game of Life is ``current``
-when outputting the results. The function ``output_field``
-contains a directive to update the CPU data with the
-data on the GPU:
-
-    !$acc update self(field%data)
-
-Where ``field`` is ``current``. This means the data is only
-copied back to CPU, which is a somewhat slow operation, when
-really required.
+Note that there are two separate ``target`` areas, each of which with its own
+``teams distribute parallel do`` section.
 
 
 ## Mark up Subroutines for GPU Execution
-As opposed to OpenMP, each routine to be executed on the
-GPU needs the `!$acc routine` directive added to instruct the compiler
-to create GPU-specific code for it. You can automate this using
-PSyclone with the following code snippet:
+As opposed to OpenMP for CPU, each routine to be executed on the
+GPU needs the ``!$omp declare target`` directive added to instruct the compiler
+to create GPU-specific code for it. We are using module inlining to modify the
+kernels after copying them into the psy-layer module.
 
-    from psyclone.transformations import ACCRoutineTrans
+The following code snippet will add the required directive to each of the kernels:
 
-    ktrans = ACCRoutineTrans()
-    # Put an 'acc routine' directive inside each kernel
-    for kern in schedule.coded_kernels():
-        ktrans.apply(kern)
+    from psyclone.transformations import OMPDeclareTargetTrans
+
+    declare_target = OMPDeclareTargetTrans()
+    # Put a ``!omp declare target `` directive inside each kernel
+    for kern in psyir.walk(GOKern):
+        declare_target.apply(kern)
 
 The modified, module-inlined kernels are now:
 
@@ -106,6 +97,10 @@ The modified, module-inlined kernels are now:
      ...
      INTEGER, intent(in) :: j
 
-      !$acc routine
+      !$omp declare target
       born(i,j) = 0.0
       ...
+
+
+After compilation, you can execute the program (ideally with the configuration in
+``../gol-lib/config.glider-large``, which is a 1000x1000 grid and uses 2000 time steps).

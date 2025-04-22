@@ -39,19 +39,12 @@ to all kernels.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.psyir.nodes import Loop
 from psyclone.gocean1p0 import GOKern
+from psyclone.psyir.nodes import Directive, Loop, Routine
+from psyclone.psyir.transformations import TransformationError, OMPTargetTrans
+from psyclone.transformations import OMPDeclareTargetTrans, OMPLoopTrans
 
 from fuse_loops import trans as fuse_trans
-
-from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.nodes import Directive, Loop, Routine
-from psyclone.psyir.transformations import (TransformationError,
-    OMPTargetTrans)
-from psyclone.transformations import (
-    Dynamo0p3OMPLoopTrans,
-    Dynamo0p3RedundantComputationTrans, OMPParallelTrans,
-    OMPDeclareTargetTrans, OMPLoopTrans)
 
 
 def trans(psyir):
@@ -75,22 +68,24 @@ def trans(psyir):
     inline = KernelModuleInlineTrans()
     for kern in psyir.walk(GOKern):
         inline.apply(kern)
-        # Put a ``declare target`` directive inside each kernel
-        try:
-            declare_target.apply(kern)
-        except TransformationError as err:
-            print(f"Failed to annotate '{kern.name}' with "
-                  f"GPU-enabled directive due to:\n"
-                  f"{err.value}")
+        TODO3: Add a the declare target
 
     loop_offloading = OMPLoopTrans(
-        omp_directive="teamsdistributeparalleldo",
-        omp_schedule="none")
+    TODO1 Create the teamsdistributeparalleldo transformation
+        )
     target_trans = OMPTargetTrans()
 
     for subroutine in psyir.walk(Routine):
+        # TODO2: Either use walk, then you need to check for
+        #  outer loops, or you loop over children of the schedule,
+        #  but then you need to check that each child is indeed a loop
         for loop in subroutine.walk(Loop):
-            if loop.loop_type == "outer":
-                loop_offloading.apply(
-                    loop, options={"independent": True})
-                target_trans.apply(loop.ancestor(Directive))
+            TODO2: check loop.loop_type, or if the child
+                   is a loop, then apply loop_offloading
+
+            TODO3: Now you also need to add target_trans around the
+                   directive. The ``ancestor`` method is the easiest
+                   option (look for the first node of type ``Directive``).
+                   Using ``parent`` works, but be aware that there is a
+                   ``Schedule`` node, so you would need ``parent.parent``
+                target_trans.apply()

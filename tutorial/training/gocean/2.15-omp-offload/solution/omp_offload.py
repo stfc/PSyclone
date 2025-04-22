@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,26 +34,17 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel extraction code to
-all invokes.
+function via the -s option. It adds OpenMP offload directives
+to all kernels.
 '''
 
-from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
-                                      ACCLoopTrans, ACCRoutineTrans)
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.psyir.nodes import Loop
 from psyclone.gocean1p0 import GOKern
+from psyclone.psyir.nodes import Directive, Loop, Routine
+from psyclone.psyir.transformations import TransformationError, OMPTargetTrans
+from psyclone.transformations import OMPDeclareTargetTrans, OMPLoopTrans
 
 from fuse_loops import trans as fuse_trans
-
-from psyclone.psyir.nodes import Directive, Loop, Routine
-from psyclone.psyir.transformations import (
-    ACCKernelsTrans, TransformationError, OMPTargetTrans)
-from psyclone.transformations import (
-    Dynamo0p3ColourTrans, Dynamo0p3OMPLoopTrans,
-    Dynamo0p3RedundantComputationTrans, OMPParallelTrans,
-    ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans,
-    OMPDeclareTargetTrans, OMPLoopTrans)
 
 
 def trans(psyir):
@@ -65,32 +56,34 @@ def trans(psyir):
 
 
     '''
-    loop_offloading_trans = OMPLoopTrans(
-        omp_directive="teamsdistributeparalleldo",
-        omp_schedule="none")
-    gpu_region_trans = OMPTargetTrans()
-    gpu_annotation_trans = OMPDeclareTargetTrans()
 
+    declare_target = OMPDeclareTargetTrans()
     inline = KernelModuleInlineTrans()
 
+    # Use existing fuse script to fuse all loops
+    fuse_trans(psyir)
 
-    #fuse_trans(psy)
-
-    # Inline all kernels to help gfortran with inlining.
+    # Module inline all kernels (so they can be modified)
+    # Then add an OpenMP routine statement to each of them:
+    inline = KernelModuleInlineTrans()
     for kern in psyir.walk(GOKern):
         inline.apply(kern)
+        # Put a ``declare target`` directive inside each kernel
+        try:
+            declare_target.apply(kern)
+        except TransformationError as err:
+            print(f"Failed to annotate '{kern.name}' with "
+                  f"GPU-enabled directive due to:\n"
+                  f"{err.value}")
+
+    loop_offloading = OMPLoopTrans(
+        omp_directive="teamsdistributeparalleldo",
+        omp_schedule="none")
+    target_trans = OMPTargetTrans()
 
     for subroutine in psyir.walk(Routine):
-        for loop in subroutine.loops():
-            for kern in loop.kernels():
-                try:
-                    gpu_annotation_trans.apply(kern)
-                except TransformationError as err:
-                    print(f"Failed to annotate '{kern.name}' with "
-                          f"GPU-enabled directive due to:\n"
-                          f"{err.value}")
         for loop in subroutine.walk(Loop):
             if loop.loop_type == "outer":
-                loop_offloading_trans.apply(
+                loop_offloading.apply(
                     loop, options={"independent": True})
-                gpu_region_trans.apply(loop.ancestor(Directive))
+                target_trans.apply(loop.ancestor(Directive))
