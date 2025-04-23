@@ -54,6 +54,9 @@ transform:
 
 compile: $(EXE)
 
+# If we want to run the binary, use the script that adds colour transformation:
+run: TRANS= ./omp_colour_transformation.py
+
 run: compile
 	@# If OMP_NUM_THREADS is not define, set it to 3:
 	OMP_NUM_THREADS=$${OMP_NUM_THREADS:-3} ./example
