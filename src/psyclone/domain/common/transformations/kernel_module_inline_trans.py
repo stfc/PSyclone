@@ -461,12 +461,6 @@ class KernelModuleInlineTrans(Transformation):
         if interface_sym:
             called_sym = callsite_table.lookup(interface_sym.name,
                                                otherwise=None)
-            if interface_sym is called_sym and not called_sym.is_import:
-                # Interface symbol is already local so nothing to do.
-                if isinstance(node, CodedKern):
-                    node.module_inline = True
-                # TODO #11 - log this.
-                return
         else:
             caller_name = codes_to_inline[0].name
             for routine in codes_to_inline:
@@ -482,8 +476,6 @@ class KernelModuleInlineTrans(Transformation):
             else:
                 # All routines are module-inlined so there's nothing to do.
                 # TODO #11 - log this.
-                if isinstance(node, CodedKern):
-                    node.module_inline = True
                 return
 
         # Deal with the RoutineSymbol that is in scope at the call site.
