@@ -532,8 +532,8 @@ def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
     assert "!$acc routine seq" in output
     assert "subroutine mixed_code_64" in output
     # Since we don't currently rename module-inlined kernels, module-inlining
-    # just one instance means that call to that same Kernel the whole module
-    # uses the newly-inlined version.
+    # just one instance means that calls to that same Kernel throughout the
+    # whole module uses the newly-inlined version.
     assert ("""subroutine invoke_1(scalar_r_phys, field_r_phys, \
 operator_r_def, f1, f2, m1, a, m2, istp, qr)
       use testkern_qr_mod, only: testkern_qr_code
