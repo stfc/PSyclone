@@ -45,6 +45,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 #: Mapping from simple string to actual directive class.
 MAP_STR_TO_LOOP_DIRECTIVES = {
@@ -63,6 +64,7 @@ MAP_STR_TO_BARRIER_DIRECTIVE = {
 VALID_OMP_DIRECTIVES = list(MAP_STR_TO_LOOP_DIRECTIVES.keys())
 
 
+@transformation_documentation_wrapper
 class OMPLoopTrans(ParallelLoopTrans):
     '''
     Adds an OpenMP directive to parallelise this loop. It can insert different

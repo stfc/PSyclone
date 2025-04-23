@@ -225,12 +225,12 @@ def test_create_docstring_data():
     assert output.desc == "desc"
 
     # Test invalid param string
-    args = ["param", "one", "two", "three"]
+    args = ["param"]
     with pytest.raises(DocParseError) as excinfo:
         create_docstring_data(args, "desc", dummy_function)
     assert ("Found parameter docstring of unsupported type, expected "
             ":param arg: or :param type arg: but found "
-            ":param one two three:" in str(excinfo.value))
+            ":param:" in str(excinfo.value))
 
     # Test invalid raises string
     args = ["raises", "one", "two"]
@@ -426,6 +426,8 @@ def test_DocstringData_create_from_object():
         :param bool myparam3: a third parameter with\
                 a backslash docstring spanning\
                 many lines.
+        :param bool | int | float something: a parameter with
+            many type options.
 
         :raises DocParseError: an error
 
@@ -435,7 +437,7 @@ def test_DocstringData_create_from_object():
 
     out_data = DocstringData.create_from_object(docstring)
     assert out_data.desc == "The description\n\n"
-    assert len(out_data.arguments.keys()) == 3
+    assert len(out_data.arguments.keys()) == 4
     assert out_data.arguments["myparam"].name == "myparam"
     assert out_data.arguments["myparam"].desc == "a parameter."
     assert out_data.arguments["myparam"].datatype == "type"
@@ -444,6 +446,7 @@ def test_DocstringData_create_from_object():
             "with a multiline docstring.")
     assert (out_data.arguments["myparam3"].desc == "a third parameter with\n"
             "a backslash docstring spanning\nmany lines.")
+    assert out_data.arguments["something"].datatype == "bool | int | float"
     assert len(out_data.raises) == 1
     assert out_data.raises[0].exception == "DocParseError"
     assert out_data.raises[0].desc == "an error"

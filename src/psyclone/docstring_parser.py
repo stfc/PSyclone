@@ -495,11 +495,11 @@ def create_docstring_data(args: List[str], desc: str,
                     val.annotation
                 )
                 inline_type = True
-        elif len(args) == 3:
+        elif len(args) > 2:
             # Parameter of form :param type name: desc.
             inline_type = True
-            datatype = args[1]
-            name = args[2]
+            datatype = " ".join(args[1:-1])
+            name = args[-1]
         else:
             raise DocParseError(
                 f"Found parameter docstring of unsupported type, expected "
