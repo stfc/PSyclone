@@ -61,7 +61,7 @@ def test_replace_exprn_validate(fortran_reader):
             in str(err.value))
 
 
-def test_replace_exprn_apply(fortran_reader):
+def test_replace_exprn_apply(fortran_reader, fortran_writer):
     '''
     '''
     rexptmptrans = ReplaceExprnWithTmpTrans()
@@ -72,8 +72,9 @@ def test_replace_exprn_apply(fortran_reader):
             "  integer :: qp1, qp2\n"
             "  real :: a(n,n,2)\n"
             "  real :: b(n)\n"
+            "  real :: dj(n,n)\n"
             "  real :: value = 1.0\n"
-            "  ke_at_quad = dot_product( &\n"
+            "  value = dot_product( &\n"
             "    matmul( a(:,:,qp1), b ), &\n"
             "    matmul( a(:,:,qp2), b ) ) &\n"
             "    / ( dj(qp1,qp2)**2 )\n"
@@ -83,3 +84,9 @@ def test_replace_exprn_apply(fortran_reader):
     for icall in psyir.walk(IntrinsicCall):
         if icall.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
             rexptmptrans.apply(icall)
+
+    output = fortran_writer(psyir)
+    assert "real, allocatable, dimension(:) :: ptmp" in output
+    assert "real, allocatable, dimension(:) :: ptmp_1" in output
+    assert "ptmp = matmul( a(:,:,qp1), b )" in output
+    assert "dot_product( ptmp, ptmp_1 )" in output

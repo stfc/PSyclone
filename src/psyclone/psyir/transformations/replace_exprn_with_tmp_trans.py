@@ -41,7 +41,7 @@ This module contains the ReplaceExprnWithTmp transformation.
 import copy
 
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import (DataNode)
+from psyclone.psyir.nodes import (DataNode, Routine)
 from psyclone.psyir.symbols import (
     ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol,
     UnresolvedType, UnsupportedType)
@@ -118,6 +118,16 @@ then
         self.validate(node)
 
         datatype = node.datatype
+        # Create a symbol for the temporary variable. If it's an array then
+        # we make it allocatable.
+        if isinstance(datatype, ArrayType):
+            decl_type = datatype.copy()
+            decl_type._shape = [ArrayType.Extent.DEFERRED]*len(datatype.shape)
+        else:
+            decl_type = datatype
+        table = node.ancestor(Routine).symbol_table
+        sym = table.new_symbol("ptmp", symbol_type=DataSymbol,
+                               datatype=decl_type)
 
         return
         # Get the reversed tags map so that we can lookup the tag (if any)
