@@ -48,13 +48,14 @@ from fparser import api as fpapi
 import psyclone
 from psyclone.configuration import Config
 from psyclone.core import AccessType
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import (LFRicConstants, LFRicTypes, LFRicKern,
                                    LFRicKernMetadata, LFRicLoop)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Container, Reference, KernelSchedule
+from psyclone.psyir.nodes import Container, KernelSchedule, Reference, Routine
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
     INTEGER_TYPE, ArrayType
 from psyclone.tests.utilities import get_invoke
@@ -170,6 +171,26 @@ def test_get_kernel_schedule(monkeypatch):
         kernel.get_kernel_schedule()
     assert ("Failed to find any routines for Kernel 'matrix_vector_code'"
             in str(err.value))
+
+
+def test_get_kernel_schedule_same_container(monkeypatch):
+    '''
+    Check that get_kernel_schedule() first examines all routines in the same
+    Container.
+
+    '''
+    _, invoke = get_invoke("12_kernel_specific.f90", TEST_API, idx=0)
+    sched = invoke.schedule
+    # Module-inline the kernels so that they are in the same Container as the
+    # call site.
+    mod_inline_trans = KernelModuleInlineTrans()
+    for kern in sched.walk(LFRicKern):
+        mod_inline_trans.apply(kern)
+        # Remove the cached schedule to force get_kernel_schedule() to search.
+        monkeypatch.setattr(kern, "_kern_schedules", None)
+        _, schedules = kern.get_kernel_schedule()
+        # The returned schedule should be the one in the local Container.
+        assert schedules[0] in sched.ancestor(Container).walk(Routine)
 
 
 @pytest.mark.xfail(reason="get_kernel_schedule has been extended to return all"
