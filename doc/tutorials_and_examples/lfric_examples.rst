@@ -27,7 +27,7 @@ kernel-inlining and loop-fusion transformations.
 Example 3: Distributed and Shared Memory
 ----------------------------------------
 
-Shows the use of colouring and OpenMP for the Dynamo 0.3 API. Includes
+Shows the use of colouring and OpenMP for the LFRic 0.3 API. Includes
 multi-kernel, named invokes with both user-supplied and built-in
 kernels. Also shows the use of ``Wchi`` function space metadata for
 coordinate fields in LFRic.
@@ -103,9 +103,6 @@ or to a Kernel in an Invoke after applying transformations:
 
   > psyclone -nodm -s ./extract_kernel_with_transformations.py \
       gw_mixed_schur_preconditioner_alg_mod.x90
-
-For now it only inserts comments in appropriate locations while the
-the full support for code extraction is being developed.
 
 This example also contains a Python helper script ``find_kernel.py``
 which displays the names and Schedules of Invokes containing call(s)

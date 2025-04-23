@@ -12,7 +12,7 @@ tracer-advection benchmark using OpenMP for CPUs and for GPUs.
 Example 2: OpenMP parallelisation of traldf_iso
 -----------------------------------------------
 
-Demonstrates the use of PSyclone to parallelise in some NEMO
+Demonstrates the use of PSyclone to parallelise loops in some NEMO
 tracer-diffusion code using OpenMP for CPUs and for GPUs.
 
 Example 3: OpenACC parallelisation of tra_adv

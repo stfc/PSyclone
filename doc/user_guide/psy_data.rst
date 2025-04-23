@@ -38,7 +38,7 @@
 
 .. _psy_data:
 
-The PSyData transformations
+The PSyData Transformations
 ===========================
 
 PSyclone provides transformations that will insert callbacks to

@@ -50,7 +50,7 @@ The PSyIR
 ===============================================
 
 The PSyIR (PSyclone Intermediate Representation) is at the heart of PSyclone,
-representing code for existing
+representing both existing
 code and PSyKAl DSLs (at both the PSy- and kernel-layer levels). A PSyIR
 tree may be constructed from scratch (in Python) or by processing existing
 source code using a frontend. Transformations act on the PSyIR and

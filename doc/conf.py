@@ -144,6 +144,7 @@ pygments_style = 'sphinx'
 # a list of builtin themes.
 html_theme = 'pydata_sphinx_theme'
 
+# Create a link to the doxygen documentation that can be used from the rst files
 base_url = os.getenv('READTHEDOCS_CANONICAL_URL', '/')
 rst_epilog = f"""
 .. _Doxygen Documentation: {base_url}html

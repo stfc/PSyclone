@@ -26,8 +26,7 @@ The supplied ``Makefile`` also provides a second, ``profile`` target which
 performs the same OpenACC transformations but then encloses the whole
 of the resulting PSy layer in a profiling region. By linking this with
 the PSyclone NVTX profiling wrapper (and the NVTX library itself), the
-resulting application can be profiled using NVIDIA's `nvprof` or
-`nvvp` tools.
+resulting application can be profiled using NVIDIA's `nsys` tool.
 
 Example 3: OpenCL
 -----------------
@@ -75,9 +74,6 @@ driver programs are independent of the dl_esm_inf infrastructure library.
 These drivers can only read the corresponding file format, i.e. a NetCDF
 driver program cannot read in extraction data that is based on Fortran IO
 and vice versa.
-
-.. note:: At this stage the driver program still needs the infrastructure
-     library when compiling the kernels, see #1757.
 
 Example 5.2: Profiling
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -137,7 +133,7 @@ read-only variables:
 
 Example 5.4: Value Range Check
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-This example shows the use of valid number verification with PSyclone.
+This example shows the use of valid-number verification with PSyclone.
 It instruments each of the two invokes in the example program
 with the PSyData-based Value-Range-Check code.
 It uses the dl_esm_inf-specific value range check library

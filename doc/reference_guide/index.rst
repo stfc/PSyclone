@@ -3,7 +3,7 @@ Reference Guide
 
 Welcome to the PSyclone Reference Guide. This consists of auto-generated
 API documentation produced using the AutoAPI Sphinx plugin (see
-left-hand-side menu). And the `Doxygen Documentation`_.
+left-hand-side menu) and the `Doxygen Documentation`_.
 
 .. toctree::
    :hidden:
