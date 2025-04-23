@@ -34,7 +34,7 @@ contains
     !> @param[in]  die     The field with 1 iff the cell dies.
     !> @param[in]  born    The field with 1 iff a new cell is born.
 
-    subroutine combine_code(i, j, current, die, born)
+    pure subroutine combine_code(i, j, current, die, born)
         implicit none
         double precision, dimension(:,:), intent(out) :: current
         double precision, dimension(:,:), intent(in)  :: die, born

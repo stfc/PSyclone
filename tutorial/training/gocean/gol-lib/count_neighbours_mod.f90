@@ -35,7 +35,7 @@ contains
     !> @param[in]  die  The field with 1 iff the cell dies.
     !> @param[in]  born The field with 1 iff a new cell is born.
 
-    subroutine count_neighbours_code(i, j, neighbours, c)
+    pure subroutine count_neighbours_code(i, j, neighbours, c)
         implicit none
         double precision, dimension(:,:), intent(out) :: neighbours
         ! Sorry for the short name, it keeps the line length below shorter
