@@ -43,11 +43,14 @@ from collections.abc import Iterable
 from enum import Enum
 
 from psyclone.core import AccessType
+from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import IntrinsicSymbol
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, DataType, INTEGER_TYPE, IntrinsicSymbol, ScalarType,
+    UnresolvedType)
 
 # pylint: disable=too-many-branches
 
@@ -970,6 +973,60 @@ class IntrinsicCall(Call):
         :rtype: NoneType | bool
         '''
         return self.intrinsic.is_inquiry
+
+    @property
+    def datatype(self) -> DataType:
+        '''
+        Works out the return type of this intrinsic call. Currently only
+        MATMUL is supported - anything else will return an UnresolvedType.
+
+        :returns: the datatype of the result of this intrinsic call.
+        '''
+        if self.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
+            argtype1 = self.arguments[0].datatype
+            argtype2 = self.arguments[1].datatype
+            shape1 = argtype1.shape
+            shape2 = argtype2.shape
+            stype1 = ScalarType(argtype1.intrinsic, argtype1.precision)
+            stype2 = ScalarType(argtype2.intrinsic, argtype2.precision)
+            arg1 = Reference(DataSymbol("a", stype1))
+            arg2 = Reference(DataSymbol("b", stype2))
+            binop = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                           arg1, arg2)
+            # TODO - make this a public method?
+            stype = binop._get_result_scalar_type([stype1, stype2])
+            #  a11 a12 x b1 = a11*b1 + a12*b2
+            #  a21 a22   b2   a21*b1 + a22*b2
+            #  a31 a32        a31*b1 + a32*b2
+            #  3 x 2 * 2 x 1 = 3 x 1
+            #  rank 2  rank 1  rank 1
+            if len(shape1) == 1:
+                extent = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.SIZE,
+                    [self.arguments[1].copy(),
+                     ("dim", Literal("1", INTEGER_TYPE))])
+                shape = [extent]
+            elif len(shape2) == 1:
+                extent = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.SIZE,
+                    [self.arguments[0].copy(),
+                     ("dim", Literal("1", INTEGER_TYPE))])
+                shape = [extent]
+            else:
+                # matrix-matrix. Result is size(arg0, 1) x size(arg1, 2)
+                extent1 = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.SIZE,
+                    [self.arguments[0].copy(),
+                     ("dim", Literal("1", INTEGER_TYPE))])
+                extent2 = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.SIZE,
+                    [self.arguments[1].copy(),
+                     ("dim", Literal("2", INTEGER_TYPE))])
+                shape = [extent1, extent2]
+            return ArrayType(stype, shape)
+
+        # Anything other than MATMUL is not implemented yet.
+        return UnresolvedType()
 
 
 # TODO #658 this can be removed once we have support for determining the
