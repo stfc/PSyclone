@@ -73,6 +73,9 @@ def _inline_calls(kern):
     '''
     Recursively inline all calls within the supplied Kernel or Routine.
 
+    Currently only attempts to replace MATMUL intrinsic calls with inline
+    code.
+`
     :param kern: the Kernel or Routine to inline any Calls into.
 
     '''
@@ -88,12 +91,23 @@ def _inline_calls(kern):
         sched: Schedule
         for call in sched.walk(Call):
             call: Call
-            if isinstance(call, IntrinsicCall):
-                try:
-                    matrans.apply(call)
-                except TransformationError:
-                    pass
+            # The NVIDIA compiler (as at 25.3) will sometimes fail to compile
+            # code with calls to MATMUL with a claim that they are not
+            # available on the device, e.g.:
+            # Call to NVHPC runtime function not supported -
+            #   pgf90_matmul_real4_i8
+            # Therefore, if we are unable to replace a MATMUL by generic code,
+            # the resulting TransformationError will signal (to the calling
+            # routine) that we are not to mark this kernel for offload.
+            if (isinstance(call, IntrinsicCall) and
+                    call.intrinsic == IntrinsicCall.Intrinsic.MATMUL):
+                matrans.apply(call)
                 continue
+
+            # For now we only look at MATMUL calls. In future we may want to
+            # remove this `continue` and attempt to inline more calls.
+            continue
+
             if any(name in call.routine.name for name in INLINE_EXCLUSIONS):
                 continue
             try:
@@ -196,6 +210,7 @@ def trans(psyir):
                             print(f"Failed to module-inline kernel "
                                   f"'{kern.name}' due to:\n{err.value}")
                         try:
+                            _inline_calls(kern)
                             gpu_annotation_trans.apply(kern)
                             print(f"Annotated kernel '{kern.name}'")
                         except TransformationError as err:
