@@ -756,30 +756,10 @@ class LFRicKern(CodedKern):
 
         new_schedules = []
         for routine in routines[:]:
-            # If one of the symbols is not declared in a routine then
-            # this is only picked up when writing out the routine
-            # (raising a VisitorError), so we check here so that
-            # invalid code is not inlined. We use debug_string() to
-            # minimise the overhead.
-
-            # TODO #2271 could potentially avoid the need for
-            # debug_string() within. Sergi suggests that we may be
-            # missing the traversal of the declaration init
-            # expressions and that might solve the problem. I'm not so
-            # sure as we are talking about unknown symbols that will
-            # only be resolved in the back-end (or not). If I am right
-            # then one option would be to use the FortranWriter, but
-            # that would be bigger overhead, or perhaps just the
-            # declarations part of FortranWriter if that is possible.
-            # Also see TODO issue #2336 which captures the specific
-            # problem in LFRic that this fixes.
-            routine.debug_string()
-
-            # TODO #935 - replace the PSyIR argument data symbols with
-            # LFRic data symbols. For the moment we just return the
-            # unmodified PSyIR schedule but this should use
-            # RaisePSyIR2LFRicKernTrans once KernelInterface is fully
-            # functional (#928).
+            # TODO #935 - replace the PSyIR argument data symbols with LFRic
+            # data symbols. For the moment we just return the  unmodified PSyIR
+            # schedule but this should use RaisePSyIR2LFRicKernTrans once
+            # KernelInterface is fully functional (#928).
             ksched = KernelSchedule(
                 routine.symbol, symbol_table=routine.symbol_table.detach())
             for child in routine.pop_all_children():
