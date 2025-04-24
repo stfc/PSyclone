@@ -51,8 +51,8 @@ only store a single value (a constant function).
 
 We then define two fields, one for each of the two vector spaces:
 
-    call field_0%initialise( vector_space = vector_space_ptr_0, name="field_3" )
-    call field_3%initialise( vector_space = vector_space_ptr_3, name="field_0" )
+    call field_0%initialise( vector_space = vector_space_ptr_0, name="field_0" )
+    call field_3%initialise( vector_space = vector_space_ptr_3, name="field_3" )
 
 
 The field `field_0`
