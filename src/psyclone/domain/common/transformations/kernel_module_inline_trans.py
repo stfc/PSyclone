@@ -583,6 +583,8 @@ class KernelModuleInlineTrans(Transformation):
                         call.routine.symbol = target_sym
 
         if interface_sym:
+            # Deal with the interface symbol - remove any existing import and
+            # then make sure the local symbol is private.
             self._rm_imported_routine_symbol(interface_sym,
                                              codes_to_inline[0],
                                              callsite_table)
@@ -591,6 +593,7 @@ class KernelModuleInlineTrans(Transformation):
                                                  codes_to_inline[0],
                                                  caller_cntr_table)
             container.symbol_table.add(interface_sym)
+            interface_sym.visibility = Symbol.Visibility.PRIVATE
             interface_sym.replace_symbols_using(container.symbol_table)
 
         # Update the Kernel to point to the updated PSyIR and set

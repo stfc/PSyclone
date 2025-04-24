@@ -47,8 +47,9 @@ from psyclone.psyGen import CodedKern, Kern
 from psyclone.psyir.nodes import (
     Container, Routine, CodeBlock, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, ImportInterface, RoutineSymbol, REAL_TYPE,
-    Symbol, SymbolError, SymbolTable, UnresolvedInterface)
+    ContainerSymbol, DataSymbol, GenericInterfaceSymbol, ImportInterface,
+    RoutineSymbol, REAL_TYPE, Symbol, SymbolError, SymbolTable,
+    UnresolvedInterface)
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import ACCRoutineTrans, OMPDeclareTargetTrans
 from psyclone.tests.gocean_build import GOceanBuild
@@ -833,6 +834,10 @@ def test_module_inline_with_interfaces(tmpdir):
     kern_calls = invoke.schedule.walk(CodedKern)
     inline_trans = KernelModuleInlineTrans()
     inline_trans.apply(kern_calls[0])
+    sym = kern_calls[0].scope.symbol_table.lookup("mixed_code")
+    # Check that the inteface symbol is declared and is private.
+    assert isinstance(sym, GenericInterfaceSymbol)
+    assert sym.visibility == Symbol.Visibility.PRIVATE
     # Check that module-inlining the second kernel call (which is to the
     # same interface) doesn't break anything.
     inline_trans.apply(kern_calls[1])
