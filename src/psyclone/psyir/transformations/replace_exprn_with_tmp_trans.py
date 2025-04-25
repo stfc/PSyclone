@@ -41,10 +41,12 @@ This module contains the ReplaceExprnWithTmp transformation.
 import copy
 
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import (DataNode, Routine)
+from psyclone.psyir.nodes import (
+    ArrayReference, Assignment, DataNode, IntrinsicCall, Range, Reference,
+    Routine, Statement)
 from psyclone.psyir.symbols import (
-    ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol,
-    UnresolvedType, UnsupportedType)
+    ArrayType, Symbol, INTEGER_TYPE, DataSymbol, UnresolvedType,
+    UnsupportedType)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 
@@ -128,6 +130,29 @@ then
         table = node.ancestor(Routine).symbol_table
         sym = table.new_symbol("ptmp", symbol_type=DataSymbol,
                                datatype=decl_type)
+
+        alloc = None
+        if isinstance(datatype, ArrayType):
+            args = []
+            for dim in datatype.shape:
+                args.append(Range.create(dim.lower.copy(), dim.upper.copy()))
+            aref = ArrayReference.create(sym, args)
+            alloc = IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
+                                         [aref])
+        # Assign the expression to the new Symbol.
+        assign = Assignment.create(Reference(sym), node.copy())
+        # Insert the assignment before the Statement containing the expression.
+        cursor = node
+        while cursor.ancestor(Statement):
+            cursor = cursor.ancestor(Statement)
+        preceding_stmt = cursor
+        idx = preceding_stmt.parent.children.index(preceding_stmt)
+        if alloc:
+            preceding_stmt.parent.children.insert(idx, alloc)
+            idx += 1
+        preceding_stmt.parent.children.insert(idx, assign)
+        # Replace the expression with the Symbol.
+        node.replace_with(Reference(sym))
 
         return
         # Get the reversed tags map so that we can lookup the tag (if any)

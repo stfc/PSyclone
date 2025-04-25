@@ -43,9 +43,10 @@ from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.transformations import ReplaceExprnWithTmpTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
+from psyclone.tests.utilities import Compile
 
 
-def test_replace_exprn_validate(fortran_reader):
+def test_replace_exprn_validate(fortran_reader, tmpdir):
     '''
     Test that the validate() method behaves as expected.
     '''
@@ -61,8 +62,9 @@ def test_replace_exprn_validate(fortran_reader):
             in str(err.value))
 
 
-def test_replace_exprn_apply(fortran_reader, fortran_writer):
+def test_replace_exprn_apply(fortran_reader, fortran_writer, tmpdir):
     '''
+    Test the basic operation of the apply() method.
     '''
     rexptmptrans = ReplaceExprnWithTmpTrans()
     code = ("module test_mod\n"
@@ -85,8 +87,11 @@ def test_replace_exprn_apply(fortran_reader, fortran_writer):
         if icall.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
             rexptmptrans.apply(icall)
 
-    output = fortran_writer(psyir)
+    output = fortran_writer(psyir).lower()
     assert "real, allocatable, dimension(:) :: ptmp" in output
     assert "real, allocatable, dimension(:) :: ptmp_1" in output
-    assert "ptmp = matmul( a(:,:,qp1), b )" in output
-    assert "dot_product( ptmp, ptmp_1 )" in output
+    assert "allocate(ptmp(1:size(a(:,:,qp1), dim=1)))" in output
+    assert "allocate(ptmp_1(1:size(a(:,:,qp2), dim=1)))" in output
+    assert "ptmp = matmul(a(:,:,qp1), b)" in output
+    assert "dot_product(ptmp, ptmp_1)" in output
+    assert Compile(tmpdir).string_compiles(output)
