@@ -578,10 +578,10 @@ def test_no_sphinx():
         from psyclone.docstring_parser import (
             create_docstring_data, ArgumentData
         )
-    
+
         def test_function(param: DocstringData):
             '''Empty function to test import.'''
-    
+
         data = create_docstring_data(["param", "param"],
                                      "empty", test_function)
         # This uses the PSyclone versoin of stringify_annotation so we get a
