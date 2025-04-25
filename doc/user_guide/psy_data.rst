@@ -38,8 +38,8 @@
 
 .. _psy_data:
 
-PSyData API
-===========
+The PSyData Transformations
+===========================
 
 PSyclone provides transformations that will insert callbacks to
 an external library at runtime. These callbacks allow third-party
