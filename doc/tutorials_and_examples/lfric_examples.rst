@@ -27,7 +27,7 @@ kernel-inlining and loop-fusion transformations.
 Example 3: Distributed and Shared Memory
 ----------------------------------------
 
-Shows the use of colouring and OpenMP for the LFRic 0.3 API. Includes
+Shows the use of colouring and OpenMP for the LFRic domain. Includes
 multi-kernel, named invokes with both user-supplied and built-in
 kernels. Also shows the use of ``Wchi`` function space metadata for
 coordinate fields in LFRic.
