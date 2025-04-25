@@ -95,3 +95,31 @@ def test_replace_exprn_apply(fortran_reader, fortran_writer, tmpdir):
     assert "ptmp = matmul(a(:,:,qp1), b)" in output
     assert "dot_product(ptmp, ptmp_1)" in output
     assert Compile(tmpdir).string_compiles(output)
+
+
+def test_replace_exprn_apply(fortran_reader, fortran_writer, tmpdir):
+    '''
+    Test the basic operation of the apply() method.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    module test_mod
+    contains
+      subroutine test_sub(n)
+        integer :: i,j,n
+        integer :: qp1, qp2
+        real :: a(n,n,2)
+        real :: b(n)
+        real :: dj(n,n)
+        real :: value(10)
+        do i = 1, 10
+          value(i) = dot_product( &
+            matmul( a(:,:,qp1), b ), matmul( a(:,:,qp2), b ) )
+        end do
+      end subroutine test_sub
+    end module test_mod''')
+    rexptmptrans = ReplaceExprnWithTmpTrans()
+    for icall in psyir.walk(IntrinsicCall):
+        if icall.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
+            rexptmptrans.apply(icall)
+    output = fortran_writer(psyir)
+    assert 0  # TODO - check for allocs/deallocs inside/outside loop.
