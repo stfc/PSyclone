@@ -69,7 +69,7 @@ class OMPTaskTrans(ParallelLoopTrans):
         '''
         return "OMPTaskTrans"
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Validity checks for input arguments.
 
@@ -182,7 +182,7 @@ class OMPTaskTrans(ParallelLoopTrans):
                 continue
             intrans.apply(call)
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the OMPTaskTrans to the specified node in a Schedule.
 
         Can only be applied to a Loop.
@@ -215,3 +215,7 @@ class OMPTaskTrans(ParallelLoopTrans):
             options = {}
         self._inline_kernels(node)
         super().apply(node, options)
+
+
+# For AutoAPI documentation generation.
+__all__ = ["OMPTaskTrans"]
