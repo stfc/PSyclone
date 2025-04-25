@@ -1,3 +1,6 @@
+   12) PR #2956 for #1206. Reorganise the documentation to create an
+   "instrumentation" section plus other tidying.   
+
    11) PR #2930 towards #714. Adds the DebugChecksumTrans transformation
    which enables a user to add checksum outputs to generic Fortran code.
 
