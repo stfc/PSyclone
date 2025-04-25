@@ -22,7 +22,7 @@ When examining the PSyIR (the intermediate representation that PSyclone
 uses to generate and translate code) and writing transformation
 scripts, it may be useful to see the documentation of the various node
 types. The best way to do this is to use the [PSyclone Reference Guide
-](https://psyclone-ref.readthedocs.io/en/latest/).
+](https://psyclone.readthedocs.io/en/latest/reference_guide/).
 
 ## A note on importing PSyclone modules ##
 
@@ -43,7 +43,7 @@ Unfortunately, the various transformation classes are not yet as well
 organised. Many are now in the 'proper' location of
 `psyclone.psyir.transformations`, but some are still in
 `psyclone.transformations`. If in doubt, consult the
-[Reference Guide](https://psyclone-ref.readthedocs.io/en/latest/_static/html/annotated.html).
+[Reference Guide](https://psyclone.readthedocs.io/en/latest/html/annotated.html).
 
 
 ## 1. Processing Fortran code with PSyclone ##
@@ -249,8 +249,8 @@ exception of profiling) to apply transformations to regions of code
 that contain them.
 
 From a computational-performance standpoint, the most important nodes
-are [`Loop`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1psyir_1_1nodes_1_1loop_1_1Loop.html) and
-[`Assignment`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1psyir_1_1nodes_1_1assignment_1_1Assignment.html).
+are [`Loop`](https://psyclone.readthedocs.io/en/latest/html/classpsyclone_1_1psyir_1_1nodes_1_1loop_1_1Loop.html) and
+[`Assignment`](https://psyclone.readthedocs.io/en/latest/html/classpsyclone_1_1psyir_1_1nodes_1_1assignment_1_1Assignment.html).
 
 3. Modify the transformation script to obtain a list of all of the
    `Assignment` nodes:
