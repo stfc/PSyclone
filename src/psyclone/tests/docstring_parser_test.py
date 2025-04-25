@@ -37,6 +37,7 @@
 
 from collections import OrderedDict
 import sys
+from unittest.mock import patch
 import pytest
 
 from psyclone.docstring_parser import (
@@ -568,19 +569,23 @@ def test_docstring_is_reversible():
 
 def test_no_sphinx():
     # Unload the docstring_parser
-    del sys.modules['psyclone.docstring_parser']
     # Trick the import into thinking sphinx.util.typing is unavailable
-    sys.modules['sphinx.util.typing'] = None
-    sys.modules['sphinx'] = None
-    # pylint: disable=import-outside-toplevel
-    from psyclone.docstring_parser import create_docstring_data, ArgumentData
-
-    def test_function(param: DocstringData):
-        '''Empty function to test import.'''
-
-    data = create_docstring_data(["param", "param"], "empty", test_function)
-    # This uses the PSyclone versoin of stringify_annotation so we get a
-    # different datatype expression
-    assert isinstance(data, ArgumentData)
-    assert (data.datatype ==
-            "<class 'psyclone.docstring_parser.DocstringData'>")
+    with patch.dict(sys.modules):
+        del sys.modules['psyclone.docstring_parser']
+        sys.modules['sphinx.util.typing'] = None
+        sys.modules['sphinx'] = None
+        # pylint: disable=import-outside-toplevel
+        from psyclone.docstring_parser import (
+            create_docstring_data, ArgumentData
+        )
+    
+        def test_function(param: DocstringData):
+            '''Empty function to test import.'''
+    
+        data = create_docstring_data(["param", "param"],
+                                     "empty", test_function)
+        # This uses the PSyclone versoin of stringify_annotation so we get a
+        # different datatype expression
+        assert isinstance(data, ArgumentData)
+        assert (data.datatype ==
+                "<class 'psyclone.docstring_parser.DocstringData'>")
