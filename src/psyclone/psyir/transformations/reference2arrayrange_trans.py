@@ -48,8 +48,10 @@ from psyclone.psyir.nodes import (ArrayReference, Assignment, Call,
 from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType, Symbol
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class Reference2ArrayRangeTrans(Transformation):
     '''Provides a transformation from PSyIR Array Notation (a reference to
     an Array) to a PSyIR Range. For example:
@@ -124,14 +126,12 @@ class Reference2ArrayRangeTrans(Transformation):
         step = Literal("1", INTEGER_TYPE)
         return (lower_bound, upper_bound, step)
 
-    def validate(self, node, options=None, allow_call_arguments: bool = False):
+    def validate(self, node, **kwargs):
         '''Check that the node is a Reference node and that the symbol it
         references is an array.
 
         :param node: a Reference node.
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
-        :param options: a dict with options for transformations.
-        :type options: Optional[Dict[str, Any]]
         :param allow_call_arguments: by default, any references that may be
             arguments to non-elemental routines are not transformed. However,
             this transformation is sometimes used in other transformations
@@ -145,6 +145,9 @@ class Reference2ArrayRangeTrans(Transformation):
             `allow_call_arguments` is False.
 
         '''
+        self.validate_options(**kwargs)
+        allow_call_arguments = self.get_option("allow_call_arguments",
+                                               **kwargs)
         # TODO issue #1858. Add support for structures containing arrays.
         # pylint: disable=unidiomatic-typecheck
         if not type(node) is Reference:
@@ -178,7 +181,7 @@ class Reference2ArrayRangeTrans(Transformation):
                 f" inside pointer assignments, but found '{node.name}' in"
                 f" {assignment.debug_string()}")
 
-    def apply(self, node, options=None, allow_call_arguments=False):
+    def apply(self, node, allow_call_arguments: bool = False, **kwargs):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified
         node. The node must be a Reference to an array. The Reference
         is replaced by an ArrayReference with appropriate explicit
@@ -186,11 +189,13 @@ class Reference2ArrayRangeTrans(Transformation):
 
         :param node: a Reference node.
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
-        :param options: a dict with options for transformations.
-        :type options: Optional[Dict[str, Any]]
+        :param allow_call_arguments: by default, any references that may be
+            arguments to non-elemental routines are not transformed. However,
+            this transformation is sometimes used in other transformations
+            where this restriction does not apply.
 
         '''
-        self.validate(node, options=None, allow_call_arguments=allow_call_arguments)
+        self.validate(node, allow_call_arguments=allow_call_arguments)
 
         symbol = node.symbol
         indices = []
