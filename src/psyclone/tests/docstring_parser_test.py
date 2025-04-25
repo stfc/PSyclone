@@ -568,6 +568,11 @@ def test_docstring_is_reversible():
 
 
 def test_no_sphinx():
+    '''
+    Test that we can still create docstring information if sphinx is
+    not installed.
+
+    '''
     # Unload the docstring_parser
     # Trick the import into thinking sphinx.util.typing is unavailable
     with patch.dict(sys.modules):
