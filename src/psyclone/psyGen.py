@@ -56,8 +56,8 @@ except ImportError:
     try:
         from sphinx.util.typing import stringify as stringify_annotation
     # Igoring coverage from the no sphinx workaround as too difficult to do
-    except ImportError:  # pragma: no cover
-        from psyclone.utils import stringify_annotation  # pragma: no cover
+    except ImportError:
+        from psyclone.utils import stringify_annotation
 
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.core import AccessType

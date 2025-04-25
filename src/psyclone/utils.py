@@ -40,7 +40,6 @@
 from collections import OrderedDict
 import sys
 from psyclone.errors import InternalError
-from psyclone.psyGen import Transformation
 from psyclone.docstring_parser import (
     DocstringData,
 )
@@ -129,6 +128,8 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
 
         :raises InternalError: if cls is not a Transformation.
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyGen import Transformation
         if not issubclass(cls, Transformation):
             raise InternalError(
                 f"transformation_documentation_wrapper expected a "
