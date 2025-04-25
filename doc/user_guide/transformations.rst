@@ -76,6 +76,47 @@ described in detail in the
 :ref:`overview of all transformations<sec_transformations_available>`,
 but the following general guidelines apply.
 
+Ongoing Changes to the options parameter
+++++++++++++++++++++++++++++++++++++++++
+PSyclone has supported an ``options`` dictionary to provide options to both
+validate and apply functions on Transformation classes. This behaviour
+is now deprecated, and we are in the process of adding an alternative
+way to pass options to Transformations.
+
+In the future, each option will have its own argument, for example::
+    
+    def apply(node, option1: int = 0, option2: bool = False, ...):
+
+These can be inherited from parent Transformation classes if appropriate.
+All of the options (including inherited options) will be visible in the
+sphinx generated documentation, and a ``get_valid_options`` function is
+available on each Transformation class to view the possible options
+programmatically.
+
+For existing transformation scripts, switching to using the new options
+strategy can be done by unpacking the current options dict, for example::
+
+    options = {"option1": 2, "option2": True}
+    mytransformation.apply(node, **options)
+    mytransformation.apply(node, option1=2, option2=True)
+
+would be the new possible ways to call the ``apply`` method we defined above,
+as opposed to the old strategy of::
+
+    options = {"option1": 2, "option2: True}
+    mytransformation.apply(node, options=options)
+
+Options dictionaries will continue to remain in the code until they have been
+deprecated for all Transformations, and providing an options dict will
+make the Transformation ignore any other arguments (i.e. only the new or
+old method of providing options can be used - the two cannot be mixed).
+
+This new functionality also performs checks on options supplied as arguments.
+All arguments will be checked to see if they are valid options for the
+Transformation, and their types will also be checked. If an invalid option is
+supplied, or the type of an option is incorrect then an Exception will be
+thrown.
+
 Validation
 +++++++++++
 Each transformation provides a function ``validate``. This function

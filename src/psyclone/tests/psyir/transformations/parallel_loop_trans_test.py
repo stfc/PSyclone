@@ -336,6 +336,24 @@ previous iteration variable 'j'
 enddo
 ''' in fortran_writer(test_loop.parent.parent)
 
+    # Check that the collapse logic can uses the "ignore_dependencies_for" and
+    # "force" logic to skip dependencies with the new options as well.
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, collapse=True, verbose=True,
+                ignore_dependencies_for=["var"])
+    assert '''\
+!$omp parallel do collapse(2) default(shared), private(i,j,k)
+do i = 1, 10, 1
+  do j = 1, 10, 1
+    ! Loop cannot be collapsed because one of the bounds depends on the \
+previous iteration variable 'j'
+    do k = 1, j, 1
+      var(i,j,k) = var(i,map(j),k)
+    enddo
+  enddo
+enddo
+''' in fortran_writer(test_loop.parent.parent)
+
     test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
     trans.apply(test_loop, {"collapse": True, "verbose": True, "force": True})
     assert '''\
@@ -533,7 +551,7 @@ def test_paralooptrans_apply_calls_validate(fortran_reader, monkeypatch):
     trans = ParaTrans()
 
     # Monkeypatch the validate() method so that it raises a unique error.
-    def fake(_1, _2, options):
+    def fake(_1, _2, options, **kwargs):
         raise TransformationError("just a test")
     monkeypatch.setattr(ParaTrans, "validate", fake)
     with pytest.raises(TransformationError) as err:

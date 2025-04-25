@@ -40,6 +40,7 @@
 
 import abc
 from collections.abc import Iterable
+from typing import Union, List
 
 from psyclone import psyGen
 from psyclone.core import Signature
@@ -56,7 +57,10 @@ from psyclone.psyir.transformations.async_trans_mixin import \
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
+from psyclone.utils import transformation_documentation_wrapper
 
+
+@transformation_documentation_wrapper
 class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
     '''
     Adds an abstract directive (it needs to be specified by sub-classing this
@@ -130,7 +134,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
 
         return True
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Perform validation checks before applying the transformation
 
@@ -138,19 +142,24 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool|int options["collapse"]: if it's a bool and is False
+        :param bool|int collapse: if it's a bool and is False
             (default), it won't collapse. If it's a bool and is True, it will
             collapse as much as possible. If it's an integer, it will attempt
             to collapse until the specified number of loops (if they exist and
-            are safe to collapse). The options 'ignore_dependencies_for'
-            and 'force' also affect the collapse applicability.
-        :param bool options["force"]: whether to force parallelisation of the
+            are safe to collapse them). The options 'ignore_dependencies_for'
+            and 'force' also affect the collapse applicabilty analysis.
+        :param bool force: whether to force parallelisation of the
             target loop (i.e. ignore any dependence analysis).
-        :param list[str] options["ignore_dependencies_for"]: whether to ignore
+        :param list[str] ignore_dependencies_for: whether to ignore
             some symbol names from the dependence analysis checks.
-        :param bool options["sequential"]: whether this is a sequential loop.
-        :param bool options["verbose"]: whether to report the reasons the
+        :param bool sequential: whether this is a sequential loop.
+        :param bool verbose: whether to report the reasons the
             validate and collapse steps have failed.
+        :param bool nowait: whether to add a nowait clause and a
+            corresponding barrier (or equivalent) to enable asynchronous
+            execution.
+        :param bool privatise_arrays: whether to declare as private any
+            write after write dependency symbols.
 
         :raises TypeError: if 'collapse' is not an int or a bool.
         :raises TypeError: if 'ignore_dependencies_for' is not a list of str.
@@ -168,16 +177,29 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         '''
         # Check that the supplied node is a Loop and does not contain any
         # unsupported nodes.
-        super().validate(node, options=options)
-
+        super().validate(node, options=options, **kwargs)
+        # TODO 2668 - options dict is deprecated.
         if not options:
-            options = {}
-        verbose = options.get("verbose", False)
-        collapse = options.get("collapse", False)
-        force = options.get("force", False)
-        ignore_dependencies_for = options.get("ignore_dependencies_for", [])
-        sequential = options.get("sequential", False)
-        privatise_arrays = options.get("privatise_arrays", False)
+            self.validate_options(**kwargs)
+            verbose = self.get_option("verbose", **kwargs)
+            collapse = self.get_option("collapse", **kwargs)
+            force = self.get_option("force", **kwargs)
+            ignore_dependencies_for = self.get_option(
+                    "ignore_dependencies_for", **kwargs
+            )
+            if ignore_dependencies_for is None:
+                ignore_dependencies_for = []
+            sequential = self.get_option("sequential", **kwargs)
+            privatise_arrays = self.get_option("privatise_arrays", **kwargs)
+        else:
+            verbose = options.get("verbose", False)
+            collapse = options.get("collapse", False)
+            force = options.get("force", False)
+            ignore_dependencies_for = options.get(
+                    "ignore_dependencies_for", []
+            )
+            sequential = options.get("sequential", False)
+            privatise_arrays = options.get("privatise_arrays", False)
 
         # Check we are not a sequential loop
         if (not sequential and isinstance(node, PSyLoop) and
@@ -284,7 +306,11 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                         node.append_preceding_comment(f"PSyclone: {messages}")
                 raise TransformationError(messages)
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, verbose: bool = False,
+              collapse: Union[int, bool] = False, force: bool = False,
+              ignore_dependencies_for: Union[None, List[str]] = None,
+              privatise_arrays: bool = False, sequential: bool = False,
+              nowait: bool = False, **kwargs):
         '''
         Apply the Loop transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
@@ -299,7 +325,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
           end do
           !$OMP END DO
 
-        At code-generation time (when gen_code()` is called), this node must be
+        At code-generation time, this node must be
         within (i.e. a child of) a PARALLEL region.
 
         :param node: the supplied node to which we will apply the
@@ -307,34 +333,55 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool|int options["collapse"]: if it's a bool and is False
+        :param bool|int collapse: if it's a bool and is False
             (default), it won't collapse. If it's a bool and is True, it will
             collapse as much as possible. If it's an integer, it will attempt
             to collapse until the specified number of loops (if they exist and
             are safe to collapse them). The options 'ignore_dependencies_for'
             and 'force' also affect the collapse applicabilty analysis.
-        :param bool options["force"]: whether to force parallelisation of the
+        :param bool force: whether to force parallelisation of the
             target loop (i.e. ignore any dependence analysis).
-        :param list[str] options["ignore_dependencies_for"]: whether to ignore
+        :param list[str] ignore_dependencies_for: whether to ignore
             some symbol names from the dependence analysis checks.
-        :param bool options["sequential"]: whether this is a sequential loop.
-        :param bool options["verbose"]: whether to report the reasons the
+        :param bool sequential: whether this is a sequential loop.
+        :param bool verbose: whether to report the reasons the
             validate and collapse steps have failed.
-        :param bool options["nowait"]: whether to add a nowait clause and a
+        :param bool nowait: whether to add a nowait clause and a
             corresponding barrier (or equivalent) to enable asynchronous
             execution.
+        :param bool privatise_arrays: whether to make the write after write
+            dependency symbols declared as private.
 
         '''
+        # TODO 2668 - options dict is deprecated.
         if not options:
-            options = {}
-        self.validate(node, options=options)
+            self.validate_options(
+                    verbose=verbose, collapse=collapse,
+                    ignore_dependencies_for=ignore_dependencies_for,
+                    privatise_arrays=privatise_arrays,
+                    sequential=sequential, nowait=nowait, **kwargs
+            )
+            # Rename the input options that are renamed in this apply method.
+            # TODO 2668, rename options to be consistent.
+            ignore_dep_analysis = force
+            if ignore_dependencies_for is None:
+                list_of_names = []
+            else:
+                list_of_names = ignore_dependencies_for
+        else:
+            verbose = options.get("verbose", False)
+            collapse = options.get("collapse", False)
+            ignore_dep_analysis = options.get("force", False)
+            list_of_names = options.get("ignore_dependencies_for", [])
+            privatise_arrays = options.get("privatise_arrays", False)
+            nowait = options.get("nowait", False)
 
-        verbose = options.get("verbose", False)
-        collapse = options.get("collapse", False)
-        ignore_dep_analysis = options.get("force", False)
-        list_of_names = options.get("ignore_dependencies_for", [])
-        privatise_arrays = options.get("privatise_arrays", False)
-        nowait = options.get("nowait", False)
+        self.validate(node, options=options, verbose=verbose,
+                      collapse=collapse,
+                      ignore_dependencies_for=ignore_dependencies_for,
+                      privatise_arrays=privatise_arrays,
+                      sequential=sequential, nowait=nowait, **kwargs)
+
         list_of_signatures = [Signature(name) for name in list_of_names]
         dtools = DependencyTools()
 
@@ -425,3 +472,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
 
         if nowait:
             self._add_asynchronicity(directive)
+
+
+# For AutoAPI documentation generation.
+__all__ = ["ParallelLoopTrans"]
