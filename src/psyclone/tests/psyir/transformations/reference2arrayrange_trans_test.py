@@ -194,13 +194,13 @@ def test_multid(fortran_reader, fortran_writer):
 
 
 def test_intrinsics(fortran_reader, fortran_writer):
-    '''Test that references to arrays within intrinsics are transformed to
+    '''Test that references to arrays within intrinsics are not transformed to
     array slice notation, using dotproduct as the example.
 
     '''
     code = CODE.replace("a = b", "b = dot_product(a, a(:))")
     result = apply_trans(fortran_reader, fortran_writer, code)
-    assert "b = DOT_PRODUCT(a(:), a(:))" in result
+    assert "b = DOT_PRODUCT(a, a(:))" in result
 
 
 def test_call(fortran_reader, fortran_writer):
@@ -294,9 +294,9 @@ def test_validate_query(fortran_reader):
         for reference in location.walk(Reference)[1:]:
             with pytest.raises(TransformationError) as info:
                 trans.validate(reference)
-            assert (f"References to arrays passed as arguments to intrinsic "
-                    f"enquiry routine '{text}' should not be transformed."
-                    in str(info.value))
+            assert (f"supplied node is passed as an argument to a Call to a "
+                    f"non-elemental routine ({text}(a, 1)) and should not be "
+                    f"transformed." in str(info.value))
 
     # Check the references to 'b' in the hidden lbound and ubound
     # intrinsics within 'b(:)' do not get modified.
@@ -308,24 +308,25 @@ def test_validate_query(fortran_reader):
                 isinstance(reference.symbol, IntrinsicSymbol)):
             with pytest.raises(TransformationError) as info:
                 trans.validate(reference)
-            assert ("References to arrays passed as arguments to intrinsic "
-                    "enquiry routine '" in str(info.value))
+            assert ("supplied node is passed as an argument to a Call to a "
+                    "non-elemental routine (" in str(info.value))
 
     # Check the reference to 'b' in the size intrinsics does not get modified
     assignment = psyir.children[0].children[2]
     reference = assignment.children[1].arguments[0]
     with pytest.raises(TransformationError) as info:
         trans.validate(reference)
-    assert ("References to arrays passed as arguments to intrinsic enquiry "
-            "routine 'SIZE' should not be transformed." in str(info.value))
+    assert ("supplied node is passed as an argument to a Call to a "
+            "non-elemental routine (SIZE" in str(info.value))
 
     ifblock = psyir.walk(IfBlock)[0]
     allocd = ifblock.condition
     assert isinstance(allocd, IntrinsicCall)
     with pytest.raises(TransformationError) as info:
         trans.validate(allocd.arguments[0])
-    assert ("References to arrays passed as arguments to intrinsic enquiry "
-            "routine 'ALLOCATED' should not be transformed" in str(info.value))
+    assert ("supplied node is passed as an argument to a Call to a "
+            "non-elemental routine (ALLOCATED(igor)) and should not be "
+            "transformed" in str(info.value))
 
 
 def test_validate_structure(fortran_reader):
@@ -366,8 +367,8 @@ def test_validate_deallocate(fortran_reader):
     trans = Reference2ArrayRangeTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(reference)
-    assert ("References to arrays passed to 'DEALLOCATE' intrinsics should not"
-            " be transformed, but found:\n DEALLOCATE(a)" in str(info.value))
+    assert ("node is passed as an argument to a Call to a non-elemental "
+            "routine (DEALLOCATE(a)" in str(info.value))
 
 
 def test_validate_pointer_assignment(fortran_reader):

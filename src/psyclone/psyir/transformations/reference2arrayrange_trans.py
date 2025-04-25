@@ -124,7 +124,7 @@ class Reference2ArrayRangeTrans(Transformation):
         step = Literal("1", INTEGER_TYPE)
         return (lower_bound, upper_bound, step)
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, allow_call_arguments: bool = False):
         '''Check that the node is a Reference node and that the symbol it
         references is an array.
 
@@ -132,12 +132,17 @@ class Reference2ArrayRangeTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
         :param options: a dict with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param allow_call_arguments: by default, any references that may be
+            arguments to non-elemental routines are not transformed. However,
+            this transformation is sometimes used in other transformations
+            where this restriction does not apply.
 
         :raises TransformationError: if the node is not a Reference
             node or the Reference node not does not reference an array
             symbol.
         :raises TransformationError: if the Reference node is (or may be)
-            passed as an argument to a call.
+            passed as an argument to a call that is not elemental and
+            `allow_call_arguments` is False.
 
         '''
         # TODO issue #1858. Add support for structures containing arrays.
@@ -150,10 +155,12 @@ class Reference2ArrayRangeTrans(Transformation):
             raise TransformationError(
                 f"The supplied node should be a Reference to a symbol "
                 f"that is an array, but '{node.symbol.name}' is not.")
-        if isinstance(node.parent, Call):
+        if not allow_call_arguments and (isinstance(node.parent, Call) and
+                                         not node.parent.is_elemental):
             raise TransformationError(LazyString(
                 lambda: f"The supplied node is passed as an argument to a "
-                f"Call ({node.parent.debug_string()}) and should not be "
+                f"Call to a non-elemental routine ("
+                f"{node.parent.debug_string().strip()}) and should not be "
                 f"transformed."))
         if (isinstance(node.parent, Reference) and (
                 type(node.parent.symbol) is Symbol
@@ -171,7 +178,7 @@ class Reference2ArrayRangeTrans(Transformation):
                 f" inside pointer assignments, but found '{node.name}' in"
                 f" {assignment.debug_string()}")
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, allow_call_arguments=False):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified
         node. The node must be a Reference to an array. The Reference
         is replaced by an ArrayReference with appropriate explicit
@@ -183,7 +190,7 @@ class Reference2ArrayRangeTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options=None)
+        self.validate(node, options=None, allow_call_arguments=allow_call_arguments)
 
         symbol = node.symbol
         indices = []
