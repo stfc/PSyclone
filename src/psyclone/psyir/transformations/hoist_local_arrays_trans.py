@@ -47,14 +47,15 @@ from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   CodeBlock, ACCRoutineDirective, Literal,
                                   IntrinsicCall, BinaryOperation, Reference)
 from psyclone.psyir.symbols import (
-    ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol)
+    ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol,
+    UnresolvedInterface)
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
 
 class HoistLocalArraysTrans(Transformation):
-    '''This transformation takes a Routine and promotes any local, 'automatic'
-    arrays to Container scope:
+    '''This transformation takes a Routine and promotes any local arrays to
+    Container scope:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
@@ -140,9 +141,8 @@ then
 
         container = node.ancestor(Container)
 
-        # Identify all arrays that are local to the target routine,
-        # do not explicitly use dynamic memory allocation and are not
-        # accessed within a CodeBlock.
+        # Identify all arrays that are local to the target routine
+        # (automatic interface) and not accessed within a CodeBlock.
         automatic_arrays = self._get_local_arrays(node)
 
         if not automatic_arrays:
@@ -154,17 +154,73 @@ then
         tags_dict = node.symbol_table.get_reverse_tags_dict()
 
         for sym in automatic_arrays:
-            # Keep a copy of the original shape of the array.
-            orig_shape = sym.datatype.shape[:]
-            # Modify the *existing* symbol so that any references to it
-            # remain valid.
-            new_type = copy.copy(sym.datatype)
-            # pylint: disable=protected-access
-            new_type._shape = len(orig_shape)*[ArrayType.Extent.DEFERRED]
-            # pylint: enable=protected-access
-            sym.datatype = new_type
-            # Ensure that the promoted symbol is private to the container.
-            sym.visibility = Symbol.Visibility.PRIVATE
+            # Check if the original is already an ALLOCATABLE variable
+            already_allocatable = any(dim == ArrayType.Extent.DEFERRED
+                                      for dim in sym.shape)
+
+            # Find or Create the array reference that will be the argument to
+            # the new memory allocation statement.
+            if already_allocatable:
+                # If it was already an allocatable, we should be able to find
+                # it
+                original_allocate = None
+                not_supported = False
+                for ref in node.walk(ArrayReference):
+                    if (
+                        isinstance(ref.parent, IntrinsicCall) and
+                        (ref.parent.intrinsic ==
+                            IntrinsicCall.Intrinsic.ALLOCATE) and
+                        ref.symbol is sym
+                    ):
+                        if original_allocate is not None:
+                            # This would be the second match, so just warn the
+                            # user and skip this symbol
+                            original_allocate.append_preceding_comment(
+                                f"PSyclone warning: {self.name} found more "
+                                f"than one ALLOCATE for this variable, but "
+                                f"currently it just supports cases with "
+                                f"single allocations")
+                            not_supported = True
+                            break
+                        original_allocate = ref.parent
+                        # alloc-options are captured as argument_names in the
+                        # PSyIR
+                        if any(original_allocate.argument_names):
+                            original_allocate.append_preceding_comment(
+                                f"PSyclone warning: {self.name} found an "
+                                f"ALLOCATE with alloc-options, this is "
+                                f"not supported")
+                            not_supported = True
+                            break
+                        aref = ref.copy()
+                        orig_shape = []
+                        for child in aref.children:
+                            if isinstance(child, Range):
+                                lbound = child.start
+                                ubound = child.stop
+                            else:
+                                lbound = Literal("1", INTEGER_TYPE)
+                                ubound = child
+                            orig_shape.append(
+                                ArrayType.ArrayBounds(lbound, ubound)
+                            )
+                if not_supported or original_allocate is None:
+                    continue
+
+            else:
+                # Keep a copy of the original shape of the array.
+                orig_shape = sym.datatype.shape[:]
+                # Modify the *existing* symbol so that any references to it
+                # remain valid.
+                new_type = copy.copy(sym.datatype)
+                # pylint: disable=protected-access
+                new_type._shape = len(orig_shape)*[ArrayType.Extent.DEFERRED]
+                # pylint: enable=protected-access
+                sym.datatype = new_type
+                dim_list = [Range.create(dim.lower.copy(), dim.upper.copy())
+                            for dim in orig_shape]
+                aref = ArrayReference.create(sym, dim_list)
+
             # We must allow for the situation where there's a clash with a
             # symbol name already present at container scope. (The validate()
             # method will already have checked for tag clashes.)
@@ -176,11 +232,8 @@ then
                 node.symbol_table.rename_symbol(sym, new_name)
                 container.symbol_table.add(sym, tag=tags_dict.get(sym))
 
-            # Create the array reference that will be the argument to the
-            # new memory allocation statement.
-            dim_list = [Range.create(dim.lower.copy(), dim.upper.copy())
-                        for dim in orig_shape]
-            aref = ArrayReference.create(sym, dim_list)
+            # Ensure that the promoted symbol is private to the container.
+            sym.visibility = Symbol.Visibility.PRIVATE
 
             # Add a conditional expression to avoid repeating the allocation
             # if its already done
@@ -192,7 +245,6 @@ then
 
             # Add runtime checks to verify that the boundaries haven't changed
             # (we skip literals as we know they can't have changed)
-            check_added = False
             for idx, dim in enumerate(orig_shape):
                 if not isinstance(dim.lower, Literal):
                     expr = BinaryOperation.create(
@@ -208,7 +260,6 @@ then
                     cond_expr = BinaryOperation.create(
                                     BinaryOperation.Operator.OR,
                                     cond_expr, expr)
-                    check_added = True
                 if not isinstance(dim.upper, Literal):
                     expr = BinaryOperation.create(
                             BinaryOperation.Operator.NE,
@@ -223,26 +274,60 @@ then
                     cond_expr = BinaryOperation.create(
                                     BinaryOperation.Operator.OR,
                                     cond_expr, expr)
-                    check_added = True
 
-            body = []
-            if check_added:
-                body.append(
+            if_stmt = IfBlock.create(cond_expr, [
+                IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, [aref])
+            ])
+            # If any bound-check was added, also insert a deallocate statement
+            if isinstance(cond_expr, BinaryOperation):
+                if_stmt.if_body.addchild(
                     IfBlock.create(
                         allocated_expr.copy(),
                         [IntrinsicCall.create(
                             IntrinsicCall.Intrinsic.DEALLOCATE,
-                            [Reference(sym)])]))
-            body.append(
-                IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
-                                     [aref]))
-            # Insert the conditional allocation at the start of the supplied
-            # routine.
-            node.children.insert(0, IfBlock.create(cond_expr, body))
+                            [Reference(sym)])]),
+                    index=0
+                )
 
-        # Finally, remove the hoisted symbols (and any associated tags)
-        # from the routine scope.
-        for sym in automatic_arrays:
+            if already_allocatable:
+                # Find and remove the deallocate statements
+                for ref in node.walk(Reference):
+                    if (
+                        isinstance(ref.parent, IntrinsicCall) and
+                        (ref.parent.intrinsic ==
+                            IntrinsicCall.Intrinsic.DEALLOCATE) and
+                        ref.symbol is sym
+                    ):
+                        # If its the only reference in the deallocate
+                        # statement, remove the full statement, otherwise
+                        # just the relevant reference
+                        deallocate_stmt = ref.parent
+                        if len(deallocate_stmt.arguments) == 1:
+                            deallocate_stmt.detach()
+                        else:
+                            for child in deallocate_stmt.arguments:
+                                if child == ref:
+                                    child.detach()
+                # Now insert guarded allocate expression
+                original_allocate.parent.children.insert(
+                        original_allocate.position, if_stmt)
+                # Remove the unguarded allocate, if its the only reference in
+                # a allocate statement, remove the full statement, otherwise
+                # just the relevant reference
+                if len(original_allocate.arguments) == 1:
+                    original_allocate.detach()
+                else:
+                    for child in original_allocate.arguments:
+                        if child == aref:
+                            child.detach()
+
+            else:
+                # Insert the conditional allocation at the start of the
+                # supplied routine.
+                node.children.insert(0, if_stmt)
+
+            # Finally, remove the hoisted symbols (and any associated tags)
+            # from the routine scope.
             # TODO #898: Currently the SymbolTable.remove() method does not
             # support DataSymbols.
             # pylint: disable=protected-access
@@ -256,8 +341,7 @@ then
         '''
         Identify all arrays that are local to the target routine, all their
         bounds/kind/type symbols are also local, do not represent a function's
-        return value, are not constant and do not explicitly use
-        dynamic memory allocation. Also excludes any such arrays that are
+        return value, are not constant. Also excludes any such arrays that are
         accessed within CodeBlocks or RESHAPE intrinsics.
 
         :param node: target PSyIR node.
@@ -267,6 +351,20 @@ then
         :rtype: list[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         '''
+        def dependent_symbol_could_be_local(symbol: Symbol) -> bool:
+            ''' The symbol exists in the local scope, or it is an Unresolved
+            interface symbol but there are no wildcard import that could make
+            it local.
+
+            '''
+            if symbol.name not in node.symbol_table:
+                return False
+            if isinstance(symbol.interface, UnresolvedInterface):
+                if all(container.wildcard_import is False
+                       for container in node.symbol_table.containersymbols):
+                    return False
+            return True
+
         local_arrays = {}
         for sym in node.symbol_table.automatic_datasymbols:
             # Check that the array is not the functions return symbol, or
@@ -274,13 +372,17 @@ then
             if (sym is node.return_symbol or not sym.is_array or
                     sym.is_constant):
                 continue
-            if isinstance(sym.datatype.intrinsic, DataTypeSymbol):
+            if (isinstance(sym.datatype.intrinsic, DataTypeSymbol) and
+                    dependent_symbol_could_be_local(sym.datatype.intrinsic)):
                 continue
-            if isinstance(sym.datatype.precision, DataSymbol):
+            if (isinstance(sym.datatype.precision, DataSymbol) and
+                    dependent_symbol_could_be_local(sym.datatype.precision)):
                 continue
             # Check whether all of the bounds of the array are defined - an
             # allocatable array will have array dimensions of
             # ArrayType.Extent.DEFERRED
+            if any(dim == ArrayType.Extent.DEFERRED for dim in sym.shape):
+                local_arrays[sym.name] = sym
             if all(isinstance(dim, ArrayType.ArrayBounds)
                    for dim in sym.shape):
                 local_arrays[sym.name] = sym
