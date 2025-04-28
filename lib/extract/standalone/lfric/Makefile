@@ -115,8 +115,7 @@ compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinj
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.F90 \
-	read_kernel_data_mod.f90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.F90
 
 allclean: clean
 	$(MAKE) -C $(LFRIC_PATH) allclean
