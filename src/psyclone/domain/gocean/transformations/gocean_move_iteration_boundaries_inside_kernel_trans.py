@@ -180,7 +180,9 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         outer_loop.iteration_space = "go_all_pts"
 
         # Update Kernel
-        kschedule = node.get_kernel_schedule()
+        _, kschedules = node.get_kernel_schedule()
+        # GOcean Kernels must have a single implementation.
+        kschedule = kschedules[0]
         kernel_st = kschedule.symbol_table
         iteration_indices = kernel_st.iteration_indices
         data_arguments = kernel_st.data_arguments
