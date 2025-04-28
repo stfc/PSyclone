@@ -229,7 +229,7 @@ class OMPTaskwaitTrans(Transformation):
         for child in taskloop.walk(nodes.Node):
             if child is not taskloop and not isinstance(child,
                                                         (Schedule, Loop)):
-                taskloop_vars.merge(VariablesAccessInfo(child))
+                taskloop_vars.merge(child.reference_accesses())
         taskloop_signatures = taskloop_vars.all_signatures
         # Find our parent serial region if it has a barrier
         parent_single = taskloop.ancestor(OMPSingleDirective)
@@ -279,7 +279,7 @@ class OMPTaskwaitTrans(Transformation):
                 for child in node.walk(nodes.Node):
                     if child is not node and not isinstance(child,
                                                             (Schedule, Loop)):
-                        refs = VariablesAccessInfo(child)
+                        refs = child.reference_accesses()
                         if refs is not None:
                             node_vars.merge(refs)
             node_signatures = node_vars.all_signatures

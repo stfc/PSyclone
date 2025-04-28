@@ -176,11 +176,11 @@ class ChunkLoopTrans(LoopTrans):
         # Dependency analysis, following rules:
         # No child has a write dependency to the loop variable.
         # Find variable access info for the loop variable and step
-        refs = VariablesAccessInfo(node.start_expr)
+        refs = node.start_expr.reference_accesses()
         bounds_ref = VariablesAccessInfo()
         if refs is not None:
             bounds_ref.merge(refs)
-        refs = VariablesAccessInfo(node.stop_expr)
+        refs = node.stop_expr.reference_accesses()
         if refs is not None:
             bounds_ref.merge(refs)
         # The current implementation of ChunkLoopTrans does not allow
@@ -193,7 +193,7 @@ class ChunkLoopTrans(LoopTrans):
         bounds_sigs = bounds_ref.all_signatures
 
         # Find the Loop code's signatures
-        body_refs = VariablesAccessInfo(node.loop_body)
+        body_refs = node.loop_body.reference_accesses()
         body_sigs = body_refs.all_signatures
 
         for ref1 in bounds_sigs:

@@ -142,7 +142,6 @@ def test_codeblock_ref_accesses(parser):
     Fortran intrinsics are not captured.
 
     '''
-    vai = VariablesAccessInfo()
     reader = FortranStringReader('''
     subroutine mytest
       that_is_true = .TRUE._bool_kind
@@ -162,7 +161,7 @@ def test_codeblock_ref_accesses(parser):
     end subroutine mytest''')
     prog = parser(reader)
     block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
-    block.reference_accesses(vai)
+    vai = block.reference_accesses()
     all_sigs = vai.all_signatures
     all_names = [sig.var_name for sig in all_sigs]
     assert "a" in all_names

@@ -209,7 +209,7 @@ class CodeBlock(Statement, DataNode):
                     result.append(part.items[1])
         return result
 
-    def reference_accesses(self, var_accesses: VariablesAccessInfo):
+    def reference_accesses(self):
         '''
         Get all variable access information. Since this is a CodeBlock we
         only know the names of symbols accessed within it but not how they
@@ -228,9 +228,11 @@ class CodeBlock(Statement, DataNode):
             information about variable accesses.
 
         '''
+        var_accesses = VariablesAccessInfo()
         for name in self.get_symbol_names():
             var_accesses.add_access(Signature(name), AccessType.READWRITE,
                                     self)
+        return var_accesses
 
     def __str__(self):
         return f"CodeBlock[{len(self._fp2_nodes)} nodes]"

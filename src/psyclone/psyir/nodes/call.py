@@ -294,7 +294,7 @@ class Call(Statement, DataNode):
             return isinstance(child, Reference)
         return isinstance(child, DataNode)
 
-    def reference_accesses(self, var_accesses):
+    def reference_accesses(self):
         '''
         Updates the supplied var_accesses object with information on the
         arguments passed to this call.
@@ -309,6 +309,9 @@ class Call(Statement, DataNode):
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        from psyclone.core import VariablesAccessInfo
+        var_accesses = VariablesAccessInfo()
+
         if self.is_pure:
             # If the called routine is pure then any arguments are only
             # read.
@@ -323,7 +326,7 @@ class Call(Statement, DataNode):
         # Continue processing references in any index expressions.
         for indices in indices_list:
             for idx in indices:
-                idx.reference_accesses(var_accesses)
+                var_accesses.merge(idx.reference_accesses())
 
         for arg in self.arguments:
             if isinstance(arg, Reference):
@@ -333,15 +336,16 @@ class Call(Statement, DataNode):
                 # Continue processing references in any index expressions.
                 for indices in indices_list:
                     for idx in indices:
-                        idx.reference_accesses(var_accesses)
+                        var_accesses.merge(idx.reference_accesses())
             else:
                 # This argument is not a Reference so continue to walk down the
                 # tree. (e.g. it could be/contain a Call to
                 # an impure routine in which case any arguments to that Call
                 # will have READWRITE access.)
-                arg.reference_accesses(var_accesses)
+                var_accesses.merge(arg.reference_accesses())
         # Make sure that the next statement will be on the next location
         var_accesses.next_location()
+        return var_accesses
 
     @property
     def routine(self):

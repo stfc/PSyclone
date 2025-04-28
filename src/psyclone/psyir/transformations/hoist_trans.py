@@ -201,10 +201,10 @@ class HoistTrans(Transformation):
         '''
         # pylint: disable=too-many-locals
         # Collect all variable usages in the loop
-        all_loop_vars = VariablesAccessInfo(parent_loop)
+        all_loop_vars = parent_loop.reference_accesses()
 
         # Collect all variables used in the statement that will be hoisted.
-        all_statement_vars = VariablesAccessInfo(statement)
+        all_statement_vars = statement.reference_accesses()
 
         # Determine the variables which are written (and potentially read)
         # and which are read-only:

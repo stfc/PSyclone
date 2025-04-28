@@ -103,6 +103,5 @@ def test_dts_reference_accesses():
     ndim = DataSymbol("ndim", INTEGER_TYPE)
     symbol = DataTypeSymbol("origin", ArrayType(REAL_SINGLE_TYPE,
                                                 [1, Reference(ndim)]))
-    vai = VariablesAccessInfo()
-    symbol.reference_accesses(vai)
+    vai = symbol.reference_accesses()
     assert vai.all_signatures == [Signature("ndim")]

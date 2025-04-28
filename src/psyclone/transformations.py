@@ -438,8 +438,7 @@ class MarkRoutineForGPUMixin:
 
         # Check that the routine does not access any data that is imported via
         # a 'use' statement.
-        vai = VariablesAccessInfo()
-        kernel_schedule.reference_accesses(vai)
+        vai = kernel_schedule.reference_accesses()
         ktable = kernel_schedule.symbol_table
         for sig in vai.all_signatures:
             name = sig.var_name
@@ -2840,7 +2839,9 @@ class ACCDataTrans(RegionTrans):
                 for access in array_accesses:
                     if not isinstance(access, StructureMember):
                         continue
-                    var_accesses = VariablesAccessInfo(access.indices)
+                    var_accesses = VariablesAccessInfo()
+                    for idx in access.indices:
+                        var_accesses.merge(idx.reference_accesses())
                     for var in loop_vars:
                         if var not in var_accesses.all_signatures:
                             continue

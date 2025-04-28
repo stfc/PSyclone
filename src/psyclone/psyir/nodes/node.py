@@ -1481,7 +1481,7 @@ class Node():
             child.lower_to_language_level()
         return self
 
-    def reference_accesses(self, var_accesses):
+    def reference_accesses(self):
         '''Get all variable access information. The default implementation
         just recurses down to all children.
 
@@ -1489,8 +1489,11 @@ class Node():
         :type var_accesses: \
             :py:class:`psyclone.core.VariablesAccessInfo`
         '''
+        from psyclone.core import VariablesAccessInfo
+        var_accesses = VariablesAccessInfo()
         for child in self._children:
-            child.reference_accesses(var_accesses)
+            var_accesses.merge(child.reference_accesses())
+        return var_accesses
 
     @property
     def scope(self):

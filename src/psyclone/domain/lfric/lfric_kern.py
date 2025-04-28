@@ -127,7 +127,7 @@ class LFRicKern(CodedKern):
         self._argument_kinds = {api_config.default_kind["real"],
                                 api_config.default_kind["integer"]}
 
-    def reference_accesses(self, var_accesses):
+    def reference_accesses(self):
         '''Get all variable access information. All accesses are marked
         according to the kernel metadata
 
@@ -137,15 +137,17 @@ class LFRicKern(CodedKern):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        # Use the KernelCallArgList class, which can also provide variable
+        from psyclone.core import VariablesAccessInfo
+        var_accesses = VariablesAccessInfo()        # Use the KernelCallArgList class, which can also provide variable
         # access information:
         create_arg_list = KernCallArgList(self)
         create_arg_list.generate(var_accesses)
 
-        super().reference_accesses(var_accesses)
+        var_accesses.merge(super().reference_accesses())
         # Set the current location index to the next location, since after
         # this kernel a new statement starts.
         var_accesses.next_location()
+        return var_accesses
 
     def load(self, call, parent=None):
         '''

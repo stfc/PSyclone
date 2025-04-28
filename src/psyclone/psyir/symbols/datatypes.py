@@ -93,7 +93,7 @@ class DataType(metaclass=abc.ABCMeta):
 
         '''
 
-    def reference_accesses(self, sym: Symbol, access_info):
+    def reference_accesses(self, sym: Symbol):
         '''
         Get all symbols referenced in this datatype.
 
@@ -102,6 +102,8 @@ class DataType(metaclass=abc.ABCMeta):
         :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        from psyclone.core import VariablesAccessInfo
+        return VariablesAccessInfo()
 
     @property
     def is_allocatable(self) -> Union[bool, None]:
@@ -323,7 +325,7 @@ class UnsupportedFortranType(UnsupportedType):
             return self.partial_datatype.intrinsic
         return None
 
-    def reference_accesses(self, sym: Symbol, access_info):
+    def reference_accesses(self, sym: Symbol):
         '''
         Get all symbols referenced in this datatype.
 
@@ -332,7 +334,7 @@ class UnsupportedFortranType(UnsupportedType):
         :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        super().reference_accesses(sym, access_info)
+        access_info = super().reference_accesses(sym)
 
         if self.partial_datatype:
             if isinstance(self.partial_datatype, DataTypeSymbol):
@@ -342,7 +344,8 @@ class UnsupportedFortranType(UnsupportedType):
                     Signature(self.partial_datatype.name),
                     AccessType.TYPE_INFO, self)
             else:
-                self.partial_datatype.reference_accesses(sym, access_info)
+                access_info.merge(self.partial_datatype.reference_accesses(sym))
+        return access_info
 
     @property
     def is_allocatable(self) -> Union[bool, None]:
@@ -514,7 +517,7 @@ class ScalarType(DataType):
             if new_sym:
                 self._precision = new_sym
 
-    def reference_accesses(self, sym, access_info):
+    def reference_accesses(self, sym):
         '''
         Get all symbols referenced in this datatype.
 
@@ -523,7 +526,7 @@ class ScalarType(DataType):
         :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        super().reference_accesses(sym, access_info)
+        access_info = super().reference_accesses(sym)
 
         if isinstance(self.precision, Symbol):
             from psyclone.core.signature import Signature
@@ -532,6 +535,7 @@ class ScalarType(DataType):
             access_info.add_access(
                 Signature(self.precision.name),
                 AccessType.TYPE_INFO, sym)
+        return access_info
 
 
 class ArrayType(DataType):
@@ -582,11 +586,13 @@ class ArrayType(DataType):
             '''
             return copy.copy(self)
 
-        def reference_accesses(self, _):
+        def reference_accesses(self):
             '''
             An Extent cannot contain any variable accesses so there's nothing
             to do.
             '''
+            from psyclone.core import VariablesAccessInfo
+            return VariablesAccessInfo()
 
     @dataclass(frozen=True)
     class ArrayBounds:
@@ -1026,7 +1032,7 @@ class ArrayType(DataType):
                 if isinstance(bnd, Node):
                     bnd.replace_symbols_using(table_or_symbol)
 
-    def reference_accesses(self, sym, access_info):
+    def reference_accesses(self, sym):
         '''
         Get all symbols referenced in this datatype.
 
@@ -1039,7 +1045,7 @@ class ArrayType(DataType):
         from psyclone.core.signature import Signature
         from psyclone.core.access_type import AccessType
 
-        super().reference_accesses(sym, access_info)
+        access_info = super().reference_accesses(sym)
 
         if isinstance(self.intrinsic, Symbol):
             access_info.add_access(
@@ -1053,8 +1059,9 @@ class ArrayType(DataType):
 
         for dim in self.shape:
             if isinstance(dim, ArrayType.ArrayBounds):
-                dim.lower.reference_accesses(access_info)
-                dim.upper.reference_accesses(access_info)
+                access_info.merge(dim.lower.reference_accesses())
+                access_info.merge(dim.upper.reference_accesses())
+        return access_info
 
 
 class StructureType(DataType):
@@ -1292,7 +1299,7 @@ class StructureType(DataType):
                      preceding_comment=component.preceding_comment,
                      inline_comment=component.inline_comment)
 
-    def reference_accesses(self, sym, access_info):
+    def reference_accesses(self, sym):
         '''
         Get all symbols referenced in this datatype.
 
@@ -1301,7 +1308,7 @@ class StructureType(DataType):
         :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        super().reference_accesses(sym, access_info)
+        access_info = super().reference_accesses(sym)
         for cmpt in self.components.values():
             if isinstance(cmpt.datatype, DataTypeSymbol):
                 from psyclone.core.signature import Signature
@@ -1310,9 +1317,10 @@ class StructureType(DataType):
                     Signature(cmpt.datatype.name),
                     AccessType.TYPE_INFO, sym)
             else:
-                cmpt.datatype.reference_accesses(sym, access_info)
+                access_info.merge(cmpt.datatype.reference_accesses(sym))
             if cmpt.initial_value:
-                cmpt.initial_value.reference_accesses(access_info)
+                access_info.merge(cmpt.initial_value.reference_accesses())
+        return access_info
 
 
 # Create common scalar datatypes

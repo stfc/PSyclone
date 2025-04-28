@@ -74,7 +74,7 @@ def test_assignment(fortran_reader):
     # Simple scalar assignment:  a = b
     scalar_assignment = schedule.children[0]
     assert isinstance(scalar_assignment, Assignment)
-    var_accesses = VariablesAccessInfo(scalar_assignment)
+    var_accesses = scalar_assignment.reference_accesses()
     # Test some test functions explicitly:
     assert var_accesses.is_written(Signature("a"))
     assert not var_accesses.is_read(Signature("a"))
@@ -84,19 +84,19 @@ def test_assignment(fortran_reader):
     # Array element assignment: c(i,j) = d(i,j+1)+e+f(x,y)
     array_assignment = schedule.children[1]
     assert isinstance(array_assignment, Assignment)
-    var_accesses = VariablesAccessInfo(array_assignment)
+    var_accesses = array_assignment.reference_accesses()
     assert (str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "
                                  "i: READ, j: READ, x: READ, y: READ")
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)
-    var_accesses = VariablesAccessInfo(increment_access)
+    var_accesses = increment_access.reference_accesses()
     assert str(var_accesses) == "c: READ+WRITE, i: READ"
 
     # Using an intrinsic:
     sqrt_access = schedule.children[3]
     assert isinstance(sqrt_access, Assignment)
-    var_accesses = VariablesAccessInfo(sqrt_access)
+    var_accesses = sqrt_access.reference_accesses()
     assert str(var_accesses) == "d: WRITE, e: READ, i: READ, j: READ"
 
 
@@ -112,7 +112,7 @@ def test_indirect_addressing(fortran_reader):
 
     indirect_addressing = psyir.children[0].children[0]
     assert isinstance(indirect_addressing, Assignment)
-    var_accesses = VariablesAccessInfo(indirect_addressing)
+    var_accesses = indirect_addressing.reference_accesses()
     assert str(var_accesses) == "a: READ, g: WRITE, h: READ, i: READ"
 
 
@@ -148,7 +148,7 @@ def test_if_statement(fortran_reader):
 
     if_stmt = schedule.children[0]
     assert isinstance(if_stmt, IfBlock)
-    var_accesses = VariablesAccessInfo(if_stmt)
+    var_accesses = if_stmt.reference_accesses()
     assert (str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "
                                  "q: READ+WRITE, r: READ")
     # Test that the two accesses to 'q' indeed show up as
@@ -171,7 +171,7 @@ def test_call(fortran_reader):
 
     code_block = schedule.children[0]
     call_stmt = code_block.statements[0]
-    var_accesses = VariablesAccessInfo(call_stmt)
+    var_accesses = call_stmt.reference_accesses()
     assert str(var_accesses) == "a: UNKNOWN, b: UNKNOWN"
 
 
@@ -192,7 +192,7 @@ def test_do_loop(fortran_reader):
 
     do_loop = schedule.children[0]
     assert isinstance(do_loop, Loop)
-    var_accesses = VariablesAccessInfo(do_loop)
+    var_accesses = do_loop.reference_accesses()
     assert (str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, n: READ, "
                                  "s: WRITE, t: READ")
 
@@ -214,7 +214,7 @@ def test_nemo_array_range(fortran_reader):
 
     do_loop = schedule.children[0]
     assert isinstance(do_loop, Loop)
-    var_accesses = VariablesAccessInfo(do_loop)
+    var_accesses = do_loop.reference_accesses()
     assert (str(var_accesses) == "a: READ, jj: READ+WRITE, n: READ, "
             "s: WRITE, t: READ")
 
@@ -231,7 +231,7 @@ def test_goloop():
                            "gocean", name="invoke_0")
     do_loop = invoke.schedule.children[0]
     assert isinstance(do_loop, Loop)
-    var_accesses = VariablesAccessInfo(do_loop)
+    var_accesses = do_loop.reference_accesses()
     assert (str(var_accesses) == ": READ, a_scalar: READ, i: READ+WRITE, "
                                  "j: READ+WRITE, " "ssh_fld: READ+WRITE, "
                                  "tmask: READ")
@@ -256,7 +256,7 @@ def test_goloop_partially():
     # The fourth argument is GO_GRID_MASK_T, which is an array
     assert not do_loop.args[3].is_scalar
 
-    var_accesses = VariablesAccessInfo(do_loop)
+    var_accesses = do_loop.reference_accesses()
     assert ("a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "
             "ssh_fld: READWRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "
             "ssh_fld%grid%tmask: READ" in str(var_accesses))
@@ -283,7 +283,7 @@ def test_lfric():
     # `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
-    var_accesses = VariablesAccessInfo(schedule)
+    var_accesses = schedule.reference_accesses()
     assert str(var_accesses) == (
         "a: READ, cell: READ+WRITE, f1_data: READ+WRITE, f2_data: READ, "
         "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, loop0_start: "
@@ -310,8 +310,8 @@ def test_lfric_kern_cma_args():
     psy.gen
     invoke_read = psy.invokes.get('invoke_read')
     invoke_write = psy.invokes.get('invoke_write')
-    var_accesses_read = VariablesAccessInfo(invoke_read.schedule)
-    var_accesses_write = VariablesAccessInfo(invoke_write.schedule)
+    var_accesses_read = invoke_read.schedule.reference_accesses()
+    var_accesses_write = invoke_write.schedule.reference_accesses()
 
     # Check the parameters that will change access type according to read or
     # write declaration of the argument:
@@ -357,7 +357,7 @@ def test_location(fortran_reader):
           end program test_prog''')
     schedule = psyir.children[0]
 
-    var_accesses = VariablesAccessInfo(schedule)
+    var_accesses = schedule.reference_accesses()
     # Test accesses for a:
     a_accesses = var_accesses[Signature("a")].all_accesses
     assert a_accesses[0].location == 0
@@ -408,7 +408,7 @@ def test_user_defined_variables(fortran_reader):
              e%f = d
            end program test_prog''')
     loops = psyir.children[0]
-    var_accesses = VariablesAccessInfo(loops)
+    var_accesses = loops.reference_accesses()
     assert var_accesses[Signature(("a", "b", "c"))].is_written
     assert var_accesses[Signature(("e", "f"))].is_written
 
@@ -425,7 +425,7 @@ def test_lfric_ref_element():
     # `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "normals_to_faces: READ" in var_info
     assert "out_normals_to_faces: READ" in var_info
     assert "nfaces_re: READ" in var_info
@@ -443,7 +443,7 @@ def test_lfric_operator():
     # `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "f0_data: READ+WRITE" in var_info
     assert "cmap_data: READ" in var_info
     assert "basis_w0_on_w0: READ" in var_info
@@ -462,7 +462,7 @@ def test_lfric_cma():
     # `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "ncell_2d: READ" in var_info
     assert "cma_op1_alpha: READ" in var_info
     assert "cma_op1_bandwidth: READ" in var_info
@@ -490,7 +490,7 @@ def test_lfric_cma2():
     # `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "cma_indirection_map_aspc1_field_a: READ" in var_info
     assert "cma_indirection_map_aspc2_field_b: READ" in var_info
 
@@ -506,7 +506,7 @@ def test_lfric_stencils():
     # `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "f2_stencil_size: READ" in var_info
     assert "f2_stencil_dofmap: READ" in var_info
 
@@ -524,7 +524,7 @@ def test_lfric_various_basis():
     # `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "basis_w3_qr: READ" in var_info
     assert "diff_basis_w0_qr: READ" in var_info
     assert "diff_basis_w2_qr: READ" in var_info
@@ -547,7 +547,7 @@ def test_lfric_field_bc_kernel():
     # `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "boundary_dofs_a: READ" in var_info
 
 
@@ -564,7 +564,7 @@ def test_lfric_stencil_xory_vector():
     # `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "f2_direction: READ" in var_info
 
 
@@ -581,7 +581,7 @@ def test_lfric_operator_bc_kernel():
     # `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "boundary_dofs_op_a: READ" in var_info
 
 

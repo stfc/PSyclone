@@ -54,7 +54,7 @@
     end subroutine sub
     '''
     psyir = FortranReader().psyir_from_source(code)
-    all_var_accesses = VariablesAccessInfo(psyir.children)
+    all_var_accesses = psyir.reference_accesses()
     # Get all accesses to the variable 'a', i.e. a(i.j)
     all_a_accesses = all_var_accesses[Signature("a")]
     # Get the first access, which is the write access to 'a(i,j)'
@@ -329,19 +329,6 @@ keep track of which statements (PSyIR nodes) a given `VariablesAccessInfo`
 instance is holding information about.
 
 
-VariablesAccessInfo Options
-+++++++++++++++++++++++++++
-
-Fortran allows an imported symbol to be renamed locally
-(`use some_mod, only: renamed => original_name`). Depending on use case,
-it might be useful to get the non-local, original name. By default,
-`VariablesAccessInfo` will report the local name (i.e. the renamed name),
-but if you add the key `USE-ORIGINAL-NAMES` and set it to True::
-
-    vai = VariablesAccessInfo(options={'USE-ORIGINAL-NAMES': True})
-
-the original name will be returned in the `VariablesAccessInfo` object.
-
 SingleVariableAccessInfo
 ------------------------
 The class `VariablesAccessInfo` uses a dictionary of
@@ -530,8 +517,7 @@ thread-private. Note that this code does not handle the usage of
 .. testcode::
 
   result = set()
-  var_accesses = VariablesAccessInfo()
-  omp_directive.reference_accesses(var_accesses)
+  var_accesses = omp_directive.reference_accesses()
   for signature in var_accesses.all_signatures:
       if signature.is_structure:
           # A lookup in the symbol table for structures are

@@ -1206,8 +1206,8 @@ class SymbolTable():
         from psyclone.core import Signature, VariablesAccessInfo
         vai = VariablesAccessInfo()
         if self.node:
-            self.node.reference_accesses(vai)
-        self.reference_accesses(vai)
+            vai.merge(self.node.reference_accesses())
+        vai.merge(self.reference_accesses())
         sig = Signature(symbol.name)
         if sig not in vai:
             return
@@ -2021,7 +2021,7 @@ class SymbolTable():
         # Re-insert modified symbol
         self.add(symbol)
 
-    def reference_accesses(self, access_info):
+    def reference_accesses(self):
         '''
         Get all variable access information *within* this table. This ensures
         that any Symbols appearing in precision specifications, array shapes,
@@ -2035,9 +2035,12 @@ class SymbolTable():
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        from psyclone.core import VariablesAccessInfo
+        vai = VariablesAccessInfo()
         for sym in self.symbols:
             if not sym.is_import:
-                sym.reference_accesses(access_info)
+                vai.merge(sym.reference_accesses())
+        return vai
 
     def wildcard_imports(self, scope_limit=None) -> List[ContainerSymbol]:
         '''

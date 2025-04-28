@@ -223,7 +223,7 @@ class KernelModuleInlineTrans(Transformation):
             code_to_inline = new_routines[orig_routine.name]
             copied_routines.append(code_to_inline)
 
-            vai = VariablesAccessInfo(code_to_inline)
+            vai = code_to_inline.reference_accesses()
 
             # First make a set with all symbols used inside the subroutine
             all_symbols = set()

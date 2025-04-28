@@ -141,7 +141,7 @@ class WhileLoop(Statement):
         result += "End " + name
         return result
 
-    def reference_accesses(self, var_accesses):
+    def reference_accesses(self):
         '''Get all variable access information. It combines the data from
         the loop condition and the loop body.
 
@@ -151,7 +151,8 @@ class WhileLoop(Statement):
         '''
 
         # The first child is the loop condition - all variables are read-only
-        self.condition.reference_accesses(var_accesses)
+        var_accesses = self.condition.reference_accesses()
         var_accesses.next_location()
-        self.loop_body.reference_accesses(var_accesses)
+        var_accesses.merge(self.loop_body.reference_accesses())
         var_accesses.next_location()
+        return var_accesses

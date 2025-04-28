@@ -324,8 +324,7 @@ def test_scalartype_reference_accesses():
     stype2 = ScalarType(ScalarType.Intrinsic.INTEGER,
                         rdef)
     var = DataSymbol("var", stype2)
-    vai = VariablesAccessInfo()
-    stype2.reference_accesses(var, vai)
+    vai = stype2.reference_accesses(var)
     svaccess = vai[Signature("rdef")]
     assert svaccess.has_data_access() is False
     assert svaccess[0].node is var
@@ -339,8 +338,7 @@ def test_arraytype_extent():
     xtent = ArrayType.Extent.ATTRIBUTE
     ytent = xtent.copy()
     assert isinstance(ytent, ArrayType.Extent)
-    vai = VariablesAccessInfo()
-    ytent.reference_accesses(vai)
+    vai = ytent.reference_accesses()
     assert not vai.all_signatures
 
 
@@ -770,8 +768,7 @@ def test_arraytype_reference_accesses():
                       [Literal("10", ScalarType(ScalarType.Intrinsic.INTEGER,
                                                 idef)),
                        Reference(DataSymbol("ndim", INTEGER_TYPE))])
-    vai = VariablesAccessInfo()
-    etype.reference_accesses(Symbol("test"), vai)
+    vai = etype.reference_accesses(Symbol("test"))
     all_names = [sig.var_name for sig in vai.all_signatures]
     assert "rdef" in all_names
     assert "idef" in all_names
@@ -1000,15 +997,13 @@ def test_unsupported_fortran_type_reference_accesses():
     nelem = DataSymbol("nelem", INTEGER_TYPE)
     ptype = ArrayType(stype, [Reference(nelem)])
     utype = UnsupportedFortranType(decl, partial_datatype=ptype)
-    vai = VariablesAccessInfo()
-    utype.reference_accesses(Symbol("test"), vai)
+    vai = utype.reference_accesses(Symbol("test"))
     all_names = [sig.var_name for sig in vai.all_signatures]
     assert "nelem" in all_names
     assert "some_type" in all_names
     decl2 = "type(some_type), pointer :: var"
     u2type = UnsupportedFortranType(decl2, partial_datatype=stype)
-    vai2 = VariablesAccessInfo()
-    u2type.reference_accesses(Symbol("test"), vai2)
+    vai2 = u2type.reference_accesses(Symbol("test"))
     assert "some_type" in [sig.var_name for sig in vai.all_signatures]
 
 
@@ -1171,7 +1166,6 @@ def test_structuretype_replace_symbols(table):
 
 def test_structuretype_reference_accesses():
     '''Tests for the reference_accesses() method of StructureType.'''
-    vai = VariablesAccessInfo()
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
     atype = ArrayType(REAL_TYPE, [Reference(Symbol("ndim"))])
     stype = StructureType.create([
@@ -1180,7 +1174,7 @@ def test_structuretype_reference_accesses():
          Literal("1.0", REAL_TYPE)),
         ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
     my_var = DataTypeSymbol("my_var", stype)
-    stype.reference_accesses(my_var, vai)
+    vai = stype.reference_accesses(my_var)
     assert Signature("my_type") in vai.all_signatures
     assert Signature("ndim") in vai.all_signatures
 

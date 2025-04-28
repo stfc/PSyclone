@@ -485,8 +485,7 @@ def test_symbol_replace_symbols_using(table):
 def test_symbol_reference_accesses():
     '''Test that the reference_accesses() method of a Symbol does not add any
     accesses.'''
-    vai = VariablesAccessInfo()
     interf = DefaultModuleInterface()
     asym = Symbol("a", interface=interf)
-    asym.reference_accesses(vai)
+    vai = asym.reference_accesses()
     assert not vai.all_signatures

@@ -562,7 +562,7 @@ class Symbol(CommentableMixin):
             except KeyError:
                 pass
 
-    def reference_accesses(self, access_info):
+    def reference_accesses(self):
         '''
         Update the supplied VariablesAccessInfo with information on the symbols
         referenced by the definition of this Symbol.
@@ -574,3 +574,5 @@ class Symbol(CommentableMixin):
                             information.
         :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
         '''
+        from psyclone.core import VariablesAccessInfo
+        return VariablesAccessInfo()

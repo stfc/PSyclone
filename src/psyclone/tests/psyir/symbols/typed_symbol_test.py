@@ -290,17 +290,14 @@ def test_typed_symbol_reference_accesses():
     kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
     real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, kind)
     sym = TSymbol("a", real_kind_type)
-    vai = VariablesAccessInfo()
-    sym.reference_accesses(vai)
+    vai = sym.reference_accesses()
     assert vai.all_signatures == [Signature("r_def")]
     # When the type is specified by a DataTypeSymbol.
     type_sym = DataTypeSymbol("some_type", UnresolvedType())
     struc_sym = TSymbol("b", type_sym)
-    vai2 = VariablesAccessInfo()
-    struc_sym.reference_accesses(vai2)
+    vai2 = struc_sym.reference_accesses()
     assert vai2.all_signatures == [Signature("some_type")]
     # Dependencies are ignored for imported symbols.
     struc_sym.interface = ImportInterface(ContainerSymbol("somewhere"))
-    vai3 = VariablesAccessInfo()
-    struc_sym.reference_accesses(vai3)
+    vai3 = struc_sym.reference_accesses()
     assert not vai3.all_signatures

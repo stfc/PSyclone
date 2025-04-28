@@ -214,7 +214,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         return (f"Built-in: {self._case_name} ("
                 f"{self._datatype}-valued field{plural})")
 
-    def reference_accesses(self, var_accesses):
+    def reference_accesses(self):
         '''Get all variable access information from this node. The assigned-to
         variable will be set to 'WRITE'.
 
@@ -226,6 +226,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         :raises InternalError: if an unsupported argument type is encountered.
 
         '''
+        var_accesses = VariablesAccessInfo()
         table = self.scope.symbol_table
         # Collect all write access in a separate object, so they can be added
         # after all read access (which must happen before something is written)
@@ -254,6 +255,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         # Forward location pointer to next index, since this built-in kernel
         # finishes a statement
         var_accesses.next_location()
+        return var_accesses
 
     def load(self, call, parent=None):
         '''

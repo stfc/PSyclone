@@ -814,7 +814,7 @@ class DependencyTools():
                             f"instance of class Loop but got "
                             f"'{type(loop).__name__}'")
 
-        var_accesses = VariablesAccessInfo(loop)
+        var_accesses = loop.reference_accesses()
         if not signatures_to_ignore:
             signatures_to_ignore = []
 
@@ -880,8 +880,8 @@ class DependencyTools():
         # has done tests for loop boundaries (depending on domain)
 
         self._clear_messages()
-        vars1 = VariablesAccessInfo(loop1)
-        vars2 = VariablesAccessInfo(loop2)
+        vars1 = loop1.reference_accesses()
+        vars2 = loop2.reference_accesses()
 
         # Check if the loops have the same loop variable
         loop_var1 = loop1.variable

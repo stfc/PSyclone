@@ -910,7 +910,7 @@ class IntrinsicCall(Call):
 
         return call
 
-    def reference_accesses(self, var_accesses):
+    def reference_accesses(self):
         '''Get all reference access information from this node.
 
         Any variables used as the first argument to 'inquiry intrinsics' like
@@ -921,6 +921,8 @@ class IntrinsicCall(Call):
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        from psyclone.core import VariablesAccessInfo
+        var_accesses = VariablesAccessInfo()
         if self.intrinsic.is_inquiry and isinstance(self.arguments[0],
                                                     Reference):
             # If this is an inquiry access (which doesn't actually access the
@@ -930,12 +932,13 @@ class IntrinsicCall(Call):
             var_accesses.add_access(sig, AccessType.INQUIRY, self.arguments[0])
             for idx_list in indices:
                 for idx in idx_list:
-                    idx.reference_accesses(var_accesses)
+                    var_accesses.merge(idx.reference_accesses())
         elif self.arguments:
-            self.arguments[0].reference_accesses(var_accesses)
+            var_accesses.merge(self.arguments[0].reference_accesses())
 
         for child in self.arguments[1:]:
-            child.reference_accesses(var_accesses)
+            var_accesses.merge(child.reference_accesses())
+        return var_accesses
 
     # TODO #2102: Maybe the three properties below can be removed if intrinsic
     # is a symbol, as they would act as the super() implementation.

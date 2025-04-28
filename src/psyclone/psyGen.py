@@ -1074,7 +1074,7 @@ class Kern(Statement):
         return (self.coloured_name(colour) + " " + self.name +
                 "(" + self.arguments.names + ")")
 
-    def reference_accesses(self, var_accesses):
+    def reference_accesses(self):
         '''Get all variable access information. The API specific classes
         add the accesses to the arguments. So the code here only calls
         the baseclass, and increases the location.
@@ -1084,8 +1084,9 @@ class Kern(Statement):
         :type var_accesses: \
             :py:class:`psyclone.core.VariablesAccessInfo`
         '''
-        super().reference_accesses(var_accesses)
+        var_accesses = super().reference_accesses()
         var_accesses.next_location()
+        return var_accesses
 
     @property
     def is_reduction(self):

@@ -202,8 +202,7 @@ def test_reference_accesses():
             "grid",
             symbols.DataTypeSymbol("grid_type", symbols.UnresolvedType())),
         ["data"])
-    var_access_info = VariablesAccessInfo()
-    dref.reference_accesses(var_access_info)
+    var_access_info = dref.reference_accesses()
 
     assert var_access_info.all_signatures == [Signature(("grid", "data"))]
     # By default all accesses are marked as read

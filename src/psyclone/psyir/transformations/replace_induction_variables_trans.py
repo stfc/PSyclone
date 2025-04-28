@@ -160,7 +160,7 @@ class ReplaceInductionVariablesTrans(Transformation):
             return False
 
         # Collect all variables used on the rhs of assignment:
-        rhs_accesses = VariablesAccessInfo(assignment.rhs)
+        rhs_accesses = assignment.rhs.reference_accesses()
         # If the rhs uses any variable that is written in the loop body, this
         # is not a (simple) induction variable and cannot be replaced.
         # Note that the write to the loop variable is part of the Loop
@@ -212,7 +212,7 @@ class ReplaceInductionVariablesTrans(Transformation):
 
         # Find assignments that are directly part of the loop (this
         # prevents issues with assignment inside if statements):
-        all_accesses = VariablesAccessInfo(node.loop_body)
+        all_accesses = node.loop_body.reference_accesses()
         indx = 0
         while indx < len(node.loop_body.children):
             assignment = node.loop_body.children[indx]
@@ -256,7 +256,7 @@ class ReplaceInductionVariablesTrans(Transformation):
             node.parent.children.insert(node.position+1, assignment)
 
             # Recompute the accesses in the body, which was modified
-            all_accesses = VariablesAccessInfo(node.loop_body)
+            all_accesses = node.loop_body.reference_accesses()
 
             # Since the assignment is removed now, we do not need to
             # increment 'indx' here, which will now point to the next

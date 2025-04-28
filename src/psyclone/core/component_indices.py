@@ -184,7 +184,7 @@ class ComponentIndices():
         indices = []
         for i in self.iterate():
             indx = self[i]
-            index_vars = VariablesAccessInfo(indx)
+            index_vars = indx.reference_accesses()
             unique_vars = set(str(sig) for sig in index_vars.keys())
             unique_vars = unique_vars.intersection(set_of_vars)
             indices.append(unique_vars)

@@ -378,7 +378,7 @@ class DataSymbol(TypedSymbol):
                     continue
                 bnd.replace_symbols_using(table_or_symbol)
 
-    def reference_accesses(self, access_info):
+    def reference_accesses(self):
         '''
         Update the supplied VariablesAccessInfo with information on the symbols
         referenced by the definition of this Symbol.
@@ -387,7 +387,8 @@ class DataSymbol(TypedSymbol):
                             information.
         :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
         '''
-        super().reference_accesses(access_info)
+        access_info = super().reference_accesses()
 
         if self.initial_value:
-            self.initial_value.reference_accesses(access_info)
+            access_info.merge(self.initial_value.reference_accesses())
+        return access_info

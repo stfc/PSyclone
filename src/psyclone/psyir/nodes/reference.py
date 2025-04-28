@@ -201,7 +201,7 @@ class Reference(DataNode):
         '''
         return (Signature(self.name), [[]])
 
-    def reference_accesses(self, var_accesses):
+    def reference_accesses(self):
         '''Get all variable access information from this node, i.e.
         it sets this variable to be read. It relies on
         `get_signature_and_indices` and will correctly handle
@@ -213,19 +213,21 @@ class Reference(DataNode):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        from psyclone.core import VariablesAccessInfo
+        var_accesses = VariablesAccessInfo()
         sig, all_indices = self.get_signature_and_indices()
-        if self.symbol.is_import and \
-                var_accesses.options("USE-ORIGINAL-NAMES") and \
-                self.symbol.interface.orig_name:
-            # If the option is set to return the original (un-renamed)
-            # name of an imported symbol, get the original name from
-            # the interface and use it. The rest of the signature is
-            # used from the original access, it does not change.
-            sig = Signature(self.symbol.interface.orig_name, sig[1:])
+        # if self.symbol.is_import and \
+        #         self.symbol.interface.orig_name:
+        #     # If the option is set to return the original (un-renamed)
+        #     # name of an imported symbol, get the original name from
+        #     # the interface and use it. The rest of the signature is
+        #     # used from the original access, it does not change.
+        #     sig = Signature(self.symbol.interface.orig_name, sig[1:])
         for indices in all_indices:
             for index in indices:
-                index.reference_accesses(var_accesses)
+                var_accesses.merge(index.reference_accesses())
         var_accesses.add_access(sig, AccessType.READ, self, all_indices)
+        return var_accesses
 
     @property
     def datatype(self):

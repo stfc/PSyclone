@@ -171,7 +171,7 @@ class Literal(DataNode):
         return (f"{self.coloured_name(colour)}"
                 f"[value:'{self._value}', {self.datatype}]")
 
-    def reference_accesses(self, access_info: VariablesAccessInfo):
+    def reference_accesses(self) -> VariablesAccessInfo:
         '''
         Get all variable access information. Since this is a Literal, the
         only possible place a symbol might be present is in the precision.
@@ -180,9 +180,11 @@ class Literal(DataNode):
             information about variable accesses.
 
         '''
+        access_info = VariablesAccessInfo()
         if isinstance(self.datatype.precision, Symbol):
             access_info.add_access(Signature(self.datatype.precision.name),
                                    AccessType.TYPE_INFO, self)
+        return access_info
 
     def replace_symbols_using(self, table_or_symbol):
         '''

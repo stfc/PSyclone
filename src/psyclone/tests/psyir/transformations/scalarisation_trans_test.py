@@ -36,7 +36,7 @@
 '''This module tests the scalarisation transformation.
 '''
 
-from psyclone.core import VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import ScalarisationTrans
 from psyclone.tests.utilities import Compile
@@ -67,42 +67,37 @@ def test_scalararizationtrans_is_local_array(fortran_reader):
        end function'''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test arr
-    assert var_accesses[keys[1]].var_name == "arr"
-    assert not ScalarisationTrans._is_local_array(keys[1],
+    assert not ScalarisationTrans._is_local_array(Signature("arr"),
                                                   var_accesses)
     # Test a
-    assert var_accesses[keys[2]].var_name == "a"
-    assert not ScalarisationTrans._is_local_array(keys[2],
+    assert not ScalarisationTrans._is_local_array(Signature("a"),
                                                   var_accesses)
     # Test local
-    assert var_accesses[keys[3]].var_name == "local"
-    assert ScalarisationTrans._is_local_array(keys[3],
+    assert ScalarisationTrans._is_local_array(Signature("local"),
                                               var_accesses)
 
     # Test b - the RHS of the assignment is a codeblock so we do not
     # count it as a local array and invalidate it, as otherwise the
     # local array test can fail. Also we can't safely transform the
     # CodeBlock anyway.
-    assert var_accesses[keys[4]].var_name == "b"
-    assert not ScalarisationTrans._is_local_array(keys[4],
+    assert not ScalarisationTrans._is_local_array(Signature("b"),
                                                   var_accesses)
 
     # Test x - the return value is not classed as a local array.
-    assert var_accesses[keys[5]].var_name == "x"
-    assert not ScalarisationTrans._is_local_array(keys[5],
+    assert not ScalarisationTrans._is_local_array(Signature("x"),
                                                   var_accesses)
 
     # Test custom - we don't scalarise derived types.
-    assert var_accesses[keys[6]].var_name == "custom%type"
-    assert not ScalarisationTrans._is_local_array(keys[6],
-                                                  var_accesses)
+    assert not ScalarisationTrans._is_local_array(
+                          Signature(("custom", "type")),
+                          var_accesses)
     # Test custom2 - we don't scalarise derived types.
-    assert var_accesses[keys[7]].var_name == "custom2%typeb"
-    assert not ScalarisationTrans._is_local_array(keys[7],
-                                                  var_accesses)
+    assert not ScalarisationTrans._is_local_array(
+        Signature(("custom2", "typeb")),
+        var_accesses)
 
     # Test filter behaviour same as used in the transformation
     local_arrays = filter(
@@ -132,19 +127,16 @@ def test_scalarisationtrans_have_same_unmodified_index(fortran_reader):
        end subroutine'''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[1]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test a
-    assert var_accesses[keys[1]].var_name == "a"
-    assert ScalarisationTrans._have_same_unmodified_index(keys[1],
+    assert ScalarisationTrans._have_same_unmodified_index(Signature("a"),
                                                           var_accesses)
     # Test b (differeing indices)
-    assert var_accesses[keys[2]].var_name == "b"
-    assert not ScalarisationTrans._have_same_unmodified_index(keys[2],
+    assert not ScalarisationTrans._have_same_unmodified_index(Signature("b"),
                                                               var_accesses)
     # Test c (k is modified)
-    assert var_accesses[keys[3]].var_name == "c"
-    assert not ScalarisationTrans._have_same_unmodified_index(keys[3],
+    assert not ScalarisationTrans._have_same_unmodified_index(Signature("c"),
                                                               var_accesses)
     # Test filter behaviour same as used in the transformation
     local_arrays = filter(
@@ -179,21 +171,18 @@ def test_scalarisationtrans_check_first_access_is_write(fortran_reader):
        end subroutine'''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test a
-    assert var_accesses[keys[1]].var_name == "a"
-    assert ScalarisationTrans._check_first_access_is_write(keys[1],
+    assert ScalarisationTrans._check_first_access_is_write(Signature("a")
                                                            node,
                                                            var_accesses)
     # Test b (differeing indices)
-    assert var_accesses[keys[2]].var_name == "b"
-    assert not ScalarisationTrans._check_first_access_is_write(keys[2],
+    assert not ScalarisationTrans._check_first_access_is_write(Signature("b")
                                                                node,
                                                                var_accesses)
     # Test c (k is modified)
-    assert var_accesses[keys[3]].var_name == "c"
-    assert ScalarisationTrans._check_first_access_is_write(keys[3],
+    assert ScalarisationTrans._check_first_access_is_write(Signature("c")
                                                            node,
                                                            var_accesses)
 
@@ -238,16 +227,14 @@ def test_scalarisationtrans_value_unused_after_loop(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test arr
-    assert var_accesses[keys[1]].var_name == "arr"
-    assert ScalarisationTrans._value_unused_after_loop(keys[1],
+    assert ScalarisationTrans._value_unused_after_loop(Signature("arr"),
                                                        node.loop_body,
                                                        var_accesses)
     # Test b
-    assert var_accesses[keys[2]].var_name == "b"
-    assert not ScalarisationTrans._value_unused_after_loop(keys[2],
+    assert not ScalarisationTrans._value_unused_after_loop(Signature("b"),
                                                            node.loop_body,
                                                            var_accesses)
 
@@ -272,16 +259,14 @@ def test_scalarisationtrans_value_unused_after_loop(fortran_reader):
         '''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test arr
-    assert var_accesses[keys[1]].var_name == "arr"
-    assert ScalarisationTrans._value_unused_after_loop(keys[1],
+    assert ScalarisationTrans._value_unused_after_loop(Signature("arr"),
                                                        node.loop_body,
                                                        var_accesses)
     # Test b
-    assert var_accesses[keys[2]].var_name == "b"
-    assert ScalarisationTrans._value_unused_after_loop(keys[2],
+    assert ScalarisationTrans._value_unused_after_loop(Signature("b"),
                                                        node.loop_body,
                                                        var_accesses)
     # Test we don't ignore array next_access if they're in an if statement
@@ -305,16 +290,14 @@ def test_scalarisationtrans_value_unused_after_loop(fortran_reader):
         '''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0].if_body.children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test arr
-    assert var_accesses[keys[1]].var_name == "arr"
-    assert ScalarisationTrans._value_unused_after_loop(keys[1],
+    assert ScalarisationTrans._value_unused_after_loop(Signature("arr"),
                                                        node.loop_body,
                                                        var_accesses)
     # Test b
-    assert var_accesses[keys[2]].var_name == "b"
-    assert ScalarisationTrans._value_unused_after_loop(keys[2],
+    assert ScalarisationTrans._value_unused_after_loop(Signature("b"),
                                                        node.loop_body,
                                                        var_accesses)
 
@@ -340,16 +323,14 @@ def test_scalarisationtrans_value_unused_after_loop(fortran_reader):
         '''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0].if_body.children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test arr
-    assert var_accesses[keys[1]].var_name == "arr"
-    assert ScalarisationTrans._value_unused_after_loop(keys[1],
+    assert ScalarisationTrans._value_unused_after_loop(Signature("arr"),
                                                        node.loop_body,
                                                        var_accesses)
     # Test b
-    assert var_accesses[keys[2]].var_name == "b"
-    assert not ScalarisationTrans._value_unused_after_loop(keys[2],
+    assert not ScalarisationTrans._value_unused_after_loop(Signature("b"),
                                                            node.loop_body,
                                                            var_accesses)
 
@@ -375,11 +356,10 @@ def test_scalarisationtrans_value_unused_after_loop(fortran_reader):
         '''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test b
-    assert var_accesses[keys[2]].var_name == "b"
-    assert not ScalarisationTrans._value_unused_after_loop(keys[2],
+    assert not ScalarisationTrans._value_unused_after_loop(Signature("b"),
                                                            node.loop_body,
                                                            var_accesses)
 
@@ -408,21 +388,18 @@ def test_scalarisationtrans_value_unused_after_loop(fortran_reader):
         '''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test arr
-    assert var_accesses[keys[1]].var_name == "arr"
-    assert not ScalarisationTrans._value_unused_after_loop(keys[1],
+    assert not ScalarisationTrans._value_unused_after_loop(Signature("arr"),
                                                            node.loop_body,
                                                            var_accesses)
     # Test b
-    assert var_accesses[keys[2]].var_name == "b"
-    assert not ScalarisationTrans._value_unused_after_loop(keys[2],
+    assert not ScalarisationTrans._value_unused_after_loop(Signature("b"),
                                                            node.loop_body,
                                                            var_accesses)
     # Test c
-    assert var_accesses[keys[3]].var_name == "c"
-    assert not ScalarisationTrans._value_unused_after_loop(keys[3],
+    assert not ScalarisationTrans._value_unused_after_loop(Signature("c"),
                                                            node.loop_body,
                                                            var_accesses)
 
@@ -448,11 +425,10 @@ def test_scalarisationtrans_value_unused_after_loop(fortran_reader):
         '''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test arr
-    assert var_accesses[keys[1]].var_name == "arr"
-    assert not ScalarisationTrans._value_unused_after_loop(keys[1],
+    assert not ScalarisationTrans._value_unused_after_loop(Signature("arr"),
                                                            node.loop_body,
                                                            var_accesses)
 
@@ -480,7 +456,7 @@ def test_scalarisationtrans_value_unused_after_loop(fortran_reader):
         '''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
@@ -505,7 +481,7 @@ def test_scalarisationtrans_value_unused_after_loop(fortran_reader):
         '''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.node.reference_accesses()
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
@@ -530,7 +506,7 @@ def test_scalarisationtrans_value_unused_after_loop(fortran_reader):
         '''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
@@ -556,7 +532,7 @@ def test_scalarisationtrans_value_unused_after_loop(fortran_reader):
         '''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
@@ -582,7 +558,7 @@ def test_scalarisationtrans_value_unused_after_loop(fortran_reader):
         '''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
@@ -605,7 +581,7 @@ def test_scalarisationtrans_value_unused_after_loop(fortran_reader):
         '''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
@@ -628,7 +604,7 @@ def test_scalarisationtrans_value_unused_after_loop(fortran_reader):
         '''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    var_accesses = node.loop_body.reference_accesses()
     keys = list(var_accesses.keys())
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"

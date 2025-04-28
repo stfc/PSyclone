@@ -1174,7 +1174,7 @@ class GOKern(CodedKern):
                     var_accesses.add_access(signature, acc, self,
                                             [i_expr, j_expr])
 
-    def reference_accesses(self, var_accesses):
+    def reference_accesses(self):
         '''Get all variable access information. All accesses are marked
         according to the kernel metadata.
 
@@ -1184,6 +1184,8 @@ class GOKern(CodedKern):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        from psyclone.core import VariablesAccessInfo
+        var_accesses = VariablesAccessInfo()
         # Grid properties are accessed using one of the fields. This stores
         # the field used to avoid repeatedly determining the best field:
         field_for_grid_property = None
@@ -1217,8 +1219,9 @@ class GOKern(CodedKern):
                     var_accesses.add_access(signature, arg.access,
                                             self, [Reference(symbol_i),
                                                    Reference(symbol_j)])
-        super().reference_accesses(var_accesses)
+        var_accesses.merge(super().reference_accesses())
         var_accesses.next_location()
+        return var_accesses
 
     @property
     def index_offset(self):

@@ -127,7 +127,7 @@ class DataTypeSymbol(Symbol):
         super(DataTypeSymbol, self).copy_properties(symbol_in)
         self._datatype = symbol_in.datatype
 
-    def reference_accesses(self, access_info):
+    def reference_accesses(self):
         '''
         Update the supplied VariablesAccessInfo with information on the symbols
         referenced by the definition of this Symbol.
@@ -136,8 +136,9 @@ class DataTypeSymbol(Symbol):
                             information.
         :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
         '''
-        super().reference_accesses(access_info)
-        self.datatype.reference_accesses(self, access_info)
+        access_info = super().reference_accesses()
+        access_info.merge(self.datatype.reference_accesses(self))
+        return access_info
 
     def replace_symbols_using(self, table_or_symbol):
         '''

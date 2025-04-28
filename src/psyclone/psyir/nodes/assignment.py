@@ -173,7 +173,7 @@ class Assignment(Statement):
             result += str(entity)
         return result
 
-    def reference_accesses(self, var_accesses):
+    def reference_accesses(self):
         '''Get all variable access information from this node. The assigned-to
         variable will be set to 'WRITE'.
 
@@ -185,10 +185,8 @@ class Assignment(Statement):
         '''
         # It is important that a new instance is used to handle the LHS,
         # since a check in 'change_read_to_write' makes sure that there
-        # is only one access to the variable! Also forward the options
-        # from the original object to the new object.
-        accesses_left = VariablesAccessInfo(options=var_accesses.options())
-        self.lhs.reference_accesses(accesses_left)
+        # is only one access to the variable!
+        var_accesses = self.lhs.reference_accesses()
         # Now change the (one) access to the assigned variable to be WRITE.
         # Note that if the LHS is a CodeBlock then reference_accesses() will
         # already have given all Signatures READWRITE access. This is not
@@ -196,7 +194,7 @@ class Assignment(Statement):
         # subject of #2863.
         if isinstance(self.lhs, Reference):
             sig, _ = self.lhs.get_signature_and_indices()
-            var_info = accesses_left[sig]
+            var_info = var_accesses[sig]
             try:
                 var_info.change_read_to_write()
             except InternalError as err:
@@ -212,9 +210,9 @@ class Assignment(Statement):
         # RHS is added, so that in statements like 'a=a+1' the read on
         # the RHS comes before the write on the LHS (they have the same
         # location otherwise, but the order is still important)
-        self.rhs.reference_accesses(var_accesses)
-        var_accesses.merge(accesses_left)
+        var_accesses.merge(self.rhs.reference_accesses())
         var_accesses.next_location()
+        return var_accesses
 
     @property
     def is_array_assignment(self):

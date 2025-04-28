@@ -482,7 +482,7 @@ class Loop(Statement):
         result += "End " + name
         return result
 
-    def reference_accesses(self, var_accesses):
+    def reference_accesses(self):
         '''Get all variable access information. It combines the data from
         the loop bounds (start, stop and step), as well as the loop body.
         The loop variable is marked as 'READ+WRITE' and references in start,
@@ -493,6 +493,8 @@ class Loop(Statement):
         :type var_accesses: \
             :py:class:`psyclone.core.VariablesAccessInfo`
         '''
+        from psyclone.core import VariablesAccessInfo
+        var_accesses = VariablesAccessInfo()
 
         # Only add the loop variable and start/stop/step values if this is
         # not an LFRic domain loop. We need to access the variable directly
@@ -508,14 +510,15 @@ class Loop(Statement):
                                     AccessType.READ, self)
 
             # Accesses of the start/stop/step expressions
-            self.start_expr.reference_accesses(var_accesses)
-            self.stop_expr.reference_accesses(var_accesses)
-            self.step_expr.reference_accesses(var_accesses)
+            var_accesses.merge(self.start_expr.reference_accesses())
+            var_accesses.merge(self.stop_expr.reference_accesses())
+            var_accesses.merge(self.step_expr.reference_accesses())
             var_accesses.next_location()
 
         for child in self.loop_body.children:
-            child.reference_accesses(var_accesses)
+            var_accesses.merge(child.reference_accesses())
             var_accesses.next_location()
+        return var_accesses
 
     def independent_iterations(self,
                                test_all_variables=False,

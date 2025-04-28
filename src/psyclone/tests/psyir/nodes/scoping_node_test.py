@@ -283,21 +283,20 @@ def test_scoping_node_equality():
 
 def test_scoping_node_reference_accesses():
     '''Test the reference_accesses() method of ScopingNode.'''
-    vai = VariablesAccessInfo()
     sched = Schedule()
     table = sched.symbol_table
     # First test with an empty symbol table.
-    sched.reference_accesses(vai)
+    vai = sched.reference_accesses()
     assert not vai.all_signatures
     # Just adding a Symbol to the table does not affect anything.
     prsym = table.new_symbol("r_def", symbol_type=DataSymbol,
                              datatype=INTEGER_TYPE)
-    sched.reference_accesses(vai)
+    vai = sched.reference_accesses()
     assert not vai.all_signatures
     # Add another Symbol that references the first one in its precision.
     new_type = ScalarType(ScalarType.Intrinsic.REAL, prsym)
     _ = table.new_symbol("var1", symbol_type=DataSymbol, datatype=new_type)
-    sched.reference_accesses(vai)
+    vai = sched.reference_accesses()
     assert vai.all_signatures == [Signature("r_def")]
     assert not vai[Signature("r_def")].has_data_access()
     # Add a Symbol with initialisation.
@@ -308,11 +307,10 @@ def test_scoping_node_reference_accesses():
                          datatype=INTEGER_TYPE,
                          is_constant=True,
                          initial_value=Literal("100", int_type))
-    vai2 = VariablesAccessInfo()
-    sched.reference_accesses(vai2)
-    assert len(vai2.all_signatures) == 2
-    assert Signature("i_def") in vai2.all_signatures
-    assert not vai2[Signature("i_def")].has_data_access()
+    vai = sched.reference_accesses()
+    assert len(vai.all_signatures) == 2
+    assert Signature("i_def") in vai.all_signatures
+    assert not vai[Signature("i_def")].has_data_access()
 
 
 def test_reference_accesses_struct():
@@ -334,14 +332,12 @@ def test_reference_accesses_struct():
          Literal("100", real_type))])
     ssym = DataTypeSymbol("my_type", stype)
     table.add(ssym)
-    vai3 = VariablesAccessInfo()
-    sched.reference_accesses(vai3)
+    vai3 = sched.reference_accesses()
     assert len(vai3.all_signatures) == 2
     assert Signature("i_def") in vai3.all_signatures
     assert Signature("r_def") in vai3.all_signatures
     table.new_symbol("var4", symbol_type=DataSymbol, datatype=ssym)
-    vai4 = VariablesAccessInfo()
-    sched.reference_accesses(vai4)
+    vai4 = sched.reference_accesses()
 
 
 def test_reference_accesses_array():
@@ -362,8 +358,7 @@ def test_reference_accesses_array():
                             initial_value=Literal("100", int_type))
     atype = ArrayType(real_type, [Reference(var2)])
     _ = table.new_symbol("var3", symbol_type=DataSymbol, datatype=atype)
-    vai = VariablesAccessInfo()
-    sched.reference_accesses(vai)
+    vai = sched.reference_accesses()
     assert Signature("i_def") in vai.all_signatures
     assert Signature("r_def") in vai.all_signatures
     assert Signature("var2") in vai.all_signatures
@@ -388,7 +383,6 @@ def test_reference_accesses_unknown_type():
         "real(r_def), dimension(big), target :: array",
         partial_datatype=ptype)
     table.new_symbol("array", symbol_type=DataSymbol, datatype=utype)
-    vai = VariablesAccessInfo()
-    sched.reference_accesses(vai)
+    vai = sched.reference_accesses()
     assert Signature("r_def") in vai.all_signatures
     assert Signature("big") in vai.all_signatures

@@ -84,9 +84,9 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
 
         '''
         if isinstance(nodes, Loop):
-            var_accesses = VariablesAccessInfo(nodes=nodes.loop_body)
+            var_accesses = nodes.loop_body.reference_accesses()
         else:
-            var_accesses = VariablesAccessInfo(nodes=nodes)
+            var_accesses = nodes.reference_accesses()
         writes = []
         for signature in var_accesses.all_signatures:
             if var_accesses.is_written(signature):

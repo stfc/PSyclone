@@ -580,6 +580,5 @@ def test_datasymbol_reference_accesses():
     int_kind_type = ScalarType(ScalarType.Intrinsic.INTEGER, kind)
     sym3 = DataSymbol("c", REAL_SINGLE_TYPE,
                       initial_value=Literal("1", int_kind_type))
-    vai3 = VariablesAccessInfo()
-    sym3.reference_accesses(vai3)
+    vai3 = sym3.reference_accesses()
     assert vai3.all_signatures == [Signature("i_def")]

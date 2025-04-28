@@ -216,7 +216,7 @@ class Routine(Schedule, CommentableMixin):
         # VariablesAccessInfo does not work with nested scopes. (e.g. 2
         # different symbols with the same name but declared in different,
         # nested scopes will be assumed to be the same symbol).
-        vai = VariablesAccessInfo(self)
+        vai = self.reference_accesses()
         table = self.symbol_table
         name = self.name
         for sig in vai.all_signatures:

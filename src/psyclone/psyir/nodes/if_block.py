@@ -180,7 +180,7 @@ class IfBlock(Statement):
         result += "End " + name
         return result
 
-    def reference_accesses(self, var_accesses):
+    def reference_accesses(self):
         '''Get all variable access information. It combines the data from
         the condition, if-body and (if available) else-body. This could
         later be extended to handle cases where a variable is only written
@@ -193,11 +193,12 @@ class IfBlock(Statement):
         '''
 
         # The first child is the if condition - all variables are read-only
-        self.condition.reference_accesses(var_accesses)
+        var_accesses = self.condition.reference_accesses()
         var_accesses.next_location()
-        self.if_body.reference_accesses(var_accesses)
+        var_accesses.merge(self.if_body.reference_accesses())
         var_accesses.next_location()
 
         if self.else_body:
-            self.else_body.reference_accesses(var_accesses)
+            var_accesses.merge(self.else_body.reference_accesses())
             var_accesses.next_location()
+        return var_accesses

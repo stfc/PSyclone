@@ -178,7 +178,9 @@ class CallTreeUtils():
         '''
         # Collect the information about all variables used:
         if not variables_info:
-            variables_info = VariablesAccessInfo(node_list)
+            variables_info = VariablesAccessInfo()
+            for node in node_list:
+                variables_info.merge(node.reference_accesses())
 
         if include_non_data_accesses:
             all_accesses = variables_info.all_signatures
@@ -213,7 +215,9 @@ class CallTreeUtils():
         '''
         # Collect the information about all variables used:
         if not variables_info:
-            variables_info = VariablesAccessInfo(node_list)
+            variables_info = VariablesAccessInfo()
+            for node in node_list:
+                variables_info.merge(node.reference_accesses())
 
         for signature in variables_info.all_signatures:
             if variables_info.is_written(signature):
@@ -247,7 +251,9 @@ class CallTreeUtils():
         :rtype: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
-        variables_info = VariablesAccessInfo(node_list)
+        variables_info = VariablesAccessInfo()
+        for node in node_list:
+            variables_info.merge(node.reference_accesses())
         read_write_info = ReadWriteInfo()
         self.get_input_parameters(
             read_write_info, node_list, variables_info,
@@ -513,8 +519,18 @@ class CallTreeUtils():
         '''
         non_locals = self._compute_all_non_locals(routine)
 
-        var_accesses = \
-            VariablesAccessInfo(routine, options={"USE-ORIGINAL-NAMES": True})
+        var_accesses = routine.reference_accesses()
+
+        # Lookup the external names instead of the reference name which could
+        # be renamed
+        name_accesses = {}
+        for sig, access in var_accesses.items():
+            sym = routine.symbol_table.lookup(sig.var_name, otherwise=None)
+            if sym and sym.is_import and sym.interface.orig_name:
+                name = sym.interface.orig_name
+            else:
+                name = sig.var_name
+            name_accesses[name] = access
 
         result = []
         for (symbol_type, module, signature) in non_locals:
@@ -522,6 +538,6 @@ class CallTreeUtils():
                 result.append((symbol_type, module, signature, None))
                 continue
             result.append((symbol_type, module, signature,
-                           var_accesses[signature]))
+                           name_accesses[signature.var_name]))
 
         return result
