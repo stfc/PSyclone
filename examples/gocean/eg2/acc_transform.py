@@ -80,4 +80,3 @@ def trans(psyir):
 
             # Add an enter-data directive
             dtrans.apply(schedule)
-

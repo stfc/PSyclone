@@ -84,6 +84,8 @@ OFFLOADING_ISSUES = [
     "trcrad.f90",
     # Produces different output results
     "zdftke.f90",
+    # Signal 11 issues
+    "trcbbl.f90",
 ]
 
 
