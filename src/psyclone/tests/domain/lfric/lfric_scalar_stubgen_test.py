@@ -41,7 +41,6 @@ Module containing pytest tests for kernel stub code generation for the
 LFRic scalar arguments.
 '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
@@ -84,46 +83,42 @@ def test_lfricscalars_stub_err():
             f"{const.VALID_SCALAR_DATA_TYPES}." in str(err.value))
 
 
-def test_stub_generate_with_scalars():
+def test_stub_generate_with_scalars(fortran_writer):
     ''' Check that the stub generate produces the expected output when
     the kernel has scalar arguments. '''
-    result = generate(
+    psyir = generate(
         os.path.join(BASE_PATH, "testkern_three_scalars_mod.f90"),
         api=TEST_API)
-
+    result = fortran_writer(psyir)
     expected = (
-        "  MODULE testkern_three_scalars_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE testkern_three_scalars_code(nlayers, rscalar_1, "
-        "field_2_w1, field_3_w2, field_4_w2, field_5_w3, lscalar_6, "
-        "iscalar_7, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
-        "ndf_w3, undf_w3, map_w3)\n"
-        "      USE constants_mod\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_w1, undf_w2, undf_w3\n"
-        "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: iscalar_7\n"
-        "      LOGICAL(KIND=l_def), intent(in) :: lscalar_6\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
-        "field_2_w1\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-        "field_3_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-        "field_4_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: "
-        "field_5_w3\n"
-        "    END SUBROUTINE testkern_three_scalars_code\n"
-        "  END MODULE testkern_three_scalars_mod")
+        "SUBROUTINE testkern_three_scalars_code(nlayers, rscalar_1, "
+        "rfield_2_w1, rfield_3_w2, rfield_4_w2, rfield_5_w3, lscalar_6, "
+        "iscalar_7, ndf_w1, undf_w1, dofmap_w1, ndf_w2, undf_w2, dofmap_w2, "
+        "ndf_w3, undf_w3, dofmap_w3)\n").lower()
+    assert expected in result
+    expected2 = (
+        "    USE constants_mod, only : i_def, l_def, r_def\n"
+        "    INTEGER(KIND=i_def), intent(in) :: nlayers\n"
+        "    REAL(KIND=r_def), intent(in) :: rscalar_1\n"
+        "    INTEGER(KIND=i_def), intent(in) :: undf_w1\n"
+        "    REAL(KIND=r_def), dimension(undf_w1), intent(inout) :: "
+        "rfield_2_w1\n"
+        "    INTEGER(KIND=i_def), intent(in) :: undf_w2\n"
+        "    REAL(KIND=r_def), dimension(undf_w2), intent(in) :: rfield_3_w2\n"
+        "    REAL(KIND=r_def), dimension(undf_w2), intent(in) :: rfield_4_w2\n"
+        "    INTEGER(KIND=i_def), intent(in) :: undf_w3\n"
+        "    REAL(KIND=r_def), dimension(undf_w3), intent(in) :: rfield_5_w3\n"
+        "    LOGICAL(KIND=l_def), intent(in) :: lscalar_6\n"
+        "    INTEGER(KIND=i_def), intent(in) :: iscalar_7\n"
+        "    INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
+        "    INTEGER(KIND=i_def), dimension(ndf_w1), intent(in) :: dofmap_w1\n"
+        "    INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
+        "    INTEGER(KIND=i_def), dimension(ndf_w2), intent(in) :: dofmap_w2\n"
+        "    INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
+        "    INTEGER(KIND=i_def), dimension(ndf_w3), intent(in) :: dofmap_w3\n"
+    ).lower()
 
-    assert expected in str(result)
+    assert expected2 in result
 
 
 def test_stub_generate_with_scalar_sums_err():
@@ -133,7 +128,6 @@ def test_stub_generate_with_scalar_sums_err():
         _ = generate(
             os.path.join(BASE_PATH, "testkern_simple_with_reduction_mod.f90"),
             api=TEST_API)
-    assert (
-        "A user-supplied LFRic kernel must not write/update a scalar "
-        "argument but kernel 'simple_with_reduction_type' has a scalar "
-        "argument with 'gh_sum' access." in str(err.value))
+    assert ("Scalar arguments to general-purpose kernels with 'operates_on == "
+            "cell_column' must be read-only but found 'gh_real' scalar with "
+            "'gh_sum' access in" in str(err.value))

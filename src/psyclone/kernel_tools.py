@@ -161,19 +161,21 @@ def run(args):
         if args.gen == "alg":
             # Generate algorithm code.
             if api in LFRIC_API_NAMES:
-                alg_psyir = LFRicAlg().create_from_kernel("test_alg",
-                                                          args.filename)
-                code = FortranWriter()(alg_psyir)
+                psyir = LFRicAlg().create_from_kernel("test_alg",
+                                                      args.filename)
             else:
                 print(f"Algorithm generation from kernel metadata is "
                       f"not yet implemented for API '{api}'", file=sys.stderr)
                 sys.exit(1)
         elif args.gen == "stub":
             # Generate kernel stub
-            code = gen_kernel_stub.generate(args.filename, api=api)
+            psyir = gen_kernel_stub.generate(args.filename, api=api)
         else:
             raise InternalError(f"Expected -gen option to be one of "
                                 f"{list(GEN_MODES.keys())} but got {args.gen}")
+
+        # Generate the output Fortran.
+        code = FortranWriter()(psyir)
 
     except (IOError, ParseError, GenerationError, RuntimeError) as error:
         print("Error:", error, file=sys.stderr)

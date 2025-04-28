@@ -305,6 +305,13 @@ class LFRicKernelMetadata(CommonMetadata):
                         f"*cell_column' should only have meta_arg arguments "
                         f"of type field, field vector, LMA operator or scalar"
                         f", but found '{meta_arg.check_name}'"))
+                if (type(meta_arg) is ScalarArgMetadata and
+                        meta_arg.access != 'gh_read'):
+                    raise ParseError(self._validation_error_str(
+                        f"Scalar arguments to general-purpose kernels with "
+                        f"'operates_on == cell_column' must be read-only but "
+                        f"found '{meta_arg.datatype}' scalar with "
+                        f"'{meta_arg.access}' access"))
 
         # TODO issue #1953: constraints when operates_on == dofs
         # 1: They must have one and only one modified (i.e. written
@@ -713,7 +720,7 @@ class LFRicKernelMetadata(CommonMetadata):
     def create_from_fparser2(fparser2_tree):
         '''Create an instance of this class from an fparser2 tree.
 
-        :param fparser2_tree: fparser2 tree containing the metadata \
+        :param fparser2_tree: fparser2 tree containing the metadata
             for an LFRic Kernel.
         :type fparser2_tree: \
             :py:class:`fparser.two.Fortran2003.Derived_Type_Ref`
@@ -722,7 +729,7 @@ class LFRicKernelMetadata(CommonMetadata):
         :rtype: :py:class:`psyclone.domain.lfric.kernel.psyir.\
             LFRicKernelMetadata`
 
-        :raises ParseError: if one of the meta_args entries is an \
+        :raises ParseError: if one of the meta_args entries is an
             unexpected type.
         :raises ParseError: if the metadata type does not extend kernel_type.
 
@@ -778,6 +785,9 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"but found '{fparser2_tree.children[0]}' in {fparser2_tree}.")
         kernel_metadata.procedure_name = \
             LFRicKernelMetadata._get_procedure_name(fparser2_tree)
+
+        # Validate the metadata.
+        kernel_metadata.validate()
 
         return kernel_metadata
 

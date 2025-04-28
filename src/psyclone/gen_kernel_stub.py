@@ -41,11 +41,13 @@
     call a stub) when presented with Kernel Metadata.
 '''
 
-from __future__ import print_function
 import os
+import re
 
 import fparser
-from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
+from psyclone.domain.lfric import (
+    LFRicKern, LFRicKernMetadata, FormalKernelArgsFromMetadata)
+from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config, LFRIC_API_NAMES
@@ -60,9 +62,9 @@ def generate(filename, api=""):
     Kernel Metadata must be presented in the standard Kernel
     format.
 
-    :param str filename: the name of the file for which to create a \
+    :param str filename: the name of the file for which to create a
                          kernel stub for.
-    :param str api: the name of the API for which to create a kernel \
+    :param str api: the name of the API for which to create a kernel
                     stub. Must be one of the supported stub APIs.
 
     :returns: root of fparser1 parse tree for the stub routine.
@@ -83,18 +85,31 @@ def generate(filename, api=""):
     if not os.path.isfile(filename):
         raise IOError(f"Kernel stub generator: File '{filename}' not found.")
 
-    # Drop cache
-    fparser.one.parsefortran.FortranParser.cache.clear()
-    fparser.logging.disable(fparser.logging.CRITICAL)
+    from psyclone.psyir.frontend import fortran
+    from psyclone.psyir import nodes
+    from psyclone.psyir.symbols import DataTypeSymbol
+    from psyclone.errors import InternalError
+    freader = fortran.FortranReader()
     try:
-        ast = fparser.api.parse(filename, ignore_comments=False)
-
-    except (fparser.common.utils.AnalyzeError, AttributeError) as error:
+        kern_psyir = freader.psyir_from_file(filename)
+    except ValueError as err:
         raise ParseError(f"Kernel stub generator: Code appears to be invalid "
-                         f"Fortran: {error}.")
+                         f"Fortran: {err}.") from err
 
-    metadata = LFRicKernMetadata(ast)
-    kernel = LFRicKern()
-    kernel.load_meta(metadata)
+    table = kern_psyir.children[0].symbol_table
+    for sym in table.symbols:
+        if isinstance(sym, DataTypeSymbol) and not sym.is_import:
+            break
+    else:
+        raise InternalError("No DataTypeSymbol found.")
 
-    return kernel.gen_stub
+    metadata = LFRicKernelMetadata.create_from_psyir(sym)
+    new_table = FormalKernelArgsFromMetadata.mapping(metadata)
+    mod_name = re.sub(r"_type$", r"_mod", sym.name)
+    new_container = nodes.Container(mod_name)
+    # Add the metadata
+    new_container.symbol_table.add(sym)
+    kern_name = metadata.procedure_name
+    new_routine = nodes.Routine.create(kern_name, new_table, [])
+    new_container.addchild(new_routine)
+    return new_container

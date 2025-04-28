@@ -915,8 +915,34 @@ def test_validate_intergrid_kernel():
 # or gh_evaluator_targets should exist, but this is not yet checked.
 METADATA = (
     "type, extends(kernel_type) :: testkern_type\n"
-    "   type(arg_type), dimension(7) :: meta_args =                       &\n"
+    "   type(arg_type), dimension(4) :: meta_args =                       &\n"
     "        (/ arg_type(gh_scalar,   gh_real, gh_read),                  &\n"
+    "           arg_type(gh_field,    gh_real, gh_inc,  w1),              &\n"
+    "           arg_type(gh_field*3,  gh_real, gh_read, w2),              &\n"
+    "           arg_type(gh_operator, gh_real, gh_read, w2, w3)           &\n"
+    "         /)\n"
+    "   type(func_type), dimension(2) :: meta_funcs =                     &\n"
+    "        (/ func_type(w1, gh_basis),                                  &\n"
+    "           func_type(w2, gh_basis, gh_diff_basis)                    &\n"
+    "        /)\n"
+    "   type(reference_element_data_type), dimension(2) ::                &\n"
+    "     meta_reference_element =                                        &\n"
+    "        (/ reference_element_data_type(normals_to_horizontal_faces), &\n"
+    "           reference_element_data_type(normals_to_vertical_faces)    &\n"
+    "        /)\n"
+    "   type(mesh_data_type) :: meta_mesh(1) =                            &\n"
+    "        (/ mesh_data_type(adjacent_face) /)\n"
+    "   integer :: gh_shape = gh_quadrature_XYoZ\n"
+    "   integer :: gh_evaluator_targets(2) = (/ w0, w3 /)\n"
+    "   integer :: operates_on = cell_column\n"
+    " contains\n"
+    "   procedure, nopass :: code => testkern_code\n"
+    "end type testkern_type\n")
+
+INTERGRID_METADATA = (
+    "type, extends(kernel_type) :: testkern_type\n"
+    "   type(arg_type), dimension(6) :: meta_args =                       &\n"
+    "        (/ &\n" # arg_type(gh_scalar,   gh_real, gh_read),                  &\n"
     "           arg_type(gh_field,    gh_real, gh_inc,  w1),              &\n"
     "           arg_type(gh_field*3,  gh_real, gh_read, w2),              &\n"
     "           arg_type(gh_field, gh_real, gh_read, w2, "
@@ -968,14 +994,11 @@ def test_create_from_psyir(fortran_reader):
     assert metadata.evaluator_targets == ["w0", "w3"]
 
     assert isinstance(metadata.meta_args, list)
-    assert len(metadata.meta_args) == 7
+    assert len(metadata.meta_args) == 4
     assert isinstance(metadata.meta_args[0], ScalarArgMetadata)
     assert isinstance(metadata.meta_args[1], FieldArgMetadata)
     assert isinstance(metadata.meta_args[2], FieldVectorArgMetadata)
-    assert isinstance(metadata.meta_args[3], InterGridArgMetadata)
-    assert isinstance(metadata.meta_args[4], InterGridVectorArgMetadata)
-    assert isinstance(metadata.meta_args[5], OperatorArgMetadata)
-    assert isinstance(metadata.meta_args[6], ColumnwiseOperatorArgMetadata)
+    assert isinstance(metadata.meta_args[3], OperatorArgMetadata)
 
     assert isinstance(metadata.meta_funcs, list)
     assert isinstance(metadata.meta_funcs[0], MetaFuncsArgMetadata)
@@ -1027,14 +1050,14 @@ def test_create_from_fparser2(procedure_format):
     assert metadata.evaluator_targets == ["w0", "w3"]
 
     assert isinstance(metadata.meta_args, list)
-    assert len(metadata.meta_args) == 7
+    assert len(metadata.meta_args) == 4
     assert isinstance(metadata.meta_args[0], ScalarArgMetadata)
     assert isinstance(metadata.meta_args[1], FieldArgMetadata)
     assert isinstance(metadata.meta_args[2], FieldVectorArgMetadata)
-    assert isinstance(metadata.meta_args[3], InterGridArgMetadata)
-    assert isinstance(metadata.meta_args[4], InterGridVectorArgMetadata)
-    assert isinstance(metadata.meta_args[5], OperatorArgMetadata)
-    assert isinstance(metadata.meta_args[6], ColumnwiseOperatorArgMetadata)
+    #assert isinstance(metadata.meta_args[3], InterGridArgMetadata)
+    #assert isinstance(metadata.meta_args[4], InterGridVectorArgMetadata)
+    assert isinstance(metadata.meta_args[3], OperatorArgMetadata)
+    #assert isinstance(metadata.meta_args[6], ColumnwiseOperatorArgMetadata)
     assert isinstance(metadata.meta_funcs, list)
     assert isinstance(metadata.meta_funcs[0], MetaFuncsArgMetadata)
     assert isinstance(metadata.meta_funcs[1], MetaFuncsArgMetadata)
@@ -1060,8 +1083,9 @@ def test_create_from_fparser2_no_optional():
     '''
     metadata = (
         "type, extends(kernel_type) :: testkern_type\n"
-        "   type(arg_type), dimension(1) :: meta_args =       &\n"
-        "        (/ arg_type(gh_scalar,   gh_real, gh_read) /)\n"
+        "   type(arg_type), dimension(2) :: meta_args =       &\n"
+        "        (/ arg_type(gh_scalar, gh_real, gh_read),  &\n"
+        "           arg_type(gh_field,  gh_real, gh_write, w3) /)\n"
         "   integer :: operates_on = cell_column\n"
         " contains\n"
         "   procedure, nopass :: code => testkern_code\n"
@@ -1108,7 +1132,7 @@ def test_create_from_fparser2_error():
         _ = LFRicKernelMetadata.create_from_fparser2(fparser2_tree)
     assert ("The metadata type declaration should extend kernel_type, but "
             "found 'TYPE :: testkern_type' in TYPE :: "
-            "testkern_type\n  TYPE(arg_type), DIMENSION(7)" in str(info.value))
+            "testkern_type\n  TYPE(arg_type), DIMENSION(4)" in str(info.value))
 
     # metadata type extends incorrect type
     fparser2_tree = LFRicKernelMetadata.create_fparser2(METADATA.replace(
@@ -1118,7 +1142,7 @@ def test_create_from_fparser2_error():
     assert ("The metadata type declaration should extend kernel_type, but "
             "found 'TYPE, EXTENDS(invalid_type) :: testkern_type' in TYPE, "
             "EXTENDS(invalid_type) :: testkern_type\n  TYPE(arg_type), "
-            "DIMENSION(7)" in str(info.value))
+            "DIMENSION(4)" in str(info.value))
 
 
 def test_lower_to_psyir():
@@ -1215,14 +1239,11 @@ def test_fortran_string():
     result = metadata.fortran_string()
     expected = (
         "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
-        "  type(ARG_TYPE) :: META_ARGS(7) = (/ &\n"
+        "  type(ARG_TYPE) :: META_ARGS(4) = (/ &\n"
         "    arg_type(gh_scalar, gh_real, gh_read), &\n"
         "    arg_type(gh_field, gh_real, gh_inc, w1), &\n"
         "    arg_type(gh_field*3, gh_real, gh_read, w2), &\n"
-        "    arg_type(gh_field, gh_real, gh_read, w2, mesh_arg=gh_coarse), &\n"
-        "    arg_type(gh_field*3, gh_real, gh_read, w2, mesh_arg=gh_fine), &\n"
-        "    arg_type(gh_operator, gh_real, gh_read, w2, w3), &\n"
-        "    arg_type(gh_columnwise_operator, gh_real, gh_read, w3, w0)/)\n"
+        "    arg_type(gh_operator, gh_real, gh_read, w2, w3)/)\n"
         "  type(FUNC_TYPE) :: META_FUNCS(2) = (/ &\n"
         "    func_type(w1, gh_basis), &\n"
         "    func_type(w2, gh_basis, gh_diff_basis)/)\n"
@@ -1252,14 +1273,11 @@ def test_fortran_string_no_procedure():
     result = metadata.fortran_string()
     expected = (
         "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
-        "  type(ARG_TYPE) :: META_ARGS(7) = (/ &\n"
+        "  type(ARG_TYPE) :: META_ARGS(4) = (/ &\n"
         "    arg_type(gh_scalar, gh_real, gh_read), &\n"
         "    arg_type(gh_field, gh_real, gh_inc, w1), &\n"
         "    arg_type(gh_field*3, gh_real, gh_read, w2), &\n"
-        "    arg_type(gh_field, gh_real, gh_read, w2, mesh_arg=gh_coarse), &\n"
-        "    arg_type(gh_field*3, gh_real, gh_read, w2, mesh_arg=gh_fine), &\n"
-        "    arg_type(gh_operator, gh_real, gh_read, w2, w3), &\n"
-        "    arg_type(gh_columnwise_operator, gh_real, gh_read, w3, w0)/)\n"
+        "    arg_type(gh_operator, gh_real, gh_read, w2, w3)/)\n"
         "  type(FUNC_TYPE) :: META_FUNCS(2) = (/ &\n"
         "    func_type(w1, gh_basis), &\n"
         "    func_type(w2, gh_basis, gh_diff_basis)/)\n"
