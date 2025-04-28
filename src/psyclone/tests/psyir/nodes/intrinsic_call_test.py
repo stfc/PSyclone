@@ -137,11 +137,11 @@ def test_intrinsiccall_is_inquiry():
                 (IntrinsicCall.Intrinsic.INT, True),
                 (IntrinsicCall.Intrinsic.IOR, True),
                 (IntrinsicCall.Intrinsic.LOG, True),
-                (IntrinsicCall.Intrinsic.LOG10, False),
+                (IntrinsicCall.Intrinsic.LOG10, True),
                 (IntrinsicCall.Intrinsic.MOD, True),
                 (IntrinsicCall.Intrinsic.NINT, True),
                 (IntrinsicCall.Intrinsic.NOT, True),
-                (IntrinsicCall.Intrinsic.REAL, False),
+                (IntrinsicCall.Intrinsic.REAL, True),
                 (IntrinsicCall.Intrinsic.SIGN, True),
                 (IntrinsicCall.Intrinsic.SIN, True),
                 (IntrinsicCall.Intrinsic.SINH, True),
@@ -156,6 +156,22 @@ def test_intrinsiccall_is_available_on_device(intrinsic, result):
     '''Tests that the is_available_on_device() method works as expected.'''
     intrinsic_call = IntrinsicCall(intrinsic)
     assert intrinsic_call.is_available_on_device() is result
+
+
+def test_intrinsiccall_is_available_on_device_with_device_string():
+    '''Tests that the is_available_on_device() method with a device_string
+    argument provides different results with the 'nvfortran-reprod'
+    '''
+    intrinsic_call = IntrinsicCall(IntrinsicCall.Intrinsic.LOG10)
+    assert not intrinsic_call.is_available_on_device("nvfortran-repr")
+    intrinsic_call = IntrinsicCall(IntrinsicCall.Intrinsic.REAL)
+    assert not intrinsic_call.is_available_on_device("nvfortran-repr")
+
+    with pytest.raises(ValueError) as err:
+        assert not intrinsic_call.is_available_on_device("invalid")
+    assert ("Unsupported device_string value 'invalid', the supported values"
+            " are '' (default), 'nvfortran-all', 'nvfortran-repr'"
+            in str(err.value))
 
 
 def test_intrinsiccall_alloc_create():
