@@ -85,5 +85,4 @@ examples/      	    | Simple examples
 README.md      	    | This file
 src/psyclone   	    | The Python source code
 src/psyclone/tests/ | Unit and functional tests using pytest
-tutorial/notebooks  | Tutorial using Jupyter notebooks
 tutorial/practicals | Hands-on exercises using a local installation of PSyclone

@@ -1,3 +1,4 @@
+
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
@@ -31,13 +32,211 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-.. _implementation:
+.. _psyad_introduction:
+
+PSyAD
+=====
+
+PSyAD is PSyclone's Adjoint code generator. PSyAD takes a tangent linear
+kernel and translates it into its adjoint. A kernel may either be a generic
+subroutine/program or a :ref:`lfric-kernel` that conforms to the LFRic API .
+It can also generate a test harness to verify the correctness of the
+generated adjoint code.
+
+There are two examples available in the ``examples/psyad`` directory.
+See the ``README.md`` file in that directory for full details. This includes
+the set-up necessary for getting PSyAD to work.
+
+
+.. _psyad_command:
+
+The ``psyad`` Command
+---------------------
+
+The simplest way to run PSyAD is to use the ``psyad`` command. If you
+installed PSyclone using ``pip`` then this command should be available
+on your PATH (see the PSyclone user guide for more
+details). Alternatively it can be found in the ``<PSYCLONEHOME>/bin``
+directory. The command takes a file containing a tangent-linear kernel
+(either a generic Fortran subroutine or an LFRic kernel) and a
+list of active variables as input and outputs its adjoint. This
+section walks through the functionality of the command.
+
+Running
++++++++
+
+The ``psyad`` command is an executable script designed to be run from the
+command line, e.g.:
+::
+
+  > psyad <args>
+
+The optional ``-h`` argument gives a description of the options provided
+by the command:
+
+.. parsed-literal::
+		
+  >>> psyad -h
+    usage: psyad [-h] [-oad OAD] [-c CONFIG] [-v] [-t] [-api API] [-coord-arg COORD_ARG] [-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] -a ACTIVE [ACTIVE ...] -- filename
+
+    Run the PSyclone adjoint code generator on a tangent-linear kernel file
+
+    positional arguments:
+      filename              tangent-linear kernel source
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]
+                            name of active variables
+      -c CONFIG, --config CONFIG
+                            config file with PSyclone specific options
+      -v, --verbose         increase the verbosity of the output
+      -t, --gen-test        generate a standalone unit test for the adjoint code
+      -api API              the PSyclone API that the TL kernel conforms to (if any)
+      -coord-arg COORD_ARG  the position of the coordinate (chi) field in the
+                            meta_args list of arguments in the kernel metadata
+                            (LFRic only)
+      -panel-id-arg PANEL_ID_ARG
+                            the position of the panel-ID field in the meta_args
+                            list of arguments in the kernel metadata (LFRic only)
+      -otest TEST_FILENAME  filename for the unit test (implies -t)
+      -oad OAD              filename for the transformed code
+
+Basic Use
++++++++++
+
+The simplest way to use ``psyad`` is to provide it with an LFRic
+tangent-linear kernel file and the names of the active variables
+within the kernel file
+::
+
+    > psyad -api lfric -a var1 var2 -- tl_kern.f90
+
+If the kernel file or active variables are invalid for some reason,
+the command should return with an appropriate error.
+
+If the kernel file and active variables are valid then the adjoint
+kernel code will be output to the terminal screen.
+
+The ``--`` is required to separate the filename from the list of
+active variables.
+
+Alternatively the list of active variables may be supplied as the last
+command-line argument (or the list of active variables may be followed
+by another optional argument [see the next section])
+::
+   
+   > psyad tl_kern.f90 -a var1 var2
+
+.. note:: PSyAD does not support tangent-linear code written as a
+          function and will raise an exception if a function is
+          found. The suggested solution is to re-write the code as a
+          subroutine. The reason for this limitation is that there is
+          no natural way to translate such code to its adjoint form
+          without making the adjoint a subroutine.
+
+File Output
++++++++++++
+
+By default the adjoint kernel code is output to the terminal. This can
+instead be output to a file by using the ``-oad <file>`` option. For
+example, the following will output the adjoint kernel code to the file
+'ad_kern.f90'.
+::
+
+    > psyad -oad ad_kern.f90 -a var1 var2 -- tl_kern.f90
+
+As mentioned in the previous section, the ``--`` is not required if
+the list of active variables is followed by an optional argument, so
+an alternative form is
+::
+   
+    > psyad -a var1 var2 -oad ad_kern.f90 tl_kern.f90
+
+
+.. _test_harness_gen:
+
+Test Harness
+++++++++++++
+
+``psyad`` also supports the optional generation of test-harness code which
+can be compiled together with the original tangent-linear kernel and
+generated adjoint kernel to test that the adjoint code is correct. The
+harness code will be generated if the ``-t`` option is specified. The
+following will output the test-harness code to the terminal screen
+::
+
+   > psyad -oad ad_kernel.f90 -a var1 var2 -t tl_kern.f90
+
+The test-harness code can be written to file by using the ``-otest
+<file>`` option. For example, the following will output the
+test-harness code to the file 'harness.f90'
+::
+
+   > psyad -oad ad_kernel.f90 -a var1 var2 -t -otest harness.f90 tl_kern.f90
+
+If the ``-otest <file>`` option is provided then the ``-t`` option is
+assumed so is not required. Therefore the following is equivalent to
+the previous command
+::
+
+   > psyad -oad ad_kernel.f90 -a var1 var2 -otest harness.f90 tl_kern.f90
+
+.. note:: A test harness can only be generated if the supplied tangent-linear
+	  kernel is in the form of a subroutine contained within a module.
+	  PSyAD will report an error if this is not the case.
+
+The test harness created for a generic Fortran subroutine is a standalone
+program that must be linked with the TL and adjoint kernels to produce an
+executable. Since LFRic kernels require properties provided by the LFRic
+infrastructure (function spaces, dof maps, geometry etc.), the test harness
+produced for such a kernel is in the form of an Algorithm subroutine
+that must be called from within a full LFRic mini-app.
+
+.. _geom_kernel_args:
+
+Kernel Arguments Containing Geometric Information
+*************************************************
+
+By default, the test harness code generated by PSyAD populates all real,
+scalar and field arguments to a kernel with pseudo-random data. (Integer and
+logical scalar arguments are currently set to `1` and `.False.`, respectively
+- see issue #2087.) However, certain
+LFRic kernels have arguments which carry information on the geometry of the
+simulation mesh (either or both of panel IDs and mesh coordinates) and these
+must be preserved if the kernel is to execute
+correctly. PSyAD therefore supports the ``-panel-id-arg`` and ``-coord-arg``
+flags which allow the user to specify that a particular kernel argument
+corresponds to either the field of panel IDs or mesh coordinates, respectively.
+Each of these flags must be followed by the position (indexed from 1) of the
+corresponding argument in the list of ``meta_args`` in the kernel
+:ref:`metadata <lfric-api-kernel-metadata>`.
+
+PSyAD will return an error if the specified kernel argument is not consistent
+with the particular geometry field that it is supposed to represent.
+
+Logging Output
+++++++++++++++
+
+To see more information about what the psyad script is doing
+internally you can specify the ``-v`` option. For example
+::
+
+   > psyad -a var1 var2 -oad ad_kern.f90 -v tl_kern.f90
+
+Configuration Options
++++++++++++++++++++++
+
+By default PSyAD uses the same configuration file used by PSyclone. To
+use a custom configuration file use the ``--config`` command-line option.
+Further documentation of the configuration options can be found in
+:ref:`configuration`.
 
 
 Implementation
-==============
+--------------
 
 The approach taken to constructing the adjoint is the line-by-line
 method, where the order of computation is reversed and each line of
@@ -86,7 +285,7 @@ through the rules for each supported statement type.
 .. _sec_assignment:
 
 Assignment
-----------
+**********
 
 If a tangent-linear assignment statement contains no active variables
 then it is left unchanged when creating the adjoint code.
@@ -184,7 +383,7 @@ and its adjoint sets :math:`\hat{A}` to zero
           read.
 
 Rules
-*****
+"""""
 
 Rather than creating a matrix and transposing it, it can be seen that
 there are some relatively simple rules that can be followed in order
@@ -240,7 +439,7 @@ adjoint variable :math:`\hat{A}` must be set to zero:
     \hat{A} = 0
 
 Array Accesses
-**************
+""""""""""""""
 
 Active variables will typically be arrays that are accessed within a
 loop. These can usually be treated in the same way as the scalars
@@ -271,7 +470,7 @@ current column (e.g. to element :math:`i-1`) and therefore appropriate
 transformations will need to be applied to restructure the code.
 
 Limitations
-***********
+"""""""""""
 
 If an active variable is part of the denominator in a division then
 the transformation will always raise an exception stating that this
@@ -288,7 +487,7 @@ arrays and are of type REAL or INTEGER are currently supported. Issue
 #1627 captures this limitation.
 
 Transformation
-**************
+""""""""""""""
 
 .. autoclass:: psyclone.psyad.transformations.AssignmentTrans
       :members: apply
@@ -296,7 +495,7 @@ Transformation
 .. _psyir_schedule:
 
 Sequence of Statements (PSyIR Schedule)
----------------------------------------
+***************************************
 
 The PSyIR captures a sequence of statements as children of a
 'Schedule' node. In PSyclone a sequence of statements in a tangent
@@ -338,7 +537,7 @@ individually to each statement and the resultant PSyIR returned.
              issue #1458.
 
 Loop
-----
+****
 
 The loop variable and any variables used in the loop bounds should be
 passive. If they are not then an exception will be raised.
@@ -379,7 +578,7 @@ active then the loop statement is considered to be active. In this case:
           this case.
 
 If Statement
-------------
+************
 
 When an if statement is found in the tangent-linear code, such as the
 following Fortran snippet:
@@ -419,7 +618,7 @@ into code that can be processed. These structures/constructs are
 detailed below.
 
 Array Notation
---------------
+**************
 
 Array notation in tangent-linear codes is translated into equivalent
 loops in the pre-processing phase before the tangent-linear code is
@@ -429,7 +628,7 @@ always correct when array notation is used. Only array notation that
 contains active variables is translated into equivalent loops.
 
 Intrinsics
-----------
+**********
 
 If an intrinsic function, such as ``matmul`` or ``transpose``, is
 found in a tangent-linear code and it contains active variables then
@@ -463,7 +662,7 @@ information on these transformations.
           #1595.
 
 Associativity
--------------
+*************
 
 As described in the :ref:`sec_assignment` section, PSyAD expects
 tangent-linear code to be written as a sum of products of inactive and
@@ -561,7 +760,7 @@ This test harness code must perform the following steps:
 Steps 1, 3, 5 and 6 are described in more detail below.
 
 Initialisation
---------------
+**************
 
 All real arguments to the TL kernel are initialised with pseudo-random numbers
 in the interval :math:`[0.0,1.0]` using the Fortran `random_number` intrinsic
@@ -575,7 +774,7 @@ Integer and logical scalar arguments are currently just set to `1` and `.False`,
 respectively. This limitation is the subject of issue #2087.
 
 Inner Products
---------------
+**************
 
 The precision of the variables used to accumulate the inner-product values
 is set to match that of the active variables in the supplied TL kernel.
@@ -585,7 +784,7 @@ are found.)
 For simplicity, when computing the inner product in steps 3) and 5),
 both active and passive kernel arguments are included (since the
 latter will remain constant for both the TL and adjoint kernel calls
-they can be included in the inner-product compuation without affecting the
+they can be included in the inner-product computation without affecting the
 correctness test). It is likely that this will require refinement in future,
 e.g. for kernels that have non-numeric arguments.
 
@@ -595,7 +794,7 @@ test-harness generator will return an error if supplied with a TL kernel that
 writes to an operator.)
 
 Comparing the Inner Products
-----------------------------
+****************************
 
 Performing the comparison of the two inner products while allowing for
 machine precision is implemented as follows:

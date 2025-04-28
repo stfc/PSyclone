@@ -36,8 +36,8 @@
 
 .. _psyclone_command:
 
-The psyclone command
-====================
+The ``psyclone`` command
+========================
 
 The ``psyclone`` command is an executable script designed to be run from the
 command line, e.g.:
@@ -214,9 +214,7 @@ and raises an error if they do not conform.
 Line wrapping is not performed by default. There are two reasons for
 this. This first reason is that most compilers are able to cope with
 long lines. The second reason is that the line wrapping implementation
-could fail in certain pathological cases. The implementation and
-limitations of line wrapping are discussed in the
-:ref:`line-length-limitations` section.
+could fail in certain pathological cases.
 
 .. _backend-options:
 
@@ -237,7 +235,7 @@ implementations), at which point it is useful to be able to disable
 them.  The default behaviour may be changed by adding the
 ``BACKEND_CHECKS_ENABLED`` entry to the
 :ref:`configuration file <config-default-section>`. Any
-command-line setting always takes precendence though. It is
+command-line setting always takes precedence though. It is
 recommended that validation only be disabled as a last resort and for
 as few input source files as possible.
 

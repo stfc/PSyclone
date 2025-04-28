@@ -1,3 +1,18 @@
+   13) PR #2877 for #2668. Adds a new `@transformation_documentation_wrapper`
+   decorator that implements docstring generation for Transformation
+   classes, allowing for inheritance. The 'options' argument to
+   Transformations is now deprecated in favour of having separate, named
+   arguments.
+
+   12) PR #2956 for #1206. Reorganise the documentation to create an
+   "instrumentation" section plus other tidying.   
+
+   11) PR #2930 towards #714. Adds the DebugChecksumTrans transformation
+   which enables a user to add checksum outputs to generic Fortran code.
+
+   10) PR #2953 for #2952. Gracefully fail when resolving transitive
+   (indirectly imported) type.
+
    9) PR #2848 for #2845, #1792, #2336, #2271 and #649. Extends
    reference_access and other symbol table methods to consider
    symbols that are part of other symbols (e.g. precisions, shapes,

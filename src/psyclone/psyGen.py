@@ -41,9 +41,23 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
+from dataclasses import dataclass
+import inspect
 import os
 from collections import OrderedDict
 import abc
+from typing import Any, Dict
+
+try:
+    from sphinx.util.typing import stringify_annotation
+except ImportError:
+    # Fix for Python-3.7 where sphinx didn't yet rename this.
+    # TODO 2837: Can remove this 3.7 sphinx import
+    try:
+        from sphinx.util.typing import stringify as stringify_annotation
+    # Igoring coverage from the no sphinx workaround as too difficult to do
+    except ImportError:
+        from psyclone.utils import stringify_annotation
 
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.core import AccessType
@@ -2690,11 +2704,32 @@ class TransInfo():
                 issubclass(cls, base_class) and cls is not base_class]
 
 
+@dataclass
+class ValidOption:
+    '''Class used to specify the valid options dict for a Transformation.
+
+    :param default: The default value for this option.
+    :param type: The type of this option.
+    :param typename: The (doc)string representation of type.
+    '''
+    default: object
+    type: object
+    typename: str
+
+
 class Transformation(metaclass=abc.ABCMeta):
     '''Abstract baseclass for a transformation. Uses the abc module so it
     can not be instantiated.
 
     '''
+    _deprecation_warning = (
+        "PSyclone Deprecation Warning: The 'options' parameter to "
+        "Transformation.apply and Transformation.validate are now "
+        "deprecated. Please use the individual arguments, or unpack "
+        "the options with **options. See the Transformations section of the "
+        "User guide for more details."
+    )
+
     @property
     def name(self):
         '''
@@ -2705,7 +2740,7 @@ class Transformation(metaclass=abc.ABCMeta):
         return type(self).__name__
 
     @abc.abstractmethod
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Abstract method that applies the transformation. This function
         must be implemented by each transform. As a minimum each apply
         function must take a node to which the transform is applied, and
@@ -2729,8 +2764,11 @@ class Transformation(metaclass=abc.ABCMeta):
         :type options: Optional[Dict[str, Any]]
 
         '''
+        # TODO 2668: options are now deprecated:
+        if options is not None:
+            print(self._deprecation_warning)
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''Method that validates that the input data is correct.
         It will raise exceptions if the input data is incorrect. This
         function needs to be implemented by each transformation.
@@ -2759,6 +2797,120 @@ class Transformation(metaclass=abc.ABCMeta):
         :type options: Optional[Dict[str, Any]]
         '''
         # pylint: disable=unused-argument
+
+    def get_option(self, option_name: str, **kwargs) -> Any:
+        '''Finds the value of the option_name from the kwargs.
+
+        :param option_name: The name of the option to find.
+
+        :returns: the value of the option or the default if one is specified.
+
+        :raises ValueError: if option_name is not found in the valid options
+                            for the Transformation.
+        '''
+        valid_options = type(self).get_valid_options()
+        if option_name not in valid_options.keys():
+            raise ValueError(f"option '{option_name}' is not a valid option "
+                             f"for '{type(self).__name__}'. Valid options "
+                             f"are '{list(valid_options.keys())}.")
+        return kwargs.get(option_name, valid_options[option_name].default)
+
+    @classmethod
+    def get_valid_options(cls) -> Dict[str, ValidOption]:
+        '''
+        Pulls the valid options from the apply method. It also recurses
+        upwards to the superclasses of this transformation and pulls
+        their valid options as well if they exist.
+
+        :returns: A dict of the valid option name and corresponding
+                  ValidOption dataclass.
+        '''
+        valid_options = OrderedDict()
+        # Loop through the inherited classes of this class, starting with the
+        # highest superclass. For some reason super isn't working here.
+        for base_cls in cls.__mro__[::-1]:
+            base_cls_apply = base_cls.__dict__.get("apply", None)
+            if base_cls_apply is None:
+                continue
+            signature = inspect.signature(base_cls_apply)
+            # Loop over the arguments to the apply call.
+            for k, v in signature.parameters.items():
+                if k == "options":
+                    continue
+                # If the argument is a keyword argument, i.e. it has a default
+                # value then we add it to the list of options.
+                if v.default is not inspect.Parameter.empty:
+                    default = v.default
+                else:
+                    # If its not a keyword argument then we skip it.
+                    continue
+                # If there is type information on the keyword argument, then we
+                # store the information so we can generate docs and do
+                # automatic type checking of options.
+                if v.annotation is not inspect.Parameter.empty:
+                    type_anno = v.annotation
+                    typename = stringify_annotation(
+                            v.annotation
+                    )
+                else:
+                    type_anno = None
+                    typename = None
+                valid_options[k] = ValidOption(
+                    default=default, type=type_anno, typename=typename
+                )
+        return valid_options
+
+    def validate_options(self, **kwargs):
+        '''
+        Checks the options provided to this transformation are valid. Makes
+        use of get_valid_options to work out the available options.
+
+        :raises ValueError: If an invalid option was provided.
+        :raises TypeError: If an option was provided with a value of the wrong
+                           type.
+        '''
+        valid_options = type(self).get_valid_options()
+        invalid_options = []
+        wrong_types = {}
+        for option in kwargs:
+            if option == "options":
+                continue
+            if option not in valid_options:
+                invalid_options.append(option)
+                continue
+            if valid_options[option].type is not None:
+                try:
+                    if not isinstance(
+                            kwargs[option], valid_options[option].type):
+                        wrong_types[option] = type(kwargs[option]).__name__
+                except TypeError:
+                    # For older versions of Python, such as 3.8 they don't yet
+                    # support type checking for Generics, e.g. Union[...] so
+                    # we skip this check and it needs to be done in the
+                    # relevant function instead.
+                    pass
+
+        if len(invalid_options) > 0:
+            invalid_options_detail = []
+            for invalid in invalid_options:
+                invalid_options_detail.append(f"'{invalid}'")
+            invalid_options_list = ", ".join(invalid_options_detail)
+            raise ValueError(f"'{type(self).__name__}' received invalid "
+                             f"options [{invalid_options_list}]. "
+                             f"Valid options are "
+                             f"'{list(valid_options.keys())}.")
+        if len(wrong_types.keys()) > 0:
+            wrong_types_detail = []
+            for name in wrong_types.keys():
+                wrong_types_detail.append(
+                        f"'{name}' option expects type "
+                        f"'{valid_options[name].typename}' but received "
+                        f"'{kwargs[name]}' of type '{wrong_types[name]}'.")
+            wrong_types_list = "\n".join(wrong_types_detail)
+            raise TypeError(f"'{type(self).__name__}' received options with "
+                            f"the wrong types:\n{wrong_types_list}\n"
+                            f"Please see the documentation and check the "
+                            f"provided types.")
 
 
 # For Sphinx AutoAPI documentation generation
