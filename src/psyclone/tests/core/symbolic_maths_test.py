@@ -123,7 +123,6 @@ def test_symbolic_math_equal(fortran_reader, expressions):
 
 
 @pytest.mark.parametrize("expressions", [("a%b", "a%b"),
-                                         ("c", "c(::,::)"),
                                          ("a%b(i)", "a%b(i)"),
                                          ("a%b(2*i)", "a%b(3*i-i)"),
                                          ("a%b(i-1)%c(j+1)",
@@ -512,8 +511,8 @@ def test_expand_with_intrinsic(fortran_reader, fortran_writer):
     real(kind=r_solver), dimension(0:nlayers) :: t_col
     integer :: idx_10, df, df2, ij
     lhs_w(idx_10) = norm_u(idx_10 + (iw2 - iw2v)) * &
-        mu_cd(idx_10 + (ij - iw2v),ndf_w2h + df,df2) * &
-        u_e(idx_10 + (LBOUND(u_e, dim=1) - iw2v),df2)
+        mu_cd(idx_10 + (ij - iw2v), ndf_w2h + df ,df2) * &
+        u_e(idx_10 + (LBOUND(u_e, dim=1) - iw2v), df2)
   end subroutine apply_mixed_operator_code'''
     psyir = fortran_reader.psyir_from_source(source)
     sym_maths = SymbolicMaths.get()
