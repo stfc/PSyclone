@@ -68,6 +68,7 @@ FILES_TO_SKIP = []
 NEMOV5_EXCLUSIONS = []
 
 NEMOV4_EXCLUSIONS = [
+    "dynspg_ts.f90",
     "tranxt.f90",
 ]
 
@@ -79,6 +80,8 @@ SKIP_FOR_PERFORMANCE = [
 ]
 
 OFFLOADING_ISSUES = [
+    # Runtime Error on BENCH: Illegal address during kernel execution
+    "trcrad.f90",
     # Produces different output results
     "zdftke.f90",
 ]
