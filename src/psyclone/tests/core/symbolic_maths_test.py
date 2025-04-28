@@ -42,6 +42,7 @@ from sympy import solvers, Symbol
 
 from psyclone.core.symbolic_maths import SymbolicMaths
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
+from psyclone.psyir.nodes import Assignment, IntrinsicCall
 
 
 def test_sym_maths_get():
@@ -490,6 +491,42 @@ def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     sym_maths.expand(psyir.children[0][0].rhs)
     result = fortran_writer(psyir.children[0][0].rhs)
     assert result == expected
+
+def test_expand_with_intrinsic(fortran_reader, fortran_writer):
+    '''
+    '''
+    source = '''
+  subroutine apply_mixed_operator_code(ncell1, nlayers, ndf_w2, ndf_w2h, &
+                                  undf_w2v, undf_w2, lhs_w, norm_u, mu_cd)
+    use kinds_mod, only: i_def, r_solver
+    integer, intent(in) :: nlayers, ndf_w2, ndf_w2h, ncell1
+    integer, intent(in) :: undf_w2v, undf_w2
+    real(kind=r_solver), dimension(undf_w2v), intent(inout) :: lhs_w
+    real(kind=r_solver), dimension(undf_w2), intent(in) :: norm_u
+    real(kind=r_solver), dimension(ncell1,ndf_w2,ndf_w2), intent(in) :: mu_cd
+    integer(kind=i_def) :: iwt
+    integer(kind=i_def) :: iw2
+    integer(kind=i_def) :: iw2h
+    integer(kind=i_def) :: iw2v
+    real(kind=r_solver), dimension(0:nlayers - 1,ndf_w2) :: u_e
+    real(kind=r_solver), dimension(0:nlayers) :: t_col
+    integer :: idx_10, df, df2, ij
+    lhs_w(idx_10) = norm_u(idx_10 + (iw2 - iw2v)) * &
+        mu_cd(idx_10 + (ij - iw2v),ndf_w2h + df,df2) * &
+        u_e(idx_10 + (LBOUND(u_e, dim=1) - iw2v),df2)
+  end subroutine apply_mixed_operator_code'''
+    psyir = fortran_reader.psyir_from_source(source)
+    sym_maths = SymbolicMaths.get()
+    rhs = psyir.walk(Assignment)[0].rhs
+    lbnd = rhs.walk(IntrinsicCall)[0]
+    print(fortran_writer(psyir))
+    view_before = rhs.view()
+    sym_maths.expand(rhs)
+    print(rhs.view())
+    assert rhs.view() == view_before
+    result = fortran_writer(psyir).lower()
+    print(result)
+    assert "lbound(u_e, 1),df2)" in result
 
 
 def test_symbolic_maths_array_and_array_index(fortran_reader):

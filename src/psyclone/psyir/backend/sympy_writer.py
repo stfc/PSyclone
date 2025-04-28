@@ -48,6 +48,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (
     DataNode, Range, Reference, IntrinsicCall, Call)
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ArrayType, ScalarType, SymbolTable)
 
 
@@ -330,7 +331,7 @@ class SymPyWriter(FortranWriter):
                 # the symbol table.
                 unique_sym = self._symbol_table.new_symbol(name, tag=name)
                 # Test if an array or an array expression is used:
-                if not ref.is_array:
+                if not isinstance(ref, ArrayMixin):
                     self._sympy_type_map[unique_sym.name] = sympy.Symbol(
                         name, **assumptions)
                     continue
@@ -690,6 +691,9 @@ class SymPyWriter(FortranWriter):
         # Now this must be an array expression without parenthesis. Add
         # the triple-array indices to represent `lower:upper:1` for each
         # dimension:
+        # ARPDBG - do *not* add colons to an array expression that didn't
+        # already have them.
+        return name
         shape = node.symbol.shape
         result = [f"{self.lower_bound},"
                   f"{self.upper_bound},1"]*len(shape)
