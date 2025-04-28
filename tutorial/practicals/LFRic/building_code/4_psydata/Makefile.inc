@@ -111,6 +111,9 @@ time_evolution_alg_mod_psy.o: init_perturbation_kernel_mod.o \
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
+%.o: %.F90
+	$(F90) $(F90FLAGS) -c $<
+
 %.f90 %_psy.f90: %.x90
 	psyclone $(PSYCLONE_CMD) \
 	-opsy $*_psy.f90 -oalg $*.f90 $<
