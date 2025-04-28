@@ -143,6 +143,25 @@ NEMO_FUNCTIONS = [
     'z0tq_LKB', 'zdf_gls_alloc', 'zdf_iwm_alloc', 'zdf_mfc_alloc',
     'zdf_mxl_alloc', 'zdf_oce_alloc', 'zdf_osm_alloc', 'zdf_phy_alloc',
     'zdf_tke_alloc', 'zdf_tmx_alloc',
+    # grep -rh "INTERFACE" src | grep -v "END" | awk '{print $2}' | uniq | sort
+    'alpha_sw', 'bulk_formula', 'cp_air', 'debug', 'DECAL_FEEDBACK',
+    'DECAL_FEEDBACK_2D', 'depth_to_e3', 'de_sat_dt_ice', 'dia_ar5_hst',
+    'dia_ptr_hst', 'div_hor', 'dom_tile_copyin', 'dom_tile_copyout',
+    'dq_sat_dt_ice', 'dyn_vor', 'e3_to_depth', 'eos', 'eos_fzp',
+    'eos_rab', 'e_sat', 'e_sat_ice', 'f_h_louis', 'f_m_louis',
+    'gamma_moist', 'glob_2Dmax', 'glob_2Dmin', 'glob_2Dsum', 'glob_3Dmax',
+    'glob_3Dmin', 'glob_3Dsum', 'halo_mng_resize', 'icb_utl_bilin_h',
+    'ice_var_itd', 'ice_var_snwblow', 'ice_var_snwfra', 'iom_get',
+    'iom_getatt', 'iom_nf90_get', 'iom_put', 'iom_putatt',
+    'iom_rstput', 'lbc_lnk', 'lbc_lnk_neicoll', 'lbc_lnk_pt2pt',
+    'lbc_nfd', 'lbnd_ij', 'ldf_eiv_trp', 'local_2Dmax', 'local_2Dmin',
+    'local_2Dsum', 'local_3Dmax', 'local_3Dmin', 'local_3Dsum',
+    'L_vap', 'mpp_max', 'mpp_maxloc', 'mpp_min', 'mpp_minloc',
+    'mpp_nfd', 'mpp_sum', 'pres_temp', 'prt_ctl_sum', 'ptr_mpp_sum',
+    'ptr_sj', 'ptr_sum', 'qlw_net', 'q_sat', 'rho_air', 'Ri_bulk',
+    'SIGN', 'sum3x3', 'theta_exner', 'tra_mle_trp', 'trd_vor_zint',
+    'virt_temp', 'visc_air', 'wAimp', 'wzv', 'zdf_osm_iomput',
+    'zdf_osm_velocity_rotation',
 ]
 
 # Currently fparser has no way of distinguishing array accesses from statement

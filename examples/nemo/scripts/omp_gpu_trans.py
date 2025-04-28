@@ -65,16 +65,9 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = []
 
-NEMOV5_EXCLUSIONS = [
-    "trcbbl.f90",
-    "bdyice.f90",
-    "sedfunc.f90",
-    "stpmlf.f90",
-    "trddyn.f90",
-]
+NEMOV5_EXCLUSIONS = []
 
 NEMOV4_EXCLUSIONS = [
-    "dynspg_ts.f90",
     "tranxt.f90",
 ]
 
@@ -86,8 +79,6 @@ SKIP_FOR_PERFORMANCE = [
 ]
 
 OFFLOADING_ISSUES = [
-    # Runtime Error on BENCH: Illegal address during kernel execution
-    "trcrad.f90",
     # Produces different output results
     "zdftke.f90",
 ]
