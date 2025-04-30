@@ -77,6 +77,19 @@ please see the
     in its own ``virtual environment`` we recommend reading the
     `Python Packaging User Guide <https://packaging.python.org/en/latest/tutorials/installing-packages/>`_.
 
+  .. tab-item:: From Conda:
+
+    Psyclone is available in the ``conda-forge`` Conda channel.
+
+    To create a conda environment containing Psyclone use:
+
+    .. code-block:: bash
+
+      conda create -n psyclone-env -c conda-forge psyclone
+
+    For more information about how to use Conda we recommend reading the `Conda
+    documentation <https://docs.conda.io/projects/conda/en/stable/>`_.
+
   .. tab-item:: From Spack:
 
     To install psyclone to your loaded Spack installation use:
