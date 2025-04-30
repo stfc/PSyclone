@@ -1,0 +1,108 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2025, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author J. Henrichs, Bureau of Meteorology
+
+
+# This workflow will use a self-hosted runner to perform the more expensive
+# integrations tests that are not run on GHA systems.
+
+name: LFRic Extraction Tests
+
+on:
+  push
+
+jobs:
+  run_if_on_mirror:
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
+    runs-on: self-hosted
+    env:
+      LFRIC_APPS_REV: 7536
+      LFRIC_CORE_REV: 52054
+      PYTHON_VERSION: 3.13.2
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+        # This is required to get the commit history for merge commits for
+        # the ci-skip check below.
+        fetch-depth: '0'
+    - name: Check for [skip ci] in commit message
+      uses: mstachniuk/ci-skip@v1
+      with:
+        # This setting causes the tests to 'fail' if [skip ci] is specified
+        fail-fast: true
+        commit-filter: '[skip ci]'
+    - name: Install dependencies
+      run: |
+        # Use a specific version of Python (rather than the system-wide one).
+        module load python/${PYTHON_VERSION}
+        python -m venv .runner_venv
+        . .runner_venv/bin/activate
+        python -m pip install --upgrade pip
+        # Uncomment the below to use the submodule version of fparser rather
+        # than the latest release from pypi.
+        # pip install external/fparser
+        pip install .[test]
+        git clone -b main --recurse-submodules https://github.com/MetOffice/lfric-baf.git
+        # First install Fab:
+        cd lfric-baf/fab
+        pip install .
+
+    # Compile GungHo with extraction
+    -name GungHo Extraction Compilation    
+        # Set up environment
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment%gcc@14
+        source .runner_venv/bin/activate
+        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        # Copy the LFRic repos
+        export RUNDIR=${HOME}/LFRic/extraction_test
+        export LFRIC_CORE=${RUNDIR}/core
+        export LFRIC_APPS=${RUNDIR}/apps
+
+        #TOO SCARY ATM# rm -rf ${RUNDIR}
+        mkdir -p ${LFRIC_CORE} ${LFRIC_APPS}
+        cp -r ${HOME}/LFRic/lfric_core_${LFRIC_CORE_REV} ${LFRIC_CORE}
+        cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV} ${LFRIC_APPS}
+        # Install the BAF scripts into the lfric directories:
+        cd lfric-baf
+        ./install.sh ${LFRIC_CORE} ${LFRIC_APPS}
+        cd ${LFRIC_APPS}/applications/gungho_model
+        mkdir -p $PWD/fab_workspace
+        export FAB_WORKSPACE=$PWD/fab_workspace
+        # For debugging:
+        env
+        ${LFRIC_CORE}/build.sh ./fab_gungho_model_extract.py
