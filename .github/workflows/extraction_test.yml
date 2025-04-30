@@ -105,7 +105,8 @@ jobs:
         mkdir -p $PWD/fab_workspace
         export FAB_WORKSPACE=$PWD/fab_workspace
         # For debugging:
-        export PATH="$(dirname $CC):$(dirname $LDMPI):$PATH"
+        export PATH="$(dirname $CC):$(dirname $LDMPI):/apps/spack/psyclone-spack/spack-repo/opt/spack/linux-centos9-skylake_avx512/gcc-14.1.0/rose-picker-2-mmt2v3hqjwoqgkyf4f2ijlzlsy7nubnp/bin:$PATH"
+        env
         unset CC FC LD
         ${LFRIC_CORE}/build.sh ./fab_gungho_model_extract.py   \
           -fc mpif90-gfortran -ld linker-mpif90-gfortran  -cc gcc -rp v2.0
