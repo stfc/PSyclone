@@ -331,4 +331,5 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
             self._eliminate_barriers(node, cpu_directives, OMPBarrierDirective)
         # Eliminate OMPTaskwaitDirectives for the gpu_directives
         if len(gpu_directives) > 0:
-            self._eliminate_barriers(node, gpu_directives, OMPTaskwaitDirective)
+            self._eliminate_barriers(node, gpu_directives,
+                                     OMPTaskwaitDirective)
