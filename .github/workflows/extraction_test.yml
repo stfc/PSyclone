@@ -81,7 +81,8 @@ jobs:
         pip install .
 
     # Compile GungHo with extraction
-    -name: GungHo Extraction Compilation    
+    -name: GungHo Extraction Compilation
+     run:  |
         # Set up environment
         source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%gcc@14
@@ -105,4 +106,4 @@ jobs:
         export FAB_WORKSPACE=$PWD/fab_workspace
         # For debugging:
         env
-        ${LFRIC_CORE}/build.sh ./fab_gungho_model_extract.py
+        ${LFRIC_CORE}/build.sh ./fab_gungho_model_extract.py -fc mpif90-gfortran -ld linker-mpif90-gfortran
