@@ -49,7 +49,8 @@ from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (
     DataNode, Range, Reference, IntrinsicCall, Call)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.symbols import (ArrayType, ScalarType, SymbolTable)
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, ScalarType,
+                                    SymbolTable)
 
 
 class SymPyWriter(FortranWriter):
@@ -114,6 +115,9 @@ class SymPyWriter(FortranWriter):
         # to resolve a potential name clash with a user variable.
         self._lower_bound = "sympy_lower"
         self._upper_bound = "sympy_upper"
+        self._no_lower_bound = "no_sympy_lower"
+        self._no_upper_bound = "no_sympy_upper"
+
 
         if not SymPyWriter._RESERVED_NAMES:
             # Get the list of all reserved Python words from the
@@ -331,7 +335,9 @@ class SymPyWriter(FortranWriter):
                 # the symbol table.
                 unique_sym = self._symbol_table.new_symbol(name, tag=name)
                 # Test if an array or an array expression is used:
-                if not isinstance(ref, ArrayMixin):
+                if ((not isinstance(ref, ArrayMixin)) and
+                        (not (isinstance(ref.symbol, DataSymbol) and
+                              isinstance(ref.symbol.datatype, ArrayType)))):
                     self._sympy_type_map[unique_sym.name] = sympy.Symbol(
                         name, **assumptions)
                     continue
@@ -361,24 +367,42 @@ class SymPyWriter(FortranWriter):
         self._upper_bound = \
             self._symbol_table.new_symbol("sympy_upper",
                                           tag="sympy!upper_bound").name
+        self._no_lower_bound = \
+            self._symbol_table.new_symbol("sympy_no_lower",
+                                          tag="sympy!no_lower_bound").name
+        self._no_upper_bound = \
+            self._symbol_table.new_symbol("sympy_no_upper",
+                                          tag="sympy!no_upper_bound").name
 
     # -------------------------------------------------------------------------
     @property
-    def lower_bound(self):
+    def lower_bound(self) -> str:
         ''':returns: the name to be used for an unspecified lower bound.
-        :rtype: str
-
         '''
         return self._lower_bound
 
     # -------------------------------------------------------------------------
     @property
-    def upper_bound(self):
+    def upper_bound(self) -> str:
         ''':returns: the name to be used for an unspecified upper bound.
-        :rtype: str
-
         '''
         return self._upper_bound
+
+    # -------------------------------------------------------------------------
+    @property
+    def no_lower_bound(self) -> str:
+        ''':returns: the name to be used when no bounds are present on an
+                     array access.
+        '''
+        return self._no_lower_bound
+
+    # -------------------------------------------------------------------------
+    @property
+    def no_upper_bound(self) -> str:
+        ''':returns: the name to be used when no bounds are present on an
+                     array access.
+        '''
+        return self._no_upper_bound
 
     # -------------------------------------------------------------------------
     @property
@@ -691,12 +715,9 @@ class SymPyWriter(FortranWriter):
         # Now this must be an array expression without parenthesis. Add
         # the triple-array indices to represent `lower:upper:1` for each
         # dimension:
-        # ARPDBG - do *not* add colons to an array expression that didn't
-        # already have them.
-        return name
         shape = node.symbol.shape
-        result = [f"{self.lower_bound},"
-                  f"{self.upper_bound},1"]*len(shape)
+        result = [f"{self.no_lower_bound},"
+                  f"{self.no_upper_bound},1"]*len(shape)
 
         return (f"{name}{self.array_parenthesis[0]}"
                 f"{','.join(result)}{self.array_parenthesis[1]}")

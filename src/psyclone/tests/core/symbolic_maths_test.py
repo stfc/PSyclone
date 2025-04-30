@@ -518,13 +518,10 @@ def test_expand_with_intrinsic(fortran_reader, fortran_writer):
     sym_maths = SymbolicMaths.get()
     rhs = psyir.walk(Assignment)[0].rhs
     lbnd = rhs.walk(IntrinsicCall)[0]
-    print(fortran_writer(psyir))
     view_before = rhs.view()
     sym_maths.expand(rhs)
-    print(rhs.view())
     assert rhs.view() == view_before
     result = fortran_writer(psyir).lower()
-    print(result)
     assert "lbound(u_e, 1),df2)" in result
 
 
@@ -539,12 +536,10 @@ def test_symbolic_maths_array_and_array_index(fortran_reader):
           y = a
         end program test_prog'''
     psyir = fortran_reader.psyir_from_source(source)
+    assigns = psyir.walk(Assignment)
     sym_maths = SymbolicMaths.get()
-    assert not sym_maths.equal(psyir.children[0][0].rhs,
-                               psyir.children[0][1].rhs)
+    assert not sym_maths.equal(assigns[0].rhs, assigns[1].rhs)
 
-    assert sym_maths.equal(psyir.children[0][0].rhs,
-                           psyir.children[0][0].rhs)
+    assert sym_maths.equal(assigns[0].rhs, assigns[0].rhs)
 
-    assert sym_maths.equal(psyir.children[0][1].rhs,
-                           psyir.children[0][1].rhs)
+    assert sym_maths.equal(assigns[1].rhs, assigns[1].rhs)

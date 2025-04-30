@@ -386,13 +386,13 @@ def test_sym_writer_parse_errors(fortran_reader):
                                          ("b(i::j)", "b(i,sympy_upper,j)"),
                                          ("b(:i:j)", "b(sympy_lower,i,j)"),
                                          ("b(i:j:k)", "b(i,j,k)"),
-                                         ("b", "b(sympy_lower,sympy_upper,1)"),
+                                         ("b", "b(sympy_no_lower,sympy_no_upper,1)"),
                                          ("c(i,j)", "c(i,i,1,j,j,1)"),
                                          ("c(::,::)",
                                           "c(sympy_lower,sympy_upper,1,"
                                           "sympy_lower,sympy_upper,1)"),
-                                         ("c", "c(sympy_lower,sympy_upper,1,"
-                                               "sympy_lower,sympy_upper,1)"),
+                                         ("c", "c(sympy_no_lower,sympy_no_upper,1,"
+                                               "sympy_no_lower,sympy_no_upper,1)"),
                                          ("b(i)%x", "b_x(i,i,1)"),
                                          ("b(i)%x(j)", "b_x(i,i,1,j,j,1)"),
                                          ("c(i,j)%x", "c_x(i,i,1,j,j,1)"),
@@ -414,13 +414,13 @@ def test_sym_writer_parse_errors(fortran_reader):
                                          ("sympy_lower(:)",
                                           "sympy_lower(sympy_lower_1,"
                                           "sympy_upper,1)"),
-                                         # The +sympy_upper at the end is
-                                         # an array expression, so it gets
+                                         # The +sympy_upper at the end is an
+                                         # array expression but should not get
                                          # indices added!
                                          ("sympy_lower(:)+sympy_upper",
                                           "sympy_lower(sympy_lower_1,"
                                           "sympy_upper_1,1) + sympy_upper"
-                                          "(sympy_lower_1,sympy_upper_1,1)"),
+                                          "(sympy_no_lower,sympy_no_upper,1)"),
                                          ])
 def test_sym_writer_array_expressions(fortran_reader, expressions):
     '''Test that array expressions (including ones using user-defined

@@ -91,10 +91,14 @@ class SymPyReader():
     # correct values in the constructor.
     _lower_bound = "sympy_lower"
     _upper_bound = "sympy_upper"
+    _no_lower_bound = "no_sympy_lower"
+    _no_upper_bound = "no_sympy_upper"
 
     def __init__(self, sympy_writer):
         SymPyReader._lower_bound = sympy_writer.lower_bound
         SymPyReader._upper_bound = sympy_writer.upper_bound
+        SymPyReader._no_lower_bound = sympy_writer.no_lower_bound
+        SymPyReader._no_upper_bound = sympy_writer.no_upper_bound
 
     # -------------------------------------------------------------------------
     def psyir_from_expression(self, sympy_expr, symbol_table):
@@ -154,11 +158,15 @@ class SymPyReader():
         name = function.__class__.__name__
         lower_b = SymPyReader._lower_bound
         upper_b = SymPyReader._upper_bound
+        no_lower_b = SymPyReader._no_lower_bound
+        no_upper_b = SymPyReader._no_upper_bound
 
         # Analyse each triple of parameters, and add the corresponding
         # converted index (or array expression) to new_args:
         new_args = []
         for i in range(0, len(args), 3):
+            if args[i] == no_lower_b and args[i+1] == no_upper_b:
+                continue
             if args[i] == args[i+1] and args[i+2] == "1":
                 # a(i,i,1) --> a(i)
                 new_args.append(args[i])
@@ -188,6 +196,9 @@ class SymPyReader():
                     # a(i,j,k) --> a(i:j:k)
                     new_args.append(f"{args[i]}:{args[i+1]}:"
                                     f"{args[i+2]}")
+
+        if not new_args:
+            return name
 
         if function._sig is None:
             # It's not a user defined type, just create the array access:
