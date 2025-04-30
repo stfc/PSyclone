@@ -81,8 +81,8 @@ jobs:
         pip install .
 
     # Compile GungHo with extraction
-    -name: GungHo Extraction Compilation
-     run:  |
+    - name: GungHo Extraction Compilation
+      run:  |
         # Set up environment
         source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%gcc@14
