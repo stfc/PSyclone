@@ -282,32 +282,41 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
         # Time to loop until we satisfy all dependencies with one barrier
         # each.
         while self._get_max_barrier_dependency(depending_barriers) > 1:
-            # NEED A GOOD STRATEGY HERE
-            # MY INITIAL IDEA WOULD BE TO FIND THE "POTENTIAL REMOVES" BARRIER
-            # THAT CAN SATISFY THE MOST POSSIBLE BARRIER SETS, MARK THAT AS
-            # REQUIRED AND REDUCE BARRIER SET, AND REPEAT AS MANY TIMES AS
-            # NEEDED.
-            # THIS COULD BE A LONG PROCESS SO I DON'T LOVE IT BUT NEED TO
-            # RESEARCH IF THERE'S A BETTER SOLUTION. NOT SURE WHAT THIS IS
-            # CALLED? IS IT A KNOWN GRAPH PROBLEM (OR EQUIVALENT TO?). FEELS
-            # LIKE IT SHOULD BE.
+            # The chosen strategy here is to find which of the remaining
+            # barriers can satisfy the most possible dependency sets, add
+            # that barrier to the set of required barriers and then update
+            # the dependency sets. This process is repeated until all
+            # barrier sets are satisfied by a required barrier (i.e. have a 
+            # size of 1).
+            # NB. We haven't proven this is an optimal solution in terms of
+            # solution quality or computation time - if either causes problems
+            # we can re-evaluate.
+            dependencies_satisfied = [0] * len(potential_removes)
+            for i, bar in enumerate(potential_removes):
+                # Count how many of the dependencies can be solved by this
+                # barrier
+                solves = 0
+                for dep_list in depending_barriers:
+                    for req in dep_list:
+                        if bar is req:
+                            solves = solves + 1
+                            break
+                dependencies_satisfied[i] = solves
+            # Find the max value and the first index with that number of
+            # satisfied dependencies:
+            maxval = max(dependencies_satisfied)
+            max_index = dependencies_satisfied.index(maxval)
+            
+            # Add the barrier found to the list of required_barriers, and
+            # remove it from the potential_removes.
+            required_barriers.append(potential_removes.pop(max_index))
 
-            # ALSO WON'T PROVE THAT THAT APPROACH WOULD RESULT IN MINIMAL SET
-            # OF BARRIERS FOR NOW, BUT PROBABLY IS THE IDEAL AIM.
-
-            # We've eliminated all required dependencies by this point, whats
-            # the worst case from here? Think worst case would be eliminating
-            # only 2 per step of the loop, which results in n log n? Since
-            # we'd need log n steps and each step requires to loop through
-            # all n barriers. A better solution would need to loop through all
-            # n barriers per step and eliminate more barriers per step -
-            # not straightforward though.
-
-            # Seems like graph algorithm somehow - edge elimination of DAG?
-            # without reducing paths between nodes or something. Doesn't quite
-            # work becuase we have 2 "node" types in that context maybe
-            assert False
-
+            # Reduce the barrier set with the new required_barrier.
+            self._reduce_barrier_set(required_barriers, depending_barriers)
+            
+            # This process repeats now until we have a set of required
+            # barriers that satisfies all barriers.
+            
         # At this point all the potential removes should be safe to remove.
         for barrier in potential_removes:
             barrier.detach()
