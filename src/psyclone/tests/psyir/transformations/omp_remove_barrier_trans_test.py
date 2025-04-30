@@ -35,11 +35,12 @@
 
 ''' Tests for the OMPRemoveBarrierTrans transformation. '''
 
-import pytest
-from psyclone.psyir.nodes import (Node, Loop, Routine, OMPBarrierDirective)
+# import pytest
+from psyclone.psyir.nodes import (Loop, Routine, OMPBarrierDirective)
 from psyclone.psyir.transformations import (
-        OMPLoopTrans, OMPRemoveBarrierTrans, OMPTargetTrans,
-        TransformationError, 
+        OMPLoopTrans, OMPRemoveBarrierTrans,
+        # OMPTargetTrans,
+        # TransformationError,
 )
 from psyclone.transformations import OMPParallelTrans
 

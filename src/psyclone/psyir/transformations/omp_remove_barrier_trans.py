@@ -153,7 +153,7 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
                 dependency_pos.append(0)
             else:
                 dependency_pos.append(dep.abs_position)
-        #dependency_pos = [dep.abs_position for dep in next_dependencies]
+        # dependency_pos = [dep.abs_position for dep in next_dependencies]
 
         # Get the abs_positions and depths of each of the directives.
         abs_positions = [node.abs_position for node in directives]
@@ -331,4 +331,4 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
             self._eliminate_barriers(node, cpu_directives, OMPBarrierDirective)
         # Eliminate OMPTaskwaitDirectives for the gpu_directives
         if len(gpu_directives) > 0:
-           self._eliminate_barriers(node, gpu_directives, OMPTaskwaitDirective)
+            self._eliminate_barriers(node, gpu_directives, OMPTaskwaitDirective)
