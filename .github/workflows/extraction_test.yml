@@ -96,8 +96,8 @@ jobs:
 
         #TOO SCARY ATM# rm -rf ${RUNDIR}
         mkdir -p ${LFRIC_CORE} ${LFRIC_APPS}
-        cp -r ${HOME}/LFRic/lfric_core_${LFRIC_CORE_REV} ${LFRIC_CORE}
-        cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV} ${LFRIC_APPS}
+        cp -r ${HOME}/LFRic/lfric_core_${LFRIC_CORE_REV}/ ${LFRIC_CORE}
+        cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}/ ${LFRIC_APPS}
         # Install the BAF scripts into the lfric directories:
         cd lfric-baf
         ./install.sh ${LFRIC_CORE} ${LFRIC_APPS}
@@ -105,5 +105,21 @@ jobs:
         mkdir -p $PWD/fab_workspace
         export FAB_WORKSPACE=$PWD/fab_workspace
         # For debugging:
-        env
-        ${LFRIC_CORE}/build.sh ./fab_gungho_model_extract.py -fc mpif90-gfortran -ld linker-mpif90-gfortran
+        export PATH="$(dirname $CC):$(dirname $LDMPI):$PATH"
+        unset CC FC LD
+        ${LFRIC_CORE}/build.sh ./fab_gungho_model_extract.py   \
+          -fc mpif90-gfortran -ld linker-mpif90-gfortran  -cc gcc -rp v2.0
+        # Run
+        # Modify number of timesteps
+        cd example
+        sed -i "s/timestep_end='10'/timestep_end='1'/" configuration.nml
+        
+        mpirun -n 6 ../fab_workspace/gungho_model_extract-mpif90-gfortran/gungho_model configuration.nml
+
+        cd ..
+
+        FILE=sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0
+
+        mpif90 driver-$(FILE).F90 $FFLAGS $LDFLAGS -l yaxt_c -o driver-$FILE
+
+        ./driver-$FILE ./example/$(FILE)-0.nc
