@@ -254,6 +254,41 @@ def test_fuse_ok(tmpdir, fortran_reader, fortran_writer):
     assert Compile(tmpdir).string_compiles(out)
 
 
+def test_fuse_removes_unused_symbols(
+         monkeypatch, fortran_reader, fortran_writer):
+    '''This tests verifies that loop fusion removes any unused symbols after
+    the transformation.
+
+    '''
+    code = '''subroutine sub()
+              integer :: ji, jj, n, n1
+              integer, dimension(10,10) :: s, t
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=1, n1
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    fuse = LoopFuseTrans()
+    # For some reason (given by a DSL) this are find to fuse
+    monkeypatch.setattr(fuse, "validate", lambda _1, _2, options: True)
+
+    # Raise the language-level PSyIR to NEMO PSyIR
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+    fuse.apply(loop1, loop2)
+
+    out = fortran_writer(psyir)
+    # The unused symbol n1 now should not be declared
+    assert "n1" not in out
+
+
 # ----------------------------------------------------------------------------
 def test_fuse_incorrect_bounds_step(tmpdir, fortran_reader, fortran_writer):
     '''
