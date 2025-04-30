@@ -94,7 +94,7 @@ jobs:
         export LFRIC_CORE=${RUNDIR}/core
         export LFRIC_APPS=${RUNDIR}/apps
 
-        #TOO SCARY ATM# rm -rf ${RUNDIR}
+        rm -rf ${RUNDIR}
         mkdir -p ${LFRIC_CORE} ${LFRIC_APPS}
         cp -r ${HOME}/LFRic/lfric_core_${LFRIC_CORE_REV}/ ${LFRIC_CORE}
         cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}/ ${LFRIC_APPS}
