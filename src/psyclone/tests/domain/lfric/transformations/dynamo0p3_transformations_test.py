@@ -3469,7 +3469,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                      {"same_space": True})
         rtrans = OMPParallelTrans()
         otrans = Dynamo0p3OMPLoopTrans()
-        otrans.apply(schedule.children[0], {"reprod": "True"})
+        otrans.apply(schedule.children[0], {"reprod": True})
         rtrans.apply(schedule.children[0])
         result = str(psy.gen)
 

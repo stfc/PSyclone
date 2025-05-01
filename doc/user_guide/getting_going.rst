@@ -240,7 +240,7 @@ This should not transform the semantics of the code (only the syntax), and is
 what we sometimes refer to as a "passthrough" run. This can be useful as an initial
 correctness test when applying PSyclone to a new code.
 
-However, PSyclone allows users to programatically change the source code of the
+However, PSyclone allows users to programmatically change the source code of the
 processed file. This is achieved using transformation recipes which are python scripts
 with a `trans` function defined. For example:
 

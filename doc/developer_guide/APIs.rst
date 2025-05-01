@@ -511,7 +511,7 @@ just needs to create a loop that iterates from 1 to the total number
 of owned dofs on that partition. The latter value is provided by the
 LFRic API.
 
-When the distributed memory flag is set to ``true`` an aditional
+When the distributed memory flag is set to ``true`` an additional
 configuration option can be set which makes PSyclone always create
 loops which iterate over both owned and annexed dofs. Whilst this is
 not necessary for correctness, it can improve performance by reducing
@@ -666,7 +666,7 @@ initial schedule. There are four cases:
    as ``GH_INC`` which involves a read before a write) will require a
    halo exchange if its annexed dofs are not clean, or if their
    status is unknown. Whilst it is only the annexed dofs that need to
-   be made clean in this case, the only way to acheive this is
+   be made clean in this case, the only way to achieve this is
    via a halo exchange (which updates the halo i.e. more than is
    required). Note, if the ``COMPUTE_ANNEXED_DOFS`` configuration
    variable is set to ``true`` then no halo exchange is required as
@@ -825,7 +825,7 @@ Asynchronous Halo Exchanges
 
 The Dynamo0p3AsynchronousHaloExchange transformation allows the
 default synchronous halo exchange to be split into a halo exchange
-start and a halo exhange end which are represented separately as nodes
+start and a halo exchange end which are represented separately as nodes
 in the schedule. These can then be moved in the schedule to allow
 overlapping of communication and computation, as long as data
 dependencies are honoured.
@@ -857,7 +857,7 @@ having the halo exchange start find and use the methods from the halo
 exchange end, rather than implement them independently. The actual
 methods needed are ``_compute_stencil_type()``,
 ``_compute_halo_depth()`` and ``_required()``. It is unclear how much
-halo exhange start really benefits from inheriting from halo exchange
+halo exchange start really benefits from inheriting from halo exchange
 and this could probably be removed at the expense of returning
 appropriate names for the dag, colourmap, declaration etc.
 
@@ -978,7 +978,7 @@ Since PSyclone is invoked separately for each Algorithm file in an
 application, the naming of the new, transformed kernels is done with
 reference to the kernel output directory. All transformed kernels (and
 the modules that contain them) are re-named following the PSyclone
-Fortran naming conventions (:ref:`fortran_naming`). This enables the
+Fortran naming conventions (:ref:`lfric-conventions`). This enables the
 reliable identification of transformed versions of any given kernel
 within the output directory.
 
@@ -1266,7 +1266,7 @@ Implicit Loops
 
 Many of the loops in NEMO are written using Fortran array notation. Such
 use of array notation is encouraged in the NEMO Coding Conventions
-:cite:`nemo_code_conv` and identifying these loops can be important
+:footcite:t:`nemo_code_conv` and identifying these loops can be important
 when introducing, e.g. OpenMP. These implicit loops are not
 automatically represented as PSyIR Loop instances but can be converted
 to explicit loops using the ``ArrayAssignment2LoopsTrans``
@@ -1303,3 +1303,5 @@ the details of externally declared symbols can be resolved by using the
 
    import_symbol = symbol_table.lookup(module_name)
    symbol_table.resolve_imports(container_symbols=[import_symbol])
+
+.. footbibliography::
