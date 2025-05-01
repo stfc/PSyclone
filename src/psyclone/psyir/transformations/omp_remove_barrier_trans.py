@@ -263,7 +263,7 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
                 raise TransformationError(
                     "Found a nowait with no barrier satisfying its "
                     "dependency which is unsupported behaviour for "
-                    "OMPRemoveBarrierTrans"
+                    "OMPRemoveBarrierTrans."
                 )
             depending_barriers.append(found_barriers)
 

@@ -38,7 +38,8 @@
 import pytest
 from psyclone.psyir.nodes import (
         Loop, Routine, OMPBarrierDirective,
-        OMPTaskwaitDirective, OMPDoDirective)
+        OMPTaskwaitDirective, OMPDoDirective,
+        OMPTargetDirective)
 from psyclone.psyir.transformations import (
         OMPLoopTrans, OMPRemoveBarrierTrans,
         OMPTargetTrans, TransformationError
@@ -363,7 +364,83 @@ def test_dependency_before_directive(fortran_reader, fortran_writer):
     assert correct in out
 
 
+def test_barrier_in_if_statement_is_ignored(fortran_reader):
+    code = """
+    subroutine test
+        integer, dimension(100) :: a,b
+        integer :: i
+
+        do i = 1, 100
+          a(i) = i
+        end do
+
+        if( i < 100) then
+            do i = 1, 100
+              b(i) = i
+            end do
+
+            do i = 1, 100
+              b(i) = b(i) + 1
+            end do
+        end if
+
+        do i = 1, 100
+          a(i) = a(i) + 1
+        end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    targettrans = OMPTargetTrans()
+    for loop in psyir.walk(Loop):
+        targettrans.apply(loop, options={"nowait": True})
+
+    # We have 3 barriers initially
+    assert len(psyir.walk(OMPTaskwaitDirective)) == 3
+
+    # We can't remove the a->d barrier here as the if statement containing the
+    # barrier between them prevents it.
+    rtrans = OMPRemoveBarrierTrans()
+    rtrans.apply(routine)
+    assert len(psyir.walk(OMPTaskwaitDirective)) == 3
+    # The transformation doesn't modify the code so we don't check the output
+    # for this test.
+
+
+# Cover the "no barrier found" failure.
+def test_no_barrier_from_nowait(fortran_reader):
+    '''Test that the correct TransformationError is thrown if a nowait
+    directive is not found to have a barrier satisfying its dependencies.'''
+    code = """
+    subroutine test
+    integer, dimension(100) :: a
+    integer :: j
+
+    do j = 1, 100
+        a(j) = j
+    end do
+    do j = 1, 100
+        a(j) = a(j) + i
+    end do
+    end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    targettrans = OMPTargetTrans()
+    for loop in psyir.walk(Loop):
+        targettrans.apply(loop)
+
+    # Add the nowait manually to the first OMPTargetDirective
+    psyir.walk(OMPTargetDirective)[0].nowait = True
+
+    rtrans = OMPRemoveBarrierTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        rtrans.apply(routine)
+    assert ("Found a nowait with no barrier satisfying its dependency which "
+            "is unsupported behaviour for OMPRemoveBarrierTrans." in
+            str(excinfo.value))
+
+
 # Remaining things to test:
-# We ignore barriers in an if statement when looking at what we might remove.
 # The while loop needs covering, not sure if it is yet or if we need to make a
 # manual example to test that.
