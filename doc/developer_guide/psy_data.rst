@@ -667,7 +667,7 @@ takes the following parameters:
 
 -prefix:
     The prefix to use for the PSyData type and functions. Default is
-    emtpy (i.e. no prefix). If you specify a prefix, you have to
+    empty (i.e. no prefix). If you specify a prefix, you have to
     add the ``_`` between the prefix and name explicitly.
 
 -generic-declare:

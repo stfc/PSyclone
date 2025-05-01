@@ -366,7 +366,7 @@ The generated code is now:
 
 Examples in ``examples/lfric/eg12`` directory demonstrate how to
 apply code extraction by utilising PSyclone transformation scripts
-(see :ref:`examples` section for more information). The code
+(see :ref:`examples_lfric` section for more information). The code
 in ``examples/lfric/eg17/full_example_extract`` can be compiled and
 run, and it will create two kernel data files.
 

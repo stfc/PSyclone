@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2021-2025, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2025, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,31 +31,22 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by: R. W. Ford, A. R. Porter and S. Siso STFC Daresbury Lab
+.. Modified by I. Kavcic, Met Office
+.. Modified by J. Henrichs, Bureau of Meteorology
 
-.. _psyad_introduction:
+.. _examples:
 
-Introduction
-============
+Tutorials and Examples
+======================
 
-PSyAD is PSyclone's Adjoint code generator. PSyAD takes a
-tangent linear kernel and translates it into its adjoint. A kernel may
-either be a generic subroutine/program or a
-:ref:`lfric-kernel` that conforms to the LFRic API .
+.. toctree::
+    :maxdepth: 2
+    :caption: Tutorials and Examples
 
-.. _psyad_examples:
-
-Examples
-========
-
-See the :ref:`examples` section of the PSyclone User Guide for an
-introduction to getting started with the PSyclone examples. This includes the
-set-up necessary for getting PSyAD to work.
-
-Adjoint and Test Harness Generation
------------------------------------
-
-PSyAD is currently able to transform generic tangent-linear routines
-plus some of the LFRic tangent-linear kernels. There are two examples
-available in the ``examples/psyad`` directory. See the ``README.md`` file in
-that directory for full details.
+    tutorials
+    examples_intro
+    psyir_examples
+    nemo_examples
+    lfric_examples
+    gocean_examples
