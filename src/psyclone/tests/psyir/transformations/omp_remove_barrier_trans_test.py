@@ -407,6 +407,97 @@ def test_barrier_in_if_statement_is_ignored(fortran_reader):
     # for this test.
 
 
+def test_barrier_in_else_is_ignored(fortran_reader):
+    ''' Test that barriers in an else statement are also ignored
+    for when searching for barriers that satisfy dependencies.'''
+    code = """
+    subroutine test
+        integer, dimension(100) :: a,b
+        integer :: i
+
+        do i = 1, 100
+          a(i) = i
+        end do
+
+        if( i < 100) then
+            i = 1
+        else
+            do i = 1, 100
+              b(i) = i
+            end do
+
+            do i = 1, 100
+              b(i) = b(i) + 1
+            end do
+        end if
+
+        do i = 1, 100
+          a(i) = a(i) + 1
+        end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    targettrans = OMPTargetTrans()
+    for loop in psyir.walk(Loop):
+        targettrans.apply(loop, options={"nowait": True})
+
+    # We have 3 barriers initially
+    assert len(psyir.walk(OMPTaskwaitDirective)) == 3
+
+    # We can't remove the a->d barrier here as the if statement containing the
+    # barrier between them prevents it.
+    rtrans = OMPRemoveBarrierTrans()
+    rtrans.apply(routine)
+    assert len(psyir.walk(OMPTaskwaitDirective)) == 3
+    # The transformation doesn't modify the code so we don't check the output
+    # for this test.
+
+
+def test_multiple_nowaits_covered_by_same_barrier_initially(fortran_reader):
+    '''This test covers the case where we have one barrier that satisfies
+    multiple dependencies as this barrier is only added to the list of 
+    required_barriers once.'''
+    code = """
+    subroutine test
+        integer, dimension(100) :: a,b
+        integer :: i
+
+        do i = 1, 100
+          a(i) = i
+        end do
+
+        do i = 1, 100
+          b(i) = i
+        end do
+
+        do i = 1, 100
+          a(i) = a(i) + b(i)
+        end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    targettrans = OMPTargetTrans()
+    for loop in psyir.walk(Loop):
+        targettrans.apply(loop, options={"nowait": True})
+
+    # This is unlikely to occur in normal code, but if we apply the
+    # transformation twice to this routine it would occur.
+    rtrans = OMPRemoveBarrierTrans()
+    rtrans.apply(routine)
+    assert len(routine.walk(OMPTaskwaitDirective)) == 2
+
+    # Now we have one barrier covering both dependencies from loops 1 & 2 to
+    # loop 3, so it only gets added once and we should end up with 2
+    # barriers still
+    rtrans = OMPRemoveBarrierTrans()
+    rtrans.apply(routine)
+    assert len(routine.walk(OMPTaskwaitDirective)) == 2
+
+
+# FIXME Cover loop
+
 # Cover the "no barrier found" failure.
 def test_no_barrier_from_nowait(fortran_reader):
     '''Test that the correct TransformationError is thrown if a nowait

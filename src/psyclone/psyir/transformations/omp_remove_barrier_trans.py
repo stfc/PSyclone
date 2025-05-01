@@ -205,9 +205,6 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
                     loop_ancestor = directives[i].ancestor(Loop)
                     barrier_in_ancestor_loop = False
                     while loop_ancestor:
-                        if not next_dependencies[i].is_descendent_of(
-                                loop_ancestor):
-                            break
                         if barrier.is_descendent_of(loop_ancestor):
                             barrier_in_ancestor_loop = True
                             break
