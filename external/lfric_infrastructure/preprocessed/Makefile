@@ -60,7 +60,7 @@ ALL_SRC := $(subst $(LFRIC_PATH),,\
 ALL_OBJ = $(subst .F90,.o,$(subst .f90,.o,$(ALL_SRC)))
 
 # Additional object files required for netcdf support
-OBJ_NETCDF = mesh/global_mesh_netcdf_mod.o io/ugrid_2d_mod.o     \
+OBJ_NETCDF = io/ugrid_2d_mod.o     \
 	io/ugrid_file_mod.o io/file_mod.o io/ugrid_generator_mod.o \
 	io/ncdf_quad_mod.o mesh/ugrid_mesh_data_mod.o
 
@@ -68,9 +68,6 @@ OBJ_NETCDF = mesh/global_mesh_netcdf_mod.o io/ugrid_2d_mod.o     \
 # list of all objects (since we don't want to require NetCDF for
 # most compilation tests):
 OBJ := $(filter-out $(OBJ_NETCDF),$(ALL_OBJ))
-
-dummy:
-	echo $(OBJ)
 
 .PHONY: dirs standalone netcdf dirs get_include_flags preprocess
 
