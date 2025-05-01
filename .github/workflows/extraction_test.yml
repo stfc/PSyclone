@@ -75,6 +75,8 @@ jobs:
         # than the latest release from pypi.
         # pip install external/fparser
         pip install .[test]
+        # Install BAF, and its version of Fab:
+        # ------------------------------------
         git clone -b main --recurse-submodules https://github.com/MetOffice/lfric-baf.git
         # First install Fab:
         cd lfric-baf/fab
@@ -89,38 +91,61 @@ jobs:
         source .runner_venv/bin/activate
         export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        # Copy the LFRic repos
+
+        # Set the directory names for the extraction runs:
+        # -----------------------------------------------
         export RUNDIR=${HOME}/LFRic/extraction_test
         export LFRIC_CORE=${RUNDIR}/lfric_core_${LFRIC_CORE_REV}
         export LFRIC_APPS=${RUNDIR}/lfric_apps_${LFRIC_APPS_REV}
 
+        # Copy the lfric source files (BAF copies files into the source tree)
+        # -------------------------------------------------------------------
         rm -rf ${RUNDIR}
         mkdir -p ${LFRIC_CORE} ${LFRIC_APPS}
         cp -r ${HOME}/LFRic/lfric_core_${LFRIC_CORE_REV}/ ${RUNDIR}
         cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}/ ${RUNDIR}
+
         # Install the BAF scripts into the lfric directories:
+        # ---------------------------------------------------
         cd lfric-baf
         ./install.sh ${LFRIC_CORE} ${LFRIC_APPS}
+
+        # Build GungHo with the BAF extraction script
+        # -------------------------------------------
         cd ${LFRIC_APPS}/applications/gungho_model
         mkdir -p $PWD/fab_workspace
         export FAB_WORKSPACE=$PWD/fab_workspace
-        # For debugging:
+        # Fab expects that all compilers are in PATH, and
+        # does not support CC/FC etc with a full path. Since
+        # the spack environment does not add all required paths,
+        # we need to add the required paths manuall, and then
+        # unset the environment variables (which would otherwise
+        # be used as default)
         export PATH="$(dirname $CC):$(dirname $LDMPI):/apps/spack/psyclone-spack/spack-repo/opt/spack/linux-centos9-skylake_avx512/gcc-14.1.0/rose-picker-2-mmt2v3hqjwoqgkyf4f2ijlzlsy7nubnp/bin:$PATH"
-        env
         unset CC FC LD
+        # Run the Fab build script
         ${LFRIC_CORE}/build.sh ./fab_gungho_model_extract.py   \
           -fc mpif90-gfortran -ld linker-mpif90-gfortran  -cc gcc
-        # Run
-        # Modify number of timesteps
+
+        # Run gungho (which will create the NetCDF kernel data files)
+        # -----------------------------------------------------------
+        # Modify number of timesteps to reduce impact on system
         cd example
         sed -i "s/timestep_end='10'/timestep_end='1'/" configuration.nml
         
         mpirun -n 6 ../fab_workspace/gungho_model_extract-mpif90-gfortran/gungho_model configuration.nml
 
+        # Now compile one driver
+        # ----------------------
         cd ..
-
+        # FILE is the 'basic' name. A driver file is then called driver-$FILE.F90, and
+        # the kernel data files are called $FILE-$RANK.nc
         FILE=sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0
 
+        # We link with yaxt, since a few drivers inline a module that contains yaxt
+        # functions (though yaxt is not actually used)
         mpif90 driver-${FILE}.F90 $FFLAGS $LDFLAGS -l yaxt_c -o driver-${FILE}
 
+        # Execute the driver, which will print results to the screen
+        # -----------------------------------------------------------
         ./driver-${FILE} ./example/${FILE}-0.nc
