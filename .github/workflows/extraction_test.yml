@@ -91,13 +91,13 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         # Copy the LFRic repos
         export RUNDIR=${HOME}/LFRic/extraction_test
-        export LFRIC_CORE=${RUNDIR}/core
-        export LFRIC_APPS=${RUNDIR}/apps
+        export LFRIC_CORE=${RUNDIR}/fric_core_${LFRIC_CORE_REV}
+        export LFRIC_APPS=${RUNDIR}/lfric_apps_${LFRIC_APPS_REV}
 
         rm -rf ${RUNDIR}
         mkdir -p ${LFRIC_CORE} ${LFRIC_APPS}
-        cp -r ${HOME}/LFRic/lfric_core_${LFRIC_CORE_REV}/ ${LFRIC_CORE}
-        cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}/ ${LFRIC_APPS}
+        cp -r ${HOME}/LFRic/lfric_core_${LFRIC_CORE_REV}/ ${RUNDIR}
+        cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}/ ${RUNDIR}
         # Install the BAF scripts into the lfric directories:
         cd lfric-baf
         ./install.sh ${LFRIC_CORE} ${LFRIC_APPS}
