@@ -121,6 +121,6 @@ jobs:
 
         FILE=sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0
 
-        mpif90 driver-$(FILE).F90 $FFLAGS $LDFLAGS -l yaxt_c -o driver-$FILE
+        mpif90 driver-${FILE}.F90 $FFLAGS $LDFLAGS -l yaxt_c -o driver-${FILE}
 
-        ./driver-$FILE ./example/$(FILE)-0.nc
+        ./driver-${FILE} ./example/${FILE}-0.nc
