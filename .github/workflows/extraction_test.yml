@@ -91,7 +91,7 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         # Copy the LFRic repos
         export RUNDIR=${HOME}/LFRic/extraction_test
-        export LFRIC_CORE=${RUNDIR}/fric_core_${LFRIC_CORE_REV}
+        export LFRIC_CORE=${RUNDIR}/lfric_core_${LFRIC_CORE_REV}
         export LFRIC_APPS=${RUNDIR}/lfric_apps_${LFRIC_APPS_REV}
 
         rm -rf ${RUNDIR}
@@ -109,7 +109,7 @@ jobs:
         env
         unset CC FC LD
         ${LFRIC_CORE}/build.sh ./fab_gungho_model_extract.py   \
-          -fc mpif90-gfortran -ld linker-mpif90-gfortran  -cc gcc -rp v2.0
+          -fc mpif90-gfortran -ld linker-mpif90-gfortran  -cc gcc
         # Run
         # Modify number of timesteps
         cd example
