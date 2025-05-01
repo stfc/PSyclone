@@ -43,7 +43,7 @@ from psyclone.psyir.nodes import (
     Routine, OMPDoDirective,
     OMPBarrierDirective, OMPTaskwaitDirective,
     OMPTargetDirective,
-    IfBlock, Node
+    IfBlock, Node, Loop
 )
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
@@ -79,10 +79,7 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
         '''
         if not isinstance(node, Routine):
             raise TypeError(f"OMPRemoveBarrierTrans expects a Routine input "
-                            f"but found {type(node).__str__}")
-
-        # FIXME Do we need to consider code with gotos and disallow them or
-        # does something else do this? I suspect not...
+                            f"but found '{type(node).__name__}'.")
 
     def _find_dependencies(self, directives: List[Directive]) -> List[Node]:
         '''
@@ -105,7 +102,8 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
             dependencies.append(dependency)
         return dependencies
 
-    def _reduce_barrier_set(self, required_barriers: List[Node],
+    @staticmethod
+    def _reduce_barrier_set(required_barriers: List[Node],
                             depending_barriers: List[List[Node]]) -> None:
         # Now we have some initial required barriers (ideally) we can reduce
         # the lists of barriers for each dependency covered by multiple
@@ -132,8 +130,9 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
                         depending_barriers[i] = bars
                         break
 
+    @staticmethod
     def _get_max_barrier_dependency(
-            self, depending_barriers: List[List[Node]]) -> int:
+            depending_barriers: List[List[Node]]) -> int:
         max_size = 1
         for barriers in depending_barriers:
             if len(barriers) > max_size:
@@ -182,13 +181,39 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
                 continue
             # Loop through the barriers.
             for j, barrier in enumerate(all_barriers):
-                # If the barrier appears before the directive then skip it.
-                if barrier_positions[j] < abs_positions[i]:
-                    continue
-                # If the barrier appears after the dependency then we are
-                # done with this directive.
-                if barrier_positions[j] > dependency_pos[i]:
-                    break
+                # If the dependency is after the nowait directive then
+                # we have the easy strategy.
+                if dependency_pos[i] > abs_positions[i]:
+                    # If the barrier appears before the directive then skip 
+                    # it.
+                    if barrier_positions[j] < abs_positions[i]:
+                        continue
+                    # If the barrier appears after the dependency then we are
+                    # done with this directive.
+                    if barrier_positions[j] > dependency_pos[i]:
+                        break
+                else:
+                    # Otherwise the dependency is before the directive, so
+                    # they're contained in a loop.
+                    # If the barrier is after the dependency but before the
+                    # directive we can skip it.
+                    if (barrier_positions[j] > dependency_pos[i] and 
+                            barrier_positions[j] < abs_positions[i]):
+                        continue
+                    # If the barrier is not contained in any of the ancestor
+                    # loops of both then we can ignore it.
+                    loop_ancestor = directives[i].ancestor(Loop)
+                    barrier_in_ancestor_loop = False
+                    while loop_ancestor:
+                        if not next_dependencies[i].is_descendent_of(
+                                loop_ancestor):
+                            break
+                        if barrier.is_descendent_of(loop_ancestor):
+                            barrier_in_ancestor_loop = True
+                            break
+                        loop_ancestor = loop_ancestor.ancestor(Loop)
+                    if not barrier_in_ancestor_loop:
+                        continue
 
                 # The barrier appears between the node and its dependency.
                 # Recurse up from the barrier and find all the if statement
@@ -265,7 +290,9 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
         # Now we have some required barriers, we can replace the
         # depending_barriers of any set of multi barriers with a required
         # barrier if a required barrier is included in the set.
-        self._reduce_barrier_set(required_barriers, depending_barriers)
+        OMPRemoveBarrierTrans._reduce_barrier_set(
+                required_barriers, depending_barriers
+        )
 
         # Create a list of all barriers not yet in the required_barriers
         # set.
@@ -281,7 +308,8 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
 
         # Time to loop until we satisfy all dependencies with one barrier
         # each.
-        while self._get_max_barrier_dependency(depending_barriers) > 1:
+        while (OMPRemoveBarrierTrans._get_max_barrier_dependency(
+                depending_barriers) > 1):
             # The chosen strategy here is to find which of the remaining
             # barriers can satisfy the most possible dependency sets, add
             # that barrier to the set of required barriers and then update
@@ -312,14 +340,21 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
             required_barriers.append(potential_removes.pop(max_index))
 
             # Reduce the barrier set with the new required_barrier.
-            self._reduce_barrier_set(required_barriers, depending_barriers)
+            OMPRemoveBarrierTrans._reduce_barrier_set(
+                    required_barriers, depending_barriers
+            )
 
             # This process repeats now until we have a set of required
             # barriers that satisfies all barriers.
 
-        # At this point all the potential removes should be safe to remove.
+        # The final barrier in a routine shouldn't be removed as this ensure
+        # we have synchronicity between routines.
+        final_barrier = node.walk(barrier_type)[-1]
+        # Otherwise at this point all the potential removes should be safe to
+        # remove.
         for barrier in potential_removes:
-            barrier.detach()
+            if barrier is not final_barrier:
+                barrier.detach()
 
     def apply(self, node: Routine) -> None:
         '''
