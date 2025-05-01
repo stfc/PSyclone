@@ -184,7 +184,7 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
                 # If the dependency is after the nowait directive then
                 # we have the easy strategy.
                 if dependency_pos[i] > abs_positions[i]:
-                    # If the barrier appears before the directive then skip 
+                    # If the barrier appears before the directive then skip
                     # it.
                     if barrier_positions[j] < abs_positions[i]:
                         continue
@@ -197,7 +197,7 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
                     # they're contained in a loop.
                     # If the barrier is after the dependency but before the
                     # directive we can skip it.
-                    if (barrier_positions[j] > dependency_pos[i] and 
+                    if (barrier_positions[j] > dependency_pos[i] and
                             barrier_positions[j] < abs_positions[i]):
                         continue
                     # If the barrier is not contained in any of the ancestor
