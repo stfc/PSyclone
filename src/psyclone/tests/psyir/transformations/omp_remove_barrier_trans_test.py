@@ -456,7 +456,7 @@ def test_barrier_in_else_is_ignored(fortran_reader):
 
 def test_multiple_nowaits_covered_by_same_barrier_initially(fortran_reader):
     '''This test covers the case where we have one barrier that satisfies
-    multiple dependencies as this barrier is only added to the list of 
+    multiple dependencies as this barrier is only added to the list of
     required_barriers once.'''
     code = """
     subroutine test
