@@ -441,7 +441,7 @@ def main(arguments):
         '--enable-cache', action="store_true", default=False,
         help='whether to enable caching imported module dependencies (if '
              'enabled, it will generate a .psycache file of each imported '
-             'module in the same location as the output file).'
+             'module in the same location as the import source file).'
     )
     parser.add_argument(
         '-l', '--limit', dest='limit', default='off',
