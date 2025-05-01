@@ -80,12 +80,18 @@ SKIP_FOR_PERFORMANCE = [
 ]
 
 OFFLOADING_ISSUES = [
-    # Runtime Error on BENCH: Illegal address during kernel execution
-    "trcrad.f90",
     # Produces different output results
     "zdftke.f90",
+    # The following issues only affect BENCH (because ice is enabled?)
+    # Runtime Error: Illegal address during kernel execution
+    "trcrad.f90",
     # Signal 11 issues
     "trcbbl.f90",
+    "bdyice.f90",
+    "sedfunc.f90",
+    "stpmlf.f90",
+    "trddyn.f90",
+    "trczdf.f90",
 ]
 
 
