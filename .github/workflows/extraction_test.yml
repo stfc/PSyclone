@@ -143,7 +143,7 @@ jobs:
         FILE=sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0
 
         # We link with yaxt, since a few drivers inline a module that contains yaxt
-        # functions (though yaxt is not actually used)
+        # functions (though these functions and therefore yaxt are not actually used)
         mpif90 driver-${FILE}.F90 $FFLAGS $LDFLAGS -l yaxt_c -o driver-${FILE}
 
         # Execute the driver, which will print results to the screen
