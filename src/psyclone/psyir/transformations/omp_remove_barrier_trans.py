@@ -286,7 +286,7 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
             # barriers can satisfy the most possible dependency sets, add
             # that barrier to the set of required barriers and then update
             # the dependency sets. This process is repeated until all
-            # barrier sets are satisfied by a required barrier (i.e. have a 
+            # barrier sets are satisfied by a required barrier (i.e. have a
             # size of 1).
             # NB. We haven't proven this is an optimal solution in terms of
             # solution quality or computation time - if either causes problems
@@ -306,17 +306,17 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
             # satisfied dependencies:
             maxval = max(dependencies_satisfied)
             max_index = dependencies_satisfied.index(maxval)
-            
+
             # Add the barrier found to the list of required_barriers, and
             # remove it from the potential_removes.
             required_barriers.append(potential_removes.pop(max_index))
 
             # Reduce the barrier set with the new required_barrier.
             self._reduce_barrier_set(required_barriers, depending_barriers)
-            
+
             # This process repeats now until we have a set of required
             # barriers that satisfies all barriers.
-            
+
         # At this point all the potential removes should be safe to remove.
         for barrier in potential_removes:
             barrier.detach()
