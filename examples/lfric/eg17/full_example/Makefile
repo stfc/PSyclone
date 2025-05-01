@@ -51,7 +51,7 @@ OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 
 EXEC = example
 LFRIC_PATH = ../../../../external/lfric_infrastructure/preprocessed
-LFRIC_NAME=lfric
+LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 # This sets up LFRIC_INCLUDE_FLAGS
@@ -63,7 +63,7 @@ run: compile
 compile: transform $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) $(F90FLAGS)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)

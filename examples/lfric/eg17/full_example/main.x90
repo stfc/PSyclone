@@ -36,13 +36,17 @@ program main
 
     use global_mesh_mod,        only: global_mesh_type
     use mesh_mod,               only: mesh_type, PLANE
+    use local_mesh_mod,         only: local_mesh_type
+    use local_mesh_collection_mod, only: local_mesh_collection
     use partition_mod,          only: partition_type, partitioner_planar, partitioner_interface
-    use extrusion_mod,          only: uniform_extrusion_type
+    use extrusion_mod,          only: extrusion_type, uniform_extrusion_type
     use function_space_mod,     only: function_space_type
+    use function_space_collection_mod, only: function_space_collection
     use fs_continuity_mod,      only: W0, W1, W2, W2V, W2H
-    use field_mod,              only: field_type
+    use field_mod,              only: field_type, field_proxy_type
+    use field_real64_mod,      only : field_real64_type
     use testkern_w0_kernel_mod, only: testkern_w0_kernel_type
-    use constants_mod,          only: r_def, i_def
+    use constants_mod,          only: r_def, i_def, str_def
     use log_mod,                only: LOG_LEVEL_ALWAYS
 
     implicit none
@@ -51,16 +55,20 @@ program main
     class(global_mesh_type), pointer           :: global_mesh_ptr
     type(partition_type)                       :: partition
     type(mesh_type), target                    :: mesh
+    type(local_mesh_type), pointer             :: local_mesh_ptr
     type(uniform_extrusion_type), target       :: extrusion
-    type(uniform_extrusion_type), pointer      :: extrusion_ptr
+    class(extrusion_type), pointer             :: extrusion_ptr
     type(function_space_type), target          :: vector_space
     type(function_space_type), pointer         :: vector_space_ptr
     procedure (partitioner_interface), pointer :: partitioner_ptr
-    type(field_type)                           :: field1, field2
+    type(field_type), target                   :: field1, field2
+    type(field_proxy_type)                     :: field1_proxy
     integer(kind=i_def)                        :: lfric_fs = W0   ! W0
     integer(kind=i_def)                        :: element_order_h = 1
     integer(kind=i_def)                        :: element_order_v = 1
     integer(kind=i_def)                        :: ndata_sz
+    character(str_def) :: name="123"
+    real*8  :: field_min_norm
 
     ! Use the unit-testing constructor:
     global_mesh = global_mesh_type()
@@ -69,21 +77,26 @@ program main
     partitioner_ptr => partitioner_planar
     partition = partition_type(global_mesh_ptr, &
                                partitioner_ptr, &
-                               1, 1,  &    ! # procs in x and y direction
-                               0,     &    ! max stencil size
-                               0,     &    ! local rank
+                               1, 1,    &    ! # procs in x and y direction
+                               0,       &    ! max stencil size
+                               .false., &    ! generate_inner_haloes
+                               0,       &    ! local rank
                                1)          ! number of proceses
 
     ! Creating a vertical mesh of height 100 m with 5 layers
     ! It is important to use 0.0_r_def, otherwise:
     ! Error: Component ‘atmosphere_bottom’ at (1) is a PRIVATE component of ‘extrusion_type’
     ! Because it tries to use the Fortran default constructor to assign individual components
-    extrusion = uniform_extrusion_type(0.0_r_def, 100.0_r_def, 5)
+    ! The last parameter is the extrusion id, which we don't need otherwise
+    extrusion = uniform_extrusion_type(0.0_r_def, 100.0_r_def, 5, 1)
     extrusion_ptr => extrusion
-    mesh = mesh_type(global_mesh_ptr, partition, extrusion_ptr)
+    local_mesh_ptr => local_mesh_collection%get_local_mesh("local mesh")
+    !mesh = mesh_type(global_mesh_ptr, partition, extrusion_ptr)
+    name = "test123"
+    mesh = mesh_type(local_mesh_ptr, extrusion, mesh_name=name)
     write (*,*) "Mesh has", mesh%get_nlayers(), "layers."
     ndata_sz = 1
-    vector_space = function_space_type( mesh,            &
+    vector_space = function_space_type( mesh%get_id(),            &
                                         element_order_h, &
                                         element_order_v, &
                                         lfric_fs,        &
@@ -97,6 +110,8 @@ program main
                  )
     call invoke( name = 'testkern_w0', testkern_w0_kernel_type(field1, field2) )
 
-    print *,"minmax of field1", field1 % get_min(), field1 % get_max()
+    field1_proxy = field1%get_proxy()
+        field_min_norm = field1_proxy%get_min()
 
+    !print *,"minmax of field1", field1 % get_min(), field1 % get_max()!
 end program main
