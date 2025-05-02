@@ -365,6 +365,9 @@ def test_dependency_before_directive(fortran_reader, fortran_writer):
 
 
 def test_barrier_in_if_statement_is_ignored(fortran_reader):
+    '''Test to check that a barrier inside an if statement doesn't get
+    counted as satisfying a dependency for statements that are outside the
+    if statement.'''
     code = """
     subroutine test
         integer, dimension(100) :: a,b
@@ -498,7 +501,6 @@ def test_multiple_nowaits_covered_by_same_barrier_initially(fortran_reader):
     assert len(routine.walk(OMPTaskwaitDirective)) == 2
 
 
-# FIXME Cover loop
 def test_loop_process(fortran_reader):
     '''Test that the while get_max_barrier_dependency > 1 loop
     is called and works as expected.'''

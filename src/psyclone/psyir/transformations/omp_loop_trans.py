@@ -88,7 +88,8 @@ class OMPLoopTrans(ParallelLoopTrans):
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.nodes import Loop
-    >>> from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
+    >>> from psyclone.psyir.transformations import OMPLoopTrans
+    >>> from psyclone.transformations import OMPParallelTrans
     >>>
     >>> psyir = FortranReader().psyir_from_source("""
     ...     subroutine my_subroutine()

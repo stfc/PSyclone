@@ -36,24 +36,23 @@
 
 # TODO #2837: Once we leave python 3.8 we can use list instead of List for
 # type hints.
-from typing import List
+from typing import List, Union
 
+from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Directive,
-    Routine, OMPDoDirective,
+    IfBlock, Loop, Node,
+    OMPDoDirective,
     OMPBarrierDirective, OMPTaskwaitDirective,
-    OMPTargetDirective,
-    IfBlock, Node, Loop
+    OMPTargetDirective, Routine
 )
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
-from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
 
 
-# FIXME Does this need to be RegionTrans?
-class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
+class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
     '''
     Attempts to remove OMPTaskwaitDirective or
     OMPBarrierDirective nodes from a supplied region as long as
@@ -62,28 +61,113 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
     execution of loops or kernels.
 
     For example:
-    ...
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.psyir.nodes import Loop
+    >>> from psyclone.psyir.transformations import OMPLoopTrans
+    >>> from psyclone.psyir.transformations import OMPRemoveBarrierTrans
+    >>> from psyclone.transformations import OMPParallelTrans
+    >>>
+    >>> psyir = FortranReader().psyir_from_source("""
+	...     subroutine test
+    ...         integer, dimension(100) :: a,b
+    ...         integer :: i
+	...
+    ...         do i = 1, 100
+    ...           a(i) = i
+    ...         end do
+	...
+    ...         do i = 1, 100
+    ...           b(i) = i
+    ...         end do
+	...
+    ...         do i = 1, 100
+    ...           b(i) = b(i) + 1
+    ...         end do
+	...
+    ...         do i = 1, 100
+    ...           a(i) = a(i) + 1
+    ...         end do
+    ...     end subroutine
+    ...     """)
+    >>> omplooptrans1 = OMPLoopTrans()
+    >>> for loop in psyir.walk(Loop):
+    >>>     omplooptrans1.apply(loop, nowait=True)
+	>>>
+	>>> partrans = OMPParallelTrans()
+	>>> partrans.apply(psyir.children[0].children[:])
+	>>> rbartrans = OMPRemoveBarrierTrans()
+	>>> rbartrans.apply(psyir.chiildren[0])
+	>>> print(FortranWriter()(psyir))
+    subroutine test()
+      integer, dimension(100) :: a
+      integer, dimension(100) :: b
+      integer :: i
+      <BLANKLINE>
+      !$omp parallel default(shared), private(i)
+      !$omp do schedule(auto)
+      do i = 1, 100, 1
+        a(i) = i
+      enddo
+      !$omp end do nowait
+      !$omp do schedule(auto)
+      do i = 1, 100, 1
+        b(i) = i
+      enddo
+      !$omp end do nowait
+      !$omp barrier
+      !$omp do schedule(auto)
+      do i = 1, 100, 1
+        b(i) = b(i) + 1
+      enddo
+      !$omp end do nowait
+      !$omp do schedule(auto)
+      do i = 1, 100, 1
+        a(i) = a(i) + 1
+      enddo
+      !$omp end do nowait
+      !$omp barrier
+      !$omp end parallel
+      <BLANKLINE>
+    end subroutine test
+    <BLANKLINE>
+
     '''
-    # Inherites from AsyncTransMixin as it needs some of the helper functions
+    # Inherits from AsyncTransMixin as it needs some of the helper functions
     def __str__(self) -> str:
+        '''Returns the string representation of this OMPRemoveBarrierTrans
+        object.'''
         return ("Removes OMPTaskwaitDirective or OMPBarrierDirective nodes "
                 "from the supplied region to reduce synchronicity without "
                 "invalidating dependencies.")
 
-    def validate(self, node: Routine) -> None:
+    def validate(self, node: Routine, **kwargs) -> None:
         '''
         Validity check for the input arguments.
 
         :param node: the routine to try to remove barriers from.
         :raises TypeError: if the supplied input isn't a Routine.
         '''
+        super().validate(node, kwargs)
         if not isinstance(node, Routine):
             raise TypeError(f"OMPRemoveBarrierTrans expects a Routine input "
                             f"but found '{type(node).__name__}'.")
 
-    def _find_dependencies(self, directives: List[Directive]) -> List[Node]:
+    def _find_dependencies(self, directives: List[Directive]) \
+            -> List[Union[Node, bool]]:
         '''
-        TODO
+        Finds the next dependencies for each of the directives provided.
+
+        :param directives: The list of directives to find the dependencies
+                           for.
+
+        :returns: A list of nodes (or True if a directive has no dependency)
+                  corresponding to the dependencies for each of the input
+                  directives.
+
+        :raises TransformationError: If one of the input directives has a
+                                     dependency that PSyclone can't satisfy.
+
         '''
         dependencies = []
         for directive in directives:
@@ -105,6 +189,18 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
     @staticmethod
     def _reduce_barrier_set(required_barriers: List[Node],
                             depending_barriers: List[List[Node]]) -> None:
+        '''
+        Reduces the depending_barriers set according to the list of
+        required_barriers, i.e. if a required_barrier is present in one of
+        the lists in the depending_barriers, all of the other elements in that
+        depending_barrier list are removed.
+
+        :param required_barriers: A list of barriers that are treated as
+                                  required to satisfy dependencies.
+        :param depending_barriers: A list of lists of barrier sets that each
+                                   could satisfy the dependency between a
+                                   directive and its dependency.
+        '''
         # Now we have some initial required barriers (ideally) we can reduce
         # the lists of barriers for each dependency covered by multiple
         # barriers.
@@ -133,6 +229,17 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
     @staticmethod
     def _get_max_barrier_dependency(
             depending_barriers: List[List[Node]]) -> int:
+        '''
+        Returns the maximum size of a sublist in the depending_barriers
+        input.
+
+        :param depending_barriers: The input list of lists for which this
+                                   function is to find the largest sublist
+                                   size.
+
+        :returns: the maximum size of a sublist in the depending_barriers
+                  input.
+        '''
         max_size = 1
         for barriers in depending_barriers:
             if len(barriers) > max_size:
@@ -142,7 +249,17 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
     def _eliminate_barriers(self, node: Routine, directives: List[Directive],
                             barrier_type: type) -> None:
         '''
-        TODO
+        Eliminates barriers of the barrier_type in the input Routine node that
+        satsfies all the dependencies for the input directives.
+
+        :param node: The routine to remove barriers from.
+        :param directives: The list of directives whose dependencies must
+                           still be satisfied at the end of barrier removal.
+        :param barrier_type: The type of barrier that satisfies the
+                             dependencies of the directives.
+
+        :raises TransformationError: If a directive is found to have no
+                                     barriers that satisfy its dependencies.
         '''
         # For each of the directives find the next dependency.
         next_dependencies = self._find_dependencies(directives)
@@ -164,8 +281,8 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
         # For each directive find all the barriers that satisfy its dependency
         # A barrier satisfies its dependency if:
         # 1. Its abs_position is > the directive and < the next_dependency
-        #    position
-        #    TODO What if the dependency is before it in the tree?
+        #    position (or something slightly more complex if the dependency is
+        #    before it in the tree.
         # 2. All of the barrier's if statement ancestors are also ancestors of
         #    the directive or the dependency, and they're contained in the
         #    same schedule of
@@ -353,13 +470,15 @@ class OMPRemoveBarrierTrans(RegionTrans, AsyncTransMixin):
             if barrier is not final_barrier:
                 barrier.detach()
 
-    def apply(self, node: Routine) -> None:
+    def apply(self, node: Routine, **kwargs) -> None:
         '''
-        TODO
+        Applies the transformation, which eliminates unneccessary
+        barriers whilst satisfying all of the dependencies.
 
         :param node: the routine to try to remove barriers from.
         '''
-        self.validate(node)
+        self.validate(node, **kwargs)
+        super().apply(node, **kwargs)
 
         # Find all the OMPDoDirectives with nowait.
         cpu_directives = [x for x in node.walk(OMPDoDirective) if x.nowait]
