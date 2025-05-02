@@ -68,11 +68,9 @@ from psyclone.psyir.nodes import (
     ArrayReference, Call, Container, Literal, Loop, Node, OMPDoDirective,
     Reference, Directive, Routine, Schedule, Statement, Assignment,
     IntrinsicCall, BinaryOperation, OMPParallelDirective, FileContainer)
-from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
-                                    ContainerSymbol, DataSymbol,
-                                    UnresolvedType, REAL_TYPE, DataSymbol,
-                                    ImportInterface, INTEGER_TYPE,
-                                    RoutineSymbol, ScalarType)
+from psyclone.psyir.symbols import (
+    ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
+    UnresolvedType, ImportInterface, INTEGER_TYPE, RoutineSymbol)
 from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
 
 # The types of 'intent' that an argument to a Fortran subroutine
