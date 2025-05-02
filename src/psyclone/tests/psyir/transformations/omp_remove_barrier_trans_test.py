@@ -482,7 +482,9 @@ def test_multiple_nowaits_covered_by_same_barrier_initially(fortran_reader):
     for loop in psyir.walk(Loop):
         targettrans.apply(loop, options={"nowait": True})
 
-    # This is unlikely to occur in normal code, but if we apply the
+    # This is unlikely to occur in normal code (at least with how PSyclone
+    # currently generates barriers as it will create repeated barriers
+    # at the moment), but if we apply the
     # transformation twice to this routine it would occur.
     rtrans = OMPRemoveBarrierTrans()
     rtrans.apply(routine)
@@ -497,6 +499,61 @@ def test_multiple_nowaits_covered_by_same_barrier_initially(fortran_reader):
 
 
 # FIXME Cover loop
+def test_loop_process(fortran_reader):
+    '''Test that the while get_max_barrier_dependency > 1 loop
+    is called and works as expected.'''
+    code = """
+    subroutine test
+        integer, dimension(100) :: a,b,c
+        integer :: i
+
+        do i = 1, 100
+          a(i) = i
+        end do
+
+        do i = 1, 100
+          b(i) = i
+        end do
+
+        do i = 1, 100
+          c(i) = i
+        end do
+
+        do i = 1, 100
+          a(i) = a(i) + b(i) + c(i)
+        end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    targettrans = OMPTargetTrans()
+    for loop in psyir.walk(Loop):
+        targettrans.apply(loop, options={"nowait": True})
+
+    # Initially here, we have 3 barriers that cover all of
+    # the dependencies. The first one will be kept just due
+    # to being the first one in the tree. To ensure the loop
+    # behaves as expected, we will add two other barriers
+    # into the after the first and second loops and ensure
+    # that both are removed.
+    # In this case the loop is requires as none of the barriers
+    # is the only barrier satisfying a dependency.
+    loops = psyir.walk(Loop)
+    routine.addchild(OMPTaskwaitDirective(), loops[1].position)
+    routine.addchild(OMPTaskwaitDirective(), loops[2].position)
+
+    assert len(routine.walk(OMPTaskwaitDirective)) == 6
+
+    correct_to_keep = routine.walk(OMPTaskwaitDirective)[2]
+
+    rtrans = OMPRemoveBarrierTrans()
+    rtrans.apply(routine)
+
+    final_bars = routine.walk(OMPTaskwaitDirective)
+    # We keep the expected one and the barrier at the end of the routine.
+    assert len(final_bars) == 2
+    assert final_bars[0] is correct_to_keep
+
 
 # Cover the "no barrier found" failure.
 def test_no_barrier_from_nowait(fortran_reader):
