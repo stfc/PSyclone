@@ -2016,6 +2016,8 @@ def test_real_to_int_x_precision(monkeypatch, tmpdir, kind_name):
     # Test limited code generation (no equivalent field type)
     code = str(psy.gen)
     assert "use constants_mod\n" in code
+    assert ("integer(kind=i_def), pointer, dimension(:) :: f2_data => null()"
+            in code)
     assert f"f2_data(df) = INT(f1_data(df), kind={kind_name})" in code
 
     # Test compilation of generated code

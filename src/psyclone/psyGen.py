@@ -1180,16 +1180,14 @@ class Kern(Statement):
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
         reduction_access = self._reduction_arg.access
-        try:
-            _ = REDUCTION_OPERATOR_MAPPING[reduction_access]
-        except KeyError as err:
+        if reduction_access not in REDUCTION_OPERATOR_MAPPING:
             api_strings = [access.api_specific_name()
                            for access in REDUCTION_OPERATOR_MAPPING]
             raise GenerationError(
                 f"Unsupported reduction access "
                 f"'{reduction_access.api_specific_name()}' found in "
                 f"LFRicBuiltIn:reduction_sum_loop(). Expected one of "
-                f"{api_strings}.") from err
+                f"{api_strings}.")
         symtab = self.scope.symbol_table
         thread_idx = symtab.find_or_create_tag(
                                 "omp_thread_index",

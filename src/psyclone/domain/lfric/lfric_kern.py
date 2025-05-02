@@ -349,8 +349,8 @@ class LFRicKern(CodedKern):
 
         # The quadrature-related arguments to a kernel always come last so
         # construct an enumerator with start value -<no. of qr rules>
-        if self.ancestor(InvokeSchedule):
-            symtab = self.ancestor(InvokeSchedule).symbol_table
+        if self.ancestor(Routine):
+            symtab = self.ancestor(Routine).symbol_table
         else:
             symtab = self._stub_symbol_table
 
@@ -680,6 +680,9 @@ class LFRicKern(CodedKern):
 
         # Add wildcard "use" statement for all supported argument
         # kinds (precisions)
+        # TODO #2905: LFRic coding standards don't allow wilcard imports
+        # so maybe this can be improved when we change the stage where
+        # symbols are declared.
         stub_routine.symbol_table.add(
             ContainerSymbol(
                 const.UTILITIES_MOD_MAP["constants"]["module"],

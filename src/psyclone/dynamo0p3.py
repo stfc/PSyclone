@@ -545,7 +545,7 @@ class LFRicMeshProperties(LFRicCollection):
             # The DynMeshes class will have created a mesh object so we
             # don't need to do that here.
             if prop == MeshProperty.ADJACENT_FACE:
-                self.symtab.find_or_create_tag("adjacent_face")
+                self.symtab.lookup_with_tag("adjacent_face")
             elif prop == MeshProperty.NCELL_2D_NO_HALOS:
                 self.symtab.find_or_create(
                     "ncell_2d_no_halos",
@@ -628,7 +628,7 @@ class LFRicMeshProperties(LFRicCollection):
             # need do nothing.
             return cursor
 
-        mesh = self.symtab.find_or_create_tag("mesh")
+        mesh = self.symtab.lookup_with_tag("mesh")
 
         init_cursor = cursor
         for prop in self._properties:
@@ -975,15 +975,15 @@ class DynReferenceElement(LFRicCollection):
                                     ArgumentInterface.Access.READ)
             self.symtab.append_argument(arrsym)
 
-    def initialise(self, cursor):
+    def initialise(self, cursor: int) -> int:
         '''
         Creates the PSyIR nodes representing the necessary initialisation
         code for properties of the reference element.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
+
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         if not (self._properties or self._nfaces_h_required):
@@ -1155,6 +1155,7 @@ class DynFunctionSpaces(LFRicCollection):
 
         :param cursor: position where to add the next initialisation
             statements.
+
         :returns: Updated cursor value.
 
         '''
@@ -1422,6 +1423,7 @@ class DynProxies(LFRicCollection):
 
         :param cursor: position where to add the next initialisation
             statements.
+
         :returns: Updated cursor value.
 
         :raises InternalError: if a kernel argument of an unrecognised type
@@ -1670,6 +1672,7 @@ class DynCMAOperators(LFRicCollection):
 
         :param cursor: position where to add the next initialisation
             statements.
+
         :returns: Updated cursor value.
 
         '''
@@ -1684,11 +1687,11 @@ class DynCMAOperators(LFRicCollection):
         for op_name in self._cma_ops:
             # First, assign a pointer to the array containing the actual
             # matrix.
-            cma_name = self.symtab.find_or_create_tag(
+            cma_sym = self.symtab.find_or_create_tag(
                 f"{op_name}:{suffix}", op_name,
                 symbol_type=DataSymbol, datatype=UnresolvedType())
             stmt = Assignment.create(
-                    lhs=Reference(cma_name),
+                    lhs=Reference(cma_sym),
                     rhs=StructureReference.create(
                              self.symtab.lookup(
                                 self._cma_ops[op_name]["arg"].proxy_name),
@@ -2134,6 +2137,7 @@ class DynMeshes():
 
         :param cursor: position where to add the next initialisation
             statements.
+
         :returns: Updated cursor value.
 
         '''
@@ -2875,16 +2879,16 @@ class DynBasisFunctions(LFRicCollection):
                     ArgumentInterface.Access.READ)
                 self.symtab.append_argument(new_arg)
 
-    def initialise(self, cursor):
+    def initialise(self, cursor: int) -> int:
         '''
         Create the declarations and assignments required for the
         basis-functions required by an invoke. These are added as children
         of the supplied parent node in the AST.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
+
         :returns: Updated cursor value.
-        :rtype: int
 
         :raises InternalError: if an invalid entry is encountered in the \
                                self._basis_fns list.
@@ -3127,15 +3131,15 @@ class DynBasisFunctions(LFRicCollection):
 
         return (var_dim_list, basis_arrays)
 
-    def _initialise_xyz_qr(self, cursor):
+    def _initialise_xyz_qr(self, cursor: int) -> int:
         '''
         Add in the initialisation of variables needed for XYZ
         quadrature
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
+
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         # pylint: disable=unused-argument
@@ -3218,15 +3222,15 @@ class DynBasisFunctions(LFRicCollection):
 
         return cursor
 
-    def _initialise_xoyoz_qr(self, cursor):
+    def _initialise_xoyoz_qr(self, cursor: int) -> int:
         '''
         Add in the initialisation of variables needed for XoYoZ
         quadrature.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
+
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         # pylint: disable=unused-argument

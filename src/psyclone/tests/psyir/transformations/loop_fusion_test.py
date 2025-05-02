@@ -276,10 +276,10 @@ def test_fuse_removes_unused_symbols(
               end subroutine sub'''
     psyir = fortran_reader.psyir_from_source(code)
     fuse = LoopFuseTrans()
-    # For some reason (given by a DSL) this are find to fuse
+    # Monkeypatch to mimic the case where these are fine to fuse (e.g.
+    # because of additional DSL knowledge)
     monkeypatch.setattr(fuse, "validate", lambda _1, _2, options: True)
 
-    # Raise the language-level PSyIR to NEMO PSyIR
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
     fuse.apply(loop1, loop2)
