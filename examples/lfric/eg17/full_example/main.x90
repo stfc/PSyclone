@@ -32,12 +32,105 @@
 ! Modifications: A. R. Porter, STFC Daresbury Laboratory
 !                J. Dendy, Met Office
 
+
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used
+!-----------------------------------------------------------------------------
+
+!> @brief Create/destroy global collections
+!> @description An LFRic app which uses field objects will require a hierarchy
+!>  of other objects which field objects rely upon. Collections of these objects
+!>  are made globally visible as they will be used extensively within an LFRic
+!>  app.
+!>
+!>  This module allows for standard methods for allocation/deallocation of these
+!>  collections.
+!>
+module driver_collections_mod
+
+  ! Global collections
+  use function_space_collection_mod, only: function_space_collection_type, &
+                                           function_space_collection
+  use global_mesh_collection_mod,    only: global_mesh_collection_type,    &
+                                           global_mesh_collection
+  use halo_routing_collection_mod,   only: halo_routing_collection_type,   &
+                                           halo_routing_collection
+  use local_mesh_collection_mod,     only: local_mesh_collection_type,     &
+                                           local_mesh_collection
+  use mesh_collection_mod,           only: mesh_collection_type,           &
+                                           mesh_collection
+
+  implicit none
+
+  private
+
+  public  :: init_collections, final_collections
+
+contains
+
+!> @brief  Allocates global collections used to construct LFRic fields.
+subroutine init_collections()
+
+  implicit none
+
+  allocate( global_mesh_collection,    source=global_mesh_collection_type() )
+  allocate( local_mesh_collection,     source=local_mesh_collection_type() )
+  allocate( mesh_collection,           source=mesh_collection_type() )
+  allocate( function_space_collection, source=function_space_collection_type() )
+  allocate( halo_routing_collection,   source=halo_routing_collection_type() )
+
+end subroutine init_collections
+
+!> @brief  Finalises global collections used to construct LFRic fields.
+subroutine final_collections()
+
+  implicit none
+
+  if (allocated( global_mesh_collection )) then
+    call global_mesh_collection%clear()
+    deallocate( global_mesh_collection )
+  end if
+
+  if (allocated( local_mesh_collection )) then
+    call local_mesh_collection%clear()
+    deallocate( local_mesh_collection )
+  end if
+
+  if (allocated( mesh_collection ))then
+    call mesh_collection%clear()
+    deallocate( mesh_collection )
+  end if
+
+  if (allocated( function_space_collection )) then
+    call function_space_collection%clear()
+    deallocate( function_space_collection )
+  end if
+
+  if (allocated( halo_routing_collection )) then
+    call halo_routing_collection%clear()
+    deallocate( halo_routing_collection )
+  end if
+
+end subroutine final_collections
+
+end module driver_collections_mod
+
+
 program main
 
     use global_mesh_mod,        only: global_mesh_type
     use mesh_mod,               only: mesh_type, PLANE
     use local_mesh_mod,         only: local_mesh_type
-    use local_mesh_collection_mod, only: local_mesh_collection
+    use local_mesh_collection_mod, only: local_mesh_collection, local_mesh_collection_type
+    use mesh_collection_mod,    only: mesh_collection, mesh_collection_type
+    use halo_routing_collection_mod,   only: halo_routing_collection_type,   &
+                                           halo_routing_collection
+    use function_space_collection_mod, only: function_space_collection_type, &
+                                           function_space_collection
+    use driver_collections_mod, only: init_collections
+
     use partition_mod,          only: partition_type, partitioner_planar, partitioner_interface
     use extrusion_mod,          only: extrusion_type, uniform_extrusion_type
     use function_space_mod,     only: function_space_type
@@ -52,10 +145,9 @@ program main
     implicit none
 
     type(global_mesh_type), target             :: global_mesh
-    class(global_mesh_type), pointer           :: global_mesh_ptr
     type(partition_type)                       :: partition
     type(mesh_type), target                    :: mesh
-    type(local_mesh_type), pointer             :: local_mesh_ptr
+    type(local_mesh_type), target              :: local_mesh
     type(uniform_extrusion_type), target       :: extrusion
     class(extrusion_type), pointer             :: extrusion_ptr
     type(function_space_type), target          :: vector_space
@@ -66,22 +158,34 @@ program main
     integer(kind=i_def)                        :: lfric_fs = W0   ! W0
     integer(kind=i_def)                        :: element_order_h = 1
     integer(kind=i_def)                        :: element_order_v = 1
-    integer(kind=i_def)                        :: ndata_sz
+    integer(kind=i_def)                        :: ndata_sz, mesh_id
     character(str_def) :: name="123"
     real*8  :: field_min_norm
 
+    ! This function is not part of the actual infrastructure
+    call init_collections()
+    ! This is the required bit, but it might be more future-proof
+    ! to add init_collections to our infrastructure
+    !allocate( local_mesh_collection, source=local_mesh_collection_type() )
+    !allocate( mesh_collection, source=mesh_collection_type() )
+    !allocate( halo_routing_collection,   source=halo_routing_collection_type() )
+    !allocate( function_space_collection, source=function_space_collection_type() )
+
     ! Use the unit-testing constructor:
     global_mesh = global_mesh_type()
-    global_mesh_ptr => global_mesh
 
     partitioner_ptr => partitioner_planar
-    partition = partition_type(global_mesh_ptr, &
+    ! Note: stencil size must be 0, otherwise the constructur
+    ! crashes when allocation a 0-size array
+    partition = partition_type(global_mesh, &
                                partitioner_ptr, &
                                1, 1,    &    ! # procs in x and y direction
-                               0,       &    ! max stencil size
+                               1,       &    ! max stencil size
                                .false., &    ! generate_inner_haloes
                                0,       &    ! local rank
                                1)          ! number of proceses
+    call local_mesh%initialise( global_mesh, partition )
+    call local_mesh%init_cell_owner()
 
     ! Creating a vertical mesh of height 100 m with 5 layers
     ! It is important to use 0.0_r_def, otherwise:
@@ -90,10 +194,10 @@ program main
     ! The last parameter is the extrusion id, which we don't need otherwise
     extrusion = uniform_extrusion_type(0.0_r_def, 100.0_r_def, 5, 1)
     extrusion_ptr => extrusion
-    local_mesh_ptr => local_mesh_collection%get_local_mesh("local mesh")
-    !mesh = mesh_type(global_mesh_ptr, partition, extrusion_ptr)
+
     name = "test123"
-    mesh = mesh_type(local_mesh_ptr, extrusion, mesh_name=name)
+    mesh = mesh_type(local_mesh, extrusion, mesh_name=name)
+    mesh_id = mesh_collection%add_new_mesh(mesh)
     write (*,*) "Mesh has", mesh%get_nlayers(), "layers."
     ndata_sz = 1
     vector_space = function_space_type( mesh%get_id(),            &
@@ -113,5 +217,5 @@ program main
     field1_proxy = field1%get_proxy()
         field_min_norm = field1_proxy%get_min()
 
-    !print *,"minmax of field1", field1 % get_min(), field1 % get_max()!
+    print *,"minmax of field1", field1_proxy % get_min(), field1_proxy % get_max()!
 end program main
