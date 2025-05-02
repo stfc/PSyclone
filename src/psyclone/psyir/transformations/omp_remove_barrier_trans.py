@@ -103,7 +103,7 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
       integer, dimension(100) :: a
       integer, dimension(100) :: b
       integer :: i
-      <BLANKLINE>
+    <BLANKLINE>
       !$omp parallel default(shared), private(i)
       !$omp do schedule(auto)
       do i = 1, 100, 1
@@ -128,7 +128,7 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
       !$omp end do nowait
       !$omp barrier
       !$omp end parallel
-      <BLANKLINE>
+    <BLANKLINE>
     end subroutine test
     <BLANKLINE>
 
