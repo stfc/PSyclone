@@ -80,7 +80,7 @@ from psyclone.psyir.transformations.parallel_loop_trans import (
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
-from psyclone.psyir.transformartions.parallel_region_trans import (
+from psyclone.psyir.transformations.parallel_region_trans import (
     ParallelRegionTrans)
 
 
