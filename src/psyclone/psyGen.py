@@ -70,9 +70,9 @@ from psyclone.psyir.nodes import (
     IntrinsicCall, BinaryOperation, OMPParallelDirective, FileContainer)
 from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
                                     ContainerSymbol, DataSymbol,
-                                    UnresolvedType, REAL_TYPE,
+                                    UnresolvedType, REAL_TYPE, DataSymbol,
                                     ImportInterface, INTEGER_TYPE,
-                                    RoutineSymbol)
+                                    RoutineSymbol, ScalarType)
 from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -1116,9 +1116,13 @@ class Kern(Statement):
         # Generate the reduction variable
         var_data_type = var_arg.intrinsic_type
         if var_data_type == "real":
-            data_type = REAL_TYPE
+            data_type = ScalarType(ScalarType.Intrinsic.REAL,
+                                   DataSymbol(var_arg.precision,
+                                              UnresolvedType()))
         elif var_data_type == "integer":
-            data_type = INTEGER_TYPE
+            data_type = ScalarType(ScalarType.Intrinsic.INTEGER,
+                                   DataSymbol(var_arg.precision,
+                                              UnresolvedType()))
         else:
             raise GenerationError(
                 f"Kern.zero_reduction_variable() should be either a 'real' or "
