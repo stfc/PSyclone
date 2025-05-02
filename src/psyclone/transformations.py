@@ -83,6 +83,7 @@ from psyclone.psyir.transformations.transformation_error import (
 from psyclone.psyir.transformartions.parallel_region_trans import (
     ParallelRegionTrans)
 
+
 def check_intergrid(node):
     '''
     Utility function to check that the supplied node does not have
@@ -1214,7 +1215,6 @@ class Dynamo0p3ColourTrans(ColourTrans):
         colours_loop.loop_body.addchild(colour_loop)
 
         return colours_loop
-
 
 
 class OMPSingleTrans(ParallelRegionTrans):
