@@ -37,7 +37,6 @@
 
 ''' Performs py.test tests on the KernelSchedule class. '''
 
-from __future__ import absolute_import
 from psyclone.psyir.nodes import Assignment, Reference, Literal, \
     KernelSchedule, Container
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE, \

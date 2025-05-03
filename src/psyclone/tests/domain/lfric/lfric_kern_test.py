@@ -415,11 +415,17 @@ def test_kern_last_cell_all_colours():
     # Apply a colouring transformation to the loop.
     trans = Dynamo0p3ColourTrans()
     trans.apply(loop)
-    # We have to perform code generation as that sets-up the symbol table.
-    # pylint:disable=pointless-statement
-    psy.gen
-    assert (loop.kernel.last_cell_all_colours_symbol.name
-            == "last_halo_cell_all_colours")
+
+    symbol = loop.kernel.last_cell_all_colours_symbol
+    assert symbol.name == "last_halo_cell_all_colours"
+    assert len(symbol.datatype.shape) == 2  # It's a 2-dimensional array
+
+    # Delete the symbols and try again inside a loop wihtout a halo
+    sched.symbol_table._symbols.pop("last_halo_cell_all_colours")
+    loop.kernel.parent.parent._upper_bound_name = "not-a-halo"
+    symbol = loop.kernel.last_cell_all_colours_symbol
+    assert symbol.name == "last_edge_cell_all_colours"
+    assert len(symbol.datatype.shape) == 1  # It's a 1-dimensional array
 
 
 def test_kern_last_cell_all_colours_intergrid():
@@ -494,3 +500,16 @@ def test_undf_name():
     kern = sched.walk(LFRicKern)[0]
 
     assert kern.undf_name == "undf_w1"
+
+
+def test_argument_kinds():
+    ''' Test the LFRicKern.argument_kinds property. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    kern = sched.walk(LFRicKern)[0]
+
+    assert len(kern.argument_kinds) == 2
+    assert "i_def" in kern.argument_kinds
+    assert "r_def" in kern.argument_kinds
