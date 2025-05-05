@@ -857,8 +857,8 @@ def test_dof_loop_independent_iterations(monkeypatch, dist_mem):
     assert loop.independent_iterations()
 
 
-def test_upper_bound_fortran_invalid_bound():
-    ''' Tests we raise an exception in the LFRicLoop:_upper_bound_fortran()
+def test_upper_bound_psyir_invalid_bound():
+    ''' Tests we raise an exception in the LFRicLoop:_upper_bound_psyir()
     method when 'cell_halo', 'dof_halo' or 'inner' are used.
 
     '''
@@ -875,8 +875,8 @@ def test_upper_bound_fortran_invalid_bound():
                 f"shared-memory code" in str(excinfo.value))
 
 
-def test_upper_bound_fortran_invalid_within_colouring(monkeypatch):
-    ''' Tests we raise an exception in the LFRicLoop:_upper_bound_fortran()
+def test_upper_bound_psyir_invalid_within_colouring(monkeypatch):
+    ''' Tests we raise an exception in the LFRicLoop:_upper_bound_psyir()
     method if an invalid value is provided.
 
     '''

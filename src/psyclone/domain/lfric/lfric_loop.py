@@ -51,7 +51,7 @@ from psyclone.psyGen import (
 from psyclone.psyir.nodes import (
     Loop, Literal, Schedule, Reference, ArrayReference, StructureReference,
     Call, BinaryOperation, ArrayOfStructuresReference, Directive, DataNode,
-    Node)
+    Node, Routine)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, UnresolvedType, UnresolvedInterface)
 
@@ -448,9 +448,9 @@ class LFRicLoop(PSyLoop):
             raise GenerationError(
                 f"Unsupported lower bound name '{self._lower_bound_name}' "
                 f"found")
-        # Use InvokeSchedule SymbolTable to share the same symbol for all
+        # Use the Routine-scoped SymbolTable to share the same symbol for all
         # Loops in the Invoke.
-        mesh_obj = self.ancestor(InvokeSchedule).symbol_table.\
+        mesh_obj = self.ancestor(Routine).symbol_table.\
             find_or_create_tag("mesh")
         call = Call.create(
                 StructureReference.create(
@@ -483,7 +483,7 @@ class LFRicLoop(PSyLoop):
 
         # The symbol for the mesh will already have been added to the
         # symbol table associated with the InvokeSchedule.
-        return self.ancestor(InvokeSchedule).symbol_table.\
+        return self.ancestor(Routine).symbol_table.\
             lookup_with_tag(tag_name).name
 
     def upper_bound_psyir(self) -> Node:
@@ -491,7 +491,7 @@ class LFRicLoop(PSyLoop):
         :returns: the PSyIR for this loop upper bound.
 
         '''
-        sym_tab = self.ancestor(InvokeSchedule).symbol_table
+        sym_tab = self.ancestor(Routine).symbol_table
 
         # Precompute halo_index as we use it in more than one of the if clauses
         halo_index = None
@@ -865,7 +865,7 @@ class LFRicLoop(PSyLoop):
         # Set halo clean/dirty for all fields that are modified
         fields = self.unique_modified_args("gh_field")
 
-        sym_table = self.ancestor(InvokeSchedule).symbol_table
+        sym_table = self.ancestor(Routine).symbol_table
         insert_loc = self
         # If it has ancestor directive keep going up
         while isinstance(insert_loc.parent.parent, Directive):
