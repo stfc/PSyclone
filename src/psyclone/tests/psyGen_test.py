@@ -44,6 +44,9 @@
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
 import os
+import sys
+from unittest.mock import patch
+
 import pytest
 
 from fparser import api as fpapi, logging
@@ -182,6 +185,127 @@ def test_transformation_init_name():
 
     trans = TestTrans()
     assert trans.name == "TestTrans"
+
+
+def test_transformation_get_options():
+    ''' Test that the get_option method behaves in the
+    expected way.'''
+    class TestTrans(Transformation):
+        '''Utilty transformation to test methods of the abstract
+        Transformation class.'''
+        def apply(self, node, valid: bool = True):
+            pass  # pragma: no cover
+    trans = TestTrans()
+    assert trans.get_option("valid", valid=True)
+
+    with pytest.raises(ValueError) as excinfo:
+        trans.get_option("invalid")
+    assert ("option 'invalid' is not a valid option for 'TestTrans'. "
+            "Valid options are '['valid']." in str(excinfo.value))
+
+
+def test_transformation_apply_deprecation_message(capsys):
+    '''Test that passing the options dict to the Transformation.apply
+    function gets the expected deprecation message.'''
+    class TestTrans(Transformation):
+        '''Utility transformation to test methods.'''
+        def apply(self, node=None, options=None):
+            super().apply(node, options=options)
+
+    instance = TestTrans()
+    instance.apply(options={"dict": True})
+    out, err = capsys.readouterr()
+    assert ("PSyclone Deprecation Warning: The 'options' parameter to "
+            "Transformation.apply and Transformation.validate are now "
+            "deprecated. Please use "
+            "the individual arguments, or unpack the options with "
+            "**options. See the Transformations section of the "
+            "User guide for more details" in out)
+
+
+def test_transformation_get_valid_options():
+    '''Test that the get_valid_options method behaves in the expected
+    way.'''
+    class TestTrans(Transformation):
+        '''Utilty transformation to test methods of the abstract
+        Transformation class.'''
+        def apply(self, node, valid: bool = True, untyped=False):
+            '''Apply method of TestTrans.'''
+
+    options = TestTrans.get_valid_options()
+    assert options['valid'].default
+    assert options['valid'].type is bool
+    assert options['valid'].typename == "bool"
+    assert options['untyped'].default is False
+    assert options['untyped'].type is None
+    assert options['untyped'].typename is None
+
+    class InheritTrans(TestTrans):
+        '''Utility transformation to test inheriting arguments'''
+        def apply(self, node, valid2: int = 1):
+            '''Apply method of InheritTrans.'''
+
+    options = InheritTrans.get_valid_options()
+    assert options['valid'].default
+    assert options['valid'].type is bool
+    assert options['valid'].typename == "bool"
+    assert options['untyped'].default is False
+    assert options['untyped'].type is None
+    assert options['untyped'].typename is None
+    assert options['valid2'].default == 1
+    assert options['valid2'].type is int
+    assert options['valid2'].typename == "int"
+
+
+def test_transformation_get_valid_options_no_sphinx():
+    '''Test that the get_valid_options method behaves in the expected
+    way when sphinx isn't available.'''
+    # Test that importing stringify_annotations works without sphinx.
+    # Trick the import into thinking sphinx.util.typing is unavailable
+    with patch.dict(sys.modules, {'sphinx.util.typing': None}):
+        # Unload the previously imported Transformation class
+        # pylint: disable=import-outside-toplevel
+        del sys.modules['psyclone.psyGen']
+        from psyclone.psyGen import Transformation
+
+        class TestTrans(Transformation):
+            '''Utilty transformation to test methods of the abstract
+            Transformation class.'''
+            def apply(self, node, valid: bool = True, untyped=False):
+                '''Apply method of TestTrans.'''
+
+        options = TestTrans.get_valid_options()
+        assert options['valid'].default
+        assert options['valid'].type is bool
+        assert options['valid'].typename == "<class 'bool'>"
+        assert options['untyped'].default is False
+        assert options['untyped'].type is None
+        assert options['untyped'].typename is None
+
+
+def test_transformation_validate_options():
+    '''Test that the validate_options function behaves as expected'''
+    class TestTrans(Transformation):
+        '''Utility transformation to test methods of the abstract
+        Transformation class.'''
+        def apply(self, node, valid: bool = True, options=None):
+            pass  # pragma: no cover
+
+    instance = TestTrans()
+    instance.validate_options(options={})
+    instance.validate_options(valid=False)
+
+    with pytest.raises(TypeError) as excinfo:
+        instance.validate_options(valid=2)
+    assert ("'TestTrans' received options with the wrong types:\n'valid' "
+            "option expects type 'bool' but received '2' of type 'int'.\n"
+            "Please see the documentation and check the provided types."
+            in str(excinfo.value))
+
+    with pytest.raises(ValueError) as excinfo:
+        instance.validate_options(not_valid=True)
+    assert ("'TestTrans' received invalid options ['not_valid']. "
+            "Valid options are '['valid']." in str(excinfo.value))
 
 
 # TransInfo class unit tests
