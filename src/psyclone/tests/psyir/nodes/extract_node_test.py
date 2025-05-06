@@ -44,7 +44,8 @@ from psyclone.core import Signature
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import ExtractNode, Node, Schedule
+from psyclone.psyir.nodes import (
+    ExtractNode, Node, Schedule, Routine, Container)
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.tools import ReadWriteInfo
 from psyclone.tests.utilities import get_invoke
@@ -95,6 +96,30 @@ def test_extract_node_equality():
     node2._post_name = "testb"
     assert node1 != node2
 
+def test_get_unique_region_name():
+    ''' Test the get_unique_region_name utility method. '''
+    etrans = GOceanExtractTrans()
+
+    # Test a Loop nested within the OMP Parallel DO Directive
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           "gocean", idx=0, dist_mem=False)
+    etrans.apply(invoke.schedule.children[0])
+
+    # In PSyKAl it returns the psy module name and no given region_name
+    extract_node = invoke.schedule.walk(ExtractNode)[0]
+    mod_name, region_name = extract_node.get_unique_region_name(
+                                                extract_node.children)
+    assert mod_name == "psy_single_invoke_three_kernels"
+    assert region_name is None
+
+    # If a region name is given, it will be returned
+    extract_node._region_name = "my_region_name"
+    # and it is not in an Invoke, it will return its outer scope name
+    Routine.create("myscope", children=[extract_node.detach()])
+    mod_name, region_name = extract_node.get_unique_region_name(
+                                                extract_node.children)
+    assert mod_name == "myscope"
+    assert region_name == "my_region_name"
 
 # ---------------------------------------------------------------------------
 def test_malformed_extract_node(monkeypatch):
