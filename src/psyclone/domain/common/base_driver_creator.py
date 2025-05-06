@@ -155,7 +155,7 @@ class BaseDriverCreator:
                                 postfix, module_name=None):
         '''
         This function creates all code required for an output variable:
-        1. It declares (and initialised if necessary) the post variable
+        1. It declares (and initialises if necessary) the post variable
         2. It reads the '_post' field which stores the expected value of
         variables at the end of the driver.
 
@@ -217,9 +217,10 @@ class BaseDriverCreator:
         # Now if a variable is written to, but not read, the variable
         # is not allocated. So we need to allocate it and set it to 0.
         # However, this currently does not happen because all fields are
-        # considered written, in case we just write to part of the field,
-        # but in the future we may want to re-enable it if we can guarantee
-        # that the whole field is written first.
+        # considered read (including potential halo elements), in case
+        # we just write to part of the field, but in the future we may want
+        # to re-enable it if we can guarantee that the whole field is written
+        # first.
         # if not is_input:
         #     if (isinstance(post_sym.datatype, ArrayType) or
         #            (isinstance(post_sym.datatype, UnsupportedFortranType) and
@@ -262,7 +263,8 @@ class BaseDriverCreator:
         :returns: all output parameters, i.e. variables that need to be
             verified after executing the kernel. Each entry is a 2-tuple
             containing the symbol of the computed variable, and the symbol
-            of the variable that contains the value read from the file.
+            of the variable that contains the originally computed value read
+            from the file.a
         :rtype: List[Tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
                            :py:class:`psyclone.psyir.symbols.Symbol`]]
 
@@ -278,11 +280,6 @@ class BaseDriverCreator:
                 orig_sym = original_symtab.lookup(signature[0])
                 sym = orig_sym.copy()
                 sym.interface = AutomaticInterface()
-                # if symbol_table.lookup(sym.name, otherwise=None) is not None:
-                #    # We can edit the name because we know the copied symbol
-                #    # is not in a symbol table yet
-                #    # pylint: disable=protected-access
-                #    sym._name = symbol_table.next_available_name(sym.name)
                 symbol_table.add(sym)
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
                 read_stmts.append((name_lit, sym))
