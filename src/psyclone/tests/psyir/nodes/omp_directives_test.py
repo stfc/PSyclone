@@ -69,7 +69,8 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import (
     Dynamo0p3OMPLoopTrans, OMPParallelTrans,
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans,
-    OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans)
+    OMPMasterTrans, OMPLoopTrans)
+from psyclone.psyir.transformations.omp_taskloop_trans import OMPTaskloopTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
