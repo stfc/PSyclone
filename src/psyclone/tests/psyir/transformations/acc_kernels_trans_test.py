@@ -160,10 +160,10 @@ def test_implicit_loop(fortran_reader, fortran_writer):
     schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     acc_trans.apply(schedule.children[0:1], {"default_present": True})
-    gen_code = fortran_writer(psyir)
+    code = fortran_writer(psyir)
     assert ("  !$acc kernels default(present)\n"
             "  sto_tmp(:,:) = 0.0_wp\n"
-            "  !$acc end kernels\n" in gen_code)
+            "  !$acc end kernels\n" in code)
 
 
 def test_multikern_if(fortran_reader, fortran_writer):
@@ -188,15 +188,15 @@ def test_multikern_if(fortran_reader, fortran_writer):
     schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     acc_trans.apply(schedule.children[0:1], {"default_present": True})
-    gen_code = fortran_writer(psyir)
+    code = fortran_writer(psyir)
     assert ("  !$acc kernels default(present)\n"
             "  if (do_this) then\n"
-            "    do jk = 1, 3, 1\n" in gen_code)
+            "    do jk = 1, 3, 1\n" in code)
     assert ("    enddo\n"
             "  end if\n"
             "  !$acc end kernels\n"
             "\n"
-            "end program implicit_loop" in gen_code)
+            "end program implicit_loop" in code)
 
 
 def test_kernels_within_if(fortran_reader, fortran_writer):

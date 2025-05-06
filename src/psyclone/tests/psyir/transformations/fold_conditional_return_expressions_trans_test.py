@@ -37,7 +37,6 @@
 '''Module containing tests for the FoldConditionalReturnExpressionsTrans
 transformation.'''
 
-from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.transformations import \

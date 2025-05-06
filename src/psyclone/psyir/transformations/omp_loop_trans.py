@@ -43,7 +43,6 @@ from psyclone.psyir.nodes import (
     OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
     OMPScheduleClause, OMPBarrierDirective, OMPParallelDirective,
 )
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
 from psyclone.utils import transformation_documentation_wrapper
@@ -324,24 +323,5 @@ class OMPLoopTrans(ParallelLoopTrans):
         else:
             self._reprod = options.get("reprod",
                                        Config.get().reproducible_reductions)
-
-        if self._reprod:
-            # When reprod is True, the variables th_idx and nthreads are
-            # expected to be declared in the scope.
-            root = node.ancestor(Routine)
-
-            symtab = root.symbol_table
-            try:
-                symtab.lookup_with_tag("omp_thread_index")
-            except KeyError:
-                symtab.new_symbol(
-                    "th_idx", tag="omp_thread_index",
-                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-            try:
-                symtab.lookup_with_tag("omp_num_threads")
-            except KeyError:
-                symtab.new_symbol(
-                    "nthreads", tag="omp_num_threads",
-                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
         super().apply(node, options, **kwargs)
