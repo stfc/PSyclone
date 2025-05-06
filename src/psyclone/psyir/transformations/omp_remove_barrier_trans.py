@@ -93,7 +93,6 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
     >>> omplooptrans1 = OMPLoopTrans()
     >>> for loop in psyir.walk(Loop):
     ...     omplooptrans1.apply(loop, nowait=True)
-    >>>
     >>> partrans = OMPParallelTrans()
     >>> partrans.apply(psyir.children[0].children[:])
     >>> rbartrans = OMPRemoveBarrierTrans()
