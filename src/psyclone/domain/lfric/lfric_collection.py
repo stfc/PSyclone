@@ -36,7 +36,7 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements PSyclone LFRic (Dynamo 0.3) API by specialising the
+''' This module implements PSyclone LFRic API by specialising the
     base class for managing the declaration and initialisation of a group of
     related entities within an Invoke or Kernel stub.'''
 

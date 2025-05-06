@@ -37,8 +37,8 @@ https://psyclone.readthedocs.io/en/latest/gocean1p0.html).
 ## [``lfric``](./lfric) directory
 
 Contains the ``ValueRangeCheck``, PSyData-API-based, wrapper library for the
-[LFRic (Dynamo 0.3) API](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
+[LFRic API](
+https://psyclone.readthedocs.io/en/stable/lfric.html).
 
 <!--
 ## Licence

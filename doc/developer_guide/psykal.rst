@@ -418,14 +418,14 @@ To add a new built-in operation into an API use the following steps:
  7. Add an appropriate Fortran ``single_invoke`` example for the new
     Built-in in the relevant ``src/psyclone/tests/test_files/`` subdirectory.
     *e.g.* for the LFRic API it is
-    ``src/psyclone/tests/test_files/dynamo0p3/``.
+    ``src/psyclone/tests/test_files/lfric/``.
     Names of examples follow the template
     ``<category.number>.<subcategory.number>_<built-in_name>.f90``.
     *e.g.* for the LFRic API ``<category.number>`` is 15 and
     ``<built-in_name>`` follows the :ref:`LFRic API Built-in naming
     scheme <lfric-built-ins-names>`.
  8. Document the new Built-in in the documentation of the
-    relevant API (*e.g.* ``doc/dynamo0p3.rst`` for LFRic (Dynamo0.3) API).
+    relevant API (*e.g.* ``doc/lfric.rst`` for LFRic API).
 
 
 If the API being extended does not currently support any Built-ins

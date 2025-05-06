@@ -36,7 +36,7 @@
 #          C. M. Maynard, Met Office/University of Reading,
 #          J. Henrichs, Bureau of Meteorology.
 
-''' This module tests the Dynamo 0.3 API using pytest. '''
+''' This module tests the LFRic API using pytest. '''
 
 import copy
 import os
@@ -51,9 +51,9 @@ from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
                                    LFRicConstants, LFRicKern,
                                    LFRicKernMetadata, LFRicLoop)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import (
-    DynACCEnterDataDirective, DynBoundaryConditions, DynGlobalSum,
-    DynKernelArgument, DynKernelArguments, DynProxies, HaloReadAccess,
+from psyclone.lfric import (
+    LFRicACCEnterDataDirective, LFRicBoundaryConditions, LFRicGlobalSum,
+    LFRicKernelArgument, LFRicKernelArguments, LFRicProxies, HaloReadAccess,
     KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
@@ -69,7 +69,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
+                         "test_files", "lfric")
 # Get the root directory of this PSyclone distribution
 ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__)))))
@@ -839,8 +839,8 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
                            api=TEST_API)
@@ -890,7 +890,7 @@ def test_bc_kernel_anyspace1_only():
     for fspace in kernels[0].arguments._unique_fss:
         fspace._orig_name = "W2"
     with pytest.raises(GenerationError) as err:
-        _ = DynBoundaryConditions(invoke)
+        _ = LFRicBoundaryConditions(invoke)
     assert ("enforce_bc_code kernel must have an argument on ANY_SPACE_1 but "
             "failed to find such an argument" in str(err.value))
 
@@ -912,7 +912,7 @@ def test_bc_op_kernel_wrong_args():
     # Have to add a tag to the symbol table to get to the error.
     invoke.schedule.symbol_table.find_or_create_tag("a_local_stencil")
     with pytest.raises(GenerationError) as err:
-        _ = DynBoundaryConditions(invoke)
+        _ = LFRicBoundaryConditions(invoke)
     assert ("enforce_operator_bc_code kernel must have exactly one argument "
             "but found 2" in str(err.value))
 
@@ -1171,7 +1171,7 @@ def test_stub_file_content_not_fortran():
     ''' fail if the kernel file does not contain fortran '''
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "dynamo0p3_test.py"), api=TEST_API)
+                              "lfric_test.py"), api=TEST_API)
     assert 'no parse pattern found' \
         in str(excinfo.value)
 
@@ -1236,7 +1236,7 @@ def test_arg_descriptor_funcs_method_error():
             in str(excinfo.value))
 
 
-def test_dynkernmetadata_read_fs_error():
+def test_lfrickernmetadata_read_fs_error():
     '''Tests that an exception is raised if a field on a read only
     function space is specified as being written to by the kernel
     metadata.
@@ -1267,11 +1267,11 @@ def test_dynkernmetadata_read_fs_error():
             "specifies writing to the read-only function space 'wchi'."
             in str(info.value))
 
-# DynKernelArgument tests
+# LFRicKernelArgument tests
 
 
-def test_dynkernelargument_intent_invalid(dist_mem):
-    ''' Tests that an error is raised in DynKernelArgument when an invalid
+def test_lfrickernelargument_intent_invalid(dist_mem):
+    ''' Tests that an error is raised in LFRicKernelArgument when an invalid
     intent value is found. Tests with and without distributed memory. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
@@ -1297,9 +1297,9 @@ def test_dynkernelargument_intent_invalid(dist_mem):
 
 
 @pytest.mark.parametrize("proxy", [True, False])
-def test_dynkernelargument_infer_scalar_datatype(monkeypatch, proxy):
+def test_lfrickernelargument_infer_scalar_datatype(monkeypatch, proxy):
     '''
-    Tests for the DynKernelArgument.infer_datatype() method for scalar
+    Tests for the LFRicKernelArgument.infer_datatype() method for scalar
     arguments.
 
     '''
@@ -1343,10 +1343,10 @@ def test_dynkernelargument_infer_scalar_datatype(monkeypatch, proxy):
 
 
 @pytest.mark.parametrize("proxy", [True, False])
-def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
+def test_lfrickernelargument_infer_field_datatype(monkeypatch, proxy):
     # pylint: disable=too-many-statements
     '''
-    Tests for the DynKernelArgument.infer_datatype() method for field and
+    Tests for the LFRicKernelArgument.infer_datatype() method for field and
     operator arguments.
 
     '''
@@ -1436,8 +1436,8 @@ def test_dynkernelargument_infer_field_datatype(monkeypatch, proxy):
     assert "'f1' is not a scalar, field or operator argument" in str(err.value)
 
 
-def test_dynkernelargument_psyir_expression(monkeypatch):
-    ''' Tests for the psyir_expression() method of DynKernelArgument. '''
+def test_lfrickernelargument_psyir_expression(monkeypatch):
+    ''' Tests for the psyir_expression() method of LFRicKernelArgument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -1522,7 +1522,7 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
 
 
 def test_arg_ref_name_method_error1():
-    ''' Tests that an internal error is raised in DynKernelArgument
+    ''' Tests that an internal error is raised in LFRicKernelArgument
     when ref_name() is called with a function space that is not
     associated with this field'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -1539,7 +1539,7 @@ def test_arg_ref_name_method_error1():
 
 
 def test_arg_ref_name_method_error2():
-    ''' Tests that an internal error is raised in DynKernelArgument
+    ''' Tests that an internal error is raised in LFRicKernelArgument
     when ref_name() is called when the argument type is not a field
     or an operator.
 
@@ -1553,12 +1553,12 @@ def test_arg_ref_name_method_error2():
     first_argument._argument_type = "gh_funky_instigator"
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.ref_name()
-    assert ("DynKernelArgument.ref_name(fs): Found unsupported argument "
+    assert ("LFRicKernelArgument.ref_name(fs): Found unsupported argument "
             "type 'gh_funky_instigator'" in str(excinfo.value))
 
 
 def test_arg_intent_error():
-    ''' Tests that an internal error is raised in DynKernelArgument
+    ''' Tests that an internal error is raised in LFRicKernelArgument
     when intent() is called and the argument access property is not one of
     gh_{read,write,inc,readwrite} '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -1597,22 +1597,22 @@ def test_arg_intrinsic_type_error():
         "  data_type[1]='gh_unreal'\n"
         "  access_descriptor[2]='gh_read'\n")
     with pytest.raises(InternalError) as excinfo:
-        _ = DynKernelArguments(call, None)
-    assert (f"DynKernelArgument.__init__(): Found unsupported data "
+        _ = LFRicKernelArguments(call, None)
+    assert (f"LFRicKernelArgument.__init__(): Found unsupported data "
             f"type 'gh_unreal' in the kernel argument descriptor "
             f"'{expected_descriptor}'." in str(excinfo.value))
 
-# Test DynKernelArgument _init_data_type_properties()
+# Test LFRicKernelArgument _init_data_type_properties()
 
 
-def test_dynkernelargument_idtp_error(monkeypatch):
-    '''Test the _init_data_type_properties method in the DynKernelArgument
+def test_lfrickernelargument_idtp_error(monkeypatch):
+    '''Test the _init_data_type_properties method in the LFRicKernelArgument
     class raises the expected exception if the argument is not a
     supported type (one of scalar, field or operator)
 
     '''
     # Use one of the examples to create an instance of
-    # DynKernelArgument.
+    # LFRicKernelArgument.
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
@@ -1626,13 +1626,13 @@ def test_dynkernelargument_idtp_error(monkeypatch):
             in str(info.value))
 
 
-def test_dynkernelargument_idtp_scalar():
-    '''Test the _init_data_type_properties method in the DynKernelArgument
+def test_lfrickernelargument_idtp_scalar():
+    '''Test the _init_data_type_properties method in the LFRicKernelArgument
     class for a scalar.
 
     '''
     # Use one of the examples to create an instance of
-    # DynKernelArgument that describes a scalar.
+    # LFRicKernelArgument that describes a scalar.
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
@@ -1680,13 +1680,13 @@ def test_dynkernelargument_idtp_scalar():
             "not." in str(info.value))
 
 
-def test_dynkernelargument_idtp_reduction():
-    '''Test the _init_data_type_properties method in the DynKernelArgument
+def test_lfrickernelargument_idtp_reduction():
+    '''Test the _init_data_type_properties method in the LFRicKernelArgument
     class for a scalar reduction.
 
     '''
     # Use one of the examples to create an instance of
-    # DynKernelArgument that describes a scalar.
+    # LFRicKernelArgument that describes a scalar.
     _, invoke_info = parse(
         os.path.join(
             BASE_PATH, "15.17.1_one_reduction_one_standard_builtin.f90"),
@@ -1737,13 +1737,13 @@ def test_dynkernelargument_idtp_reduction():
             "in PSyclone." in str(info.value))
 
 
-def test_dynkernelargument_idtp_real_field():
-    '''Test the _init_data_type_properties method in the DynKernelArgument
+def test_lfrickernelargument_idtp_real_field():
+    '''Test the _init_data_type_properties method in the LFRicKernelArgument
     class for a real field.
 
     '''
     # Use one of the examples to create an instance of
-    # DynKernelArgument that describes a field.
+    # LFRicKernelArgument that describes a field.
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
@@ -1794,13 +1794,13 @@ def test_dynkernelargument_idtp_real_field():
     assert field_argument._module_name == "field_mod"
 
 
-def test_dynkernelargument_idtp_integer_field():
-    '''Test the _init_data_type_properties method in the DynKernelArgument
+def test_lfrickernelargument_idtp_integer_field():
+    '''Test the _init_data_type_properties method in the LFRicKernelArgument
     class for a real field.
 
     '''
     # Use one of the examples to create an instance of
-    # DynKernelArgument that describes a field.
+    # LFRicKernelArgument that describes a field.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.10.3_real_to_int_X_builtin.f90"),
         api=TEST_API)
@@ -1830,8 +1830,8 @@ def test_dynkernelargument_idtp_integer_field():
             in str(info.value))
 
 
-def test_dynkernelargument_idtp_vector_field():
-    '''Test the _init_data_type_properties method in the DynKernelArgument
+def test_lfrickernelargument_idtp_vector_field():
+    '''Test the _init_data_type_properties method in the LFRicKernelArgument
     class for a field that is part of a vector_field (a collection of
     fields) in the algorithm layer and is de-referenced to a field in
     an invoke argument list.
@@ -1855,9 +1855,9 @@ def test_dynkernelargument_idtp_vector_field():
     ("26.6.3_mixed_precision_rtran_vector.f90", "r_tran"),
     ("26.6.4_mixed_precision_rbl_vector.f90", "r_bl"),
     ("26.6.5_mixed_precision_rphys_vector.f90", "r_phys")])
-def test_dynkernelargument_idtp_vector_field_kind(filename, kind_name):
+def test_lfrickernelargument_idtp_vector_field_kind(filename, kind_name):
     '''Test the '_init_data_type_properties' method in the
-    DynKernelArgument class for a field that is part of a
+    LFRicKernelArgument class for a field that is part of a
     non-default-precision vector_field (a collection of fields) in the
     algorithm layer and is de-referenced to the expected specific
     field in an invoke argument list.
@@ -1875,8 +1875,8 @@ def test_dynkernelargument_idtp_vector_field_kind(filename, kind_name):
         assert field_argument._module_name == f"{kind_name}_field_mod"
 
 
-def test_dynkernelargument_idtp_abstract_vector_field():
-    '''Test the _init_data_type_properties method in the DynKernelArgument
+def test_lfrickernelargument_idtp_abstract_vector_field():
+    '''Test the _init_data_type_properties method in the LFRicKernelArgument
     class for a field that is part of an abstract_vector_field (a
     collection of fields used in the solver code) in the algorithm
     layer and is de-referenced to a field in an invoke argument
@@ -1897,14 +1897,14 @@ def test_dynkernelargument_idtp_abstract_vector_field():
             "'testkern_code'." in str(info.value))
 
 
-def test_dynkernelargument_idtp_r_solver_operator(tmpdir):
+def test_lfrickernelargument_idtp_r_solver_operator(tmpdir):
     '''
-    Test the _init_data_type_properties method in the DynKernelArgument
+    Test the _init_data_type_properties method in the LFRicKernelArgument
     class for an r_solver_operator.
 
     '''
     # Use one of the test algorithms to create an instance of
-    # DynKernelArgument that describes an r_solver_operator.
+    # LFRicKernelArgument that describes an r_solver_operator.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "26.2_mixed_precision_self.f90"), api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
@@ -1935,14 +1935,14 @@ def test_dynkernelargument_idtp_r_solver_operator(tmpdir):
             "algorithm code." in str(info.value))
 
 
-def test_dynkernelargument_idtp_r_tran_operator(tmpdir):
+def test_lfrickernelargument_idtp_r_tran_operator(tmpdir):
     '''
-    Test the _init_data_type_properties method in the DynKernelArgument
+    Test the _init_data_type_properties method in the LFRicKernelArgument
     class for an r_tran_operator.
 
     '''
     # Use one of the test algorithms to create an instance of
-    # DynKernelArgument that describes an r_tran_operator.
+    # LFRicKernelArgument that describes an r_tran_operator.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "26.8_mixed_precision_args.f90"), api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
@@ -1973,13 +1973,13 @@ def test_dynkernelargument_idtp_r_tran_operator(tmpdir):
             "algorithm code." in str(info.value))
 
 
-def test_dynkernelargument_idtp_operator():
-    '''Test the _init_data_type_properties method in the DynKernelArgument
+def test_lfrickernelargument_idtp_operator():
+    '''Test the _init_data_type_properties method in the LFRicKernelArgument
     class for an operator of type operator_type.
 
     '''
     # Use one of the test algorithms to create an instance of
-    # DynKernelArgument that describes an operator.
+    # LFRicKernelArgument that describes an operator.
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
@@ -2023,13 +2023,13 @@ def test_dynkernelargument_idtp_operator():
     assert operator_argument._module_name == "operator_mod"
 
 
-def test_dynkernelargument_idtp_columnwise_operator():
-    '''Test the _init_data_type_properties method in the DynKernelArgument
+def test_lfrickernelargument_idtp_columnwise_operator():
+    '''Test the _init_data_type_properties method in the LFRicKernelArgument
     class for a columnwise operator.
 
     '''
     # Use one of the test algorithms to create an instance of
-    # DynKernelArgument that describes a columnwise operator.
+    # LFRicKernelArgument that describes a columnwise operator.
     _, invoke_info = parse(os.path.join(BASE_PATH, "20.1_cma_apply.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
@@ -2069,7 +2069,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
 
 
 def test_initdatatypeproperties_unknown_field_type():
-    '''Test that DynKernelArgument._init_data_type_properties raises the
+    '''Test that LFRicKernelArgument._init_data_type_properties raises the
     expected exception when the type of a field can not be determined
     from the algorithm layer. In this case this is because a
     field_collection is dereferenced.
@@ -2088,11 +2088,11 @@ def test_initdatatypeproperties_unknown_field_type():
 # Functional tests
 
 
-# DynKernelArguments tests
+# LFRicKernelArguments tests
 
 
 def test_no_arg_on_space(monkeypatch):
-    ''' Tests that DynKernelArguments.get_arg_on_space[,_name] raise
+    ''' Tests that LFRicKernelArguments.get_arg_on_space[,_name] raise
     the appropriate error when there is no kernel argument on the
     supplied space. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -2335,7 +2335,7 @@ def test_func_descriptor_repr():
     metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     func_descriptor = metadata.func_descriptors[0]
     func_str = repr(func_descriptor)
-    assert "DynFuncDescriptor03(func_type(w1, gh_basis))" in func_str
+    assert "LFRicFuncDescriptor(func_type(w1, gh_basis))" in func_str
 
 
 def test_func_descriptor_str():
@@ -2346,7 +2346,7 @@ def test_func_descriptor_str():
     func_descriptor = metadata.func_descriptors[0]
     func_str = str(func_descriptor)
     output = (
-        "DynFuncDescriptor03 object\n"
+        "LFRicFuncDescriptor object\n"
         "  name='func_type'\n"
         "  nargs=2\n"
         "  function_space_name[0] = 'w1'\n"
@@ -2496,8 +2496,8 @@ def test_halo_exchange_inc(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.6_multikernel_invokes.f90"),
                            api=TEST_API)
@@ -2590,8 +2590,8 @@ def test_halo_exchange_vectors_1(monkeypatch, annexed, tmpdir):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4.1_halo_vector.f90"),
@@ -2623,8 +2623,8 @@ def test_halo_exchange_vectors(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
                            api=TEST_API)
@@ -2684,8 +2684,8 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.6_halo_depth_2.f90"),
                            api=TEST_API)
@@ -2911,7 +2911,7 @@ def test_haloexchange_unknown_halo_depth():
 
 
 def test_haloexchange_correct_parent():
-    '''Test that a dynamo haloexchange has the correct parent once it has
+    '''Test that an LFRic haloexchange has the correct parent once it has
     been added to a schedule.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -2922,8 +2922,8 @@ def test_haloexchange_correct_parent():
         assert child.parent == schedule
 
 
-def test_dynglobalsum_unsupported_argument():
-    ''' Check that an instance of the DynGlobalSum class raises an
+def test_lfricglobalsum_unsupported_argument():
+    ''' Check that an instance of the LFRicGlobalSum class raises an
     exception for an unsupported argument type. '''
     # Get an instance of a non-scalar argument
     _, invoke_info = parse(
@@ -2936,13 +2936,13 @@ def test_dynglobalsum_unsupported_argument():
     kernel = loop.loop_body[0]
     argument = kernel.arguments.args[0]
     with pytest.raises(InternalError) as err:
-        _ = DynGlobalSum(argument)
-    assert ("DynGlobalSum.init(): A global sum argument should be a scalar "
+        _ = LFRicGlobalSum(argument)
+    assert ("LFRicGlobalSum.init(): A global sum argument should be a scalar "
             "but found argument of type 'gh_field'." in str(err.value))
 
 
-def test_dynglobalsum_unsupported_scalar():
-    ''' Check that an instance of the DynGlobalSum class raises an
+def test_lfricglobalsum_unsupported_scalar():
+    ''' Check that an instance of the LFRicGlobalSum class raises an
     exception if an unsupported scalar type is provided when distributed
     memory is enabled (dm=True).
 
@@ -2958,14 +2958,14 @@ def test_dynglobalsum_unsupported_scalar():
     kernel = loop.loop_body[0]
     argument = kernel.arguments.args[1]
     with pytest.raises(GenerationError) as err:
-        _ = DynGlobalSum(argument)
-    assert ("DynGlobalSum currently only supports real scalars, but "
+        _ = LFRicGlobalSum(argument)
+    assert ("LFRicGlobalSum currently only supports real scalars, but "
             "argument 'iflag' in Kernel 'testkern_one_int_scalar_code' "
             "has 'integer' intrinsic type." in str(err.value))
 
 
-def test_dynglobalsum_nodm_error():
-    ''' Check that an instance of the DynGlobalSum class raises an
+def test_lfricglobalsum_nodm_error():
+    ''' Check that an instance of the LFRicGlobalSum class raises an
     exception if it is instantiated with no distributed memory enabled
     (dm=False).
 
@@ -2981,8 +2981,8 @@ def test_dynglobalsum_nodm_error():
     kernel = loop.loop_body[0]
     argument = kernel.arguments.args[0]
     with pytest.raises(GenerationError) as err:
-        _ = DynGlobalSum(argument)
-    assert ("It makes no sense to create a DynGlobalSum object when "
+        _ = LFRicGlobalSum(argument)
+    assert ("It makes no sense to create an LFRicGlobalSum object when "
             "distributed memory is not enabled (dm=False)."
             in str(err.value))
 
@@ -3051,34 +3051,34 @@ def test_multiple_updated_op_args():
 
 def test_kernel_args_has_op():
     ''' Check that we raise an exception if the arg. type supplied to
-    DynKernelArguments.has_operator() is not a valid operator. '''
+    LFRicKernelArguments.has_operator() is not a valid operator. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
         api=TEST_API)
     # Find the parsed code's Call class
     call = invoke_info.calls[0].kcalls[0]
-    dka = DynKernelArguments(call, None)
+    dka = LFRicKernelArguments(call, None)
     with pytest.raises(GenerationError) as excinfo:
         _ = dka.has_operator(op_type="gh_field")
     assert "'op_type' must be a valid operator type" in str(excinfo.value)
 
 
-def test_dynkernelargs_first_field_or_op(monkeypatch):
-    '''Test the first_field_or_operator property of DynKernelArguments.'''
+def test_lfrickernelargs_first_field_or_op(monkeypatch):
+    '''Test the first_field_or_operator property of LFRicKernelArguments.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
         api=TEST_API)
     # Find the parsed code's Call class
     call = invoke_info.calls[0].kcalls[0]
-    dka = DynKernelArguments(call, None)
+    dka = LFRicKernelArguments(call, None)
     arg = dka.first_field_or_operator
-    assert isinstance(arg, DynKernelArgument)
+    assert isinstance(arg, LFRicKernelArgument)
     assert arg.is_field
     # Monkeypatch the argument list to make it invalid.
     monkeypatch.setattr(dka, "_args", [])
     with pytest.raises(InternalError) as err:
         dka.first_field_or_operator
-    assert ("Invalid LFRic kernel: failed to find a DynKernelArgument that is "
+    assert ("Invalid LFRic kernel: failed to find an LFRicKernelArgument that is "
             "a field or operator in ''" in str(err.value))
 
 
@@ -3361,14 +3361,14 @@ def test_halo_ex_back_dep_no_call(monkeypatch):
 
 def test_HaloReadAccess_input_field():
     # pylint: disable=invalid-name
-    '''The HaloReadAccess class expects a DynKernelArgument or equivalent
+    '''The HaloReadAccess class expects an LFRicKernelArgument or equivalent
     object as input. If this is not the case an exception is raised. This
     test checks that this exception is raised correctly.'''
     with pytest.raises(GenerationError) as excinfo:
         _ = HaloReadAccess(None, Schedule())
     assert (
         f"Generation Error: HaloInfo class expects an argument of type "
-        f"DynArgument, or equivalent, on initialisation, but found, "
+        f"LFRicArgument, or equivalent, on initialisation, but found, "
         f"'{type(None)}'" == str(excinfo.value))
 
 
@@ -3388,7 +3388,7 @@ def test_HaloReadAccess_field_in_call():
     with pytest.raises(GenerationError) as excinfo:
         _ = HaloReadAccess(field, Schedule())
     assert ("field 'f1' should be from a call but found "
-            "<class 'psyclone.dynamo0p3.LFRicHaloExchange'>"
+            "<class 'psyclone.lfric.LFRicHaloExchange'>"
             in str(excinfo.value))
 
 
@@ -3471,8 +3471,8 @@ def test_new_halo_exch_vect_field(monkeypatch):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
                            api=TEST_API)
@@ -3508,8 +3508,8 @@ def test_new_halo_exch_vect_deps(monkeypatch):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
                            api=TEST_API)
@@ -3546,8 +3546,8 @@ def test_new_halo_exch_vect_deps2(monkeypatch):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
                            api=TEST_API)
@@ -3670,7 +3670,7 @@ def test_lfriccollection_err1():
     ''' Check that the LFRicCollection constructor raises the expected
     error if it is not provided with an LFRicKern or LFRicInvoke. '''
     with pytest.raises(InternalError) as err:
-        _ = DynProxies(None)
+        _ = LFRicProxies(None)
     assert ("LFRicCollection takes only an LFRicInvoke or an LFRicKern but"
             in str(err.value))
 
@@ -3738,12 +3738,12 @@ def test_kerncallarglist_positions_quad(dist_mem):
     assert create_arg_list.ndf_positions[2].position == 16
     assert create_arg_list.ndf_positions[2].function_space == "w3"
 
-# Class DynKernelArguments start
+# Class LFRicKernelArguments start
 
 
 # (1/5) Method acc_args
-def test_dynkernelarguments_acc_args_1():
-    '''Test that the acc_args method in the DynKernelArguments class
+def test_lfrickernelarguments_acc_args_1():
+    '''Test that the acc_args method in the LFRicKernelArguments class
     returns the expected arguments.
 
     '''
@@ -3762,8 +3762,8 @@ def test_dynkernelarguments_acc_args_1():
 
 
 # (2/5) Method acc_args
-def test_dynkernelarguments_acc_args_2():
-    '''Test that the acc_args method in the DynKernelArguments class
+def test_lfrickernelarguments_acc_args_2():
+    '''Test that the acc_args method in the LFRicKernelArguments class
     returns the expected arguments when there is a field vector.
 
     '''
@@ -3782,8 +3782,8 @@ def test_dynkernelarguments_acc_args_2():
 
 
 # (3/5) Method acc_args
-def test_dynkernelarguments_acc_args_3():
-    '''Test that the acc_args method in the DynKernelArguments class
+def test_lfrickernelarguments_acc_args_3():
+    '''Test that the acc_args method in the LFRicKernelArguments class
     returns the expected arguments when there is a stencil.
 
     '''
@@ -3803,8 +3803,8 @@ def test_dynkernelarguments_acc_args_3():
 
 
 # (4/5) Method acc_args
-def test_dynkernelarguments_acc_args_4():
-    '''Test that the acc_args method in the DynKernelArguments class
+def test_lfrickernelarguments_acc_args_4():
+    '''Test that the acc_args method in the LFRicKernelArguments class
     returns the expected arguments when there is a stencil.
 
     '''
@@ -3825,8 +3825,8 @@ def test_dynkernelarguments_acc_args_4():
 
 
 # (5/5) Method acc_args
-def test_dynkernelarguments_acc_args_5():
-    ''' Test that the acc_args method in the DynKernelArguments class
+def test_lfrickernelarguments_acc_args_5():
+    ''' Test that the acc_args method in the LFRicKernelArguments class
     returns the expected arguments when there is an operator.
 
     '''
@@ -3847,9 +3847,9 @@ def test_dynkernelarguments_acc_args_5():
 
 
 # (1/1) Method scalars
-def test_dynkernelarguments_scalars():
-    '''Test that the scalars method in the DynKernelArguments class
-    returns an empty string. This is because dynamo0p3 currently does
+def test_lfrickernelarguments_scalars():
+    '''Test that the scalars method in the LFRicKernelArguments class
+    returns an empty string. This is because LFRic currently does
     nothing with scalars when adding in OpenACC directives (which is
     where this method is used).
 
@@ -3865,16 +3865,16 @@ def test_dynkernelarguments_scalars():
 
 
 # (1/1) Method data_on_device
-def test_dynaccenterdatadirective_dataondevice():
-    '''Test that the data_on_device method in the DynACCEnterDataDirective
-    class returns None. This is because dynamo0p3 currently does not
+def test_lfricaccenterdatadirective_dataondevice():
+    '''Test that the data_on_device method in the LFRicACCEnterDataDirective
+    class returns None. This is because LFRic currently does not
     make use of this option.
 
     '''
-    directive = DynACCEnterDataDirective()
+    directive = LFRicACCEnterDataDirective()
     assert directive.data_on_device(None) is None
 
-# Class DynKernelArguments end
+# Class LFRicKernelArguments end
 
 
 def test_lfricinvoke_runtime(tmpdir, monkeypatch):
@@ -3884,8 +3884,8 @@ def test_lfricinvoke_runtime(tmpdir, monkeypatch):
     '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_run_time_checks", True)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -3938,15 +3938,15 @@ def test_lfricinvoke_runtime(tmpdir, monkeypatch):
     assert expected in generated_code
 
 
-def test_dynruntimechecks_anyspace(tmpdir, monkeypatch):
+def test_lfricruntimechecks_anyspace(tmpdir, monkeypatch):
     '''Test that run-time checks are not added for fields where the kernel
     metadata specifies anyspace.
 
     '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_run_time_checks", True)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -3983,12 +3983,12 @@ def test_dynruntimechecks_anyspace(tmpdir, monkeypatch):
     assert expected2 in generated_code
 
 
-def test_dynruntimechecks_vector(tmpdir, monkeypatch):
+def test_lfricruntimechecks_vector(tmpdir, monkeypatch):
     ''' Test that run-time checks work for vector fields. '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_run_time_checks", True)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -4041,7 +4041,7 @@ def test_dynruntimechecks_vector(tmpdir, monkeypatch):
     assert expected2 in generated_code
 
 
-def test_dynruntimechecks_multikern(tmpdir, monkeypatch):
+def test_lfricruntimechecks_multikern(tmpdir, monkeypatch):
     ''' Test that run-time checks work when there are multiple kernels and
     at least one field is specified as being on a given function space
     more than once. In this case we want to avoid checking the same
@@ -4050,8 +4050,8 @@ def test_dynruntimechecks_multikern(tmpdir, monkeypatch):
     '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_run_time_checks", True)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -4122,12 +4122,12 @@ def test_dynruntimechecks_multikern(tmpdir, monkeypatch):
     assert expected2 in generated_code
 
 
-def test_dynruntimechecks_builtins(tmpdir, monkeypatch):
+def test_lfricruntimechecks_builtins(tmpdir, monkeypatch):
     '''Test that run-time checks work when there are builtins.'''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_run_time_checks", True)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.1_X_plus_Y_builtin.f90"),
                            api=TEST_API)
@@ -4154,7 +4154,7 @@ def test_dynruntimechecks_builtins(tmpdir, monkeypatch):
     assert expected_code2 in generated_code
 
 
-def test_dynruntimechecks_anydiscontinuous(tmpdir, monkeypatch):
+def test_lfricruntimechecks_anydiscontinuous(tmpdir, monkeypatch):
     '''Test that run-time checks work when we have checks for a field
     function space being consistent with an any_discontinuous_*
     function space.
@@ -4162,8 +4162,8 @@ def test_dynruntimechecks_anydiscontinuous(tmpdir, monkeypatch):
     '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_run_time_checks", True)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "11.4_any_discontinuous_space.f90"),
                            api=TEST_API)
@@ -4216,7 +4216,7 @@ def test_dynruntimechecks_anydiscontinuous(tmpdir, monkeypatch):
     assert expected2 in generated_code
 
 
-def test_dynruntimechecks_anyw2(tmpdir, monkeypatch):
+def test_lfricruntimechecks_anyw2(tmpdir, monkeypatch):
     '''Test that run-time checks work when we have checks for a field
     function space being consistent with an anyw2 function
     space.
@@ -4224,8 +4224,8 @@ def test_dynruntimechecks_anyw2(tmpdir, monkeypatch):
     '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_run_time_checks", True)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "21.1_single_invoke_multi_anyw2.f90"),
                            api=TEST_API)
@@ -4397,7 +4397,7 @@ operator_r_tran_local_stencil => null()
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_dynpsy_gen_container_routines(tmpdir):
+def test_lfricpsy_gen_container_routines(tmpdir):
     ''' Tests that routines outside the InvokeSchedule are generated when
     the code_gen method is called.
 

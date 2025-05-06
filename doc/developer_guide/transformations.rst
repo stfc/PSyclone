@@ -132,7 +132,7 @@ they have their own, on-board memory which is separate from that of
 the host. Managing (i.e. minimising) data movement between host and
 GPU is then a very important part of obtaining good performance.
 
-Since PSyclone operates at the level of Invokes for the LFRic (Dynamo0.3) and
+Since PSyclone operates at the level of Invokes for the LFRic and
 GOcean1.0 APIs and of single routines for the NEMO API, it has no information
 about where an application starts and thus no single place in which to initiate
 data transfers to a GPU. (We assume that the host is responsible for model I/O

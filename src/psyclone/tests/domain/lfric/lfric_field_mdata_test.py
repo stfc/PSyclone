@@ -59,7 +59,7 @@ from psyclone.errors import InternalError
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
-    "test_files", "dynamo0p3")
+    "test_files", "lfric")
 TEST_API = "lfric"
 
 
@@ -553,7 +553,7 @@ def test_field_invoke_uniq_declns_valid_intrinsic():
 def test_field_arg_lfricconst_properties(monkeypatch):
     ''' Tests that properties of all supported types of field arguments
     ('real'-valued 'field_type' and 'integer'-valued 'integer_field_type')
-    defined in LFRicConstants are correctly set up in the DynKernelArgument
+    defined in LFRicConstants are correctly set up in the LFRicKernelArgument
     class.
 
     '''

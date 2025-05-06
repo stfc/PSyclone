@@ -15,7 +15,7 @@
 !> to the terminal. For parallel execution, the logging information will
 !> be sent to files - one for each MPI task.
 !>
-!> @todo  At some point the serial version of Dynamo should also log to a file,
+!> @todo  At some point the serial version of LFRic should also log to a file,
 !>        but for now it is easier for developers if the code logs to stdout.
 
 

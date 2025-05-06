@@ -45,7 +45,7 @@ import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants, LFRicKernMetadata
-from psyclone.dynamo0p3 import LFRicHaloExchange, HaloReadAccess
+from psyclone.lfric import LFRicHaloExchange, HaloReadAccess
 from psyclone.errors import GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
@@ -56,13 +56,13 @@ from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.transformations import (ACCEnterDataTrans, check_intergrid,
-                                      Dynamo0p3ColourTrans,
-                                      DynamoOMPParallelLoopTrans,
+                                      LFRicColourTrans,
+                                      LFRicOMPParallelLoopTrans,
                                       TransformationError)
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
+                         "test_files", "lfric")
 
 API = "lfric"
 
@@ -251,28 +251,28 @@ def test_two_grid_types(monkeypatch):
             "['gh_coarse', 'gh_fine', 'gh_medium']" in str(err.value))
 
 
-def test_dynintergrid():
-    '''Check the setters and getters for colour information in DynIntergrid
+def test_lfricintergrid():
+    '''Check the setters and getters for colour information in LFRicIntergrid
     work as expected. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.0_intergrid_prolong.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    # Get the DynIntergrid object from the tree:
-    dyn_intergrid = psy.invokes.invoke_list[0].meshes.intergrid_kernels[0]
+    # Get the LFRicIntergrid object from the tree:
+    lfric_intergrid = psy.invokes.invoke_list[0].meshes.intergrid_kernels[0]
     # The objects will not get initialised before `gen` is called, so all
     # values should be None initially:
-    assert dyn_intergrid.colourmap_symbol is None
-    assert dyn_intergrid.last_cell_var_symbol is None
-    assert dyn_intergrid.ncolours_var_symbol is None
+    assert lfric_intergrid.colourmap_symbol is None
+    assert lfric_intergrid.last_cell_var_symbol is None
+    assert lfric_intergrid.ncolours_var_symbol is None
     # Now set some symbols and check that they are correct (note that
     # there is no individual setter for these attributes).
-    dyn_intergrid.set_colour_info(Symbol("cmap"),
+    lfric_intergrid.set_colour_info(Symbol("cmap"),
                                   Symbol("ncolours"),
                                   Symbol("last_cell"))
-    assert dyn_intergrid.colourmap_symbol.name == "cmap"
-    assert dyn_intergrid.ncolours_var_symbol.name == "ncolours"
-    assert dyn_intergrid.last_cell_var_symbol.name == "last_cell"
+    assert lfric_intergrid.colourmap_symbol.name == "cmap"
+    assert lfric_intergrid.ncolours_var_symbol.name == "ncolours"
+    assert lfric_intergrid.last_cell_var_symbol.name == "last_cell"
 
 
 def test_field_prolong(tmpdir, dist_mem):
@@ -375,8 +375,8 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.1_intergrid_restrict.f90"),
@@ -506,8 +506,8 @@ def test_cont_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.1.1_intergrid_cont_restrict.f90"),
@@ -797,8 +797,8 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # Now do some transformations
-    otrans = DynamoOMPParallelLoopTrans()
-    ctrans = Dynamo0p3ColourTrans()
+    otrans = LFRicOMPParallelLoopTrans()
+    ctrans = LFRicColourTrans()
     # Apply OMP to the first restrict kernel.
     otrans.apply(schedule[0])
     # Apply colouring and OMP to the first prolong kernel
@@ -840,7 +840,7 @@ def test_restrict_prolong_chain_acc(tmpdir):
     schedule = psy.invokes.invoke_list[0].schedule
     enter_data_trans = ACCEnterDataTrans()
     kernel_trans = ACCKernelsTrans()
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     const = LFRicConstants()
 
     for loop in schedule.walk(Loop):

@@ -107,7 +107,7 @@ def test_transformation_name():
 
 
 def test_validate_unsupported_api():
-    ''' Check that attempting to apply an OpenCL transformation to a Dynamo
+    ''' Check that attempting to apply an OpenCL transformation to an LFRic
     InvokeSchedule raises the expected error. '''
     # Undo the effect of the 'auto-use' fixture (at the top of this file)
     # that sets-up the Config object for the GOcean API. By setting the

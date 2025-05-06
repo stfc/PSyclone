@@ -58,7 +58,7 @@ def test_kernelimportstoargumentstrans_wrongapi():
     ''' Check the KernelImportsToArguments with an API other than GOcean1p0'''
 
     trans = KernelImportsToArguments()
-    path = os.path.join(BASEPATH, "dynamo0p3")
+    path = os.path.join(BASEPATH, "lfric")
     _, invoke_info = parse(os.path.join(path, "1_single_invoke.f90"),
                            api="lfric")
     psy = PSyFactory("lfric").create(invoke_info)

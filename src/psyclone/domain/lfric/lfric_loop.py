@@ -135,7 +135,7 @@ class LFRicLoop(PSyLoop):
 
     def lower_to_language_level(self):
         '''In-place replacement of DSL or high-level concepts into generic
-        PSyIR constructs. This function replaces a LFRicLoop with a PSyLoop
+        PSyIR constructs. This function replaces an LFRicLoop with a PSyLoop
         and inserts the loop boundaries into the new PSyLoop, or removes
         the loop node in case of a domain kernel. Once TODO #1731 is done
         (which should fix the loop boundaries, which atm rely on index of
@@ -475,7 +475,7 @@ class LFRicLoop(PSyLoop):
             # space. _field_name holds the name of the argument that
             # determines the iteration space of this kernel and that
             # is set-up to be the one on the coarse mesh (in
-            # DynKernelArguments.iteration_space_arg()).
+            # LFRicKernelArguments.iteration_space_arg()).
             tag_name = "mesh_" + self._field_name
         else:
             # It's not an inter-grid kernel so there's only one mesh
@@ -619,7 +619,7 @@ class LFRicLoop(PSyLoop):
         it might and False if it definitely does not.
 
         :param arg: an argument contained within this loop.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicArgument`
 
         :returns: True if the argument reads, or might read from the \
             halo and False otherwise.
@@ -698,7 +698,7 @@ class LFRicLoop(PSyLoop):
         exchange class so it is simplest to do it this way
 
         :param halo_field: the argument requiring a halo exchange
-        :type halo_field: :py:class:`psyclone.dynamo0p3.DynArgument`
+        :type halo_field: :py:class:`psyclone.lfric.LFRicArgument`
         :param index: optional argument providing the vector index.
         :type index: Optional[int]
 
@@ -709,7 +709,7 @@ class LFRicLoop(PSyLoop):
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import LFRicHaloExchange
+        from psyclone.lfric import LFRicHaloExchange
         exchange = LFRicHaloExchange(halo_field,
                                      parent=self.parent,
                                      vector_index=idx)
@@ -756,7 +756,7 @@ class LFRicLoop(PSyLoop):
         add the appropriate number of halo exchange calls.
 
         :param halo_field: the argument requiring a halo exchange
-        :type halo_field: :py:class:`psyclone.dynamo0p3.DynArgument`
+        :type halo_field: :py:class:`psyclone.lfric.LFRicArgument`
 
         '''
         if halo_field.vector_size > 1:
@@ -783,7 +783,7 @@ class LFRicLoop(PSyLoop):
         # pylint: disable=too-many-nested-blocks
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import LFRicHaloExchange
+        from psyclone.lfric import LFRicHaloExchange
         for call in self.kernels():
             for arg in call.arguments.args:
                 if arg.access in AccessType.all_write_accesses():
@@ -841,7 +841,7 @@ class LFRicLoop(PSyLoop):
                     for arg in prev_arg_list:
                         # Avoid circular import
                         # pylint: disable=import-outside-toplevel
-                        from psyclone.dynamo0p3 import LFRicHaloExchange
+                        from psyclone.lfric import LFRicHaloExchange
                         if not isinstance(arg.call, LFRicHaloExchange):
                             raise GenerationError(
                                 "Error in create_halo_exchanges. Expecting "
@@ -849,7 +849,7 @@ class LFRicLoop(PSyLoop):
                 prev_node = prev_arg_list[0].call
                 # Avoid circular import
                 # pylint: disable=import-outside-toplevel
-                from psyclone.dynamo0p3 import LFRicHaloExchange
+                from psyclone.lfric import LFRicHaloExchange
                 if not isinstance(prev_node, LFRicHaloExchange):
                     # previous dependence is not a halo exchange so
                     # call the add halo exchange logic which
@@ -884,7 +884,7 @@ class LFRicLoop(PSyLoop):
                                 interface=UnresolvedInterface())
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
-            from psyclone.dynamo0p3 import HaloWriteAccess
+            from psyclone.lfric import HaloWriteAccess
             # The HaloWriteAccess class provides information about how the
             # supplied field is accessed within its parent loop
             hwa = HaloWriteAccess(field, self)
