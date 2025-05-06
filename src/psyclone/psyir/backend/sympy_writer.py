@@ -369,8 +369,7 @@ class SymPyWriter(FortranWriter):
         # This one is used when the array symbol is accessed (in the original
         # code) without any indexing at all.
         self._no_bounds = self._symbol_table.new_symbol(
-            "sympy_no_bounds",
-            tag="sympy!no_bounds").name
+            "sympy_no_bounds", tag="sympy!no_bounds").name
 
     # -------------------------------------------------------------------------
     @property
@@ -389,8 +388,9 @@ class SymPyWriter(FortranWriter):
     # -------------------------------------------------------------------------
     @property
     def no_bounds(self) -> str:
-        ''':returns: the name to be used when no bounds are present on an
-                     array access.
+        '''
+        :returns: the name to be used when no bounds are present on an
+                  array access.
         '''
         return self._no_bounds
 
