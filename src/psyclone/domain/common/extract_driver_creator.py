@@ -61,14 +61,14 @@ class ExtractDriverCreator(BaseDriverCreator):
 
     :param integer_type: default scalar integer type to be used for integer
         variables. Defaults to INTEGER_TYPE.
-    :type integer_type: :py:class:`psyclone.psyir.symbols.ScalarType`
     :param real_type: default scalar real type to be used for real
         variables. Defaults to REAL8_TYPE.
-    :type real_type: :py:class:`psyclone.psyir.symbols.ScalarType`
+    :param region_name: Suggested region name.
 
     '''
-    def __init__(self, integer_type=INTEGER_TYPE, real_type=REAL8_TYPE,
-                 region_name=None):
+    def __init__(self, integer_type: ScalarType = INTEGER_TYPE,
+                 real_type: ScalarType = REAL8_TYPE,
+                 region_name: str = None):
         super().__init__()
         self._region_name = region_name
         # Set the integer and real types to use.
@@ -158,12 +158,11 @@ class ExtractDriverCreator(BaseDriverCreator):
 
         return file_container
 
-    def replace_precisions(self, program):
+    def replace_precisions(self, program: Routine):
         ''' Replaces the precisions with the values given in the _default_types
         in order to avoid imported precision symbols.
 
         :param program: the PSyIR Routine in which to replace the symbols.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
         '''
         for symbol in program.symbol_table.symbols:
             if isinstance(symbol, DataSymbol):

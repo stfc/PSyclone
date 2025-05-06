@@ -49,17 +49,22 @@ wrapping up settings for generating driver for the extracted code, will
 be added in Issue #298.
 '''
 
+from typing import List
+
 from psyclone.configuration import Config
+from psyclone.core import Signature
 from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, REAL8_TYPE, ArrayType, ContainerSymbol,
-    ImportInterface)
+    ImportInterface, DataType, SymbolTable)
+# from psyclone.psyir.tools import ReadWriteInfo
 
 
 class ExtractNode(PSyDataNode):
@@ -263,7 +268,7 @@ class ExtractNode(PSyDataNode):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def determine_postfix(read_write_info, postfix="_post"):
+    def determine_postfix(read_write_info, postfix: str = "_post") -> str:
         '''
         This function prevents any name clashes that can occur when adding
         the postfix to output variable names. For example, if there is an
@@ -275,14 +280,13 @@ class ExtractNode(PSyDataNode):
         'post1', ...) until any name clashes are avoided. This works for
         structured and non-structured types.
 
-        :param read_write_info: information about all input and output \
+        :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param str postfix: the postfix to append to each output variable.
 
         :returns: a postfix that can be added to each output variable without
             generating a name clash.
-        :rtype: str
 
         '''
         suffix = ""
@@ -300,7 +304,7 @@ class ExtractNode(PSyDataNode):
                 suffix += 1
         return postfix+str(suffix)
 
-    def get_unique_region_name(self, nodes):
+    def get_unique_region_name(self, nodes: List[Node]):
         '''This function returns the region and module name. If they are
         specified in the user options, these names will just be returned (it
         is then up to the user to guarantee uniqueness). Otherwise a name
@@ -308,7 +312,6 @@ class ExtractNode(PSyDataNode):
         make sure the name is unique.
 
         :param nodes: a list of nodes.
-        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
 
         '''
         # pylint: disable=import-outside-toplevel
@@ -322,16 +325,14 @@ class ExtractNode(PSyDataNode):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _flatten_signature(signature):
+    def _flatten_signature(signature: Signature) -> str:
         '''Creates a 'flattened' string for a signature by using ``_`` to
         separate the parts of a signature. For example, in Fortran
         a reference to ``a%b`` would be flattened to be ``a_b``.
 
         :param signature: the signature to be flattened.
-        :type signature: :py:class:`psyclone.core.Signature`
 
         :returns: a flattened string (all '%' replaced with '_'.)
-        :rtype: str
 
         '''
         return str(signature).replace("%", "_")
@@ -373,10 +374,12 @@ class ExtractNode(PSyDataNode):
             structure_ref.replace_with(Reference(symbol))
 
     @staticmethod
-    def _flatten_datatype(structure_reference):
+    def _flatten_datatype(structure_reference: StructureReference) -> DataType:
         ''' Ideally this should be replaces by structure_reference.datatype
         but until it works, this utility method provides hardcoded type
-        information depending on the PSyKAL DSL and names involved
+        information depending on the PSyKAL DSL and names involved.
+
+        :returns: the datatype of the symbol with the flattened expression.
         '''
         signature, _ = structure_reference.get_signature_and_indices()
         if Config.get().api == "gocean":
@@ -393,7 +396,18 @@ class ExtractNode(PSyDataNode):
         return INTEGER_TYPE
 
     @staticmethod
-    def bring_external_symbols(read_write_info, symbol_table):
+    def bring_external_symbols(read_write_info, symbol_table: SymbolTable):
+        '''
+        Use the ModuleManager to explore external dependencies and bring into
+        scope symbols used in other modules (with the ImportInterface). The
+        symbols will be tagged with a 'signature@module_name' tag.
+
+        :param read_write_info: information about the symbols usage in the
+            scope.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
+        :param symbol_table: the associated symbol table.
+
+        '''
         from psyclone.parse import ModuleManager
         mod_man = ModuleManager.get()
         for module_name, signature in read_write_info.set_of_all_used_vars:

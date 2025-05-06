@@ -159,20 +159,13 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
        example, a variable ``f`` which was modified in the kernel call(s),
        will then be compared with ``f_post``.
 
-    :param precision: a mapping of the various precisions used in LFRic to
-        the actual Fortran data type to be used in a stand-alone driver.
-    :type precision: Optional[Dict[str, str]]
-
-    :raises InternalError: if the precision argument is specified but
-        is not a dictionary.
-
+    :param region_name: the suggested region_name.
     '''
-    def __init__(self, region_name=None):
-        super().__init__()
+    def __init__(self, region_name: str = None):
+        super().__init__(region_name)
         # TODO #2069: check if this list can be taken from LFRicConstants
         # TODO #2018: once r_field is defined in the LFRic infrastructure,
         #             it should be added to this list.
-        self._region_name = region_name
         self._all_field_types = ["integer_field_type", "field_type",
                                  "r_bl_field", "r_solver_field_type",
                                  "r_tran_field_type"]

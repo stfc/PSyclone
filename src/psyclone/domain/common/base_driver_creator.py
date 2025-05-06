@@ -32,17 +32,22 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''This module provides a base class for all domain-specific kernel extraction
 implementations.
 '''
 
+from typing import List, Tuple
+
 from psyclone.parse import ModuleManager
-from psyclone.psyir.nodes import Call, Literal, Reference, ExtractNode
+from psyclone.psyir.nodes import (
+    Call, Literal, Reference, ExtractNode, Routine, Node)
 from psyclone.psyir.symbols import (
     CHARACTER_TYPE, ContainerSymbol, ImportInterface, INTEGER_TYPE, NoType,
-    RoutineSymbol, DataSymbol, UnsupportedFortranType,
-    AutomaticInterface, UnresolvedType)
+    RoutineSymbol, DataSymbol, UnsupportedFortranType, Symbol,
+    AutomaticInterface, UnresolvedType, SymbolTable)
+from psyclone.psyir.tools import ReadWriteInfo
 
 
 class BaseDriverCreator:
@@ -56,17 +61,15 @@ class BaseDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def add_call(program, name, args):
+    def add_call(program: Routine, name: str, args: List[Node]):
         '''This function creates a call to the subroutine of the given name,
         providing the arguments. The call will be added to the program and
         the corresponding RoutineSymbol to its symbol table (if not already
         present).
 
         :param program: the PSyIR Routine to which any code must be added.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param str name: name of the subroutine to call.
+        :param name: name of the subroutine to call.
         :param args: list of all arguments for the call.
-        :type args: list[:py:class:`psyclone.psyir.nodes.Node`]
 
         :raises TypeError: if there is a symbol with the
             specified name defined that is not a RoutineSymbol.
@@ -85,16 +88,14 @@ class BaseDriverCreator:
         program.addchild(call)
 
     @staticmethod
-    def add_read_call(program, name_lit, sym, read_var):
+    def add_read_call(program: Routine, name_lit: Literal, sym: DataSymbol,
+                      read_var: str):
         '''This function creates a call to the subroutine that read fields
         from the data file.
 
         :param program: the PSyIR Routine to which any code must be added.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
         :param name_lit: the name of the field in the data file.
-        :type name_lit: :py:class:`psyclone.psyir.nodes.Literal`
         :param sym: the symbol to store the read data.
-        :type sym: :py:class:`psyclone.psyir.symbol.Symbol`
         :param str read_var: the method name to read the data.
         '''
         # TODO #2898: the test for array can be removed if
@@ -113,20 +114,17 @@ class BaseDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def add_result_tests(program, output_symbols):
+    def add_result_tests(program: Routine,
+                         output_symbols: List[Tuple[Symbol, Symbol]]):
         '''Adds tests to check that all output variables have the expected
         value.
 
         :param program: the program to which the tests should be added.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
         :param output_symbols: a list containing all output variables of
             the executed code. Each entry in the list is a 2-tuple,
             containing first the symbol that was computed when executing
             the kernels, and then the symbol containing the expected
             values that have been read in from a file.
-        :type output_symbols: list[tuple[
-            :py:class:`psyclone.psyir.symbols.Symbol`,
-            :py:class:`psyclone.psyir.symbols.Symbol`]]
         '''
 
         module = ContainerSymbol("compare_variables_mod")
@@ -151,35 +149,33 @@ class BaseDriverCreator:
         BaseDriverCreator.add_call(program, "compare_summary", [])
 
     @staticmethod
-    def _create_output_var_code(name, program, is_input, read_var,
-                                postfix, module_name=None):
+    def _create_output_var_code(
+            name: str, program: Routine, is_input: bool, read_var: str,
+            postfix: str, module_name: str = None
+    ) -> Tuple[Symbol, Symbol]:
         '''
         This function creates all code required for an output variable:
         1. It declares (and initialises if necessary) the post variable
         2. It reads the '_post' field which stores the expected value of
         variables at the end of the driver.
 
-        :param str name: the name of original variable (i.e.
+        :param name: the name of original variable (i.e.
             without _post), which will be looked up as a tag in the symbol
             table. If index is provided, it is incorporated in the tag using
             f"{name}_{index}_data".
         :param program: the PSyIR Routine to which any code must
             be added. It also contains the symbol table to be used.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param bool is_input: True if this variable is also an input
-            parameter.
-        :param str read_var: the readvar method to be used including the
+        :param is_input: True if this variable is also an input parameter.
+        :param read_var: the readvar method to be used including the
             name of the PSyData object (e.g. 'psy_data%ReadVar')
-        :param str postfix: the postfix to use for the expected output
+        :param postfix: the postfix to use for the expected output
             values, which are read from the file.
-        :param str module_name: if the variable is part of an external module,
+        :param module_name: if the variable is part of an external module,
             this contains the module name from which it is imported.
             Otherwise, this must either not be specified or an empty string.
 
         :returns: a 2-tuple containing the output Symbol after the kernel,
              and the expected output read from the file.
-        :rtype: Tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
-                      :py:class:`psyclone.psyir.symbols.Symbol`]
 
         '''
         # Obtain the symbol of interest
@@ -235,8 +231,10 @@ class BaseDriverCreator:
         #     program.addchild(set_zero)
         return (sym, post_sym)
 
-    def _create_read_in_code(self, program, psy_data, original_symtab,
-                             read_write_info, postfix):
+    def _create_read_in_code(
+            self, program: Routine, psy_data: DataSymbol,
+            original_symtab: SymbolTable, read_write_info: ReadWriteInfo,
+            postfix: str) -> List[Tuple[Symbol, Symbol]]:
         '''This function creates the code that reads in the data file
         produced during extraction. For each:
 
@@ -246,17 +244,13 @@ class BaseDriverCreator:
           and at the end compare the driver value with the expected one.
 
         :param program: the PSyIR Routine to which any code must be added.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
         :param psy_data: the PSyData symbol to be used.
-        :type psy_data: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param original_symtab: this is needed because read_write_info has
             signatures instead of symbols, and the signature still have to
             be looked up to retrive the symbol and then the type.
-        :type original_symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param read_write_info: information about all input and output
             parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str postfix: a postfix that is added to a variable name to
+        :param postfix: a postfix that is added to a variable name to
             create the corresponding variable that stores the output
             value from the kernel data file.
 
@@ -265,8 +259,6 @@ class BaseDriverCreator:
             containing the symbol of the computed variable, and the symbol
             of the variable that contains the originally computed value read
             from the file.a
-        :rtype: List[Tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
-                           :py:class:`psyclone.psyir.symbols.Symbol`]]
 
         '''
         symbol_table = program.scope.symbol_table
@@ -331,22 +323,21 @@ class BaseDriverCreator:
         return output_symbols
 
     @staticmethod
-    def _make_valid_unit_name(name):
+    def _make_valid_unit_name(name: str) -> str:
         '''Valid program or routine names are restricted to 63 characters,
         and no special characters like '-' (which is used when adding
         invoke and region numbers).
 
-        :param str name: a proposed unit name.
+        :param name: a proposed unit name.
 
         :returns: a valid program or routine  name with special characters
             removed and restricted to a length of 63 characters.
-        :rtype: str
 
         '''
         return name.replace("-", "")[:63]
 
     @staticmethod
-    def import_modules(program):
+    def import_modules(program: Routine):
         '''This function adds all the import statements required for the
         actual kernel calls. It finds all calls in the PSyIR tree and
         checks for calls with a ImportInterface. Any such call will
@@ -354,7 +345,6 @@ class BaseDriverCreator:
         with an import interface pointing to this module.
 
         :param program: the PSyIR Routine to which any code must be added.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
 
         '''
         symbol_table = program.scope.symbol_table
