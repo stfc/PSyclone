@@ -324,8 +324,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
           end do
           !$OMP END TASKLOOP
 
-        At code-generation time (when
-        :py:meth:`OMPTaskloopDirective.gen_code` is called), this node must be
+        At code-generation time (when lowering is called), this node must be
         within (i.e. a child of) an OpenMP SERIAL region.
 
         If the keyword "nogroup" is specified in the options, it will cause a
@@ -679,8 +678,7 @@ class ACCLoopTrans(ParallelLoopTrans):
              ...
           end do
 
-        At code-generation time (when
-        :py:meth:`psyclone.psyir.nodes.ACCLoopDirective.gen_code` is called),
+        At code-generation time (when lowering is called),
         this node must be within (i.e. a child of) a PARALLEL region.
 
         :param node: the supplied node to which we will apply the
@@ -751,9 +749,9 @@ class OMPParallelLoopTrans(OMPLoopTrans):
           !$OMP END PARALLEL DO
 
         :param node: the node (loop) to which to apply the transformation.
-        :type node: :py:class:`psyclone.f2pygen.DoGen`
-        :param options: a dictionary with options for transformations\
-                        and validation.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param options: a dictionary with options for transformations
+            and validation.
         :type options: Optional[Dict[str, Any]]
         '''
         self.validate(node, options=options)
@@ -1323,10 +1321,8 @@ class OMPSingleTrans(ParallelRegionTrans):
         '''Apply the OMPSingleTrans transformation to the specified node in a
         Schedule.
 
-        At code-generation time this node must be within (i.e. a child of)
-        an OpenMP PARALLEL region. Code generation happens when
-        :py:meth:`OMPLoopDirective.gen_code` is called, or when the PSyIR
-        tree is given to a backend.
+        At code-generation time (when lowering is called) this node must be
+        within (i.e. a child of) an OpenMP PARALLEL region.
 
         If the keyword "nowait" is specified in the options, it will cause a
         nowait clause to be added if it is set to True, otherwise no clause
