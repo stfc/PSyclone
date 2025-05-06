@@ -475,7 +475,12 @@ def test_symbolic_math_use_range(fortran_reader, expressions):
     ("a*(b+c)", "a * b + a * c"),
     ("a*((b+c)/d)", "a * b / d + a * c / d"),
     ("a(i)*((b(i,j)+c(j))/d)",
-     "a(i) * b(i,j) / d + a(i) * c(j) / d")])
+     "a(i) * b(i,j) / d + a(i) * c(j) / d"),
+    # 'a' is unresolved so we don't know from the first occurrence whether or
+    # not it is a scalar.
+    ("a / a(i)", "a / a(i)"),
+    ("norm_u(idx+iw2) * u_e(idx + (LBOUND(u_e,dim=1)-iw2v), df2)",
+     "TODO")])
 def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     '''Test the expand method works as expected.'''
     # A dummy program to easily create the PSyIR for the
@@ -508,13 +513,9 @@ def test_expand_with_intrinsic(fortran_reader, fortran_writer):
     real(kind=r_solver), dimension(undf_w2v), intent(inout) :: lhs_w
     real(kind=r_solver), dimension(undf_w2), intent(in) :: norm_u
     real(kind=r_solver), dimension(ncell1,ndf_w2,ndf_w2), intent(in) :: mu_cd
-    integer(kind=i_def) :: iwt
-    integer(kind=i_def) :: iw2
-    integer(kind=i_def) :: iw2h
-    integer(kind=i_def) :: iw2v
     real(kind=r_solver), dimension(0:nlayers - 1,ndf_w2) :: u_e
     real(kind=r_solver), dimension(0:nlayers) :: t_col
-    integer :: idx_10, df, df2, ij
+    integer(kind=i_def) :: idx_10, df, df2, ij, iwt, iw2, iw2h, iw2v
     lhs_w(idx_10) = norm_u(idx_10 + (iw2 - iw2v)) * &
         mu_cd(idx_10 + (ij - iw2v), ndf_w2h + df ,df2) * &
         u_e(idx_10 + (LBOUND(u_e, dim=1) - iw2v), df2)

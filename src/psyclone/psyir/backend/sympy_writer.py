@@ -324,6 +324,8 @@ class SymPyWriter(FortranWriter):
                 # The reserved Python keywords do not have tags, so they
                 # will not be found.
                 if name in self._symbol_table.tags_dict:
+                    # TODO - we need to check *all* references to a Symbol to
+                    # make sure we have identified its type consistently.
                     continue
 
                 # Any symbol from the list of expressions to be handled
