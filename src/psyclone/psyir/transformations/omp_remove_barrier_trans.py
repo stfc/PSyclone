@@ -92,12 +92,12 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
     ...     """)
     >>> omplooptrans1 = OMPLoopTrans()
     >>> for loop in psyir.walk(Loop):
-    >>>     omplooptrans1.apply(loop, nowait=True)
+    ...     omplooptrans1.apply(loop, nowait=True)
     >>>
     >>> partrans = OMPParallelTrans()
     >>> partrans.apply(psyir.children[0].children[:])
     >>> rbartrans = OMPRemoveBarrierTrans()
-    >>> rbartrans.apply(psyir.chiildren[0])
+    >>> rbartrans.apply(psyir.children[0])
     >>> print(FortranWriter()(psyir))
     subroutine test()
       integer, dimension(100) :: a
