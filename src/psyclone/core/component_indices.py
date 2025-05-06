@@ -36,8 +36,6 @@
 
 '''This module provides a class to manage indices in variable accesses.'''
 
-from __future__ import print_function, absolute_import
-
 
 from psyclone.errors import InternalError
 

@@ -88,7 +88,7 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
     code = str(psy.gen).lower()
     # Work out the value of the tag used to re-name the kernel
     tag = re.search('use continuity(.+?)_mod', code).group(1)
-    assert f"use continuity{tag}_mod, only: continuity{tag}_code" in code
+    assert f"use continuity{tag}_mod, only : continuity{tag}_code" in code
     assert f"call continuity{tag}_code(" in code
     # The kernel and module name should have gained the tag just identified
     # and be written to the CWD
@@ -469,8 +469,8 @@ def test_1kern_trans(kernel_outputdir):
     code = str(psy.gen).lower()
     tag = re.search('use testkern(.+?)_mod', code).group(1)
     # We should have a USE for the original kernel and a USE for the new one
-    assert f"use testkern{tag}_mod, only: testkern{tag}_code" in code
-    assert "use testkern_mod, only: testkern_code" in code
+    assert f"use testkern{tag}_mod, only : testkern{tag}_code" in code
+    assert "use testkern_mod, only : testkern_code" in code
     # Similarly, we should have calls to both the original and new kernels
     assert "call testkern_code(" in code
     assert f"call testkern{tag}_code(" in code
@@ -496,7 +496,7 @@ def test_2kern_trans(kernel_outputdir):
     # Find the tags added to the kernel/module names
     for match in re.finditer('use testkern_any_space_2(.+?)_mod', code):
         tag = match.group(1)
-        assert (f"use testkern_any_space_2{tag}_mod, only: "
+        assert (f"use testkern_any_space_2{tag}_mod, only : "
                 f"testkern_any_space_2{tag}_code" in code)
         assert f"call testkern_any_space_2{tag}_code(" in code
         filepath = os.path.join(str(kernel_outputdir),

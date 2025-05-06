@@ -454,8 +454,8 @@ def test_gen_typedecl(fortran_writer):
             "end type my_type\n")
     private_tsymbol = DataTypeSymbol("my_type", dtype,
                                      Symbol.Visibility.PRIVATE)
-    gen_code = fortran_writer.gen_typedecl(private_tsymbol)
-    assert gen_code.startswith("type, private :: my_type\n")
+    code = fortran_writer.gen_typedecl(private_tsymbol)
+    assert code.startswith("type, private :: my_type\n")
 
 
 def test_reverse_map():
@@ -703,6 +703,13 @@ def test_fw_gen_vardecl(fortran_writer):
     symbol.interface = StaticInterface()
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, save :: dummy3a = 10\n"
+
+    # Generic symbol
+    symbol = Symbol("dummy1")
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fortran_writer.gen_vardecl(symbol)
+    assert ("Symbol 'dummy1' must be a symbol with a datatype in order to "
+            "use 'gen_vardecl'." in str(excinfo.value))
 
     # Use statement
     symbol = DataSymbol("dummy1", UnresolvedType(),
@@ -1581,7 +1588,7 @@ def test_fw_codeblock_1(fortran_reader, fortran_writer, tmpdir):
     # Generate Fortran from the PSyIR
     result = fortran_writer(psyir)
     assert (
-        "    a = 1\n"
+        "    a = 1\n\n"
         "    ! PSyclone CodeBlock (unsupported code) reason:\n"
         "    !  - Unsupported statement: Print_Stmt\n"
         "    !  - Unsupported statement: Print_Stmt\n"
@@ -1911,7 +1918,7 @@ def test_fw_comments(fortran_writer):
         "  ! My routine preceding comment\n"
         "  subroutine my_routine()\n\n"
         "    ! My statement with a preceding comment\n"
-        "    return\n"
+        "    return\n\n"
         "    ! My statement with a\n"
         "    ! multi-line comment.\n"
         "    return  ! ... and an inline comment\n"

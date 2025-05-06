@@ -220,7 +220,7 @@ def test_omptaskloop_getters_and_setters():
 
 
 def test_omptaskloop_apply(monkeypatch):
-    '''Check that the gen_code method in the OMPTaskloopDirective
+    '''Check that the lowering method in the OMPTaskloopDirective
     class generates the expected code when passing options to
     the OMPTaskloopTrans's apply method and correctly overrides the
     taskloop's inbuilt value. Use the gocean API.
@@ -246,15 +246,15 @@ def test_omptaskloop_apply(monkeypatch):
 
     clauses = " nogroup"
     assert (
-        f"    !$omp parallel default(shared), private(i,j)\n"
-        f"      !$omp master\n"
-        f"      !$omp taskloop{clauses}\n"
-        f"      DO" in code)
+        f"  !$omp parallel default(shared), private(i,j)\n"
+        f"    !$omp master\n"
+        f"    !$omp taskloop{clauses}\n"
+        f"    do" in code)
     assert (
-        "      END DO\n"
-        "      !$omp end taskloop\n"
-        "      !$omp end master\n"
-        "      !$omp end parallel" in code)
+        "    enddo\n"
+        "    !$omp end taskloop\n"
+        "    !$omp end master\n"
+        "    !$omp end parallel" in code)
 
     assert taskloop_node.begin_string() == "omp taskloop"
 
