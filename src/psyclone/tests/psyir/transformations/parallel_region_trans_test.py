@@ -40,7 +40,7 @@
 #          J. Dendy, Met Office
 
 '''
-This module provides the implementation of ParallelRegionTrans
+Module containing tests for the parallel region transformation class.
 
 '''
 

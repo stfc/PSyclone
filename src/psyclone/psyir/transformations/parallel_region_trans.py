@@ -44,7 +44,7 @@ This module provides the implementation of ParallelRegionTrans
 
 '''
 
-import abc
+from abc import ABC, abstractmethod
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -53,7 +53,7 @@ from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.nodes import CodeBlock, Return
 
 
-class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
+class ParallelRegionTrans(RegionTrans, ABC):
     '''
     Base class for transformations that create a parallel region.
 
@@ -68,9 +68,12 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         self._directive_factory = None
         super().__init__()
 
-    @abc.abstractmethod
-    def __str__(self):
-        pass  # pragma: no cover
+    @abstractmethod
+    def __str__(self) -> str:
+        '''
+        Return a string explaining what this transformation does.
+
+        '''
 
     def validate(self, node_list, options=None):
         # pylint: disable=arguments-renamed
