@@ -162,10 +162,11 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
     :param region_name: the suggested region_name.
     '''
     def __init__(self, region_name: str = None):
-        super().__init__(region_name)
+        super().__init__()
         # TODO #2069: check if this list can be taken from LFRicConstants
         # TODO #2018: once r_field is defined in the LFRic infrastructure,
         #             it should be added to this list.
+        self._region_name = region_name
         self._all_field_types = ["integer_field_type", "field_type",
                                  "r_bl_field", "r_solver_field_type",
                                  "r_tran_field_type"]

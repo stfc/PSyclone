@@ -44,8 +44,7 @@ from psyclone.core import Signature
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import (
-    ExtractNode, Node, Schedule, Routine, Container)
+from psyclone.psyir.nodes import ExtractNode, Node, Schedule, Routine
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.tools import ReadWriteInfo
 from psyclone.tests.utilities import get_invoke
@@ -96,6 +95,7 @@ def test_extract_node_equality():
     node2._post_name = "testb"
     assert node1 != node2
 
+
 def test_get_unique_region_name():
     ''' Test the get_unique_region_name utility method. '''
     etrans = GOceanExtractTrans()
@@ -120,6 +120,7 @@ def test_get_unique_region_name():
                                                 extract_node.children)
     assert mod_name == "myscope"
     assert region_name == "my_region_name"
+
 
 # ---------------------------------------------------------------------------
 def test_malformed_extract_node(monkeypatch):
