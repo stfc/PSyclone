@@ -61,6 +61,7 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
     execution of loops or kernels.
 
     For example:
+
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.nodes import Loop
