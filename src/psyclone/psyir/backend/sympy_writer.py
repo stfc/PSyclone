@@ -111,13 +111,12 @@ class SymPyWriter(FortranWriter):
 
         # The writer will use special names in array expressions to indicate
         # the lower and upper bound (e.g. ``a(::)`` becomes
-        # ``a(sympy_lower, sympy_upper, 1)``). The symbol table will be used
-        # to resolve a potential name clash with a user variable.
+        # ``a(sympy_lower, sympy_upper, 1)`` while ``a`` becomes
+        # ``a(sympy_no_bounds, sympy_no_bounds, 1)``). The symbol table will
+        # be used to resolve a potential name clash with a user variable.
         self._lower_bound = "sympy_lower"
         self._upper_bound = "sympy_upper"
-        self._no_lower_bound = "no_sympy_lower"
-        self._no_upper_bound = "no_sympy_upper"
-
+        self._no_bounds = "sympy_no_bounds"
 
         if not SymPyWriter._RESERVED_NAMES:
             # Get the list of all reserved Python words from the
@@ -367,12 +366,11 @@ class SymPyWriter(FortranWriter):
         self._upper_bound = \
             self._symbol_table.new_symbol("sympy_upper",
                                           tag="sympy!upper_bound").name
-        self._no_lower_bound = \
-            self._symbol_table.new_symbol("sympy_no_lower",
-                                          tag="sympy!no_lower_bound").name
-        self._no_upper_bound = \
-            self._symbol_table.new_symbol("sympy_no_upper",
-                                          tag="sympy!no_upper_bound").name
+        # This one is used when the array symbol is accessed (in the original
+        # code) without any indexing at all.
+        self._no_bounds = self._symbol_table.new_symbol(
+            "sympy_no_bounds",
+            tag="sympy!no_bounds").name
 
     # -------------------------------------------------------------------------
     @property
@@ -390,19 +388,11 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     @property
-    def no_lower_bound(self) -> str:
+    def no_bounds(self) -> str:
         ''':returns: the name to be used when no bounds are present on an
                      array access.
         '''
-        return self._no_lower_bound
-
-    # -------------------------------------------------------------------------
-    @property
-    def no_upper_bound(self) -> str:
-        ''':returns: the name to be used when no bounds are present on an
-                     array access.
-        '''
-        return self._no_upper_bound
+        return self._no_bounds
 
     # -------------------------------------------------------------------------
     @property
@@ -690,7 +680,7 @@ class SymPyWriter(FortranWriter):
         PSyIR tree. It handles the case that this normal reference might
         be an array expression, which in the SymPy writer needs to have
         indices added explicitly: it basically converts the array expression
-        ``a`` to ``a(sympy_lower, sympy_upper, 1)``.
+        ``a`` to ``a(sympy_no_bounds, sympy_no_bounds, 1)``.
 
         :param node: a Reference PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
@@ -712,12 +702,12 @@ class SymPyWriter(FortranWriter):
             # This reference is not an array, just return the name
             return name
 
-        # Now this must be an array expression without parenthesis. Add
-        # the triple-array indices to represent `lower:upper:1` for each
+        # Now this must be an array expression without parentheses. For
+        # consistency, we still treat it as a Sympy function call and therefore
+        # add the triple array indices to represent `lower:upper:1` for each
         # dimension:
         shape = node.symbol.shape
-        result = [f"{self.no_lower_bound},"
-                  f"{self.no_upper_bound},1"]*len(shape)
+        result = [f"{self.no_bounds},{self.no_bounds},1"]*len(shape)
 
         return (f"{name}{self.array_parenthesis[0]}"
                 f"{','.join(result)}{self.array_parenthesis[1]}")

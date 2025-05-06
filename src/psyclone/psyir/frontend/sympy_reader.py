@@ -91,14 +91,12 @@ class SymPyReader():
     # correct values in the constructor.
     _lower_bound = "sympy_lower"
     _upper_bound = "sympy_upper"
-    _no_lower_bound = "no_sympy_lower"
-    _no_upper_bound = "no_sympy_upper"
+    _no_bounds = "no_sympy_bounds"
 
     def __init__(self, sympy_writer):
         SymPyReader._lower_bound = sympy_writer.lower_bound
         SymPyReader._upper_bound = sympy_writer.upper_bound
-        SymPyReader._no_lower_bound = sympy_writer.no_lower_bound
-        SymPyReader._no_upper_bound = sympy_writer.no_upper_bound
+        SymPyReader._no_bounds = sympy_writer.no_bounds
 
     # -------------------------------------------------------------------------
     def psyir_from_expression(self, sympy_expr, symbol_table):
@@ -129,7 +127,7 @@ class SymPyReader():
 
     # -------------------------------------------------------------------------
     # pylint: disable=no-self-argument, too-many-branches
-    def print_fortran_array(function, printer):
+    def print_fortran_array(function, printer) -> str:
         '''A custom print function to convert a modified Fortran array access
         back to standard Fortran. This function is set as ``_sympystr_`` method
         of the SymPy functions created in the SymPyWriter (see
@@ -138,9 +136,11 @@ class SymPyReader():
         convert being the first argument! This function converts
         the three values that each index is converted to back into the Fortran
         array notation. It uses the class variables
-        ``SymPyReader._lower_bound`` and ``SymPyReader._upper_bound`` as the
-        names that were used when the SymPy expressions were created in order
-        to convert array expressions correctly back.
+        ``SymPyReader._no_bounds``, ``SymPyReader._lower_bound`` and
+        ``SymPyReader._upper_bound`` as the names that were used when the
+        SymPy expressions were originally created in order
+        to correctly convert back array expressions (including the case where
+        the original array reference did not have parentheses).
 
         :param function: this function is called from a SymPy Function class,
             therefore the first argument is a SymPy Function instance (and NOT
@@ -150,7 +150,6 @@ class SymPyReader():
         :type printer: :py:class:`sympy.printing.str.StrPrinter`
 
         :returns: the string representation of this array access.
-        :rtype: str
 
         '''
         # pylint: disable=protected-access, no-member
@@ -158,14 +157,15 @@ class SymPyReader():
         name = function.__class__.__name__
         lower_b = SymPyReader._lower_bound
         upper_b = SymPyReader._upper_bound
-        no_lower_b = SymPyReader._no_lower_bound
-        no_upper_b = SymPyReader._no_upper_bound
+        no_bounds = SymPyReader._no_bounds
 
         # Analyse each triple of parameters, and add the corresponding
         # converted index (or array expression) to new_args:
         new_args = []
         for i in range(0, len(args), 3):
-            if args[i] == no_lower_b and args[i+1] == no_upper_b:
+            if args[i] == no_bounds and args[i+1] == no_bounds:
+                # This reference didn't have parentheses originally so we
+                # don't add any range information.
                 continue
             if args[i] == args[i+1] and args[i+2] == "1":
                 # a(i,i,1) --> a(i)
@@ -198,6 +198,8 @@ class SymPyReader():
                                     f"{args[i+2]}")
 
         if not new_args:
+            # This reference didn't have parentheses originally and so we
+            # reproduce that input.
             return name
 
         if function._sig is None:

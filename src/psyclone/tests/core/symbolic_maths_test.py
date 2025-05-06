@@ -42,7 +42,7 @@ from sympy import solvers, Symbol
 
 from psyclone.core.symbolic_maths import SymbolicMaths
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
-from psyclone.psyir.nodes import Assignment, IntrinsicCall
+from psyclone.psyir.nodes import Assignment
 
 
 def test_sym_maths_get():
@@ -491,8 +491,13 @@ def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     result = fortran_writer(psyir.children[0][0].rhs)
     assert result == expected
 
+
 def test_expand_with_intrinsic(fortran_reader, fortran_writer):
     '''
+    Test that calling the `expand` method does not alter array accesses
+    that are passed as arguments to other routines - in this case the
+    LBOUND intrinsic.
+
     '''
     source = '''
   subroutine apply_mixed_operator_code(ncell1, nlayers, ndf_w2, ndf_w2h, &
@@ -517,11 +522,11 @@ def test_expand_with_intrinsic(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(source)
     sym_maths = SymbolicMaths.get()
     rhs = psyir.walk(Assignment)[0].rhs
-    lbnd = rhs.walk(IntrinsicCall)[0]
     view_before = rhs.view()
     sym_maths.expand(rhs)
     assert rhs.view() == view_before
     result = fortran_writer(psyir).lower()
+    # Check that the 'u_e' argument remains unchanged.
     assert "lbound(u_e, 1),df2)" in result
 
 

@@ -368,60 +368,51 @@ def test_sym_writer_parse_errors(fortran_reader):
             in str(err.value))
 
 
-@pytest.mark.parametrize("expressions", [("b(i)", "b(i,i,1)"),
-                                         ("b(:)",
-                                          "b(sympy_lower,sympy_upper,1)"),
-                                         ("b(::)",
-                                          "b(sympy_lower,sympy_upper,1)"),
-                                         ("b(5::)", "b(5,sympy_upper,1)"),
-                                         ("b(:5:)", "b(sympy_lower,5,1)"),
-                                         ("b(::5)",
-                                          "b(sympy_lower,sympy_upper,5)"),
-                                         ("b(i::)", "b(i,sympy_upper,1)"),
-                                         ("b(:i:)", "b(sympy_lower,i,1)"),
-                                         ("b(::i)",
-                                          "b(sympy_lower,sympy_upper,i)"),
-                                         ("b(i:5:)", "b(i,5,1)"),
-                                         ("b(i:j:)", "b(i,j,1)"),
-                                         ("b(i::j)", "b(i,sympy_upper,j)"),
-                                         ("b(:i:j)", "b(sympy_lower,i,j)"),
-                                         ("b(i:j:k)", "b(i,j,k)"),
-                                         ("b", "b(sympy_no_lower,sympy_no_upper,1)"),
-                                         ("c(i,j)", "c(i,i,1,j,j,1)"),
-                                         ("c(::,::)",
-                                          "c(sympy_lower,sympy_upper,1,"
-                                          "sympy_lower,sympy_upper,1)"),
-                                         ("c", "c(sympy_no_lower,sympy_no_upper,1,"
-                                               "sympy_no_lower,sympy_no_upper,1)"),
-                                         ("b(i)%x", "b_x(i,i,1)"),
-                                         ("b(i)%x(j)", "b_x(i,i,1,j,j,1)"),
-                                         ("c(i,j)%x", "c_x(i,i,1,j,j,1)"),
-                                         ("c(i,j)%x(j)",
-                                          "c_x(i,i,1,j,j,1,j,j,1)"),
-                                         ("c(i,j)%d%e",
-                                          "c_d_e(i,i,1,j,j,1)"),
-                                         ("c(i,j)%d%f(i)",
-                                          "c_d_f(i,i,1,j,j,1,i,i,1)"),
-                                         ("c(i::k,j)%d%f(i:j:k)",
-                                          "c_d_f(i,sympy_upper,k,j,j,1,"
-                                          "i,j,k)"),
-                                         # Check name clashes, if a user
-                                         # variable is the same as the names
-                                         # for upper/lower bound
-                                         ("sympy_upper(:)",
-                                          "sympy_upper(sympy_lower,"
-                                          "sympy_upper_1,1)"),
-                                         ("sympy_lower(:)",
-                                          "sympy_lower(sympy_lower_1,"
-                                          "sympy_upper,1)"),
-                                         # The +sympy_upper at the end is an
-                                         # array expression but should not get
-                                         # indices added!
-                                         ("sympy_lower(:)+sympy_upper",
-                                          "sympy_lower(sympy_lower_1,"
-                                          "sympy_upper_1,1) + sympy_upper"
-                                          "(sympy_no_lower,sympy_no_upper,1)"),
-                                         ])
+@pytest.mark.parametrize("expressions",
+                         [("b(i)", "b(i,i,1)"),
+                          ("b(:)", "b(sympy_lower,sympy_upper,1)"),
+                          ("b(::)", "b(sympy_lower,sympy_upper,1)"),
+                          ("b(5::)", "b(5,sympy_upper,1)"),
+                          ("b(:5:)", "b(sympy_lower,5,1)"),
+                          ("b(::5)", "b(sympy_lower,sympy_upper,5)"),
+                          ("b(i::)", "b(i,sympy_upper,1)"),
+                          ("b(:i:)", "b(sympy_lower,i,1)"),
+                          ("b(::i)", "b(sympy_lower,sympy_upper,i)"),
+                          ("b(i:5:)", "b(i,5,1)"),
+                          ("b(i:j:)", "b(i,j,1)"),
+                          ("b(i::j)", "b(i,sympy_upper,j)"),
+                          ("b(:i:j)", "b(sympy_lower,i,j)"),
+                          ("b(i:j:k)", "b(i,j,k)"),
+                          ("b", "b(sympy_no_bounds,sympy_no_bounds,1)"),
+                          ("c(i,j)", "c(i,i,1,j,j,1)"),
+                          ("c(::,::)", "c(sympy_lower,sympy_upper,1,"
+                           "sympy_lower,sympy_upper,1)"),
+                          ("c", "c(sympy_no_bounds,"
+                           "sympy_no_bounds,1,sympy_no_bounds,"
+                           "sympy_no_bounds,1)"),
+                          ("b(i)%x", "b_x(i,i,1)"),
+                          ("b(i)%x(j)", "b_x(i,i,1,j,j,1)"),
+                          ("c(i,j)%x", "c_x(i,i,1,j,j,1)"),
+                          ("c(i,j)%x(j)", "c_x(i,i,1,j,j,1,j,j,1)"),
+                          ("c(i,j)%d%e", "c_d_e(i,i,1,j,j,1)"),
+                          ("c(i,j)%d%f(i)", "c_d_f(i,i,1,j,j,1,i,i,1)"),
+                          ("c(i::k,j)%d%f(i:j:k)",
+                           "c_d_f(i,sympy_upper,k,j,j,1,i,j,k)"),
+                          # Check name clashes, if a user
+                          # variable is the same as the names
+                          # for upper/lower bound
+                          ("sympy_upper(:)",
+                           "sympy_upper(sympy_lower,sympy_upper_1,1)"),
+                          ("sympy_lower(:)", "sympy_lower(sympy_lower_1,"
+                           "sympy_upper,1)"),
+                          # The +sympy_upper at the end is an
+                          # array expression but should not get
+                          # indices added!
+                          ("sympy_lower(:)+sympy_upper",
+                           "sympy_lower(sympy_lower_1,"
+                           "sympy_upper_1,1) + sympy_upper"
+                           "(sympy_no_bounds,sympy_no_bounds,1)"),
+                          ])
 def test_sym_writer_array_expressions(fortran_reader, expressions):
     '''Test that array expressions (including ones using user-defined
     types) are converted correctly. A Fortran range is converted into
