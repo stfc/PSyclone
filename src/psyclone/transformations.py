@@ -310,7 +310,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
                                           nogroup=self.omp_nogroup)
         return _directive
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the OMPTaskloopTrans transformation to the specified node in
         a Schedule. This node must be a Loop since this transformation
         corresponds to wrapping the generated code with directives like so:
@@ -351,7 +351,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         self.omp_nogroup = options.get("nogroup", current_nogroup)
 
         try:
-            super().apply(node, options)
+            super().apply(node, options, **kwargs)
         finally:
             # Reset the nogroup value to the original value
             self.omp_nogroup = current_nogroup
@@ -892,7 +892,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an OpenMP DO directive to a Dynamo 0.3 loop"
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         ''' Perform LFRic (Dynamo 0.3) specific loop validity checks for the
         OMPLoopTrans.
 
@@ -931,7 +931,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                 f"Error in {self.name} transformation. The kernel has an "
                 f"argument with INC access. Colouring is required.")
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         ''' Apply LFRic (Dynamo 0.3) specific OMPLoopTrans.
 
         :param node: the Node in the Schedule to check.
@@ -979,7 +979,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add the selected OpenMP loop directive to a GOcean loop"
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Checks that the supplied node is a valid target for parallelisation
         using OMP directives.

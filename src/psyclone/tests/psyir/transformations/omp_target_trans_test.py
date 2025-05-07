@@ -171,7 +171,6 @@ def test_omptargetrans_apply_nowait(fortran_reader, fortran_writer):
     targettrans = OMPTargetTrans()
     targettrans.apply(loops[0], options={"nowait": True})
     targettrans.apply(loops[1], options={"nowait": True})
-    print(psyir.view())
     out = fortran_writer(psyir)
     correct = """subroutine x()
   integer :: i

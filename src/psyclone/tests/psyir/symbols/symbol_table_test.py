@@ -2210,6 +2210,11 @@ def test_deep_copy():
     gisym = symbols.GenericInterfaceSymbol("generic_sub", [(rsym, False)])
     symtab.add(rsym)
     symtab.add(gisym)
+    # Add a broken tag (the symbol doesn't exist anymore), this shouldn't
+    # happen but since we often remove symbols without calling the proper
+    # remove method, it is worth checking that we handle the situation
+    symtab._tags["broken"] = symbols.DataSymbol(
+        "not_in_the_st", symbols.REAL_DOUBLE_TYPE)
 
     # Create a copy and check the contents are the same
     symtab2 = symtab.deep_copy()
@@ -2221,6 +2226,9 @@ def test_deep_copy():
     assert symtab2.lookup("symbol1") in symtab2.argument_list
     assert symtab2._node is None
     assert symtab2.default_visibility == symbols.Symbol.Visibility.PRIVATE
+    # The broken tag has dissapeared
+    assert "broken" not in symtab2._tags
+    assert "not_in_the_st" not in symtab2
 
     # But the symbols are not the same objects as the original ones
     assert symtab2.lookup("symbol1") is not sym1

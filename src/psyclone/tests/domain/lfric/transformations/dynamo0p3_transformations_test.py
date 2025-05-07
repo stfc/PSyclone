@@ -1996,7 +1996,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()\n" in code
         assert (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel do reduction(+:asum) default(shared), "
@@ -2012,7 +2012,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "    asum = global_sum%get_sum()\n"
             "\n"
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "    !$omp parallel do reduction(+:asum) default(shared), "
             "private(df), schedule(static)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
@@ -2028,7 +2028,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
         assert "loop0_stop = undf_aspc1_f1\n" in code
         assert "loop1_stop = undf_aspc1_f1\n" in code
         assert (
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel do reduction(+:asum) default(shared), "
@@ -2040,7 +2040,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "    !$omp end parallel do\n"
             "\n"
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "    !$omp parallel do reduction(+:asum) default(shared), "
             "private(df), schedule(static)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
@@ -2089,7 +2089,7 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
                     in result)
         expected_output = (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel default(shared), private(df)\n"
@@ -2120,7 +2120,7 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
         assert "loop1_stop = undf_aspc1_f1" in result
         expected_output = (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel default(shared), private(df)\n"
@@ -2176,9 +2176,9 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in result
         expected_output = (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0\n"
+            "    l_asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel default(shared), private(df,th_idx)\n"
@@ -2216,9 +2216,9 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
         assert "loop1_stop = undf_aspc1_f1" in result
         expected_output = (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0\n"
+            "    l_asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel default(shared), private(df,th_idx)\n"
@@ -2277,8 +2277,8 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()\n" in result
         expected_output = (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
-            "    bsum = 0.0\n"
+            "    asum = 0.0_r_def\n"
+            "    bsum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel default(shared), private(df)\n"
@@ -2308,8 +2308,8 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
         assert "loop1_stop = undf_aspc1_f1" in result
         expected_output = (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
-            "    bsum = 0.0\n"
+            "    asum = 0.0_r_def\n"
+            "    bsum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel default(shared), private(df)\n"
@@ -2361,12 +2361,12 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in result
         expected_output = (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0\n"
-            "    bsum = 0.0\n"
+            "    l_asum = 0.0_r_def\n"
+            "    bsum = 0.0_r_def\n"
             "    ALLOCATE(l_bsum(8,nthreads))\n"
-            "    l_bsum = 0.0\n"
+            "    l_bsum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel default(shared), private(df,th_idx)\n"
@@ -2410,12 +2410,12 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
         assert "loop1_stop = undf_aspc1_f1" in result
         expected_output = (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0\n"
-            "    bsum = 0.0\n"
+            "    l_asum = 0.0_r_def\n"
+            "    bsum = 0.0_r_def\n"
             "    ALLOCATE(l_bsum(8,nthreads))\n"
-            "    l_bsum = 0.0\n"
+            "    l_bsum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel default(shared), private(df,th_idx)\n"
@@ -2527,7 +2527,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in code
         assert (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel do reduction(+:asum) default(shared), "
@@ -2543,7 +2543,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "    asum = global_sum%get_sum()\n"
             "\n"
             "    ! Zero summation variables\n"
-            "    bsum = 0.0\n"
+            "    bsum = 0.0_r_def\n"
             "    !$omp parallel do reduction(+:bsum) default(shared), "
             "private(df), schedule(static)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
@@ -2560,7 +2560,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
         assert "loop1_stop = undf_aspc1_f1" in code
         assert (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel do reduction(+:asum) default(shared), "
@@ -2572,7 +2572,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "    !$omp end parallel do\n"
             "\n"
             "    ! Zero summation variables\n"
-            "    bsum = 0.0\n"
+            "    bsum = 0.0_r_def\n"
             "    !$omp parallel do reduction(+:bsum) default(shared), "
             "private(df), schedule(static)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
@@ -2613,7 +2613,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
                     in result)
         code = (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel do reduction(+:asum) default(shared), "
@@ -2644,7 +2644,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
         assert "loop1_stop = undf_aspc1_f1" in result
         assert (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel do reduction(+:asum) default(shared), "
@@ -2700,7 +2700,7 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
                     in result)
         code = (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel default(shared), private(df)\n"
@@ -2733,7 +2733,7 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
         assert "loop1_stop = undf_aspc1_f1" in result
         assert (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel default(shared), private(df)\n"
@@ -2792,7 +2792,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                     result)
             code = (
                 "    ! Zero summation variables\n"
-                "    asum = 0.0\n"
+                "    asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels and communication routines\n"
                 "    !$omp parallel do reduction(+:asum) default(shared), "
@@ -2818,7 +2818,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
             assert "loop0_stop = undf_aspc1_f1" in result
             code = (
                 "    ! Zero summation variables\n"
-                "    asum = 0.0\n"
+                "    asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels\n"
                 "    !$omp parallel do reduction(+:asum) default(shared), "
@@ -2877,7 +2877,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
             assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
             code = (
-                "    asum = 0.0\n"
+                "    asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels and communication routines\n"
                 "    !$omp parallel default(shared), private(df)\n"
@@ -2903,7 +2903,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
         else:  # not distmem, annexed is True or False
             assert "loop0_stop = undf_aspc1_f1" in result
             code = (
-                "    asum = 0.0\n"
+                "    asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels\n"
                 "    !$omp parallel default(shared), private(df)\n"
@@ -2967,7 +2967,7 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "    call f1_proxy%set_dirty()\n"
             "\n"
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "    !$omp parallel do reduction(+:asum) default(shared), "
             "private(df), schedule(static)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
@@ -2993,7 +2993,7 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "    !$omp end parallel do\n"
             "\n"
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "    !$omp parallel do reduction(+:asum) default(shared), "
             "private(df), schedule(static)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
@@ -3036,7 +3036,7 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                     in result)
             code = (
                 "    ! Zero summation variables\n"
-                "    asum = 0.0\n"
+                "    asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels and communication routines\n"
                 "    !$omp parallel do reduction(+:asum) default(shared), "
@@ -3062,7 +3062,7 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
             assert "loop0_stop = undf_aspc1_f1" in result
             code = (
                 "    ! Zero summation variables\n"
-                "    asum = 0.0\n"
+                "    asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels\n"
                 "    !$omp parallel do reduction(+:asum) default(shared), "
@@ -3115,7 +3115,7 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
             assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
             code = (
-                "    asum = 0.0\n"
+                "    asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels and communication routines\n"
                 "    !$omp parallel default(shared), private(df)\n"
@@ -3140,7 +3140,7 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
         else:  # not distmem. annexed can be True or False
             assert "loop0_stop = undf_aspc1_f1" in result
             code = (
-                "    asum = 0.0\n"
+                "    asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels\n"
                 "    !$omp parallel default(shared), private(df)\n"
@@ -3234,9 +3234,9 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in code
         assert (
             "    ! Zero summation variables\n"
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0\n"
+            "    l_asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel default(shared), private(df,th_idx)\n"
@@ -3262,9 +3262,9 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
     else:
         assert "loop0_stop = undf_aspc1_f1" in code
         assert (
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0\n"
+            "    l_asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel default(shared), private(df,th_idx)\n"
@@ -3354,9 +3354,9 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             assert ("loop1_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
         code = (
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0\n"
+            "    l_asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel default(shared), private(df,th_idx)\n"
@@ -3394,9 +3394,9 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
         assert "loop0_stop = undf_aspc1_f1" in result
         assert "loop1_stop = undf_aspc1_f1" in result
         assert (
-            "    asum = 0.0\n"
+            "    asum = 0.0_r_def\n"
             "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0\n"
+            "    l_asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel default(shared), private(df,th_idx)\n"
@@ -3455,7 +3455,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                      {"same_space": True})
         rtrans = OMPParallelTrans()
         otrans = Dynamo0p3OMPLoopTrans()
-        otrans.apply(schedule.children[0], {"reprod": "True"})
+        otrans.apply(schedule.children[0], {"reprod": True})
         rtrans.apply(schedule.children[0])
         result = str(psy.gen)
 
@@ -3473,9 +3473,9 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
             assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
             assert (
-                "    asum = 0.0\n"
+                "    asum = 0.0_r_def\n"
                 "    ALLOCATE(l_asum(8,nthreads))\n"
-                "    l_asum = 0.0\n"
+                "    l_asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels and communication routines\n"
                 "    !$omp parallel default(shared), private(df,th_idx)\n"
@@ -3508,9 +3508,9 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
         else:  # not distmem. annexed can be True or False
             assert "loop0_stop = undf_aspc1_f1" in result
             assert (
-                "    asum = 0.0\n"
+                "    asum = 0.0_r_def\n"
                 "    ALLOCATE(l_asum(8,nthreads))\n"
-                "    l_asum = 0.0\n"
+                "    l_asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels\n"
                 "    !$omp parallel default(shared), private(df,th_idx)\n"
@@ -3571,9 +3571,9 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
             assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
             assert (
-                "    asum = 0.0\n"
+                "    asum = 0.0_r_def\n"
                 "    ALLOCATE(l_asum(8,nthreads))\n"
-                "    l_asum = 0.0\n"
+                "    l_asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels and communication routines\n"
                 "    !$omp parallel default(shared), private(df,th_idx)\n"
@@ -3606,9 +3606,9 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
         else:  # distmem is False. annexed can be True or False
             assert "loop0_stop = undf_aspc1_f1" in result
             assert (
-                "    asum = 0.0\n"
+                "    asum = 0.0_r_def\n"
                 "    ALLOCATE(l_asum(8,nthreads))\n"
-                "    l_asum = 0.0\n"
+                "    l_asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels\n"
                 "    !$omp parallel default(shared), private(df,th_idx)\n"
@@ -3668,9 +3668,9 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                  "rhs": "f2_data(df)",
                  "builtin": "! Built-in: sum_X (sum a real-valued field)"}]:
             assert (
-                "    " + names["var"] + " = 0.0\n"
+                "    " + names["var"] + " = 0.0_r_def\n"
                 "    ALLOCATE(" + names["lvar"] + "(8,nthreads))\n"
-                "    " + names["lvar"] + " = 0.0\n") in code
+                "    " + names["lvar"] + " = 0.0_r_def\n") in code
             assert (
                 "    !$omp parallel default(shared), private(df,th_idx)\n"
                 "    th_idx = omp_get_thread_num() + 1\n"
@@ -3709,9 +3709,9 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                  "loop_idx": "2", "rhs": "f2_data(df)",
                  "builtin": "! Built-in: sum_X (sum a real-valued field)"}]:
             assert (
-                "    " + names["var"] + " = 0.0\n"
+                "    " + names["var"] + " = 0.0_r_def\n"
                 "    ALLOCATE(" + names["lvar"] + "(8,nthreads))\n"
-                "    " + names["lvar"] + " = 0.0\n") in code
+                "    " + names["lvar"] + " = 0.0_r_def\n") in code
             expected = (
                 "    !$omp parallel default(shared), private(df,th_idx)\n"
                 "    th_idx = omp_get_thread_num() + 1\n"

@@ -102,13 +102,6 @@ class LFRicLoopBounds(LFRicCollection):
             else:
                 # If it needs a color look-up, it has to be in-place
                 loop.children[1] = loop.upper_bound_psyir()
-                # TODO #898: We need to remove the now unneeded symbol (because
-                # LFRic is compiled with "no uninitialised variables" error,
-                # but SymbolTable.remove() is still not implemented for
-                # DataSymbols)
-                root_name = f"loop{idx}_stop"
-                if root_name in self.symtab:
-                    self.symtab._symbols.pop(root_name)
 
         return cursor
 
