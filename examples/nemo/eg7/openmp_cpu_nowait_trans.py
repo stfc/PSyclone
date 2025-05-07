@@ -51,7 +51,6 @@ from psyclone.psyir.nodes import (
         OMPBarrierDirective,
         OMPDoDirective,
         Routine,
-        Schedule,
 )
 
 # Set up some loop_type inference rules in order to reference useful domain
@@ -62,6 +61,7 @@ Loop.set_loop_type_inference_rules({
         "levels": {"variable": "jk"},
         "tracers": {"variable": "jt"}
 })
+
 
 def find_sets(schedule):
     par_trans = OMPParallelTrans()
@@ -75,7 +75,7 @@ def find_sets(schedule):
             if start < 0:
                 start = child.position
             end = child.position + 1
-        else: 
+        else:
             # If we have a non OMPDodirective/OMPBarrierDirective then add
             # an OMPParallelDirective if needed.
             if start >= 0:
@@ -97,6 +97,7 @@ def find_sets(schedule):
 
     for subset in sets[::-1]:
         par_trans.apply(schedule[subset[0]:subset[1]])
+
 
 def trans(psyir):
     ''' Adds OpenMP Loop directives with nowait to Nemo loops over levels.
