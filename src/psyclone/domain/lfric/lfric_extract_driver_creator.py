@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: I. Kavcic, O. Brunt and L. Turner, Met Office
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''This module provides functionality for the PSyclone kernel extraction
 functionality for LFRic. It contains the class that creates a driver that

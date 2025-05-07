@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: J. Henrichs, Bureau of Meteorology
-#          N. Nobre, STFC Daresbury Lab
+#          N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''This module provides functionality for the PSyclone kernel extraction
 functionality. It contains the class that creates a driver that
