@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: A. B. G. Chalk, STFC Daresbury Lab
-'''Contains the OMPRemoveBarrierTrans.'''
+
+'''Contains the OMPMinimiseSyncTrans.'''
 
 # TODO #2837: Once we leave python 3.8 we can use list instead of List for
 # type hints.
@@ -52,7 +53,8 @@ from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
 
 
-class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
+# Inherits from AsyncTransMixin as it needs some of the helper functions
+class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
     '''
     Attempts to remove OMPTaskwaitDirective or
     OMPBarrierDirective nodes from a supplied region as long as
@@ -66,7 +68,7 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.nodes import Loop
     >>> from psyclone.psyir.transformations import OMPLoopTrans
-    >>> from psyclone.psyir.transformations import OMPRemoveBarrierTrans
+    >>> from psyclone.psyir.transformations import OMPMinimiseSyncTrans
     >>> from psyclone.transformations import OMPParallelTrans
     >>>
     >>> psyir = FortranReader().psyir_from_source("""
@@ -96,7 +98,7 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
     ...     omplooptrans1.apply(loop, nowait=True)
     >>> partrans = OMPParallelTrans()
     >>> partrans.apply(psyir.children[0].children[:])
-    >>> rbartrans = OMPRemoveBarrierTrans()
+    >>> rbartrans = OMPMinimiseSyncTrans()
     >>> rbartrans.apply(psyir.children[0])
     >>> print(FortranWriter()(psyir))
     subroutine test()
@@ -133,9 +135,8 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
     <BLANKLINE>
 
     '''
-    # Inherits from AsyncTransMixin as it needs some of the helper functions
     def __str__(self) -> str:
-        '''Returns the string representation of this OMPRemoveBarrierTrans
+        '''Returns the string representation of this OMPMinimiseSyncTrans
         object.'''
         return ("Removes OMPTaskwaitDirective or OMPBarrierDirective nodes "
                 "from the supplied region to reduce synchronicity without "
@@ -146,11 +147,13 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
         Validity check for the input arguments.
 
         :param node: the routine to try to remove barriers from.
+
         :raises TypeError: if the supplied input isn't a Routine.
+
         '''
         super().validate(node, kwargs)
         if not isinstance(node, Routine):
-            raise TypeError(f"OMPRemoveBarrierTrans expects a Routine input "
+            raise TypeError(f"OMPMinimiseSyncTrans expects a Routine input "
                             f"but found '{type(node).__name__}'.")
 
     def _find_dependencies(self, directives: List[Directive]) \
@@ -211,18 +214,18 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
                 # For each barrier in this barrier set, if its in the
                 # required_barrier list, then we can replace this barrier
                 # set with a required_barrier
-                for bar in barriers:
+                for barrier in barriers:
                     # Check if this barrier is in the required_barrier
                     required = False
                     for req in required_barriers:
-                        if req is bar:
+                        if req is barrier:
                             required = True
                             break
                     # If its a required barrier, then we can replace the
                     # list of dependencies with just the required barrier for
                     # now.
                     if required:
-                        bars = [bar]
+                        bars = [barrier]
                         depending_barriers[i] = bars
                         break
 
@@ -240,11 +243,7 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
         :returns: the maximum size of a sublist in the depending_barriers
                   input.
         '''
-        max_size = 1
-        for barriers in depending_barriers:
-            if len(barriers) > max_size:
-                max_size = len(barriers)
-        return max_size
+        return len(max(depending_barriers, key=len))
 
     def _eliminate_barriers(self, node: Routine, directives: List[Directive],
                             barrier_type: type) -> None:
@@ -263,20 +262,17 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
         '''
         # For each of the directives find the next dependency.
         next_dependencies = self._find_dependencies(directives)
-        dependency_pos = []
-        for dep in next_dependencies:
-            if dep is True:
-                dependency_pos.append(0)
-            else:
-                dependency_pos.append(dep.abs_position)
-        # dependency_pos = [dep.abs_position for dep in next_dependencies]
+        # If dep is True then there is no real next_dependency, so
+        # 0 is used a substitute.
+        dependency_pos = [0 if dep is True else dep.abs_position
+                          for dep in next_dependencies]
 
         # Get the abs_positions and depths of each of the directives.
         abs_positions = [node.abs_position for node in directives]
 
         # Find all the barriers
         all_barriers = node.walk(barrier_type)
-        barrier_positions = [bar.abs_position for bar in all_barriers]
+        barrier_positions = [barrier.abs_position for barrier in all_barriers]
 
         # For each directive find all the barriers that satisfy its dependency
         # A barrier satisfies its dependency if:
@@ -319,7 +315,7 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
                         continue
                     # If the barrier is not contained in any of the ancestor
                     # loops of both then we can ignore it.
-                    loop_ancestor = directives[i].ancestor(Loop)
+                    loop_ancestor = directive.ancestor(Loop)
                     barrier_in_ancestor_loop = False
                     while loop_ancestor:
                         if barrier.is_descendent_of(loop_ancestor):
@@ -377,7 +373,7 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
                 raise TransformationError(
                     "Found a nowait with no barrier satisfying its "
                     "dependency which is unsupported behaviour for "
-                    "OMPRemoveBarrierTrans."
+                    "OMPMinimiseSyncTrans."
                 )
             depending_barriers.append(found_barriers)
 
@@ -392,19 +388,19 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
         for barriers in depending_barriers:
             if len(barriers) == 1:
                 # Add the barrier as required if its not already.
-                bar = barriers[0]
+                barrier = barriers[0]
                 add = True
                 for req in required_barriers:
-                    if req is bar:
+                    if req is barrier:
                         add = False
                         break
                 if add:
-                    required_barriers.append(bar)
+                    required_barriers.append(barrier)
 
         # Now we have some required barriers, we can replace the
         # depending_barriers of any set of multi barriers with a required
         # barrier if a required barrier is included in the set.
-        OMPRemoveBarrierTrans._reduce_barrier_set(
+        OMPMinimiseSyncTrans._reduce_barrier_set(
                 required_barriers, depending_barriers
         )
 
@@ -422,7 +418,7 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
 
         # Time to loop until we satisfy all dependencies with one barrier
         # each.
-        while (OMPRemoveBarrierTrans._get_max_barrier_dependency(
+        while (OMPMinimiseSyncTrans._get_max_barrier_dependency(
                 depending_barriers) > 1):
             # The chosen strategy here is to find which of the remaining
             # barriers can satisfy the most possible dependency sets, add
@@ -434,13 +430,13 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
             # solution quality or computation time - if either causes problems
             # we can re-evaluate.
             dependencies_satisfied = [0] * len(potential_removes)
-            for i, bar in enumerate(potential_removes):
+            for i, barrier in enumerate(potential_removes):
                 # Count how many of the dependencies can be solved by this
                 # barrier
                 solves = 0
                 for dep_list in depending_barriers:
                     for req in dep_list:
-                        if bar is req:
+                        if barrier is req:
                             solves = solves + 1
                             break
                 dependencies_satisfied[i] = solves
@@ -454,7 +450,7 @@ class OMPRemoveBarrierTrans(Transformation, AsyncTransMixin):
             required_barriers.append(potential_removes.pop(max_index))
 
             # Reduce the barrier set with the new required_barrier.
-            OMPRemoveBarrierTrans._reduce_barrier_set(
+            OMPMinimiseSyncTrans._reduce_barrier_set(
                     required_barriers, depending_barriers
             )
 

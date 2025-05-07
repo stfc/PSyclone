@@ -33,18 +33,19 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: S. Siso, STFC Daresbury Lab
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
+# Authors: A. B. G. Chalk, STFC Daresbury Lab
 
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
-from psyclone.psyir.nodes import Loop, Assignment
+from psyclone.psyir.nodes import Loop, Assignment, Routine
 from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans
 from psyclone.psyir.transformations import OMPTargetTrans, OMPLoopTrans
+from psyclone.psyir.transformations import OMPMinimiseSyncTrans
 from psyclone.transformations import TransformationError
 
-USE_GPU = True  # Enable for generating OpenMP target directives
-
+# Set up some loop_type inference rules in order to reference useful domain
+# loop constructs by name
 Loop.set_loop_type_inference_rules({
         "lon": {"variable": "ji"},
         "lat": {"variable": "jj"},
@@ -62,21 +63,37 @@ def trans(psyir):
     omp_target_trans = OMPTargetTrans()
     omp_loop_trans = OMPLoopTrans()
     omp_loop_trans.omp_directive = "loop"
+    opts = {"nowait": True}
 
-    # Convert all array implicit loops to explicit loops
-    explicit_loops = ArrayAssignment2LoopsTrans()
+    # First convert assignments to loops whenever possible unless
+    # they have an ancestor levels loop
     for assignment in psyir.walk(Assignment):
+        ancestor = assignment.ancestor(Loop)
+        has_levels_ancestor = False
+        while ancestor:
+            if ancestor.loop_type == "levels":
+                has_levels_ancestor = True
+                break
+            ancestor = ancestor.ancestor(Loop)
+        if has_levels_ancestor:
+            continue
         try:
-            explicit_loops.apply(assignment)
+            parent = assignment.parent
+            pos = assignment.position
+            ArrayAssignment2LoopsTrans().apply(assignment)
+            omp_target_trans.apply(parent[pos], options=opts)
+            omp_loop_trans.apply(parent[pos].dir_body.children[0])
         except TransformationError:
             pass
 
     for loop in psyir.walk(Loop):
         if loop.loop_type == "levels":
             try:
-                if USE_GPU:
-                    omp_target_trans.apply(loop)
-                omp_loop_trans.apply(loop)
+                omp_target_trans.apply(loop, options=opts)
+                omp_loop_trans.apply(loop, nowait=True)
             except TransformationError:
                 # Not all of the loops in the example can be parallelised.
                 pass
+
+    for routine in psyir.walk(Routine):
+        OMPMinimiseSyncTrans().apply(routine)

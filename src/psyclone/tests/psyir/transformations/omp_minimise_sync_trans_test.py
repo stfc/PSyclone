@@ -33,7 +33,7 @@
 # ----------------------------------------------------------------------------
 # Author: A. B. G. Chalk, STFC Daresbury Lab
 
-''' Tests for the OMPRemoveBarrierTrans transformation. '''
+''' Tests for the OMPMinimiseSyncTrans transformation. '''
 
 import pytest
 from psyclone.psyir.nodes import (
@@ -41,31 +41,31 @@ from psyclone.psyir.nodes import (
         OMPTaskwaitDirective, OMPDoDirective,
         OMPTargetDirective)
 from psyclone.psyir.transformations import (
-        OMPLoopTrans, OMPRemoveBarrierTrans,
+        OMPLoopTrans, OMPMinimiseSyncTrans,
         OMPTargetTrans, TransformationError
 )
 from psyclone.transformations import OMPParallelTrans
 
 
 def test_omp_remove_barrier_trans_str():
-    '''Tests the __str__ member of the OMPRemoveBarrierTrans.'''
-    instance = OMPRemoveBarrierTrans()
+    '''Tests the __str__ member of the OMPMinimiseSyncTrans.'''
+    instance = OMPMinimiseSyncTrans()
     assert (str(instance) == "Removes OMPTaskwaitDirective or "
             "OMPBarrierDirective nodes from the supplied region to reduce "
             "synchronicity without invalidating dependencies.")
 
 
 def test_omp_remove_barrier_validate():
-    '''Tests the validate member of the OMPRemoveBarrierTrans.'''
+    '''Tests the validate member of the OMPMinimiseSyncTrans.'''
     with pytest.raises(TypeError) as excinfo:
-        OMPRemoveBarrierTrans().validate("a")
+        OMPMinimiseSyncTrans().validate("a")
 
-    assert ("OMPRemoveBarrierTrans expects a Routine input but found 'str'."
+    assert ("OMPMinimiseSyncTrans expects a Routine input but found 'str'."
            in str(excinfo.value))
 
 
 def test_omp_remove_barrier_find_dependencies(fortran_reader):
-    '''Test the _find_dependencies routine of the OMPRemoveBarrierTrans.'''
+    '''Test the _find_dependencies routine of the OMPMinimiseSyncTrans.'''
 
     code = """
     subroutine test
@@ -92,7 +92,7 @@ def test_omp_remove_barrier_find_dependencies(fortran_reader):
     # If we pass this directive into _find_dependencies it should error as it
     # is its own dependency.
     with pytest.raises(TransformationError) as excinfo:
-        OMPRemoveBarrierTrans()._find_dependencies([tar_dir])
+        OMPMinimiseSyncTrans()._find_dependencies([tar_dir])
     assert ("Found a nowait directive with an unsatisfiable dependency. "
             "PSyclone cannot remove barriers from the provided Routine."
             in str(excinfo.value))
@@ -128,7 +128,7 @@ def test_omp_remove_barrier_find_dependencies(fortran_reader):
         otrans.apply(loop, nowait=True)
 
     do_dirs = psyir.walk(OMPDoDirective)
-    deps = OMPRemoveBarrierTrans()._find_dependencies(do_dirs)
+    deps = OMPMinimiseSyncTrans()._find_dependencies(do_dirs)
 
     assert len(deps) == 4
     # Next dependency for the first directive is the lhs of the assignment
@@ -143,7 +143,7 @@ def test_omp_remove_barrier_find_dependencies(fortran_reader):
 
 
 def test_omp_remove_barrier_reduce_barrier_set():
-    '''Test the _reduce_barrier_set method of OMPRemoveBarrierTrans.'''
+    '''Test the _reduce_barrier_set method of OMPMinimiseSyncTrans.'''
     # Create some barriers
     barriers = []
     for i in range(5):
@@ -159,7 +159,7 @@ def test_omp_remove_barrier_reduce_barrier_set():
     required_barriers = [barriers[0], barriers[2]]
     # Once we reduce the barrier set we should have a new set of:
     # {0}, {2}, {2}, {3,4}
-    OMPRemoveBarrierTrans._reduce_barrier_set(required_barriers,
+    OMPMinimiseSyncTrans._reduce_barrier_set(required_barriers,
                                               barrier_set)
     assert len(barrier_set[0]) == 1
     assert barrier_set[0][0] is barriers[0]
@@ -173,13 +173,13 @@ def test_omp_remove_barrier_reduce_barrier_set():
 
 
 def test_omp_remove_barrier_get_max_barrier_dependency():
-    '''Test the _get_max_barrier_dependency method of OMPRemoveBarrierTrans.'''
+    '''Test the _get_max_barrier_dependency method of OMPMinimiseSyncTrans.'''
     # Technically doesn't care if it has barrier inputs, so this test is
     # just going to use lists of lists of ints.
 
     barriers = [[0], [1, 2], [1, 2], [3, 4, 5]]
 
-    assert OMPRemoveBarrierTrans._get_max_barrier_dependency(barriers) == 3
+    assert OMPMinimiseSyncTrans._get_max_barrier_dependency(barriers) == 3
 
 ######################################
 # Beginning of Functionality Testing #
@@ -228,7 +228,7 @@ def test_basic_barrier_removal(fortran_reader, fortran_writer):
     # at the end for safety which is unneccessary but maximises safety).
     assert len(psyir.walk(OMPBarrierDirective)) == 3
 
-    rtrans = OMPRemoveBarrierTrans()
+    rtrans = OMPMinimiseSyncTrans()
 
     rtrans.apply(routine)
     assert len(psyir.walk(OMPBarrierDirective)) == 2
@@ -266,7 +266,7 @@ def test_basic_barrier_removal(fortran_reader, fortran_writer):
         targettrans.apply(loop, options={"nowait": True})
 
     assert len(psyir.walk(OMPTaskwaitDirective)) == 3
-    rtrans = OMPRemoveBarrierTrans()
+    rtrans = OMPMinimiseSyncTrans()
 
     rtrans.apply(routine)
     assert len(psyir.walk(OMPTaskwaitDirective)) == 2
@@ -331,7 +331,7 @@ def test_dependency_before_directive(fortran_reader, fortran_writer):
     # is covered by the d->a barrier.
     assert len(psyir.walk(OMPTaskwaitDirective)) == 5
 
-    rtrans = OMPRemoveBarrierTrans()
+    rtrans = OMPMinimiseSyncTrans()
 
     rtrans.apply(routine)
     assert len(psyir.walk(OMPTaskwaitDirective)) == 3
@@ -403,7 +403,7 @@ def test_barrier_in_if_statement_is_ignored(fortran_reader):
 
     # We can't remove the a->d barrier here as the if statement containing the
     # barrier between them prevents it.
-    rtrans = OMPRemoveBarrierTrans()
+    rtrans = OMPMinimiseSyncTrans()
     rtrans.apply(routine)
     assert len(psyir.walk(OMPTaskwaitDirective)) == 3
     # The transformation doesn't modify the code so we don't check the output
@@ -450,7 +450,7 @@ def test_barrier_in_else_is_ignored(fortran_reader):
 
     # We can't remove the a->d barrier here as the if statement containing the
     # barrier between them prevents it.
-    rtrans = OMPRemoveBarrierTrans()
+    rtrans = OMPMinimiseSyncTrans()
     rtrans.apply(routine)
     assert len(psyir.walk(OMPTaskwaitDirective)) == 3
     # The transformation doesn't modify the code so we don't check the output
@@ -489,14 +489,14 @@ def test_multiple_nowaits_covered_by_same_barrier_initially(fortran_reader):
     # currently generates barriers as it will create repeated barriers
     # at the moment), but if we apply the
     # transformation twice to this routine it would occur.
-    rtrans = OMPRemoveBarrierTrans()
+    rtrans = OMPMinimiseSyncTrans()
     rtrans.apply(routine)
     assert len(routine.walk(OMPTaskwaitDirective)) == 2
 
     # Now we have one barrier covering both dependencies from loops 1 & 2 to
     # loop 3, so it only gets added once and we should end up with 2
     # barriers still
-    rtrans = OMPRemoveBarrierTrans()
+    rtrans = OMPMinimiseSyncTrans()
     rtrans.apply(routine)
     assert len(routine.walk(OMPTaskwaitDirective)) == 2
 
@@ -548,7 +548,7 @@ def test_loop_process(fortran_reader):
 
     correct_to_keep = routine.walk(OMPTaskwaitDirective)[2]
 
-    rtrans = OMPRemoveBarrierTrans()
+    rtrans = OMPMinimiseSyncTrans()
     rtrans.apply(routine)
 
     final_bars = routine.walk(OMPTaskwaitDirective)
@@ -583,11 +583,11 @@ def test_no_barrier_from_nowait(fortran_reader):
     # Add the nowait manually to the first OMPTargetDirective
     psyir.walk(OMPTargetDirective)[0].nowait = True
 
-    rtrans = OMPRemoveBarrierTrans()
+    rtrans = OMPMinimiseSyncTrans()
     with pytest.raises(TransformationError) as excinfo:
         rtrans.apply(routine)
     assert ("Found a nowait with no barrier satisfying its dependency which "
-            "is unsupported behaviour for OMPRemoveBarrierTrans." in
+            "is unsupported behaviour for OMPMinimiseSyncTrans." in
             str(excinfo.value))
 
 

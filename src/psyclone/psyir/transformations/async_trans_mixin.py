@@ -105,7 +105,10 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         for signature in writes:
             accesses = var_accesses[signature].all_accesses
             last_access = accesses[-1].node
-            sym = last_access.symbol
+            if isinstance(last_access, Loop):
+                sym = last_access.variable
+            else:
+                sym = last_access.symbol
             # If the symbol is private or firstprivate then we can
             # ignore it.
             if sym in private or sym in firstprivate:
