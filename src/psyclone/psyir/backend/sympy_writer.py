@@ -698,6 +698,31 @@ class SymPyWriter(FortranWriter):
                 f"{','.join(result)}{self.array_parenthesis[1]}")
 
     # ------------------------------------------------------------------------
+    def binaryoperation_node(self, node: BinaryOperation) -> str:
+        '''This function converts logical binary operations into
+        SymPy format. Non-logical binary operations have the same
+        representation otherwise, so it calls the base class.
+
+        :param node: a Reference PSyIR BinaryOperation.
+
+        '''
+
+        for psy_op, sympy_op in [(BinaryOperation.Operator.AND,
+                                  "{lhs} & {rhs}"),
+                                 (BinaryOperation.Operator.OR,
+                                  "{lhs} | {rhs}"),
+                                 (BinaryOperation.Operator.EQV,
+                                  "Equivalent({lhs}, {rhs})"),
+                                 (BinaryOperation.Operator.NEQV,
+                                  "~Equivalent({lhs}, {rhs})")]:
+            if node.operator == psy_op:
+                lhs = self._visit(node.children[0])
+                rhs = self._visit(node.children[1])
+                return sympy_op.format(rhs=rhs, lhs=lhs)
+
+        return super().binaryoperation_node(node)
+
+    # ------------------------------------------------------------------------
     def gen_indices(self, indices, var_name=None):
         '''Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
