@@ -38,16 +38,15 @@ API to apply tiled-colouring and OpenMP threading.'''
 
 from psyclone.transformations import Dynamo0p3ColourTrans, \
     DynamoOMPParallelLoopTrans
-from psyclone.psyir.nodes import Loop, Routine
+from psyclone.psyir.nodes import Loop, Routine, FileContainer
 from psyclone.domain.lfric import LFRicConstants
 
 
-def trans(psyir):
+def trans(psyir: FileContainer):
     ''' PSyclone transformation script to apply tiled-colouring and OpenMP
     threading.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     ctrans = Dynamo0p3ColourTrans()

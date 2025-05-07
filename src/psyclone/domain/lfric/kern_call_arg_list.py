@@ -49,7 +49,6 @@ from psyclone import psyGen
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
-# Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
@@ -1006,8 +1005,9 @@ class KernCallArgList(ArgOrdering):
                 var_accesses.add_access(Signature(colour_sym.name),
                                         AccessType.READ, self._kern)
 
+            # pylint: disable-next=import-outside-toplevel
             from psyclone.domain.lfric import LFRicLoop
-            loop_type = self._kern.ancestor(LFRicLoop)._loop_type
+            loop_type = self._kern.ancestor(LFRicLoop).loop_type
 
             if loop_type == "tile":
                 tile_sym = self._symtab.find_or_create_integer_symbol(

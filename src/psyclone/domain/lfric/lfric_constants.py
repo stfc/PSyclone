@@ -192,11 +192,11 @@ class LFRicConstants():
             "ncolours",
             # The number of tiles in a tile-coloured loop
             "ntilecolours",
-            # The number of cells in the current colour
+            # The number of cells in the outerloop colour
             "ncolour",
-            # The number of tiles in the current colour
+            # The number of tiles in the outerloop colour
             "ntiles_per_colour",
-            # The number of cells in the current coloured-tile
+            # The number of cells in the outerloop coloured-tile
             "ncells_per_colour_and_tile",
             # The number of owned cells
             "ncells",

@@ -2655,32 +2655,31 @@ class DynInterGrid():
         # Symbol of the variable holding the last cell of a particular tile
         self._last_cell_tile_var_symbol = None
 
-    def set_colour_info(self, colour_map, ncolours, last_cell):
+    def set_colour_info(self, colour_map: DataSymbol,
+                        ncolours: DataSymbol, last_cell: DataSymbol):
         '''Sets the colour_map, number of colours, and
         last cell of a particular colour.
 
         :param colour_map: the colour map symbol.
-        :type: colour_map:py:class:`psyclone.psyir.symbols.Symbol`
         :param ncolours: the number of colours.
-        :type: ncolours: :py:class:`psyclone.psyir.symbols.Symbol`
         :param last_cell: the last halo cell of a particular colour.
-        :type last_cell: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         self._colourmap_symbol = colour_map
         self._ncolours_var_symbol = ncolours
         self._last_cell_var_symbol = last_cell
 
-    def set_tilecolour_info(self, tilecolour_map, ntilecolours,
-                            last_tile, last_cell_tile):
+    def set_tilecolour_info(self, tilecolour_map: DataSymbol,
+                            ntilecolours: DataSymbol,
+                            last_tile: DataSymbol,
+                            last_cell_tile: DataSymbol):
         '''Sets the colour_map, number of colours, and
         last cell of a particular colour.
-        :param colour_map: the colour map symbol.
-        :type: colour_map:py:class:`psyclone.psyir.symbols.Symbol`
-        :param ncolours: the number of colours.
-        :type: ncolours: :py:class:`psyclone.psyir.symbols.Symbol`
-        :param last_cell: the last cell of a particular colour.
-        :type last_cell: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :param tilecolour_map: the tilecolourmap symbol.
+        :param ntilecolours: the number of tilecolours.
+        :param last_tile: the last tile of a particular colour.
+        :param last_cell_tile: the last cell of a particular tilecolour.
         '''
         self._tilecolourmap_symbol = tilecolour_map
         self._ntilecolours_var_symbol = ntilecolours
@@ -2688,51 +2687,51 @@ class DynInterGrid():
         self._last_cell_tile_var_symbol = last_cell_tile
 
     @property
-    def colourmap_symbol(self):
-        ''':returns: the colour map symbol.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+    def colourmap_symbol(self) -> DataSymbol:
+        '''
+        :returns: the colour map symbol.
         '''
         return self._colourmap_symbol
 
     @property
-    def ncolours_var_symbol(self):
-        ''':returns: the symbol for storing the number of colours.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+    def ncolours_var_symbol(self) -> DataSymbol:
+        '''
+        :returns: the symbol storing the number of colours.
         '''
         return self._ncolours_var_symbol
 
     @property
-    def last_cell_var_symbol(self):
-        ''':returns: the last halo/edge cell variable.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+    def last_cell_var_symbol(self) -> DataSymbol:
+        '''
+        :returns: the last halo/edge cell variable.
         '''
         return self._last_cell_var_symbol
 
     @property
-    def tilecolourmap_symbol(self):
-        ''':returns: the colour map symbol.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+    def tilecolourmap_symbol(self) -> DataSymbol:
+        '''
+        :returns: the tilecolour map symbol.
         '''
         return self._tilecolourmap_symbol
 
     @property
-    def ntilecolours_var_symbol(self):
-        ''':returns: the symbol for storing the number of colours.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+    def ntilecolours_var_symbol(self) -> DataSymbol:
+        '''
+        :returns: the symbol storing the number of tilecolours.
         '''
         return self._ntilecolours_var_symbol
 
     @property
-    def last_tile_var_symbol(self):
-        ''':returns: the last cell variable.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+    def last_tile_var_symbol(self) -> DataSymbol:
+        '''
+        :returns: the last tile variable.
         '''
         return self._last_tile_var_symbol
 
     @property
-    def last_cell_tile_var_symbol(self):
-        ''':returns: the last cell variable.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+    def last_cell_tile_var_symbol(self) -> DataSymbol:
+        '''
+        :returns: the last cell in the tilecolour.
         '''
         return self._last_cell_tile_var_symbol
 

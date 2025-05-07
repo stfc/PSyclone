@@ -1074,17 +1074,15 @@ class ColourTrans(LoopTrans):
         raise InternalError("_create_colours_loop() must be overridden in an "
                             "API-specific sub-class.")
 
-    def _create_tiled_colours_loops(self, node):
+    def _create_tiled_colours_loops(self, node: Loop) -> Loop:
         '''
         Creates nested loop (colours, tiles of a given colour and cells) to
         replace the supplied loop over cells.
 
         :param node: the loop for which to create a coloured version.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
 
         :returns: triply-nested loop over colours, tiles of a given colour,
             and cells.
-        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         :raises NotImplementedError: this method must be overridden in an
                                      API-specific sub-class.
@@ -1245,7 +1243,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
         return colours_loop
 
-    def _create_tiled_colours_loops(self, node):
+    def _create_tiled_colours_loops(self, node: Loop) -> Loop:
         '''
         Creates a nested loop hierarchy (colours, tiles and cells of a given
         colour inside a tile) which can be used to replace the supplied loop
@@ -1264,13 +1262,11 @@ class Dynamo0p3ColourTrans(ColourTrans):
             do cell =  1, last_edge_cell_per_colour_and_tile(tile, colour)
 
         :param node: the loop for which to create a coloured version.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
 
         :returns: doubly-nested loop over colours and cells of a given colour.
-        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         '''
-        # Create a colours loop. This loops over colours and must be run
+        # Create a 'colours' loop. This loops over colours and must be run
         # sequentially.
         colours_loop = node.__class__(parent=node.parent, loop_type="colours")
         colours_loop.field_space = node.field_space
@@ -1278,8 +1274,8 @@ class Dynamo0p3ColourTrans(ColourTrans):
         colours_loop.set_lower_bound("start")
         colours_loop.set_upper_bound("ntilecolours")
 
-        # Create a tile loop. This loops over tiles of a particular colour
-        # and can be run in parallel.
+        # Create a 'colourtile' loop. This loops over tiles of a particular
+        # colour and can be run in parallel.
         colour_loop = node.__class__(parent=colours_loop.loop_body,
                                      loop_type="colourtiles")
         colour_loop.field_space = node.field_space

@@ -41,7 +41,7 @@
 
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
@@ -493,13 +493,12 @@ class LFRicKern(CodedKern):
         return cmap
 
     @property
-    def tilecolourmap(self):
+    def tilecolourmap(self) -> DataSymbol:
         '''
         Getter for the name of the tilecolourmap associated with this
         kernel call.
 
-        :returns: name of the colourmap (Fortran array).
-        :rtype: str
+        :returns: the symbol representing the tilecolourmap.
 
         :raises InternalError: if this kernel is not coloured or the dictionary
         of inter-grid kernels and colourmaps has not been constructed.
@@ -577,13 +576,12 @@ class LFRicKern(CodedKern):
         return self.scope.symbol_table.lookup_with_tag("ncolour").name
 
     @property
-    def ntilecolours_var(self):
+    def ntilecolours_var(self) -> Optional[str]:
         '''
         Getter for the name of the variable holding the number of colours
         associated with this kernel call.
 
         :return: name of the variable holding the number of colours
-        :rtype: Union[str, NoneType]
 
         :raises InternalError: if this kernel is not coloured or the
             colour-map information has not been initialised.

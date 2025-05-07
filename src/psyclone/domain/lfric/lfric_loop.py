@@ -946,7 +946,7 @@ class LFRicLoop(PSyLoop):
 
         sym_table = self.ancestor(Routine).symbol_table
         insert_loc = self
-        # insert_loc is the outer loop/directive
+        # If it has ancestor directive or loop keep going up
         while isinstance(insert_loc.parent.parent, (Directive, Loop)):
             insert_loc = insert_loc.parent.parent
         cursor = insert_loc.position
