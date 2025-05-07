@@ -43,6 +43,7 @@ import keyword
 import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
+from psyclone.core import SingleVariableAccessInfo, VariablesAccessInfo
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
@@ -309,46 +310,43 @@ class SymPyWriter(FortranWriter):
         if all_variables_positive:
             assumptions["positive"] = True
 
-        # Find each reference in each of the expression, and declare this name
+        # Find every symbol in each of the expressions, and declare this name
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
         # (an array).
+        vai = VariablesAccessInfo()
         for expr in list_of_expressions:
-            # TODO #2542. References should be iterated with the
-            # reference_acess method when its issues are fixed.
-            for ref in expr.walk(Reference):
-                if (isinstance(ref.parent, Call) and
-                        ref.parent.children[0] is ref):
-                    continue
+            expr.reference_accesses(vai)
 
-                name = ref.name
-                # The reserved Python keywords do not have tags, so they
-                # will not be found.
-                if name in self._symbol_table.tags_dict:
-                    # TODO - we need to check *all* references to a Symbol to
-                    # make sure we have identified its type consistently.
-                    continue
+            # TODO #2863 - VariablesAccessInfo does not capture the names of
+            # things identified as Fortran intrinsics.
+            for icall in expr.walk(IntrinsicCall):
+                name = icall.routine.name.lower()
+                if name not in self._sympy_type_map:
+                    unique_sym = self._symbol_table.new_symbol(name, tag=name)
+                    self._sympy_type_map[unique_sym.name] = \
+                        self._create_sympy_array_function(
+                            name, num_dims=[len(icall.arguments)])
 
-                # Any symbol from the list of expressions to be handled
-                # will be created with a tag, so if the same symbol is
-                # used more than once, the previous test will prevent
-                # calling new_symbol again. If the name is a Python
-                # reserved symbol, a new unique name will be created by
-                # the symbol table.
-                unique_sym = self._symbol_table.new_symbol(name, tag=name)
-                # Test if an array or an array expression is used:
-                if ((not isinstance(ref, ArrayMixin)) and
-                        (not (isinstance(ref.symbol, DataSymbol) and
-                              isinstance(ref.symbol.datatype, ArrayType)))):
-                    self._sympy_type_map[unique_sym.name] = sympy.Symbol(
-                        name, **assumptions)
-                    continue
-
-                # A Fortran array is used which has not been seen before.
-                # Declare a new SymPy function for it. This SymPy function
-                # will convert array expressions back into the original
-                # Fortran code.
-                self._sympy_type_map[unique_sym.name] = \
-                    self._create_sympy_array_function(name)
+        for sig in vai.all_signatures:
+            sva: SingleVariableAccessInfo = vai[sig]
+            name = sva.var_name
+            unique_sym = self._symbol_table.new_symbol(name, tag=name)
+            for access in sva.all_accesses:
+                if access.is_array():
+                    # A Fortran array is used which has not been seen before.
+                    # Declare a new SymPy function for it. This SymPy function
+                    # will convert array expressions back into the original
+                    # Fortran code.
+                    ndims = [len(indices) for indices
+                             in access.component_indices]
+                    self._sympy_type_map[unique_sym.name] = \
+                        self._create_sympy_array_function(name, sig=sig,
+                                                          num_dims=ndims)
+                    break
+            else:
+                # a scalar access.
+                self._sympy_type_map[unique_sym.name] = sympy.Symbol(
+                    name, **assumptions)
 
         if not identical_variables:
             identical_variables = {}
@@ -700,7 +698,8 @@ class SymPyWriter(FortranWriter):
             # If the tag did not exist it means that this symbol has not
             # been re-named, and we can use it as is.
             name = node.name
-        if not node.is_array:
+
+        if not self.type_map[name.lower()].is_Function:
             # This reference is not an array, just return the name
             return name
 
@@ -708,8 +707,9 @@ class SymPyWriter(FortranWriter):
         # consistency, we still treat it as a Sympy function call and therefore
         # add the triple array indices to represent `lower:upper:1` for each
         # dimension:
-        shape = node.symbol.shape
-        result = [f"{self.no_bounds},{self.no_bounds},1"]*len(shape)
+        ndims = self.type_map[name.lower()]._num_dims[0]
+        #shape = node.symbol.shape
+        result = [f"{self.no_bounds},{self.no_bounds},1"]*ndims  # len(shape)
 
         return (f"{name}{self.array_parenthesis[0]}"
                 f"{','.join(result)}{self.array_parenthesis[1]}")
