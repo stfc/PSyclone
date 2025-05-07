@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: I. Kavcic, Met Office
-#          A. R. Porter and N. Nobre, STFC Daresbury Lab
+#          A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
 
 '''This module contains the base class for extracting extracting a region
