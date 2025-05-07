@@ -470,7 +470,7 @@ class LFRicKern(CodedKern):
         :returns: the symbol representing the colourmap for this kernel call.
 
         :raises InternalError: if this kernel is not coloured or the dictionary
-        of inter-grid kernels and colourmaps has not been constructed.
+            of inter-grid kernels and colourmaps has not been constructed.
 
         '''
         if not self.is_coloured():
@@ -501,7 +501,7 @@ class LFRicKern(CodedKern):
         :returns: the symbol representing the tilecolourmap.
 
         :raises InternalError: if this kernel is not coloured or the dictionary
-        of inter-grid kernels and colourmaps has not been constructed.
+            of inter-grid kernels and colourmaps has not been constructed.
 
         '''
         if not self.is_coloured():
@@ -591,9 +591,7 @@ class LFRicKern(CodedKern):
                                 f"coloured loop.")
         if self.is_intergrid:
             ncols_sym = self._intergrid_ref.ntilecolours_var_symbol
-            if not ncols_sym:
-                return None
-            return ncols_sym.name
+            return ncols_sym.name if ncols_sym is not None else None
 
         return self.scope.symbol_table.lookup_with_tag("ntilecolours").name
 
