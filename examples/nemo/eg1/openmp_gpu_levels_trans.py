@@ -52,6 +52,7 @@ Loop.set_loop_type_inference_rules({
         "tracers": {"variable": "jt"}
 })
 
+
 def trans(psyir):
     ''' Add OpenMP Target and Loop directives to all loops.
 
