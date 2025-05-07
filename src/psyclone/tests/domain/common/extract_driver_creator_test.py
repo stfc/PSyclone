@@ -165,17 +165,27 @@ in_fld_data, dx_data, in_fld_grid_dx, in_fld_grid_gphiu)
     enddo
   enddo
   call compare_init(8)
-  call compare('dx_data', dx_data, dx_data_post)
   call compare('i', i, i_post)
-  call compare('in_fld_data', in_fld_data, in_fld_data_post)
-  call compare('in_fld_grid_dx', in_fld_grid_dx, in_fld_grid_dx_post)
-  call compare('in_fld_grid_gphiu', in_fld_grid_gphiu, \
-in_fld_grid_gphiu_post)
   call compare('in_out_fld_data', in_out_fld_data, in_out_fld_data_post)
   call compare('j', j, j_post)
   call compare('out_fld_data', out_fld_data, out_fld_data_post)
   call compare_summary()
 '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in driver_code, line + "\n -- not in --\n" + driver_code
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone, and we would have
+    # a: call compare_init(4)
+    expected = '''
+  call compare('dx_data', dx_data, dx_data_post)
+  call compare('in_fld_data', in_fld_data, in_fld_data_post)
+  call compare('in_fld_grid_dx', in_fld_grid_dx, in_fld_grid_dx_post)
+  call compare('in_fld_grid_gphiu', in_fld_grid_gphiu, \
+in_fld_grid_gphiu_post)
+    '''
     expected_lines = expected.split("\n")
     for line in expected_lines:
         assert line in driver_code, line + "\n -- not in --\n" + driver_code
@@ -250,6 +260,22 @@ in_fld_data, dx_data, in_fld_grid_dx, in_fld_grid_gphiu)
     for line in expected_lines:
         assert line in driver_code, line + "\n -- not in --\n" + driver_code
 
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone, and we would have
+    # a: call compare_init(4)
+    expected = '''
+  call compare('dx_data', dx_data, dx_data_post)
+  call compare('in_fld_data', in_fld_data, in_fld_data_post)
+  call compare('in_fld_grid_dx', in_fld_grid_dx, in_fld_grid_dx_post)
+  call compare('in_fld_grid_gphiu', in_fld_grid_gphiu, \
+in_fld_grid_gphiu_post)
+    '''
+
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in driver_code, line + "\n -- not in --\n" + driver_code
+
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
@@ -265,7 +291,6 @@ def test_rename_suffix_if_name_clash():
     filename.
 
     '''
-    # test has to be completely redone
     # Use tmpdir so that the driver is created in tmp
     etrans = GOceanExtractTrans()
     psy, invoke = get_invoke("driver_test.f90",

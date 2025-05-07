@@ -192,11 +192,20 @@ def test_extract_node_lower_to_language_level():
     CALL extract_psy_data % ProvideVariable("cu_fld_data_post", cu_fld_data)
     CALL extract_psy_data % ProvideVariable("i_post", i)
     CALL extract_psy_data % ProvideVariable("j_post", j)
+    """)
+    assert output in code
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone
+    expected = '''
     CALL extract_psy_data % ProvideVariable("p_fld_data_post", p_fld_data)
     CALL extract_psy_data % ProvideVariable("u_fld_data_post", u_fld_data)
     CALL extract_psy_data % PostEnd
-    """)
-    assert output in code
+    '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in code
 
 
 # ---------------------------------------------------------------------------
@@ -270,9 +279,20 @@ ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
 undf_w3, map_w3(:,cell))
     enddo
     CALL extract_psy_data % PostStart
-    CALL extract_psy_data % ProvideVariable("a_post", a)
+    '''
+    assert output in code
+
+    output = '''
     CALL extract_psy_data % ProvideVariable("cell_post", cell)
     CALL extract_psy_data % ProvideVariable("f1_data_post", f1_data)
+    '''
+    assert output in code
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone
+    assert '''CALL extract_psy_data % ProvideVariable("a_post", a)''' in code
+    expected = '''
     CALL extract_psy_data % ProvideVariable("f2_data_post", f2_data)
     CALL extract_psy_data % ProvideVariable("m1_data_post", m1_data)
     CALL extract_psy_data % ProvideVariable("m2_data_post", m2_data)
@@ -286,8 +306,11 @@ undf_w3, map_w3(:,cell))
     CALL extract_psy_data % ProvideVariable("undf_w1_post", undf_w1)
     CALL extract_psy_data % ProvideVariable("undf_w2_post", undf_w2)
     CALL extract_psy_data % ProvideVariable("undf_w3_post", undf_w3)
-    CALL extract_psy_data % PostEnd'''
-    assert output in code
+    CALL extract_psy_data % PostEnd
+    '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in code
 
 
 def test_flatten_signature():

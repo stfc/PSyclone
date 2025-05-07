@@ -269,11 +269,20 @@ def test_single_node_ompparalleldo_gocean1p0():
     CALL extract_psy_data % ProvideVariable("cv_fld_data_post", cv_fld_data)
     CALL extract_psy_data % ProvideVariable("i_post", i)
     CALL extract_psy_data % ProvideVariable("j_post", j)
+    """
+    assert output in code
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone
+    expected = '''
     CALL extract_psy_data % ProvideVariable("p_fld_data_post", p_fld_data)
     CALL extract_psy_data % ProvideVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PostEnd
-    """
-    assert output in code
+    '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in code
 
 
 # -----------------------------------------------------------------------------
@@ -335,11 +344,20 @@ def test_single_node_ompparalleldo_gocean1p0_const_loop():
     CALL extract_psy_data % ProvideVariable("cv_fld_data_post", cv_fld_data)
     CALL extract_psy_data % ProvideVariable("i_post", i)
     CALL extract_psy_data % ProvideVariable("j_post", j)
+    """
+    assert output in code
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone
+    expected = '''
     CALL extract_psy_data % ProvideVariable("p_fld_data_post", p_fld_data)
     CALL extract_psy_data % ProvideVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PostEnd
-    """
-    assert output in code
+    '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in code
 
 
 # -----------------------------------------------------------------------------
@@ -358,7 +376,6 @@ def test_node_list_ompparallel_gocean1p0():
                              GOCEAN_API, idx=0, dist_mem=False)
     schedule = invoke.schedule
 
-    print(psy.gen)
     # Apply GOConstLoopBoundsTrans
     ctrans.apply(schedule)
     # Apply GOceanOMPParallelLoopTrans to the first two Loops
@@ -421,17 +438,25 @@ def test_node_list_ompparallel_gocean1p0():
     CALL extract_psy_data % ProvideVariable("cv_fld_data_post", cv_fld_data)
     CALL extract_psy_data % ProvideVariable("i_post", i)
     CALL extract_psy_data % ProvideVariable("j_post", j)
+    """
+    assert output in code
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone
+    expected = '''
     CALL extract_psy_data % ProvideVariable("p_fld_data_post", p_fld_data)
     CALL extract_psy_data % ProvideVariable("u_fld_data_post", u_fld_data)
     CALL extract_psy_data % ProvideVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PostEnd
-    """
-    assert output in code
+    '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in code
 
 
 # -----------------------------------------------------------------------------
 # Testing driver generation
-
 @pytest.mark.usefixtures("change_into_tmpdir")
 @pytest.mark.parametrize("create_driver", [None, False, True])
 def test_driver_generation_flag(create_driver):

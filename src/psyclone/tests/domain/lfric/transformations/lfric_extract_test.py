@@ -365,9 +365,20 @@ def test_single_node_dynamo0p3():
         '''undf_w3, map_w3(:,cell))
     enddo
     CALL extract_psy_data % PostStart
-    CALL extract_psy_data % ProvideVariable("a_post", a)
+'''
+    assert output in code
+
+    output = '''
     CALL extract_psy_data % ProvideVariable("cell_post", cell)
     CALL extract_psy_data % ProvideVariable("f1_data_post", f1_data)
+'''
+    assert output in code
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone
+    assert '''CALL extract_psy_data % ProvideVariable("a_post", a)''' in code
+    expected = '''
     CALL extract_psy_data % ProvideVariable("f2_data_post", f2_data)
     CALL extract_psy_data % ProvideVariable("m1_data_post", m1_data)
     CALL extract_psy_data % ProvideVariable("m2_data_post", m2_data)
@@ -381,8 +392,11 @@ def test_single_node_dynamo0p3():
     CALL extract_psy_data % ProvideVariable("undf_w1_post", undf_w1)
     CALL extract_psy_data % ProvideVariable("undf_w2_post", undf_w2)
     CALL extract_psy_data % ProvideVariable("undf_w3_post", undf_w3)
-    CALL extract_psy_data % PostEnd'''
-    assert output in code
+    CALL extract_psy_data % PostEnd
+    '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in code
 
 
 def test_node_list_dynamo0p3():
@@ -451,13 +465,22 @@ def test_node_list_dynamo0p3():
     CALL extract_psy_data % ProvideVariable("f2_data_post", f2_data)
     CALL extract_psy_data % ProvideVariable("f3_data_post", f3_data)
     CALL extract_psy_data % ProvideVariable("f5_data_post", f5_data)
+    """
+    assert output in code
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone
+    expected = '''
     CALL extract_psy_data % ProvideVariable("map_w2_post", map_w2)
     CALL extract_psy_data % ProvideVariable("ndf_w2_post", ndf_w2)
     CALL extract_psy_data % ProvideVariable("nlayers_f3_post", nlayers_f3)
     CALL extract_psy_data % ProvideVariable("undf_w2_post", undf_w2)
-    CALL extract_psy_data % PostEnd"""
-
-    assert output in code
+    CALL extract_psy_data % PostEnd
+    '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in code
 
 
 def test_dynamo0p3_builtin():
@@ -524,12 +547,23 @@ def test_dynamo0p3_builtin():
     CALL extract_psy_data % ProvideVariable("f2_data_post", f2_data)
     CALL extract_psy_data % ProvideVariable("f3_data_post", f3_data)
     CALL extract_psy_data % ProvideVariable("f5_data_post", f5_data)
+    """
+    assert output in code
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone
+    expected = '''
     CALL extract_psy_data % ProvideVariable("map_w2_post", map_w2)
     CALL extract_psy_data % ProvideVariable("ndf_w2_post", ndf_w2)
     CALL extract_psy_data % ProvideVariable("nlayers_f3_post", nlayers_f3)
     CALL extract_psy_data % ProvideVariable("undf_w2_post", undf_w2)
-    CALL extract_psy_data % PostEnd"""
-    assert output in code
+    CALL extract_psy_data % PostEnd
+    '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in code
+
     # TODO #706: Compilation for LFRic extraction not supported yet.
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -664,12 +698,22 @@ undf_w2, map_w2(:,cell))
     CALL extract_psy_data % ProvideVariable("df_post", df)
     CALL extract_psy_data % ProvideVariable("f2_data_post", f2_data)
     CALL extract_psy_data % ProvideVariable("f3_data_post", f3_data)
+    """
+    assert output in code
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone
+    expected = '''
     CALL extract_psy_data % ProvideVariable("map_w2_post", map_w2)
     CALL extract_psy_data % ProvideVariable("ndf_w2_post", ndf_w2)
     CALL extract_psy_data % ProvideVariable("nlayers_f3_post", nlayers_f3)
     CALL extract_psy_data % ProvideVariable("undf_w2_post", undf_w2)
-    CALL extract_psy_data % PostEnd"""
-    assert output in code
+    CALL extract_psy_data % PostEnd
+    '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in code
 
     # TODO #706: Compilation for LFRic extraction not supported yet.
     # assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -830,14 +874,26 @@ diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)
       !$omp end parallel do
     enddo
     CALL extract_psy_data % PostStart
-    CALL extract_psy_data % ProvideVariable("a_data_post", a_data)
+    """
+    assert output in code
+    expected = '''
     CALL extract_psy_data % ProvideVariable("b_data_post", b_data)
+    CALL extract_psy_data % ProvideVariable("cell_post", cell)
+    CALL extract_psy_data % ProvideVariable("colour_post", colour)
+    '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in code
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone
+    expected = '''
+    CALL extract_psy_data % ProvideVariable("a_data_post", a_data)
     CALL extract_psy_data % ProvideVariable("basis_w0_qr_post", basis_w0_qr)
     CALL extract_psy_data % ProvideVariable("basis_w2_qr_post", basis_w2_qr)
     CALL extract_psy_data % ProvideVariable("basis_w3_qr_post", basis_w3_qr)
     CALL extract_psy_data % ProvideVariable("c_data_post", c_data)
-    CALL extract_psy_data % ProvideVariable("cell_post", cell)
-    CALL extract_psy_data % ProvideVariable("colour_post", colour)
     CALL extract_psy_data % ProvideVariable("diff_basis_w0_qr_post", \
 diff_basis_w0_qr)
     CALL extract_psy_data % ProvideVariable("diff_basis_w2_qr_post", \
@@ -863,8 +919,10 @@ diff_basis_w2_qr)
 weights_xy_qr)
     CALL extract_psy_data % ProvideVariable("weights_z_qr_post", weights_z_qr)
     CALL extract_psy_data % PostEnd
-    """
-    assert output in code
+    '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in code
 
     # TODO #706: Compilation for LFRic extraction not supported yet.
     # assert LFRicBuild(tmpdir).code_compiles(psy)
