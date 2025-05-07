@@ -160,7 +160,7 @@ def test_omp_remove_barrier_reduce_barrier_set():
     # Once we reduce the barrier set we should have a new set of:
     # {0}, {2}, {2}, {3,4}
     OMPMinimiseSyncTrans._reduce_barrier_set(required_barriers,
-                                              barrier_set)
+                                             barrier_set)
     assert len(barrier_set[0]) == 1
     assert barrier_set[0][0] is barriers[0]
     assert len(barrier_set[1]) == 1
