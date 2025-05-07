@@ -39,15 +39,19 @@
 '''
 
 import keyword
+from typing import Dict, List, Optional, Set, Union
 
 import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.core import Signature
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (
-    DataNode, Range, Reference, IntrinsicCall, Call)
+    ArrayOfStructuresReference, ArrayReference, BinaryOperation, Call,
+    DataNode, IntrinsicCall, Literal, Node,
+    Range, Reference, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, SymbolTable)
 
 
@@ -96,7 +100,7 @@ class SymPyWriter(FortranWriter):
     # A list of all reserved Python keywords (Fortran variables that are the
     # same as a reserved name must be renamed, otherwise parsing will fail).
     # This class attribute will get initialised in __init__:
-    _RESERVED_NAMES = set()
+    _RESERVED_NAMES: Set[str] = set()
 
     def __init__(self):
         super().__init__()
@@ -197,7 +201,11 @@ class SymPyWriter(FortranWriter):
                                   "never be called.")
 
     # -------------------------------------------------------------------------
-    def _create_sympy_array_function(self, name, sig=None, num_dims=None):
+    def _create_sympy_array_function(
+            self,
+            name: str,
+            sig: Optional[Signature] = None,
+            num_dims: Optional[List[int]] = None) -> sympy.Function:
         '''Creates a Function class with the given name to be used for SymPy
         parsing. This Function overwrites the conversion to string, and will
         replace the triplicated array indices back to the normal Fortran
@@ -206,7 +214,7 @@ class SymPyWriter(FortranWriter):
         to the object, so that the SymPyReader can recreate the proper
         access to a user-defined type.
 
-        :param str name: name of the function class to create.
+        :param name: name of the function class to create.
         :param sig: the signature of the variable, which is required
             to convert user defined types back properly. Only defined for
             user-defined types.
@@ -246,8 +254,10 @@ class SymPyWriter(FortranWriter):
         return new_func
 
     # -------------------------------------------------------------------------
-    def _create_type_map(self, list_of_expressions, identical_variables=None,
-                         all_variables_positive=None):
+    def _create_type_map(self,
+                         list_of_expressions: List[Node],
+                         identical_variables: Optional[Dict[str, str]] = None,
+                         all_variables_positive: Optional[bool] = None):
         '''This function creates a dictionary mapping each Reference in any
         of the expressions to either a SymPy Function (if the reference
         is an array reference) or a Symbol (if the reference is not an
@@ -282,11 +292,9 @@ class SymPyWriter(FortranWriter):
         :param list_of_expressions: the list of expressions from which all
             references are taken and added to a symbol table to avoid
             renaming any symbols (so that only member names will be renamed).
-        :type list_of_expressions: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param identical_variables: which variable names are known to represent
             identical quantities.
-        :type identical_variables: Optional[dict[str, str]]
-        :param Optional[bool] all_variables_positive: whether or not (the
+        :param all_variables_positive: whether or not (the
             default) to assume that all variables are positive definite
             quantities.
 
@@ -363,25 +371,24 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     @property
-    def lower_bound(self):
+    def lower_bound(self) -> str:
         ''':returns: the name to be used for an unspecified lower bound.
-        :rtype: str
 
         '''
         return self._lower_bound
 
     # -------------------------------------------------------------------------
     @property
-    def upper_bound(self):
+    def upper_bound(self) -> str:
         ''':returns: the name to be used for an unspecified upper bound.
-        :rtype: str
 
         '''
         return self._upper_bound
 
     # -------------------------------------------------------------------------
     @property
-    def type_map(self):
+    def type_map(self) -> Dict[str, Union[sympy.core.symbol.Symbol,
+                                          sympy.core.function.Function]]:
         ''':returns: the mapping of names to SymPy symbols or functions.
         :rtype: Dict[str, Union[:py:class:`sympy.core.symbol.Symbol`,
                                 :py:class:`sympy.core.function.Function`]]
@@ -390,8 +397,12 @@ class SymPyWriter(FortranWriter):
         return self._sympy_type_map
 
     # -------------------------------------------------------------------------
-    def _to_str(self, list_of_expressions, identical_variables=None,
-                all_variables_positive=False):
+    def _to_str(
+        self,
+        list_of_expressions: Union[Node, List[Node]],
+        identical_variables: Optional[Dict[str, str]] = None,
+        all_variables_positive: Optional[bool] = False) -> Union[str,
+                                                                 List[str]]:
         '''Converts PSyIR expressions to strings. It will replace Fortran-
         specific expressions with code that can be parsed by SymPy. The
         argument can either be a single element (in which case a single string
@@ -403,24 +414,23 @@ class SymPyWriter(FortranWriter):
 
         :param identical_variables: which variable names are known to be
             identical
-        :type identical_variables: Optional[dict[str, str]]
-
         :param list_of_expressions: the list of expressions which are to be
             converted into SymPy-parsable strings.
-        :type list_of_expressions: Union[:py:class:`psyclone.psyir.nodes.Node`,
-            List[:py:class:`psyclone.psyir.nodes.Node`]]
-        :param Optional[bool] all_variables_positive: whether or not (the
+        :param all_variables_positive: whether or not (the
             default) to assume that all variables are positive definite
             quantities.
 
         :returns: the converted strings(s).
-        :rtype: Union[str, List[str]]
 
         '''
         is_list = isinstance(list_of_expressions, (tuple, list))
         if not is_list:
+            # Make mypy happy:
+            assert isinstance(list_of_expressions, Node)
             list_of_expressions = [list_of_expressions]
 
+        # Make mypy happy:
+        assert isinstance(list_of_expressions, List)
         # Create the type map in `self._sympy_type_map`, which is required
         # when converting these strings to SymPy expressions
         self._create_type_map(list_of_expressions,
@@ -438,8 +448,13 @@ class SymPyWriter(FortranWriter):
         return expression_str_list
 
     # -------------------------------------------------------------------------
-    def __call__(self, list_of_expressions, identical_variables=None,
-                 all_variables_positive=False):
+    def __call__(
+        self,
+        list_of_expressions: Union[Node, List[Node]],
+        identical_variables: Optional[Dict[str, str]] = None,
+        all_variables_positive: Optional[bool] = False) \
+            -> Union[sympy.core.basic.Basic,
+                     List[sympy.core.basic.Basic]]:
         '''
         This function takes a list of PSyIR expressions, and converts
         them all into Sympy expressions using the SymPy parser.
@@ -454,11 +469,8 @@ class SymPyWriter(FortranWriter):
 
         :param list_of_expressions: the list of expressions which are to be
             converted into SymPy-parsable strings.
-        :type list_of_expressions: list of
-            :py:class:`psyclone.psyir.nodes.Node`
         :param identical_variables: which variable names are known to be
             identical
-        :type identical_variables: Optional[dict[str, str]]
         :param Optional[bool] all_variables_positive: whether or not (the
             default) to assume that all variables are positive definite
             quantities.
@@ -466,8 +478,6 @@ class SymPyWriter(FortranWriter):
         :returns: a 2-tuple consisting of the the converted PSyIR
             expressions, followed by a dictionary mapping the symbol names
             to SymPy Symbols.
-        :rtype: Union[:py:class:`sympy.core.basic.Basic`,
-                      List[:py:class:`sympy.core.basic.Basic`]]
 
         :raises VisitorError: if an invalid SymPy expression is found.
         :raises TypeError: if the identical_variables parameter is not
@@ -486,7 +496,9 @@ class SymPyWriter(FortranWriter):
 
         is_list = isinstance(list_of_expressions, (tuple, list))
         if not is_list:
+            assert isinstance(list_of_expressions, Node)
             list_of_expressions = [list_of_expressions]
+
         expression_str_list = self._to_str(
             list_of_expressions, identical_variables=identical_variables,
             all_variables_positive=all_variables_positive)
@@ -506,39 +518,39 @@ class SymPyWriter(FortranWriter):
         return result[0]
 
     # -------------------------------------------------------------------------
-    def arrayreference_node(self, node):
+    def arrayreference_node(self, node: ArrayReference) -> str:
         '''The implementation of the method handling a
         ArrayOfStructureReference is generic enough to also handle
         non-structure arrays. So just use it.
 
         :param node: a ArrayReference PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         :returns: the code as string.
-        :rtype: str
 
         '''
         return self.arrayofstructuresreference_node(node)
 
     # -------------------------------------------------------------------------
-    def structurereference_node(self, node):
+    def structurereference_node(self, node: StructureReference) -> str:
         '''The implementation of the method handling a
         ArrayOfStructureReference is generic enough to also handle non-arrays.
         So just use it.
 
         :param node: a StructureReference PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.StructureReference`
 
         :returns: the code as string.
-        :rtype: str
 
         '''
         return self.arrayofstructuresreference_node(node)
 
     # -------------------------------------------------------------------------
-    def arrayofstructuresreference_node(self, node):
-        '''This handles ArrayOfStructureReferences (and also simple
-        StructureReferences). An access like ``a(i)%b(j)`` is converted to
+    def arrayofstructuresreference_node(
+        self,
+        node: Union[ArrayOfStructuresReference,
+                    ArrayReference,
+                    StructureReference]) -> str:
+        '''This handles ArrayOfStructuresReference (and also simple
+        StructureReference). An access like ``a(i)%b(j)`` is converted to
         the string ``a_b(i,i,1,j,j,1)`` (also handling name clashes in case
         that the user code already contains a symbol ``a_b``). The SymPy
         function created for this new symbol will store the original signature
@@ -548,10 +560,8 @@ class SymPyWriter(FortranWriter):
         representation
 
         :param node: a StructureReference PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.StructureReference`
 
         :returns: the code as string.
-        :rtype: str
 
         '''
         sig, indices = node.get_signature_and_indices()
@@ -591,7 +601,7 @@ class SymPyWriter(FortranWriter):
         return unique_name
 
     # -------------------------------------------------------------------------
-    def literal_node(self, node):
+    def literal_node(self, node: Literal) -> str:
         '''This method is called when a Literal instance is found in the PSyIR
         tree. For SymPy we need to handle booleans (which are expected to
         be capitalised: True). Real values work by just ignoring any precision
@@ -599,10 +609,8 @@ class SymPyWriter(FortranWriter):
         and will raise an exception.
 
         :param node: a Literal PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Literal`
 
         :returns: the SymPy representation for the literal.
-        :rtype: str
 
         :raises TypeError: if a character constant is found, which
             is not supported with SymPy.
@@ -621,17 +629,16 @@ class SymPyWriter(FortranWriter):
         # information can be ignored.
         return node.value
 
-    def intrinsiccall_node(self, node):
+    # -------------------------------------------------------------------------
+    def intrinsiccall_node(self, node: IntrinsicCall) -> str:
         ''' This method is called when an IntrinsicCall instance is found in
         the PSyIR tree. The Sympy backend will use the exact sympy name for
         some math intrinsics (listed in _intrinsic_to_str) and will remove
         named arguments.
 
         :param node: an IntrinsicCall PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         :returns: the SymPy representation for the Intrinsic.
-        :rtype: str
 
         '''
         # Sympy does not support argument names, remove them for now
@@ -660,7 +667,7 @@ class SymPyWriter(FortranWriter):
             return super().call_node(node)
 
     # -------------------------------------------------------------------------
-    def reference_node(self, node):
+    def reference_node(self, node: Reference) -> str:
         '''This method is called when a Reference instance is found in the
         PSyIR tree. It handles the case that this normal reference might
         be an array expression, which in the SymPy writer needs to have
@@ -668,10 +675,8 @@ class SymPyWriter(FortranWriter):
         ``a`` to ``a(sympy_lower, sympy_upper, 1)``.
 
         :param node: a Reference PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Reference`
 
         :returns: the text representation of this reference.
-        :rtype: str
 
         '''
         # Support renaming a symbol (e.g. if it is a reserved Python name).
@@ -706,7 +711,6 @@ class SymPyWriter(FortranWriter):
         :param node: a Reference PSyIR BinaryOperation.
 
         '''
-
         for psy_op, sympy_op in [(BinaryOperation.Operator.AND,
                                   "{lhs} & {rhs}"),
                                  (BinaryOperation.Operator.OR,
@@ -723,7 +727,9 @@ class SymPyWriter(FortranWriter):
         return super().binaryoperation_node(node)
 
     # ------------------------------------------------------------------------
-    def gen_indices(self, indices, var_name=None):
+    def gen_indices(self,
+                    indices: List[Node],
+                    var_name: Optional[str] = None):
         '''Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
         This is used both for array references and array declarations. Note
@@ -732,12 +738,10 @@ class SymPyWriter(FortranWriter):
         each array index into three parameters to support array expressions.
 
         :param indices: list of PSyIR nodes.
-        :type indices: List[:py:class:`psyclone.psyir.symbols.Node`]
-        :param str var_name: name of the variable for which the dimensions
+        :param var_name: name of the variable for which the dimensions
             are created. Not used in this implementation.
 
         :returns: the Fortran representation of the dimensions.
-        :rtype: List[str]
 
         :raises NotImplementedError: if the format of the dimension is not
             supported.
@@ -770,16 +774,14 @@ class SymPyWriter(FortranWriter):
         return dims
 
     # -------------------------------------------------------------------------
-    def range_node(self, node):
+    def range_node(self, node: Range) -> str:
         '''This method is called when a Range instance is found in the PSyIR
         tree. This implementation converts a range into three parameters
         for the corresponding SymPy function.
 
         :param node: a Range PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Range`
 
         :returns: the Fortran code as a string.
-        :rtype: str
 
         '''
         if node.parent and node.parent.is_lower_bound(
