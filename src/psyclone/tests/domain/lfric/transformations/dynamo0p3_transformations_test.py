@@ -7772,8 +7772,10 @@ def test_all_loop_trans_base_validate(monkeypatch):
 # paths in different places): non-intergrid kernels, intergrid kernels, and
 # continuous writer intergrid kernels.
 # TODO #2905: Aims to encapsulate this better inside the transformation
+# TODO #2623: Compilation tests can not be added until we update the testing
+# lfric infrastructure
 
-def test_colour_trans_tiled_non_intergrid(dist_mem, tmpdir):
+def test_colour_trans_tiled_non_intergrid(dist_mem):
     ''' Test of the tile-colouring transformation of a single loop. We test
     when distributed memory is both off and on. For non-intergrid kernel
     it will have halos when dist_mem is on, and last_edge_cell when it is off.
@@ -7841,7 +7843,31 @@ mesh%get_last_halo_cell_all_colours_all_tiles()""" in code
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_colour_tans_tiled_intergrid(dist_mem, tmpdir):
+def test_colour_trans_tiled_and_halo_depth():
+    ''' Mix the tile-colouring transformation with a non-default halo-depth,
+    in this case the tiling methods must have an explicit depth argument.
+    '''
+    psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
+                             name="invoke_0_testkern_type",
+                             dist_mem=True)
+    schedule = invoke.schedule
+
+    # Set a non-default halo depth
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.walk(Loop)[0]
+    rc_trans.apply(loop, {"depth": 3})
+
+    # Colour the loop
+    ctrans = Dynamo0p3ColourTrans()
+    ctrans.apply(loop, options={"tiling": True})
+
+    # Check that the generated code has a explicit '3' depth argument
+    code = str(psy.gen).lower()
+    assert "last_halo_tile_per_colour(colour,3)" in code
+    assert "last_halo_cell_per_colour_and_tile(colour,tile,3)" in code
+
+
+def test_colour_tans_tiled_intergrid(dist_mem):
     ''' Check that we can apply colouring with tiling to a loop containing
     an inter-grid kernel. This have the colour maps suffixed with the field
     name (as there are multiple meshes with different colour properties). '''
@@ -7910,7 +7936,7 @@ def test_colour_tans_tiled_intergrid(dist_mem, tmpdir):
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_colour_trans_tiled_continuous_writer_intergrid(tmpdir, dist_mem):
+def test_colour_trans_tiled_continuous_writer_intergrid(dist_mem):
     '''
     Test the tile-colouring transformation for an inter-grid kernel that has
     a GH_WRITE access to a field on a continuous space. Since it has GH_WRITE

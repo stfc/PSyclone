@@ -1017,11 +1017,13 @@ class KernCallArgList(ArgOrdering):
                     [Reference(colour_sym), Reference(tile_sym),
                      Reference(cell_sym)],
                     tag="tmap" if self._kern.is_intergrid else None)
-                if var_accesses is not None:
-                    var_accesses.add_access(Signature(array_ref.name),
-                                            AccessType.READ,
-                                            self._kern,
-                                            ["colour", "tile", "cell"])
+                # If needed we could add a add_access, but this feels wrong,
+                # as the access should be provived by analysing the tree.
+                # if var_accesses is not None:
+                #     var_accesses.add_access(Signature(array_ref.name),
+                #                             AccessType.READ,
+                #                             self._kern,
+                #                             ["colour", "tile", "cell"])
             else:
                 symbol = self._kern.colourmap
                 array_ref = ArrayReference.create(

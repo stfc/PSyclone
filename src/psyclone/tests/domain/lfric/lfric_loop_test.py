@@ -51,7 +51,7 @@ from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
                                    LFRicInvokeSchedule)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, InvokeSchedule
+from psyclone.psyGen import PSyFactory, InvokeSchedule, Kern
 from psyclone.psyir.nodes import Call, ScopingNode, Loop
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyir.tools import DependencyTools
@@ -879,7 +879,7 @@ def test_upper_bound_psyir_invalid_bound():
 
 def test_upper_bound_psyir_invalid_within_colouring(monkeypatch):
     ''' Tests we raise an exception in the LFRicLoop:_upper_bound_psyir()
-    method if an invalid value is provided.
+    method if an invalid state is provided.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -891,6 +891,24 @@ def test_upper_bound_psyir_invalid_within_colouring(monkeypatch):
         _ = my_loop.upper_bound_psyir()
     assert (
         "Unsupported upper bound name 'invalid' found" in str(excinfo.value))
+    # Pretend the loop is over colours and passes the is_coloured check, but
+    # it does not have colouring symbols associated
+    monkeypatch.setattr(my_loop, "_upper_bound_name", value="ncolours")
+    monkeypatch.setattr(Kern, "is_coloured", lambda x: True)
+    with pytest.raises(InternalError) as excinfo:
+        _ = my_loop.upper_bound_psyir()
+    assert ("All kernels within a loop over colours must have been coloured "
+            "but kernel 'testkern_code' has not"
+            in str(excinfo.value))
+    # Pretend the loop is over colours and passes the is_coloured check, but
+    # it does not have colouring symbols associated
+    monkeypatch.setattr(my_loop, "_upper_bound_name", value="ntilecolours")
+    monkeypatch.setattr(Kern, "is_coloured", lambda x: True)
+    with pytest.raises(InternalError) as excinfo:
+        _ = my_loop.upper_bound_psyir()
+    assert ("All kernels within a loop over colours must have been coloured "
+            "but kernel 'testkern_code' has not"
+            in str(excinfo.value))
     # Pretend the loop is over colours and does not contain a kernel
     monkeypatch.setattr(my_loop, "_upper_bound_name", value="ncolours")
     monkeypatch.setattr(my_loop, "walk", lambda x: [])
@@ -905,6 +923,23 @@ def test_upper_bound_psyir_invalid_within_colouring(monkeypatch):
         _ = my_loop.upper_bound_psyir()
     assert ("Failed to find a kernel within a loop over tile-colours"
             in str(excinfo.value))
+    # Pretend the loop is over ntiles_per_colour_halo with no dist_mem
+    monkeypatch.setattr(my_loop, "_upper_bound_name",
+                        value="ntiles_per_colour_halo")
+    st = psy.invokes.invoke_list[0].schedule.symbol_table
+    st.new_symbol("mesh", tag="mesh")
+    with pytest.raises(GenerationError) as excinfo:
+        _ = my_loop.upper_bound_psyir()
+    assert ("'last_halo_tile_per_colour' is not a valid loop upper bound for"
+            " non-distributed-memory code" in str(excinfo.value))
+    # Pretend the loop is over ncells_per_colour_and_tile_halo with no dist_mem
+    monkeypatch.setattr(my_loop, "_upper_bound_name",
+                        value="ncells_per_colour_and_tile_halo")
+    st = psy.invokes.invoke_list[0].schedule.symbol_table
+    with pytest.raises(GenerationError) as excinfo:
+        _ = my_loop.upper_bound_psyir()
+    assert ("'last_halo_cell_per_colour_and_tile' is not a valid loop upper "
+            "bound for non-distributed-memory code" in str(excinfo.value))
 
 
 def test_upper_bound_psyir_inner(monkeypatch):

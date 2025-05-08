@@ -573,7 +573,11 @@ class LFRicKern(CodedKern):
             ncols_sym = self._intergrid_ref.ncolours_var_symbol
             return ncols_sym.name if ncols_sym is not None else None
 
-        return self.scope.symbol_table.lookup_with_tag("ncolour").name
+        try:
+            symbol = self.scope.symbol_table.lookup_with_tag("ncolour")
+        except KeyError:
+            symbol = None
+        return symbol.name if symbol is not None else None
 
     @property
     def ntilecolours_var(self) -> Optional[str]:
@@ -593,7 +597,11 @@ class LFRicKern(CodedKern):
             ncols_sym = self._intergrid_ref.ntilecolours_var_symbol
             return ncols_sym.name if ncols_sym is not None else None
 
-        return self.scope.symbol_table.lookup_with_tag("ntilecolours").name
+        try:
+            symbol = self.scope.symbol_table.lookup_with_tag("ntilecolours")
+        except KeyError:
+            symbol = None
+        return symbol.name if symbol is not None else None
 
     @property
     def fs_descriptors(self):
