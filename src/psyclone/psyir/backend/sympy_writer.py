@@ -43,16 +43,15 @@ import keyword
 import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
-from psyclone.core import (Signature, SingleVariableAccessInfo,
+from psyclone.core import (SingleVariableAccessInfo,
                            VariablesAccessInfo)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (
-    DataNode, Range, Reference, IntrinsicCall, Call)
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
+    DataNode, Range, IntrinsicCall)
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, ScalarType,
-                                    SymbolTable, UnresolvedType)
+                                    SymbolError, SymbolTable, UnresolvedType)
 
 
 class SymPyWriter(FortranWriter):
@@ -313,41 +312,56 @@ class SymPyWriter(FortranWriter):
 
         # Find every symbol in each of the expressions, and declare this name
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
-        # (an array).
+        # (either an array or a function call).
         vai = VariablesAccessInfo()
         for expr in list_of_expressions:
             expr.reference_accesses(vai)
 
         for sig in vai.all_signatures:
+            if sig.is_structure:
+                # TODO structures are handled in arrayofstructuresreference
+                # handler for some reason.
+                continue
             sva: SingleVariableAccessInfo = vai[sig]
-            name = sva.var_name
+            name = sig.var_name
             if name in self._symbol_table.tags_dict:
                 # TODO - probably not needed
                 continue
             unique_sym = self._symbol_table.new_symbol(name, tag=name)
             for access in sva.all_accesses:
-                if access.is_array():
-                    # A Fortran array is used which has not been seen before.
-                    # Declare a new SymPy function for it. This SymPy function
-                    # will convert array expressions back into the original
-                    # Fortran code.
+                # SingleVariableAccessInfo.is_array() only actually checks for
+                # array indices so we also check the datatype of the
+                # expression.
+                if access.is_array() or isinstance(access.node.datatype,
+                                                   ArrayType):
+                    # A Fortran array or function call. Declare a new SymPy
+                    # function for it. This SymPy function will convert array
+                    # expressions back into the original Fortran code.
                     self._sympy_type_map[unique_sym.name] = \
                         self._create_sympy_array_function(name)
 
+                    # To avoid confusion in sympy_reader, we take the
+                    # opportunity to specialise any Symbol that we are now
+                    # confident is an array.
                     if not all(acs.is_array() for acs in sva.all_accesses):
-                        sym = access.node.scope.symbol_table.lookup(name)
-                        if not isinstance(sym, DataSymbol):
-                            for indices in access.component_indices:
-                                if indices:
-                                    ndims = len(indices)
-                            sym.specialise(
-                                DataSymbol,
-                                datatype=ArrayType(
-                                    UnresolvedType(),
-                                    [ArrayType.Extent.DEFERRED]*ndims))
+                        try:
+                            # Depending on the situation, we won't always have
+                            # a scope, hence the try...except.
+                            sym = access.node.scope.symbol_table.lookup(name)
+                            if not isinstance(sym, DataSymbol):
+                                for indices in access.component_indices:
+                                    if indices:
+                                        ndims = len(indices)
+                                sym.specialise(
+                                    DataSymbol,
+                                    datatype=ArrayType(
+                                        UnresolvedType(),
+                                        [ArrayType.Extent.DEFERRED]*ndims))
+                        except SymbolError:
+                            pass
                     break
             else:
-                # a scalar access.
+                # A scalar access.
                 self._sympy_type_map[unique_sym.name] = sympy.Symbol(
                     name, **assumptions)
 

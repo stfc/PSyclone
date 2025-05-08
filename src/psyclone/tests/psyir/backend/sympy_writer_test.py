@@ -189,10 +189,8 @@ def test_sym_writer_functions(fortran_reader, expressions):
 @pytest.mark.parametrize("expr, sym_map", [("i", {'i': Symbol('i')}),
                                            ("f(1)", {'f': Function('f')}),
                                            ("f(:)", {'f': Function('f')}),
-                                           ("a%b", {'a': Symbol('a'),
-                                                    'a_b': Symbol('a_b')}),
-                                           ("a%b(1)", {'a': Symbol('a'),
-                                                       'a_b': Function('a_b')})
+                                           ("a%b", {'a_b': Symbol('a_b')}),
+                                           ("a%b(1)", {'a_b': Function('a_b')})
                                            ])
 def test_sympy_writer_create_type_map(expr, sym_map, fortran_reader):
     '''Tests that the static create_type_map creates a dictionary
@@ -250,18 +248,14 @@ def test_sym_writer_rename_members(fortran_reader, expressions):
     assert SymPyWriter()._to_str(expr) == expressions[1]
 
 
-@pytest.mark.parametrize("expr, sym_map", [("a%x", {"a": Symbol("a"),
-                                                    "a_x": Symbol("a%x")}),
-                                           ("a%x(i)", {"a": Symbol("a"),
-                                                       "a_x": Function("a_x"),
+@pytest.mark.parametrize("expr, sym_map", [("a%x", {"a_x": Symbol("a%x")}),
+                                           ("a%x(i)", {"a_x": Function("a_x"),
                                                        "i": Symbol("i")}),
                                            ("b(i)%x(i)",
-                                            {"b": Function("b"),
-                                             "b_x": Function("b_x"),
+                                            {"b_x": Function("b_x"),
                                              "i": Symbol("i")}),
                                            ("b(b_c)%c(i)",
-                                            {"b": Function("b"),
-                                             "b_c": Symbol("b_c"),
+                                            {"b_c": Symbol("b_c"),
                                              "b_c_1": Function("b_c_1"),
                                              "i": Symbol("i")}),
                                            ])
@@ -285,16 +279,15 @@ def test_sym_writer_symbol_types(fortran_reader, expr, sym_map):
     expr = psyir.children[0].children[0].rhs
     sympy_writer = SymPyWriter()
     _ = sympy_writer(expr)
-    assert sympy_writer.type_map.items() == sym_map.items()
+    assert len(sympy_writer.type_map) == len(sym_map)
+    for key in sympy_writer.type_map.keys():
+        assert sympy_writer.type_map[key] == sym_map[key]
 
 
 @pytest.mark.parametrize("expr, sym_map", [("i", {'i': Symbol('i')}),
                                            ("f(1)", {'f': Function('f')}),
-                                           ("a%b", {'a': Symbol('a'),
-                                                    'a_b': Symbol('a_b')}),
-                                           ("a%b(1)",
-                                            {'a': Symbol('a'),
-                                             'a_b': Function('a_b')})
+                                           ("a%b", {'a_b': Symbol('a_b')}),
+                                           ("a%b(1)", {'a_b': Function('a_b')})
                                            ])
 def test_sympy_writer_get_symbol_and_map(expr, sym_map, fortran_reader):
     '''Tests that `get_sympy_expressions_and_symbol_map` function

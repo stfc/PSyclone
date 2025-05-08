@@ -466,7 +466,6 @@ def test_symbolic_math_use_range(fortran_reader, expressions):
 
 
 @pytest.mark.parametrize("expr,expected", [
-    ("a / a(i)", "a / a(i)"),
     ("lambda + 1", "lambda + 1"),
     ("1.0", "1.0"),
     ("a", "a"),
@@ -479,9 +478,9 @@ def test_symbolic_math_use_range(fortran_reader, expressions):
      "a(i) * b(i,j) / d + a(i) * c(j) / d"),
     # 'a' is unresolved so we don't know from the first occurrence whether or
     # not it is a scalar.
-    #("a / a(i)", "a / a(i)"),
+    ("a / a(i)", "a / a(i)"),
     ("norm_u(idx+iw2) * u_e(idx + (LBOUND(u_e,dim=1)-iw2v), df2)",
-     "TODO")])
+     "norm_u(idx + iw2) * u_e(idx - iw2v + LBOUND(u_e, 1),df2)")])
 def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     '''Test the expand method works as expected.'''
     # A dummy program to easily create the PSyIR for the
