@@ -898,6 +898,13 @@ def test_upper_bound_psyir_invalid_within_colouring(monkeypatch):
         _ = my_loop.upper_bound_psyir()
     assert ("Failed to find a kernel within a loop over colours"
             in str(excinfo.value))
+    # Pretend the loop is over tilecolours and does not contain a kernel
+    monkeypatch.setattr(my_loop, "_upper_bound_name", value="ntilecolours")
+    monkeypatch.setattr(my_loop, "walk", lambda x: [])
+    with pytest.raises(InternalError) as excinfo:
+        _ = my_loop.upper_bound_psyir()
+    assert ("Failed to find a kernel within a loop over tile-colours"
+            in str(excinfo.value))
 
 
 def test_upper_bound_psyir_inner(monkeypatch):

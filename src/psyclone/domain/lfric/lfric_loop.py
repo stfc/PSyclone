@@ -522,7 +522,7 @@ class LFRicLoop(PSyLoop):
             kernels = self.walk(LFRicKern)
             if not kernels:
                 raise InternalError(
-                    "Failed to find a kernel within a loop over colours.")
+                    "Failed to find a kernel within a loop over tile-colours.")
             # Check that all kernels have been coloured. We can't check the
             # number of colours since that is only known at runtime.
             for kern in kernels:
