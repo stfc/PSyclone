@@ -39,7 +39,7 @@
 '''
 
 import keyword
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, Iterable, List, Optional, Set, Union
 
 import sympy
 from sympy.parsing.sympy_parser import parse_expr
@@ -101,6 +101,14 @@ class SymPyWriter(FortranWriter):
     # same as a reserved name must be renamed, otherwise parsing will fail).
     # This class attribute will get initialised in __init__:
     _RESERVED_NAMES: Set[str] = set()
+
+    # A mapping of PSyIR's logical binary operations to the required
+    # SymPy format:
+    _BINARY_OP_MAPPING: Dict[BinaryOperation.Operator, str] = \
+        {BinaryOperation.Operator.AND: "And({lhs}, {rhs})",
+         BinaryOperation.Operator.OR: "Or({lhs}, {rhs})",
+         BinaryOperation.Operator.EQV: "Equivalent({lhs}, {rhs})",
+         BinaryOperation.Operator.NEQV: "Xor({lhs}, {rhs})"}
 
     def __init__(self):
         super().__init__()
@@ -255,7 +263,7 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     def _create_type_map(self,
-                         list_of_expressions: List[Node],
+                         list_of_expressions: Iterable[Node],
                          identical_variables: Optional[Dict[str, str]] = None,
                          all_variables_positive: Optional[bool] = None):
         '''This function creates a dictionary mapping each Reference in any
@@ -399,7 +407,7 @@ class SymPyWriter(FortranWriter):
     # -------------------------------------------------------------------------
     def _to_str(
         self,
-        list_of_expressions: Union[Node, List[Node]],
+        list_of_expressions: Union[Node, Iterable[Node]],
         identical_variables: Optional[Dict[str, str]] = None,
         all_variables_positive: Optional[bool] = False) -> Union[str,
                                                                  List[str]]:
@@ -423,14 +431,14 @@ class SymPyWriter(FortranWriter):
         :returns: the converted strings(s).
 
         '''
-        is_list = isinstance(list_of_expressions, (tuple, list))
+        is_list = isinstance(list_of_expressions, (Iterable))
         if not is_list:
             # Make mypy happy:
             assert isinstance(list_of_expressions, Node)
             list_of_expressions = [list_of_expressions]
 
         # Make mypy happy:
-        assert isinstance(list_of_expressions, List)
+        assert isinstance(list_of_expressions, Iterable)
         # Create the type map in `self._sympy_type_map`, which is required
         # when converting these strings to SymPy expressions
         self._create_type_map(list_of_expressions,
@@ -711,18 +719,11 @@ class SymPyWriter(FortranWriter):
         :param node: a Reference PSyIR BinaryOperation.
 
         '''
-        for psy_op, sympy_op in [(BinaryOperation.Operator.AND,
-                                  "{lhs} & {rhs}"),
-                                 (BinaryOperation.Operator.OR,
-                                  "{lhs} | {rhs}"),
-                                 (BinaryOperation.Operator.EQV,
-                                  "Equivalent({lhs}, {rhs})"),
-                                 (BinaryOperation.Operator.NEQV,
-                                  "~Equivalent({lhs}, {rhs})")]:
-            if node.operator == psy_op:
-                lhs = self._visit(node.children[0])
-                rhs = self._visit(node.children[1])
-                return sympy_op.format(rhs=rhs, lhs=lhs)
+        if node.operator in self._BINARY_OP_MAPPING:
+            lhs = self._visit(node.children[0])
+            rhs = self._visit(node.children[1])
+            return self._BINARY_OP_MAPPING[node.operator].format(rhs=rhs,
+                                                                 lhs=lhs)
 
         return super().binaryoperation_node(node)
 
