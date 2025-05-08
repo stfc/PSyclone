@@ -52,7 +52,7 @@ from psyclone.psyir.nodes import (
     DataNode, Range, Reference, IntrinsicCall, Call)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, ScalarType,
-                                    SymbolTable)
+                                    SymbolTable, UnresolvedType)
 
 
 class SymPyWriter(FortranWriter):
@@ -331,11 +331,20 @@ class SymPyWriter(FortranWriter):
                     # Declare a new SymPy function for it. This SymPy function
                     # will convert array expressions back into the original
                     # Fortran code.
-                    ndims = [len(indices) for indices
-                             in access.component_indices]
                     self._sympy_type_map[unique_sym.name] = \
-                        self._create_sympy_array_function(name, sig=sig,
-                                                          num_dims=ndims)
+                        self._create_sympy_array_function(name)
+
+                    if not all(acs.is_array() for acs in sva.all_accesses):
+                        sym = access.node.scope.symbol_table.lookup(name)
+                        if not isinstance(sym, DataSymbol):
+                            for indices in access.component_indices:
+                                if indices:
+                                    ndims = len(indices)
+                            sym.specialise(
+                                DataSymbol,
+                                datatype=ArrayType(
+                                    UnresolvedType(),
+                                    [ArrayType.Extent.DEFERRED]*ndims))
                     break
             else:
                 # a scalar access.
@@ -693,7 +702,7 @@ class SymPyWriter(FortranWriter):
             # been re-named, and we can use it as is.
             name = node.name
 
-        if not node.is_array:   # not self.type_map[name.lower()].is_Function:
+        if not node.is_array:
             # This reference is not an array, just return the name
             return name
 
@@ -701,7 +710,6 @@ class SymPyWriter(FortranWriter):
         # consistency, we still treat it as a Sympy function call and therefore
         # add the triple array indices to represent `lower:upper:1` for each
         # dimension:
-        #ndims = self.type_map[name.lower()]._num_dims[0]
         shape = node.symbol.shape
         result = [f"{self.no_bounds},{self.no_bounds},1"]*len(shape)
 
