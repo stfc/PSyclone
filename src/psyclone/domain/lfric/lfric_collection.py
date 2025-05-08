@@ -131,7 +131,7 @@ class LFRicCollection():
         '''
         if not self._invoke:
             raise InternalError(
-                f"invoke_declarations() can only be called with a "
+                f"invoke_declarations() can only be called with an "
                 f"{type(self).__name__} instantiated for an invoke (not a "
                 f"kernel).")
 
