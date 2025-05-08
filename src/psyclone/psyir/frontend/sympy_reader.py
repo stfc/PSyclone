@@ -39,10 +39,38 @@
 from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 
+from sympy.printing.printer import Printer
+
 from psyclone.psyir.frontend.fortran import FortranReader
 
 if TYPE_CHECKING:
     from psyclone.psyir.symbols import SymbolTable
+
+# pylint: disable=invalid-name
+class FortranPrinter(Printer):
+    '''A helper class that converts Fortran logical operators back
+    to Fortran format (while SymPy has a Fortran printer (fcode) does this
+    as well, it does not handle e.g. Fortran Array expressions (a(2:5)),
+    so we need to use the not-Fortran-aware output to a normal string,
+    but handle logical operators separately.
+    '''
+    def _print_And(self, expr):
+        '''Called when converting an AND expression.'''
+        return f"({'.AND.' .join(self._print(i) for i in expr.args)})"
+
+    def _print_Or(self, expr):
+        '''Called when converting an OR expression.'''
+        return f"({'.OR.' .join(self._print(i) for i in expr.args)})"
+
+    def _print_Equivalent(self, expr):
+        '''Called when converting an EQUIVALENT expression.'''
+        return f"({'.EQV.' .join(self._print(i) for i in expr.args)})"
+
+    def _print_Xor(self, expr):
+        '''Called when converting an XOR expression, which in Fortran
+        is NEQV.'''
+        return f"({'.NEQV.' .join(self._print(i) for i in expr.args)})"
+
 
 class SymPyReader():
     '''This class converts a SymPy expression, that was created by the
@@ -124,10 +152,9 @@ class SymPyReader():
         '''
         # Convert the new sympy expression to PSyIR
         reader = FortranReader()
-        str_sympy_expr = str(sympy_expr)
-        str_sympy_expr = str_sympy_expr.replace("False", ".FALSE.")
-        str_sympy_expr = str_sympy_expr.replace("True", ".TRUE.")
-        return reader.psyir_from_expression(str_sympy_expr, symbol_table)
+        fp = FortranPrinter()
+        return reader.psyir_from_expression(fp.doprint(sympy_expr),
+                                            symbol_table)
 
     # -------------------------------------------------------------------------
     # pylint: disable=no-self-argument, too-many-branches
