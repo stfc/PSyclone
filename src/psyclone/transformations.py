@@ -310,7 +310,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
                                           nogroup=self.omp_nogroup)
         return _directive
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the OMPTaskloopTrans transformation to the specified node in
         a Schedule. This node must be a Loop since this transformation
         corresponds to wrapping the generated code with directives like so:
@@ -323,8 +323,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
           end do
           !$OMP END TASKLOOP
 
-        At code-generation time (when
-        :py:meth:`OMPTaskloopDirective.gen_code` is called), this node must be
+        At code-generation time (when lowering is called), this node must be
         within (i.e. a child of) an OpenMP SERIAL region.
 
         If the keyword "nogroup" is specified in the options, it will cause a
@@ -352,7 +351,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         self.omp_nogroup = options.get("nogroup", current_nogroup)
 
         try:
-            super().apply(node, options)
+            super().apply(node, options, **kwargs)
         finally:
             # Reset the nogroup value to the original value
             self.omp_nogroup = current_nogroup
@@ -678,8 +677,7 @@ class ACCLoopTrans(ParallelLoopTrans):
              ...
           end do
 
-        At code-generation time (when
-        :py:meth:`psyclone.psyir.nodes.ACCLoopDirective.gen_code` is called),
+        At code-generation time (when lowering is called),
         this node must be within (i.e. a child of) a PARALLEL region.
 
         :param node: the supplied node to which we will apply the
@@ -750,9 +748,9 @@ class OMPParallelLoopTrans(OMPLoopTrans):
           !$OMP END PARALLEL DO
 
         :param node: the node (loop) to which to apply the transformation.
-        :type node: :py:class:`psyclone.f2pygen.DoGen`
-        :param options: a dictionary with options for transformations\
-                        and validation.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param options: a dictionary with options for transformations
+            and validation.
         :type options: Optional[Dict[str, Any]]
         '''
         self.validate(node, options=options)
@@ -892,7 +890,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an OpenMP DO directive to a Dynamo 0.3 loop"
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         ''' Perform LFRic (Dynamo 0.3) specific loop validity checks for the
         OMPLoopTrans.
 
@@ -930,7 +928,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                 f"Error in {self.name} transformation. The kernel has an "
                 f"argument with INC access. Colouring is required.")
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         ''' Apply LFRic (Dynamo 0.3) specific OMPLoopTrans.
 
         :param node: the Node in the Schedule to check.
@@ -978,7 +976,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add the selected OpenMP loop directive to a GOcean loop"
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Checks that the supplied node is a valid target for parallelisation
         using OMP directives.
@@ -1419,10 +1417,8 @@ class OMPSingleTrans(ParallelRegionTrans):
         '''Apply the OMPSingleTrans transformation to the specified node in a
         Schedule.
 
-        At code-generation time this node must be within (i.e. a child of)
-        an OpenMP PARALLEL region. Code generation happens when
-        :py:meth:`OMPLoopDirective.gen_code` is called, or when the PSyIR
-        tree is given to a backend.
+        At code-generation time (when lowering is called) this node must be
+        within (i.e. a child of) an OpenMP PARALLEL region.
 
         If the keyword "nowait" is specified in the options, it will cause a
         nowait clause to be added if it is set to True, otherwise no clause
