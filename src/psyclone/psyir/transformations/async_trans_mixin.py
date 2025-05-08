@@ -104,15 +104,17 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         # forward dependency.
         for signature in writes:
             accesses = var_accesses[signature].all_accesses
+            sym_name = signature[0]
             last_access = accesses[-1].node
-            if isinstance(last_access, Loop):
-                sym = last_access.variable
-            else:
-                sym = last_access.symbol
+            sym = last_access.scope.symbol_table.lookup(sym_name)
             # If the symbol is private or firstprivate then we can
             # ignore it.
             if sym in private or sym in firstprivate:
                 continue
+            # TODO 2982 next_accesses ability to look at Structures is
+            # limited, and returns the next access(es) to any structure member
+            # and not necessarily to the member of interest which limits
+            # the behaviour of this.
             next_accesses = last_access.next_accesses()
             # next_accesses always appear in the order of
             # nodes before loop followed by nodes after loop.
