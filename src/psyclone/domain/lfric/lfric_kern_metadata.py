@@ -48,7 +48,7 @@ from psyclone.core import AccessType
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
 from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
 from psyclone.lfric import (LFRicFuncDescriptor, MeshPropertiesMetaData,
-                                RefElementMetaData)
+                            RefElementMetaData)
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import getkerneldescriptors, KernelType
 from psyclone.parse.utils import ParseError
