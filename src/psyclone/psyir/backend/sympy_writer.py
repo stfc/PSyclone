@@ -43,7 +43,8 @@ import keyword
 import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
-from psyclone.core import SingleVariableAccessInfo, VariablesAccessInfo
+from psyclone.core import (Signature, SingleVariableAccessInfo,
+                           VariablesAccessInfo)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
@@ -317,19 +318,12 @@ class SymPyWriter(FortranWriter):
         for expr in list_of_expressions:
             expr.reference_accesses(vai)
 
-            # TODO #2863 - VariablesAccessInfo does not capture the names of
-            # things identified as Fortran intrinsics.
-            for icall in expr.walk(IntrinsicCall):
-                name = icall.routine.name.lower()
-                if name not in self._sympy_type_map:
-                    unique_sym = self._symbol_table.new_symbol(name, tag=name)
-                    self._sympy_type_map[unique_sym.name] = \
-                        self._create_sympy_array_function(
-                            name, num_dims=[len(icall.arguments)])
-
         for sig in vai.all_signatures:
             sva: SingleVariableAccessInfo = vai[sig]
             name = sva.var_name
+            if name in self._symbol_table.tags_dict:
+                # TODO - probably not needed
+                continue
             unique_sym = self._symbol_table.new_symbol(name, tag=name)
             for access in sva.all_accesses:
                 if access.is_array():
@@ -699,7 +693,7 @@ class SymPyWriter(FortranWriter):
             # been re-named, and we can use it as is.
             name = node.name
 
-        if not self.type_map[name.lower()].is_Function:
+        if not node.is_array:   # not self.type_map[name.lower()].is_Function:
             # This reference is not an array, just return the name
             return name
 
@@ -707,9 +701,9 @@ class SymPyWriter(FortranWriter):
         # consistency, we still treat it as a Sympy function call and therefore
         # add the triple array indices to represent `lower:upper:1` for each
         # dimension:
-        ndims = self.type_map[name.lower()]._num_dims[0]
-        #shape = node.symbol.shape
-        result = [f"{self.no_bounds},{self.no_bounds},1"]*ndims  # len(shape)
+        #ndims = self.type_map[name.lower()]._num_dims[0]
+        shape = node.symbol.shape
+        result = [f"{self.no_bounds},{self.no_bounds},1"]*len(shape)
 
         return (f"{name}{self.array_parenthesis[0]}"
                 f"{','.join(result)}{self.array_parenthesis[1]}")
