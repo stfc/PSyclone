@@ -1489,7 +1489,8 @@ class LFRicProxies(LFRicCollection):
                     cursor += 1
                 elif arg.is_operator:
                     if arg.argument_type == "gh_columnwise_operator":
-                        # CMA operator arguments are handled in LFRicCMAOperators
+                        # CMA operator arguments are handled in
+                        # LFRicCMAOperators
                         pass
                     elif arg.argument_type == "gh_operator":
                         symbol = self.symtab.lookup_with_tag(
@@ -5043,7 +5044,7 @@ class LFRicKernelArguments(Arguments):
         idx = 0
         for arg in call.ktype.arg_descriptors:
             lfric_argument = LFRicKernelArgument(self, arg, call.args[idx],
-                                             parent_call, check)
+                                                 parent_call, check)
             idx += 1
             if lfric_argument.descriptor.stencil:
                 if lfric_argument.descriptor.stencil['extent']:
@@ -5156,8 +5157,8 @@ class LFRicKernelArguments(Arguments):
                 if function_space:
                     if func_space_name == function_space.orig_name:
                         return arg, function_space
-        raise FieldNotFoundError(f"LFRicKernelArguments:get_arg_on_space_name: "
-                                 f"there is no field or operator with "
+        raise FieldNotFoundError(f"LFRicKernelArguments:get_arg_on_space_name:"
+                                 f" there is no field or operator with "
                                  f"function space {func_space_name}")
 
     def get_arg_on_space(self, func_space):
@@ -5180,10 +5181,10 @@ class LFRicKernelArguments(Arguments):
                     if func_space.mangled_name == function_space.mangled_name:
                         return arg
 
-        raise FieldNotFoundError(f"LFRicKernelArguments:get_arg_on_space: there "
-                                 f"is no field or operator with function space"
-                                 f" {func_space.orig_name} (mangled name = "
-                                 f"'{func_space.mangled_name}')")
+        raise FieldNotFoundError(f"LFRicKernelArguments:get_arg_on_space: "
+                                 f"there is no field or operator with function"
+                                 f" space {func_space.orig_name} (mangled name"
+                                 f" = '{func_space.mangled_name}')")
 
     def has_operator(self, op_type=None):
         ''' Returns true if at least one of the arguments is an operator
@@ -5233,8 +5234,8 @@ class LFRicKernelArguments(Arguments):
                 return arg
 
         raise InternalError(
-            f"Invalid LFRic kernel: failed to find an LFRicKernelArgument that is"
-            f" a field or operator in '{self.names}'.")
+            f"Invalid LFRic kernel: failed to find an LFRicKernelArgument that"
+            f" is a field or operator in '{self.names}'.")
 
     def iteration_space_arg(self):
         '''

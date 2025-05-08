@@ -268,8 +268,8 @@ def test_lfricintergrid():
     # Now set some symbols and check that they are correct (note that
     # there is no individual setter for these attributes).
     lfric_intergrid.set_colour_info(Symbol("cmap"),
-                                  Symbol("ncolours"),
-                                  Symbol("last_cell"))
+                                    Symbol("ncolours"),
+                                    Symbol("last_cell"))
     assert lfric_intergrid.colourmap_symbol.name == "cmap"
     assert lfric_intergrid.ncolours_var_symbol.name == "ncolours"
     assert lfric_intergrid.last_cell_var_symbol.name == "last_cell"

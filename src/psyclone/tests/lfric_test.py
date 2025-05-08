@@ -3078,8 +3078,8 @@ def test_lfrickernelargs_first_field_or_op(monkeypatch):
     monkeypatch.setattr(dka, "_args", [])
     with pytest.raises(InternalError) as err:
         dka.first_field_or_operator
-    assert ("Invalid LFRic kernel: failed to find an LFRicKernelArgument that is "
-            "a field or operator in ''" in str(err.value))
+    assert ("Invalid LFRic kernel: failed to find an LFRicKernelArgument that"
+            " is a field or operator in ''" in str(err.value))
 
 
 def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):

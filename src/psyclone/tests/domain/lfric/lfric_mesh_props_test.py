@@ -178,8 +178,9 @@ def test_mesh_properties():
             "for a kernel" in str(err.value))
     with pytest.raises(InternalError) as err:
         invoke.mesh_properties.stub_declarations()
-    assert ("stub_declarations() can only be called with an LFRicMeshProperties"
-            " instantiated for a kernel (not an invoke)." in str(err.value))
+    assert ("stub_declarations() can only be called with an "
+            "LFRicMeshProperties instantiated for a kernel "
+            "(not an invoke)." in str(err.value))
     # Break the list of mesh properties
     invoke.mesh_properties._properties.append("not-a-property")
     with pytest.raises(InternalError) as err:

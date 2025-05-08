@@ -85,10 +85,11 @@ class LFRicInvoke(Invoke):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.lfric import (LFRicFunctionSpaces, LFRicGlobalSum,
-                                        LFRicLMAOperators, LFRicReferenceElement,
-                                        LFRicCMAOperators, LFRicBasisFunctions,
-                                        LFRicMeshes, LFRicBoundaryConditions,
-                                        LFRicProxies, LFRicMeshProperties)
+                                    LFRicLMAOperators,
+                                    LFRicReferenceElement,
+                                    LFRicCMAOperators, LFRicBasisFunctions,
+                                    LFRicMeshes, LFRicBoundaryConditions,
+                                    LFRicProxies, LFRicMeshProperties)
         from psyclone.domain.lfric import (
             LFRicCellIterators, LFRicHaloDepths, LFRicLoopBounds,
             LFRicRunTimeChecks,

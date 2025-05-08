@@ -49,8 +49,8 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.domain.lfric import LFRicLoop
-from psyclone.lfric import (LFRicHaloExchangeStart, LFRicHaloExchangeEnd,
-                                LFRicHaloExchange)
+from psyclone.lfric import (LFRicHaloExchangeStart,
+                            LFRicHaloExchangeEnd, LFRicHaloExchange)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
 from psyclone.psyir.backend.visitor import VisitorError
