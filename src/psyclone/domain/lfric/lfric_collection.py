@@ -147,7 +147,7 @@ class LFRicCollection():
         '''
         if not self._kernel:
             raise InternalError(
-                f"stub_declarations() can only be called with a "
+                f"stub_declarations() can only be called with an "
                 f"{type(self).__name__} instantiated for a kernel (not an "
                 f"invoke).")
 
