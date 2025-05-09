@@ -380,7 +380,7 @@ All these classes can be specialised in each PSyclone API to support the
 specific features of a particular API. The class diagram for the above base classes
 is shown below using the LFRic API as an illustration.
 
-.. image:: dynamo0p3_topclasses.png
+.. image:: lfric_topclasses.png
     :width: 80%
     :align: center
 
