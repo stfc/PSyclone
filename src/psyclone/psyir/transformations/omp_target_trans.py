@@ -106,20 +106,18 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         # next dependency so we can't add an asynchronous clause.
         if not next_depend:
             return
+        # As soon as we have a nowait target, we need to add a barrier
+        # at the end of the Routine.
+        containing_routine = instance.ancestor(Routine)
+        if not isinstance(containing_routine.children[-1],
+                          OMPTaskwaitDirective):
+            containing_routine.addchild(OMPTaskwaitDirective())
+
         # If find next_dependency returns True there is no follow up
-        # dependency, so we just need a barrier at the end of the containing
-        # Routine.
+        # dependency, so we don't need an additional barrier.
         if next_depend is True:
             # Add nowait to the instance.
             instance.nowait = True
-            # Add a barrier to the end of the containing Routine if there
-            # isn't one already.
-            containing_routine = instance.ancestor(Routine)
-            # Check barrier that corresponds to self.omp_directive and add the
-            # correct barrier type
-            if not isinstance(containing_routine.children[-1],
-                              OMPTaskwaitDirective):
-                containing_routine.addchild(OMPTaskwaitDirective())
             return
 
         # Otherwise we have the next dependency and we need to find where the
