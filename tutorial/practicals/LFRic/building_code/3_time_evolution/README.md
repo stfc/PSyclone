@@ -4,7 +4,7 @@ In the [first tutorial](../1_simple_kernels) we learned how to create and
 use [kernels](../1_simple_kernels/LFRic_kernel_structure.md) for
 mathematical operations on field data. In the [second tutorial](
 ../2_built_ins) we learned how to use [PSyclone built-ins](
-https://psyclone.readthedocs.io/en/stable/lfric.html#built-ins)
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins)
 for simple linear algebra operations that update fields.
 
 In this tutorial we will build on this knowledge by using kernels for
@@ -133,7 +133,7 @@ below for more detailed information). The two exceptions are outlined below.
 
 The coordinate fields `chi(3)` in this tutorial are an example of a
 [field vector object](
-https://psyclone.readthedocs.io/en/stable/lfric.html#field-vector)
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#field-vector)
 which is essentially a bundle of fields. The metadata representation
 of a field vector will be shown in the [*Step 1*](
 #step-1-complete-the-init_perturbation_kernel_modf90-kernel) below where
@@ -199,7 +199,7 @@ The first `arg_type` metadata descriptor is for the `perturbation` field on
 the `W3` function space that is updated (`GH_READWRITE` access for the
 discontinuous function spaces). The second `arg_type` descriptor is for the
 `chi(3)` coordinate [field vector](
-https://psyclone.readthedocs.io/en/stable/lfric.html#field-vector)
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#field-vector)
 (see the [note above](#driver-structure)) on the same space as the
 `perturbation` field.
 

@@ -20,7 +20,7 @@ DSLs following the PSyKAl model developed in the
 [GungHo project](https://www.metoffice.gov.uk/research/foundation/dynamics/next-generation).
 
 PSyclone is currently used to support the [LFRic mixed finite-element PSyKAl
-DSL](https://psyclone.readthedocs.io/en/latest/lfric.html)
+DSL](https://psyclone.readthedocs.io/en/latest/dynamo0p3.html)
 for the [UK MetOffice's next generation modelling
 system](https://www.metoffice.gov.uk/research/modelling-systems/lfric/) and
 the [GOcean finite-difference PSyKAl

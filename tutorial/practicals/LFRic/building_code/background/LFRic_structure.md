@@ -26,7 +26,7 @@ done in the driver layer.
 
 *Note: See also the description of the LFRic Algorithm layer in the*
 [*PSyclone User Guide.*](
-https://psyclone.readthedocs.io/en/stable/lfric.html#algorithm)
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#algorithm)
 
 LFRic algorithms perform mathematical operations on LFRic objects:
 **field**s, **operator**s and **scalar**s. Each of these objects
@@ -57,12 +57,12 @@ can be `private` (if used only by the object) or `public`ly available
 
 LFRic algorithms manipulate data objects via `invoke` calls to
 [user-defined LFRic kernels](#kernel-layer) and [PSyclone built-ins](
-https://psyclone.readthedocs.io/en/stable/lfric.html#built-ins).
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins).
 The `invoke` calls are not standard Fortran calls. They are a way of
 specifying a sequence of kernels to call (with their associated
 arguments), prescribed by the DSL defined in the
 [PSyclone LFRic API](
-https://psyclone.readthedocs.io/en/stable/lfric.html). The use of
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html). The use of
 `invoke`s in LFRic is exclusive to the algorithm layer.
 
 Roughly speaking, the main parts of an LFRic algorithm are:
@@ -83,7 +83,7 @@ requirements in a time-stepping scheme).
 
 *Note: See also the description of the LFRic PSy layer in the*
 [*PSyclone User Guide.*](
-https://psyclone.readthedocs.io/en/stable/lfric.html#psy-layer)
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#psy-layer)
 
 As explained in the [*Algorithm layer* section](#algorithm-layer),
 LFRic algorithms perform mathematical operations on LFRic data objects
@@ -109,7 +109,7 @@ The generated PSy-layer code in these tutorials is purely serial.
 
 *Note: See also the description of the LFRic Kernel layer in the*
 [*PSyclone User Guide.*](
-https://psyclone.readthedocs.io/en/stable/lfric.html#kernel)
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#kernel)
 
 LFRic kernels perform mathematical operations on [a subset of data points](
 https://psyclone.readthedocs.io/en/stable/introduction_to_psykal.html#kernel-layer)
