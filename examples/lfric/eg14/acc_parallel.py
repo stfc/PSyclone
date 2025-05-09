@@ -44,7 +44,7 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyGen import CodedKern, InvokeSchedule
 from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (
-    ACCEnterDataTrans, ACCRoutineTrans, Dynamo0p3ColourTrans)
+    ACCEnterDataTrans, ACCRoutineTrans, LFRicColourTrans)
 
 
 def trans(psyir):
@@ -58,7 +58,7 @@ def trans(psyir):
     '''
     const = LFRicConstants()
 
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     enter_data_trans = ACCEnterDataTrans()
     kernel_trans = ACCKernelsTrans()
     rtrans = ACCRoutineTrans()

@@ -38,7 +38,7 @@
 
 '''
 Module containing pytest tests for the reference-element functionality
-of the Dynamo0.3 API.
+of the LFRic API.
 '''
 
 import pytest
@@ -48,7 +48,7 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicKernMetadata
-from psyclone.dynamo0p3 import RefElementMetaData
+from psyclone.lfric import RefElementMetaData
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import Kern
@@ -85,7 +85,7 @@ end module testkern_refelem_mod
 
 @pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use Dynamo0.3 as API.'''
+    '''Make sure that all tests here use LFRic as API.'''
     Config.get().api = "lfric"
 
 
@@ -171,7 +171,7 @@ def test_mdata_duplicate_var():
     assert ("Duplicate reference-element property found: "
             "'Property.NORMALS_TO_VERTICAL_FACES'." in str(err.value))
 
-# Tests for correctness of DynReferenceElement constructor
+# Tests for correctness of LFRicReferenceElement constructor
 
 
 def test_refelem_arglist_err():

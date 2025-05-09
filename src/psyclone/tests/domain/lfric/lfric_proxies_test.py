@@ -34,12 +34,12 @@
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified L. Turner, Met Office
 
-''' This module tests the DynProxies class using pytest. '''
+''' This module tests the LFRicProxies class using pytest. '''
 
 import os
 import pytest
 from psyclone.domain.lfric import LFRicConstants, LFRicKern
-from psyclone.dynamo0p3 import DynProxies
+from psyclone.lfric import LFRicProxies
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -47,20 +47,20 @@ from psyclone.psyir import symbols
 
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+        os.path.abspath(__file__)))), "test_files", "lfric")
 TEST_API = "lfric"
 
 
 def test_creation():
     '''
-    Test that the constructor of DynProxies populates the symbol table with
+    Test that the constructor of LFRicProxies populates the symbol table with
     the expected symbols and associated tags.
     '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    proxies = DynProxies(invoke)
+    proxies = LFRicProxies(invoke)
     tags = proxies.symtab.get_tags()
     assert "f1:data" in tags
     sym = proxies.symtab.lookup_with_tag("f1:data")
@@ -79,7 +79,7 @@ def test_invoke_declarations(fortran_writer):
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    proxies = DynProxies(invoke)
+    proxies = LFRicProxies(invoke)
     proxies.invoke_declarations()
     code = fortran_writer(invoke.schedule)
     assert ("real(kind=r_def), pointer, dimension(:) :: f1_1_data => null()"
@@ -101,7 +101,7 @@ def test_initialise(fortran_writer):
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    proxies = DynProxies(invoke)
+    proxies = LFRicProxies(invoke)
     proxies.invoke_declarations()
     proxies.initialise(0)
     code = fortran_writer(invoke.schedule)
@@ -122,7 +122,7 @@ def test_initialise_errors(monkeypatch):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     kern = invoke.schedule.walk(LFRicKern)[0]
-    proxies = DynProxies(invoke)
+    proxies = LFRicProxies(invoke)
     proxies.invoke_declarations()
     # Monkeypatch the first kernel argument so that it is of an unrecognised
     # type.
@@ -133,7 +133,7 @@ def test_initialise_errors(monkeypatch):
     with pytest.raises(InternalError) as err:
         proxies.initialise(0)
     assert ("Kernel argument 'my_mapping' of type 'gh_wrong' not handled in "
-            "DynProxies.initialise()" in str(err.value))
+            "LFRicProxies.initialise()" in str(err.value))
 
     # Now monkey patch the list of valid operator names so that the kernel
     # argument is recognised as an operator.
@@ -141,5 +141,5 @@ def test_initialise_errors(monkeypatch):
     with pytest.raises(InternalError) as err:
         proxies.initialise(0)
     assert ("Kernel argument 'my_mapping' is a recognised operator but its "
-            "type ('gh_wrong') is not supported by DynProxies.initialise()"
+            "type ('gh_wrong') is not supported by LFRicProxies.initialise()"
             in str(err.value))

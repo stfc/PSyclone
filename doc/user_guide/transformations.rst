@@ -153,7 +153,7 @@ described above. Besides potentially modifying the validation
 process, optional parameters for the transformation are also
 provided this way. A simple example::
 
-    kctrans = Dynamo0p3KernelConstTrans()
+    kctrans = LFRicKernelConstTrans()
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0, "quadrature": True})
 
 The same ``options`` dictionary will be used when calling ``validate``.

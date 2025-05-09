@@ -452,7 +452,7 @@ def test_long_line_continuator():
     '''
     alg, _ = generate(os.path.join(os.path.dirname(os.path.
                                                    abspath(__file__)),
-                                   "test_files", "dynamo0p3",
+                                   "test_files", "lfric",
                                    "13.2_alg_long_line_continuator.f90"),
                       api="lfric")
     input_string = str(alg)

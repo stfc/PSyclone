@@ -45,12 +45,12 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicKernMetadata, LFRicLoop
-from psyclone.dynamo0p3 import LFRicHaloExchange
+from psyclone.lfric import LFRicHaloExchange
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.transformations import Dynamo0p3RedundantComputationTrans
+from psyclone.transformations import LFRicRedundantComputationTrans
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -62,7 +62,7 @@ def setup():
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+                os.path.abspath(__file__)))), "test_files", "lfric")
 TEST_API = "lfric"
 
 CODE = '''
@@ -214,7 +214,7 @@ def test_redundant_comp_trans(tmpdir, monkeypatch):
 
     # Now transform the first loop to perform redundant computation out to
     # the level-3 halo
-    rtrans = Dynamo0p3RedundantComputationTrans()
+    rtrans = LFRicRedundantComputationTrans()
     rtrans.apply(first_invoke.schedule[0], options={"depth": 3})
 
     # There should now be a halo exchange for f2

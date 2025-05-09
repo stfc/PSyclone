@@ -117,7 +117,7 @@ profiling wrapper libraries depends on infrastructure libraries relevant
 to the API they are used for. [GOcean API](
 https://psyclone.readthedocs.io/en/stable/gocean1p0.html) uses the
 [``dl_esm_inf`` library](https://github.com/stfc/dl_esm_inf) and
-[LFRic (Dynamo 0.3) API](
+[LFRic API](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html)
 uses the LFRic infrastructure (see the linked documentation on how to
 access and use the LFRic code). The locations of the respective

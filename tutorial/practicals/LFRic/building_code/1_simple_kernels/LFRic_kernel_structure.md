@@ -95,7 +95,7 @@ such as `operates_on` above or arrays). Here we briefly explain the contents
 of the `arg_type` and `operates_on` metadata. For more information please refer
 to the [*Metadata* section](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#metadata)
-of the LFRic (Dynamo 0.3) API [user documentation](
+of the LFRic API [user documentation](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
 
 The `arg_type` in this example describes the two (hence `dimension(2)`)

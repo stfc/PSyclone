@@ -47,7 +47,7 @@ from psyclone.parse.kernel import KernelType, KernelTypeFactory, \
 from psyclone.errors import InternalError
 
 TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
-                         "test_files", "dynamo0p3")
+                         "test_files", "lfric")
 
 
 def test_continuators_kernel():

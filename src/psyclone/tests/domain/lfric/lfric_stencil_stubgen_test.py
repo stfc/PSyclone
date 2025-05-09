@@ -46,7 +46,7 @@ from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "../..", "test_files", "dynamo0p3")
+                         "../..", "test_files", "lfric")
 TEST_API = "lfric"
 
 

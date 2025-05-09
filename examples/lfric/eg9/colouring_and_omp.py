@@ -39,8 +39,8 @@
 ''' File containing a PSyclone transformation script for the LFRic
 API to apply colouring and OpenMP generically. This can be applied via
 the -s option in the "psyclone" script. '''
-from psyclone.transformations import Dynamo0p3ColourTrans, \
-    DynamoOMPParallelLoopTrans
+from psyclone.transformations import LFRicColourTrans, \
+    LFRicOMPParallelLoopTrans
 from psyclone.psyir.nodes import Loop
 from psyclone.psyGen import InvokeSchedule
 from psyclone.domain.lfric import LFRicConstants
@@ -54,8 +54,8 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
+    ctrans = LFRicColourTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     const = LFRicConstants()
 
     # Loop over all of the Invokes

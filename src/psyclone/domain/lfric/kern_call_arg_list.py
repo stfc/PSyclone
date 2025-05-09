@@ -248,7 +248,7 @@ class KernCallArgList(ArgOrdering):
         appropriate Symbol to the SymbolTable.
 
         :param scalar_arg: the scalar kernel argument.
-        :type scalar_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type scalar_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance that \
             stores information about variable accesses.
         :type var_accesses: \
@@ -304,7 +304,7 @@ class KernCallArgList(ArgOrdering):
         information.
 
         :param arg: the CMA operator argument.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -314,12 +314,12 @@ class KernCallArgList(ArgOrdering):
         components = ["matrix"]
         # Avoid circular import:
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynCMAOperators
+        from psyclone.lfric import LFRicCMAOperators
         if arg.function_space_to.orig_name != (arg.function_space_from.
                                                orig_name):
-            components += DynCMAOperators.cma_diff_fs_params
+            components += LFRicCMAOperators.cma_diff_fs_params
         else:
-            components += DynCMAOperators.cma_same_fs_params
+            components += LFRicCMAOperators.cma_same_fs_params
 
         const = LFRicConstants()
         suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
@@ -358,7 +358,7 @@ class KernCallArgList(ArgOrdering):
         var_access object.
 
         :param argvect: the field vector to add.
-        :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type argvect: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
@@ -402,7 +402,7 @@ class KernCallArgList(ArgOrdering):
         argument list. If supplied it also stores this access in var_accesses.
 
         :param arg: the field to be added.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
@@ -438,7 +438,7 @@ class KernCallArgList(ArgOrdering):
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -462,7 +462,7 @@ class KernCallArgList(ArgOrdering):
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -486,7 +486,7 @@ class KernCallArgList(ArgOrdering):
         in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`pclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional SingleVariableAccessInfo instance \
             to store the information about variable accesses.
         :type var_accesses: \
@@ -513,7 +513,7 @@ class KernCallArgList(ArgOrdering):
         var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -533,7 +533,7 @@ class KernCallArgList(ArgOrdering):
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -558,7 +558,7 @@ class KernCallArgList(ArgOrdering):
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -588,7 +588,7 @@ class KernCallArgList(ArgOrdering):
         also stores this access in var_accesses.
 
         :param arg: the meta-data description of the operator.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -827,7 +827,7 @@ class KernCallArgList(ArgOrdering):
         also stores this access in var_accesses.
 
         :param function_space: unused, only for consistency with base class.
-        :type function_space: :py:class:`psyclone.dynamo3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -855,7 +855,7 @@ class KernCallArgList(ArgOrdering):
         if self._kern.mesh.properties:
             # Avoid circular import:
             # pylint: disable=import-outside-toplevel
-            from psyclone.dynamo0p3 import LFRicMeshProperties
+            from psyclone.lfric import LFRicMeshProperties
             self.extend(LFRicMeshProperties(self._kern).
                         kern_args(stub=False, var_accesses=var_accesses,
                                   kern_call_arg_list=self))

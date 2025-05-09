@@ -37,7 +37,7 @@
 
 '''
 Module containing pytest tests for the mesh-property support in the kernel-stub
-generation functionality with the LFRic (Dynamo0.3) API.
+generation functionality with the LFRic API.
 '''
 
 import os
@@ -49,7 +49,7 @@ from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
-    "test_files", "dynamo0p3")
+    "test_files", "lfric")
 TEST_API = "lfric"
 
 MESH_PROP_MDATA = '''

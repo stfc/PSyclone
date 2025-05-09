@@ -61,7 +61,7 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins).
 The `invoke` calls are not standard Fortran calls. They are a way of
 specifying a sequence of kernels to call (with their associated
 arguments), prescribed by the DSL defined in the
-[PSyclone LFRic (Dynamo 0.3) API](
+[PSyclone LFRic API](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html). The use of
 `invoke`s in LFRic is exclusive to the algorithm layer.
 

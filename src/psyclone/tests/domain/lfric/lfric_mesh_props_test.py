@@ -36,7 +36,7 @@
 
 '''
 Module containing pytest tests for the mesh-property functionality
-of the LFRic (Dynamo0.3) API.
+of the LFRic API.
 '''
 
 import os
@@ -44,7 +44,7 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicKernMetadata
-from psyclone.dynamo0p3 import LFRicMeshProperties, MeshProperty
+from psyclone.lfric import LFRicMeshProperties, MeshProperty
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -56,7 +56,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
-    "test_files", "dynamo0p3")
+    "test_files", "lfric")
 TEST_API = "lfric"
 
 MESH_PROPS_MDATA = '''
@@ -178,8 +178,9 @@ def test_mesh_properties():
             "for a kernel" in str(err.value))
     with pytest.raises(InternalError) as err:
         invoke.mesh_properties.stub_declarations()
-    assert ("stub_declarations() can only be called with a LFRicMeshProperties"
-            " instantiated for a kernel (not an invoke)." in str(err.value))
+    assert ("stub_declarations() can only be called with an "
+            "LFRicMeshProperties instantiated for a kernel "
+            "(not an invoke)." in str(err.value))
     # Break the list of mesh properties
     invoke.mesh_properties._properties.append("not-a-property")
     with pytest.raises(InternalError) as err:
@@ -204,7 +205,7 @@ def test_mesh_properties():
             in str(err.value))
     with pytest.raises(InternalError) as err:
         mesh_props.invoke_declarations()
-    assert ("invoke_declarations() can only be called with a LFRicMesh"
+    assert ("invoke_declarations() can only be called with an LFRicMesh"
             "Properties instantiated for an invoke (not a kernel)."
             in str(err.value))
     with pytest.raises(InternalError) as err:

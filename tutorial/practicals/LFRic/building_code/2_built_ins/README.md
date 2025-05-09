@@ -8,7 +8,7 @@ https://psyclone.readthedocs.io/en/stable/introduction_to_psykal.html#built-ins)
 for such simple operations.
 
 In this tutorial we will learn how to utilise the
-[LFRic (Dynamo 0.3) API built-ins](
+[LFRic API built-ins](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins)
 support in PSyclone instead of using kernels. A quick introduction to
 built-ins is also given in the [section below](#quick-intro-to-built-ins).
@@ -345,7 +345,7 @@ can be removed by running `make clean`.
 Similar to the user-defined [LFRic kernels](
 ../1_simple_kernels/LFRic_kernel_structure.md),
 the built-in kernels also have metadata but their metadata are defined in
-the PSyclone [LFRic (Dynamo 0.3) API](
+the PSyclone [LFRic API](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
 
 Below is an example of metadata for the [built-in `X_plus_Y`](
@@ -376,5 +376,5 @@ fields passed to a built-in call **must be on the same function space**.
 Built-ins need to work with fields on any function space, hence using the
 `ANY_SPACE_1` identifier for the generic function space (see the
 [*Supported Function Spaces* section](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#dynamo0-3-function-space)
+https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#lfric-function-space)
 for more information).

@@ -52,7 +52,7 @@ class FunctionSpace():
                      mangled name for.
     :param kernel_args: object encapsulating all arguments to the kernel, \
                         one or more of which are on this function space.
-    :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
+    :type kernel_args: :py:class:`psyclone.lfric.LFRicKernelArguments`
 
     :raises InternalError: if an unrecognised function space is encountered.
 
@@ -274,7 +274,7 @@ class FunctionSpace():
                            differential basis functions are required.
         :param on_space: the function space at which the differential basis \
                          functions will be evaluated
-        :type on_space: :py:class:`psyclone.dynamo0p3.domain.lfric.\
+        :type on_space: :py:class:`psyclone.lfric.domain.lfric.\
                         FunctionSpace`
         :returns: name for the Fortran array holding the differential basis \
                   function
@@ -320,11 +320,11 @@ class FunctionSpace():
         function returns None.
 
         :param arguments: list of arguments to be tested.
-        :type arguments: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
+        :type arguments: :py:class:`psyclone.lfric.LFRicKernelArguments`
 
         :returns: the argument from the supplied list of arguments that \
                   contains a field that exists on this space or None.
-        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument` or None
+        :rtype: :py:class:`psyclone.lfric.LFRicKernelArgument` or None
 
         '''
         if self.mangled_name in arguments.unique_fs_names:
@@ -342,11 +342,11 @@ class FunctionSpace():
         Otherwise this function returns None.
 
         :param arguments: list of arguments to be tested.
-        :type arguments: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
+        :type arguments: :py:class:`psyclone.lfric.LFRicKernelArguments`
 
         :returns: the argument from the supplied list of arguments that \
                   contains a field that exists on this space or None.
-        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument` or None
+        :rtype: :py:class:`psyclone.lfric.LFRicKernelArgument` or None
 
         '''
         if self.mangled_name in arguments.unique_fs_names:

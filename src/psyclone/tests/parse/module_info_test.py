@@ -210,9 +210,9 @@ def test_mod_info_get_used_module_names():
     # (cached) list object
     assert dep_cached is dep
 
-    dyn_path = get_base_path("lfric")
+    lfric_path = get_base_path("lfric")
     # This will add all subdirectories, including infrastructure:
-    mod_man.add_search_path(dyn_path, recursive=True)
+    mod_man.add_search_path(lfric_path, recursive=True)
     # This module imports the intrinsic module iso_fortran_env,
     # (which should be ignored):
     deps = mod_man.get_module_info("field_r64_mod").get_used_module_names()
@@ -266,8 +266,8 @@ def test_mod_info_get_psyir(capsys, tmpdir):
     '''
 
     mod_man: ModuleManager = ModuleManager.get()
-    dyn_path = get_base_path("lfric")
-    mod_man.add_search_path(f"{dyn_path}/driver_creation", recursive=False)
+    lfric_path = get_base_path("lfric")
+    mod_man.add_search_path(f"{lfric_path}/driver_creation", recursive=False)
 
     mod_info: ModuleInfo = mod_man.get_module_info(
         "testkern_import_symbols_mod")

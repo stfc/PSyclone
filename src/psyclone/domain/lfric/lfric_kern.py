@@ -112,7 +112,7 @@ class LFRicKern(CodedKern):
         # because we must preserve the ordering specified in the metadata.
         self._qr_rules = OrderedDict()
         self._cma_operation = None
-        # Reference to the DynInterGrid object holding any inter-grid aspects
+        # Reference to the LFRicInterGrid object holding any inter-grid aspects
         # of this kernel or None if it is not an intergrid kernel
         self._intergrid_ref = None  # Reference to this kernel inter-grid
         # The reference-element properties required by this kernel
@@ -279,8 +279,8 @@ class LFRicKern(CodedKern):
         '''
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynKernelArguments, FSDescriptors
-        super().__init__(DynKernelArguments,
+        from psyclone.lfric import LFRicKernelArguments, FSDescriptors
+        super().__init__(LFRicKernelArguments,
                          KernelCall(module_name, ktype, args),
                          parent, check)
 
@@ -300,7 +300,7 @@ class LFRicKern(CodedKern):
         self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
 
         # If the kernel metadata specifies that this is an inter-grid kernel
-        # create the associated DynInterGrid
+        # create the associated LFRicInterGrid
         if ktype.is_intergrid:
             if not self.ancestor(InvokeSchedule):
                 raise NotImplementedError(
@@ -311,8 +311,8 @@ class LFRicKern(CodedKern):
             coarse_args = args_filter(self.arguments.args,
                                       arg_meshes=["gh_coarse"])
 
-            from psyclone.dynamo0p3 import DynInterGrid
-            intergrid = DynInterGrid(fine_args[0], coarse_args[0])
+            from psyclone.lfric import LFRicInterGrid
+            intergrid = LFRicInterGrid(fine_args[0], coarse_args[0])
             self._intergrid_ref = intergrid
 
         const = LFRicConstants()
@@ -579,7 +579,7 @@ class LFRicKern(CodedKern):
         :return: the function spaces upon which basis/diff-basis functions \
                  are to be evaluated for this kernel.
         :rtype: dict of (:py:class:`psyclone.domain.lfric.FunctionSpace`, \
-                :py:class`psyclone.dynamo0p3.DynKernelArgument`), indexed by \
+                :py:class`psyclone.lfric.LFRicKernelArgument`), indexed by \
                 the names of the target function spaces.
         '''
         return self._eval_targets
@@ -588,7 +588,7 @@ class LFRicKern(CodedKern):
     def reference_element(self):
         '''
         :returns: the reference-element properties required by this kernel.
-        :rtype: :py:class:`psyclone.dynamo0p3.RefElementMetaData`
+        :rtype: :py:class:`psyclone.lfric.RefElementMetaData`
         '''
         return self._reference_element
 
@@ -596,7 +596,7 @@ class LFRicKern(CodedKern):
     def mesh(self):
         '''
         :returns: the mesh properties required by this kernel.
-        :rtype: :py:class`psyclone.dynamo0p3.MeshPropertiesMetaData`
+        :rtype: :py:class`psyclone.lfric.MeshPropertiesMetaData`
         '''
         return self._mesh_properties
 
@@ -696,14 +696,14 @@ class LFRicKern(CodedKern):
         from psyclone.domain.lfric import (
             LFRicCellIterators, LFRicScalarArgs, LFRicFields,
             LFRicDofmaps, LFRicStencils)
-        from psyclone.dynamo0p3 import (
-            DynFunctionSpaces, DynCMAOperators, DynBoundaryConditions,
-            DynLMAOperators, LFRicMeshProperties, DynBasisFunctions,
-            DynReferenceElement)
-        for entities in [LFRicCellIterators, LFRicDofmaps, DynFunctionSpaces,
-                         DynCMAOperators, LFRicScalarArgs, LFRicFields,
-                         DynLMAOperators, LFRicStencils, DynBasisFunctions,
-                         DynBoundaryConditions, DynReferenceElement,
+        from psyclone.lfric import (
+            LFRicFunctionSpaces, LFRicCMAOperators, LFRicBoundaryConditions,
+            LFRicLMAOperators, LFRicMeshProperties, LFRicBasisFunctions,
+            LFRicReferenceElement)
+        for entities in [LFRicCellIterators, LFRicDofmaps, LFRicFunctionSpaces,
+                         LFRicCMAOperators, LFRicScalarArgs, LFRicFields,
+                         LFRicLMAOperators, LFRicStencils, LFRicBasisFunctions,
+                         LFRicBoundaryConditions, LFRicReferenceElement,
                          LFRicMeshProperties]:
             entities(self).stub_declarations()
 
@@ -846,7 +846,7 @@ class LFRicKern(CodedKern):
             scalar, field and operator arguments directly correspond to \
             arguments that appear in the Algorithm layer.
         :type alg_arg: \
-            Optional[:py:class`psyclone.dynamo0p3.DynKernelArgument`]
+            Optional[:py:class`psyclone.lfric.LFRicKernelArgument`]
 
         :raises GenerationError: if the contents of the arguments do \
             not match.

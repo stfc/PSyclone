@@ -40,7 +40,7 @@ https://psyclone.readthedocs.io/en/latest/gocean1p0.html).
 ## [``lfric``](./lfric) directory
 
 Contains the NetCDF-extract, PSyData-API-based, wrapper library for the
-[LFRic (Dynamo 0.3) API](
+[LFRic API](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
 
 <!--
