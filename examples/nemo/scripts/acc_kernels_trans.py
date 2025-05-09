@@ -58,7 +58,7 @@ Tested with the NVIDIA HPC SDK version 23.7.
 
 import logging
 from utils import (add_profiling, enhance_tree_information, inline_calls,
-                   NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
+                   NOT_PERFORMANT)
 from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
@@ -77,9 +77,12 @@ Loop.set_loop_type_inference_rules({
         "tracers": {"variable": "jt"}
 })
 
-# List of all module names that PSyclone will chase during the creation of the
-# PSyIR tree in order to use the symbol information from those modules
-RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
+# Whether to chase the imported modules to improve symbol information (it can
+# also be a list of module filenames chase only specific modules). This has to
+# be used in combination of '-I' command flag in order to point to the module
+# location directory and we strongly suggest using it in combination with the
+# '--enable-cache' flag.
+RESOLVE_IMPORTS = True
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = ACCKernelsTrans()
