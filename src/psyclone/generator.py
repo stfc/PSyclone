@@ -52,6 +52,7 @@ import traceback
 import importlib
 import shutil
 from typing import Union, Callable, List, Tuple
+import logging
 
 from fparser.api import get_reader
 from fparser.two import Fortran2003
@@ -93,6 +94,12 @@ from psyclone.version import __VERSION__
 # code) whilst keeping the original implementation as default
 # until it is working.
 LFRIC_TESTING = False
+LOG_LEVELS = {"off": logging.NOTSET,
+              "debug": logging.DEBUG,
+              "info": logging.INFO,
+              "warning": logging.WARNING,
+              "error": logging.ERROR,
+              "critical": logging.CRITICAL}
 
 
 def load_script(
@@ -488,8 +495,31 @@ def main(arguments):
         help='(psykal mode) naming scheme to use when re-naming transformed'
              ' kernels')
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
+    parser.add_argument(
+        "--logging", default="off",
+        choices=["off", "debug", "info", "warning", "error", "critical"],
+        help="Sets the level of the PSyclone logging infrastructure. 'debug'"
+             " is the most verbose while 'critical' will show the least "
+             "information."
+    )
+    parser.add_argument(
+        "--logfile", default=None,
+        help="Sets the output file to use for logging. If not specified the "
+             "logging information will be output to stdout"
+    )
 
     args = parser.parse_args(arguments)
+
+    # Set the logging system up.
+    loglevel = LOG_LEVELS[args.logging]
+    if args.logfile:
+        logname = args.logfile
+        logging.basicConfig(filename=logname,
+                            level=loglevel)
+    else:
+        logging.basicConfig(level=loglevel)
+    logger = logging.getLogger(__name__)
+    logger.debug("Logging system initialised.")
 
     # Validate that the given arguments are for the right operation mode
     if not args.psykal_dsl:
