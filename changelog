@@ -1,3 +1,9 @@
+   16) PR #2964. PScylone is now available to install from Conda. This PR adds
+   instructions in the user guide.
+
+   15) PR #2980 for #2976. Removes jsonschema as a dependency (since it is
+   only required for jupyter notebooks).
+
    14) PR #2834 for #1010, #1910, #719, #798 and #1648. Generate PSy-layers
    and Kernel stubs using PSyIR lowering (instead of gen_code/f2pygen).
 
