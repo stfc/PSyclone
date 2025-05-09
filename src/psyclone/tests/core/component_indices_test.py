@@ -35,7 +35,6 @@
 
 '''This module tests the ComponentIndices class in psyclone/core.'''
 
-from __future__ import absolute_import
 import pytest
 
 from psyclone.core import ComponentIndices, VariablesAccessInfo
