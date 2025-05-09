@@ -2331,23 +2331,38 @@ def test_handling_unaryopbase():
     assert isinstance(new_node, CodeBlock)
 
 
-@pytest.mark.usefixtures("f2008_parser")
-def test_handling_return_stmt():
+def test_handling_return_stmt(fortran_reader):
     ''' Test that fparser2 Return_Stmt is converted to the expected PSyIR
     tree structure.
     '''
-    reader = FortranStringReader("return")
-    return_stmt = Execution_Part.match(reader)[0][0]
-    assert isinstance(return_stmt, Return_Stmt)
-
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [return_stmt])
-    # Check a new node was generated and connected to parent
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, Return)
-    assert not new_node.children
+    test_code = '''
+        module test_mod
+        contains
+          subroutine single_exit(a)
+              integer, intent(inout) :: a
+              a = 3
+              return
+          end subroutine
+          subroutine multiple_exit(a)
+              integer, intent(inout) :: a
+              if (a .eq. 4) then
+                  return
+              end if
+              a  = 3
+              return 4
+          end subroutine
+        end module test_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(test_code)
+    routines = psyir.walk(Routine)
+    # First subroutine return is redundant
+    assert len(routines[0].walk(Return)) == 0
+    # Second subroutine has a multi-exit return and an unsupported
+    # alternate return
+    assert len(routines[1].walk(Return)) == 1
+    assert len(routines[1].walk(CodeBlock)) == 1
+    assert ("Fortran alternate returns are not supported." in
+            routines[1].walk(CodeBlock)[0].preceding_comment)
 
 
 @pytest.mark.usefixtures("f2008_parser")
