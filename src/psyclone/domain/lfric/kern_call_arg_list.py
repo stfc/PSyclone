@@ -49,7 +49,6 @@ from psyclone import psyGen
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
-# Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
@@ -981,8 +980,8 @@ class KernCallArgList(ArgOrdering):
             self, var_accesses: Optional[VariablesAccessInfo] = None
     ) -> Tuple[str, Reference]:
         ''' Utility routine which determines whether to return the cell
-        reference or the colourmap lookup array reference. If supplied with
-        a "var_accesses" it also stores the Variables Access information.
+        reference or the colourmap/tilemap lookup array references. If supplied
+        with a "var_accesses" it also stores the Variables Access information.
 
         :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
@@ -995,27 +994,47 @@ class KernCallArgList(ArgOrdering):
         '''
         cell_sym = self._symtab.find_or_create_integer_symbol(
             "cell", tag="cell_loop_idx")
-        if self._kern.is_coloured():
-            colour_sym = self._symtab.find_or_create_integer_symbol(
-                "colour", tag="colours_loop_idx")
-            symbol = self._kern.colourmap
-            array_ref = ArrayReference.create(
-                    symbol,
-                    [Reference(colour_sym), Reference(cell_sym)])
-            if var_accesses is not None:
-                var_accesses.add_access(Signature(colour_sym.name),
-                                        AccessType.READ, self._kern)
-                var_accesses.add_access(Signature(cell_sym.name),
-                                        AccessType.READ, self._kern)
-                var_accesses.add_access(Signature(array_ref.name),
-                                        AccessType.READ,
-                                        self._kern, ["colour", "cell"])
-
-            return (array_ref.debug_string(), array_ref)
-
         if var_accesses is not None:
             var_accesses.add_access(Signature("cell"), AccessType.READ,
                                     self._kern)
+
+        if self._kern.is_coloured():
+            colour_sym = self._symtab.find_or_create_integer_symbol(
+                "colour", tag="colours_loop_idx")
+            if var_accesses is not None:
+                var_accesses.add_access(Signature(colour_sym.name),
+                                        AccessType.READ, self._kern)
+
+            # pylint: disable-next=import-outside-toplevel
+            from psyclone.domain.lfric import LFRicLoop
+            loop_type = self._kern.ancestor(LFRicLoop).loop_type
+
+            if loop_type == "tile":
+                tile_sym = self._symtab.find_or_create_integer_symbol(
+                    "tile", tag="tile_loop_idx")
+                array_ref = self.get_array_reference(
+                    self._kern.tilecolourmap,
+                    [Reference(colour_sym), Reference(tile_sym),
+                     Reference(cell_sym)],
+                    tag="tmap" if self._kern.is_intergrid else None)
+                # If needed we could add a add_access, but this feels wrong,
+                # as the access should be provived by analysing the tree.
+                # if var_accesses is not None:
+                #     var_accesses.add_access(Signature(array_ref.name),
+                #                             AccessType.READ,
+                #                             self._kern,
+                #                             ["colour", "tile", "cell"])
+            else:
+                symbol = self._kern.colourmap
+                array_ref = ArrayReference.create(
+                        symbol,
+                        [Reference(colour_sym), Reference(cell_sym)])
+                if var_accesses is not None:
+                    var_accesses.add_access(Signature(array_ref.name),
+                                            AccessType.READ,
+                                            self._kern, ["colour", "cell"])
+
+            return (array_ref.debug_string(), array_ref)
 
         return (cell_sym.name, Reference(cell_sym))
 
