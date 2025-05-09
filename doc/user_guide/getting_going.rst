@@ -79,9 +79,9 @@ please see the
 
   .. tab-item:: From Conda:
 
-    Psyclone is available in the ``conda-forge`` Conda channel.
+    PSyclone is available in the ``conda-forge`` Conda channel.
 
-    To create a conda environment containing Psyclone use:
+    To create a conda environment containing PSyclone use:
 
     .. code-block:: bash
 

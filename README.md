@@ -55,7 +55,7 @@ or in developer (editable) mode using
 
     $ pip install -e .
 
-Psyclone is also available in the
+PSyclone is also available in the
 [Conda](https://anaconda.org/conda-forge/psyclone) and
 [Spack](https://packages.spack.io/package.html?name=py-psyclone) package
 managers.
