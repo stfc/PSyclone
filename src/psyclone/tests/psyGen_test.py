@@ -45,6 +45,7 @@
 # PSyFactory, TransInfo, Transformation
 import os
 import sys
+import logging as pylogging
 from unittest.mock import patch
 
 import pytest
@@ -212,22 +213,23 @@ def test_transformation_apply_deprecation_message(capsys, caplog):
         def apply(self, node=None, options=None):
             super().apply(node, options=options)
 
-    instance = TestTrans()
-    instance.apply(options={"dict": True})
-    out, err = capsys.readouterr()
-    assert ("PSyclone Deprecation Warning: The 'options' parameter to "
-            "Transformation.apply and Transformation.validate are now "
-            "deprecated. Please use "
-            "the individual arguments, or unpack the options with "
-            "**options. See the Transformations section of the "
-            "User guide for more details" in out)
-    assert caplog.records[0].levelname == "WARNING"
-    assert ("PSyclone Deprecation Warning: The 'options' parameter to "
-            "Transformation.apply and Transformation.validate are now "
-            "deprecated. Please use "
-            "the individual arguments, or unpack the options with "
-            "**options. See the Transformations section of the "
-            "User guide for more details" in caplog.record_tuples[0][2])
+    with caplog.at_level(pylogging.WARNING):
+        instance = TestTrans()
+        instance.apply(options={"dict": True})
+        out, err = capsys.readouterr()
+        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
+                "Transformation.apply and Transformation.validate are now "
+                "deprecated. Please use "
+                "the individual arguments, or unpack the options with "
+                "**options. See the Transformations section of the "
+                "User guide for more details" in out)
+        assert caplog.records[0].levelname == "WARNING"
+        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
+                "Transformation.apply and Transformation.validate are now "
+                "deprecated. Please use "
+                "the individual arguments, or unpack the options with "
+                "**options. See the Transformations section of the "
+                "User guide for more details" in caplog.record_tuples[0][2])
 
 
 def test_transformation_get_valid_options():
