@@ -189,10 +189,8 @@ def test_sym_writer_functions(fortran_reader, expressions):
 @pytest.mark.parametrize("expr, sym_map", [("i", {'i': Symbol('i')}),
                                            ("f(1)", {'f': Function('f')}),
                                            ("f(:)", {'f': Function('f')}),
-                                           ("a%b", {'a': Symbol('a'),
-                                                    'a_b': Symbol('a_b')}),
-                                           ("a%b(1)", {'a': Symbol('a'),
-                                                       'a_b': Function('a_b')})
+                                           ("a%b", {'a_b': Symbol('a_b')}),
+                                           ("a%b(1)", {'a_b': Function('a_b')})
                                            ])
 def test_sympy_writer_create_type_map(expr, sym_map, fortran_reader):
     '''Tests that the static create_type_map creates a dictionary
@@ -216,21 +214,18 @@ def test_sympy_writer_create_type_map(expr, sym_map, fortran_reader):
     assert sympy_writer._sympy_type_map.keys() == sym_map.keys()
 
 
-@pytest.mark.parametrize("expressions", [("a%x", "a_x"),
-                                         ("b(i)%x", "b_x(i,i,1)"),
-                                         ("a%x(i)", "a_x(i,i,1)"),
-                                         ("b(j)%x(i)", "b_x(j,j,1,i,i,1)"),
-                                         ("b(i)%c(b_c)",
-                                          "b_c_1(i,i,1,b_c,b_c,1)"),
-                                         ("a_c + a%c(i)",
-                                          "a_c + a_c_1(i,i,1)"),
-                                         ("b(b_c)%c(i)",
-                                          "b_c_1(b_c,b_c,1,i,i,1)"),
-                                         ("b(b_c)%c(i)",
-                                          "b_c_1(b_c,b_c,1,i,i,1)"),
-                                         ("a_b_c + a_b_c_1 + a%b%c",
-                                          "a_b_c + a_b_c_1 + a_b_c_2"),
-                                         ])
+@pytest.mark.parametrize("expressions",
+                         [("a%x", "a_x"),
+                          ("b(i)%x", "b_x(i,i,1)"),
+                          ("a%x(i)", "a_x(i,i,1)"),
+                          ("b(j)%x(i)", "b_x(j,j,1,i,i,1)"),
+                          ("b(i)%c(b_c)", "b_c(i,i,1,b_c_1,b_c_1,1)"),
+                          ("a_c + a%c(i)", "a_c_1 + a_c(i,i,1)"),
+                          ("b(b_c)%c(i)", "b_c(b_c_1,b_c_1,1,i,i,1)"),
+                          ("b(b_c)%c(i)", "b_c(b_c_1,b_c_1,1,i,i,1)"),
+                          ("a_b_c + a_b_c_1 + a%b%c",
+                           "a_b_c_1 + a_b_c_1_1 + a_b_c"),
+                          ])
 def test_sym_writer_rename_members(fortran_reader, expressions):
     '''Test that members are converted and get a unique name that
     does not clash with any other variable used in the expression.
@@ -250,19 +245,15 @@ def test_sym_writer_rename_members(fortran_reader, expressions):
     assert SymPyWriter()._to_str(expr) == expressions[1]
 
 
-@pytest.mark.parametrize("expr, sym_map", [("a%x", {"a": Symbol("a"),
-                                                    "a_x": Symbol("a%x")}),
-                                           ("a%x(i)", {"a": Symbol("a"),
-                                                       "a_x": Function("a_x"),
+@pytest.mark.parametrize("expr, sym_map", [("a%x", {"a_x": Symbol("a%x")}),
+                                           ("a%x(i)", {"a_x": Function("a_x"),
                                                        "i": Symbol("i")}),
                                            ("b(i)%x(i)",
-                                            {"b": Function("b"),
-                                             "b_x": Function("b_x"),
+                                            {"b_x": Function("b_x"),
                                              "i": Symbol("i")}),
                                            ("b(b_c)%c(i)",
-                                            {"b": Function("b"),
-                                             "b_c": Symbol("b_c"),
-                                             "b_c_1": Function("b_c_1"),
+                                            {"b_c_1": Symbol("b_c"),
+                                             "b_c": Function("b_c"),
                                              "i": Symbol("i")}),
                                            ])
 def test_sym_writer_symbol_types(fortran_reader, expr, sym_map):
@@ -285,16 +276,15 @@ def test_sym_writer_symbol_types(fortran_reader, expr, sym_map):
     expr = psyir.children[0].children[0].rhs
     sympy_writer = SymPyWriter()
     _ = sympy_writer(expr)
-    assert sympy_writer.type_map.items() == sym_map.items()
+    assert len(sympy_writer.type_map) == len(sym_map)
+    for key in sympy_writer.type_map.keys():
+        assert sympy_writer.type_map[key] == sym_map[key]
 
 
 @pytest.mark.parametrize("expr, sym_map", [("i", {'i': Symbol('i')}),
                                            ("f(1)", {'f': Function('f')}),
-                                           ("a%b", {'a': Symbol('a'),
-                                                    'a_b': Symbol('a_b')}),
-                                           ("a%b(1)",
-                                            {'a': Symbol('a'),
-                                             'a_b': Function('a_b')})
+                                           ("a%b", {'a_b': Symbol('a_b')}),
+                                           ("a%b(1)", {'a_b': Function('a_b')})
                                            ])
 def test_sympy_writer_get_symbol_and_map(expr, sym_map, fortran_reader):
     '''Tests that `get_sympy_expressions_and_symbol_map` function
@@ -340,9 +330,9 @@ def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
     sympy_writer = SymPyWriter()
     sympy_list = sympy_writer([exp1, exp2])
 
-    expr = parse_expr("a_b_1 + a_c(1,1,1) + i", sympy_writer.type_map)
+    expr = parse_expr("a_b + a_c(1,1,1) + i", sympy_writer.type_map)
     assert sympy_list[0] == expr
-    assert sympy_list[1] == parse_expr("a_b + j", sympy_writer.type_map)
+    assert sympy_list[1] == parse_expr("a_b_1 + j", sympy_writer.type_map)
 
 
 def test_sym_writer_parse_errors(fortran_reader):
@@ -368,60 +358,51 @@ def test_sym_writer_parse_errors(fortran_reader):
             in str(err.value))
 
 
-@pytest.mark.parametrize("expressions", [("b(i)", "b(i,i,1)"),
-                                         ("b(:)",
-                                          "b(sympy_lower,sympy_upper,1)"),
-                                         ("b(::)",
-                                          "b(sympy_lower,sympy_upper,1)"),
-                                         ("b(5::)", "b(5,sympy_upper,1)"),
-                                         ("b(:5:)", "b(sympy_lower,5,1)"),
-                                         ("b(::5)",
-                                          "b(sympy_lower,sympy_upper,5)"),
-                                         ("b(i::)", "b(i,sympy_upper,1)"),
-                                         ("b(:i:)", "b(sympy_lower,i,1)"),
-                                         ("b(::i)",
-                                          "b(sympy_lower,sympy_upper,i)"),
-                                         ("b(i:5:)", "b(i,5,1)"),
-                                         ("b(i:j:)", "b(i,j,1)"),
-                                         ("b(i::j)", "b(i,sympy_upper,j)"),
-                                         ("b(:i:j)", "b(sympy_lower,i,j)"),
-                                         ("b(i:j:k)", "b(i,j,k)"),
-                                         ("b", "b(sympy_lower,sympy_upper,1)"),
-                                         ("c(i,j)", "c(i,i,1,j,j,1)"),
-                                         ("c(::,::)",
-                                          "c(sympy_lower,sympy_upper,1,"
-                                          "sympy_lower,sympy_upper,1)"),
-                                         ("c", "c(sympy_lower,sympy_upper,1,"
-                                               "sympy_lower,sympy_upper,1)"),
-                                         ("b(i)%x", "b_x(i,i,1)"),
-                                         ("b(i)%x(j)", "b_x(i,i,1,j,j,1)"),
-                                         ("c(i,j)%x", "c_x(i,i,1,j,j,1)"),
-                                         ("c(i,j)%x(j)",
-                                          "c_x(i,i,1,j,j,1,j,j,1)"),
-                                         ("c(i,j)%d%e",
-                                          "c_d_e(i,i,1,j,j,1)"),
-                                         ("c(i,j)%d%f(i)",
-                                          "c_d_f(i,i,1,j,j,1,i,i,1)"),
-                                         ("c(i::k,j)%d%f(i:j:k)",
-                                          "c_d_f(i,sympy_upper,k,j,j,1,"
-                                          "i,j,k)"),
-                                         # Check name clashes, if a user
-                                         # variable is the same as the names
-                                         # for upper/lower bound
-                                         ("sympy_upper(:)",
-                                          "sympy_upper(sympy_lower,"
-                                          "sympy_upper_1,1)"),
-                                         ("sympy_lower(:)",
-                                          "sympy_lower(sympy_lower_1,"
-                                          "sympy_upper,1)"),
-                                         # The +sympy_upper at the end is
-                                         # an array expression, so it gets
-                                         # indices added!
-                                         ("sympy_lower(:)+sympy_upper",
-                                          "sympy_lower(sympy_lower_1,"
-                                          "sympy_upper_1,1) + sympy_upper"
-                                          "(sympy_lower_1,sympy_upper_1,1)"),
-                                         ])
+@pytest.mark.parametrize("expressions",
+                         [("b(i)", "b(i,i,1)"),
+                          ("b(:)", "b(sympy_lower,sympy_upper,1)"),
+                          ("b(::)", "b(sympy_lower,sympy_upper,1)"),
+                          ("b(5::)", "b(5,sympy_upper,1)"),
+                          ("b(:5:)", "b(sympy_lower,5,1)"),
+                          ("b(::5)", "b(sympy_lower,sympy_upper,5)"),
+                          ("b(i::)", "b(i,sympy_upper,1)"),
+                          ("b(:i:)", "b(sympy_lower,i,1)"),
+                          ("b(::i)", "b(sympy_lower,sympy_upper,i)"),
+                          ("b(i:5:)", "b(i,5,1)"),
+                          ("b(i:j:)", "b(i,j,1)"),
+                          ("b(i::j)", "b(i,sympy_upper,j)"),
+                          ("b(:i:j)", "b(sympy_lower,i,j)"),
+                          ("b(i:j:k)", "b(i,j,k)"),
+                          ("b", "b(sympy_no_bounds,sympy_no_bounds,1)"),
+                          ("c(i,j)", "c(i,i,1,j,j,1)"),
+                          ("c(::,::)", "c(sympy_lower,sympy_upper,1,"
+                           "sympy_lower,sympy_upper,1)"),
+                          ("c", "c(sympy_no_bounds,"
+                           "sympy_no_bounds,1,sympy_no_bounds,"
+                           "sympy_no_bounds,1)"),
+                          ("b(i)%x", "b_x(i,i,1)"),
+                          ("b(i)%x(j)", "b_x(i,i,1,j,j,1)"),
+                          ("c(i,j)%x", "c_x(i,i,1,j,j,1)"),
+                          ("c(i,j)%x(j)", "c_x(i,i,1,j,j,1,j,j,1)"),
+                          ("c(i,j)%d%e", "c_d_e(i,i,1,j,j,1)"),
+                          ("c(i,j)%d%f(i)", "c_d_f(i,i,1,j,j,1,i,i,1)"),
+                          ("c(i::k,j)%d%f(i:j:k)",
+                           "c_d_f(i,sympy_upper,k,j,j,1,i,j,k)"),
+                          # Check name clashes, if a user
+                          # variable is the same as the names
+                          # for upper/lower bound
+                          ("sympy_upper(:)",
+                           "sympy_upper(sympy_lower,sympy_upper_1,1)"),
+                          ("sympy_lower(:)", "sympy_lower(sympy_lower_1,"
+                           "sympy_upper,1)"),
+                          # The +sympy_upper at the end is an
+                          # array expression but should not get
+                          # indices added!
+                          ("sympy_lower(:)+sympy_upper",
+                           "sympy_lower(sympy_lower_1,"
+                           "sympy_upper_1,1) + sympy_upper"
+                           "(sympy_no_bounds,sympy_no_bounds,1)"),
+                          ])
 def test_sym_writer_array_expressions(fortran_reader, expressions):
     '''Test that array expressions (including ones using user-defined
     types) are converted correctly. A Fortran range is converted into
@@ -468,7 +449,7 @@ def test_gen_indices():
 @pytest.mark.parametrize("fortran_expr,sympy_str",
                          [("a%b", "a_b"),
                           # Handle name clash:
-                          ("a%c + a_c", "a_c_1 + a_c"),
+                          ("a%c + a_c", "a_c + a_c_1"),
                           ("a%b(i)", "a_b(i,i,1)"),
                           ("b(i)%b", "b_b(i,i,1)"),
                           ("b(:)%b(i) + b(1)%c",

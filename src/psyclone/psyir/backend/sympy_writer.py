@@ -43,12 +43,15 @@ import keyword
 import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
+from psyclone.core import (SingleVariableAccessInfo,
+                           VariablesAccessInfo)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (
-    DataNode, Range, Reference, IntrinsicCall, Call)
-from psyclone.psyir.symbols import (ArrayType, ScalarType, SymbolTable)
+    DataNode, IntrinsicCall, Range, StructureReference)
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, ScalarType,
+                                    SymbolError, SymbolTable, UnresolvedType)
 
 
 class SymPyWriter(FortranWriter):
@@ -109,10 +112,12 @@ class SymPyWriter(FortranWriter):
 
         # The writer will use special names in array expressions to indicate
         # the lower and upper bound (e.g. ``a(::)`` becomes
-        # ``a(sympy_lower, sympy_upper, 1)``). The symbol table will be used
-        # to resolve a potential name clash with a user variable.
+        # ``a(sympy_lower, sympy_upper, 1)`` while ``a`` becomes
+        # ``a(sympy_no_bounds, sympy_no_bounds, 1)``). The symbol table will
+        # be used to resolve a potential name clash with a user variable.
         self._lower_bound = "sympy_lower"
         self._upper_bound = "sympy_upper"
+        self._no_bounds = "sympy_no_bounds"
 
         if not SymPyWriter._RESERVED_NAMES:
             # Get the list of all reserved Python words from the
@@ -248,13 +253,22 @@ class SymPyWriter(FortranWriter):
     # -------------------------------------------------------------------------
     def _create_type_map(self, list_of_expressions, identical_variables=None,
                          all_variables_positive=None):
-        '''This function creates a dictionary mapping each Reference in any
+        '''This function creates a dictionary mapping each access in any
         of the expressions to either a SymPy Function (if the reference
         is an array reference) or a Symbol (if the reference is not an
         array reference). It defines a new SymPy function for each array,
         which has a special write method implemented that automatically
         converts array indices back by combining each three arguments into
         one expression (i. e. ``a(1,9,2)`` would become ``a(1:9:2)``).
+
+        An access like ``a(i)%b(j)`` is mapped to a function named ``a_b``
+        with arguments ``(i,i,1,j,j,1)`` (also handling name clashes in case
+        that the user code already contains a symbol ``a_b``). The SymPy
+        function created for this new symbol will store the original signature
+        and the number of indices for each member (so in the example above
+        that would be ``Signature("a%b")`` and ``(1,1)``. This information
+        is sufficient to convert the SymPy symbol back to the correct Fortran
+        representation.
 
         A new symbol table is created any time this function is called, so
         it is important to provide all expressions at once for the symbol
@@ -305,42 +319,84 @@ class SymPyWriter(FortranWriter):
         if all_variables_positive:
             assumptions["positive"] = True
 
-        # Find each reference in each of the expression, and declare this name
+        # Find every symbol in each of the expressions, and declare this name
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
-        # (an array).
+        # (either an array or a function call).
+        vai = VariablesAccessInfo()
         for expr in list_of_expressions:
-            # TODO #2542. References should be iterated with the
-            # reference_acess method when its issues are fixed.
-            for ref in expr.walk(Reference):
-                if (isinstance(ref.parent, Call) and
-                        ref.parent.children[0] is ref):
-                    continue
+            expr.reference_accesses(vai)
 
-                name = ref.name
-                # The reserved Python keywords do not have tags, so they
-                # will not be found.
-                if name in self._symbol_table.tags_dict:
-                    continue
-
-                # Any symbol from the list of expressions to be handled
-                # will be created with a tag, so if the same symbol is
-                # used more than once, the previous test will prevent
-                # calling new_symbol again. If the name is a Python
-                # reserved symbol, a new unique name will be created by
-                # the symbol table.
+        for sig in vai.all_signatures:
+            sva: SingleVariableAccessInfo = vai[sig]
+            name = sig.var_name
+            if not sig.is_structure:
                 unique_sym = self._symbol_table.new_symbol(name, tag=name)
-                # Test if an array or an array expression is used:
-                if not ref.is_array:
+            for access in sva.all_accesses:
+                if sig.is_structure:
+                    indices = access.component_indices
+                    out = []
+                    num_dims = []
+                    all_dims = []
+                    for i, name in enumerate(sig):
+                        num_dims.append(len(indices[i]))
+                        for index in indices[i]:
+                            all_dims.append(index)
+                        out.append(name)
+                    flat_name = "_".join(out)
+                    try:
+                        unique_name = self._symbol_table.lookup_with_tag(
+                            str(sig)).name
+                    except KeyError:
+                        unique_name = self._symbol_table.new_symbol(
+                            flat_name, tag=str(sig)).name
+
+                # SingleVariableAccessInfo.is_array() only actually checks for
+                # array indices so we also check the datatype of the
+                # expression.
+                if access.is_array() or isinstance(access.node.datatype,
+                                                   ArrayType):
+                    # A Fortran array or function call. Declare a new SymPy
+                    # function for it. This SymPy function will convert array
+                    # expressions back into the original Fortran code.
+                    if sig.is_structure:
+                        # For a structure we also store the signature and
+                        # num_dims.
+                        self._sympy_type_map[unique_name] = \
+                            self._create_sympy_array_function(unique_name,
+                                                              sig, num_dims)
+                    else:
+                        self._sympy_type_map[unique_sym.name] = \
+                            self._create_sympy_array_function(name)
+
+                        # To avoid confusion in sympy_reader, we take the
+                        # opportunity to specialise any Symbol that we are now
+                        # confident is an array.
+                        if not all(acs.is_array() for acs in sva.all_accesses):
+                            try:
+                                # Depending on the situation, we won't always
+                                # have a scope, hence the try...except.
+                                sym = access.node.scope.symbol_table.lookup(
+                                    name)
+                                if not isinstance(sym, DataSymbol):
+                                    for indices in access.component_indices:
+                                        if indices:
+                                            ndims = len(indices)
+                                    sym.specialise(
+                                        DataSymbol,
+                                        datatype=ArrayType(
+                                            UnresolvedType(),
+                                            [ArrayType.Extent.DEFERRED]*ndims))
+                            except SymbolError:
+                                pass
+                    break
+            else:
+                # A scalar access.
+                if sig.is_structure:
+                    self._sympy_type_map[unique_name] = sympy.Symbol(
+                        sig.to_language())
+                else:
                     self._sympy_type_map[unique_sym.name] = sympy.Symbol(
                         name, **assumptions)
-                    continue
-
-                # A Fortran array is used which has not been seen before.
-                # Declare a new SymPy function for it. This SymPy function
-                # will convert array expressions back into the original
-                # Fortran code.
-                self._sympy_type_map[unique_sym.name] = \
-                    self._create_sympy_array_function(name)
 
         if not identical_variables:
             identical_variables = {}
@@ -360,24 +416,33 @@ class SymPyWriter(FortranWriter):
         self._upper_bound = \
             self._symbol_table.new_symbol("sympy_upper",
                                           tag="sympy!upper_bound").name
+        # This one is used when the array symbol is accessed (in the original
+        # code) without any indexing at all.
+        self._no_bounds = self._symbol_table.new_symbol(
+            "sympy_no_bounds", tag="sympy!no_bounds").name
 
     # -------------------------------------------------------------------------
     @property
-    def lower_bound(self):
+    def lower_bound(self) -> str:
         ''':returns: the name to be used for an unspecified lower bound.
-        :rtype: str
-
         '''
         return self._lower_bound
 
     # -------------------------------------------------------------------------
     @property
-    def upper_bound(self):
+    def upper_bound(self) -> str:
         ''':returns: the name to be used for an unspecified upper bound.
-        :rtype: str
-
         '''
         return self._upper_bound
+
+    # -------------------------------------------------------------------------
+    @property
+    def no_bounds(self) -> str:
+        '''
+        :returns: the name to be used when no bounds are present on an
+                  array access.
+        '''
+        return self._no_bounds
 
     # -------------------------------------------------------------------------
     @property
@@ -536,58 +601,33 @@ class SymPyWriter(FortranWriter):
         return self.arrayofstructuresreference_node(node)
 
     # -------------------------------------------------------------------------
-    def arrayofstructuresreference_node(self, node):
-        '''This handles ArrayOfStructureReferences (and also simple
-        StructureReferences). An access like ``a(i)%b(j)`` is converted to
-        the string ``a_b(i,i,1,j,j,1)`` (also handling name clashes in case
-        that the user code already contains a symbol ``a_b``). The SymPy
-        function created for this new symbol will store the original signature
-        and the number of indices for each member (so in the example above
-        that would be ``Signature("a%b")`` and ``(1,1)``. This information
-        is sufficient to convert the SymPy symbol back to the correct Fortran
-        representation
+    def arrayofstructuresreference_node(self, node: StructureReference) -> str:
+        '''
+        This handles ArrayOfStructureReferences (and also simple
+        StructureReferences).
 
         :param node: a StructureReference PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.StructureReference`
 
-        :returns: the code as string.
-        :rtype: str
+        :returns: text representation of the code.
 
         '''
         sig, indices = node.get_signature_and_indices()
 
-        out = []
-        num_dims = []
         all_dims = []
         is_array = False
         for i, name in enumerate(sig):
-            num_dims.append(len(indices[i]))
             for index in indices[i]:
                 all_dims.append(index)
                 is_array = True
-            out.append(name)
-        flat_name = "_".join(out)
 
-        # Find (or create) a unique variable name:
-        try:
-            unique_name = self._symbol_table.lookup_with_tag(str(sig)).name
-        except KeyError:
-            unique_name = self._symbol_table.new_symbol(flat_name,
-                                                        tag=str(sig)).name
+        # Find the unique variable name created in _create_type_map()
+        unique_name = self._symbol_table.lookup_with_tag(str(sig)).name
+
         if is_array:
             indices_str = self.gen_indices(all_dims)
-            # Create the corresponding SymPy function, which will store
-            # the signature and num_dims, so that the correct Fortran
-            # representation can be recreated later.
-            self._sympy_type_map[unique_name] = \
-                self._create_sympy_array_function(unique_name, sig, num_dims)
             return f"{unique_name}({','.join(indices_str)})"
 
-        # Not an array access. We use the unique name  for the string,
-        # but the required symbol is mapped to the original name, which means
-        # if the SymPy expression is converted to a string (in order to be
-        # parsed), it will use the original structure reference syntax:
-        self._sympy_type_map[unique_name] = sympy.Symbol(sig.to_language())
+        # Not an array access. We use the unique name for the string.
         return unique_name
 
     # -------------------------------------------------------------------------
@@ -665,7 +705,7 @@ class SymPyWriter(FortranWriter):
         PSyIR tree. It handles the case that this normal reference might
         be an array expression, which in the SymPy writer needs to have
         indices added explicitly: it basically converts the array expression
-        ``a`` to ``a(sympy_lower, sympy_upper, 1)``.
+        ``a`` to ``a(sympy_no_bounds, sympy_no_bounds, 1)``.
 
         :param node: a Reference PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
@@ -683,16 +723,17 @@ class SymPyWriter(FortranWriter):
             # If the tag did not exist it means that this symbol has not
             # been re-named, and we can use it as is.
             name = node.name
+
         if not node.is_array:
             # This reference is not an array, just return the name
             return name
 
-        # Now this must be an array expression without parenthesis. Add
-        # the triple-array indices to represent `lower:upper:1` for each
+        # Now this must be an array expression without parentheses. For
+        # consistency, we still treat it as a Sympy function call and therefore
+        # add the triple array indices to represent `lower:upper:1` for each
         # dimension:
         shape = node.symbol.shape
-        result = [f"{self.lower_bound},"
-                  f"{self.upper_bound},1"]*len(shape)
+        result = [f"{self.no_bounds},{self.no_bounds},1"]*len(shape)
 
         return (f"{name}{self.array_parenthesis[0]}"
                 f"{','.join(result)}{self.array_parenthesis[1]}")
