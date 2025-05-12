@@ -49,10 +49,10 @@ jobs:
       HDF5_VERSION: 1.14.5
       NETCDF_C_VERSION: 4.9.2
       NETCDF_FORTRAN_VERSION: 4.6.1
-      NVFORTRAN_VERSION: 25.1
+      NVFORTRAN_VERSION: 25.3
       ONEAPI_VERSION: 2024.2.1
-      PERL_VERSION: 5.40.1
-      PYTHON_VERSION: 3.13.2
+      PERL_VERSION: 5.40.2
+      PYTHON_VERSION: 3.13.3
 
     steps:
     - uses: actions/checkout@v3
