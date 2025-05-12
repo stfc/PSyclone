@@ -104,7 +104,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         # forward dependency.
         for signature in writes:
             accesses = var_accesses[signature].all_accesses
-            sym_name = signature[0]
+            sym_name = signature.var_name
             last_access = accesses[-1].node
             sym = last_access.scope.symbol_table.lookup(sym_name)
             # If the symbol is private or firstprivate then we can
