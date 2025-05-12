@@ -36,7 +36,7 @@ https://psyclone.readthedocs.io/en/latest/gocean1p0.html).
 
 Contains the read-only, PSyData-API-based, wrapper library for the
 [LFRic API](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
+https://psyclone.readthedocs.io/en/stable/lfric.html).
 
 ## [``generic``](./generic) directory
 

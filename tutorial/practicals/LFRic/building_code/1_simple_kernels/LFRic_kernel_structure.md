@@ -94,9 +94,9 @@ of an individual kernel type. They come in two main forms: derived types
 such as `operates_on` above or arrays). Here we briefly explain the contents
 of the `arg_type` and `operates_on` metadata. For more information please refer
 to the [*Metadata* section](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#metadata)
+https://psyclone.readthedocs.io/en/stable/lfric.html#metadata)
 of the LFRic API [user documentation](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
+https://psyclone.readthedocs.io/en/stable/lfric.html).
 
 The `arg_type` in this example describes the two (hence `dimension(2)`)
 arguments that this kernel operates on:
@@ -109,9 +109,9 @@ arguments that this kernel operates on:
 The `GH_` prefix comes from "GungHo", the name of the dynamical core used in
 the LFRic model. Please refer to the documentation for more information on
 [supported accesses](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
+https://psyclone.readthedocs.io/en/stable/lfric.html#valid-access-modes)
 and [function spaces](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces)
+https://psyclone.readthedocs.io/en/stable/lfric.html#supported-function-spaces)
 for the LFRic data objects.
 
 The `operates_on` metadata specifies how LFRic kernels are called
@@ -204,7 +204,7 @@ The order of kernel arguments roughly corresponds to the order of
 ordering arguments is to put arguments that are written to first.
 The full PSyclone LFRic API specification of the argument ordering for
 the [general LFRic user-defined kernels](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#rules-for-general-purpose-kernels)
+https://psyclone.readthedocs.io/en/stable/lfric.html#rules-for-general-purpose-kernels)
 is quite complex, hence making the [PSyclone kernel tool](
 https://psyclone.readthedocs.io/en/stable/psyclone_kern.html) very useful
 for development.
@@ -212,7 +212,7 @@ for development.
 LFRic kernels can update more than one field and/or operator arguments.
 However, scalar arguments in user-defined LFRic kernels must be
 [read-only](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes).
+https://psyclone.readthedocs.io/en/stable/lfric.html#valid-access-modes).
 
 ---
 

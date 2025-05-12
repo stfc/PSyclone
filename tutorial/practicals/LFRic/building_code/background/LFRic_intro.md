@@ -37,7 +37,7 @@ the Met Office and external LFRic developers and users.
 ### PSyclone in LFRic
 
 PSyclone LFRic API documentation can be found [here](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
+https://psyclone.readthedocs.io/en/stable/lfric.html).
 
 LFRic wiki hosts pages on the use of PSyclone in LFRic, starting with the
 [PSyclone in LFRic wiki (requires login)](
