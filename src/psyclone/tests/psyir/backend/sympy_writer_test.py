@@ -127,6 +127,26 @@ def test_sym_writer_character():
 
     assert "SymPy cannot handle strings like 'bla'." in str(err.value)
 
+@pytest.mark.parametrize("expressions", [(".true. .and. .false.", False),
+                                         (".true. .and. .true.", True),
+                                         (".false. .or. .true.", True),
+                                         ])
+def  test_sym_writer_boolean_expr_add_test(fortran_reader, fortran_writer, expressions):
+    '''Test that booleans are written in the way that SymPy accepts.
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                logical :: bool_expr
+                bool_expr = {expressions[0]}
+                end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    lit = psyir.children[0].children[0].rhs
+    sympy_writer = SymPyWriter()
+    sympy_expr = sympy_writer(lit)
+    assert sympy_expr == expressions[1]
+
 
 @pytest.mark.parametrize("expressions", [("2", "2"),
                                          ("123_4", "123"),

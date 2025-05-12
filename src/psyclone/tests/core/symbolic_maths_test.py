@@ -512,3 +512,40 @@ def test_symbolic_maths_array_and_array_index(fortran_reader):
 
     assert sym_maths.equal(psyir.children[0][1].rhs,
                            psyir.children[0][1].rhs)
+
+
+@pytest.mark.parametrize("expressions", [(".false. .and. .false.", "False"),
+                                         (".false. .and. .true.", "False"),
+                                         (".true. .and. .false.", "False"),
+                                         (".true. .and. .true.", "True"),
+                                         (".false. .or. .false.", "False"),
+                                         (".false. .or. .true.", "True"),
+                                         (".true. .or. .false.", "True"),
+                                         (".true. .or. .true.", "True"),
+                                         (".false. .eqv. .false.", "True"),
+                                         (".false. .eqv. .true.", "False"),
+                                         (".true. .eqv. .false.", "False"),
+                                         (".true. .eqv. .true.", "True"),
+                                         (".false. .neqv. .false.", "False"),
+                                         (".false. .neqv. .true.", "True"),
+                                         (".true. .neqv. .false.", "True"),
+                                         (".true. .neqv. .true.", "False"),
+                                         ])
+def test_sym_writer_boolean_expr(fortran_reader, expressions):
+    '''Test that booleans are written in the way that SymPy accepts.
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                logical :: bool_expr
+                bool_expr = {expressions[0]}
+                bool_expr = {expressions[1]}
+                end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    lit0 = psyir.children[0].children[0].rhs
+    lit1 = psyir.children[0].children[1].rhs
+    sympy_writer = SymPyWriter()
+
+    sympy_expr = sympy_writer(lit0)
+    assert sympy_expr == sympy_writer(lit1)
