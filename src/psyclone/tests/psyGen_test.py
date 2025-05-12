@@ -996,7 +996,7 @@ def test_args_filter():
     '''the args_filter() method is in both Loop() and Arguments() classes
     with the former method calling the latter. This example tests the
     case when unique is set to True and therefore any replicated names
-    are not returned. The simplest way to do this is to use a
+    are not returned. The simplest way to do this is to use an
     LFRic example which includes two kernels which share argument
     names. We choose dm=False to make it easier to fuse the loops.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),

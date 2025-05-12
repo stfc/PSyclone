@@ -485,7 +485,7 @@ def test_profile_kernels_in_directive_lfric():
 
 
 # -----------------------------------------------------------------------------
-def test_profile_named_dynamo0p3(fortran_writer):
+def test_profile_named_lfric(fortran_writer):
     '''Check that the LFRic API is instrumented correctly when the
     profile name is supplied by the user.
 

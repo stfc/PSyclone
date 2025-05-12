@@ -659,7 +659,7 @@ undf_w2, map_w2(:,cell))
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_extract_colouring_omp_dynamo0p3(fortran_writer):
+def test_extract_colouring_omp_lfric(fortran_writer):
     ''' Test that extraction of a Kernel in an Invoke after applying
     colouring and OpenMP optimisations produces the correct result
     in LFRic API. '''
