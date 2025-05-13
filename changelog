@@ -1,3 +1,6 @@
+   17) PR #2983 for #2978. Ignore redundant return statements when creating
+   PSyIR.
+
    16) PR #2964. PScylone is now available to install from Conda. This PR adds
    instructions in the user guide.
 
