@@ -316,6 +316,13 @@ def test_compute_cached_abs_positions(fortran_reader):
     for child in psyir.walk(Node):
         child.cached_abs_position is None
 
+    # Check that we get the expected type error when setting
+    # the cached_abs_position
+    with pytest.raises(TypeError) as excinfo:
+        psyir.cached_abs_position = "b"
+    assert ("Expected cached_abs_position to be an int or None but got: 'str'"
+            in str(excinfo.value))
+
 
 def test_compute_cached_abs_positions_error():
     ''' Check that the compute_cached_abs_position method produces an internal
