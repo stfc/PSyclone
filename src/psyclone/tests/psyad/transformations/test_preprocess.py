@@ -210,6 +210,7 @@ def test_preprocess_arrayassign2loop(tmpdir, fortran_reader, fortran_writer):
         "  enddo\n"
         "  d(1,1,1) = 0.0\n"
         "  e(:,:,:) = f(:,:,:)\n"
+        "\n"
         "  ! PSyclone CodeBlock (unsupported code) reason:\n"
         "  !  - Unsupported statement: Print_Stmt\n"
         "  PRINT *, \"hello\"\n\n"

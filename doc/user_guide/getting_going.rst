@@ -77,6 +77,19 @@ please see the
     in its own ``virtual environment`` we recommend reading the
     `Python Packaging User Guide <https://packaging.python.org/en/latest/tutorials/installing-packages/>`_.
 
+  .. tab-item:: From Conda:
+
+    PSyclone is available in the ``conda-forge`` Conda channel.
+
+    To create a conda environment containing PSyclone use:
+
+    .. code-block:: bash
+
+      conda create -n psyclone-env -c conda-forge psyclone
+
+    For more information about how to use Conda we recommend reading the `Conda
+    documentation <https://docs.conda.io/projects/conda/en/stable/>`_.
+
   .. tab-item:: From Spack:
 
     To install psyclone to your loaded Spack installation use:
@@ -240,7 +253,7 @@ This should not transform the semantics of the code (only the syntax), and is
 what we sometimes refer to as a "passthrough" run. This can be useful as an initial
 correctness test when applying PSyclone to a new code.
 
-However, PSyclone allows users to programatically change the source code of the
+However, PSyclone allows users to programmatically change the source code of the
 processed file. This is achieved using transformation recipes which are python scripts
 with a `trans` function defined. For example:
 

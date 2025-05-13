@@ -62,11 +62,11 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Directive, Literal, Loop, Node,
+    Call, CodeBlock, Container, Directive, Literal, Loop, Node,
     OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
-    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
-    Return, Routine, Schedule)
+    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Return,
+    Routine, Schedule)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
@@ -310,7 +310,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
                                           nogroup=self.omp_nogroup)
         return _directive
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the OMPTaskloopTrans transformation to the specified node in
         a Schedule. This node must be a Loop since this transformation
         corresponds to wrapping the generated code with directives like so:
@@ -323,8 +323,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
           end do
           !$OMP END TASKLOOP
 
-        At code-generation time (when
-        :py:meth:`OMPTaskloopDirective.gen_code` is called), this node must be
+        At code-generation time (when lowering is called), this node must be
         within (i.e. a child of) an OpenMP SERIAL region.
 
         If the keyword "nogroup" is specified in the options, it will cause a
@@ -352,7 +351,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         self.omp_nogroup = options.get("nogroup", current_nogroup)
 
         try:
-            super().apply(node, options)
+            super().apply(node, options, **kwargs)
         finally:
             # Reset the nogroup value to the original value
             self.omp_nogroup = current_nogroup
@@ -418,15 +417,17 @@ class MarkRoutineForGPUMixin:
                     f"Failed to create PSyIR for kernel '{node.name}'. "
                     f"Cannot transform such a kernel.") from error
 
-            # Check that it's not a mixed-precision kernel (which will have
-            # more than one Routine implementing it). We can't transform
-            # these at the moment because we can't correctly manipulate their
-            # metadata - TODO #1946.
-            routines = kernel_schedule.root.walk(Routine)
-            if len(routines) > 1:
-                raise TransformationError(
-                    f"Cannot apply {self.name} to kernel '{node.name}' as "
-                    f"it has multiple implementations - TODO #1946")
+            if not node.ancestor(Container, shared_with=kernel_schedule):
+                # The KernelSchedule to be transformed has not been inlined
+                # into the Container of the call-site. Therefore we can
+                # Check that it's not a mixed-precision kernel (which will have
+                # more than one Routine implementing it). We can't transform
+                # these at the moment because we can't correctly manipulate
+                # their metadata - TODO #1946.
+                if len(kernel_schedule.root.walk(Routine)) > 1:
+                    raise TransformationError(
+                        f"Cannot apply {self.name} to kernel '{node.name}' as "
+                        f"it has multiple implementations - TODO #1946")
 
             k_or_r = "Kernel"
         else:
@@ -436,24 +437,35 @@ class MarkRoutineForGPUMixin:
 
         # Check that the routine does not access any data that is imported via
         # a 'use' statement.
-        # TODO #2271 - this implementation will not catch symbols from literal
-        # precisions or intialisation expressions.
-        refs = kernel_schedule.walk(Reference)
-        for ref in refs:
-            if ref.symbol.is_import:
+        vai = VariablesAccessInfo()
+        kernel_schedule.reference_accesses(vai)
+        ktable = kernel_schedule.symbol_table
+        for sig in vai.all_signatures:
+            name = sig.var_name
+            first = vai[sig].all_accesses[0].node
+            if isinstance(first, Symbol):
+                table = ktable
+            else:
+                try:
+                    table = first.scope.symbol_table
+                except SymbolError:
+                    # The node associated with this access is not within a
+                    # scoping region.
+                    table = ktable
+            symbol = table.lookup(name)
+            if symbol.is_import:
                 # resolve_type does nothing if the Symbol type is known.
                 try:
-                    ref.symbol.resolve_type()
+                    symbol.resolve_type()
                 except (SymbolError, FileNotFoundError):
                     # TODO #11 - log that we failed to resolve this Symbol.
                     pass
-                if (isinstance(ref.symbol, DataSymbol) and
-                        ref.symbol.is_constant):
+                if (isinstance(symbol, DataSymbol) and symbol.is_constant):
                     # An import of a compile-time constant is fine.
                     continue
                 raise TransformationError(
                     f"{k_or_r} '{node.name}' accesses the symbol "
-                    f"'{ref.symbol}' which is imported. If this symbol "
+                    f"'{symbol}' which is imported. If this symbol "
                     f"represents data then it must first be converted to a "
                     f"{k_or_r} argument using the KernelImportsToArguments "
                     f"transformation.")
@@ -473,20 +485,6 @@ class MarkRoutineForGPUMixin:
                     f"'{node.name}' because its PSyIR contains one or more "
                     f"CodeBlocks:{cblock_txt}You may use '{option_txt}' to "
                     f"override this check.")
-        else:
-            # Check any accesses within CodeBlocks.
-            # TODO #2271 - this will be handled as part of the checking to be
-            # implemented using the dependence analysis.
-            for cblock in cblocks:
-                names = cblock.get_symbol_names()
-                for name in names:
-                    sym = kernel_schedule.symbol_table.lookup(name)
-                    if sym.is_import:
-                        raise TransformationError(
-                            f"{k_or_r} '{node.name}' accesses the symbol "
-                            f"'{sym.name}' within a CodeBlock and this symbol "
-                            f"is imported. {type(self).__name__} cannot be "
-                            f"applied to such a {k_or_r}.")
 
         calls = kernel_schedule.walk(Call)
         for call in calls:
@@ -679,8 +677,7 @@ class ACCLoopTrans(ParallelLoopTrans):
              ...
           end do
 
-        At code-generation time (when
-        :py:meth:`psyclone.psyir.nodes.ACCLoopDirective.gen_code` is called),
+        At code-generation time (when lowering is called),
         this node must be within (i.e. a child of) a PARALLEL region.
 
         :param node: the supplied node to which we will apply the
@@ -751,9 +748,9 @@ class OMPParallelLoopTrans(OMPLoopTrans):
           !$OMP END PARALLEL DO
 
         :param node: the node (loop) to which to apply the transformation.
-        :type node: :py:class:`psyclone.f2pygen.DoGen`
-        :param options: a dictionary with options for transformations\
-                        and validation.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param options: a dictionary with options for transformations
+            and validation.
         :type options: Optional[Dict[str, Any]]
         '''
         self.validate(node, options=options)
@@ -893,7 +890,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an OpenMP DO directive to a Dynamo 0.3 loop"
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         ''' Perform LFRic (Dynamo 0.3) specific loop validity checks for the
         OMPLoopTrans.
 
@@ -931,7 +928,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                 f"Error in {self.name} transformation. The kernel has an "
                 f"argument with INC access. Colouring is required.")
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         ''' Apply LFRic (Dynamo 0.3) specific OMPLoopTrans.
 
         :param node: the Node in the Schedule to check.
@@ -979,7 +976,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add the selected OpenMP loop directive to a GOcean loop"
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Checks that the supplied node is a valid target for parallelisation
         using OMP directives.
@@ -1420,10 +1417,8 @@ class OMPSingleTrans(ParallelRegionTrans):
         '''Apply the OMPSingleTrans transformation to the specified node in a
         Schedule.
 
-        At code-generation time this node must be within (i.e. a child of)
-        an OpenMP PARALLEL region. Code generation happens when
-        :py:meth:`OMPLoopDirective.gen_code` is called, or when the PSyIR
-        tree is given to a backend.
+        At code-generation time (when lowering is called) this node must be
+        within (i.e. a child of) an OpenMP PARALLEL region.
 
         If the keyword "nowait" is specified in the options, it will cause a
         nowait clause to be added if it is set to True, otherwise no clause
@@ -2915,16 +2910,14 @@ class KernelImportsToArguments(Transformation):
                 f"Kernel '{node.name}' contains undeclared symbol: "
                 f"{err.value}") from err
 
-        symtab = kernel.symbol_table
-        for container in symtab.containersymbols:
-            if container.wildcard_import:
-                raise TransformationError(
-                    f"Kernel '{node.name}' has a wildcard import of symbols "
-                    f"from container '{container.name}'. This is not "
-                    f"supported.")
-
-        # TODO #649. Check for variables accessed by the kernel but declared
-        # in an outer scope.
+        try:
+            kernel.check_outer_scope_accesses(node, "Kernel",
+                                              permit_unresolved=False,
+                                              ignore_non_data_accesses=True)
+        except SymbolError as err:
+            raise TransformationError(
+                f"Cannot apply {self.name} to Kernel '{node.name}' because it "
+                f"accesses data from its outer scope: {err.value}") from err
 
     def apply(self, node, options=None):
         '''
@@ -2938,7 +2931,6 @@ class KernelImportsToArguments(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-
         self.validate(node, options)
 
         kernel = node.get_kernel_schedule()
@@ -2950,17 +2942,23 @@ class KernelImportsToArguments(Transformation):
         # TODO #11: When support for logging is added, we could warn the user
         # if no imports are found in the kernel.
         for imported_var in kernel.symbol_table.imported_symbols[:]:
-            count_imported_vars_removed += 1
 
             # Resolve the data type information if it is not available
-            # pylint: disable=unidiomatic-typecheck
+            updated_sym = imported_var
+            # pylint: disable-next=unidiomatic-typecheck
             if (type(imported_var) is Symbol or
                     isinstance(imported_var.datatype, UnresolvedType)):
                 updated_sym = imported_var.resolve_type()
                 # If we have a new symbol then we must update the symbol table
                 if updated_sym is not imported_var:
                     kernel.symbol_table.swap(imported_var, updated_sym)
-            # pylint: enable=unidiomatic-typecheck
+
+            if updated_sym in kernel.symbol_table.precision_datasymbols:
+                # Symbols specifying compile-time precision can't be passed
+                # as arguments.
+                continue
+
+            count_imported_vars_removed += 1
 
             # Copy the imported symbol into the InvokeSchedule SymbolTable
             invoke_symtab.copy_external_import(

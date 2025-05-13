@@ -55,6 +55,11 @@ or in developer (editable) mode using
 
     $ pip install -e .
 
+PSyclone is also available in the
+[Conda](https://anaconda.org/conda-forge/psyclone) and
+[Spack](https://packages.spack.io/package.html?name=py-psyclone) package
+managers.
+
 For more information about the installation process see
 [this section of the User Guide](https://psyclone.readthedocs.io/en/latest/system_specific_setup.html).
 
@@ -85,5 +90,4 @@ examples/      	    | Simple examples
 README.md      	    | This file
 src/psyclone   	    | The Python source code
 src/psyclone/tests/ | Unit and functional tests using pytest
-tutorial/notebooks  | Tutorial using Jupyter notebooks
 tutorial/practicals | Hands-on exercises using a local installation of PSyclone

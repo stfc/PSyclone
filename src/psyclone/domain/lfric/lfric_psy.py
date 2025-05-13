@@ -41,14 +41,13 @@
     that LFRic-specific PSy module code is generated.
     '''
 
-from collections import OrderedDict
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
                                    LFRicInvokes)
-from psyclone.f2pygen import ModuleGen, UseGen, PSyIRGen
-from psyclone.psyGen import PSy, InvokeSchedule
+from psyclone.psyGen import PSy
 from psyclone.psyir.nodes import ScopingNode
+from psyclone.psyir.symbols import ContainerSymbol
 
 
 class LFRicPSy(PSy):
@@ -69,43 +68,16 @@ class LFRicPSy(PSy):
         ScopingNode._symbol_table_class = LFRicSymbolTable
         Config.get().api = "lfric"
         PSy.__init__(self, invoke_info)
-        self._invokes = LFRicInvokes(invoke_info.calls, self)
-        # Initialise the dictionary that holds the names of the required
-        # LFRic constants, data structures and data structure proxies for
-        # the "use" statements in modules that contain PSy-layer routines.
+
+        # Add a wildcard "constants_mod" import at the Container level
+        # since kinds are often disconnected.
         const = LFRicConstants()
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        infmod_list = [const_mod]
-        # Add all field and operator modules that might be used in the
-        # algorithm layer. These do not appear in the code unless a
-        # variable is added to the "only" part of the
-        # '_infrastructure_modules' map.
-        for data_type_info in const.DATA_TYPE_MAP.values():
-            infmod_list.append(data_type_info["module"])
+        self.container.symbol_table.add(
+            ContainerSymbol(const_mod, wildcard_import=True))
 
-        # This also removes any duplicates from infmod_list
-        self._infrastructure_modules = OrderedDict(
-            (k, set()) for k in infmod_list)
-
-        kind_names = set()
-
-        # The infrastructure declares integer types with default
-        # precision so always add this.
-        api_config = Config.get().api_conf("lfric")
-        kind_names.add(api_config.default_kind["integer"])
-
-        # Datatypes declare precision information themselves. However,
-        # that is not the case for literals. Therefore deal
-        # with these separately here.
-        for invoke in self.invokes.invoke_list:
-            schedule = invoke.schedule
-            for kernel in schedule.kernels():
-                for arg in kernel.args:
-                    if arg.is_literal:
-                        kind_names.add(arg.precision)
-        # Add precision names to the dictionary storing the required
-        # LFRic constants.
-        self._infrastructure_modules[const_mod] = kind_names
+        # Then initialise the Invokes
+        self._invokes = LFRicInvokes(invoke_info.calls, self)
 
     @property
     def name(self):
@@ -127,58 +99,8 @@ class LFRicPSy(PSy):
         '''
         return self._name
 
-    @property
-    def infrastructure_modules(self):
-        '''
-        :returns: the dictionary that holds the names of the required
-                  LFRic infrastructure modules to create "use"
-                  statements in the PSy-layer modules.
-        :rtype: dict of set
-
-        '''
-        return self._infrastructure_modules
-
-    @property
-    def gen(self):
-        '''
-        Generate PSy code for the LFRic API.
-
-        :returns: root node of generated Fortran AST.
-        :rtype: :py:class:`psyir.nodes.Node`
-
-        '''
-        # Create an empty PSy layer module
-        psy_module = ModuleGen(self.name)
-
-        # If the container has a Routine that is not an InvokeSchedule
-        # it should also be added to the generated module.
-        for routine in self.container.children:
-            if not isinstance(routine, InvokeSchedule):
-                psy_module.add(PSyIRGen(psy_module, routine))
-
-        # Add all invoke-specific information
-        self.invokes.gen_code(psy_module)
-
-        # Include required constants and infrastructure modules. The sets of
-        # required LFRic data structures and their proxies are updated in
-        # the relevant field and operator subclasses of LFRicCollection.
-        # Here we sort the inputs in reverse order to have "_type" before
-        # "_proxy_type" and "operator_" before "columnwise_operator_".
-        # We also iterate through the dictionary in reverse order so the
-        # "use" statements for field types are before the "use" statements
-        # for operator types.
-        for infmod in reversed(self._infrastructure_modules):
-            if self._infrastructure_modules[infmod]:
-                infmod_types = sorted(
-                    list(self._infrastructure_modules[infmod]), reverse=True)
-                psy_module.add(UseGen(psy_module, name=infmod,
-                                      only=True, funcnames=infmod_types))
-
-        # Return the root node of the generated code
-        return psy_module.root
-
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for.
 __all__ = ['LFRicPSy']

@@ -88,7 +88,7 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
     code = str(psy.gen).lower()
     # Work out the value of the tag used to re-name the kernel
     tag = re.search('use continuity(.+?)_mod', code).group(1)
-    assert f"use continuity{tag}_mod, only: continuity{tag}_code" in code
+    assert f"use continuity{tag}_mod, only : continuity{tag}_code" in code
     assert f"call continuity{tag}_code(" in code
     # The kernel and module name should have gained the tag just identified
     # and be written to the CWD
@@ -372,7 +372,7 @@ def test_gpumixin_validate_no_cblock(fortran_reader):
     '''
     code = '''\
 module my_mod
-  use other_mod, only: some_data
+  integer :: some_data
 contains
   subroutine my_sub(arg)
     integer :: arg
@@ -390,13 +390,18 @@ end module my_mod'''
             "  WRITE(*, *)" in str(err.value))
     assert ("You may use 'options={'force': True}' to override this check."
             in str(err.value))
-    # Using 'force' will force the variable accesses to be checked.
+    # Using 'force' will override the check.
+    rtrans.validate(routine, options={'force': True})
+    # However, if the CodeBlock contains a problematic data access then
+    # that is still picked up.
+    new_code = code.replace("integer :: some_data",
+                            "use some_mod, only: some_data")
+    psyir = fortran_reader.psyir_from_source(new_code)
+    routine = psyir.walk(Routine)[0]
     with pytest.raises(TransformationError) as err:
         rtrans.validate(routine, options={'force': True})
     assert ("Transformation Error: routine 'my_sub' accesses the symbol "
-            "'some_data' within a CodeBlock and this symbol is imported. "
-            "ACCRoutineTrans cannot be applied to such a routine."
-            in str(err.value))
+            "'some_data: Symbol<Import" in str(err.value))
 
 
 def test_gpumixin_validate_no_call():
@@ -464,8 +469,8 @@ def test_1kern_trans(kernel_outputdir):
     code = str(psy.gen).lower()
     tag = re.search('use testkern(.+?)_mod', code).group(1)
     # We should have a USE for the original kernel and a USE for the new one
-    assert f"use testkern{tag}_mod, only: testkern{tag}_code" in code
-    assert "use testkern_mod, only: testkern_code" in code
+    assert f"use testkern{tag}_mod, only : testkern{tag}_code" in code
+    assert "use testkern_mod, only : testkern_code" in code
     # Similarly, we should have calls to both the original and new kernels
     assert "call testkern_code(" in code
     assert f"call testkern{tag}_code(" in code
@@ -491,7 +496,7 @@ def test_2kern_trans(kernel_outputdir):
     # Find the tags added to the kernel/module names
     for match in re.finditer('use testkern_any_space_2(.+?)_mod', code):
         tag = match.group(1)
-        assert (f"use testkern_any_space_2{tag}_mod, only: "
+        assert (f"use testkern_any_space_2{tag}_mod, only : "
                 f"testkern_any_space_2{tag}_code" in code)
         assert f"call testkern_any_space_2{tag}_code(" in code
         filepath = os.path.join(str(kernel_outputdir),

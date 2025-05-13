@@ -141,27 +141,6 @@ TBD
 .. classname being provided. This allow them to instantiate the
 .. appropriate objects without knowing what they are.
 ..
-.. gen_code()
-.. ++++++++++
-..
-.. All of the above classes (with the exception of PSy which supports a
-.. gen() method) have the gen_code() method. This method passes the
-.. parent of the generation tree and expect the object to add the code
-.. associated with the object as a child of the parent. The object is
-.. then expected to call any children. This approach is powerful as it
-.. lets each object concentrate on the code that it is responsible for.
-..
-.. Adding code in gen_code()
-.. +++++++++++++++++++++++++
-..
-.. The f2pygen classes have been developed to help create appropriate
-.. fortran code in the gen_code() method.
-..
-.. When writing a gen_code() method for a particular object and API it is
-.. natural to add code as a child of the parent provided by the callee of
-.. the method. However, in some cases we do not want code to appear at
-.. the current position in the hierarchy.
-..
 .. The add() method
 .. ++++++++++++++++
 ..
@@ -511,7 +490,7 @@ just needs to create a loop that iterates from 1 to the total number
 of owned dofs on that partition. The latter value is provided by the
 LFRic API.
 
-When the distributed memory flag is set to ``true`` an aditional
+When the distributed memory flag is set to ``true`` an additional
 configuration option can be set which makes PSyclone always create
 loops which iterate over both owned and annexed dofs. Whilst this is
 not necessary for correctness, it can improve performance by reducing
@@ -633,8 +612,7 @@ operator are computed redundantly in the halo up to depth-1 (see the
 requires a check that any loop which includes a kernel that reads from
 an operator is limited to iterating in the halo up to
 depth-1. PSyclone will raise an exception if an optimisation attempts
-to increase the iteration space beyond this (see the ``gen_code()``
-method in the ``LFRicKern`` class).
+to increase the iteration space beyond this point.
 
 To alleviate the above restriction one could add a configurable depth with
 which to compute operators e.g. operators are always computed up to
@@ -666,7 +644,7 @@ initial schedule. There are four cases:
    as ``GH_INC`` which involves a read before a write) will require a
    halo exchange if its annexed dofs are not clean, or if their
    status is unknown. Whilst it is only the annexed dofs that need to
-   be made clean in this case, the only way to acheive this is
+   be made clean in this case, the only way to achieve this is
    via a halo exchange (which updates the halo i.e. more than is
    required). Note, if the ``COMPUTE_ANNEXED_DOFS`` configuration
    variable is set to ``true`` then no halo exchange is required as
@@ -825,7 +803,7 @@ Asynchronous Halo Exchanges
 
 The Dynamo0p3AsynchronousHaloExchange transformation allows the
 default synchronous halo exchange to be split into a halo exchange
-start and a halo exhange end which are represented separately as nodes
+start and a halo exchange end which are represented separately as nodes
 in the schedule. These can then be moved in the schedule to allow
 overlapping of communication and computation, as long as data
 dependencies are honoured.
@@ -857,7 +835,7 @@ having the halo exchange start find and use the methods from the halo
 exchange end, rather than implement them independently. The actual
 methods needed are ``_compute_stencil_type()``,
 ``_compute_halo_depth()`` and ``_required()``. It is unclear how much
-halo exhange start really benefits from inheriting from halo exchange
+halo exchange start really benefits from inheriting from halo exchange
 and this could probably be removed at the expense of returning
 appropriate names for the dag, colourmap, declaration etc.
 
@@ -978,7 +956,7 @@ Since PSyclone is invoked separately for each Algorithm file in an
 application, the naming of the new, transformed kernels is done with
 reference to the kernel output directory. All transformed kernels (and
 the modules that contain them) are re-named following the PSyclone
-Fortran naming conventions (:ref:`fortran_naming`). This enables the
+Fortran naming conventions (:ref:`lfric-conventions`). This enables the
 reliable identification of transformed versions of any given kernel
 within the output directory.
 
@@ -1055,8 +1033,8 @@ BuiltIns
 ++++++++
 
 In the LFRic PSyIR, calls to BuiltIn kernels are represented by a
-single Node which is a subclass of `LFRicBuiltIn
-<https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1domain_1_1lfric_1_1lfric__builtins_1_1LFRicBuiltIn.html>`_.
+single Node which is a subclass of
+:ref_guide:`LFRicBuiltIn psyclone.domain.lfric.lfric_builtins.html#psyclone.domain.lfric.lfric_builtins.LFRicBuiltIn`.
 The ``lower_to_language_level()`` methods of these BuiltIn nodes must
 therefore replace that single Node with the
 PSyIR for the arithmetic operations required by the particular BuiltIn.
@@ -1201,50 +1179,6 @@ the `w0` function space then at least one of the the `meta_arg`
 arguments must be on the `w0` function space. However, this is not
 checked in the current implementation.
 
-GOcean1.0
-=========
-
-TBD
-
-.. OpenMP Support
-.. --------------
-..
-.. Loop directives are treated as first class entities in the psyGen
-.. package. Therefore they can be added to psyGen's high level
-.. representation of the fortran code structure in the same way as calls
-.. and loops. Obviously it is only valid to add a loop directive outside
-.. of a loop.
-..
-.. When adding a call inside a loop the placement of any additional calls
-.. or declarations must be specified correctly to ensure that they are
-.. placed at the correct location in the hierarchy. To avoid accidentally
-.. splitting the loop directive from its loop the start_parent_loop()
-.. method can be used. This is available as a method in all fortran
-.. generation calls. *We could have placed it in psyGen instead of
-.. f2pygen*.  This method returns the location at the top of any loop
-.. hierarchy and before any comments immediately before the top level
-.. loop.
-..
-.. The OpenMPLoopDirective object needs to know which variables are
-.. shared and which are private. In the current implementation default
-.. shared is used and private variables are listed. To determine the
-.. objects private variables the OpenMP implementation uses its internal
-.. xxx_get_private_list() method. This method first finds all loops
-.. contained within the directive and adds each loops variable name as a
-.. private variable. this method then finds all calls contained within
-.. the directive and adds each calls list of private variables, returned
-.. with the local_vars() method. Therefore the OpenMPLoopDirective object
-.. relies on calls specifying which variables they require being local.
-..
-.. Next ...
-..
-.. Update transformation for colours
-..
-.. OpenMPLoop transformation in transformations.py.
-..
-.. Create third transformation which goes over all loops in a schedule and
-.. applies the OpenMP loop transformation.
-
 NEMO
 ====
 
@@ -1266,7 +1200,7 @@ Implicit Loops
 
 Many of the loops in NEMO are written using Fortran array notation. Such
 use of array notation is encouraged in the NEMO Coding Conventions
-:cite:`nemo_code_conv` and identifying these loops can be important
+:footcite:t:`nemo_code_conv` and identifying these loops can be important
 when introducing, e.g. OpenMP. These implicit loops are not
 automatically represented as PSyIR Loop instances but can be converted
 to explicit loops using the ``ArrayAssignment2LoopsTrans``
@@ -1303,3 +1237,5 @@ the details of externally declared symbols can be resolved by using the
 
    import_symbol = symbol_table.lookup(module_name)
    symbol_table.resolve_imports(container_symbols=[import_symbol])
+
+.. footbibliography::

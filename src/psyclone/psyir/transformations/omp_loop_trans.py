@@ -37,12 +37,14 @@
 
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import (
+    Directive, Schedule,
     Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
     OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
-    OMPScheduleClause)
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+    OMPScheduleClause, OMPBarrierDirective, OMPParallelDirective,
+)
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 #: Mapping from simple string to actual directive class.
 MAP_STR_TO_LOOP_DIRECTIVES = {
@@ -52,10 +54,16 @@ MAP_STR_TO_LOOP_DIRECTIVES = {
     "teamsloop": OMPTeamsLoopDirective,
     "loop": OMPLoopDirective
 }
+
+#: Mapping from simple string to corresponding barrier type.
+MAP_STR_TO_BARRIER_DIRECTIVE = {
+    "do": OMPBarrierDirective,
+}
 #: List containing the valid names for OMP directives.
 VALID_OMP_DIRECTIVES = list(MAP_STR_TO_LOOP_DIRECTIVES.keys())
 
 
+@transformation_documentation_wrapper
 class OMPLoopTrans(ParallelLoopTrans):
     '''
     Adds an OpenMP directive to parallelise this loop. It can insert different
@@ -70,7 +78,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     same number of OpenMP threads, not for different numbers of OpenMP threads.
 
     :param str omp_schedule: the OpenMP schedule to use. Defaults to 'auto'.
-    :param str omp_directive: choose which OpenMP loop directive to use. \
+    :param str omp_directive: choose which OpenMP loop directive to use.
         Defaults to "omp do"
 
     For example:
@@ -131,10 +139,69 @@ class OMPLoopTrans(ParallelLoopTrans):
     def __str__(self):
         return "Adds an OpenMP directive to parallelise the target loop"
 
+    def _add_asynchronicity(self, instance: Directive):
+        ''' Adds asynchronicity to the provided directive if possible. If
+        PSyclone's analysis suggests that it is not possible, the directive
+        is left unchanged.
+
+        The only directive that this method can act on is the OMPDoDirective.
+
+        :param instance: The directive to make asynchronous if possible.
+        '''
+        # Of the various directives supported by this transformation, only the
+        # OMPDoDirective supports the nowait clause. This needs to be an
+        # exact type check
+        if type(instance) is not OMPDoDirective:
+            return
+        # The loop is the first child of the schedule of an OMPDoDirective.
+        node = instance.dir_body.children[0]
+        # Otherwise find the next dependency.
+        next_depend = self._find_next_dependency(node, instance)
+        # If find_next_dependency returns False, then this loop is its own
+        # next dependency so we can't add an asynchronous clause.
+        if not next_depend:
+            return
+
+        barrier_type = MAP_STR_TO_BARRIER_DIRECTIVE[self.omp_directive]
+        # If find next_dependency returns True there is no follow up
+        # dependency, so we just need a barrier at the end of the containing
+        # Routine.
+        if next_depend is True:
+            # Add nowait to the instance.
+            instance.nowait = True
+            # Add a barrier to the end of the containing Routine if there
+            # isn't one already.
+            containing_routine = node.ancestor((Routine, OMPParallelDirective))
+            containing_schedule = containing_routine.walk(Schedule)[0]
+            # Check barrier that corresponds to self.omp_directive and add the
+            # correct barrier type
+            if not isinstance(containing_schedule.children[-1], barrier_type):
+                containing_schedule.addchild(barrier_type())
+            return
+
+        # Otherwise we have the next dependency and we need to find where the
+        # correct place for the preceding barrier is. Need to find a
+        # guaranteed control flow path to place it.
+
+        # Find the deepest schedule in the tree containing both.
+        sched = next_depend.ancestor(Schedule, shared_with=node)
+        routine = node.ancestor(Routine)
+        if sched and sched.is_descendent_of(routine):
+            # Get the path from sched to next_depend
+            path = next_depend.path_from(sched)
+            # The first element of path is the position of the ancestor
+            # of next_depend that is in sched, so we add the barrier there.
+            sched.addchild(barrier_type(), path[0])
+            instance.nowait = True
+
+        # If we didn't find anywhere to put the barrier then we just don't
+        # add the nowait.
+        # TODO #11: If we fail to have nowait added then log it.
+
     @property
     def omp_directive(self):
         '''
-        :returns: the type of OMP directive that this transformation will \
+        :returns: the type of OMP directive that this transformation will
             insert.
         :rtype: str
         '''
@@ -157,7 +224,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     @property
     def omp_schedule(self):
         '''
-        :returns: the OpenMP schedule that will be specified by \
+        :returns: the OpenMP schedule that will be specified by
             this transformation.
         :rtype: str
 
@@ -167,12 +234,12 @@ class OMPLoopTrans(ParallelLoopTrans):
     @omp_schedule.setter
     def omp_schedule(self, value):
         '''
-        :param str value: Sets the OpenMP schedule value that will be \
-            specified by this transformation, unless adding an OMP Loop \
+        :param str value: Sets the OpenMP schedule value that will be
+            specified by this transformation, unless adding an OMP Loop
             directive (in which case it is not applicable).
 
         :raises TypeError: if the provided value is not a string.
-        :raises ValueError: if the provided string is not a valid OpenMP \
+        :raises ValueError: if the provided string is not a valid OpenMP
             schedule format.
         '''
 
@@ -205,17 +272,17 @@ class OMPLoopTrans(ParallelLoopTrans):
         ''' Creates the type of directive needed for this sub-class of
         transformation.
 
-        :param children: list of Nodes that will be the children of \
+        :param children: list of Nodes that will be the children of
             the created directive.
         :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param int collapse: number of nested loops to collapse or None if \
+        :param int collapse: number of nested loops to collapse or None if
             no collapse attribute is required.
 
         :returns: the new node representing the directive in the AST
-        :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective` | \
-            :py:class:`psyclone.psyir.nodes.OMPParallelDoDirective` | \
-            :py:class:`psyclone.psyir.nodes. \
-            OMPTeamsDistributeParallelDoDirective` | \
+        :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective` |
+            :py:class:`psyclone.psyir.nodes.OMPParallelDoDirective` |
+            :py:class:`psyclone.psyir.nodes.
+            OMPTeamsDistributeParallelDoDirective` |
             :py:class:`psyclone.psyir.nodes.OMPLoopDirective`
         '''
         node = MAP_STR_TO_LOOP_DIRECTIVES[self._omp_directive](
@@ -228,42 +295,31 @@ class OMPLoopTrans(ParallelLoopTrans):
             node.reprod = self._reprod
         return node
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None,
+              reprod: bool = None,
+              **kwargs):
         '''Apply the OMPLoopTrans transformation to the specified PSyIR Loop.
 
-        :param node: the supplied node to which we will apply the \
+        :param node: the supplied node to which we will apply the
                      OMPLoopTrans transformation
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations\
+        :param bool reprod: indicating whether reproducible reductions should
+            be used. By default the value from the config file will be used.
+        :param options: a dictionary with options for transformations
                         and validation.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["reprod"]:
-                indicating whether reproducible reductions should be used. \
-                By default the value from the config file will be used.
 
         '''
+        # TODO 2668 - options dict is deprecated.
         if not options:
-            options = {}
-        self._reprod = options.get("reprod",
-                                   Config.get().reproducible_reductions)
+            if reprod is None:
+                reprod = Config.get().reproducible_reductions
+            self.validate_options(
+                    reprod=reprod, **kwargs
+            )
+            self._reprod = reprod
+        else:
+            self._reprod = options.get("reprod",
+                                       Config.get().reproducible_reductions)
 
-        if self._reprod:
-            # When reprod is True, the variables th_idx and nthreads are
-            # expected to be declared in the scope.
-            root = node.ancestor(Routine)
-
-            symtab = root.symbol_table
-            try:
-                symtab.lookup_with_tag("omp_thread_index")
-            except KeyError:
-                symtab.new_symbol(
-                    "th_idx", tag="omp_thread_index",
-                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-            try:
-                symtab.lookup_with_tag("omp_num_threads")
-            except KeyError:
-                symtab.new_symbol(
-                    "nthreads", tag="omp_num_threads",
-                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-
-        super().apply(node, options)
+        super().apply(node, options, **kwargs)

@@ -59,9 +59,6 @@ from psyclone.domain.lfric import (
     LFRicTypes, LFRicLoop)
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeallocateGen, DeclGen, DoGen, PSyIRGen,
-                              TypeDeclGen, UseGen)
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (InvokeSchedule, Arguments,
@@ -69,13 +66,13 @@ from psyclone.psyGen import (InvokeSchedule, Arguments,
                              DataAccess)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Assignment, ACCEnterDataDirective, ArrayOfStructuresReference,
-    Reference, Schedule, StructureReference, Literal, IfBlock, Call,
-    BinaryOperation, IntrinsicCall, Container)
-from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
-                                    UnresolvedType, DataTypeSymbol,
-                                    ContainerSymbol, ImportInterface,
-                                    ArrayType, UnsupportedFortranType)
+    Reference, ACCEnterDataDirective, ArrayOfStructuresReference,
+    StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall,
+    Assignment, ArrayReference, Loop, Container, Schedule, Node)
+from psyclone.psyir.symbols import (
+    INTEGER_TYPE, DataSymbol, ScalarType, UnresolvedType, DataTypeSymbol,
+    ContainerSymbol, ImportInterface, StructureType,
+    ArrayType, UnsupportedFortranType, ArgumentInterface)
 
 
 # pylint: disable=too-many-lines
@@ -389,7 +386,7 @@ class LFRicMeshProperties(LFRicCollection):
         # kernel stub.
         self._properties = []
 
-        for call in self._calls:
+        for call in self.kernel_calls:
             if call.mesh:
                 self._properties += [prop for prop in call.mesh.properties
                                      if prop not in self._properties]
@@ -407,15 +404,24 @@ class LFRicMeshProperties(LFRicCollection):
         # Store properties in symbol table
         for prop in self._properties:
             name_lower = prop.name.lower()
-            if prop.name in ["NCELL_2D", "NCELL_2D_NO_HALOS"]:
-                # This is an integer:
-                self._symbol_table.find_or_create_integer_symbol(
-                    name_lower, tag=name_lower)
-            else:
-                # E.g.: adjacent_face
-                self._symbol_table.find_or_create_array(
-                    name_lower, 2, ScalarType.Intrinsic.INTEGER,
+            if prop == MeshProperty.ADJACENT_FACE:
+                # If it's adjacent face, make it a pointer array
+                self.symtab.find_or_create(
+                    name_lower, symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(
+                        "integer(kind=i_def), pointer :: adjacent_face(:,:) "
+                        "=> null()",
+                        partial_datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*2)
+                    ),
                     tag=name_lower)
+            else:
+                # Everything else is an integer
+                self.symtab.find_or_create(
+                    name_lower, tag=name_lower,
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
     def kern_args(self, stub=False, var_accesses=None,
                   kern_call_arg_list=None):
@@ -468,9 +474,13 @@ class LFRicMeshProperties(LFRicCollection):
                             append_integer_reference("nfaces_re_h")
                         name = sym.name
                     else:
-                        name = self._symbol_table.\
-                            find_or_create_integer_symbol(
-                                "nfaces_re_h", tag="nfaces_re_h").name
+                        lisdt = LFRicTypes("LFRicIntegerScalarDataType")()
+                        name = self.symtab.\
+                            find_or_create(
+                                "nfaces_re_h", tag="nfaces_re_h",
+                                symbol_type=DataSymbol,
+                                datatype=lisdt
+                            ).name
                     arg_list.append(name)
                     if var_accesses is not None:
                         var_accesses.add_access(Signature(name),
@@ -484,8 +494,7 @@ class LFRicMeshProperties(LFRicCollection):
                         kern_call_arg_list.cell_ref_name(var_accesses)
                     adj_face_sym = kern_call_arg_list. \
                         append_array_reference(adj_face,
-                                               [":", cell_ref],
-                                               ScalarType.Intrinsic.INTEGER)
+                                               [":", cell_ref])
                     # Update the name in case there was a clash
                     adj_face = adj_face_sym.name
                     if var_accesses:
@@ -494,12 +503,12 @@ class LFRicMeshProperties(LFRicCollection):
                                                 [":", cell_ref])
 
                 if not stub:
-                    adj_face = self._symbol_table.find_or_create_tag(
+                    adj_face = self.symtab.find_or_create_tag(
                         "adjacent_face").name
                     cell_name = "cell"
                     if self._kernel.is_coloured():
                         colour_name = "colour"
-                        cmap_name = self._symbol_table.find_or_create_tag(
+                        cmap_name = self.symtab.find_or_create_tag(
                             "cmap", root_name="cmap").name
                         adj_face += (f"(:,{cmap_name}({colour_name},"
                                      f"{cell_name}))")
@@ -523,112 +532,77 @@ class LFRicMeshProperties(LFRicCollection):
 
         return arg_list
 
-    def _invoke_declarations(self, parent):
+    def invoke_declarations(self):
         '''
         Creates the necessary declarations for variables needed in order to
         provide mesh properties to a kernel call.
 
-        :param parent: node in the f2pygen AST to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        :raises InternalError: if this class has been instantiated for a \
-                               kernel instead of an invoke.
         :raises InternalError: if an unsupported mesh property is found.
 
         '''
-        api_config = Config.get().api_conf("lfric")
-
-        if not self._invoke:
-            raise InternalError(
-                "_invoke_declarations() cannot be called because "
-                "LFRicMeshProperties has been instantiated for a kernel and "
-                "not an invoke.")
-
+        super().invoke_declarations()
         for prop in self._properties:
             # The DynMeshes class will have created a mesh object so we
             # don't need to do that here.
             if prop == MeshProperty.ADJACENT_FACE:
-                adj_face = self._symbol_table.find_or_create_tag(
-                    "adjacent_face").name + "(:,:) => null()"
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   pointer=True, entity_decls=[adj_face]))
+                self.symtab.lookup_with_tag("adjacent_face")
             elif prop == MeshProperty.NCELL_2D_NO_HALOS:
-                name = self._symbol_table.find_or_create_integer_symbol(
+                self.symtab.find_or_create(
                     "ncell_2d_no_halos",
-                    tag="ncell_2d_no_halos").name
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   entity_decls=[name]))
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")(),
+                    tag="ncell_2d_no_halos")
             elif prop == MeshProperty.NCELL_2D:
-                name = self._symbol_table.find_or_create_integer_symbol(
-                    "ncell_2d", tag="ncell_2d").name
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   entity_decls=[name]))
+                self.symtab.find_or_create(
+                    "ncell_2d", tag="ncell_2d",
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                )
             else:
                 raise InternalError(
                     f"Found unsupported mesh property '{prop}' when generating"
                     f" invoke declarations. Only members of the MeshProperty "
                     f"Enum are permitted ({list(MeshProperty)}).")
 
-    def _stub_declarations(self, parent):
+    def stub_declarations(self):
         '''
         Creates the necessary declarations for the variables needed in order
         to provide properties of the mesh in a kernel stub.
+        Note that argument order is redefined later by ArgOrdering.
 
-        :param parent: node in the f2pygen AST to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        :raises InternalError: if the class has been instantiated for an \
-                               invoke and not a kernel.
         :raises InternalError: if an unsupported mesh property is encountered.
 
         '''
-        api_config = Config.get().api_conf("lfric")
-
-        if not self._kernel:
-            raise InternalError(
-                "_stub_declarations() cannot be called because "
-                "LFRicMeshProperties has been instantiated for an invoke and "
-                "not a kernel.")
-
+        super().stub_declarations()
         for prop in self._properties:
             if prop == MeshProperty.ADJACENT_FACE:
-                adj_face = self._symbol_table.find_or_create_array(
-                    "adjacent_face", 2, ScalarType.Intrinsic.INTEGER,
-                    tag="adjacent_face").name
-                # 'nfaces_re_h' will have been declared by the
-                # DynReferenceElement class.
-                dimension = self._symbol_table.\
-                    find_or_create_integer_symbol("nfaces_re_h",
-                                                  tag="nfaces_re_h").name
-                parent.add(
-                    DeclGen(
-                        parent, datatype="integer",
-                        kind=api_config.default_kind["integer"],
-                        dimension=dimension,
-                        intent="in", entity_decls=[adj_face]))
+                adj_face = self.symtab.lookup("adjacent_face")
+                dimension = self.symtab.lookup("nfaces_re_h")
+                adj_face.datatype = ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [Reference(dimension)])
+                adj_face.interface = ArgumentInterface(
+                                            ArgumentInterface.Access.READ)
+                self.symtab.append_argument(adj_face)
             elif prop == MeshProperty.NCELL_2D:
-                ncell_2d = self._symbol_table.find_or_create_integer_symbol(
-                    "ncell_2d", tag="ncell_2d")
-                parent.add(
-                    DeclGen(parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            intent="in", entity_decls=[ncell_2d.name]))
+                ncell_2d = self.symtab.lookup("ncell_2d")
+                ncell_2d.interface = ArgumentInterface(
+                                            ArgumentInterface.Access.READ)
+                self.symtab.append_argument(ncell_2d)
             else:
                 raise InternalError(
                     f"Found unsupported mesh property '{prop}' when generating"
                     f" declarations for kernel stub. Only members of the "
                     f"MeshProperty Enum are permitted ({list(MeshProperty)})")
 
-    def initialise(self, parent):
+    def initialise(self, cursor: int) -> int:
         '''
-        Creates the f2pygen nodes for the initialisation of properties of
+        Creates the PSyIR nodes for the initialisation of properties of
         the mesh.
 
-        :param parent: node in the f2pygen tree to which to add statements.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
 
         :raises InternalError: if an unsupported mesh property is encountered.
 
@@ -638,7 +612,7 @@ class LFRicMeshProperties(LFRicCollection):
         # it now, rather than when this class was first constructed.
         need_colour_limits = False
         need_colour_halo_limits = False
-        for call in self._calls:
+        for call in self.kernel_calls:
             if call.is_coloured() and not call.is_intergrid:
                 loop = call.parent.parent
                 # Record whether or not this coloured loop accesses the halo.
@@ -652,48 +626,75 @@ class LFRicMeshProperties(LFRicCollection):
             # If no mesh properties are required and there's no colouring
             # (which requires a mesh object to lookup loop bounds) then we
             # need do nothing.
-            return
+            return cursor
 
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Initialise mesh properties"))
-        parent.add(CommentGen(parent, ""))
+        mesh = self.symtab.lookup_with_tag("mesh")
 
-        mesh = self._symbol_table.find_or_create_tag("mesh").name
-
+        init_cursor = cursor
         for prop in self._properties:
             if prop == MeshProperty.ADJACENT_FACE:
-                adj_face = self._symbol_table.find_or_create_tag(
-                    "adjacent_face").name
-                parent.add(AssignGen(parent, pointer=True, lhs=adj_face,
-                                     rhs=mesh+"%get_adjacent_face()"))
+                adj_face = self.symtab.find_or_create_tag(
+                    "adjacent_face")
+                assignment = Assignment.create(
+                        lhs=Reference(adj_face),
+                        rhs=Call.create(StructureReference.create(
+                            mesh, ["get_adjacent_face"])),
+                        is_pointer=True)
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
 
             elif prop == MeshProperty.NCELL_2D_NO_HALOS:
-                name = self._symbol_table.find_or_create_integer_symbol(
-                    "ncell_2d_no_halos", tag="ncell_2d_no_halos").name
-                parent.add(AssignGen(parent, lhs=name,
-                                     rhs=mesh+"%get_last_edge_cell()"))
+                symbol = self.symtab.find_or_create(
+                    "ncell_2d_no_halos", tag="ncell_2d_no_halos",
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                )
+                assignment = Assignment.create(
+                        lhs=Reference(symbol),
+                        rhs=Call.create(StructureReference.create(
+                            mesh, ["get_last_edge_cell"])),)
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
 
             elif prop == MeshProperty.NCELL_2D:
-                name = self._symbol_table.find_or_create_integer_symbol(
-                    "ncell_2d", tag="ncell_2d").name
-                parent.add(AssignGen(parent, lhs=name,
-                                     rhs=mesh+"%get_ncells_2d()"))
+                symbol = self.symtab.find_or_create(
+                    "ncell_2d", tag="ncell_2d",
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                )
+                assignment = Assignment.create(
+                        lhs=Reference(symbol),
+                        rhs=Call.create(StructureReference.create(
+                            mesh, ["get_ncells_2d"])),)
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
             else:
                 raise InternalError(
                     f"Found unsupported mesh property '{str(prop)}' when "
                     f"generating initialisation code. Only members of the "
                     f"MeshProperty Enum are permitted ({list(MeshProperty)})")
+        self._invoke.schedule[init_cursor].append_preceding_comment(
+            "Initialise mesh properties")
 
         if need_colour_halo_limits:
-            lhs = self._symbol_table.find_or_create_tag(
-                "last_halo_cell_all_colours").name
-            rhs = f"{mesh}%get_last_halo_cell_all_colours()"
-            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+            lhs = self.symtab.find_or_create_tag(
+                "last_halo_cell_all_colours")
+            assignment = Assignment.create(
+                    lhs=Reference(lhs),
+                    rhs=Call.create(StructureReference.create(
+                        mesh, ["get_last_halo_cell_all_colours"])))
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
         if need_colour_limits:
-            lhs = self._symbol_table.find_or_create_tag(
-                "last_edge_cell_all_colours").name
-            rhs = f"{mesh}%get_last_edge_cell_all_colours()"
-            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+            lhs = self.symtab.find_or_create_tag(
+                "last_edge_cell_all_colours")
+            assignment = Assignment.create(
+                    lhs=Reference(lhs),
+                    rhs=Call.create(StructureReference.create(
+                        mesh, ["get_last_edge_cell_all_colours"])))
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
+        return cursor
 
 
 class DynReferenceElement(LFRicCollection):
@@ -722,7 +723,7 @@ class DynReferenceElement(LFRicCollection):
         self._properties = []
         self._nfaces_h_required = False
 
-        for call in self._calls:
+        for call in self.kernel_calls:
             if call.reference_element:
                 self._properties.extend(call.reference_element.properties)
             if call.mesh and call.mesh.properties:
@@ -737,11 +738,10 @@ class DynReferenceElement(LFRicCollection):
         if self._properties:
             self._properties = list(OrderedDict.fromkeys(self._properties))
 
-        symtab = self._symbol_table
+        symtab = self.symtab
 
-        # Create and store a name for the reference element object
-        self._ref_elem_name = \
-            symtab.find_or_create_tag("reference_element").name
+        # Create and store symbol for the reference element object
+        self._ref_elem_symbol = None
 
         # Initialise names for the properties of the reference element object:
         # Number of horizontal/vertical/all faces,
@@ -769,22 +769,25 @@ class DynReferenceElement(LFRicCollection):
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
                 in self._properties or
                 self._nfaces_h_required):
-            self._nfaces_h_symbol = symtab.find_or_create_integer_symbol(
-                "nfaces_re_h", tag="nfaces_re_h")
+            self._nfaces_h_symbol = symtab.find_or_create(
+                "nfaces_re_h", tag="nfaces_re_h", symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
         # Provide no. of vertical faces if required
         if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
                 in self._properties):
-            self._nfaces_v_symbol = symtab.find_or_create_integer_symbol(
-                "nfaces_re_v", tag="nfaces_re_v")
+            self._nfaces_v_symbol = symtab.find_or_create(
+                "nfaces_re_v", tag="nfaces_re_v", symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
         # Provide no. of all faces if required
         if (RefElementMetaData.Property.NORMALS_TO_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES
                 in self._properties):
-            self._nfaces_symbol = symtab.find_or_create_integer_symbol(
-                "nfaces_re", tag="nfaces_re")
+            self._nfaces_symbol = symtab.find_or_create(
+                "nfaces_re", tag="nfaces_re", symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
         # Now the arrays themselves, in the order specified in the
         # kernel metadata (in the case of a kernel stub)
@@ -793,9 +796,12 @@ class DynReferenceElement(LFRicCollection):
             if prop == RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES:
                 name = "normals_to_horiz_faces"
                 self._horiz_face_normals_symbol = \
-                    symtab.find_or_create_array(name, 2,
-                                                ScalarType.Intrinsic.REAL,
-                                                tag=name)
+                    symtab.find_or_create(
+                        name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicRealScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*2),
+                        tag=name)
                 if self._horiz_face_normals_symbol not in self._arg_properties:
                     self._arg_properties[self._horiz_face_normals_symbol] = \
                          self._nfaces_h_symbol
@@ -804,9 +810,12 @@ class DynReferenceElement(LFRicCollection):
                           OUTWARD_NORMALS_TO_HORIZONTAL_FACES):
                 name = "out_normals_to_horiz_faces"
                 self._horiz_face_out_normals_symbol = \
-                    symtab.find_or_create_array(name, 2,
-                                                ScalarType.Intrinsic.REAL,
-                                                tag=name)
+                    symtab.find_or_create(
+                        name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicRealScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*2),
+                        tag=name)
                 if self._horiz_face_out_normals_symbol not in \
                         self._arg_properties:
                     self._arg_properties[self._horiz_face_out_normals_symbol] \
@@ -815,9 +824,12 @@ class DynReferenceElement(LFRicCollection):
                           NORMALS_TO_VERTICAL_FACES):
                 name = "normals_to_vert_faces"
                 self._vert_face_normals_symbol = \
-                    symtab.find_or_create_array(name, 2,
-                                                ScalarType.Intrinsic.REAL,
-                                                tag=name)
+                    symtab.find_or_create(
+                        name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicRealScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*2),
+                        tag=name)
                 if self._vert_face_normals_symbol not in self._arg_properties:
                     self._arg_properties[self._vert_face_normals_symbol] = \
                          self._nfaces_v_symbol
@@ -826,9 +838,12 @@ class DynReferenceElement(LFRicCollection):
                           OUTWARD_NORMALS_TO_VERTICAL_FACES):
                 name = "out_normals_to_vert_faces"
                 self._vert_face_out_normals_symbol = \
-                    symtab.find_or_create_array(name, 2,
-                                                ScalarType.Intrinsic.REAL,
-                                                tag=name)
+                    symtab.find_or_create(
+                        name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicRealScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*2),
+                        tag=name)
                 if self._vert_face_out_normals_symbol not in \
                         self._arg_properties:
                     self._arg_properties[self._vert_face_out_normals_symbol] \
@@ -837,9 +852,12 @@ class DynReferenceElement(LFRicCollection):
             elif prop == RefElementMetaData.Property.NORMALS_TO_FACES:
                 name = "normals_to_faces"
                 self._face_normals_symbol = \
-                    symtab.find_or_create_array(name, 2,
-                                                ScalarType.Intrinsic.REAL,
-                                                tag=name)
+                    symtab.find_or_create(
+                        name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicRealScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*2),
+                        tag=name)
                 if self._face_normals_symbol not in self._arg_properties:
                     self._arg_properties[self._face_normals_symbol] = \
                         self._nfaces_symbol
@@ -847,9 +865,12 @@ class DynReferenceElement(LFRicCollection):
             elif prop == RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES:
                 name = "out_normals_to_faces"
                 self._face_out_normals_symbol = \
-                    symtab.find_or_create_array(name, 2,
-                                                ScalarType.Intrinsic.REAL,
-                                                tag=name)
+                    symtab.find_or_create(
+                        name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicRealScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*2),
+                        tag=name)
                 if self._face_out_normals_symbol not in \
                    self._arg_properties:
                     self._arg_properties[self._face_out_normals_symbol] = \
@@ -886,173 +907,181 @@ class DynReferenceElement(LFRicCollection):
         nfaces = list(OrderedDict.fromkeys(argdict.values()))
         return nfaces + list(argdict.keys())
 
-    def _invoke_declarations(self, parent):
+    def invoke_declarations(self):
         '''
         Create the necessary declarations for the variables needed in order
         to provide properties of the reference element in a Kernel call.
 
-        :param parent: node in the f2pygen AST to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
         '''
-        # Get the list of the required scalars
-        if self._properties:
-            # remove duplicates with an OrderedDict
-            nface_vars = list(OrderedDict.fromkeys(
-                self._arg_properties.values()))
-        elif self._nfaces_h_required:
-            # We only need the number of 'horizontal' faces
-            nface_vars = [self._nfaces_h_symbol]
-        else:
+        super().invoke_declarations()
+        if not self._properties and not self._nfaces_h_required:
             # No reference-element properties required
             return
 
-        api_config = Config.get().api_conf("lfric")
         const = LFRicConstants()
 
         refelem_type = const.REFELEMENT_TYPE_MAP["refelement"]["type"]
         refelem_mod = const.REFELEMENT_TYPE_MAP["refelement"]["module"]
-        parent.add(UseGen(parent, name=refelem_mod, only=True,
-                          funcnames=[refelem_type]))
-        parent.add(
-            TypeDeclGen(parent, pointer=True, is_class=True,
-                        datatype=refelem_type,
-                        entity_decls=[self._ref_elem_name + " => null()"]))
+        mod = ContainerSymbol(refelem_mod)
+        self.symtab.add(mod)
+        self.symtab.add(
+            DataTypeSymbol(refelem_type, datatype=StructureType(),
+                           interface=ImportInterface(mod)))
+        self._ref_elem_symbol = self.symtab.find_or_create_tag(
+                                                    "reference_element")
+        self._ref_elem_symbol.specialise(
+               DataSymbol,
+               datatype=UnsupportedFortranType(
+                   f"class({refelem_type}), pointer :: "
+                   f"{self._ref_elem_symbol.name} => null()"))
 
-        parent.add(DeclGen(parent, datatype="integer",
-                           kind=api_config.default_kind["integer"],
-                           entity_decls=[var.name for var in nface_vars]))
-
-        if not self._properties:
-            # We only need the number of horizontal faces so we're done
-            return
-
-        # Declare the necessary arrays
-        array_decls = [f"{sym.name}(:,:)"
-                       for sym in self._arg_properties.keys()]
-        my_kind = api_config.default_kind["real"]
-        parent.add(DeclGen(parent, datatype="real", kind=my_kind,
-                           allocatable=True, entity_decls=array_decls))
-        # Ensure the necessary kind parameter is imported.
-        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        const_mod_uses = self._invoke.invokes.psy.infrastructure_modules[
-            const_mod]
-        const_mod_uses.add(my_kind)
-
-    def _stub_declarations(self, parent):
+    def stub_declarations(self):
         '''
         Create the necessary declarations for the variables needed in order
         to provide properties of the reference element in a Kernel stub.
-
-        :param parent: node in the f2pygen AST to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        Note that argument order is redefined later by ArgOrdering.
 
         '''
-        api_config = Config.get().api_conf("lfric")
-
+        super().stub_declarations()
         if not (self._properties or self._nfaces_h_required):
             return
 
-        # Declare the necessary scalars (duplicates are ignored by parent.add)
+        # Declare the necessary scalars (duplicates are ignored)
         scalars = list(self._arg_properties.values())
-        nfaces_h = self._symbol_table.find_or_create_integer_symbol(
-            "nfaces_re_h", tag="nfaces_re_h")
+        nfaces_h = self.symtab.find_or_create(
+            "nfaces_re_h", tag="nfaces_re_h",
+            symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+        )
         if self._nfaces_h_required and nfaces_h not in scalars:
             scalars.append(nfaces_h)
 
         for nface in scalars:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[nface.name]))
+            sym = self.symtab.find_or_create(
+                nface.name,
+                symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+            )
+            sym.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self.symtab.append_argument(sym)
 
         # Declare the necessary arrays
         for arr, sym in self._arg_properties.items():
-            dimension = f"3,{sym.name}"
-            parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
-                               intent="in", dimension=dimension,
-                               entity_decls=[arr.name]))
+            arrsym = self.symtab.lookup(arr.name)
+            arrsym.datatype = ArrayType(
+                    LFRicTypes("LFRicRealScalarDataType")(),
+                    [Literal("3", INTEGER_TYPE), Reference(sym)])
+            arrsym.interface = ArgumentInterface(
+                                    ArgumentInterface.Access.READ)
+            self.symtab.append_argument(arrsym)
 
-    def initialise(self, parent):
+    def initialise(self, cursor: int) -> int:
         '''
-        Creates the f2pygen nodes representing the necessary initialisation
+        Creates the PSyIR nodes representing the necessary initialisation
         code for properties of the reference element.
 
-        :param parent: node in the f2pygen tree to which to add statements.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+
+        :returns: Updated cursor value.
 
         '''
         if not (self._properties or self._nfaces_h_required):
-            return
+            return cursor
 
-        parent.add(CommentGen(parent, ""))
-        parent.add(
-            CommentGen(parent,
-                       " Get the reference element and query its properties"))
-        parent.add(CommentGen(parent, ""))
-
-        mesh_obj_name = self._symbol_table.find_or_create_tag("mesh").name
-        parent.add(AssignGen(parent, pointer=True, lhs=self._ref_elem_name,
-                             rhs=mesh_obj_name+"%get_reference_element()"))
+        mesh_obj = self.symtab.find_or_create_tag("mesh")
+        ref_element = self._ref_elem_symbol
+        stmt = Assignment.create(
+                lhs=Reference(ref_element),
+                rhs=Call.create(
+                    StructureReference.create(
+                        mesh_obj, ["get_reference_element"])),
+                is_pointer=True)
+        stmt.preceding_comment = (
+            "Get the reference element and query its properties"
+        )
+        self._invoke.schedule.addchild(stmt, cursor)
+        cursor += 1
 
         if self._nfaces_h_symbol:
-            parent.add(
-                AssignGen(parent, lhs=self._nfaces_h_symbol.name,
-                          rhs=self._ref_elem_name +
-                          "%get_number_horizontal_faces()"))
+            stmt = Assignment.create(
+                    lhs=Reference(self._nfaces_h_symbol),
+                    rhs=Call.create(
+                        StructureReference.create(
+                            ref_element, ["get_number_horizontal_faces"])))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
         if self._nfaces_v_symbol:
-            parent.add(
-                AssignGen(
-                    parent, lhs=self._nfaces_v_symbol.name,
-                    rhs=self._ref_elem_name + "%get_number_vertical_faces()"))
+            stmt = Assignment.create(
+                    lhs=Reference(self._nfaces_v_symbol),
+                    rhs=Call.create(
+                        StructureReference.create(
+                            ref_element, ["get_number_vertical_faces"])))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
 
         if self._nfaces_symbol:
-            parent.add(
-                AssignGen(
-                    parent, lhs=self._nfaces_symbol.name,
-                    rhs=self._ref_elem_name + "%get_number_faces()"))
+            stmt = Assignment.create(
+                    lhs=Reference(self._nfaces_symbol),
+                    rhs=Call.create(
+                        StructureReference.create(
+                            ref_element, ["get_number_faces"])))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
 
         if self._horiz_face_normals_symbol:
-            parent.add(
-                CallGen(parent,
-                        name=f"{self._ref_elem_name}%get_normals_to_"
-                             f"horizontal_faces("
-                             f"{self._horiz_face_normals_symbol.name})"))
+            stmt = Call.create(
+                StructureReference.create(
+                    ref_element, ["get_normals_to_horizontal_faces"]))
+            stmt.addchild(Reference(self._horiz_face_normals_symbol))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
 
         if self._horiz_face_out_normals_symbol:
-            parent.add(
-                CallGen(
-                    parent,
-                    name=f"{self._ref_elem_name}%get_outward_normals_to_"
-                         f"horizontal_faces("
-                         f"{self._horiz_face_out_normals_symbol.name})"))
+            stmt = Call.create(
+                StructureReference.create(
+                    ref_element,
+                    ["get_outward_normals_to_horizontal_faces"]))
+            stmt.addchild(Reference(self._horiz_face_out_normals_symbol))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
 
         if self._vert_face_normals_symbol:
-            parent.add(
-                CallGen(parent,
-                        name=f"{self._ref_elem_name}%get_normals_to_vertical_"
-                             f"faces({self._vert_face_normals_symbol.name})"))
+            stmt = Call.create(
+                StructureReference.create(
+                    ref_element,
+                    ["get_normals_to_vertical_faces"]))
+            stmt.addchild(Reference(self._vert_face_normals_symbol))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
 
         if self._vert_face_out_normals_symbol:
-            parent.add(
-                CallGen(
-                    parent,
-                    name=f"{self._ref_elem_name}%get_outward_normals_to_"
-                         f"vertical_faces"
-                         f"({self._vert_face_out_normals_symbol.name})"))
+            stmt = Call.create(
+                StructureReference.create(
+                    ref_element,
+                    ["get_outward_normals_to_vertical_faces"]))
+            stmt.addchild(Reference(self._vert_face_out_normals_symbol))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
 
         if self._face_normals_symbol:
-            parent.add(
-                CallGen(parent,
-                        name=f"{self._ref_elem_name}%get_normals_to_faces"
-                             f"({self._face_normals_symbol.name})"))
+            stmt = Call.create(
+                StructureReference.create(
+                    ref_element,
+                    ["get_normals_to_faces"]))
+            stmt.addchild(Reference(self._face_normals_symbol))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
 
         if self._face_out_normals_symbol:
-            parent.add(
-                CallGen(
-                    parent,
-                    name=f"{self._ref_elem_name}%get_outward_normals_to_"
-                    f"faces({self._face_out_normals_symbol.name})"))
+            stmt = Call.create(
+                StructureReference.create(
+                    ref_element,
+                    ["get_outward_normals_to_faces"]))
+            stmt.addchild(Reference(self._face_out_normals_symbol))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+        return cursor
 
 
 class DynFunctionSpaces(LFRicCollection):
@@ -1068,7 +1097,7 @@ class DynFunctionSpaces(LFRicCollection):
         if self._invoke:
             self._function_spaces = self._invoke.unique_fss()[:]
         else:
-            self._function_spaces = self._calls[0].arguments.unique_fss
+            self._function_spaces = self.kernel_calls[0].arguments.unique_fss
 
         self._var_list = []
 
@@ -1094,47 +1123,40 @@ class DynFunctionSpaces(LFRicCollection):
                     function_space.field_on_space(self._kernel.arguments):
                 self._var_list.append(function_space.undf_name)
 
-    def _stub_declarations(self, parent):
+    def stub_declarations(self):
         '''
         Add function-space-related declarations to a Kernel stub.
-
-        :param parent: the node in the f2pygen AST representing the kernel \
-                       stub to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        Note that argument order is redefined later by ArgOrdering.
 
         '''
-        api_config = Config.get().api_conf("lfric")
+        super().stub_declarations()
+        for var in self._var_list:
+            arg = self.symtab.find_or_create(
+                var, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self.symtab.append_argument(arg)
 
-        if self._var_list:
-            # Declare ndf and undf for all function spaces
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=self._var_list))
-
-    def _invoke_declarations(self, parent):
+    def invoke_declarations(self):
         '''
         Add function-space-related declarations to a PSy-layer routine.
 
-        :param parent: the node in the f2pygen AST to which to add \
-                       declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
         '''
-        api_config = Config.get().api_conf("lfric")
+        super().invoke_declarations()
+        for var in self._var_list:
+            self.symtab.new_symbol(
+                var,
+                symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
-        if self._var_list:
-            # Declare ndf and undf for all function spaces
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=self._var_list))
-
-    def initialise(self, parent):
+    def initialise(self, cursor: int) -> int:
         '''
         Create the code that initialises function-space quantities.
 
-        :param parent: the node in the f2pygen AST representing the PSy-layer \
-                       routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+
+        :returns: Updated cursor value.
 
         '''
         # Loop over all unique function spaces used by the kernels in
@@ -1145,23 +1167,21 @@ class DynFunctionSpaces(LFRicCollection):
             # will need ndf and undf. If we don't then we only need undf
             # (for the upper bound of the loop over dofs) if we're not
             # doing DM.
-            if not (self._dofs_only and Config.get().distributed_memory):
-                parent.add(CommentGen(parent, ""))
-                parent.add(CommentGen(parent,
-                                      " Initialise number of DoFs for " +
-                                      function_space.mangled_name))
-                parent.add(CommentGen(parent, ""))
 
             # Find argument proxy name used to dereference the argument
             arg = self._invoke.arg_for_funcspace(function_space)
-            name = arg.proxy_name_indexed
             # Initialise ndf for this function space.
             if not self._dofs_only:
                 ndf_name = function_space.ndf_name
-                parent.add(AssignGen(parent, lhs=ndf_name,
-                                     rhs=name +
-                                     "%" + arg.ref_name(function_space) +
-                                     "%get_ndf()"))
+                assignment = Assignment.create(
+                        lhs=Reference(self.symtab.lookup(ndf_name)),
+                        rhs=arg.generate_method_call(
+                              "get_ndf", function_space=function_space))
+                assignment.preceding_comment = (
+                    f"Initialise number of DoFs for "
+                    f"{function_space.mangled_name}")
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
             # If there is a field on this space then initialise undf
             # for this function space. However, if the invoke contains
             # only kernels that operate on dofs and distributed
@@ -1170,10 +1190,13 @@ class DynFunctionSpaces(LFRicCollection):
             if not (self._dofs_only and Config.get().distributed_memory):
                 if self._invoke.field_on_space(function_space):
                     undf_name = function_space.undf_name
-                    parent.add(AssignGen(parent, lhs=undf_name,
-                                         rhs=name + "%" +
-                                         arg.ref_name(function_space) +
-                                         "%get_undf()"))
+                    self._invoke.schedule.addchild(
+                        Assignment.create(
+                            lhs=Reference(self.symtab.lookup(undf_name)),
+                            rhs=arg.generate_method_call("get_undf")),
+                        cursor)
+                    cursor += 1
+        return cursor
 
 
 class DynProxies(LFRicCollection):
@@ -1227,7 +1250,7 @@ class DynProxies(LFRicCollection):
                 for idx in range(1, arg.vector_size+1):
                     # Make sure we're going to create a Symbol with a unique
                     # name.
-                    new_name = self._symbol_table.next_available_name(
+                    new_name = self.symtab.next_available_name(
                         f"{arg.name}_{idx}_{suffix}")
                     tag = f"{arg.name}_{idx}:{suffix}"
                     # The data for a field lives in a rank-1 array.
@@ -1236,9 +1259,9 @@ class DynProxies(LFRicCollection):
                 # Make sure we're going to create a Symbol with a unique
                 # name (since this is hardwired into the
                 # UnsupportedFortranType).
-                new_name = self._symbol_table.next_available_name(
-                    f"{arg.name}_{suffix}")
                 tag = f"{arg.name}:{suffix}"
+                new_name = self.symtab.next_available_name(
+                    f"{arg.name}_{suffix}")
                 # The data for an operator lives in a rank-3 array.
                 rank = 1 if arg not in op_args else 3
                 self._add_symbol(new_name, tag, intrinsic_type, arg, rank)
@@ -1282,10 +1305,10 @@ class DynProxies(LFRicCollection):
             f"dimension({index_str}) :: {name} => null()",
             partial_datatype=array_type)
         try:
-            self._symbol_table.new_symbol(name,
-                                          symbol_type=DataSymbol,
-                                          datatype=dtype,
-                                          tag=tag)
+            self.symtab.new_symbol(name,
+                                   symbol_type=DataSymbol,
+                                   datatype=dtype,
+                                   tag=tag)
         except KeyError:
             # The tag already exists and therefore we don't need to do
             # anything. This can happen if the Symbol Table has already
@@ -1297,18 +1320,14 @@ class DynProxies(LFRicCollection):
             # existing tag may occur which we can safely ignore.
             pass
 
-    def _invoke_declarations(self, parent):
+    def invoke_declarations(self):
         '''
         Insert declarations of all proxy-related quantities into the PSy layer.
 
-        :param parent: the node in the f2pygen AST representing the PSy- \
-                       layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
         '''
+        super().invoke_declarations()
         const = LFRicConstants()
-        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        table = self._symbol_table
+        table = self.symtab
 
         # Declarations of real and integer field proxies
 
@@ -1337,36 +1356,20 @@ class DynProxies(LFRicCollection):
         # Add the Invoke subroutine declarations for the different
         # field-type proxies
         for (fld_type, fld_mod), args in field_datatype_map.items():
-            arg_list = [arg.proxy_declaration_name for arg in args]
-            parent.add(TypeDeclGen(parent, datatype=fld_type,
-                                   entity_decls=arg_list))
-            (self._invoke.invokes.psy.
-             infrastructure_modules[fld_mod].add(fld_type))
-
-            # Create declarations for the pointers to the internal
-            # data arrays.
+            fld_mod_symbol = table.node.parent.symbol_table.lookup(fld_mod)
+            fld_type_sym = table.node.parent.symbol_table.new_symbol(
+                    fld_type,
+                    symbol_type=DataTypeSymbol,
+                    datatype=UnresolvedType(),
+                    interface=ImportInterface(fld_mod_symbol))
             for arg in args:
-                (self._invoke.invokes.psy.infrastructure_modules[const_mod].
-                 add(arg.precision))
-                suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
-                if arg.vector_size > 1:
-                    entity_names = []
-                    for idx in range(1, arg.vector_size+1):
-                        ttext = f"{arg.name}_{idx}:{suffix}"
-                        vsym = table.lookup_with_tag(ttext)
-                        entity_names.append(vsym.name)
+                if arg._vector_size > 1:
+                    decl_type = ArrayType(fld_type_sym, [arg._vector_size])
                 else:
-                    ttext = f"{arg.name}:{suffix}"
-                    sym = table.lookup_with_tag(ttext)
-                    entity_names = [sym.name]
-                if entity_names:
-                    parent.add(
-                        DeclGen(
-                            parent, datatype=arg.intrinsic_type,
-                            kind=arg.precision, dimension=":",
-                            entity_decls=[f"{name} => null()" for
-                                          name in entity_names],
-                            pointer=True))
+                    decl_type = fld_type_sym
+                table.new_symbol(arg.proxy_name,
+                                 symbol_type=DataSymbol,
+                                 datatype=decl_type)
 
         # Declarations of LMA operator proxies
         op_args = self._invoke.unique_declarations(
@@ -1383,59 +1386,51 @@ class DynProxies(LFRicCollection):
         # Declare the operator proxies
         for operator_datatype, operators_list in \
                 operators_datatype_map.items():
-            operators_names = [arg.proxy_declaration_name for
-                               arg in operators_list]
-            parent.add(TypeDeclGen(parent, datatype=operator_datatype,
-                                   entity_decls=operators_names))
-            for arg in operators_list:
-                name = arg.name
-                suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
-                ttext = f"{name}:{suffix}"
-                sym = table.lookup_with_tag(ttext)
-                # Declare the pointer to the stencil array.
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=arg.precision,
-                                   dimension=":,:,:",
-                                   entity_decls=[f"{sym.name} => null()"],
-                                   pointer=True))
-            op_mod = operators_list[0].module_name
-            # Ensure the appropriate derived datatype will be imported.
-            (self._invoke.invokes.psy.infrastructure_modules[op_mod].
-             add(operator_datatype))
-            # Ensure the appropriate kind parameter will be imported.
-            (self._invoke.invokes.psy.infrastructure_modules[const_mod].
-             add(arg.precision))
+            mod_name = operators_list[0].module_name
+            mod_st = table.node.parent.symbol_table
+            fld_mod_symbol = mod_st.lookup(mod_name)
+            op_datatype_symbol = mod_st.find_or_create(
+                    operator_datatype,
+                    symbol_type=DataTypeSymbol,
+                    datatype=UnresolvedType(),
+                    interface=ImportInterface(fld_mod_symbol))
+            for op in operators_list:
+                table.new_symbol(op.proxy_declaration_name,
+                                 symbol_type=DataSymbol,
+                                 datatype=op_datatype_symbol)
 
         # Declarations of CMA operator proxies
         cma_op_args = self._invoke.unique_declarations(
             argument_types=["gh_columnwise_operator"])
-        cma_op_proxy_decs = [arg.proxy_declaration_name for
-                             arg in cma_op_args]
-        if cma_op_proxy_decs:
+        if cma_op_args:
             op_type = cma_op_args[0].proxy_data_type
-            op_mod = cma_op_args[0].module_name
-            parent.add(TypeDeclGen(parent,
-                                   datatype=op_type,
-                                   entity_decls=cma_op_proxy_decs))
-            (self._invoke.invokes.psy.infrastructure_modules[op_mod].
-             add(op_type))
+            mod_name = cma_op_args[0].module_name
+            mod_st = table.node.parent.symbol_table
+            fld_mod_symbol = mod_st.lookup(mod_name)
+            op_datatype_symbol = mod_st.find_or_create(
+                    op_type,
+                    symbol_type=DataTypeSymbol,
+                    datatype=UnresolvedType(),
+                    interface=ImportInterface(fld_mod_symbol))
+            for arg in cma_op_args:
+                table.new_symbol(arg.proxy_declaration_name,
+                                 symbol_type=DataSymbol,
+                                 datatype=op_datatype_symbol)
 
-    def initialise(self, parent):
+    def initialise(self, cursor: int) -> int:
         '''
         Insert code into the PSy layer to initialise all necessary proxies.
 
-        :param parent: node in the f2pygen AST representing the PSy-layer
-                       routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+
+        :returns: Updated cursor value.
 
         :raises InternalError: if a kernel argument of an unrecognised type
             is encountered.
 
         '''
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent,
-                              " Initialise field and/or operator proxies"))
-        parent.add(CommentGen(parent, ""))
+        init_cursor = cursor
         for arg in self._invoke.psy_unique_vars:
             # We don't have proxies for scalars
             if arg.is_scalar:
@@ -1449,40 +1444,65 @@ class DynProxies(LFRicCollection):
                 # 1 to the vector size which is what we
                 # require in our Fortran code
                 for idx in range(1, arg.vector_size+1):
-                    parent.add(
-                        AssignGen(parent,
-                                  lhs=arg.proxy_name+"("+str(idx)+")",
-                                  rhs=arg.name+"("+str(idx)+")%get_proxy()"))
-                    name = self._symbol_table.lookup_with_tag(
-                        f"{arg.name}_{idx}:{suffix}").name
-                    parent.add(
-                        AssignGen(parent,
-                                  lhs=name,
-                                  rhs=f"{arg.proxy_name}({idx})%data",
-                                  pointer=True))
+                    self._invoke.schedule.addchild(
+                        Assignment.create(
+                            lhs=ArrayReference.create(
+                                self.symtab.lookup(arg.proxy_name),
+                                [Literal(str(idx), INTEGER_TYPE)]),
+                            rhs=Call.create(ArrayOfStructuresReference.create(
+                                self.symtab.lookup(arg.name),
+                                [Literal(str(idx), INTEGER_TYPE)],
+                                ["get_proxy"]))),
+                        cursor)
+                    cursor += 1
+                    symbol = self.symtab.lookup_with_tag(
+                        f"{arg.name}_{idx}:{suffix}")
+                    self._invoke.schedule.addchild(
+                        Assignment.create(
+                            lhs=Reference(symbol),
+                            rhs=ArrayOfStructuresReference.create(
+                                    self.symtab.lookup(arg.proxy_name),
+                                    [Literal(str(idx), INTEGER_TYPE)],
+                                    ["data"]),
+                            is_pointer=True),
+                        cursor)
+                    cursor += 1
             else:
-                parent.add(AssignGen(parent, lhs=arg.proxy_name,
-                                     rhs=arg.name+"%get_proxy()"))
+                self._invoke.schedule.addchild(
+                    Assignment.create(
+                        lhs=Reference(
+                            self.symtab.find_or_create(arg.proxy_name)),
+                        rhs=Call.create(StructureReference.create(
+                            self.symtab.lookup(arg.name), ["get_proxy"]))),
+                    cursor)
+                cursor += 1
                 if arg.is_field:
-                    name = self._symbol_table.lookup_with_tag(
-                        f"{arg.name}:{suffix}").name
-                    parent.add(
-                        AssignGen(parent,
-                                  lhs=name,
-                                  rhs=f"{arg.proxy_name}%data",
-                                  pointer=True))
+                    symbol = self.symtab.lookup_with_tag(
+                        f"{arg.name}:{suffix}")
+                    self._invoke.schedule.addchild(
+                        Assignment.create(
+                            lhs=Reference(symbol),
+                            rhs=StructureReference.create(
+                                self.symtab.lookup(arg.proxy_name), ["data"]),
+                            is_pointer=True),
+                        cursor)
+                    cursor += 1
                 elif arg.is_operator:
                     if arg.argument_type == "gh_columnwise_operator":
                         # CMA operator arguments are handled in DynCMAOperators
                         pass
                     elif arg.argument_type == "gh_operator":
-                        name = self._symbol_table.lookup_with_tag(
-                            f"{arg.name}:{suffix}").name
-                        parent.add(
-                            AssignGen(parent,
-                                      lhs=name,
-                                      rhs=f"{arg.proxy_name}%local_stencil",
-                                      pointer=True))
+                        symbol = self.symtab.lookup_with_tag(
+                            f"{arg.name}:{suffix}")
+                        self._invoke.schedule.addchild(
+                            Assignment.create(
+                                lhs=Reference(symbol),
+                                rhs=StructureReference.create(
+                                    self.symtab.lookup(arg.proxy_name),
+                                    ["local_stencil"]),
+                                is_pointer=True),
+                            cursor)
+                        cursor += 1
                     else:
                         raise InternalError(
                             f"Kernel argument '{arg.name}' is a recognised "
@@ -1493,44 +1513,77 @@ class DynProxies(LFRicCollection):
                         f"Kernel argument '{arg.name}' of type "
                         f"'{arg.argument_type}' not "
                         f"handled in DynProxies.initialise()")
+            if cursor > init_cursor:
+                self._invoke.schedule[init_cursor].preceding_comment = (
+                    "Initialise field and/or operator proxies")
+
+        return cursor
 
 
 class DynLMAOperators(LFRicCollection):
     '''
     Handles all entities associated with Local-Matrix-Assembly Operators.
     '''
-    def _stub_declarations(self, parent):
+    def stub_declarations(self):
         '''
-        Declare all LMA-related quantities in a Kernel stub.
-
-        :param parent: the f2pygen node representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        Declare all LMA-related quantities in a Kernel stub. Note that argument
+        order will be defined later by ArgOrdering.
 
         '''
-        api_config = Config.get().api_conf("lfric")
-
+        super().stub_declarations()
         lma_args = psyGen.args_filter(
             self._kernel.arguments.args, arg_types=["gh_operator"])
         if lma_args:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=["cell"]))
+            arg = self.symtab.find_or_create(
+                "cell", symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self.symtab.append_argument(arg)
         for arg in lma_args:
             size = arg.name+"_ncell_3d"
             op_dtype = arg.intrinsic_type
             op_kind = arg.precision
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[size]))
-            ndf_name_to = arg.function_space_to.ndf_name
-            ndf_name_from = arg.function_space_from.ndf_name
-            parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
-                               dimension=",".join([size, ndf_name_to,
-                                                   ndf_name_from]),
-                               intent=arg.intent,
-                               entity_decls=[arg.name]))
+            size_sym = self.symtab.find_or_create(
+                size, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            size_sym.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+            self.symtab.append_argument(size_sym)
+            ndf_name_to = self.symtab.lookup(
+                                    arg.function_space_to.ndf_name)
+            ndf_name_from = self.symtab.lookup(
+                                    arg.function_space_from.ndf_name)
 
-    def _invoke_declarations(self, parent):
+            # Create the PSyIR intrinsic DataType
+            kind_sym = self.symtab.find_or_create(
+                op_kind, symbol_type=DataSymbol, datatype=UnresolvedType(),
+                interface=ImportInterface(
+                    self.symtab.lookup("constants_mod")))
+            if op_dtype == "real":
+                intr_type = ScalarType(ScalarType.Intrinsic.REAL, kind_sym)
+            elif op_dtype == "integer":
+                intr_type = ScalarType(ScalarType.Intrinsic.INTEGER, kind_sym)
+            else:
+                raise NotImplementedError(
+                    f"Only REAL and INTEGER LMA Operator types are supported, "
+                    f"but found '{op_dtype}'")
+            if arg.intent == "in":
+                intent = ArgumentInterface.Access.READ
+            elif arg.intent == "inout":
+                intent = ArgumentInterface.Access.READWRITE
+            # No need for else as arg.intent only returns in/inout or errors
+
+            arg_sym = self.symtab.find_or_create(
+                arg.name, symbol_type=DataSymbol,
+                datatype=ArrayType(intr_type, [
+                    Reference(size_sym),
+                    Reference(ndf_name_to),
+                    Reference(ndf_name_from),
+                ]))
+            arg_sym.interface = ArgumentInterface(intent)
+            self.symtab.append_argument(arg_sym)
+
+    def invoke_declarations(self):
         '''
         Declare all LMA-related quantities in a PSy-layer routine.
         Note: PSy layer in LFRic does not modify the LMA operator objects.
@@ -1538,32 +1591,15 @@ class DynLMAOperators(LFRicCollection):
         kernels is only pointed to from the LMA operator object and is thus
         not a part of the object).
 
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
         '''
+        super().invoke_declarations()
         # Add the Invoke subroutine argument declarations for operators
         op_args = self._invoke.unique_declarations(
-            argument_types=["gh_operator"])
-        # Filter operators by their datatype
-        operators_datatype_map = OrderedDict()
-        for op_arg in op_args:
-            try:
-                operators_datatype_map[op_arg.data_type].append(op_arg)
-            except KeyError:
-                # This datatype has not been seen before so create new entry
-                operators_datatype_map[op_arg.data_type] = [op_arg]
-        # Declare the operators
-        for op_datatype, op_list in operators_datatype_map.items():
-            operators_names = [arg.declaration_name for arg in op_list]
-            parent.add(TypeDeclGen(
-                parent, datatype=op_datatype,
-                entity_decls=operators_names, intent="in"))
-            op_mod = op_list[0].module_name
-            # Record that we will need to import this operator
-            # datatype from the appropriate infrastructure module
-            (self._invoke.invokes.psy.infrastructure_modules[op_mod].
-             add(op_datatype))
+                                        argument_types=["gh_operator"])
+        # Update the operator intents
+        for arg in op_args:
+            symbol = self.symtab.lookup(arg.declaration_name)
+            symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
 
 
 class DynCMAOperators(LFRicCollection):
@@ -1601,7 +1637,7 @@ class DynCMAOperators(LFRicCollection):
         # You can't index into an OrderedDict so we keep a separate ref
         # to the first CMA argument we find.
         self._first_cma_arg = None
-        for call in self._calls:
+        for call in self.kernel_calls:
             if call.cma_operation:
                 # Get a list of all of the CMA arguments to this call
                 cma_args = psyGen.args_filter(
@@ -1628,13 +1664,84 @@ class DynCMAOperators(LFRicCollection):
                         if not self._first_cma_arg:
                             self._first_cma_arg = arg
 
-        # Create all the necessary Symbols here so that they are available
-        # without the need to do a 'gen'.
-        symtab = self._symbol_table
+    def initialise(self, cursor: int) -> int:
+        '''
+        Generates the calls to the LFRic infrastructure that look-up
+        the various components of each CMA operator. Adds these as
+        children of the supplied parent node.
+
+        :param cursor: position where to add the next initialisation
+            statements.
+
+        :returns: Updated cursor value.
+
+        '''
+        # If we have no CMA operators then we do nothing
+        if not self._cma_ops:
+            return cursor
+
+        const = LFRicConstants()
+        suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
+
+        first = True
+        for op_name in self._cma_ops:
+            # First, assign a pointer to the array containing the actual
+            # matrix.
+            cma_sym = self.symtab.find_or_create_tag(
+                f"{op_name}:{suffix}", op_name,
+                symbol_type=DataSymbol, datatype=UnresolvedType())
+            stmt = Assignment.create(
+                    lhs=Reference(cma_sym),
+                    rhs=StructureReference.create(
+                             self.symtab.lookup(
+                                self._cma_ops[op_name]["arg"].proxy_name),
+                             ["columnwise_matrix"]),
+                    is_pointer=True)
+            if first:
+                stmt.preceding_comment = (
+                    "Look-up information for each CMA operator"
+                )
+                first = False
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+            # Then make copies of the related integer parameters
+            for param in self._cma_ops[op_name]["params"]:
+                param_name = self.symtab.find_or_create_tag(
+                    f"{op_name}:{param}:{suffix}",
+                    root_name=f"{op_name}_{param}",
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                )
+                stmt = Assignment.create(
+                        lhs=Reference(param_name),
+                        rhs=StructureReference.create(
+                             self.symtab.lookup(
+                                self._cma_ops[op_name]["arg"].proxy_name),
+                             [param]),
+                    )
+                self._invoke.schedule.addchild(stmt, cursor)
+                cursor += 1
+        return cursor
+
+    def invoke_declarations(self):
+        '''
+        Generate the necessary PSy-layer declarations for all column-wise
+        operators and their associated parameters.
+        Note: PSy layer in LFRic does not modify the CMA operator objects.
+        Hence, their Fortran intents are always "in" (the data updated in the
+        kernels is only pointed to from the column-wise operator object and is
+        thus not a part of the object).
+
+        '''
+        super().invoke_declarations()
+        # If we have no CMA operators then we do nothing
+        if not self._cma_ops:
+            return
+
         const = LFRicConstants()
         suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
         for op_name in self._cma_ops:
-            new_name = self._symbol_table.next_available_name(
+            new_name = self.symtab.next_available_name(
                 f"{op_name}_{suffix}")
             tag = f"{op_name}:{suffix}"
             arg = self._cma_ops[op_name]["arg"]
@@ -1647,143 +1754,47 @@ class DynCMAOperators(LFRicCollection):
                 f"real(kind={arg.precision}), pointer, "
                 f"dimension({index_str}) :: {new_name} => null()",
                 partial_datatype=array_type)
-            symtab.new_symbol(new_name,
-                              symbol_type=DataSymbol,
-                              datatype=dtype,
-                              tag=tag)
-            # Now the various integer parameters of the operator.
-            for param in self._cma_ops[op_name]["params"]:
-                symtab.find_or_create_integer_symbol(
-                    f"{op_name}_{param}", tag=f"{op_name}:{param}:{suffix}")
-
-    def initialise(self, parent):
-        '''
-        Generates the calls to the LFRic infrastructure that look-up
-        the various components of each CMA operator. Adds these as
-        children of the supplied parent node.
-
-        :param parent: f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        # If we have no CMA operators then we do nothing
-        if not self._cma_ops:
-            return
-
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent,
-                              " Look-up information for each CMA operator"))
-        parent.add(CommentGen(parent, ""))
-
-        const = LFRicConstants()
-        suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
-
-        for op_name in self._cma_ops:
-            # First, assign a pointer to the array containing the actual
-            # matrix.
-            cma_name = self._symbol_table.lookup_with_tag(
-                f"{op_name}:{suffix}").name
-            parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
-                                 rhs=self._cma_ops[op_name]["arg"].
-                                 proxy_name_indexed+"%columnwise_matrix"))
-            # Then make copies of the related integer parameters
-            for param in self._cma_ops[op_name]["params"]:
-                param_name = self._symbol_table.find_or_create_tag(
-                    f"{op_name}:{param}:{suffix}").name
-                parent.add(AssignGen(parent, lhs=param_name,
-                                     rhs=self._cma_ops[op_name]["arg"].
-                                     proxy_name_indexed+"%"+param))
-
-    def _invoke_declarations(self, parent):
-        '''
-        Generate the necessary PSy-layer declarations for all column-wise
-        operators and their associated parameters.
-        Note: PSy layer in LFRic does not modify the CMA operator objects.
-        Hence, their Fortran intents are always "in" (the data updated in the
-        kernels is only pointed to from the column-wise operator object and is
-        thus not a part of the object).
-
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("lfric")
-
-        # If we have no CMA operators then we do nothing
-        if not self._cma_ops:
-            return
-
-        # Add the Invoke subroutine argument declarations for column-wise
-        # operators
-        cma_op_args = self._invoke.unique_declarations(
-            argument_types=["gh_columnwise_operator"])
-        # Create a list of column-wise operator names
-        cma_op_arg_list = [arg.declaration_name for arg in cma_op_args]
-        if cma_op_arg_list:
-            op_type = cma_op_args[0].data_type
-            op_mod = cma_op_args[0].module_name
-            parent.add(TypeDeclGen(parent,
-                                   datatype=op_type,
-                                   entity_decls=cma_op_arg_list,
-                                   intent="in"))
-            (self._invoke.invokes.psy.infrastructure_modules[op_mod].
-             add(op_type))
-
-        const = LFRicConstants()
-        suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
-        for op_name in self._cma_ops:
-            # Declare the operator matrix itself.
-            tag_name = f"{op_name}:{suffix}"
-            cma_name = self._symbol_table.lookup_with_tag(tag_name).name
-            cma_dtype = self._cma_ops[op_name]["datatype"]
-            cma_kind = self._cma_ops[op_name]["kind"]
-            parent.add(DeclGen(parent, datatype=cma_dtype,
-                               kind=cma_kind, pointer=True,
-                               dimension=":,:,:",
-                               entity_decls=[f"{cma_name} => null()"]))
-            const = LFRicConstants()
-            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-            const_mod_uses = self._invoke.invokes.psy. \
-                infrastructure_modules[const_mod]
-            # Record that we will need to import the kind of this
-            # cma operator from the appropriate infrastructure
-            # module
-            const_mod_uses.add(cma_kind)
+            self.symtab.new_symbol(new_name,
+                                   symbol_type=DataSymbol,
+                                   datatype=dtype,
+                                   tag=tag)
 
             # Declare the associated integer parameters
-            param_names = []
             for param in self._cma_ops[op_name]["params"]:
                 name = f"{op_name}_{param}"
                 tag = f"{op_name}:{param}:{suffix}"
-                sym = self._symbol_table.find_or_create_integer_symbol(
-                    name, tag=tag)
-                param_names.append(sym.name)
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=param_names))
+                self.symtab.find_or_create(
+                    name, tag=tag,
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                )
 
-    def _stub_declarations(self, parent):
+    def stub_declarations(self):
         '''
         Generate all necessary declarations for CMA operators being passed to
         a Kernel stub.
-
-        :param parent: f2pygen node representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        Note that argument order is redefined later by ArgOrdering.
 
         '''
-        api_config = Config.get().api_conf("lfric")
-
+        super().stub_declarations()
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
             return
 
-        symtab = self._symbol_table
+        symtab = self.symtab
 
         # CMA operators always need the current cell index and the number
         # of columns in the mesh
-        parent.add(DeclGen(parent, datatype="integer",
-                           kind=api_config.default_kind["integer"],
-                           intent="in", entity_decls=["cell", "ncell_2d"]))
+        symbol = symtab.find_or_create(
+            "cell", symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+        symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+        symtab.append_argument(symbol)
+        symbol = symtab.find_or_create(
+            "ncell_2d", symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+        symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+        symtab.append_argument(symbol)
 
         const = LFRicConstants()
         suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
@@ -1792,29 +1803,45 @@ class DynCMAOperators(LFRicCollection):
             # Declare the associated scalar arguments before the array because
             # some of them are used to dimension the latter (and some compilers
             # get upset if this ordering is not followed)
-            _local_args = []
             for param in self._cma_ops[op_name]["params"]:
-                param_name = symtab.find_or_create_tag(
+                symbol = symtab.find_or_create_tag(
                     f"{op_name}:{param}:{suffix}",
-                    root_name=f"{op_name}_{param}").name
-                _local_args.append(param_name)
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=_local_args))
+                    root_name=f"{op_name}_{param}",
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                symbol.interface = ArgumentInterface(
+                        ArgumentInterface.Access.READ)
+                symtab.append_argument(symbol)
             # Declare the array that holds the CMA operator
             bandwidth = symtab.find_or_create_tag(
                 f"{op_name}:bandwidth:{suffix}",
-                root_name=f"{op_name}_bandwidth").name
+                root_name=f"{op_name}_bandwidth",
+                symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            bandwidth.interface = ArgumentInterface(
+                    ArgumentInterface.Access.READ)
+
             nrow = symtab.find_or_create_tag(
                 f"{op_name}:nrow:{suffix}",
-                root_name=f"{op_name}_nrow").name
-            intent = self._cma_ops[op_name]["intent"]
-            op_dtype = self._cma_ops[op_name]["datatype"]
-            op_kind = self._cma_ops[op_name]["kind"]
-            parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
-                               dimension=",".join([bandwidth,
-                                                   nrow, "ncell_2d"]),
-                               intent=intent, entity_decls=[op_name]))
+                root_name=f"{op_name}_nrow",
+                symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            nrow.interface = ArgumentInterface(
+                    ArgumentInterface.Access.READ)
+
+            op = symtab.find_or_create(
+                op_name, symbol_type=DataSymbol,
+                datatype=ArrayType(
+                    LFRicTypes("LFRicRealScalarDataType")(),
+                    [Reference(bandwidth), Reference(nrow),
+                     Reference(symtab.lookup("ncell_2d"))]))
+            if self._kernel.cma_operation == 'assembly':
+                op.interface = ArgumentInterface(
+                        ArgumentInterface.Access.READWRITE)
+            else:
+                op.interface = ArgumentInterface(
+                        ArgumentInterface.Access.READ)
+            symtab.append_argument(op)
 
 
 class DynMeshes():
@@ -1845,10 +1872,8 @@ class DynMeshes():
         # Whether or not the associated Invoke requires colourmap information
         self._needs_colourmap = False
         self._needs_colourmap_halo = False
-        # Keep a reference to the InvokeSchedule so we can check for colouring
-        # later
-        self._schedule = invoke.schedule
-        self._symbol_table = self._schedule.symbol_table
+        # Keep a reference to the Invoke so we can check its properties later
+        self._invoke = invoke
         # Set used to generate a list of the unique mesh objects
         _name_set = set()
 
@@ -1866,7 +1891,7 @@ class DynMeshes():
         # message if necessary.
         non_intergrid_kernels = []
         has_intergrid = False
-        for call in self._schedule.coded_kernels():
+        for call in self._invoke.schedule.coded_kernels():
 
             if (call.reference_element.properties or call.mesh.properties or
                     call.iterates_over == "domain" or call.cma_operation):
@@ -1906,6 +1931,14 @@ class DynMeshes():
 
         self._add_mesh_symbols(list(_name_set))
 
+    @property
+    def symtab(self):
+        '''
+        :returns: associated symbol table.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
+        return self._invoke.schedule.symbol_table
+
     def _add_mesh_symbols(self, mesh_tags):
         '''
         Add DataSymbols for the supplied list of mesh names and store the
@@ -1930,26 +1963,31 @@ class DynMeshes():
         mmod = const.MESH_TYPE_MAP["mesh"]["module"]
         mtype = const.MESH_TYPE_MAP["mesh"]["type"]
         # Create a Container symbol for the module
-        csym = self._symbol_table.find_or_create_tag(
+        csym = self.symtab.find_or_create_tag(
             mmod, symbol_type=ContainerSymbol)
         # Create a TypeSymbol for the mesh type
-        mtype_sym = self._symbol_table.find_or_create_tag(
+        mtype_sym = self.symtab.find_or_create_tag(
             mtype, symbol_type=DataTypeSymbol,
             datatype=UnresolvedType(),
             interface=ImportInterface(csym))
 
         name_list = []
         for name in mesh_tags:
-            name_list.append(self._symbol_table.find_or_create_tag(
-                name, symbol_type=DataSymbol, datatype=mtype_sym).name)
+            dt = UnsupportedFortranType(
+                f"type({mtype_sym.name}), pointer :: {name} => null()")
+            name_list.append(self.symtab.find_or_create_tag(
+                name, symbol_type=DataSymbol, datatype=dt).name)
 
         if Config.get().distributed_memory:
             # If distributed memory is enabled then we require a variable
             # holding the maximum halo depth for each mesh.
             for name in mesh_tags:
                 var_name = f"max_halo_depth_{name}"
-                self._symbol_table.find_or_create_integer_symbol(
-                    var_name, tag=var_name)
+                self.symtab.find_or_create(
+                    var_name, tag=var_name,
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                )
 
     def colourmap_init(self):
         '''
@@ -1961,9 +1999,8 @@ class DynMeshes():
         # pylint: disable=too-many-locals
         const = LFRicConstants()
         non_intergrid_kern = None
-        sym_tab = self._schedule.symbol_table
 
-        for call in [call for call in self._schedule.coded_kernels() if
+        for call in [call for call in self._invoke.schedule.coded_kernels() if
                      call.is_coloured()]:
             # Keep a record of whether or not any kernels (loops) in this
             # invoke have been coloured and, if so, whether the associated loop
@@ -1984,27 +2021,48 @@ class DynMeshes():
             carg_name = call._intergrid_ref.coarse.name
             # Colour map
             base_name = "cmap_" + carg_name
-            colour_map = sym_tab.find_or_create_array(
-                base_name, 2, ScalarType.Intrinsic.INTEGER,
+            array_type = ArrayType(
+                LFRicTypes("LFRicRealScalarDataType")(),
+                [ArrayType.Extent.DEFERRED]*2)
+            colour_map = self.symtab.find_or_create(
+                base_name,
+                symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(
+                    f"integer(kind=i_def), pointer, dimension(:,:) :: "
+                    f"{base_name} => null()",
+                    partial_datatype=array_type),
                 tag=base_name)
             # No. of colours
             base_name = "ncolour_" + carg_name
-            ncolours = sym_tab.find_or_create_integer_symbol(
-                base_name, tag=base_name)
+            ncolours = self.symtab.find_or_create(
+                base_name, tag=base_name,
+                symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+            )
             # Array holding the last cell of a given colour.
             if (Config.get().distributed_memory and
                     not call.all_updates_are_writes):
                 # This will require a loop into the halo and so the array is
                 # 2D (indexed by colour *and* halo depth).
                 base_name = "last_halo_cell_all_colours_" + carg_name
-                last_cell = self._schedule.symbol_table.find_or_create_array(
-                    base_name, 2, ScalarType.Intrinsic.INTEGER, tag=base_name)
+                last_cell = self.symtab.find_or_create(
+                    base_name,
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*2),
+                    tag=base_name)
             else:
                 # Array holding the last edge cell of a given colour. Just 1D
                 # as indexed by colour only.
                 base_name = "last_edge_cell_all_colours_" + carg_name
-                last_cell = self._schedule.symbol_table.find_or_create_array(
-                    base_name, 1, ScalarType.Intrinsic.INTEGER, tag=base_name)
+                last_cell = self.symtab.find_or_create(
+                    base_name,
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*1),
+                    tag=base_name)
             # Add these symbols into the DynInterGrid entry for this kernel
             call._intergrid_ref.set_colour_info(colour_map, ncolours,
                                                 last_cell)
@@ -2018,295 +2076,276 @@ class DynMeshes():
             # don't already have one.
             colour_map = non_intergrid_kern.colourmap
             # No. of colours
-            ncolours = sym_tab.find_or_create_integer_symbol(
-                "ncolour", tag="ncolour").name
+            ncolours = self.symtab.find_or_create(
+                "ncolour", tag="ncolour",
+                symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+            ).name
             if self._needs_colourmap_halo:
-                sym_tab.find_or_create_array(
-                    "last_halo_cell_all_colours", 2,
-                    ScalarType.Intrinsic.INTEGER,
+                self.symtab.find_or_create(
+                    "last_halo_cell_all_colours",
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*2),
                     tag="last_halo_cell_all_colours")
             if self._needs_colourmap:
-                sym_tab.find_or_create_array(
-                    "last_edge_cell_all_colours", 1,
-                    ScalarType.Intrinsic.INTEGER,
+                self.symtab.find_or_create(
+                    "last_edge_cell_all_colours",
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*1),
                     tag="last_edge_cell_all_colours")
 
-    def declarations(self, parent):
+    def invoke_declarations(self):
         '''
         Declare variables specific to mesh objects.
 
-        :param parent: the parent node to which to add the declarations
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
         '''
         # pylint: disable=too-many-locals, too-many-statements
-        api_config = Config.get().api_conf("lfric")
         const = LFRicConstants()
 
-        # We'll need various typedefs from the mesh module
-        mtype = const.MESH_TYPE_MAP["mesh"]["type"]
-        mmod = const.MESH_TYPE_MAP["mesh"]["module"]
-        mmap_type = const.MESH_TYPE_MAP["mesh_map"]["type"]
-        mmap_mod = const.MESH_TYPE_MAP["mesh_map"]["module"]
-        if self._mesh_tag_names:
-            name = self._symbol_table.lookup_with_tag(mtype).name
-            parent.add(UseGen(parent, name=mmod, only=True,
-                              funcnames=[name]))
         if self.intergrid_kernels:
-            parent.add(UseGen(parent, name=mmap_mod, only=True,
-                              funcnames=[mmap_type]))
-        # Declare the mesh object(s) and associated halo depths
-        for tag_name in self._mesh_tag_names:
-            name = self._symbol_table.lookup_with_tag(tag_name).name
-            parent.add(TypeDeclGen(parent, pointer=True, datatype=mtype,
-                                   entity_decls=[name + " => null()"]))
-            # For each mesh we also need the maximum halo depth.
-            if Config.get().distributed_memory:
-                name = self._symbol_table.lookup_with_tag(
-                    f"max_halo_depth_{tag_name}").name
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   entity_decls=[name]))
-
-        # Declare the inter-mesh map(s) and cell map(s)
-        for kern in self.intergrid_kernels:
-            parent.add(TypeDeclGen(parent, pointer=True,
-                                   datatype=mmap_type,
-                                   entity_decls=[kern.mmap + " => null()"]))
-            parent.add(
-                DeclGen(parent, pointer=True, datatype="integer",
-                        kind=api_config.default_kind["integer"],
-                        entity_decls=[kern.cell_map + "(:,:,:) => null()"]))
-
-            # Declare the number of cells in the fine mesh and how many fine
-            # cells there are per coarse cell
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=[kern.ncell_fine,
-                                             kern.ncellpercellx,
-                                             kern.ncellpercelly]))
-            # Declare variables to hold the colourmap information if required
-            if kern.colourmap_symbol:
-                parent.add(
-                    DeclGen(parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            pointer=True,
-                            entity_decls=[kern.colourmap_symbol.name+"(:,:)"]))
-                parent.add(
-                    DeclGen(parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            entity_decls=[kern.ncolours_var_symbol.name]))
-                # The cell-count array is 2D if we go into the halo and 1D
-                # otherwise (i.e. no DM or this kernel is GH_WRITE only and
-                # does not access the halo).
-                dim_list = len(kern.last_cell_var_symbol.datatype.shape)*":"
-                decln = (f"{kern.last_cell_var_symbol.name}("
-                         f"{','.join(dim_list)})")
-                parent.add(
-                    DeclGen(parent, datatype="integer", allocatable=True,
-                            kind=api_config.default_kind["integer"],
-                            entity_decls=[decln]))
+            mmap_type = const.MESH_TYPE_MAP["mesh_map"]["type"]
+            mmap_mod = const.MESH_TYPE_MAP["mesh_map"]["module"]
+            # Create a Container symbol for the module
+            csym = self.symtab.find_or_create_tag(
+                mmap_mod, symbol_type=ContainerSymbol)
+            # Create a TypeSymbol for the mesh type
+            self.symtab.find_or_create_tag(
+                mmap_type, symbol_type=DataTypeSymbol,
+                datatype=UnresolvedType(),
+                interface=ImportInterface(csym))
 
         if not self.intergrid_kernels and (self._needs_colourmap or
                                            self._needs_colourmap_halo):
             # There aren't any inter-grid kernels but we do need
             # colourmap information
-            base_name = "cmap"
-            csym = self._schedule.symbol_table.lookup_with_tag("cmap")
-            colour_map = csym.name
-            # No. of colours
-            base_name = "ncolour"
-            ncolours = \
-                self._schedule.symbol_table.find_or_create_tag(base_name).name
+            csym = self.symtab.lookup_with_tag("cmap")
             # Add declarations for these variables
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True,
-                               entity_decls=[colour_map+"(:,:)"]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=[ncolours]))
             if self._needs_colourmap_halo:
-                last_cell = self._symbol_table.find_or_create_tag(
+                self.symtab.find_or_create_tag(
                     "last_halo_cell_all_colours")
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   allocatable=True,
-                                   entity_decls=[last_cell.name+"(:,:)"]))
             if self._needs_colourmap:
-                last_cell = self._symbol_table.find_or_create_tag(
+                self.symtab.find_or_create_tag(
                     "last_edge_cell_all_colours")
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   allocatable=True,
-                                   entity_decls=[last_cell.name+"(:)"]))
 
-    def initialise(self, parent):
+    def initialise(self, cursor: int) -> int:
         '''
         Initialise parameters specific to inter-grid kernels.
 
-        :param parent: the parent node to which to add the initialisations.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+
+        :returns: Updated cursor value.
 
         '''
         # pylint: disable=too-many-branches
         # If we haven't got any need for a mesh in this invoke then we
         # don't do anything
         if not self._mesh_tag_names:
-            return
+            return cursor
 
-        parent.add(CommentGen(parent, ""))
+        symtab = self._invoke.schedule.symbol_table
 
         if len(self._mesh_tag_names) == 1:
             # We only require one mesh object which means that this invoke
             # contains no inter-grid kernels (which would require at least 2)
-            parent.add(CommentGen(parent, " Create a mesh object"))
-            parent.add(CommentGen(parent, ""))
-            rhs = "%".join([self._first_var.proxy_name_indexed,
-                            self._first_var.ref_name(), "get_mesh()"])
-            mesh_name = self._symbol_table.lookup_with_tag(
-                self._mesh_tag_names[0]).name
-            parent.add(AssignGen(parent, pointer=True, lhs=mesh_name, rhs=rhs))
+            mesh_sym = symtab.lookup_with_tag(self._mesh_tag_names[0])
+            assignment = Assignment.create(
+                lhs=Reference(mesh_sym),
+                rhs=self._first_var.generate_method_call("get_mesh"),
+                is_pointer=True)
+            assignment.preceding_comment = "Create a mesh object"
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
             if Config.get().distributed_memory:
                 # If distributed memory is enabled then we need the maximum
                 # halo depth.
-                depth_name = self._symbol_table.lookup_with_tag(
-                    f"max_halo_depth_{self._mesh_tag_names[0]}").name
-                parent.add(AssignGen(parent, lhs=depth_name,
-                                     rhs=f"{mesh_name}%get_halo_depth()"))
+                depth_sym = self.symtab.lookup_with_tag(
+                    f"max_halo_depth_{self._mesh_tag_names[0]}")
+                self._invoke.schedule.addchild(Assignment.create(
+                    lhs=Reference(depth_sym),
+                    rhs=Call.create(StructureReference.create(
+                        mesh_sym, ["get_halo_depth"]))),
+                    cursor)
+                cursor += 1
             if self._needs_colourmap or self._needs_colourmap_halo:
-                parent.add(CommentGen(parent, ""))
-                parent.add(CommentGen(parent, " Get the colourmap"))
-                parent.add(CommentGen(parent, ""))
                 # Look-up variable names for colourmap and number of colours
-                colour_map = self._schedule.symbol_table.find_or_create_tag(
-                    "cmap").name
-                ncolour = \
-                    self._schedule.symbol_table.find_or_create_tag("ncolour")\
-                                               .name
+                cmap = self.symtab.find_or_create_tag("cmap")
+                ncolour = self.symtab.find_or_create_tag("ncolour")
                 # Get the number of colours
-                parent.add(AssignGen(
-                    parent, lhs=ncolour, rhs=f"{mesh_name}%get_ncolours()"))
+                assignment = Assignment.create(
+                        lhs=Reference(ncolour),
+                        rhs=Call.create(StructureReference.create(
+                            mesh_sym, ["get_ncolours"])))
+                assignment.preceding_comment = "Get the colourmap"
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
                 # Get the colour map
-                parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
-                                     rhs=f"{mesh_name}%get_colour_map()"))
-            return
-
-        parent.add(CommentGen(
-            parent,
-            " Look-up mesh objects and loop limits for inter-grid kernels"))
-        parent.add(CommentGen(parent, ""))
+                assignment = Assignment.create(
+                        lhs=Reference(cmap),
+                        rhs=Call.create(StructureReference.create(
+                            mesh_sym, ["get_colour_map"])),
+                        is_pointer=True)
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
 
         # Keep a list of quantities that we've already initialised so
         # that we don't generate duplicate assignments
         initialised = []
 
+        comment_cursor = cursor
         # Loop over the DynInterGrid objects
         for dig in self.intergrid_kernels:
             # We need pointers to both the coarse and the fine mesh as well
             # as the maximum halo depth for each.
-            fine_mesh = self._schedule.symbol_table.find_or_create_tag(
-                f"mesh_{dig.fine.name}").name
-            coarse_mesh = self._schedule.symbol_table.find_or_create_tag(
-                f"mesh_{dig.coarse.name}").name
+            fine_mesh = self.symtab.find_or_create_tag(f"mesh_{dig.fine.name}")
+            coarse_mesh = self.symtab.find_or_create_tag(
+                                            f"mesh_{dig.coarse.name}")
             if fine_mesh not in initialised:
                 initialised.append(fine_mesh)
-                parent.add(
-                    AssignGen(parent, pointer=True,
-                              lhs=fine_mesh,
-                              rhs="%".join([dig.fine.proxy_name_indexed,
-                                            dig.fine.ref_name(),
-                                            "get_mesh()"])))
+                assignment = Assignment.create(
+                        lhs=Reference(fine_mesh),
+                        rhs=dig.fine.generate_method_call("get_mesh"),
+                        is_pointer=True)
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
                 if Config.get().distributed_memory:
                     max_halo_f_mesh = (
-                        self._schedule.symbol_table.find_or_create_tag(
-                            f"max_halo_depth_mesh_{dig.fine.name}").name)
-
-                    parent.add(AssignGen(parent, lhs=max_halo_f_mesh,
-                                         rhs=f"{fine_mesh}%get_halo_depth()"))
+                        self.symtab.find_or_create_tag(
+                            f"max_halo_depth_mesh_{dig.fine.name}"))
+                    assignment = Assignment.create(
+                            lhs=Reference(max_halo_f_mesh),
+                            rhs=Call.create(StructureReference.create(
+                                fine_mesh, ["get_halo_depth"])))
+                    self._invoke.schedule.addchild(assignment, cursor)
+                    cursor += 1
             if coarse_mesh not in initialised:
                 initialised.append(coarse_mesh)
-                parent.add(
-                    AssignGen(parent, pointer=True,
-                              lhs=coarse_mesh,
-                              rhs="%".join([dig.coarse.proxy_name_indexed,
-                                            dig.coarse.ref_name(),
-                                            "get_mesh()"])))
+                assignment = Assignment.create(
+                        lhs=Reference(coarse_mesh),
+                        rhs=dig.coarse.generate_method_call("get_mesh"),
+                        is_pointer=True)
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
                 if Config.get().distributed_memory:
                     max_halo_c_mesh = (
-                        self._schedule.symbol_table.find_or_create_tag(
-                            f"max_halo_depth_mesh_{dig.coarse.name}").name)
-                    parent.add(AssignGen(
-                        parent, lhs=max_halo_c_mesh,
-                        rhs=f"{coarse_mesh}%get_halo_depth()"))
+                        self.symtab.find_or_create_tag(
+                            f"max_halo_depth_mesh_{dig.coarse.name}"))
+                    assignment = Assignment.create(
+                            lhs=Reference(max_halo_c_mesh),
+                            rhs=Call.create(StructureReference.create(
+                                coarse_mesh, ["get_halo_depth"])))
+                    self._invoke.schedule.addchild(assignment, cursor)
+                    cursor += 1
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
             if dig.mmap not in initialised:
                 initialised.append(dig.mmap)
-                parent.add(
-                    AssignGen(parent, pointer=True,
-                              lhs=dig.mmap,
-                              rhs=f"{coarse_mesh}%get_mesh_map({fine_mesh})"))
+                digmmap = self.symtab.lookup(dig.mmap)
+                assignment = Assignment.create(
+                        lhs=Reference(digmmap),
+                        rhs=Call.create(StructureReference.create(
+                                coarse_mesh, ["get_mesh_map"]),
+                            arguments=[Reference(fine_mesh)]),
+                        is_pointer=True)
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
 
             # Cell map. This is obtained from the mesh map.
             if dig.cell_map not in initialised:
                 initialised.append(dig.cell_map)
-                parent.add(
-                    AssignGen(parent, pointer=True, lhs=dig.cell_map,
-                              rhs=dig.mmap+"%get_whole_cell_map()"))
+                digcellmap = self.symtab.lookup(dig.cell_map)
+                assignment = Assignment.create(
+                        lhs=Reference(digcellmap),
+                        rhs=Call.create(StructureReference.create(
+                            digmmap, ["get_whole_cell_map"])),
+                        is_pointer=True)
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
 
             # Number of cells in the fine mesh
             if dig.ncell_fine not in initialised:
                 initialised.append(dig.ncell_fine)
+                digncellfine = self.symtab.lookup(dig.ncell_fine)
                 if Config.get().distributed_memory:
                     # TODO this hardwired depth of 2 will need changing in
                     # order to support redundant computation
-                    parent.add(
-                        AssignGen(parent, lhs=dig.ncell_fine,
-                                  rhs=(fine_mesh+"%get_last_halo_cell"
-                                       "(depth=2)")))
+                    assignment = Assignment.create(
+                            lhs=Reference(digncellfine),
+                            rhs=Call.create(StructureReference.create(
+                                fine_mesh, ["get_last_halo_cell"])))
+                    assignment.rhs.append_named_arg("depth",
+                                                    Literal("2", INTEGER_TYPE))
+                    self._invoke.schedule.addchild(assignment, cursor)
+                    cursor += 1
                 else:
-                    parent.add(
-                        AssignGen(parent, lhs=dig.ncell_fine,
-                                  rhs="%".join([dig.fine.proxy_name,
-                                                dig.fine.ref_name(),
-                                                "get_ncell()"])))
+                    assignment = Assignment.create(
+                            lhs=Reference(digncellfine),
+                            rhs=dig.fine.generate_method_call("get_ncell"))
+                    self._invoke.schedule.addchild(assignment, cursor)
+                    cursor += 1
 
             # Number of fine cells per coarse cell in x.
             if dig.ncellpercellx not in initialised:
                 initialised.append(dig.ncellpercellx)
-                parent.add(
-                    AssignGen(parent, lhs=dig.ncellpercellx,
-                              rhs=dig.mmap +
-                              "%get_ntarget_cells_per_source_x()"))
+                digncellpercellx = self.symtab.lookup(dig.ncellpercellx)
+                assignment = Assignment.create(
+                        lhs=Reference(digncellpercellx),
+                        rhs=Call.create(StructureReference.create(
+                            digmmap, ["get_ntarget_cells_per_source_x"])))
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
 
             # Number of fine cells per coarse cell in y.
             if dig.ncellpercelly not in initialised:
                 initialised.append(dig.ncellpercelly)
-                parent.add(
-                    AssignGen(parent, lhs=dig.ncellpercelly,
-                              rhs=dig.mmap +
-                              "%get_ntarget_cells_per_source_y()"))
+                digncellpercelly = self.symtab.lookup(dig.ncellpercelly)
+                assignment = Assignment.create(
+                        lhs=Reference(digncellpercelly),
+                        rhs=Call.create(StructureReference.create(
+                            digmmap, ["get_ntarget_cells_per_source_y"])))
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
 
             # Colour map for the coarse mesh (if required)
             if dig.colourmap_symbol:
                 # Number of colours
-                parent.add(AssignGen(parent, lhs=dig.ncolours_var_symbol.name,
-                                     rhs=coarse_mesh + "%get_ncolours()"))
+                assignment = Assignment.create(
+                        lhs=Reference(dig.ncolours_var_symbol),
+                        rhs=Call.create(StructureReference.create(
+                            coarse_mesh, ["get_ncolours"])))
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
                 # Colour map itself
-                parent.add(AssignGen(parent, lhs=dig.colourmap_symbol.name,
-                                     pointer=True,
-                                     rhs=coarse_mesh + "%get_colour_map()"))
+                assignment = Assignment.create(
+                        lhs=Reference(dig.colourmap_symbol),
+                        rhs=Call.create(StructureReference.create(
+                            coarse_mesh, ["get_colour_map"])),
+                        is_pointer=True)
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
                 # Last halo/edge cell per colour.
                 sym = dig.last_cell_var_symbol
                 if len(sym.datatype.shape) == 2:
                     # Array is 2D so is a halo access.
-                    name = "%get_last_halo_cell_all_colours()"
+                    name = "get_last_halo_cell_all_colours"
                 else:
                     # Array is just 1D so go to the last edge cell.
-                    name = "%get_last_edge_cell_all_colours()"
-                parent.add(AssignGen(parent, lhs=sym.name,
-                                     rhs=coarse_mesh + name))
+                    name = "get_last_edge_cell_all_colours"
+                assignment = Assignment.create(
+                        lhs=Reference(sym),
+                        rhs=Call.create(StructureReference.create(
+                            coarse_mesh, [name])))
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
+        if cursor != comment_cursor:
+            self._invoke.schedule[comment_cursor].preceding_comment = (
+                "Look-up mesh objects and loop limits for inter-grid kernels")
+
+        return cursor
 
     @property
     def intergrid_kernels(self):
@@ -2316,7 +2355,7 @@ class DynMeshes():
         :rtype: list[:py:class:`psyclone.dynamo3p0.DynInterGrid`]
         '''
         intergrids = []
-        for call in self._schedule.coded_kernels():
+        for call in self._invoke.schedule.coded_kernels():
             if call.is_intergrid:
                 intergrids.append(call._intergrid_ref)
         return intergrids
@@ -2343,25 +2382,51 @@ class DynInterGrid():
 
         # Generate name for inter-mesh map
         base_mmap_name = f"mmap_{fine_arg.name}_{coarse_arg.name}"
-        self.mmap = symtab.find_or_create_tag(base_mmap_name).name
+        self.mmap = symtab.find_or_create(
+                base_mmap_name, tag=base_mmap_name,
+                symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(
+                    f"type(mesh_map_type), pointer :: {base_mmap_name}"
+                    f" => null()")
+            ).name
 
         # Generate name for ncell variables
         name = f"ncell_{fine_arg.name}"
-        self.ncell_fine = symtab.find_or_create_integer_symbol(
-            name, tag=name).name
+        self.ncell_fine = symtab.find_or_create(
+            name, tag=name,
+            symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+        ).name
         # No. of fine cells per coarse cell in x
         name = f"ncpc_{fine_arg.name}_{coarse_arg.name}_x"
-        self.ncellpercellx = symtab.find_or_create_integer_symbol(
-            name, tag=name).name
+        self.ncellpercellx = symtab.find_or_create(
+            name, tag=name,
+            symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+        ).name
         # No. of fine cells per coarse cell in y
         name = f"ncpc_{fine_arg.name}_{coarse_arg.name}_y"
-        self.ncellpercelly = symtab.find_or_create_integer_symbol(
-            name, tag=name).name
+        self.ncellpercelly = symtab.find_or_create(
+            name, tag=name,
+            symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+        ).name
         # Name for cell map
         base_name = "cell_map_" + coarse_arg.name
-        sym = symtab.find_or_create_array(base_name, 3,
-                                          ScalarType.Intrinsic.INTEGER,
-                                          tag=base_name)
+        ArrayType(
+            LFRicTypes("LFRicRealScalarDataType")(),
+            [ArrayType.Extent.DEFERRED]*2)
+        sym = symtab.find_or_create(
+                base_name,
+                symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(
+                    f"integer(kind=i_def), pointer :: {base_name}"
+                    f"(:,:,:) => null()",
+                    partial_datatype=ArrayType(
+                        LFRicTypes("LFRicRealScalarDataType")(),
+                        [ArrayType.Extent.DEFERRED]*3)
+                ))
+
         self.cell_map = sym.name
 
         # We have no colourmap information when first created
@@ -2454,7 +2519,7 @@ class DynBasisFunctions(LFRicCollection):
         # DynKernelArgument) tuples.
         self._eval_targets = OrderedDict()
 
-        for call in self._calls:
+        for call in self.kernel_calls:
 
             if isinstance(call, LFRicBuiltIn) or not call.eval_shapes:
                 # Skip this kernel if it doesn't require basis/diff basis fns
@@ -2655,19 +2720,16 @@ class DynBasisFunctions(LFRicCollection):
                     diff_entry["type"] = "diff-basis"
                     self._basis_fns.append(diff_entry)
 
-    def _stub_declarations(self, parent):
+    def stub_declarations(self):
         '''
         Insert the variable declarations required by the basis functions into
         the Kernel stub.
-
-        :param parent: the f2pygen node representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        Note that argument order is redefined later by ArgOrdering.
 
         :raises InternalError: if an unsupported quadrature shape is found.
 
         '''
-        api_config = Config.get().api_conf("lfric")
-
+        super().stub_declarations()
         if not self._qr_vars and not self._eval_targets:
             return
 
@@ -2678,94 +2740,155 @@ class DynBasisFunctions(LFRicCollection):
         # Get the lists of dimensioning variables and basis arrays
         var_dims, basis_arrays = self._basis_fn_declns()
 
-        if var_dims:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=var_dims))
+        for var in var_dims:
+            arg = self.symtab.find_or_create(
+                var, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            if arg not in self.symtab.argument_list:
+                arg.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+                self.symtab.append_argument(arg)
+
         for basis in basis_arrays:
-            parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
-                               intent="in",
-                               dimension=",".join(basis_arrays[basis]),
-                               entity_decls=[basis]))
+            dims = []
+            for value in basis_arrays[basis]:
+                try:
+                    dims.append(Literal(value, INTEGER_TYPE))
+                except ValueError:
+                    dims.append(Reference(self.symtab.find_or_create(value)))
+            arg = self.symtab.find_or_create(
+                basis, symbol_type=DataSymbol,
+                datatype=ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
+                                   dims))
+            arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self.symtab.append_argument(arg)
 
         const = LFRicConstants()
 
         for shape in self._qr_vars:
             qr_name = "_qr_" + shape.split("_")[-1]
-            if shape == "gh_quadrature_xyoz":
-                datatype = const.QUADRATURE_TYPE_MAP[shape]["intrinsic"]
-                kind = const.QUADRATURE_TYPE_MAP[shape]["kind"]
-                parent.add(DeclGen(
-                    parent, datatype=datatype, kind=kind,
-                    intent="in", dimension="np_xy"+qr_name,
-                    entity_decls=["weights_xy"+qr_name]))
-                parent.add(DeclGen(
-                    parent, datatype=datatype, kind=kind,
-                    intent="in", dimension="np_z"+qr_name,
-                    entity_decls=["weights_z"+qr_name]))
-            elif shape == "gh_quadrature_face":
-                parent.add(DeclGen(
-                    parent,
-                    datatype=const.QUADRATURE_TYPE_MAP[shape]["intrinsic"],
-                    kind=const.QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
-                    dimension=",".join(["np_xyz"+qr_name, "nfaces"+qr_name]),
-                    entity_decls=["weights_xyz"+qr_name]))
-            elif shape == "gh_quadrature_edge":
-                parent.add(DeclGen(
-                    parent,
-                    datatype=const.QUADRATURE_TYPE_MAP[shape]["intrinsic"],
-                    kind=const.QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
-                    dimension=",".join(["np_xyz"+qr_name, "nedges"+qr_name]),
-                    entity_decls=["weights_xyz"+qr_name]))
-            else:
+            # Create the PSyIR intrinsic DataType
+            if shape not in const.QUADRATURE_TYPE_MAP:
                 raise InternalError(
                     f"Quadrature shapes other than {supported_shapes} are not "
                     f"yet supported - got: '{shape}'")
+            kind_sym = self.symtab.find_or_create(
+                const.QUADRATURE_TYPE_MAP[shape]["kind"],
+                symbol_type=DataSymbol, datatype=UnresolvedType(),
+                interface=ImportInterface(
+                    self.symtab.lookup("constants_mod")))
 
-    def _invoke_declarations(self, parent):
+            # All quatratures are REAL
+            intr_type = ScalarType(ScalarType.Intrinsic.REAL, kind_sym)
+
+            if shape == "gh_quadrature_xyoz":
+                dim = self.symtab.find_or_create(
+                    "np_xy"+qr_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                sym = self.symtab.find_or_create(
+                    "weights_xy"+qr_name, symbol_type=DataSymbol,
+                    datatype=ArrayType(intr_type, [Reference(dim)]))
+                sym.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+                self.symtab.append_argument(sym)
+                dim = self.symtab.find_or_create(
+                    "np_z"+qr_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                sym = self.symtab.find_or_create(
+                    "weights_z"+qr_name, symbol_type=DataSymbol,
+                    datatype=ArrayType(intr_type, [Reference(dim)]))
+                sym.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+                self.symtab.append_argument(sym)
+            elif shape == "gh_quadrature_face":
+                dim1 = self.symtab.find_or_create(
+                    "np_xyz"+qr_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                dim2 = self.symtab.find_or_create(
+                    "nfaces"+qr_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                sym = self.symtab.find_or_create(
+                    "weights_xyz"+qr_name, symbol_type=DataSymbol,
+                    datatype=ArrayType(intr_type, [Reference(dim1),
+                                                   Reference(dim2)]))
+                sym.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+                self.symtab.append_argument(sym)
+            elif shape == "gh_quadrature_edge":
+                dim1 = self.symtab.find_or_create(
+                    "np_xyz"+qr_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                dim2 = self.symtab.find_or_create(
+                    "nedges"+qr_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                sym = self.symtab.find_or_create(
+                    "weights_xyz"+qr_name, symbol_type=DataSymbol,
+                    datatype=ArrayType(intr_type, [Reference(dim1),
+                                                   Reference(dim2)]))
+                sym.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+                self.symtab.append_argument(sym)
+
+    def invoke_declarations(self):
         '''
         Add basis-function declarations to the PSy layer.
 
-        :param parent: f2pygen node represening the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
         '''
-        # Create a single declaration for each quadrature type
+        super().invoke_declarations()
         const = LFRicConstants()
-        for shape in const.VALID_QUADRATURE_SHAPES:
-            if shape in self._qr_vars and self._qr_vars[shape]:
-                # The PSy-layer routine is passed objects of
-                # quadrature_* type
-                parent.add(
-                    TypeDeclGen(parent,
-                                datatype=const.
-                                QUADRATURE_TYPE_MAP[shape]["type"],
-                                entity_decls=self._qr_vars[shape],
-                                intent="in"))
-                # For each of these we'll need a corresponding proxy, use
-                # the symbol_table to avoid clashes...
-                var_names = []
-                for var in self._qr_vars[shape]:
-                    var_names.append(
-                        self._symbol_table.find_or_create_tag(var+"_proxy")
-                                          .name)
-                parent.add(
-                    TypeDeclGen(
-                        parent,
-                        datatype=const.
-                        QUADRATURE_TYPE_MAP[shape]["proxy_type"],
-                        entity_decls=var_names))
 
-    def initialise(self, parent):
+        # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
+        # or an evaluator
+        if self._qr_vars or self._eval_targets:
+            module = self.symtab.find_or_create(
+                const.FUNCTION_SPACE_TYPE_MAP["function_space"]["module"],
+                symbol_type=ContainerSymbol)
+            self.symtab.find_or_create(
+                "BASIS", symbol_type=DataSymbol, datatype=UnresolvedType(),
+                interface=ImportInterface(module))
+            self.symtab.find_or_create(
+                "DIFF_BASIS", symbol_type=DataSymbol,
+                datatype=UnresolvedType(), interface=ImportInterface(module))
+
+        if self._qr_vars:
+            # Look-up the module- and type-names from the QUADRATURE_TYPE_MAP
+            for shp in self._qr_vars:
+                quad_map = const.QUADRATURE_TYPE_MAP[shp]
+                module = self.symtab.find_or_create(
+                    quad_map["module"],
+                    symbol_type=ContainerSymbol)
+                self.symtab.find_or_create(
+                    quad_map["type"], symbol_type=DataTypeSymbol,
+                    datatype=UnresolvedType(),
+                    interface=ImportInterface(module))
+                self.symtab.find_or_create(
+                    quad_map["proxy_type"], symbol_type=DataTypeSymbol,
+                    datatype=UnresolvedType(),
+                    interface=ImportInterface(module))
+
+        for shape in self._qr_vars.keys():
+            # The PSy-layer routine is passed objects of
+            # quadrature_* type
+            dt_symbol = self.symtab.lookup(
+                const.QUADRATURE_TYPE_MAP[shape]["type"])
+            for name in self._qr_vars[shape]:
+                new_arg = self.symtab.find_or_create(
+                    name, symbol_type=DataSymbol, datatype=dt_symbol,
+                )
+                new_arg.interface = ArgumentInterface(
+                    ArgumentInterface.Access.READ)
+                self.symtab.append_argument(new_arg)
+
+    def initialise(self, cursor: int) -> int:
         '''
         Create the declarations and assignments required for the
         basis-functions required by an invoke. These are added as children
         of the supplied parent node in the AST.
 
-        :param parent: the node in the f2pygen AST that will be the
-                       parent of all of the declarations and assignments.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+
+        :returns: Updated cursor value.
 
         :raises InternalError: if an invalid entry is encountered in the \
                                self._basis_fns list.
@@ -2773,79 +2896,82 @@ class DynBasisFunctions(LFRicCollection):
         # pylint: disable=too-many-branches, too-many-locals
         api_config = Config.get().api_conf("lfric")
         const = LFRicConstants()
-        basis_declarations = []
 
         # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
         # or an evaluator
         if self._qr_vars or self._eval_targets:
-            parent.add(
-                UseGen(parent, name=const.
-                       FUNCTION_SPACE_TYPE_MAP["function_space"]["module"],
-                       only=True, funcnames=["BASIS", "DIFF_BASIS"]))
+            module = self.symtab.find_or_create(
+                const.FUNCTION_SPACE_TYPE_MAP["function_space"]["module"],
+                symbol_type=ContainerSymbol)
+            self.symtab.find_or_create(
+                "BASIS", symbol_type=DataSymbol, datatype=UnresolvedType(),
+                interface=ImportInterface(module))
+            self.symtab.find_or_create(
+                "DIFF_BASIS", symbol_type=DataSymbol,
+                datatype=UnresolvedType(), interface=ImportInterface(module))
 
         if self._qr_vars:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Look-up quadrature variables"))
-            parent.add(CommentGen(parent, ""))
-
+            init_cursor = cursor
             # Look-up the module- and type-names from the QUADRATURE_TYPE_MAP
             for shp in self._qr_vars:
                 quad_map = const.QUADRATURE_TYPE_MAP[shp]
-                parent.add(UseGen(parent,
-                                  name=quad_map["module"],
-                                  only=True,
-                                  funcnames=[quad_map["type"],
-                                             quad_map["proxy_type"]]))
-            self._initialise_xyz_qr(parent)
-            self._initialise_xyoz_qr(parent)
-            self._initialise_xoyoz_qr(parent)
-            self._initialise_face_or_edge_qr(parent, "face")
-            self._initialise_face_or_edge_qr(parent, "edge")
+                module = self.symtab.find_or_create(
+                    quad_map["module"],
+                    symbol_type=ContainerSymbol)
+                symbol = self.symtab.lookup(quad_map["type"])
+                symbol.interface = ImportInterface(module)
+                symbol = self.symtab.lookup(quad_map["proxy_type"])
+                symbol.interface = ImportInterface(module)
 
-        if self._eval_targets:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " Initialise evaluator-related quantities "
-                                  "for the target function spaces"))
-            parent.add(CommentGen(parent, ""))
+            cursor = self._initialise_xyz_qr(cursor)
+            cursor = self._initialise_xyoz_qr(cursor)
+            cursor = self._initialise_xoyoz_qr(cursor)
+            cursor = self._initialise_face_or_edge_qr(cursor, "face")
+            cursor = self._initialise_face_or_edge_qr(cursor, "edge")
 
+            if init_cursor < cursor:
+                self._invoke.schedule[init_cursor].preceding_comment = (
+                    "Look-up quadrature variables")
+
+        first = True
         for (fspace, arg) in self._eval_targets.values():
             # We need the list of nodes for each unique FS upon which we need
             # to evaluate basis/diff-basis functions
             nodes_name = "nodes_" + fspace.mangled_name
-            parent.add(AssignGen(
-                parent, lhs=nodes_name,
-                rhs="%".join([arg.proxy_name_indexed, arg.ref_name(fspace),
-                              "get_nodes()"]),
-                pointer=True))
-            my_kind = api_config.default_kind["real"]
-            parent.add(DeclGen(parent, datatype="real",
-                               kind=my_kind,
-                               pointer=True,
-                               entity_decls=[nodes_name+"(:,:) => null()"]))
-            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-            const_mod_uses = self._invoke.invokes.psy. \
-                infrastructure_modules[const_mod]
-            # Record that we will need to import the kind for a
-            # pointer declaration (associated with a function
-            # space) from the appropriate infrastructure module
-            const_mod_uses.add(my_kind)
+            kind = api_config.default_kind["real"]
+            symbol = self.symtab.new_symbol(
+                nodes_name, symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(
+                    f"real(kind={kind}), pointer :: {nodes_name}"
+                    f"(:,:) => null()",
+                    partial_datatype=ArrayType(
+                        LFRicTypes("LFRicRealScalarDataType")(),
+                        [ArrayType.Extent.DEFERRED]*2)
+                    ))
+            assignment = Assignment.create(
+                    lhs=Reference(symbol),
+                    rhs=arg.generate_method_call(
+                        "get_nodes", function_space=fspace),
+                    is_pointer=True)
+            if first:
+                assignment.preceding_comment = (
+                    "Initialise evaluator-related quantities for the target "
+                    "function spaces")
+                first = False
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
 
-        if self._basis_fns:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Allocate basis/diff-basis arrays"))
-            parent.add(CommentGen(parent, ""))
-
+        init_cursor = cursor
         var_dim_list = []
         for basis_fn in self._basis_fns:
             # Get the extent of the first dimension of the basis array.
             if basis_fn['type'] == "basis":
                 first_dim = self.basis_first_dim_name(basis_fn["fspace"])
-                dim_space = "get_dim_space()"
+                dim_space = "get_dim_space"
             elif basis_fn['type'] == "diff-basis":
                 first_dim = self.diff_basis_first_dim_name(
                     basis_fn["fspace"])
-                dim_space = "get_dim_space_diff()"
+                dim_space = "get_dim_space_diff"
             else:
                 raise InternalError(
                     f"Unrecognised type of basis function: "
@@ -2854,40 +2980,44 @@ class DynBasisFunctions(LFRicCollection):
 
             if first_dim not in var_dim_list:
                 var_dim_list.append(first_dim)
-                rhs = "%".join(
-                    [basis_fn["arg"].proxy_name_indexed,
-                     basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                     dim_space])
-                parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
+                symbol = self.symtab.find_or_create(
+                    first_dim, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
-        var_dims, basis_arrays = self._basis_fn_declns()
+                assignment = Assignment.create(
+                        lhs=Reference(symbol),
+                        rhs=basis_fn["arg"].generate_method_call(
+                                dim_space, function_space=basis_fn["fspace"]))
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
 
-        if var_dims:
-            # declare dim and diff_dim for all function spaces
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=var_dims))
+        _, basis_arrays = self._basis_fn_declns()
 
-        basis_declarations = []
+        # Allocate basis arrays
         for basis in basis_arrays:
-            parent.add(
-                AllocateGen(parent,
-                            basis+"("+", ".join(basis_arrays[basis])+")"))
-            basis_declarations.append(
-                basis+"("+",".join([":"]*len(basis_arrays[basis]))+")")
-
-        # declare the basis function arrays
-        if basis_declarations:
-            my_kind = api_config.default_kind["real"]
-            parent.add(DeclGen(parent, datatype="real", kind=my_kind,
-                               allocatable=True,
-                               entity_decls=basis_declarations))
-            # Default kind (r_def) will always already exist due to
-            # arrays associated with gh_shape, so there is no need to
-            # declare it here.
+            dims = "("+",".join([":"]*len(basis_arrays[basis]))+")"
+            symbol = self.symtab.find_or_create(
+                basis, symbol_type=DataSymbol, datatype=UnsupportedFortranType(
+                    f"real(kind=r_def), allocatable :: {basis}{dims}"
+                ))
+            alloc = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.ALLOCATE,
+                [ArrayReference.create(
+                    symbol,
+                    [Reference(self.symtab.find_or_create(
+                                bn, symbol_type=DataSymbol,
+                                datatype=UnresolvedType()))
+                     for bn in basis_arrays[basis]])]
+            )
+            self._invoke.schedule.addchild(alloc, cursor)
+            cursor += 1
 
         # Compute the values for any basis arrays
-        self._compute_basis_fns(parent)
+        cursor = self._compute_basis_fns(cursor)
+        if init_cursor < cursor:
+            self._invoke.schedule[init_cursor].preceding_comment = (
+                "Allocate basis/diff-basis arrays")
+        return cursor
 
     def _basis_fn_declns(self):
         '''
@@ -3001,104 +3131,123 @@ class DynBasisFunctions(LFRicCollection):
 
         return (var_dim_list, basis_arrays)
 
-    def _initialise_xyz_qr(self, parent):
+    def _initialise_xyz_qr(self, cursor: int) -> int:
         '''
         Add in the initialisation of variables needed for XYZ
         quadrature
 
-        :param parent: the node in the AST representing the PSy subroutine
-                       in which to insert the initialisation
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+
+        :returns: Updated cursor value.
 
         '''
         # pylint: disable=unused-argument
         # This shape is not yet supported so we do nothing
-        return
+        return cursor
 
-    def _initialise_xyoz_qr(self, parent):
+    def _initialise_xyoz_qr(self, cursor):
         '''
         Add in the initialisation of variables needed for XYoZ
         quadrature
 
-        :param parent: the node in the AST representing the PSy subroutine
-                       in which to insert the initialisation
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
-        api_config = Config.get().api_conf("lfric")
+        const = LFRicConstants()
 
         if "gh_quadrature_xyoz" not in self._qr_vars:
-            return
+            return cursor
 
         for qr_arg_name in self._qr_vars["gh_quadrature_xyoz"]:
 
             # We generate unique names for the integers holding the numbers
             # of quadrature points by appending the name of the quadrature
             # argument
-            parent.add(
-                DeclGen(
-                    parent, datatype="integer",
-                    kind=api_config.default_kind["integer"],
-                    entity_decls=[name+"_"+qr_arg_name
-                                  for name in self.qr_dim_vars["xyoz"]]))
-            decl_list = [name+"_"+qr_arg_name+"(:) => null()"
-                         for name in self.qr_weight_vars["xyoz"]]
-            const = LFRicConstants()
-            datatype = \
+            for name in self.qr_dim_vars["xyoz"]:
+                self.symtab.new_symbol(
+                    name+"_"+qr_arg_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            dtype = \
                 const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["intrinsic"]
             kind = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["kind"]
-            parent.add(
-                DeclGen(parent, datatype=datatype, kind=kind,
-                        pointer=True, entity_decls=decl_list))
-            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-            const_mod_uses = self._invoke.invokes.psy. \
-                infrastructure_modules[const_mod]
-            # Record that we will need to import the kind for a
-            # declaration (associated with quadrature) from
-            # the appropriate infrastructure module
-            const_mod_uses.add(kind)
+            for name in self.qr_weight_vars["xyoz"]:
+                self.symtab.find_or_create(
+                    name+"_"+qr_arg_name, symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(
+                        f"{dtype}(kind={kind}), pointer :: "
+                        f"{name}_{qr_arg_name}(:) => null()"))
 
             # Get the quadrature proxy
-            proxy_name = qr_arg_name + "_proxy"
-            parent.add(
-                AssignGen(parent, lhs=proxy_name,
-                          rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
+            dtp_symbol = self.symtab.lookup(
+                const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["proxy_type"])
+            proxy_symbol = self.symtab.find_or_create(
+                    qr_arg_name+"_proxy", symbol_type=DataSymbol,
+                    datatype=dtp_symbol)
+            symbol = self.symtab.lookup(qr_arg_name)
+
+            assignment = Assignment.create(
+                    lhs=Reference(proxy_symbol),
+                    rhs=Call.create(
+                        StructureReference.create(
+                            symbol, ['get_quadrature_proxy'])))
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
+
             # Number of points in each dimension
             for qr_var in self.qr_dim_vars["xyoz"]:
-                parent.add(
-                    AssignGen(parent, lhs=qr_var+"_"+qr_arg_name,
-                              rhs=proxy_name+"%"+qr_var))
+                self._invoke.schedule.addchild(
+                    Assignment.create(
+                        lhs=Reference(self.symtab.lookup(
+                                qr_var+"_"+qr_arg_name)),
+                        rhs=StructureReference.create(
+                                proxy_symbol, [qr_var])),
+                    cursor)
+                cursor += 1
+
             # Pointers to the weights arrays
             for qr_var in self.qr_weight_vars["xyoz"]:
-                parent.add(
-                    AssignGen(parent, pointer=True,
-                              lhs=qr_var+"_"+qr_arg_name,
-                              rhs=proxy_name+"%"+qr_var))
+                self._invoke.schedule.addchild(
+                    Assignment.create(
+                        lhs=Reference(self.symtab.lookup(
+                                qr_var+"_"+qr_arg_name)),
+                        rhs=StructureReference.create(
+                                proxy_symbol, [qr_var]),
+                        is_pointer=True),
+                    cursor)
+                cursor += 1
 
-    def _initialise_xoyoz_qr(self, parent):
+        return cursor
+
+    def _initialise_xoyoz_qr(self, cursor: int) -> int:
         '''
         Add in the initialisation of variables needed for XoYoZ
         quadrature.
 
-        :param parent: the node in the AST representing the PSy subroutine \
-                       in which to insert the initialisation.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+
+        :returns: Updated cursor value.
 
         '''
         # pylint: disable=unused-argument
         # This shape is not yet supported so we do nothing
-        return
+        return cursor
 
-    def _initialise_face_or_edge_qr(self, parent, qr_type):
+    def _initialise_face_or_edge_qr(self, cursor, qr_type):
         '''
         Add in the initialisation of variables needed for face or edge
         quadrature.
 
-        :param parent: the node in the AST representing the PSy subroutine \
-                       in which to insert the initialisation.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
         :param str qr_type: whether to generate initialisation code for \
                             "face" or "edge" quadrature.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises InternalError: if `qr_type` is not "face" or "edge".
 
@@ -3111,84 +3260,96 @@ class DynBasisFunctions(LFRicCollection):
         quadrature_name = f"gh_quadrature_{qr_type}"
 
         if quadrature_name not in self._qr_vars:
-            return
-
-        api_config = Config.get().api_conf("lfric")
-        symbol_table = self._symbol_table
+            return cursor
 
         for qr_arg_name in self._qr_vars[quadrature_name]:
+
+            arg_symbol = self.symtab.lookup(qr_arg_name)
+            arg_symbol.interface = ArgumentInterface(
+                                    ArgumentInterface.Access.READ)
+            self.symtab.append_argument(arg_symbol)
+
             # We generate unique names for the integers holding the numbers
             # of quadrature points by appending the name of the quadrature
             # argument
-            decl_list = [
-                symbol_table.find_or_create_integer_symbol(
-                    name+"_"+qr_arg_name, tag=name+"_"+qr_arg_name).name
-                for name in self.qr_dim_vars[qr_type]]
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=decl_list))
+            for name in self.qr_dim_vars[qr_type]:
+                self.symtab.find_or_create(
+                    name+"_"+qr_arg_name, tag=name+"_"+qr_arg_name,
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
-            names = [f"{name}_{qr_arg_name}"
-                     for name in self.qr_weight_vars[qr_type]]
-            decl_list = [
-                symbol_table.find_or_create_array(name, 2,
-                                                  ScalarType.Intrinsic.REAL,
-                                                  tag=name).name
-                + "(:,:) => null()" for name in names]
+            array_type = ArrayType(
+                LFRicTypes("LFRicRealScalarDataType")(),
+                [ArrayType.Extent.DEFERRED]*2)
+            for name in self.qr_weight_vars[qr_type]:
+                self.symtab.find_or_create(
+                    f"{name}_{qr_arg_name}", symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(
+                        f"real(kind=r_def), pointer, dimension(:,:) :: "
+                        f"{name}_{qr_arg_name} => null()\n",
+                        partial_datatype=array_type
+                    ),
+                    tag=f"{name}_{qr_arg_name}")
             const = LFRicConstants()
-            datatype = const.QUADRATURE_TYPE_MAP[quadrature_name]["intrinsic"]
-            kind = const.QUADRATURE_TYPE_MAP[quadrature_name]["kind"]
-            parent.add(
-                DeclGen(parent, datatype=datatype, pointer=True, kind=kind,
-                        entity_decls=decl_list))
-            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-            const_mod_uses = self._invoke.invokes.psy. \
-                infrastructure_modules[const_mod]
-            # Record that we will need to import the kind for a
-            # declaration (associated with quadrature) from the
-            # appropriate infrastructure module
-            const_mod_uses.add(kind)
+
             # Get the quadrature proxy
-            proxy_name = symbol_table.find_or_create_tag(
-                qr_arg_name+"_proxy").name
-            parent.add(
-                AssignGen(parent, lhs=proxy_name,
-                          rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
+            ptype = self.symtab.lookup(
+                const.QUADRATURE_TYPE_MAP[quadrature_name]["proxy_type"])
+
+            proxy_sym = self.symtab.find_or_create_tag(
+                qr_arg_name+"_proxy", symbol_type=DataSymbol, datatype=ptype)
+            call = Call.create(
+                StructureReference.create(
+                    self.symtab.lookup(qr_arg_name),
+                    ["get_quadrature_proxy"]))
+            assignment = Assignment.create(
+                    lhs=Reference(proxy_sym),
+                    rhs=call)
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
+
             # The dimensioning variables required for this quadrature
             # (e.g. nedges/nfaces, np_xyz)
             for qr_var in self.qr_dim_vars[qr_type]:
-                parent.add(
-                    AssignGen(parent, lhs=qr_var+"_"+qr_arg_name,
-                              rhs=proxy_name+"%"+qr_var))
+                qr_sym = self.symtab.lookup(qr_var+'_'+qr_arg_name)
+                assignment = Assignment.create(
+                        lhs=Reference(qr_sym),
+                        rhs=StructureReference.create(proxy_sym, [qr_var]))
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
+
             # Pointers to the weights arrays
             for qr_var in self.qr_weight_vars[qr_type]:
-                parent.add(
-                    AssignGen(parent, pointer=True,
-                              lhs=qr_var+"_"+qr_arg_name,
-                              rhs=proxy_name+"%"+qr_var))
+                qr_sym = self.symtab.lookup(qr_var+'_'+qr_arg_name)
+                assignment = Assignment.create(
+                        lhs=Reference(qr_sym),
+                        rhs=StructureReference.create(
+                            proxy_sym, [qr_var]),
+                        is_pointer=True)
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
 
-    def _compute_basis_fns(self, parent):
+        return cursor
+
+    def _compute_basis_fns(self, cursor):
         '''
         Generates the necessary Fortran to compute the values of
         any basis/diff-basis arrays required
 
-        :param parent: Node in the f2pygen AST which will be the parent
-                       of the assignments created in this routine
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         # pylint: disable=too-many-locals
         const = LFRicConstants()
-        api_config = Config.get().api_conf("lfric")
 
         loop_var_list = set()
         op_name_list = []
-        # add calls to compute the values of any basis arrays
-        if self._basis_fns:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Compute basis/diff-basis arrays"))
-            parent.add(CommentGen(parent, ""))
 
+        # add calls to compute the values of any basis arrays
+        first = True
         for basis_fn in self._basis_fns:
 
             # Currently there are only two possible types of basis function
@@ -3217,15 +3378,24 @@ class DynBasisFunctions(LFRicCollection):
                 op_name_list.append(op_name)
 
                 # Create the argument list
-                args = [basis_type, basis_fn["arg"].proxy_name_indexed + "%" +
-                        basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                        first_dim, basis_fn["fspace"].ndf_name, op_name]
+                args = [Reference(self.symtab.lookup(basis_type)),
+                        basis_fn["arg"].generate_accessor(basis_fn["fspace"]),
+                        Reference(self.symtab.lookup(first_dim)),
+                        Reference(self.symtab.lookup(
+                            basis_fn["fspace"].ndf_name)),
+                        Reference(self.symtab.lookup(op_name))]
 
                 # insert the basis array call
-                parent.add(
-                    CallGen(parent,
-                            name=basis_fn["qr_var"]+"%compute_function",
-                            args=args))
+                call = Call.create(
+                    StructureReference.create(
+                        self.symtab.lookup(basis_fn["qr_var"]),
+                        ["compute_function"]),
+                    args)
+                if first:
+                    call.preceding_comment = "Compute basis/diff-basis arrays"
+                    first = False
+                self._invoke.schedule.addchild(call, cursor)
+                cursor += 1
             elif basis_fn["shape"].lower() == "gh_evaluator":
                 # We have an evaluator. We may need this on more than one
                 # function space.
@@ -3241,50 +3411,68 @@ class DynBasisFunctions(LFRicCollection):
                     loop_var_list.add(nodal_loop_var)
 
                     # Loop over dofs of target function space
-                    nodal_dof_loop = DoGen(
-                        parent, nodal_loop_var, "1", space.ndf_name)
-                    parent.add(nodal_dof_loop)
+                    symbol = self.symtab.find_or_create_tag(
+                        nodal_loop_var,
+                        symbol_type=DataSymbol,
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                    loop = Loop.create(
+                            symbol, Literal('1', INTEGER_TYPE),
+                            Reference(self.symtab.lookup(space.ndf_name)),
+                            Literal('1', INTEGER_TYPE), [])
+                    if first:
+                        loop.preceding_comment = (
+                            "Compute basis/diff-basis arrays")
+                        first = False
+                    self._invoke.schedule.addchild(loop, cursor)
+                    cursor += 1
 
                     dof_loop_var = "df_" + basis_fn["fspace"].mangled_name
                     loop_var_list.add(dof_loop_var)
 
-                    dof_loop = DoGen(nodal_dof_loop, dof_loop_var,
-                                     "1", basis_fn["fspace"].ndf_name)
-                    nodal_dof_loop.add(dof_loop)
-                    lhs = op_name + "(:," + "df_" + \
-                        basis_fn["fspace"].mangled_name + "," + "df_nodal)"
-                    rhs = (f"{basis_fn['arg'].proxy_name_indexed}%"
-                           f"{basis_fn['arg'].ref_name(basis_fn['fspace'])}%"
-                           f"call_function({basis_type},{dof_loop_var},nodes_"
-                           f"{space.mangled_name}(:,{nodal_loop_var}))")
-                    dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
+                    symbol = self.symtab.find_or_create_tag(
+                        dof_loop_var,
+                        symbol_type=DataSymbol,
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                    inner_loop = Loop.create(
+                            symbol, Literal('1', INTEGER_TYPE),
+                            Reference(self.symtab.lookup(
+                                        basis_fn["fspace"].ndf_name)),
+                            Literal('1', INTEGER_TYPE), [])
+                    loop.loop_body.addchild(inner_loop)
+
+                    symbol = self.symtab.lookup(op_name)
+                    rhs = basis_fn['arg'].generate_method_call(
+                        "call_function", function_space=basis_fn['fspace'])
+                    rhs.addchild(Reference(self.symtab.lookup(basis_type)))
+                    rhs.addchild(Reference(self.symtab.lookup(dof_loop_var)))
+                    rhs.addchild(ArrayReference.create(
+                            self.symtab.lookup(f"nodes_{space.mangled_name}"),
+                            [":", Reference(self.symtab.lookup(
+                                                    nodal_loop_var))]))
+                    inner_loop.loop_body.addchild(
+                        Assignment.create(
+                            lhs=ArrayReference.create(symbol, [
+                                ":",
+                                Reference(self.symtab.lookup(
+                                    f"df_{basis_fn['fspace'].mangled_name}")),
+                                Reference(self.symtab.lookup("df_nodal"))
+                            ]),
+                            rhs=rhs))
             else:
                 raise InternalError(
                     f"Unrecognised shape '{basis_fn['''shape''']}' specified "
                     f"for basis function. Should be one of: "
                     f"{const.VALID_EVALUATOR_SHAPES}")
-        if loop_var_list:
-            # Declare any loop variables
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=sorted(loop_var_list)))
+        return cursor
 
-    def deallocate(self, parent):
+    def deallocate(self):
         '''
-        Add code to deallocate all basis/diff-basis function arrays
+        Add code (at the end of the Invoke Schedule) to deallocate all
+        basis/diff-basis function arrays.
 
-        :param parent: node in the f2pygen AST to which the deallocate \
-                       calls will be added.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        :raises InternalError: if an unrecognised type of basis function \
+        :raises InternalError: if an unrecognised type of basis function
                                is encountered.
         '''
-        if self._basis_fns:
-            # deallocate all allocated basis function arrays
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Deallocate basis arrays"))
-            parent.add(CommentGen(parent, ""))
 
         func_space_var_names = set()
         for basis_fn in self._basis_fns:
@@ -3305,9 +3493,17 @@ class DynBasisFunctions(LFRicCollection):
                                       on_space=fspace)
                 func_space_var_names.add(op_name)
 
+        first = True
         if func_space_var_names:
             # add the required deallocate call
-            parent.add(DeallocateGen(parent, sorted(func_space_var_names)))
+            dealloc = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.DEALLOCATE,
+                [Reference(self.symtab.lookup(name)) for name in
+                 sorted(func_space_var_names)]
+            )
+            if first:
+                dealloc.preceding_comment = "Deallocate basis arrays"
+            self._invoke.schedule.children.append(dealloc)
 
 
 class DynBoundaryConditions(LFRicCollection):
@@ -3339,7 +3535,7 @@ class DynBoundaryConditions(LFRicCollection):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.metadata_to_arguments_rules import (
             MetadataToArgumentsRules)
-        for call in self._calls:
+        for call in self.kernel_calls:
             if MetadataToArgumentsRules.bc_kern_regex.match(call.name):
                 bc_fs = None
                 for fspace in call.arguments.unique_fss:
@@ -3363,57 +3559,75 @@ class DynBoundaryConditions(LFRicCollection):
                 bc_fs = op_arg.function_space_to
                 self._boundary_dofs.append(self.BoundaryDofs(op_arg, bc_fs))
 
-    def _invoke_declarations(self, parent):
+    def invoke_declarations(self):
         '''
         Add declarations for any boundary-dofs arrays required by an Invoke.
 
-        :param parent: node in the PSyIR to which to add declarations.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
         '''
+        super().invoke_declarations()
         api_config = Config.get().api_conf("lfric")
 
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True,
-                               entity_decls=[name+"(:,:) => null()"]))
+            kind = api_config.default_kind["integer"]
+            dtype = UnsupportedFortranType(
+                f"integer(kind={kind}), pointer "
+                f":: {name}(:,:) => null()",
+                partial_datatype=ArrayType(
+                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                    [ArrayType.Extent.DEFERRED]*2)
+                )
+            self.symtab.new_symbol(
+                name,
+                symbol_type=DataSymbol,
+                datatype=dtype)
 
-    def _stub_declarations(self, parent):
+    def stub_declarations(self):
         '''
         Add declarations for any boundary-dofs arrays required by a kernel.
-
-        :param parent: node in the PSyIR to which to add declarations.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        Note that argument order is redefined later by ArgOrdering.
 
         '''
-        api_config = Config.get().api_conf("lfric")
-
+        super().stub_declarations()
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
-            ndf_name = dofs.function_space.ndf_name
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in",
-                               dimension=",".join([ndf_name, "2"]),
-                               entity_decls=[name]))
+            ndf_name = self.symtab.lookup(dofs.function_space.ndf_name)
+            dtype = ArrayType(
+                LFRicTypes("LFRicIntegerScalarDataType")(),
+                [Reference(ndf_name), Literal("2", INTEGER_TYPE)])
+            new_symbol = self.symtab.new_symbol(
+                name,
+                symbol_type=DataSymbol,
+                datatype=dtype,
+                interface=ArgumentInterface(
+                    ArgumentInterface.Access.READ)
+            )
+            self.symtab.append_argument(new_symbol)
 
-    def initialise(self, parent):
+    def initialise(self, cursor):
         '''
         Initialise any boundary-dofs arrays required by an Invoke.
 
-        :param parent: node in PSyIR to which to add declarations.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
-            parent.add(AssignGen(
-                parent, pointer=True, lhs=name,
-                rhs="%".join([dofs.argument.proxy_name,
-                              dofs.argument.ref_name(dofs.function_space),
-                              "get_boundary_dofs()"])))
+            self._invoke.schedule.addchild(
+                Assignment.create(
+                    lhs=Reference(self.symtab.lookup(name)),
+                    rhs=dofs.argument.generate_method_call(
+                        "get_boundary_dofs",
+                        function_space=dofs.function_space),
+                    is_pointer=True
+                ),
+                cursor)
+            cursor += 1
+
+        return cursor
 
 
 class DynGlobalSum(GlobalSum):
@@ -3452,27 +3666,41 @@ class DynGlobalSum(GlobalSum):
         # Initialise the parent class
         super().__init__(scalar, parent=parent)
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Dynamo-specific code generation for this class.
-
-        :param parent: f2pygen node to which to add AST nodes.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
+        :returns: this node lowered to language-level PSyIR.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
+
+        # Get the name strings to use
         name = self._scalar.name
-        # Use InvokeSchedule SymbolTable to share the same symbol for all
-        # GlobalSums in the Invoke.
-        sum_name = self.ancestor(InvokeSchedule).symbol_table.\
-            find_or_create_tag("global_sum").name
-        sum_type = self._scalar.data_type
-        sum_mod = self._scalar.module_name
-        parent.add(UseGen(parent, name=sum_mod, only=True,
-                          funcnames=[sum_type]))
-        parent.add(TypeDeclGen(parent, datatype=sum_type,
-                               entity_decls=[sum_name]))
-        parent.add(AssignGen(parent, lhs=sum_name+"%value", rhs=name))
-        parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
+        type_name = self._scalar.data_type
+        mod_name = self._scalar.module_name
+
+        # Get the symbols from the given names
+        symtab = self.ancestor(InvokeSchedule).symbol_table
+        sum_mod = symtab.find_or_create(mod_name, symbol_type=ContainerSymbol)
+        sum_type = symtab.find_or_create(type_name,
+                                         symbol_type=DataTypeSymbol,
+                                         datatype=UnresolvedType(),
+                                         interface=ImportInterface(sum_mod))
+        sum_name = symtab.find_or_create_tag("global_sum",
+                                             symbol_type=DataSymbol,
+                                             datatype=sum_type)
+        tmp_var = symtab.lookup(name)
+
+        # Create the assignments
+        assign1 = Assignment.create(
+            lhs=StructureReference.create(sum_name, ["value"]),
+            rhs=Reference(tmp_var)
+        )
+        assign1.preceding_comment = "Perform global sum"
+        self.parent.addchild(assign1, self.position)
+        assign2 = Assignment.create(
+            lhs=Reference(tmp_var),
+            rhs=Call.create(StructureReference.create(sum_name, ["get_sum"]))
+        )
+        return self.replace_with(assign2)
 
 
 def _create_depth_list(halo_info_list, parent):
@@ -3741,7 +3969,7 @@ class LFRicHaloExchange(HaloExchange):
             raise InternalError(
                 "Internal logic error. There should be at least one read "
                 "dependence for a halo exchange.")
-        return [HaloReadAccess(read_dependency, self._symbol_table) for
+        return [HaloReadAccess(read_dependency, self._parent) for
                 read_dependency in read_dependencies]
 
     def _compute_halo_write_info(self):
@@ -3936,23 +4164,11 @@ class LFRicHaloExchange(HaloExchange):
         '''
         _, known = self.required()
         runtime_check = not known
-        field_id = self._field.name
-        if self.vector_index:
-            field_id += f"({self.vector_index})"
+        field_id = self._field.name_indexed
         return (f"{self.coloured_name(colour)}[field='{field_id}', "
                 f"type='{self._compute_stencil_type()}', "
                 f"depth={self._compute_halo_depth().debug_string()}, "
                 f"check_dirty={runtime_check}]")
-
-    def gen_code(self, parent):
-        '''Dynamo specific code generation for this class.
-
-        :param parent: an f2pygen object that will be the parent of \
-        f2pygen objects created in this method
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        parent.add(PSyIRGen(parent, self))
 
     def lower_to_language_level(self):
         '''
@@ -3988,6 +4204,7 @@ class LFRicHaloExchange(HaloExchange):
         else:
             haloex = if_body
 
+        haloex.preceding_comment = self.preceding_comment
         self.replace_with(haloex)
         return haloex
 
@@ -4161,6 +4378,8 @@ class HaloDepth():
                    access that is represented.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
+    :raises TypeError: if the parent argument is not a Node.
+
     '''
     def __init__(self, parent):
         # var_depth is used to store the PSyIR of the expression holding
@@ -4185,6 +4404,11 @@ class HaloDepth():
         # variables holding the maximum halo depth.
         # TODO #2503: This can become invalid if the HaloExchange
         # containing this HaloDepth changes its ancestors.
+        if not isinstance(parent, Node):
+            raise TypeError(
+                f"The HaloDepth parent argument must be a Node, but found: "
+                f"{type(parent).__name__}"
+            )
         self._parent = parent
 
     @property
@@ -4259,7 +4483,7 @@ class HaloDepth():
         # have to create a fake Assignment and temporarily graft it into the
         # tree.
         fake_assign = Assignment.create(
-            Reference(DataSymbol("tmp", INTEGER_TYPE)), var_depth.detach())
+            Reference(DataSymbol("tmp", INTEGER_TYPE)), var_depth.copy())
         sched = self._parent.ancestor(Schedule, include_self=True)
         sched.addchild(fake_assign)
 
@@ -4462,9 +4686,8 @@ class HaloReadAccess(HaloDepth):
 
     :param field: the field for which we want information.
     :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param sym_table: the symbol table associated with the scoping region
-                      that contains this halo access.
-    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param parent: the node where this HaloDepth belongs.
+    :type parent: :py:class:`psyclone.psyir.node.Node`
 
     '''
     def __init__(self, field, parent=None):
@@ -4873,8 +5096,11 @@ class DynKernelArguments(Arguments):
                     # symbol_table.
                     tag = "AlgArgs_" + arg.stencil.extent_arg.text
                     root = arg.stencil.extent_arg.varname
-                    new_name = symtab.find_or_create_tag(tag, root).name
-                    arg.stencil.extent_arg.varname = new_name
+                    symbol = symtab.find_or_create_tag(
+                        tag, root, symbol_type=DataSymbol,
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                    )
+                    arg.stencil.extent_arg.varname = symbol.name
             if arg.descriptor.stencil['type'] == 'xory1d':
                 # a direction argument has been added
                 if arg.stencil.direction_arg.varname and \
@@ -4884,9 +5110,12 @@ class DynKernelArguments(Arguments):
                     # it is unique in the PSy layer
                     tag = "AlgArgs_" + arg.stencil.direction_arg.text
                     root = arg.stencil.direction_arg.varname
-                    new_name = symtab.find_or_create_integer_symbol(
-                        root, tag=tag).name
-                    arg.stencil.direction_arg.varname = new_name
+                    symbol = symtab.find_or_create_tag(
+                        tag, root,
+                        symbol_type=DataSymbol,
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                    )
+                    arg.stencil.direction_arg.varname = symbol.name
 
         self._dofs = []
 
@@ -5208,6 +5437,55 @@ class DynKernelArgument(KernelArgument):
         # _init_data_type_properties() so the precision info etc is
         # already set up)
         self._complete_init(arg_info)
+
+    def generate_method_call(self, method, function_space=None):
+        '''
+        Generate a PSyIR call to the given method of this object.
+
+        :param str method: name of the method to generate a call to.
+        :param Optional[str] function_space: name of the function space.
+
+        :returns: the generated call.
+        :rtype: :py:class:`psyclone.psyir.nodes.Call`
+        '''
+
+        # Go through invoke.schedule in case the link has bee updated
+        symtab = self._call.ancestor(InvokeSchedule).invoke.schedule\
+            .symbol_table
+        # Use the proxy variable as derived type base
+        symbol = symtab.lookup(self.proxy_name)
+
+        if self._vector_size > 1:
+            # For a field vector, just call the specified method on the first
+            # element
+            return Call.create(ArrayOfStructuresReference.create(
+                symbol, [Literal('1', INTEGER_TYPE)],
+                [self.ref_name(function_space), method]))
+        return Call.create(StructureReference.create(
+            symbol, [self.ref_name(function_space), method]))
+
+    def generate_accessor(self, function_space=None):
+        '''
+        Generate a Reference accessing this object's data.
+
+        :param Optional[str] function_space: name of the function space.
+
+        :returns: the generated Reference.
+        :rtype: :py:class:`psyclone.psyir.nodes.Reference`
+        '''
+
+        # Go through invoke.schedule in case the link has bee updated
+        symtab = self._call.ancestor(InvokeSchedule).invoke\
+            .schedule.symbol_table
+        symbol = symtab.lookup(self.proxy_name)
+
+        if self._vector_size > 1:
+            # For a field vector, access the first element
+            return ArrayOfStructuresReference.create(
+                symbol, [Literal('1', INTEGER_TYPE)],
+                [self.ref_name(function_space)])
+        return StructureReference.create(
+            symbol, [self.ref_name(function_space)])
 
     def ref_name(self, function_space=None):
         '''
@@ -5984,7 +6262,7 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for.
 __all__ = [
     'DynFuncDescriptor03',
     'DynFunctionSpaces',
