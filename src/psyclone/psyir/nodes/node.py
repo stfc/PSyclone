@@ -1083,14 +1083,40 @@ class Node():
             raise InternalError(
                 f"Search for Node position started from {position} "
                 f"instead of {self.START_POSITION}.")
-        for child in children:
-            position += 1
-            if child is self:
-                return True, position
-            if child.children:
-                found, position = self._find_position(child.children, position)
-                if found:
+        # If we're not provided a valid children input, then we can't find
+        # the position.
+        if not children:
+            return False, 0
+
+        tree_stack = []
+        position_stack = [0]
+        tree_stack.append(children[0].parent)
+        while len(tree_stack) > 0:
+            current = tree_stack[-1]
+            current_pos = position_stack[-1]
+            if len(current.children) > current_pos:
+                child = current.children[current_pos]
+                position += 1
+                if child is self:
                     return True, position
+                # Increment the position stack for next time.
+                position_stack[-1] = current_pos + 1
+                # If this child has children, we add it to the stack.
+                if child.children:
+                    tree_stack.append(child)
+                    position_stack.append(0)
+            else:
+                tree_stack.pop()
+                position_stack.pop()
+
+#        for child in children:
+#            position += 1
+#            if child is self:
+#                return True, position
+#            if child.children:
+#                found, position = self._find_position(child.children, position)
+#                if found:
+#                    return True, position
         return False, position
 
     @property
