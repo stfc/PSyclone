@@ -711,13 +711,16 @@ def test_halo_for_annexed_dofs_read(tmpdir, annexed, monkeypatch):
     if annexed:
         assert "loop0_stop = f2_proxy%vspace%get_last_dof_annexed" in result
         assert "loop1_stop = mesh%get_last_edge_cell()" in result
+        # Halo dofs are left dirty, even though the annexed dofs are clean
+        assert "call f2_proxy%set_dirty()" in result
         # No halo exchange required
         assert "call f2_proxy%halo_exchange" not in result
     else:
         assert "loop0_stop = f2_proxy%vspace%get_last_dof_owned()" in result
         assert "loop1_stop = mesh%get_last_edge_cell()" in result
         # f2 must be halo-exchanged to clean its annexed dofs.
-        assert "call f2_proxy%haloxxxx" in result
+        assert "call f2_proxy%set_dirty()" in result
+        assert "call f2_proxy%halo_exchange(depth=1)" in result
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 

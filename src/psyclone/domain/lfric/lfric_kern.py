@@ -601,13 +601,14 @@ class LFRicKern(CodedKern):
         return self._mesh_properties
 
     @property
-    def all_updates_are_writes(self):
+    def all_updates_are_writes(self) -> bool:
         '''
-        :returns: True if all of the arguments updated by this kernel have \
+        :returns: True if this kernel updates an argument on a continuous
+                  space and all of the updated arguments have
                   'GH_WRITE' access, False otherwise.
-        :rtype: bool
-
         '''
+        if self.arguments.iteration_space_arg().discontinuous:
+            return False
         accesses = set(arg.access for arg in self.args)
         all_writes = AccessType.all_write_accesses()
         all_writes.remove(AccessType.WRITE)
