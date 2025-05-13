@@ -1032,7 +1032,6 @@ class Node():
                 f"but got: '{type(abs_position).__name__}'"
             )
         self._cached_abs_position = abs_position
-        
 
     @property
     def abs_position(self):
@@ -1058,7 +1057,6 @@ class Node():
             raise InternalError("Error in search for Node position "
                                 "in the tree")
         return position
-
 
     def _find_position(self, children, position=None):
         '''

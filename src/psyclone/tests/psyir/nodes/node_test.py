@@ -287,25 +287,25 @@ def test_compute_cached_abs_positions(fortran_reader):
     """
     psyir = fortran_reader.psyir_from_source(code)
     # Check the caches are initially unset.
-    for node in psyir.walk(Node):
-        assert node.cached_abs_position is None
+    for child in psyir.walk(Node):
+        assert child.cached_abs_position is None
     psyir.children[0].children[0].compute_cached_abs_positions()
-    for node in psyir.walk(Node):
+    for child in psyir.walk(Node):
         # Compare to original abs_position implementation
-        if node is node.root:
-            assert node.cached_abs_position == node.START_POSITION
+        if child is child.root:
+            assert child.cached_abs_position == child.START_POSITION
         else:
-            found, position = node._find_position(node.root.children,
-                                                  node.START_POSITION)
+            found, position = child._find_position(child.root.children,
+                                                   child.START_POSITION)
             assert found
-            assert position == node.cached_abs_position
+            assert position == child.cached_abs_position
             # Also the abs_position should use the cached value too.
-            assert node.abs_position == node.cached_abs_position
+            assert child.abs_position == child.cached_abs_position
     # Force update the setter of the root to None and check the cache
     # is invalidated
     psyir.cached_abs_position = None
-    for node in psyir.walk(Node):
-        assert node.cached_abs_position is None
+    for child in psyir.walk(Node):
+        assert child.cached_abs_position is None
     # Recompute the cache.
     psyir.children[0].children[0].compute_cached_abs_positions()
     # Change something in the tree
@@ -313,8 +313,8 @@ def test_compute_cached_abs_positions(fortran_reader):
     psyir.children[0].children[0].rhs.replace_with(rlit)
     # Check that caches are invalidated.
     assert psyir.root.cached_abs_position is None
-    for node in psyir.walk(Node):
-        node.cached_abs_position is None
+    for child in psyir.walk(Node):
+        child.cached_abs_position is None
 
 
 def test_compute_cached_abs_positions_error():
