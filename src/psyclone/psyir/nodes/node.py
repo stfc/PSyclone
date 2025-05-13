@@ -43,6 +43,8 @@ This module contains the abstract Node implementation as well as
 ChildrenList - a custom implementation of list.
 
 '''
+from typing import Union
+
 import copy
 import graphviz
 
@@ -389,7 +391,7 @@ class Node():
                         f"annotation '{annotation}', valid "
                         f"annotations are: {self.valid_annotations}.")
         self._disable_tree_update = False
-        self._cached_abs_position = None
+        self.cached_abs_position = None
         self.update_signal()
 
     def __eq__(self, other):
@@ -977,6 +979,61 @@ class Node():
             if child is self:
                 return index
 
+    def compute_cached_abs_positions(self):
+        '''
+        Cache the absolute positions for all nodes in this node's
+        root's tree.
+        This involves computing the absolute positions for all of the nodes
+        in the tree, and storing them.
+
+        :raises InternalError: if the absolute position cannot be found.
+        '''
+        # We only recompute the cache if its current invalid. The root's
+        # cached position is always invalidated if the tree is changed, so
+        # we use that to check the validity.
+        if self.root._cached_abs_position is None:
+            # Reset the cache.
+            self.cached_abs_position = None
+            position = self.START_POSITION
+            # The first node found is the root, so increment the position
+            # after updating the position.
+            for node in self.root.walk(Node):
+                node.cached_abs_position = position
+                position += 1
+            if self.cached_abs_position is None:
+                raise InternalError("Error in search for Node position "
+                                    "in the tree")
+
+    @property
+    def cached_abs_position(self) -> Union[int, None]:
+        '''
+        :returns: the cached_abs_position of this node.
+        '''
+        # Check the caches are up to date by checking the root node.
+        if self.root._cached_abs_position is None:
+            # Invalidate the local cache. Don't use the setter as
+            # the type check is unneeded here.
+            self._cached_abs_position = None
+        return self._cached_abs_position
+
+    @cached_abs_position.setter
+    def cached_abs_position(self, abs_position: Union[int, None]):
+        '''
+        Sets the cached_abs_position of this node. Supplying None means
+        invalidating the cache.
+
+        :param abs_position: The abs_position to cache.
+
+        :raises TypeError: if the supplied abs_position is the wrong type.
+        '''
+        if abs_position is not None and not isinstance(abs_position, int):
+            raise TypeError(
+                f"Expected cached_abs_position to be an int or None "
+                f"but got: '{type(abs_position).__name__}'"
+            )
+        self._cached_abs_position = abs_position
+        
+
     @property
     def abs_position(self):
         '''
@@ -992,60 +1049,15 @@ class Node():
         '''
         if self.root is self:
             return self.START_POSITION
-        if self.root._cached_abs_position is None:
-            self._cached_abs_position is None
-            position = 0
-            for node in self.root.walk(Node):
-                position += 1
-                node._cached_abs_position = position
-#        if self.root._cached_abs_position is not None:
-#            parent = self.parent
-#            parents = []
-#            while parent:
-#                parents.append(parent)
-#                parent = parent.parent
-#            for parent in parents[::-1]:
-#                if parent._cached_abs_position is None:
-#                    found, position = self._find_position_with_caching(parent.parent.children, parent.parent._cached_abs_position)
-#                    if found:
-#                        self._cached_abs_position = position
-#                        return position
-#        found, position = self._find_position_with_caching(self.root.children,
-#                                              self.START_POSITION)
-#        self.root._cached_abs_position = self.START_POSITION
-#        if not found:
-#            self._cached_abs_position = None
-#            raise InternalError("Error in search for Node position "
-#                                "in the tree")
-#        if found:
-#            self._cached_abs_position = position
-        if self._cached_abs_position is None:
+        cache = self.cached_abs_position
+        if cache is not None:
+            return cache
+        found, position = self._find_position(self.root.children,
+                                              self.START_POSITION)
+        if not found:
             raise InternalError("Error in search for Node position "
                                 "in the tree")
-
-        return self._cached_abs_position
-
-    def _find_position_with_caching(self, children, position=None):
-        if position is None:
-            position = self.START_POSITION
-        elif position < self.START_POSITION:
-            raise InternalError(
-                f"Search for Node position started from {position} "
-                f"instead of {self.START_POSITION}.")
-        result = -1
-        for child in children:
-            position += 1
-            if child is self:
-                result = position
-            else:
-                child._cached_abs_position = position
-            if child.children:
-                found, position = self._find_position_with_caching(child.children, position)
-                if found:
-                    result = position
-        if result >= 0:
-            return True, result
-        return False, position
+        return position
 
 
     def _find_position(self, children, position=None):
@@ -1766,11 +1778,10 @@ class Node():
         recursive signal (i.e. they won't cause this node to attempt to
         update itself again).
 
-        This base implementation does nothing.
+        This base implementation invalidates any cached abs_position values,
+        and must be called by all subclasses implementing this method.
         '''
-        self._cached_abs_position = None
-        for node in self.children:
-            node._cached_abs_position = None
+        self.cached_abs_position = None
 
     def path_from(self, ancestor):
         ''' Find the path in the psyir tree between ancestor and node and
