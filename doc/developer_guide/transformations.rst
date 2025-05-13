@@ -533,7 +533,8 @@ The steps required are detailed here:
    if possible. The `options` argument should remain, and `**kwargs` should
    also be available.
 2. The `options` input should overrule the keyword arguments when determining
-   options to the apply and validate function.
+   options to the apply and validate function. There should also be a
+   `# TODO 2668` to remove the options argument later.
 3. The `apply` function should call the `validate_options` routine on each of
    the keyword arguments and `**kwargs`. This routine should not be called on
    the `options` dictionary.
@@ -548,5 +549,9 @@ The steps required are detailed here:
 7. If the `apply` function calls any `super().apply`, import the
    `transformation_documentation_wrapper` from `psyclone.utils` and
    add `@transformation_documentation_wrapper` to the class definition.
+
+The `ParallelLoopTrans` class has an implementation that does all of the above
+except the deprecation warning, so can be used as a reference for moving
+to the new options.
 
 .. footbibliography::
