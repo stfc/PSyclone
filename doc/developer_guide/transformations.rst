@@ -516,4 +516,37 @@ an if condition or a loop condition, and that intrinsic contains an array sectio
 then PSyclone may generate extra dependencies, which may hurt code performance. If
 this causes issues, please open an issue.
 
+Moving to the new transformations options
+=========================================
+PSyclone is currently moving from a dictionary of options to keyword arguments
+to control the `apply` function of transformations. This update is happening
+gradually, with developers being asked to update transformations as they
+are otherwise being modified.
+
+Note that the while the `options` dict is deprecated, it should still override
+the keyword arguments if provided.
+
+The steps required are detailed here:
+
+1. Convert the `apply` function to have a keyword argument for each available
+   option. These arguments should have type hints and default values defined
+   if possible. The `options` argument should remain, and `**kwargs` should
+   also be available.
+2. The `options` input should overrule the keyword arguments when determining
+   options to the apply and validate function.
+3. The `apply` function should call the `validate_options` routine on each of
+   the keyword arguments and `**kwargs`. This routine should not be called on
+   the `options` dictionary.
+4. Modify the `validate` function to takes `*kwargs` (but no other keyword
+   arguments other than options). Use the `get_option('optname', **kwargs)`
+   to get each of the options out of the kwargs, as this will also give
+   the default value if the option isn't passed into validate.
+5. Validate should also call `validate_options` on the `**kwargs` input.
+6. If the `apply` function doesn't call `super().apply` all the way up to
+   the base `Transformation` class, then it should print the
+   `self._deprecation_warning` message if the `options` dict is provided.
+7. If the `apply` function calls any `super().apply`, import the
+   `transformation_documentation_wrapper` from `psyclone.utils` and
+   add `@transformation_documentation_wrapper` to the class definition.
+
 .. footbibliography::
