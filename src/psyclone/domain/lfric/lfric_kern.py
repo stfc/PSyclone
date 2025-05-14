@@ -601,11 +601,17 @@ class LFRicKern(CodedKern):
         return self._mesh_properties
 
     @property
-    def all_updates_are_writes(self) -> bool:
+    def all_continuous_updates_are_writes(self) -> bool:
         '''
+        Normally, a field on a continuous function space that is updated must
+        have GH_INC access. However, the LFRic API supports the special case
+        where such a field may have GH_WRITE access if every call of the kernel
+        is guaranteed to write the same value to a given dof. This method
+        returns True if this is such a kernel.
+
         :returns: True if this kernel updates an argument on a continuous
-                  space and all of the updated arguments have
-                  'GH_WRITE' access, False otherwise.
+                  space and all of the updated arguments have 'GH_WRITE'
+                  access, False otherwise.
         '''
         if self.arguments.iteration_space_arg().discontinuous:
             return False
