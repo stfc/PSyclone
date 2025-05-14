@@ -1070,6 +1070,9 @@ def test_loop_fuse(dist_mem):
 
     ftrans = LFRicLoopFuseTrans()
 
+    assert ("Fuse two adjacent loops together with LFRic-specific "
+            "validity checks" in str(ftrans))
+
     # Fuse the loops
     ftrans.apply(schedule.children[index],
                  schedule.children[index+1])
