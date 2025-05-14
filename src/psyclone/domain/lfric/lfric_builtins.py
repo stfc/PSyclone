@@ -270,8 +270,8 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import FSDescriptors, DynKernelArguments
-        BuiltIn.load(self, call, DynKernelArguments, parent)
+        from psyclone.lfric import FSDescriptors, LFRicKernelArguments
+        BuiltIn.load(self, call, LFRicKernelArguments, parent)
         self.arg_descriptors = call.ktype.arg_descriptors
         self._func_descriptors = call.ktype.func_descriptors
         self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
@@ -434,7 +434,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         :returns: a list of function space descriptor objects which \
                   contain information about the function spaces.
-        :rtype: list of :py:class:`psyclone.dynamo0p3.FSDescriptor`
+        :rtype: list of :py:class:`psyclone.lfric.FSDescriptor`
 
         '''
         return self._fs_descriptors

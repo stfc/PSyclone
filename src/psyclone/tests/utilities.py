@@ -524,7 +524,7 @@ def get_base_path(api):
     # Define the mapping of supported APIs to Fortran directories
     # Note that the nemo files are outside of the default tests/test_files
     # directory, they are in tests/nemo/test_files
-    api_2_path = {"lfric": "dynamo0p3",
+    api_2_path = {"lfric": "lfric",
                   "nemo": "../nemo/test_files",
                   "gocean": "gocean1p0"}
     try:
@@ -548,7 +548,7 @@ def get_infrastructure_path(api: str) -> str:
     this_loc = os.path.dirname(os.path.abspath(__file__))
     if api == "lfric":
         return os.path.join(this_loc,
-                            "test_files", "dynamo0p3", "infrastructure")
+                            "test_files", "lfric", "infrastructure")
     elif api == "gocean":
         root_dir = this_loc
         for depth in range(3):

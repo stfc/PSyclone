@@ -51,7 +51,7 @@ from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata)
 from psyclone.domain.lfric.lfric_builtins import (
     LFRicBuiltInCallFactory, LFRicBuiltIn)
-from psyclone.dynamo0p3 import DynKernelArgument
+from psyclone.lfric import LFRicKernelArgument
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import BuiltInCall, parse
 from psyclone.parse.utils import ParseError
@@ -71,7 +71,7 @@ from psyclone.tests.utilities import get_invoke
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
-    "test_files", "dynamo0p3")
+    "test_files", "lfric")
 
 # The PSyclone API under test
 API = "lfric"
@@ -343,7 +343,7 @@ def test_builtin_no_field_args(monkeypatch):
     # circumstances as PSyclone will complain that the datatype and
     # the metadata do not match. Therefore monkeypatch.
     monkeypatch.setattr(
-        DynKernelArgument, "_init_data_type_properties",
+        LFRicKernelArgument, "_init_data_type_properties",
         dummy_func)
     old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
@@ -383,7 +383,7 @@ def test_builtin_invalid_argument_type(monkeypatch):
     # circumstances as PSyclone will complain that the datatype and
     # the metadata do not match. Therefore monkeypatch.
     monkeypatch.setattr(
-        DynKernelArgument, "_init_data_type_properties",
+        LFRicKernelArgument, "_init_data_type_properties",
         dummy_func)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
@@ -415,7 +415,7 @@ def test_builtin_invalid_data_type(monkeypatch):
     # circumstances as PSyclone will complain that the datatype and
     # the metadata do not match. Therefore monkeypatch.
     monkeypatch.setattr(
-        DynKernelArgument, "_init_data_type_properties",
+        LFRicKernelArgument, "_init_data_type_properties",
         dummy_func)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
@@ -479,7 +479,7 @@ def test_builtin_fld_args_different_data_type(monkeypatch):
     # circumstances as PSyclone will complain that the datatype and
     # the metadata do not match. Therefore monkeypatch.
     monkeypatch.setattr(
-        DynKernelArgument, "_init_data_type_properties",
+        LFRicKernelArgument, "_init_data_type_properties",
         dummy_func)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,

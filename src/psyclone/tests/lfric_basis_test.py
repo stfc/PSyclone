@@ -44,7 +44,7 @@ import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernMetadata
-from psyclone.dynamo0p3 import DynBasisFunctions
+from psyclone.lfric import LFRicBasisFunctions
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
@@ -54,7 +54,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
+                         "test_files", "lfric")
 
 API = "lfric"
 
@@ -2173,15 +2173,15 @@ def test_diff_basis_unsupp_space():
     assert "but found 'any_discontinuous_space_5'" in str(excinfo.value)
 
 
-def test_dynbasisfns_unsupp_qr(monkeypatch):
+def test_lfricbasisfns_unsupp_qr(monkeypatch):
     ''' Check that the expected error is raised in
-    DynBasisFunctions.stub_declarations() if an un-supported quadrature
+    LFRicBasisFunctions.stub_declarations() if an un-supported quadrature
     shape is encountered. '''
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    dbasis = DynBasisFunctions(kernel)
+    dbasis = LFRicBasisFunctions(kernel)
     monkeypatch.setattr(
         dbasis, "_qr_vars", {"unsupported-shape": None})
     with pytest.raises(InternalError) as err:
@@ -2191,14 +2191,14 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
             "supported - got: 'unsupported-shape'" in str(err.value))
 
 
-def test_dynbasisfns_declns(monkeypatch):
+def test_lfricbasisfns_declns(monkeypatch):
     ''' Check the various internal errors that
-    DynBasisFunctions._basis_fn_declns can raise. '''
+    LFRicBasisFunctions._basis_fn_declns can raise. '''
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    dbasis = DynBasisFunctions(kernel)
+    dbasis = LFRicBasisFunctions(kernel)
     # Missing name for qr variable
     dbasis._basis_fns[0]['qr_var'] = None
     with pytest.raises(InternalError) as err:

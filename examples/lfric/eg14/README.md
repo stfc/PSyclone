@@ -12,7 +12,7 @@ to all kernels. See the PSyclone User Guide for [details](https://psyclone.readt
 
 A simple Makefile is provided to compile the example. It needs:
 - the infrastructure library ``liblfric.a`` provided in
-  ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``
+  ``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``
 
 The infrastructure library will be compiled if it is not available.
 

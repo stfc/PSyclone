@@ -59,7 +59,7 @@ from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 # pylint: disable=isinstance-second-argument-not-valid-type
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         os.pardir, os.pardir, "test_files", "dynamo0p3")
+                         os.pardir, os.pardir, "test_files", "lfric")
 
 
 def test_init():

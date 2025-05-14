@@ -19,10 +19,10 @@ psyclone-kern -gen stub ./testkern_stencil_multi_mod.f90
 More Kernel examples can be found in the following directory, most of
 which start wth the name `testkern`:
 
-[../../src/psyclone/tests/test_files/dynamo0p3](../../src/psyclone/tests/test_files/dynamo0p3)
+[../../src/psyclone/tests/test_files/lfric](../../src/psyclone/tests/test_files/lfric)
 
 For example:
 
 ```sh
-psyclone-kern -gen stub ../../src/psyclone/tests/test_files/dynamo0p3/testkern_qr.F90
+psyclone-kern -gen stub ../../src/psyclone/tests/test_files/lfric/testkern_qr.F90
 ```

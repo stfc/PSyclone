@@ -37,7 +37,7 @@
 include ../../common.mk
 
 # This defaults to the infrastructure library included in PSyclone
-LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/lfric/infrastructure
 LFRIC_LIB=$(LFRIC_DIR)/liblfric.a
 F90FLAGS += -I$(LFRIC_DIR)
 

@@ -59,7 +59,7 @@ from psyclone.tests.utilities import Compile
 
 
 TESTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LFRIC_TEST_FILES_DIR = os.path.join(TESTS_DIR, "test_files", "dynamo0p3")
+LFRIC_TEST_FILES_DIR = os.path.join(TESTS_DIR, "test_files", "lfric")
 
 
 TL_CODE = (
@@ -131,7 +131,7 @@ def test_generate_adjoint_str(caplog, tmpdir):
 
 def test_generate_adjoint_str_lfric_api():
     '''
-    Check that specifying the LFRic (dynamo0p3) API to the generate_adjoint_str
+    Check that specifying the LFRic API to the generate_adjoint_str
     routine works as expected.
 
     '''
@@ -251,7 +251,7 @@ def test_generate_adjoint_str_generate_harness_invalid_api():
 
 def test_generate_adjoint_str_generate_harness_lfric():
     '''Test the create_test option to generate_adjoint_str() when the
-    LFRic (dynamo0p3) API is specified.'''
+    LFRic API is specified.'''
     tl_code = (
         "module testkern_mod\n"
         "  use kinds_mod, only: i_def, r_def\n"

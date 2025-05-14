@@ -38,13 +38,13 @@
 '''An example PSyclone transformation script which makes ndofs, nqp*
 and nlevels constant in all LFRic kernels called from within invokes
 in the supplied algorithm code. This is achieved by applying the
-DynKernelConstTrans transformation.
+LFRicKernelConstTrans transformation.
 
 In the case where a space is defined as "any_space" in a kernel, the
 associated ndofs value will not be modified (as the actual value could
 change from one call to the next).
 
-The DynKernelConstTrans transformation is work in progress and the
+The LFRicKernelConstTrans transformation is work in progress and the
 current version is limited to printing out the arguments that would be
 transformed and the values they would take.
 
@@ -56,7 +56,7 @@ $ psyclone -api lfric -s ./kernel_constants.py \
 
 '''
 
-from psyclone.transformations import Dynamo0p3KernelConstTrans, \
+from psyclone.transformations import LFRicKernelConstTrans, \
     TransformationError
 
 # The number of layers to use when modifying a kernel to make the
@@ -81,7 +81,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    const_trans = Dynamo0p3KernelConstTrans()
+    const_trans = LFRicKernelConstTrans()
 
     for kernel in psyir.coded_kernels():
         print(f"  kernel '{kernel.name.lower()}'")

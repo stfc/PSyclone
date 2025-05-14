@@ -606,7 +606,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
                                    datatype=UnresolvedType(),
                                    interface=ImportInterface(adj_mod))
 
-    # Construct a LFRicKern using the metadata and then use it to construct
+    # Construct an LFRicKern using the metadata and then use it to construct
     # the kernel argument list.
     # TODO #1806 - once we have the new PSyIR-based metadata handling then
     # we can pass PSyIR to this routine rather than an fparser1 parse tree.

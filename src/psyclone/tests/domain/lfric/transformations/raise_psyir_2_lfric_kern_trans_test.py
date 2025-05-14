@@ -318,7 +318,7 @@ def test_apply_ok(fortran_reader):
     # The symbol should be removed
     with pytest.raises(KeyError):
         _ = container.symbol_table.lookup("testkern_type")
-    # The container should now be a LFRicKernelContainer
+    # The container should now be an LFRicKernelContainer
     assert isinstance(container, LFRicKernelContainer)
     # and should contain the metadata
     expected = (
@@ -350,7 +350,7 @@ def test_apply_multi_ok(fortran_reader):
     # The symbol should be removed
     with pytest.raises(KeyError):
         _ = container.symbol_table.lookup("testkern_type")
-    # The container should now be a LFRicKernelContainer
+    # The container should now be an LFRicKernelContainer
     assert isinstance(container, LFRicKernelContainer)
     # and should contain the metadata
     expected = (

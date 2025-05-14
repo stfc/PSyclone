@@ -42,7 +42,7 @@ generator.py script.'''
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.transformations import OMPParallelTrans, Dynamo0p3OMPLoopTrans
+from psyclone.transformations import OMPParallelTrans, LFRicOMPLoopTrans
 
 
 def trans(psyir):
@@ -54,7 +54,7 @@ def trans(psyir):
 
     '''
     otrans = OMPParallelTrans()
-    ltrans = Dynamo0p3OMPLoopTrans()
+    ltrans = LFRicOMPLoopTrans()
     ftrans = LFRicLoopFuseTrans()
 
     # Get first invoke subroutine

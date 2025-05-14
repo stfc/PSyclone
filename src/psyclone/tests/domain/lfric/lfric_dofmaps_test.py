@@ -36,7 +36,7 @@
 # Modified: J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the LFRicDofmaps class found within the LFRic
-domain. Tests here have been pulled from the dynamo0p3_cma_test.py
+domain. Tests here have been pulled from the LFRic_cma_test.py
 test file. '''
 
 import os
@@ -50,7 +50,7 @@ from psyclone.psyGen import PSyFactory
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         os.pardir, os.pardir, "test_files", "dynamo0p3")
+                         os.pardir, os.pardir, "test_files", "lfric")
 TEST_API = "lfric"
 
 

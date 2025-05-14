@@ -36,7 +36,7 @@
 #           J. Henrichs, Bureau of Meteorology
 #           A. R. Porter, STFC Daresbury Laboratory
 
-'''This module tests the LFRicKern class within dynamo0p3 using
+'''This module tests the LFRicKern class within LFRic using
 pytest. At the moment the tests here do not fully cover LFRicKern as
 tests for other classes end up covering the rest.'''
 
@@ -57,11 +57,11 @@ from psyclone.psyir.nodes import Reference, KernelSchedule
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
     INTEGER_TYPE, ArrayType
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import Dynamo0p3ColourTrans
+from psyclone.transformations import LFRicColourTrans
 from psyclone.psyir.backend.visitor import VisitorError
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+                os.path.abspath(__file__)))), "test_files", "lfric")
 TEST_API = "lfric"
 
 CODE = '''
@@ -413,7 +413,7 @@ def test_kern_last_cell_all_colours():
     sched = psy.invokes.invoke_list[0].schedule
     loop = sched.walk(LFRicLoop)[0]
     # Apply a colouring transformation to the loop.
-    trans = Dynamo0p3ColourTrans()
+    trans = LFRicColourTrans()
     trans.apply(loop)
 
     symbol = loop.kernel.last_cell_all_colours_symbol
@@ -440,7 +440,7 @@ def test_kern_last_cell_all_colours_intergrid():
     sched = psy.invokes.invoke_list[0].schedule
     loop = sched.walk(LFRicLoop)[0]
     # Apply a colouring transformation to the loop.
-    trans = Dynamo0p3ColourTrans()
+    trans = LFRicColourTrans()
     trans.apply(loop)
     # We have to perform code generation as that sets-up the symbol table.
     # pylint:disable=pointless-statement

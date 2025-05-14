@@ -47,13 +47,13 @@ field is to be updated (`GH_INC`) while the scalar is read only (`GH_READ`).
 the same as the access for an updated field on a continuous function
 space `W0` in [`setval_field_w0_kernel_mod.f90`](
 ../part1/setval_field_w0_kernel_mod.f90) (see [here](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
+https://psyclone.readthedocs.io/en/latest/lfric.html#valid-access-modes)
 for more information of valid access modes depending on the function
 space that an argument is defined on). The generic function spaces are
 treated as continuous (the "worst case scenario") except in the case of
 a generic discontinuous function space `ANY_DISCONTINUOUS_SPACE_n`
 (see [here](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces)
+https://psyclone.readthedocs.io/en/latest/lfric.html#supported-function-spaces)
 for information on the supported function spaces).
 
 * Unlike the specific function space identifier `W0` that is located

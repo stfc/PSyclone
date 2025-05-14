@@ -156,7 +156,7 @@ Entry                   Description                                             
 ======================= ======================================================= ===========
 DISTRIBUTED_MEMORY      Whether or not to generate code for distributed-memory  bool
                         parallelism by default.  Note that this is currently
-                        only supported for the LFRic (Dynamo 0.3) API.
+                        only supported for the LFRic API.
 REPRODUCIBLE_REDUCTIONS Whether or not to generate code for reproducible OpenMP bool
                         reductions (see :ref:`openmp-reductions`) by default.
 REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,  int
@@ -212,7 +212,7 @@ access_mapping          This field defines the strings that are used by a
 ^^^^^^^^^^^^^^^^^^^^^
 
 This section contains configuration options that are only applicable when
-using the LFRic (Dynamo 0.3) API.
+using the LFRic API.
 
 .. tabularcolumns:: |l|L|
 

@@ -51,7 +51,7 @@ from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
 from psyclone.psyir.symbols import (
     ArrayType, ScalarType, UnsupportedFortranType)
 from psyclone.tests.utilities import get_base_path, get_invoke
-from psyclone.transformations import Dynamo0p3ColourTrans
+from psyclone.transformations import LFRicColourTrans
 
 TEST_API = "lfric"
 
@@ -201,7 +201,7 @@ def test_kerncallarglist_colouring(dist_mem, fortran_writer):
                         TEST_API, dist_mem=dist_mem, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     loops = schedule.walk(Loop)
     ctrans.apply(loops[0])
 
@@ -224,7 +224,7 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
                         TEST_API, dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(schedule.children[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
@@ -256,7 +256,7 @@ def test_kerncallarglist_evaluator(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(schedule.children[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
@@ -296,7 +296,7 @@ def test_kerncallarglist_stencil(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(schedule.children[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])

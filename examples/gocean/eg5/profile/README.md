@@ -67,7 +67,7 @@ The location of DrHook. It defaults to
 installed next to PSyclone.
 ### LFRIC_DIR
 The location of the LFRic infrastructure library. It defaults to
-``../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure``,
+``../../../src/psyclone/tests/test_files/lfric/infrastructure``,
 which is the small, stand-alone LFRic infrastructure library that
 is included in PSyclone. In spite of the dependence on LFRic, this
 profiling wrapper library can be used with with any application.

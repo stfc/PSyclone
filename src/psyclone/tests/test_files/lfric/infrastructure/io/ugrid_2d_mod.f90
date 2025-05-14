@@ -1,3 +1,5 @@
+
+
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -42,7 +44,7 @@
 !> @brief   Store 2-dimensional ugrid mesh data.
 !> @details Holds all information necessary to define ugrid vn0.9 compliant
 !>          storage of 2-dimensional meshes. Pulling data out is currently
-!>          done with accessor routines; this may change as dynamo matures.
+!>          done with accessor routines; this may change as LFRic matures.
 !-------------------------------------------------------------------------------
 
 module ugrid_2d_mod
@@ -652,7 +654,7 @@ end subroutine get_face_node_connectivity
 !>          face indices being contiguous and the nodes surrounding any single
 !>          face being non-contiguous. This is the transpose of the ugrid
 !>          index ordering. This transpose routine is needed to interface
-!>          with the current Dynamo index ordering.
+!>          with the current LFRic index ordering.
 !>
 !> @param[in]    self                   Calling ugrid object
 !> @param[out]   face_node_connectivity Indices of nodes adjacent to faces.
@@ -708,7 +710,7 @@ end subroutine get_face_edge_connectivity
 !>          face indices being contiguous and the edges surrounding any single
 !>          face being non-contiguous. This is the transpose of the ugrid
 !>          index ordering. This transpose routine is needed to interface
-!>          with the current Dynamo index ordering.
+!>          with the current LFRic index ordering.
 !>
 !> @param[in]    self                   Calling ugrid object
 !> @param[out]   face_edge_connectivity Indices of edges adjacent to faces.
@@ -763,7 +765,7 @@ end subroutine get_face_face_connectivity
 !> @details Returns a rank-two array of faces surrounding each face, with the
 !>          face indices being contiguous and the the faces surrounding any
 !>          single face being non-contiguous. This transpose routine is needed
-!>          to interface with the current Dynamo index ordering.
+!>          to interface with the current LFRic index ordering.
 !>
 !> @param[in]  self                   Calling ugrid object
 !> @param[out] face_face_connectivity Indices of faces adjacent to faces.

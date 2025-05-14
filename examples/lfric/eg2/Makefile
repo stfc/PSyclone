@@ -41,7 +41,7 @@ include ../../common.mk
 transform: vanilla inline loopfuse
 
 # Location of the stripped-down LFRic infrastructure source
-LFRIC_INC_DIR = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_INC_DIR = ../../../src/psyclone/tests/test_files/lfric/infrastructure
 
 # The '-d ../code' argument specifies that PSyclone should search the
 # '../code' directory when looking for user-supplied kernels.

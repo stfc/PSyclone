@@ -50,9 +50,9 @@ PSyclone, it is not designed to be run directly from python.
 
 '''
 from psyclone.psyir.nodes import Routine
-from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
+from psyclone.transformations import LFRicAsyncHaloExchangeTrans, \
     MoveTrans, TransformationError
-from psyclone.dynamo0p3 import LFRicHaloExchange, LFRicHaloExchangeStart
+from psyclone.lfric import LFRicHaloExchange, LFRicHaloExchangeStart
 
 
 def trans(psyir):
@@ -68,7 +68,7 @@ def trans(psyir):
 
     '''
     # Create the required transformations
-    async_hex = Dynamo0p3AsyncHaloExchangeTrans()
+    async_hex = LFRicAsyncHaloExchangeTrans()
     move_trans = MoveTrans()
 
     for subroutine in psyir.walk(Routine):

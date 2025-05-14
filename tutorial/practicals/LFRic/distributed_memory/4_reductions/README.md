@@ -14,7 +14,7 @@ reduction to the algorithm layer.
 As you have already learnt in a previous section of the tutorial,
 PSyclone provides a number of builtin kernels. Some of these kernels
 perform reductions. The builtins are specified in the PSyclone User Guide
-[here](https://psyclone.readthedocs.io/en/latest/dynamo0p3.html#built-ins).
+[here](https://psyclone.readthedocs.io/en/latest/lfric.html#built-ins).
 
 Choose one of the builtins that performs a reduction. These are either
 of the two inner products or the sum of elements builtins.

@@ -37,7 +37,7 @@
 program single_invoke
 
   ! Description: invokes a single built-in kernel that claims to perform
-  ! two reduction operations (forbidden in the Dynamo 0.3 API) and then
+  ! two reduction operations (forbidden in the LFRic API) and then
   ! write to a field. Must be used with the fake kernel meta-data in
   ! multi_reduction_builtins_mod.f90.
   use constants_mod, only: r_def

@@ -18,7 +18,7 @@ the application. The following dependencies must be available:
   https://github.com/stfc/PSyclone/tree/master/examples/lfric/eg17), however
   it is not included in the PSyclone [installation](
   ./../../README.md#installation). See the [LFRic API](
-  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html) documentation
+  https://psyclone.readthedocs.io/en/latest/lfric.html) documentation
   for information on how to obtain access to the LFRic code.
 
 - The ValueRangeCheck (``value_range_check_base.jinja``) and PSyData
@@ -41,7 +41,7 @@ The location of the LFRic infrastructure library is specified using the
 environment variable ``LFRIC_INF_DIR``. It defaults to the relative path
 to location of the pared-down LFRic infrastructure located in a clone of
 PSyclone repository,
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
+``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
 This is not available in the PSyclone [installation](
 ./../../README.md#installation) so the exact path
 **must be specified** during the compilation process, e.g.
