@@ -788,8 +788,9 @@ def test_main_api(capsys, caplog):
     with pytest.raises(SystemExit):
         main([filename, "-api", "dynamo0.3", "--log-level", "fail"])
     _, err = capsys.readouterr()
-    assert ("error: argument --log-level: invalid choice: 'fail' (choose "
-            "from 'OFF', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')"
+    # Error message check truncated as Python 3.13 changes how the
+    # array is output.
+    assert ("error: argument --log-level: invalid choice: 'fail'"
             in err)
 
     # Test we get the logging debug correctly with caplog. This
