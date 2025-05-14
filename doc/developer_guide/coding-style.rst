@@ -157,7 +157,7 @@ retained.). For example::
 
 
 Logging
-------
+-------
 
 PSyclone now supports the Python `logging` module, to help enable improved
 general messages throughout the code. By default the logging infrastructure
