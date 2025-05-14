@@ -31,3 +31,4 @@ cov.xml
 .coverage.*
 *.psycache
 __pycache__
+venv

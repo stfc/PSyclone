@@ -98,6 +98,23 @@ def test_sym_writer_boolean():
     lit = Literal("false", BOOLEAN_TYPE)
     assert sympy_writer._to_str(lit) == "False"
 
+@pytest.mark.parametrize("expressions", [(".true. .and. .false.", "True .AND. False"),
+                                         ])
+def  test_sym_writer_boolean_expr(fortran_reader, expressions):
+    '''Test that booleans are written in the way that SymPy accepts.
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                logical :: bool_expr
+                bool_expr = {expressions[0]}
+                end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    lit = psyir.children[0].children[0].rhs
+    assert SymPyWriter()._to_str(lit) == expressions[1]
+    sympy_writer = SymPyWriter()
+    assert sympy_writer([lit]) == expressions[1]
 
 def test_sym_writer_character():
     '''Test that characters are rejected.
@@ -109,6 +126,33 @@ def test_sym_writer_character():
         sympy_writer(lit)
 
     assert "SymPy cannot handle strings like 'bla'." in str(err.value)
+
+@pytest.mark.parametrize("expressions", [(".true. .and. .false.", False),
+                                         (".true. .and. .true.", True),
+                                         (".false. .or. .true.", True),
+                                         ("3 .eq. 3", True),
+                                         (" ((3 -2 + 4 - 5) .eq. 0 .and. .false.) .or. .true.",True),
+                                         (" (3 -2 + 4 - 5) .eq. 0 .and. .false. .and. .true.",False),
+                                         (" ((3 -2 + 4 - 5) .eq. 0 .and. .false.) .and. .true.",False),
+                                         (" .false. .and. ((3 -2 + 4 - 5) .eq. 0 .and. .false.)",False),
+                                         ])
+def  test_sym_writer_boolean_expr_add_test(fortran_reader, expressions):
+    '''Test different boolean expressions in which constant numbers are 
+    parsed as psyir Literal. Then we can use sympy writer to accurately 
+    check wether the expression is a True or False boolean expression.
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                logical :: bool_expr
+                bool_expr = {expressions[0]}
+                end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    lit = psyir.children[0].children[0].rhs
+    sympy_writer = SymPyWriter()
+    sympy_expr = sympy_writer(lit)
+    assert sympy_expr == expressions[1]
 
 
 @pytest.mark.parametrize("expressions", [("2", "2"),
