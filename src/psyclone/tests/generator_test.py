@@ -62,7 +62,8 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.generator import (
-    generate, main, check_psyir, add_builtins_use)
+    generate, main, check_psyir, add_builtins_use, LOG_LEVELS)
+import psyclone.generator as generator
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
@@ -751,7 +752,7 @@ def test_main_invalid_api(capsys):
     assert output == expected_output
 
 
-def test_main_api(caplog, tmpdir):
+def test_main_api(capsys, caplog):
     ''' Test that the API can be set by a command line parameter, also using
     the API name aliases. '''
 
@@ -781,12 +782,24 @@ def test_main_api(caplog, tmpdir):
     main([filename, "-api", "dynamo0.3"])
     assert Config.get().api == "lfric"
 
+    # Give invalid logging level
+    # Reset capsys
+    capsys.readouterr()
+    with pytest.raises(SystemExit):
+        main([filename, "-api", "dynamo0.3", "--log-level", "fail"])
+    _, err = capsys.readouterr()
+    assert ("error: argument --log-level: invalid choice: 'fail' (choose "
+            "from 'OFF', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')"
+            in err)
+
     # Test we get the logging debug correctly with caplog. This
     # overrides the file output that PSyclone attempts.
     caplog.clear()
+    # Pytest fully controls the logging level, overriding anything we
+    # set in generator.main so we can't test for it.
     with caplog.at_level(logging.DEBUG):
-        main([filename, "-api", "dynamo0.3", "--logging", "debug",
-              "--logfile", "test.out"])
+        main([filename, "-api", "dynamo0.3", "--log-level", "DEBUG",
+              "--log-file", "test.out"])
         assert Config.get().api == "lfric"
         assert caplog.records[0].levelname == "DEBUG"
         assert "Logging system initialised" in caplog.record_tuples[0][2]

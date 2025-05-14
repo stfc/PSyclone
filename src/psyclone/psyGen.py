@@ -44,10 +44,10 @@
 from dataclasses import dataclass
 import inspect
 import os
-import logging
 from collections import OrderedDict
 import abc
 from typing import Any, Dict
+import warnings
 
 try:
     from sphinx.util.typing import stringify_annotation
@@ -2767,9 +2767,8 @@ class Transformation(metaclass=abc.ABCMeta):
         '''
         # TODO 2668: options are now deprecated:
         if options is not None:
-            logger = logging.getLogger(__name__)
-            logger.warning(self._deprecation_warning)
             print(self._deprecation_warning)
+            warnings.warn(self._deprecation_warning, DeprecationWarning)
 
     def validate(self, node, options=None, **kwargs):
         '''Method that validates that the input data is correct.

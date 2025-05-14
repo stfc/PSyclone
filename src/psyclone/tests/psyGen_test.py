@@ -45,12 +45,13 @@
 # PSyFactory, TransInfo, Transformation
 import os
 import sys
-import logging as pylogging
+import logging
 from unittest.mock import patch
+import warnings
 
 import pytest
 
-from fparser import api as fpapi, logging
+from fparser import api as fpapi
 from fparser.two import Fortran2003
 
 from psyclone.configuration import Config
@@ -205,7 +206,7 @@ def test_transformation_get_options():
             "Valid options are '['valid']." in str(excinfo.value))
 
 
-def test_transformation_apply_deprecation_message(capsys, caplog):
+def test_transformation_apply_deprecation_message(capsys):
     '''Test that passing the options dict to the Transformation.apply
     function gets the expected deprecation message.'''
     class TestTrans(Transformation):
@@ -213,9 +214,10 @@ def test_transformation_apply_deprecation_message(capsys, caplog):
         def apply(self, node=None, options=None):
             super().apply(node, options=options)
 
-    with caplog.at_level(pylogging.WARNING):
-        instance = TestTrans()
-        instance.apply(options={"dict": True})
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to be triggered.
+        warnings.simplefilter("always")
+        TestTrans().apply(options={"a": "test"})
         out, err = capsys.readouterr()
         assert ("PSyclone Deprecation Warning: The 'options' parameter to "
                 "Transformation.apply and Transformation.validate are now "
@@ -223,14 +225,14 @@ def test_transformation_apply_deprecation_message(capsys, caplog):
                 "the individual arguments, or unpack the options with "
                 "**options. See the Transformations section of the "
                 "User guide for more details" in out)
-        assert caplog.records[0].levelname == "WARNING"
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
         assert ("PSyclone Deprecation Warning: The 'options' parameter to "
                 "Transformation.apply and Transformation.validate are now "
                 "deprecated. Please use "
                 "the individual arguments, or unpack the options with "
                 "**options. See the Transformations section of the "
-                "User guide for more details" in caplog.record_tuples[0][2])
-
+                "User guide for more details" in str(w[0].message))
 
 def test_transformation_get_valid_options():
     '''Test that the get_valid_options method behaves in the expected

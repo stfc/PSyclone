@@ -94,12 +94,14 @@ from psyclone.version import __VERSION__
 # code) whilst keeping the original implementation as default
 # until it is working.
 LFRIC_TESTING = False
-LOG_LEVELS = {"off": logging.NOTSET,
-              "debug": logging.DEBUG,
-              "info": logging.INFO,
-              "warning": logging.WARNING,
-              "error": logging.ERROR,
-              "critical": logging.CRITICAL}
+# off "level" choice is an arbitrary choice above CRITICAL to disiable all
+# log messages.
+LOG_LEVELS = {"OFF": logging.CRITICAL + 10,
+              logging.getLevelName(logging.DEBUG): logging.DEBUG,
+              logging.getLevelName(logging.INFO): logging.INFO,
+              logging.getLevelName(logging.WARNING): logging.WARNING,
+              logging.getLevelName(logging.ERROR): logging.ERROR,
+              logging.getLevelName(logging.CRITICAL): logging.CRITICAL}
 
 
 def load_script(
@@ -496,24 +498,24 @@ def main(arguments):
              ' kernels')
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
     parser.add_argument(
-        "--logging", default="off",
-        choices=["off", "debug", "info", "warning", "error", "critical"],
-        help="Sets the level of the PSyclone logging infrastructure. 'debug'"
+        "--log-level", default="OFF",
+        choices=LOG_LEVELS.keys(),
+        help="sets the level of the PSyclone logging infrastructure. 'debug'"
              " is the most verbose while 'critical' will show the least "
              "information."
     )
     parser.add_argument(
-        "--logfile", default=None,
-        help="Sets the output file to use for logging. If not specified the "
-             "logging information will be output to stdout"
+        "--log-file", default=None,
+        help="sets the output file to use for logging. If not specified the "
+             "logging information will be output to stdout."
     )
 
     args = parser.parse_args(arguments)
 
     # Set the logging system up.
-    loglevel = LOG_LEVELS[args.logging]
-    if args.logfile:
-        logname = args.logfile
+    loglevel = LOG_LEVELS[args.log_level]
+    if args.log_file:
+        logname = args.log_file
         logging.basicConfig(filename=logname,
                             level=loglevel)
     else:

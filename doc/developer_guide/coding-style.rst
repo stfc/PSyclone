@@ -155,6 +155,55 @@ retained.). For example::
     except KeyError as err:
         raise InternalError("Useful message here") from err
 
+
+Logging
+------
+
+PSyclone now supports the Python `logging` module, to help enable improved
+general messages throughout the code. By default the logging infrastructure
+is switched off, but can be enabled either through the PSyclone script
+options or programatically by::
+
+    import logging
+    logging.basicConfig(level=logging.LEVEL)
+
+where `logging.LEVEL` is the required level of those defined in the standard
+logging library.
+
+To use logging in a module, you can add::
+
+    import logging
+    # Other imports.
+    logger = logging.getLogger(__name__)
+
+at the top of a module to make the logger available everywhere in the file.
+This is standard practice for using logging in Python.
+
+Python has 5 levels of information as standard in logging, `debug`, `info`,
+`warning`, `error`, and `critical`. The use of these levels is left to the
+developers and reviewers decision outside of the following cases:
+
+  #) `logging.critical` should be used when raising InternalErrors or other
+     behaviours that are symptomatic of errors inside PSyclone.
+
+  #) `logging.error` should be used when raising errors on arguments, such as
+     `TypeError` or `ValueError`.
+
+  #) `logging.info` should be used when raising `TransformationError` if there
+     can be any additional information available as to why the Transformation
+     failed.
+
+Additional contextual information (such as class/function information) should
+also be placed into logging messages when generated in a module containing
+large numbers of classes or functions.
+
+Note that the `warning` log level should not be used to give important
+warnings to users, but only to give warning information for developers.
+For warnings aimed at users, instead use `warnings.warn` from the Python
+standard `warnings` import.
+
+
+
 .. _interface_description:
 
 Interface Description
