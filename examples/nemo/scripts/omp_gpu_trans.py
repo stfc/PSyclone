@@ -92,6 +92,7 @@ OFFLOADING_ISSUES = [
     "stpmlf.f90",
     "trddyn.f90",
     "trczdf.f90",
+    "trcice_pisces.f90",
 ]
 
 
