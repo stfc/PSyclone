@@ -142,7 +142,7 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic OpenMP offloading", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
-          compiler:"spack-nvhpc-24.5", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+          compiler:"spack-nvhpc-24.11", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
     # PSyclone, compile and run MetOffice gungho_model on GPU
     - name: LFRic GungHo with OpenACC offload
@@ -180,7 +180,7 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic OpenACC", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
-          compiler:"spack-nvhpc-24.5", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+          compiler:"spack-nvhpc-24.11", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
     # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 mpi ranks each with 2 OpenMP threads
     - name: LFRic with all transformations

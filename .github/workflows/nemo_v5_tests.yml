@@ -239,7 +239,7 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "NEMOv5 OpenMP for GPU (BENCH)", nemo_version: "NEMOv5", system: "GlaDos",
-          compiler:"nvhpc-24.5" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
+          compiler:"nvhpc-24.11" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
 
     - name: NEMO 5.0 nvidia OpenMP for GPUs (UKMO ORCA1 - managed memory)
       run: |
@@ -271,7 +271,7 @@ jobs:
         # Run with round robin allocations of GPUs to MPI ranks
         mpirun -n 2 sh -c 'CUDA_VISIBLE_DEVICES=$OMPI_COMM_WORLD_LOCAL_RANK ./nemo'
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca1.nvhpc.10steps run.stat
-        export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        export TIME_sec=$(grep "local MPI proces" timing.output | head -n 1 | awk '{print $5}' | tr -d s)
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
@@ -279,7 +279,7 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "NEMOv5 OpenMP for GPU (ORCA1)", nemo_version: "NEMOv5", system: "GlaDos",
-          compiler:"nvhpc-24.5" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
+          compiler:"nvhpc-24.11" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
 
     - name: NEMO 5.0 nvidia OpenMP for GPUs (UKMO ORCA2 - managed memory)
       run: |
@@ -317,4 +317,4 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "NEMOv5 OpenMP for GPU (ORCA2)", nemo_version: "NEMOv5", system: "GlaDos",
-          compiler:"nvhpc-24.5" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
+          compiler:"nvhpc-24.11" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
