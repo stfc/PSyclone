@@ -35,6 +35,7 @@
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 
 '''
@@ -62,8 +63,7 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.generator import (
-    generate, main, check_psyir, add_builtins_use, LOG_LEVELS)
-import psyclone.generator as generator
+    generate, main, check_psyir, add_builtins_use)
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler

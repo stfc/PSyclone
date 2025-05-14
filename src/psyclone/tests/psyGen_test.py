@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified: I. Kavcic, L. Turner, O. Brunt and J. G. Wallwork, Met Office
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the psyGen module '''
@@ -233,6 +234,7 @@ def test_transformation_apply_deprecation_message(capsys):
                 "the individual arguments, or unpack the options with "
                 "**options. See the Transformations section of the "
                 "User guide for more details" in str(w[0].message))
+
 
 def test_transformation_get_valid_options():
     '''Test that the get_valid_options method behaves in the expected
