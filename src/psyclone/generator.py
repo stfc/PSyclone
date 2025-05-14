@@ -52,6 +52,7 @@ import traceback
 import importlib
 import shutil
 from typing import Union, Callable, List, Tuple
+import logging
 
 from fparser.api import get_reader
 from fparser.two import Fortran2003
@@ -93,6 +94,14 @@ from psyclone.version import __VERSION__
 # code) whilst keeping the original implementation as default
 # until it is working.
 LFRIC_TESTING = False
+# off "level" choice is an arbitrary choice above CRITICAL to disiable all
+# log messages.
+LOG_LEVELS = {"OFF": logging.CRITICAL + 10,
+              logging.getLevelName(logging.DEBUG): logging.DEBUG,
+              logging.getLevelName(logging.INFO): logging.INFO,
+              logging.getLevelName(logging.WARNING): logging.WARNING,
+              logging.getLevelName(logging.ERROR): logging.ERROR,
+              logging.getLevelName(logging.CRITICAL): logging.CRITICAL}
 
 
 def load_script(
@@ -488,8 +497,31 @@ def main(arguments):
         help='(psykal mode) naming scheme to use when re-naming transformed'
              ' kernels')
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
+    parser.add_argument(
+        "--log-level", default="OFF",
+        choices=LOG_LEVELS.keys(),
+        help="sets the level of the PSyclone logging infrastructure. 'debug'"
+             " is the most verbose while 'critical' will show the least "
+             "information."
+    )
+    parser.add_argument(
+        "--log-file", default=None,
+        help="sets the output file to use for logging. If not specified the "
+             "logging information will be output to stdout."
+    )
 
     args = parser.parse_args(arguments)
+
+    # Set the logging system up.
+    loglevel = LOG_LEVELS[args.log_level]
+    if args.log_file:
+        logname = args.log_file
+        logging.basicConfig(filename=logname,
+                            level=loglevel)
+    else:
+        logging.basicConfig(level=loglevel)
+    logger = logging.getLogger(__name__)
+    logger.debug("Logging system initialised.")
 
     # Validate that the given arguments are for the right operation mode
     if not args.psykal_dsl:
