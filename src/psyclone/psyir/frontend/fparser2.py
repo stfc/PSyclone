@@ -1605,6 +1605,13 @@ class Fparser2Reader():
                     container.name.lower() in self._modules_to_resolve):
                 parent.symbol_table.resolve_imports([container])
 
+            if visibility_map:
+                # Some of the imported symbols could have explicit visibility
+                # statements, so set the visibilities of all existing symbols
+                for symbol in parent.symbol_table.symbols_dict.values():
+                    if symbol.name.lower() in visibility_map:
+                        symbol.visibility = visibility_map[symbol.name.lower()]
+
     def _process_type_spec(self, parent, type_spec):
         '''
         Processes the fparser2 parse tree of a type specification in order to

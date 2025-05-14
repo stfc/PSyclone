@@ -90,6 +90,8 @@ The :ref:`examples section<examples>` provides a list of psyclone user scripts
 and associated usage instructions for multiple applications.
 
 
+.. _sec_script_globals:
+
 Script Global Variables
 -----------------------
 
@@ -102,9 +104,11 @@ is applied). These are:
     # List of all files that psyclone will skip processing
     FILES_TO_SKIP = ["broken_file1.f90", "broken_file2.f90"]
 
-    # Boolean to decide whether PSyclone should chase external modules while
-    # creating a PSyIR tree in order to obtain better external symbol information.
-    # It can also be a list of module names for more precise control
+    # Whether to chase the imported modules to improve symbol information (it can
+    # also be a list of module filenames to limit the chasing to only specific
+    # modules). This has to be used in combination with '-I' command flag in order
+    # to point to the module location directory. We also strongly recommend using
+    # the '--enable-cache' flag to reduce the performance overhead.
     RESOLVE_IMPORTS = ["relevant_module1.f90", "relevant_module2.f90"]
 
     def trans(psyir):
