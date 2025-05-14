@@ -41,7 +41,7 @@ https://psyclone.readthedocs.io/en/latest/gocean1p0.html).
 
 Contains the NetCDF-extract, PSyData-API-based, wrapper library for the
 [LFRic API](
-https://psyclone.readthedocs.io/en/stable/lfric.html).
+https://psyclone.readthedocs.io/en/latest/lfric.html).
 
 <!--
 ## Licence

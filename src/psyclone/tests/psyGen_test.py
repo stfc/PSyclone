@@ -1610,8 +1610,7 @@ def test_haloexchange_can_be_printed():
 def test_haloexchange_node_str():
     ''' Test the node_str() method of HaloExchange. '''
 
-    # We have to use the LFRic API as that's currently the only
-    # one that supports halo exchanges.
+    # Use the LFRic API for this test.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         api="lfric")

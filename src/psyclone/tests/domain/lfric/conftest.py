@@ -137,7 +137,7 @@ end module testkern_field_mod
 @pytest.fixture(name="lfrickern_op", scope="module")
 def lfrickern_op_fixture():
     '''
-    :returns: an LFRicKern object created from example metadata that includes \
+    :returns: an LFRicKern object created from example metadata that includes
               an operator argument.
     :rtype: :py:class:`psyclone.domain.lfric.LFRicKern`
     '''

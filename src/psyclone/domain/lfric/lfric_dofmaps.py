@@ -64,7 +64,7 @@ class LFRicDofmaps(LFRicCollection):
 
     :param node: Kernel or Invoke for which to manage dofmaps.
     :type node: :py:class:`psyclone.domain.lfric.LFRicKern` or \
-                :py:class:`psyclone.lfric.LFRicInvoke`
+                :py:class:`psyclone.domain.lfric.LFRicInvoke`
 
     '''
     def __init__(self, node):

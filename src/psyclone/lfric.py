@@ -376,7 +376,7 @@ class LFRicMeshProperties(LFRicCollection):
 
     :param node: kernel or invoke for which to manage mesh properties.
     :type node: :py:class:`psyclone.domain.lfric.LFRicKern` or \
-                :py:class:`psyclone.lfric.LFRicInvoke`
+                :py:class:`psyclone.domain.lfric.LFRicInvoke`
 
     '''
     def __init__(self, node):
@@ -1861,7 +1861,7 @@ class LFRicMeshes():
 
     :param invoke: the Invoke for which to extract information on all \
                    required inter-grid operations.
-    :type invoke: :py:class:`psyclone.lfric.LFRicInvoke`
+    :type invoke: :py:class:`psyclone.domain.lfric.LFRicInvoke`
     :param unique_psy_vars: list of arguments to the PSy-layer routine.
     :type unique_psy_vars: list of \
                       :py:class:`psyclone.lfric.LFRicKernelArgument` objects.
@@ -3514,7 +3514,7 @@ class LFRicBoundaryConditions(LFRicCollection):
 
     :param node: the Invoke or Kernel stub for which we are to handle \
                  any boundary conditions.
-    :type node: :py:class:`psyclone.lfric.LFRicInvoke` or \
+    :type node: :py:class:`psyclone.domain.lfric.LFRicInvoke` or \
                 :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises GenerationError: if a kernel named "enforce_bc_code" is found \

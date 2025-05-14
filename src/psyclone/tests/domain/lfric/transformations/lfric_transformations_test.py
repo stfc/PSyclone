@@ -7230,7 +7230,7 @@ def test_async_halo_exchange_nomatch2():
     assert ("Halo exchange start for field 'f1' has no matching halo "
             "exchange end") in str(excinfo.value)
 
-# tests for LFRic0p3KernelConstTrans transformation
+# tests for LFRicKernelConstTrans transformation
 
 
 def create_kernel(file_name):

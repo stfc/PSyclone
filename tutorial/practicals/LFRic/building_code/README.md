@@ -17,7 +17,7 @@ linked as needed in each tutorial.
 This tutorial shows how to create and use simple LFRic kernels to
 perform mathematical operations on the LFRic field data. It starts with
 different kernels for different LFRic finite-element [function spaces](
-https://psyclone.readthedocs.io/en/stable/lfric.html#supported-function-spaces)
+https://psyclone.readthedocs.io/en/latest/lfric.html#supported-function-spaces)
 and uses them as a template to write generic kernels that can
 operate on any function space.
 
@@ -29,7 +29,7 @@ subroutine argument list and loops that update an LFRic field.
 ### [Tutorial 2: Built-ins](2_built_ins)
 
 This tutorial shows how to use the [PSyclone LFRic API built-ins](
-https://psyclone.readthedocs.io/en/stable/lfric.html#built-ins)
+https://psyclone.readthedocs.io/en/latest/lfric.html#built-ins)
 instead of kernels for simple linear algebra operations on fields.
 
 ### [Tutorial 3: Time evolution](3_time_evolution)
@@ -64,7 +64,7 @@ that calls one or more [algorithms](
 background/LFRic_structure.md#algorithm-layer). The
 algorithms, in turn, contain `invoke` calls to one or more [kernels](
 background/LFRic_structure.md#kernel-layer) and/or [PSyclone built-ins](
-https://psyclone.readthedocs.io/en/stable/lfric.html#built-ins).
+https://psyclone.readthedocs.io/en/latest/lfric.html#built-ins).
 
 The driver in each tutorial provides the framework to build an executable
 program through the set-up of the LFRic infrastructure objects and calls
@@ -102,7 +102,7 @@ It is advisable to run `make transform` whilst completing the kernel and
 and algorithm code to ensure that the code is correct. PSyclone checks
 that the source is syntactically correct and that it abides by the
 PSyclone [LFRIC API](
-https://psyclone.readthedocs.io/en/stable/lfric.html) rules.
+https://psyclone.readthedocs.io/en/latest/lfric.html) rules.
 
 ---
 
