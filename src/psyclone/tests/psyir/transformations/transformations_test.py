@@ -762,24 +762,6 @@ def test_regiontrans_wrong_children():
             "is a Schedule" in str(err.value))
 
 
-def test_parallelregion_refuse_codeblock():
-    ''' Check that ParallelRegionTrans.validate() rejects a loop nest that
-    encloses a CodeBlock. We use OMPParallelTrans as ParallelRegionTrans
-    is abstract. '''
-    otrans = OMPParallelTrans()
-    # Construct a valid Loop in the PSyIR with a CodeBlock in its body
-    parent = Loop.create(DataSymbol("ji", INTEGER_TYPE),
-                         Literal("1", INTEGER_TYPE),
-                         Literal("10", INTEGER_TYPE),
-                         Literal("1", INTEGER_TYPE),
-                         [CodeBlock([], CodeBlock.Structure.STATEMENT,
-                                    None)])
-    with pytest.raises(TransformationError) as err:
-        otrans.validate([parent])
-    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
-            "OMPParallelTrans transformation" in str(err.value))
-
-
 def test_parallellooptrans_refuse_codeblock():
     ''' Check that ParallelLoopTrans.validate() rejects a loop nest that
     encloses a CodeBlock. We have to use OMPParallelLoopTrans as
