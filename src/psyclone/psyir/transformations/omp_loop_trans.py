@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Transformation to insert OpenMP directives to parallelise PSyIR Loops. '''
 
@@ -86,7 +87,8 @@ class OMPLoopTrans(ParallelLoopTrans):
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.nodes import Loop
-    >>> from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
+    >>> from psyclone.psyir.transformations import OMPLoopTrans
+    >>> from psyclone.transformations import OMPParallelTrans
     >>>
     >>> psyir = FortranReader().psyir_from_source("""
     ...     subroutine my_subroutine()
