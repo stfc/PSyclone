@@ -425,7 +425,7 @@ def test_no_script_gocean():
         os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
         api="gocean")
     assert "program single_invoke_test" in alg
-    assert "MODULE psy_single_invoke_test" in str(psy)
+    assert "module psy_single_invoke_test" in str(psy)
 
 
 def test_script_gocean(script_factory):
@@ -1017,7 +1017,7 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
         "contains\n"
         "subroutine setval_c()\n"
         "  use psyclone_builtins\n"
-        "  use constants_mod, only: r_def\n"
+        "  use constants_mod\n"
         "  use field_mod, only : field_type\n"
         "  type(field_type) :: field\n"
         "  real(kind=r_def) :: value\n"
@@ -1640,7 +1640,7 @@ def test_generate_unresolved_container_lfric(invoke, tmpdir, monkeypatch):
         f" use testkern_mod, only: testkern_type\n"
         f"end subroutine dummy_kernel\n"
         f"subroutine some_kernel()\n"
-        f"  use constants_mod, only: r_def\n"
+        f"  use constants_mod\n"
         f"  use field_mod, only : field_type\n"
         f"  type(field_type) :: field1, field2, field3, field4\n"
         f"  real(kind=r_def) :: scalar\n"

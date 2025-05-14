@@ -136,8 +136,8 @@ You will see that all halo exchanges have been converted to asynchronous halo ex
 ```bash
 InvokeSchedule[invoke='invoke_0', dm=True]
     0: Loop[type='dofs', field_space='any_space_1', it_space='dof', upper_bound='ndofs']
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
+        Reference[name:'loop0_start']
+        Reference[name:'loop0_stop']
         Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
         Schedule[]
             0: BuiltIn setval_c(grad_p,0.0_r_def)
@@ -223,8 +223,8 @@ output. For example:
 ```bash
 InvokeSchedule[invoke='invoke_0', dm=True]
     0: Loop[type='dofs', field_space='any_space_1', it_space='dof', upper_bound='ndofs']
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
+        Reference[name:'loop0_start']
+        Reference[name:'loop0_stop']
         Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
         Schedule[]
             0: BuiltIn setval_c(grad_p,0.0_r_def)
