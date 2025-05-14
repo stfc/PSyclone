@@ -105,10 +105,10 @@ is applied). These are:
     FILES_TO_SKIP = ["broken_file1.f90", "broken_file2.f90"]
 
     # Whether to chase the imported modules to improve symbol information (it can
-    # also be a list of module filenames chase only specific modules). This has to
-    # be used in combination of '-I' command flag in order to point to the module
-    # location directory and we strongly suggest using it in combination with the
-    # '--enable-cache' flag.
+    # also be a list of module filenames to limit the chasing to only specific
+    # modules). This has to be used in combination with '-I' command flag in order
+    # to point to the module location directory. We also strongly recommend using
+    # the '--enable-cache' flag to reduce the performance overhead.
     RESOLVE_IMPORTS = ["relevant_module1.f90", "relevant_module2.f90"]
 
     def trans(psyir):

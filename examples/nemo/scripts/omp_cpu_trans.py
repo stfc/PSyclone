@@ -48,10 +48,10 @@ from psyclone.transformations import OMPLoopTrans
 PROFILING_ENABLED = False
 
 # Whether to chase the imported modules to improve symbol information (it can
-# also be a list of module filenames chase only specific modules). This has to
-# be used in combination of '-I' command flag in order to point to the module
-# location directory and we strongly suggest using it in combination with the
-# '--enable-cache' flag.
+# also be a list of module filenames to limit the chasing to only specific
+# modules). This has to be used in combination with '-I' command flag in order
+# to point to the module location directory. We also strongly recommend using
+# the '--enable-cache' flag to reduce the performance overhead.
 RESOLVE_IMPORTS = True
 
 # A environment variable can inform if this is targeting NEMOv4, in which case

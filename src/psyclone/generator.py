@@ -439,9 +439,9 @@ def main(arguments):
         help='path to Fortran INCLUDE or module files')
     parser.add_argument(
         '--enable-cache', action="store_true", default=False,
-        help='whether to enable caching imported module dependencies (if '
+        help='whether to enable caching of imported module dependencies (if '
              'enabled, it will generate a .psycache file of each imported '
-             'module in the same location as the import source file).'
+             'module in the same location as the imported source file).'
     )
     parser.add_argument(
         '-l', '--limit', dest='limit', default='off',
@@ -512,9 +512,8 @@ def main(arguments):
             sys.exit(1)
 
     # This has be be before the Config.get, because otherwise that creates a
-    # ModuleManager Singelton without caching
-    if args.enable_cache:
-        _ = ModuleManager.get(cache_active=True)
+    # ModuleManager Singleton without caching
+    _ = ModuleManager.get(cache_active=args.enable_cache)
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.

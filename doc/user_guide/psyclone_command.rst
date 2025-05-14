@@ -73,9 +73,9 @@ by the command:
                            filename of a PSyclone optimisation recipe
      -I INCLUDE, --include INCLUDE
                            path to Fortran INCLUDE or module files
-     --enable-cache        whether to enable caching imported module dependencies (if
+     --enable-cache        whether to enable caching of imported module dependencies (if
                            enabled, it will generate a .psycache file of each imported
-                           module in the same location as the import source file).
+                           module in the same location as the imported source file).
      -l {off,all,output}, --limit {off,all,output}
                            limit the Fortran line length to 132 characters (default 'off').
                            Use 'all' to apply limit to both input and output Fortran. Use
@@ -172,8 +172,8 @@ dependencies in order to obtain more information about the code symbols (see
 dependencies and the imports happen from multiple files, it can increase the
 psyclone processing time considerably. In this case it is recommended to use
 the `--enable-cache` flag. This will creates a `filename.psycache` file in the
-same location as the original file for every import followed, the next time
-the same import is requested, if the hash match, the cached file will be used.
+same location as the original file for every import followed. The next time
+the same import is requested, if the hashes match, the cached file will be used.
 
 Currently, the PSyKAl-based APIs (LFRic and GOcean - see below) will ignore
 (but preserve) INCLUDE statements in algorithm-layer code. However, INCLUDE
