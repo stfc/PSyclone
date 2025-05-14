@@ -1698,6 +1698,8 @@ def test_process_use_stmts_resolving_external_imports(
     reader = FortranStringReader('''
     module test
         use other1
+        private
+        public a_func
     contains
         subroutine test_function()
             use other2, only : an_array
@@ -1722,10 +1724,15 @@ def test_process_use_stmts_resolving_external_imports(
     # the right symbol kind and datatype
     assert isinstance(symtab.lookup("other1"), ContainerSymbol)
     assert isinstance(symtab.lookup("a_func"), RoutineSymbol)
+    assert isinstance(symtab.lookup("N"), DataSymbol)
     assert isinstance(symtab.lookup("unused_array"), DataSymbol)
     assert symtab.lookup("n").datatype == INTEGER_TYPE
     # But not the private symbols
     assert "private_array" not in symtab
+    # The local symbols respect the local visibility statements
+    assert symtab.lookup("other1").visibility == Symbol.Visibility.PRIVATE
+    assert symtab.lookup("N").visibility == Symbol.Visibility.PRIVATE
+    assert symtab.lookup("a_func").visibility == Symbol.Visibility.PUBLIC
 
     routine = psyir.children[0]
     innersymtab = routine.symbol_table
