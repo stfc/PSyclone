@@ -130,9 +130,16 @@ def test_sym_writer_character():
 @pytest.mark.parametrize("expressions", [(".true. .and. .false.", False),
                                          (".true. .and. .true.", True),
                                          (".false. .or. .true.", True),
+                                         ("3 .eq. 3", True),
+                                         (" ((3 -2 + 4 - 5) .eq. 0 .and. .false.) .or. .true.",True),
+                                         (" (3 -2 + 4 - 5) .eq. 0 .and. .false. .and. .true.",False),
+                                         (" ((3 -2 + 4 - 5) .eq. 0 .and. .false.) .and. .true.",False),
+                                         (" .false. .and. ((3 -2 + 4 - 5) .eq. 0 .and. .false.)",False),
                                          ])
-def  test_sym_writer_boolean_expr_add_test(fortran_reader, fortran_writer, expressions):
-    '''Test that booleans are written in the way that SymPy accepts.
+def  test_sym_writer_boolean_expr_add_test(fortran_reader, expressions):
+    '''Test different boolean expressions in which constant numbers are 
+    parsed as psyir Literal. Then we can use sympy writer to accurately 
+    check wether the expression is a True or False boolean expression.
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments

@@ -236,6 +236,15 @@ class EvaluateCondition:
         expr_sympy = sympy_writer._to_str([condition])#([condition])[0]
         new_expr = sympy.simplify(expr_sympy[0].replace(".AND." , "and"))
         sympy_reader = SymPyReader(sympy_writer)
+        from psyclone.psyir.nodes import Reference, Literal
+        from psyclone.psyir.symbols import DataType
+        for ref in condition.walk(Reference):
+            ref: Reference
+            if ref.name in self._known_variables:
+                literal = Literal(str(self._known_variables[ref.name]), datatype=DataType())
+                ref.replace_with(literal.copy())
 
         psyir_expr: nodes.Node = sympy_reader.psyir_from_expression(new_expr)
-        return self._evaluate_to_bool(psyir_expr)
+        sympy_writer = SymPyWriter()
+        sympy_expr = sympy_writer(replaced_expr)
+        return bool(sympy_expr)

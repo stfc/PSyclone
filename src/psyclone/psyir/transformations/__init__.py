@@ -112,6 +112,8 @@ from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
 from psyclone.psyir.transformations.remove_ifblock_trans import \
     RemoveIfBlockTrans
+from psyclone.psyir.transformations.scalarisation_trans import \
+    ScalarisationTrans
 
 # For AutoAPI documentation generation
 __all__ = [
@@ -155,6 +157,7 @@ __all__ = [
     "RegionTrans",
     "ReplaceInductionVariablesTrans",
     "ReplaceReferenceByLiteralTrans",
+    "ScalarisationTrans",
     "TransformationError",
     "ValueRangeCheckTrans",
 ]
