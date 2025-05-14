@@ -144,7 +144,7 @@ def test_literal_init_invalid_3(value):
     with pytest.raises(ValueError) as err:
         Literal(value, INTEGER_SINGLE_TYPE)
     assert (f"A scalar integer literal value must conform to the "
-            f"supported format ('(([+-]?[0-9]+)|(NOT_INITIALISED))') "
+            f"supported format ('([+-]?[0-9]+)') "
             f"but found '{value}'." in str(err.value))
 
 
