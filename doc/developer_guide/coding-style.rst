@@ -202,6 +202,8 @@ warnings to users, but only to give warning information for developers.
 For warnings aimed at users, instead use `warnings.warn` from the Python
 standard `warnings` import.
 
+Logging should also be explicitly tested through the use of the `caplog`
+pytest fixture.
 
 
 .. _interface_description:
