@@ -39,6 +39,7 @@
 '''
 
 import keyword
+from typing import List, Optional
 
 import sympy
 from sympy.parsing.sympy_parser import parse_expr
@@ -49,7 +50,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (
-    DataNode, IntrinsicCall, Range, StructureReference)
+    DataNode, IntrinsicCall, Node, Range, Reference, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, ScalarType,
                                     SymbolError, SymbolTable, UnresolvedType)
 
@@ -251,8 +252,9 @@ class SymPyWriter(FortranWriter):
         return new_func
 
     # -------------------------------------------------------------------------
-    def _create_type_map(self, list_of_expressions, identical_variables=None,
-                         all_variables_positive=None):
+    def _create_type_map(self, list_of_expressions: List[Node],
+                         identical_variables: Optional[dict[str, str]] = None,
+                         all_variables_positive: Optional[bool] = None):
         '''This function creates a dictionary mapping each access in any
         of the expressions to either a SymPy Function (if the reference
         is an array reference) or a Symbol (if the reference is not an
@@ -296,13 +298,10 @@ class SymPyWriter(FortranWriter):
         :param list_of_expressions: the list of expressions from which all
             references are taken and added to a symbol table to avoid
             renaming any symbols (so that only member names will be renamed).
-        :type list_of_expressions: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param identical_variables: which variable names are known to represent
             identical quantities.
-        :type identical_variables: Optional[dict[str, str]]
-        :param Optional[bool] all_variables_positive: whether or not (the
-            default) to assume that all variables are positive definite
-            quantities.
+        :param all_variables_positive: whether or not (the default) to assume
+            that all variables are positive definite quantities.
 
         '''
         # Create a new symbol table, so previous symbol will not affect this
@@ -328,75 +327,80 @@ class SymPyWriter(FortranWriter):
 
         for sig in vai.all_signatures:
             sva: SingleVariableAccessInfo = vai[sig]
-            name = sig.var_name
+
             if not sig.is_structure:
-                unique_sym = self._symbol_table.new_symbol(name, tag=name)
-            for access in sva.all_accesses:
+                unique_sym = self._symbol_table.new_symbol(sig.var_name,
+                                                           tag=sig.var_name)
+            else:
+                try:
+                    unique_sym = self._symbol_table.lookup_with_tag(str(sig))
+                except KeyError:
+                    flat_name = "_".join([name for name in sig])
+                    unique_sym = self._symbol_table.new_symbol(
+                        flat_name, tag=str(sig))
+
+            try:
+                # Depending on the situation, we won't always
+                # have a scope, hence the try...except.
+                orig_sym = sva.all_accesses[0].node.scope.symbol_table.lookup(
+                    sig.var_name)
+            except SymbolError:
+                orig_sym = None
+
+            if sva.is_array():
+                # A Fortran array or function call. Declare a new SymPy
+                # function for it. This SymPy function will convert array
+                # expressions back into the original Fortran code.
+
                 if sig.is_structure:
-                    indices = access.component_indices
-                    out = []
-                    num_dims = []
-                    all_dims = []
-                    for i, name in enumerate(sig):
-                        num_dims.append(len(indices[i]))
-                        for index in indices[i]:
-                            all_dims.append(index)
-                        out.append(name)
-                    flat_name = "_".join(out)
-                    try:
-                        unique_name = self._symbol_table.lookup_with_tag(
-                            str(sig)).name
-                    except KeyError:
-                        unique_name = self._symbol_table.new_symbol(
-                            flat_name, tag=str(sig)).name
+                    num_dims_for_access = []
+                    for access in sva.all_accesses:
+                        indices = access.component_indices
+                        num_dims = []
+                        for i, name in enumerate(sig):
+                            num_dims.append(len(indices[i]))
+                        num_dims_for_access.append(num_dims)
+                    max_dims = []
+                    for i in range(len(sig)):
+                        max_dims.append(max(dims[i] for dims in
+                                            num_dims_for_access))
+                    # For a structure we also store the signature and
+                    # num_dims.
+                    self._sympy_type_map[unique_sym.name] = \
+                        self._create_sympy_array_function(unique_sym.name,
+                                                          sig, max_dims)
+                else:
+                    self._sympy_type_map[unique_sym.name] = \
+                        self._create_sympy_array_function(sig.var_name)
 
-                # SingleVariableAccessInfo.is_array() only actually checks for
-                # array indices so we also check the datatype of the
-                # expression.
-                if access.is_array() or isinstance(access.node.datatype,
-                                                   ArrayType):
-                    # A Fortran array or function call. Declare a new SymPy
-                    # function for it. This SymPy function will convert array
-                    # expressions back into the original Fortran code.
-                    if sig.is_structure:
-                        # For a structure we also store the signature and
-                        # num_dims.
-                        self._sympy_type_map[unique_name] = \
-                            self._create_sympy_array_function(unique_name,
-                                                              sig, num_dims)
-                    else:
-                        self._sympy_type_map[unique_sym.name] = \
-                            self._create_sympy_array_function(name)
-
-                        # To avoid confusion in sympy_reader, we take the
-                        # opportunity to specialise any Symbol that we are now
-                        # confident is an array.
-                        if not all(acs.is_array() for acs in sva.all_accesses):
-                            try:
-                                # Depending on the situation, we won't always
-                                # have a scope, hence the try...except.
-                                sym = access.node.scope.symbol_table.lookup(
-                                    name)
-                                if not isinstance(sym, DataSymbol):
-                                    for indices in access.component_indices:
-                                        if indices:
-                                            ndims = len(indices)
-                                    sym.specialise(
-                                        DataSymbol,
-                                        datatype=ArrayType(
-                                            UnresolvedType(),
-                                            [ArrayType.Extent.DEFERRED]*ndims))
-                            except SymbolError:
-                                pass
-                    break
+                if not all(acs.is_array() for acs in sva.all_accesses):
+                    # To avoid confusion in sympy_reader, we take the
+                    # opportunity to specialise any Symbol that we are now
+                    # confident is an array.
+                    if orig_sym and not isinstance(orig_sym, DataSymbol):
+                        # Find an access that has indices.
+                        for acs in sva.all_accesses:
+                            if not acs.is_array:
+                                continue
+                            ndims = None
+                            for indices in acs.component_indices:
+                                if indices:
+                                    ndims = len(indices)
+                            if ndims is not None:
+                                orig_sym.specialise(
+                                    DataSymbol,
+                                    datatype=ArrayType(
+                                        UnresolvedType(),
+                                        [ArrayType.Extent.DEFERRED]*ndims))
+                            break
             else:
                 # A scalar access.
                 if sig.is_structure:
-                    self._sympy_type_map[unique_name] = sympy.Symbol(
-                        sig.to_language())
+                    self._sympy_type_map[unique_sym.name] = sympy.Symbol(
+                        sig.to_language(), **assumptions)
                 else:
                     self._sympy_type_map[unique_sym.name] = sympy.Symbol(
-                        name, **assumptions)
+                        sig.var_name, **assumptions)
 
         if not identical_variables:
             identical_variables = {}
@@ -614,16 +618,18 @@ class SymPyWriter(FortranWriter):
         sig, indices = node.get_signature_and_indices()
 
         all_dims = []
-        is_array = False
         for i, name in enumerate(sig):
-            for index in indices[i]:
-                all_dims.append(index)
-                is_array = True
+            if indices[i]:
+                for index in indices[i]:
+                    all_dims.append(index)
+            else:
+                sym = self._symbol_table.lookup_with_tag("sympy!no_bounds")
+                all_dims.append(Reference(sym))
 
         # Find the unique variable name created in _create_type_map()
         unique_name = self._symbol_table.lookup_with_tag(str(sig)).name
 
-        if is_array:
+        if self.type_map[unique_name].is_Function:
             indices_str = self.gen_indices(all_dims)
             return f"{unique_name}({','.join(indices_str)})"
 
