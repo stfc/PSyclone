@@ -4649,7 +4649,18 @@ class Fparser2Reader():
         :return: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Return`
 
+        :raises NotImplementedError: if the parse tree contains an
+            alternate return statement.
         '''
+        # Fortran Alternate Return statements are not supported
+        if node.children != (None, ):
+            raise NotImplementedError(
+                "Fortran alternate returns are not supported.")
+        # Ignore redundant Returns at the end of Execution sections
+        if isinstance(node.parent, Fortran2003.Execution_Part):
+            if node is node.parent.children[-1]:
+                return None
+        # Everything else is a valid PSyIR Return
         rtn = Return(parent=parent)
         rtn.ast = node
         return rtn
