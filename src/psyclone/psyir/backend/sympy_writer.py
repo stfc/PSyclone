@@ -332,26 +332,27 @@ class SymPyWriter(FortranWriter):
                 unique_sym = self._symbol_table.new_symbol(sig.var_name,
                                                            tag=sig.var_name)
             else:
-                try:
-                    unique_sym = self._symbol_table.lookup_with_tag(str(sig))
-                except KeyError:
-                    flat_name = "_".join([name for name in sig])
-                    unique_sym = self._symbol_table.new_symbol(
-                        flat_name, tag=str(sig))
+                flat_name = "_".join([name for name in sig])
+                unique_sym = self._symbol_table.find_or_create_tag(
+                    str(sig), root_name=flat_name)
 
             try:
                 # Depending on the situation, we won't always
                 # have a scope, hence the try...except.
-                orig_sym = sva.all_accesses[0].node.scope.symbol_table.lookup(
-                    sig.var_name)
+                orig_sym = sva.all_accesses[0].node.scope.symbol_table.\
+                    lookup(sig.var_name)
             except SymbolError:
-                orig_sym = None
+                if isinstance(sva.all_accesses[0].node, Reference):
+                    orig_sym = sva.all_accesses[0].node.symbol
+                else:
+                    orig_sym = None
 
-            if sva.is_array():
+            if (sva.is_array() or
+                    (orig_sym and isinstance(orig_sym, DataSymbol)
+                     and isinstance(orig_sym.datatype, ArrayType))):
                 # A Fortran array or function call. Declare a new SymPy
                 # function for it. This SymPy function will convert array
                 # expressions back into the original Fortran code.
-
                 if sig.is_structure:
                     num_dims_for_access = []
                     for access in sva.all_accesses:
@@ -380,7 +381,7 @@ class SymPyWriter(FortranWriter):
                     if orig_sym and not isinstance(orig_sym, DataSymbol):
                         # Find an access that has indices.
                         for acs in sva.all_accesses:
-                            if not acs.is_array:
+                            if not acs.is_array():
                                 continue
                             ndims = None
                             for indices in acs.component_indices:
