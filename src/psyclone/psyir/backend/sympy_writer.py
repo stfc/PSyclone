@@ -304,9 +304,9 @@ class SymPyWriter(FortranWriter):
             that all variables are positive definite quantities.
 
         '''
-        # Create a new symbol table, so previous symbol will not affect this
+        # Create a new symbol table, so previous symbols will not affect this
         # new conversion (i.e. this avoids name clashes with a previous
-        # conversion). First add all reserved names so that these names will
+        # conversion). First, add all reserved names so that these names will
         # automatically be renamed. The symbol table is used later to also
         # create guaranteed unique names for lower and upper bounds.
         self._symbol_table = SymbolTable()
@@ -354,6 +354,12 @@ class SymPyWriter(FortranWriter):
                 # function for it. This SymPy function will convert array
                 # expressions back into the original Fortran code.
                 if sig.is_structure:
+                    # The same Signature can cover accesses with different
+                    # numbers of indices, e.g. a%b, a%b(1) and a(1)%b. We
+                    # therefore have to examine all accesses and establish the
+                    # maximum number of dimensions that is used for each
+                    # component of the Signature.
+                    # This list will hold lists of indices, one list per access
                     num_dims_for_access = []
                     for access in sva.all_accesses:
                         indices = access.component_indices
@@ -361,16 +367,20 @@ class SymPyWriter(FortranWriter):
                         for i, name in enumerate(sig):
                             num_dims.append(len(indices[i]))
                         num_dims_for_access.append(num_dims)
+                    # For each component, find the maximum number of dimensions
+                    # seen in any access.
                     max_dims = []
                     for i in range(len(sig)):
                         max_dims.append(max(dims[i] for dims in
                                             num_dims_for_access))
-                    # For a structure we also store the signature and
-                    # num_dims.
+                    # We store the signature and the list of dimensions
+                    # associated with each component as part of the Sympy
+                    # function.
                     self._sympy_type_map[unique_sym.name] = \
                         self._create_sympy_array_function(unique_sym.name,
                                                           sig, max_dims)
                 else:
+                    # Not a structure access.
                     self._sympy_type_map[unique_sym.name] = \
                         self._create_sympy_array_function(sig.var_name)
 
@@ -408,7 +418,6 @@ class SymPyWriter(FortranWriter):
         # For all variables that are the same, set the symbols to be
         # identical. This means if e.g. identical_variables={'i': 'j'},
         # the expression i-j becomes j-j = 0
-
         for var1, var2 in identical_variables.items():
             if var1 in self._sympy_type_map and var2 in self._sympy_type_map:
                 self._sympy_type_map[var1] = self._sympy_type_map[var2]
