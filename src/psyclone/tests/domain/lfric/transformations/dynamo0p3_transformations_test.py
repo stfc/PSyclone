@@ -45,7 +45,7 @@ from importlib import import_module
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.core.access_type import AccessType
+from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.domain.lfric import LFRicLoop
@@ -7772,8 +7772,6 @@ def test_all_loop_trans_base_validate(monkeypatch):
 # paths in different places): non-intergrid kernels, intergrid kernels, and
 # continuous writer intergrid kernels.
 # TODO #2905: Aims to encapsulate this better inside the transformation
-# TODO #2623: Compilation tests can not be added until we update the testing
-# lfric infrastructure
 
 def test_colour_trans_tiled_non_intergrid(dist_mem):
     ''' Test of the tile-colouring transformation of a single loop. We test
@@ -7793,6 +7791,13 @@ def test_colour_trans_tiled_non_intergrid(dist_mem):
 
     # Colour the loop
     ctrans.apply(schedule.children[index], options={"tiling": True})
+
+    # Check that the symbols associated to the colour-tiling are added as
+    # accesses
+    vai = VariablesAccessInfo()
+    schedule.reference_accesses(vai)
+    for name in "tile", "colour", "cell", "tmap":
+        assert Signature(name) in vai
 
     # Store the results of applying this code transformation as
     # a string (Fortran is not case sensitive)
@@ -7838,8 +7843,8 @@ mesh%get_last_halo_cell_all_colours_all_tiles()""" in code
             "ndf_w2, undf_w2, map_w2(:,tmap(colour,tile,cell)), ndf_w3, "
             "undf_w3, map_w3(:,tmap(colour,tile,cell)))" in code)
 
-    # To compile it needs an up-to-date lfric infrastructure with the new
-    # tile-colouring methods
+    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -7931,8 +7936,8 @@ def test_colour_tans_tiled_intergrid(dist_mem):
         "ndf_w1, undf_w1, map_w1, undf_w2, "
         "map_w2(:,tmap_fld_m(colour,tile,cell)))\n" in gen)
 
-    # To compile it needs an up-to-date lfric infrastructure with the new
-    # tile-colouring methods
+    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -7975,6 +7980,6 @@ def test_colour_trans_tiled_continuous_writer_intergrid(dist_mem):
             "(colour,tile), 1" in result)
     assert ("call restrict_w2_code(nlayers_field1, cell_map_field1(:,:,"
             "tmap_field1(colour,tile,cell))" in result)
-    # To compile it needs an up-to-date lfric infrastructure with the new
-    # tile-colouring methods
+    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)

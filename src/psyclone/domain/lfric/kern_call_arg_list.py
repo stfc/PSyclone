@@ -995,7 +995,7 @@ class KernCallArgList(ArgOrdering):
         cell_sym = self._symtab.find_or_create_integer_symbol(
             "cell", tag="cell_loop_idx")
         if var_accesses is not None:
-            var_accesses.add_access(Signature("cell"), AccessType.READ,
+            var_accesses.add_access(Signature(cell_sym.name), AccessType.READ,
                                     self._kern)
 
         if self._kern.is_coloured():
@@ -1017,13 +1017,11 @@ class KernCallArgList(ArgOrdering):
                     [Reference(colour_sym), Reference(tile_sym),
                      Reference(cell_sym)],
                     tag="tmap" if self._kern.is_intergrid else None)
-                # If needed we could add a add_access, but this feels wrong,
-                # as the access should be provived by analysing the tree.
-                # if var_accesses is not None:
-                #     var_accesses.add_access(Signature(array_ref.name),
-                #                             AccessType.READ,
-                #                             self._kern,
-                #                             ["colour", "tile", "cell"])
+                if var_accesses is not None:
+                    var_accesses.add_access(Signature(array_ref.name),
+                                            AccessType.READ,
+                                            self._kern,
+                                            ["colour", "tile", "cell"])
             else:
                 symbol = self._kern.colourmap
                 array_ref = ArrayReference.create(
