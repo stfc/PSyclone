@@ -1030,7 +1030,7 @@ class ColourTrans(LoopTrans):
         '''
         Converts the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
-        loop is over cells of that colour.
+        loop is over cells (or tiles and cells) of that colour.
 
         :param node: the loop to transform.
         :param options: options for the transformation.
@@ -1146,10 +1146,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
     def validate(self, node: LFRicLoop,
                  options: Optional[Dict[str, Any]] = None,
                  **kwargs):
-        '''Performs LFRic-specific error checking and then uses the parent
-        class to convert the Loop represented by :py:obj:`node` into a
-        nested loop where the outer loop is over colours and the inner
-        loop is over cells of that colour.
+        ''' Validate the transformation.
 
         :param node: the loop to transform.
         :param options: a dictionary with options for transformations.
@@ -1189,10 +1186,10 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
     def apply(self, node: LFRicLoop, options: Optional[Dict[str, Any]] = None,
               **kwargs):
-        '''Performs LFRic-specific error checking and then uses the parent
-        class to convert the Loop represented by :py:obj:`node` into a
-        nested loop where the outer loop is over colours and the inner
-        loop is over cells of that colour.
+        ''' Convert the given LFRic-specific loop into a double or triple
+        nested loop where the outer loop iterates over colours and the inner
+        loops iterates over cells or tile and cells. This enables safe
+        parallelisation of the second loop.
 
         :param node: the loop to transform.
         :param options: a dictionary with options for transformations.
