@@ -519,39 +519,68 @@ this causes issues, please open an issue.
 Moving to the new transformations options
 =========================================
 PSyclone is currently moving from a dictionary of options to keyword arguments
-to control the `apply` function of transformations. This update is happening
-gradually, with developers being asked to update transformations as they
-are otherwise being modified.
+to control the `apply` and `validate` transformation methods. For example:
 
-Note that the while the `options` dict is deprecated, it should still override
-the keyword arguments if provided.
+.. code-block:: python
 
-The steps required are detailed here:
+   # Previous implementation
+   LFRicColourTrans().apply(loop, option={"tiling": true}
+   # New implementation
+   LFRicColourTrans().apply(loop, tiling=True)
 
-1. Convert the `apply` function to have a keyword argument for each available
+
+This update is happening gradually, with developers being asked to update
+transformations as they are otherwise being modified.
+
+Note that the while the `options` dict is being deprecated, it is still
+accepted and ovverides the keyword arguments if both are provided.
+
+The steps required to update the transformations are detailed here (see
+the `ParallelLoopTrans` class for reference):
+
+1. Update the `apply` function to have a keyword argument for each available
    option. These arguments should have type hints and default values defined
    if possible. The `options` argument should remain, and `**kwargs` should
-   also be available.
-2. The `options` input should overrule the keyword arguments when determining
-   options to the apply and validate function. There should also be a
-   `# TODO 2668` to remove the options argument later.
-3. The `apply` function should call the `validate_options` routine on each of
+   also be available. If type hints are not possible for one of the keyword
+   arguments, then type hints will need to be provided in the documentation
+   as normal, and type checking will need to be done manually in validate as
+   `validate_options` cannot automatically do type checking where no type hint
+   is available. Note that if there is no `apply` function it should be added
+   if the Transformation takes any options as the new infrastructure is
+   built upon the `apply` definition (e.g. `LoopTrans` has
+   validation used for subclasses, but performs no actions in its newly added
+   `apply` routine).
+2. The `validate` function should call the `validate_options` routine on each of
    the keyword arguments and `**kwargs`. This routine should not be called on
-   the `options` dictionary.
-4. Modify the `validate` function to takes `*kwargs` (but no other keyword
+   the `options` dictionary. The `options` input should overrule the keyword
+   arguments when determining options to the apply and validate function.
+   There should also be a `# TODO 2668` to remove the options argument later:
+   
+.. code-block:: python
+
+    if not options:
+        self.validate_options(tiling=tiling, **kwargs)
+    else:
+        #TODO #2668: Deprecate options dictionary.
+        tiling = options.get("tiling", False)
+
+3. Modify the `validate` function to take `**kwargs` (but no other keyword
    arguments other than options). Use the `get_option('optname', **kwargs)`
    to get each of the options out of the kwargs, as this will also give
    the default value if the option isn't passed into validate.
-5. Validate should also call `validate_options` on the `**kwargs` input.
-6. If the `apply` function doesn't call `super().apply` all the way up to
+4. If the `apply` function doesn't call `super().apply` all the way up to
    the base `Transformation` class, then it should print the
    `self._deprecation_warning` message if the `options` dict is provided.
-7. If the `apply` function calls any `super().apply`, import the
-   `transformation_documentation_wrapper` from `psyclone.utils` and
-   add `@transformation_documentation_wrapper` to the class definition.
+5. Rewrite the documentation on the `apply` function to document the new
+   keyword arguments, and remove any reference to options. Remove the
+   documentation on the keyword arguments to `validate`, as these will be
+   generated automatically by PSyclone.
+6. Import the `transformation_documentation_wrapper` from `psyclone.utils` and
+   add `@transformation_documentation_wrapper` to the class definition. If
+   there are no calls to super.apply() or super.validate(), then disable
+   option inheritance in the documentation by using
+   `@transformation_documentation_wrapper(inherit=False)`.
+7. Repeat this process for any classes that the class inherits from.
 
-The `ParallelLoopTrans` class has an implementation that does all of the above
-except the deprecation warning, so can be used as a reference for moving
-to the new options.
 
 .. footbibliography::
