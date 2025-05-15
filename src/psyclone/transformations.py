@@ -1183,7 +1183,6 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Cannot have a loop over colours "
                                       "within an OpenMP parallel region.")
 
-
     def apply(self, node: LFRicLoop, options: Optional[Dict[str, Any]] = None,
               **kwargs):
         ''' Convert the given LFRic-specific loop into a double or triple
