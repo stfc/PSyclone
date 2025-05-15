@@ -39,7 +39,7 @@
 '''
 
 import keyword
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import sympy
 from sympy.parsing.sympy_parser import parse_expr
@@ -253,7 +253,7 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     def _create_type_map(self, list_of_expressions: List[Node],
-                         identical_variables: Optional[dict[str, str]] = None,
+                         identical_variables: Optional[Dict[str, str]] = None,
                          all_variables_positive: Optional[bool] = None):
         '''This function creates a dictionary mapping each access in any
         of the expressions to either a SymPy Function (if the reference
