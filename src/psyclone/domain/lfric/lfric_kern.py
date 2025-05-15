@@ -483,8 +483,9 @@ class LFRicKern(CodedKern):
             try:
                 cmap = sched.symbol_table.lookup_with_tag("cmap")
             except KeyError:
-                # We have to do this here as _init_colourmap (which calls this
-                # method) is only called at code-generation time.
+                # Declare array holding map from a given colour-cell to
+                # the index of the cell (this is not initialised until code
+                # lowering)
                 cmap = sched.symbol_table.find_or_create_tag(
                     "cmap", symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
@@ -512,12 +513,13 @@ class LFRicKern(CodedKern):
             tmap = self._intergrid_ref.tilecolourmap_symbol.name
         else:
             try:
-                tmap = sched.symbol_table.lookup_with_tag("tmap").name
+                tmap = sched.symbol_table.lookup_with_tag("tilecolourmap").name
             except KeyError:
-                # We have to do this here as _init_colourmap (which calls this
-                # method) is only called at code-generation time.
+                # Declare array holding map from a given tile-colour-cell to
+                # the index of the cell (this is not initialised until code
+                # lowering)
                 tmap = sched.symbol_table.find_or_create_tag(
-                    "tmap", symbol_type=DataSymbol,
+                    "tilecolourmap", root_name="tmap", symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
                         "integer(kind=i_def), pointer :: tmap(:,:,:)")).name
 
@@ -576,14 +578,14 @@ class LFRicKern(CodedKern):
         try:
             symbol = self.scope.symbol_table.lookup_with_tag("ncolour")
         except KeyError:
-            symbol = None
-        return symbol.name if symbol is not None else None
+            return None
+        return symbol.name
 
     @property
     def ntilecolours_var(self) -> Optional[str]:
         '''
         Getter for the name of the variable holding the number of colours
-        associated with this kernel call.
+        (over tiled cells) associated with this kernel call.
 
         :return: name of the variable holding the number of colours
 
@@ -600,8 +602,8 @@ class LFRicKern(CodedKern):
         try:
             symbol = self.scope.symbol_table.lookup_with_tag("ntilecolours")
         except KeyError:
-            symbol = None
-        return symbol.name if symbol is not None else None
+            return None
+        return symbol.name
 
     @property
     def fs_descriptors(self):

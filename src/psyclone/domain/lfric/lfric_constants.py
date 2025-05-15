@@ -180,7 +180,7 @@ class LFRicConstants():
         ]
 
         LFRicConstants.VALID_LOOP_BOUNDS_NAMES = ([
-            # The field strting index, set to 1.
+            # The field starting index, set to 1.
             "start",
             # The first cell in the halo region.
             "cell_halo_start",
@@ -203,17 +203,30 @@ class LFRicConstants():
             # The number of owned dofs
             "ndofs",
             # The number of owned dofs plus the number of annexed dofs. As the
-            # indices of dofs are arranged that owned dofs have lower indices
-            # than annexed dofs, having this value as an upper bound will
-            # compute both owned and annexed dofs.
+            # indices of dofs are arranged such as owned dofs have lower
+            # indices than annexed dofs, having this value as an upper bound
+            # will compute both owned and annexed dofs.
             "nannexed"
          ] + LFRicConstants.HALO_ACCESS_LOOP_BOUNDS)
 
-        # Valid LFRic loop types. The default is "" which is over cell columns
-        # (in the horizontal plane). A "null" loop doesn't iterate over
-        # anything but is required for the halo-exchange logic.
-        LFRicConstants.VALID_LOOP_TYPES = ["dof", "colours", "colour", "",
-                                           "null", "colourtiles", "tile"]
+        # Valid LFRic loop types
+        LFRicConstants.VALID_LOOP_TYPES = [
+            # The default is "" which is over cell columns (in the horizontal
+            # plane).
+            "",
+            # A "null" loop doesn't iterate over anything but is required for
+            # the halo-exchange logic.
+            "null",
+            # Iterate over dofs
+            "dof",
+            # Iterate over the number of distinct colours
+            "colours",
+            # Iterate over the cells of a given colour
+            "colour",
+            # Iterate over the tiles of a given colour (of tiled cells)
+            "colourtiles",
+            # Iterate over the cells of a given colour and tile
+            "cell_in_tile"]
 
         # Valid LFRic iteration spaces for built-in kernels
         LFRicConstants.BUILTIN_ITERATION_SPACES = ["dof"]

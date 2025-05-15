@@ -100,7 +100,7 @@ class LFRicLoop(PSyLoop):
             elif self.loop_type == "colourtiles":
                 tag = "tile_loop_idx"
                 suggested_name = "tile"
-            elif self.loop_type == "tile":
+            elif self.loop_type == "cell_in_tile":
                 tag = "cell_loop_idx"
                 suggested_name = "cell"
             elif self.loop_type == "":

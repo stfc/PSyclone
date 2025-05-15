@@ -986,7 +986,7 @@ class KernCallArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
 
-        :returns: the reference needed to access the current cell index.
+        :returns: the variable name and a reference to access the cell index.
 
         TODO #2874: The name, argument, and first tuple component of this
         and similar methods should be refactored.
@@ -1009,7 +1009,7 @@ class KernCallArgList(ArgOrdering):
             from psyclone.domain.lfric import LFRicLoop
             loop_type = self._kern.ancestor(LFRicLoop).loop_type
 
-            if loop_type == "tile":
+            if loop_type == "cell_in_tile":
                 tile_sym = self._symtab.find_or_create_integer_symbol(
                     "tile", tag="tile_loop_idx")
                 array_ref = self.get_array_reference(

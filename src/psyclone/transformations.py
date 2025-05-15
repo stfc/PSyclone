@@ -1263,7 +1263,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
         :param node: the loop for which to create a coloured version.
 
-        :returns: doubly-nested loop over colours and cells of a given colour.
+        :returns: triply-nested loop over colours and cells of a given colour.
 
         '''
         # Create a 'colours' loop. This loops over colours and must be run
@@ -1298,7 +1298,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         # Create a cells loop. This loops over cells of a particular tile
         # and can be run in parallel.
         tile_loop = node.__class__(parent=colour_loop.loop_body,
-                                   loop_type="tile")
+                                   loop_type="cell_in_tile")
         tile_loop.field_space = node.field_space
         tile_loop.field_name = node.field_name
         tile_loop.iteration_space = node.iteration_space

@@ -900,8 +900,8 @@ def test_upper_bound_psyir_invalid_within_colouring(monkeypatch):
     assert ("All kernels within a loop over colours must have been coloured "
             "but kernel 'testkern_code' has not"
             in str(excinfo.value))
-    # Pretend the loop is over colours and passes the is_coloured check, but
-    # it does not have colouring symbols associated
+    # Pretend the loop is over tiled-colours and passes the is_coloured check,
+    # but it does not have colouring symbols associated
     monkeypatch.setattr(my_loop, "_upper_bound_name", value="ntilecolours")
     monkeypatch.setattr(Kern, "is_coloured", lambda x: True)
     with pytest.raises(InternalError) as excinfo:

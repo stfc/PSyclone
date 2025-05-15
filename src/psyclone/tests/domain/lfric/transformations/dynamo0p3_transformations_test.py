@@ -7872,7 +7872,7 @@ def test_colour_trans_tiled_and_halo_depth():
     assert "last_halo_cell_per_colour_and_tile(colour,tile,3)" in code
 
 
-def test_colour_tans_tiled_intergrid(dist_mem):
+def test_colour_trans_tiled_intergrid(dist_mem):
     ''' Check that we can apply colouring with tiling to a loop containing
     an inter-grid kernel. This have the colour maps suffixed with the field
     name (as there are multiple meshes with different colour properties). '''
@@ -7956,7 +7956,6 @@ def test_colour_trans_tiled_continuous_writer_intergrid(dist_mem):
     ctrans = Dynamo0p3ColourTrans()
     ctrans.apply(loop, options={"tiling": True})
     result = psy.gen
-    print(result)
     # Declarations.
     assert ("integer(kind=i_def), pointer :: tmap_field1(:,:,:)"
             in result)

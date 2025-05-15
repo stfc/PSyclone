@@ -617,7 +617,7 @@ class LFRicMeshProperties(LFRicCollection):
         for call in self.kernel_calls:
             if call.is_coloured() and not call.is_intergrid:
                 loop = call.parent.parent
-                is_tiled = loop.loop_type == "tile"
+                is_tiled = loop.loop_type == "cell_in_tile"
                 # Record which colour maps will be needed
                 if is_tiled:
                     has_halo = (loop.parent.parent.upper_bound_name in
@@ -2059,7 +2059,7 @@ class DynMeshes():
             # invoke have been coloured and, if so, whether the associated loop
             # is tiled or it goes into the halo.
             loop = call.parent.parent
-            is_tiled = loop.loop_type == "tile"
+            is_tiled = loop.loop_type == "cell_in_tile"
             if is_tiled:
                 has_halo = (loop.parent.parent.upper_bound_name in
                             const.HALO_ACCESS_LOOP_BOUNDS)
@@ -2206,15 +2206,15 @@ class DynMeshes():
             # There aren't any inter-grid kernels but we do need colourtilemap
             # information and that means we'll need a mesh object
             self._add_mesh_symbols(["mesh"])
-            # This creates the colourtilemap information for this invoke if we
+            # Creates the colourtilemap information for this invoke if we
             # don't already have one.
             colour_map = non_intergrid_kern.tilecolourmap
-            # No. of colours
+            # Create the No. of colours over tiles
             _ = self.symtab.find_or_create_tag(
                 "ntilecolours",
                 symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")()
-            ).name
+            )
             if self._needs_colourtilemap_halo:
                 self.symtab.find_or_create(
                     "last_halo_tile_per_colour",
@@ -2272,7 +2272,7 @@ class DynMeshes():
             if self._needs_colourtilemap or self._needs_colourtilemap_halo:
                 # There aren't any inter-grid kernels but we do need
                 # colourmap information
-                csym = self.symtab.lookup_with_tag("tmap")
+                csym = self.symtab.lookup_with_tag("tilecolourmap")
 
     def initialise(self, cursor: int) -> int:
         '''
@@ -2336,7 +2336,7 @@ class DynMeshes():
                 cursor += 1
             if self._needs_colourtilemap or self._needs_colourtilemap_halo:
                 # Look-up variable names for colourmap and number of colours
-                tmap = self.symtab.lookup_with_tag("tmap")
+                tmap = self.symtab.lookup_with_tag("tilecolourmap")
                 ntc = self.symtab.lookup_with_tag("ntilecolours")
                 # Get the number of colours
                 assignment = Assignment.create(
@@ -2657,8 +2657,8 @@ class DynInterGrid():
 
     def set_colour_info(self, colour_map: DataSymbol,
                         ncolours: DataSymbol, last_cell: DataSymbol):
-        '''Sets the colour_map, number of colours, and
-        last cell of a particular colour.
+        '''Sets the colour_map, number of colours, and last cell of a
+        particular colour.
 
         :param colour_map: the colour map symbol.
         :param ncolours: the number of colours.
@@ -2673,8 +2673,8 @@ class DynInterGrid():
                             ntilecolours: DataSymbol,
                             last_tile: DataSymbol,
                             last_cell_tile: DataSymbol):
-        '''Sets the colour_map, number of colours, and
-        last cell of a particular colour.
+        '''Sets the tilecolour_map, number of colours of tiles, last tile
+        of a particular colour and last cell of a particular tile and colour.
 
         :param tilecolour_map: the tilecolourmap symbol.
         :param ntilecolours: the number of tilecolours.
@@ -2724,7 +2724,7 @@ class DynInterGrid():
     @property
     def last_tile_var_symbol(self) -> DataSymbol:
         '''
-        :returns: the last tile variable.
+        :returns: the symbol with the last tile of a given colour.
         '''
         return self._last_tile_var_symbol
 
