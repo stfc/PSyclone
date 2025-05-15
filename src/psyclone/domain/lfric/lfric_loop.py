@@ -91,16 +91,16 @@ class LFRicLoop(PSyLoop):
             if self.loop_type == "colours":
                 tag = "colours_loop_idx"
                 suggested_name = "colour"
-            elif self.loop_type == "colour":
+            elif self.loop_type == "cells_in_colour":
                 tag = "cell_loop_idx"
                 suggested_name = "cell"
             elif self.loop_type == "dof":
                 tag = "dof_loop_idx"
                 suggested_name = "df"
-            elif self.loop_type == "colourtiles":
+            elif self.loop_type == "tiles_in_colour":
                 tag = "tile_loop_idx"
                 suggested_name = "tile"
-            elif self.loop_type == "cell_in_tile":
+            elif self.loop_type == "cells_in_tile":
                 tag = "cell_loop_idx"
                 suggested_name = "cell"
             elif self.loop_type == "":
@@ -109,8 +109,8 @@ class LFRicLoop(PSyLoop):
             else:
                 raise InternalError(
                     f"Unsupported loop type '{self.loop_type}' found when "
-                    f"creating loop variable. Supported values are 'colours', "
-                    f"'colour', 'dof' or '' (for cell-columns).")
+                    f"creating loop variable. Supported values are: "
+                    f"{const.VALID_LOOP_TYPES}")
 
             self.variable = ischedule.symbol_table.find_or_create_tag(
                 tag, root_name=suggested_name, symbol_type=DataSymbol,
@@ -166,7 +166,7 @@ class LFRicLoop(PSyLoop):
 
         # Set halo clean/dirty for all fields that are modified
         if Config.get().distributed_memory:
-            if self._loop_type != "colour":
+            if self._loop_type != "cells_in_colour":
                 if self.unique_modified_args("gh_field"):
                     self.gen_mark_halos_clean_dirty()
 
@@ -1053,8 +1053,8 @@ class LFRicLoop(PSyLoop):
         if self.loop_type in ["null", "colours"]:
             # We know we can't parallelise these loops. ("null" means there
             # is no actual loop and "colours" is the *outer* loop over the
-            # different colours used - it is the inner, "colour" loop over
-            # cells of a single colour which can be parallelised.)
+            # different colours used - it is the inner, "cells_in_colour" loop
+            # over cells of a single colour which can be parallelised.)
             return False
 
         try:
@@ -1074,7 +1074,7 @@ class LFRicLoop(PSyLoop):
 
         # The generic DA says that this loop cannot be parallelised. However,
         # we use domain-specific information to qualify this.
-        if self.loop_type == "colour":
+        if self.loop_type == "cells_in_colour":
             # This loop is either over cells of a single colour.
             # According to LFRic rules this is safe to parallelise.
             return True

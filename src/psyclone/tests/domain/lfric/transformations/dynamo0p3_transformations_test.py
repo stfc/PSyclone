@@ -102,7 +102,7 @@ def test_colour_trans_create_colours_loop(dist_mem):
     assert new_loop.loop_type == "colours"
     colour_loop = new_loop.loop_body[0]
     assert isinstance(colour_loop, LFRicLoop)
-    assert colour_loop.loop_type == "colour"
+    assert colour_loop.loop_type == "cells_in_colour"
     assert new_loop.field_space == loop.field_space
     assert colour_loop.field_space == loop.field_space
     assert colour_loop.field_name == loop.field_name
@@ -4098,7 +4098,7 @@ def test_rc_invalid_loop(monkeypatch):
         rc_trans.apply(loop)
     assert ("In the Dynamo0p3RedundantComputation transformation apply "
             "method the loop type must be one of '' (cell-columns), 'dof' or "
-            "'colour', but found 'colours'") in str(excinfo.value)
+            "'cells_in_colour', but found 'colours'") in str(excinfo.value)
 
 
 def test_rc_nodm():
@@ -5501,7 +5501,8 @@ def test_rc_parent_loop_colour(monkeypatch):
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
     assert ("if the parent of the supplied Loop is also a Loop then the "
-            "supplied Loop must iterate over 'colour'" in str(excinfo.value))
+            "supplied Loop must iterate over 'cells_in_colour'"
+            in str(excinfo.value))
 
 
 def test_rc_unsupported_loop_type(monkeypatch):
@@ -6301,7 +6302,7 @@ def test_intergrid_colour(dist_mem, trans_class, tmpdir):
     ctrans.apply(loops[3])
     if reg_trans and loop_trans:
         for loop in schedule.walk(Loop):
-            if loop.loop_type == "colour":
+            if loop.loop_type == "cells_in_colour":
                 reg_trans.apply(loop)
                 loop_trans.apply(loop)
     gen = str(psy.gen).lower()
@@ -6510,7 +6511,7 @@ def test_accenterdata_builtin(tmpdir):
         if loop.loop_type == "":
             ctrans.apply(loop)
     for loop in sched.loops():
-        if loop.loop_type in ["colour", "dof"]:
+        if loop.loop_type in ["cells_in_colour", "dof"]:
             acc_loop_trans.apply(loop)
     parallel_trans.apply(sched.children)
     acc_enter_trans.apply(sched)

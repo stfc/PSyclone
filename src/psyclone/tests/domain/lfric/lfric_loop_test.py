@@ -107,7 +107,7 @@ def test_constructor_invalid_loop_type(monkeypatch):
     with pytest.raises(InternalError) as err:
         LFRicLoop(loop_type="wrong", parent=parent)
     assert ("Unsupported loop type 'wrong' found when creating loop variable."
-            " Supported values are 'colours'" in str(err.value))
+            " Supported values are: [" in str(err.value))
 
 
 def test_set_lower_bound_functions(monkeypatch):

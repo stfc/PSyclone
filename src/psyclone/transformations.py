@@ -814,7 +814,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # colouring.
         const = LFRicConstants()
         if node.field_space.orig_name not in const.VALID_DISCONTINUOUS_NAMES:
-            if (node.loop_type not in ('colour', 'colourtiles')
+            if (node.loop_type not in ('cells_in_colour', 'tiles_in_colour')
                     and node.has_inc_arg()):
                 raise TransformationError(
                     f"Error in {self.name} transformation. The kernel has an "
@@ -925,7 +925,8 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
         # If the loop is not already coloured then check whether or not
         # it should be
-        if (node.loop_type not in ('colour', 'tile', 'colourtiles')
+        if (node.loop_type not in ('cells_in_colour', 'tiles_in_colour',
+                                   'cells_in_tile')
                 and node.has_inc_arg()):
             raise TransformationError(
                 f"Error in {self.name} transformation. The kernel has an "
@@ -1222,7 +1223,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         # Create a colour loop. This loops over cells of a particular colour
         # and can be run in parallel.
         colour_loop = node.__class__(parent=colours_loop.loop_body,
-                                     loop_type="colour")
+                                     loop_type="cells_in_colour")
         colour_loop.field_space = node.field_space
         colour_loop.field_name = node.field_name
         colour_loop.iteration_space = node.iteration_space
@@ -1274,10 +1275,10 @@ class Dynamo0p3ColourTrans(ColourTrans):
         colours_loop.set_lower_bound("start")
         colours_loop.set_upper_bound("ntilecolours")
 
-        # Create a 'colourtile' loop. This loops over tiles of a particular
-        # colour and can be run in parallel.
+        # Create a 'tiles_in_colour' loop. This loops over tiles of a
+        # particular colour and can be run in parallel.
         colour_loop = node.__class__(parent=colours_loop.loop_body,
-                                     loop_type="colourtiles")
+                                     loop_type="tiles_in_colour")
         colour_loop.field_space = node.field_space
         colour_loop.field_name = node.field_name
         colour_loop.iteration_space = node.iteration_space
@@ -1298,7 +1299,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         # Create a cells loop. This loops over cells of a particular tile
         # and can be run in parallel.
         tile_loop = node.__class__(parent=colour_loop.loop_body,
-                                   loop_type="cell_in_tile")
+                                   loop_type="cells_in_tile")
         tile_loop.field_space = node.field_space
         tile_loop.field_name = node.field_name
         tile_loop.iteration_space = node.iteration_space
@@ -1956,7 +1957,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
         :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyir.nodes.Loop` but the original loop does\
-            not iterate over 'colour'.
+            not iterate over 'cells_in_colour'.
         :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyir.nodes.Loop` but the parent does not
             iterate over 'colours'.
@@ -2017,12 +2018,12 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                 f"LFRicInvokeSchedule, or a Loop, but found "
                 f"{type(node.parent)}")
         if isinstance(node.parent.parent, Loop):
-            if node.loop_type != "colour":
+            if node.loop_type != "cells_in_colour":
                 raise TransformationError(
                     f"In the Dynamo0p3RedundantComputation transformation "
                     f"apply method, if the parent of the supplied Loop is "
                     f"also a Loop then the supplied Loop must iterate over "
-                    f"'colour', but found '{node.loop_type}'")
+                    f"'cells_in_colour', but found '{node.loop_type}'")
             if node.parent.parent.loop_type != "colours":
                 raise TransformationError(
                     f"In the Dynamo0p3RedundantComputation transformation "
@@ -2040,13 +2041,13 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                 "In the Dynamo0p3RedundantComputation transformation apply "
                 "method distributed memory must be switched on")
 
-        # loop must iterate over cell-column, dof or colour. Note, an
+        # loop must iterate over cell-column, dof or cell-in-colour. Note, an
         # empty loop_type iterates over cell-columns.
-        if node.loop_type not in ["", "dof", "colour"]:
+        if node.loop_type not in ["", "dof", "cells_in_colour"]:
             raise TransformationError(
                 f"In the Dynamo0p3RedundantComputation transformation apply "
                 f"method the loop type must be one of '' (cell-columns), 'dof'"
-                f" or 'colour', but found '{node.loop_type}'")
+                f" or 'cells_in_colour', but found '{node.loop_type}'")
 
         for kern in node.kernels():
             if "halo" in kern.iterates_over:
@@ -2133,7 +2134,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         if loop.loop_type == "":
             # Loop is over cells
             loop.set_upper_bound("cell_halo", depth)
-        elif loop.loop_type == "colour":
+        elif loop.loop_type == "cells_in_colour":
             # Loop is over cells of a single colour
             loop.set_upper_bound("colour_halo", depth)
         elif loop.loop_type == "dof":

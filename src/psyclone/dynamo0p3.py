@@ -617,7 +617,7 @@ class LFRicMeshProperties(LFRicCollection):
         for call in self.kernel_calls:
             if call.is_coloured() and not call.is_intergrid:
                 loop = call.parent.parent
-                is_tiled = loop.loop_type == "cell_in_tile"
+                is_tiled = loop.loop_type == "cells_in_tile"
                 # Record which colour maps will be needed
                 if is_tiled:
                     has_halo = (loop.parent.parent.upper_bound_name in
@@ -2059,7 +2059,7 @@ class DynMeshes():
             # invoke have been coloured and, if so, whether the associated loop
             # is tiled or it goes into the halo.
             loop = call.parent.parent
-            is_tiled = loop.loop_type == "cell_in_tile"
+            is_tiled = loop.loop_type == "cells_in_tile"
             if is_tiled:
                 has_halo = (loop.parent.parent.upper_bound_name in
                             const.HALO_ACCESS_LOOP_BOUNDS)

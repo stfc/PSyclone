@@ -222,11 +222,11 @@ class LFRicConstants():
             # Iterate over the number of distinct colours
             "colours",
             # Iterate over the cells of a given colour
-            "colour",
+            "cells_in_colour",
             # Iterate over the tiles of a given colour (of tiled cells)
-            "colourtiles",
+            "tiles_in_colour",
             # Iterate over the cells of a given colour and tile
-            "cell_in_tile"]
+            "cells_in_tile"]
 
         # Valid LFRic iteration spaces for built-in kernels
         LFRicConstants.BUILTIN_ITERATION_SPACES = ["dof"]

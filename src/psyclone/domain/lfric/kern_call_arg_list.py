@@ -1009,7 +1009,7 @@ class KernCallArgList(ArgOrdering):
             from psyclone.domain.lfric import LFRicLoop
             loop_type = self._kern.ancestor(LFRicLoop).loop_type
 
-            if loop_type == "cell_in_tile":
+            if loop_type == "cells_in_tile":
                 tile_sym = self._symtab.find_or_create_integer_symbol(
                     "tile", tag="tile_loop_idx")
                 array_ref = self.get_array_reference(
