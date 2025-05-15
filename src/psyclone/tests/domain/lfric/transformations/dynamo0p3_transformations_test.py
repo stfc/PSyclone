@@ -7790,8 +7790,14 @@ def test_colour_trans_tiled_non_intergrid(dist_mem):
     else:
         index = 0
 
+    # Invalid transformation value
+    with pytest.raises(TypeError) as err:
+        ctrans.apply(schedule.children[index], tiling="invalid")
+    assert ("'tiling' option expects type 'bool' but received 'invalid' of "
+            "type 'str'." in str(err.value))
+
     # Colour the loop
-    ctrans.apply(schedule.children[index], options={"tiling": True})
+    ctrans.apply(schedule.children[index], tiling=True)
 
     # Check that the symbols associated to the colour-tiling are added as
     # accesses
@@ -7865,7 +7871,7 @@ def test_colour_trans_tiled_and_halo_depth():
 
     # Colour the loop
     ctrans = Dynamo0p3ColourTrans()
-    ctrans.apply(loop, options={"tiling": True})
+    ctrans.apply(loop, tiling=True)
 
     # Check that the generated code has a explicit '3' depth argument
     code = str(psy.gen).lower()
@@ -7886,8 +7892,8 @@ def test_colour_trans_tiled_intergrid(dist_mem):
     loops = schedule.walk(Loop)
     ctrans = Dynamo0p3ColourTrans()
     # To a prolong kernel
-    ctrans.apply(loops[1], options={"tiling": True})
-    # To a restrict kernel
+    ctrans.apply(loops[1], tiling=True)
+    # To a restrict kernel (also use old-style options dict)
     ctrans.apply(loops[3], options={"tiling": True})
 
     gen = str(psy.gen).lower()
@@ -7955,7 +7961,7 @@ def test_colour_trans_tiled_continuous_writer_intergrid(dist_mem):
                              TEST_API, idx=0, dist_mem=dist_mem)
     loop = invoke.schedule[0]
     ctrans = Dynamo0p3ColourTrans()
-    ctrans.apply(loop, options={"tiling": True})
+    ctrans.apply(loop, tiling=True)
     result = psy.gen
     # Declarations.
     assert ("integer(kind=i_def), pointer :: tmap_field1(:,:,:)"

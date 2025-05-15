@@ -64,7 +64,7 @@ def trans(psyir: FileContainer):
                and child.field_space.orig_name \
                not in const.VALID_DISCONTINUOUS_NAMES \
                and child.iteration_space == "cell_column":
-                ctrans.apply(child, options={"tiling": True})
+                ctrans.apply(child, tiling=True)
 
         # Then apply OpenMP to each of the colour loop
         for child in subroutine.children:

@@ -81,6 +81,7 @@ from psyclone.psyir.transformations.parallel_loop_trans import (
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
+from psyclone.utils import transformation_documentation_wrapper
 
 
 def check_intergrid(node):
@@ -1024,26 +1025,25 @@ class ColourTrans(LoopTrans):
     def __str__(self):
         return "Split a loop into colours"
 
-    def apply(self, node, options=None):
+    def apply(self, node: Loop, options: Optional[Dict[str, Any]] = None,
+              tiling: bool = False, **kwargs):
         '''
         Converts the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
         loop is over cells of that colour.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: options for the transformation.
-        :type options: Optional[Dict[str, Any]]
+        :param tiling: whether to enable colour tiling.
 
         '''
-        if not options:
-            options = {}
+        # TODO #2668: Deprecate options dictionary
+        if options:
+            tiling = options.get("tiling", False)
 
         self.validate(node, options=options)
 
-        tiled_colouring = options.get("tiling", False)
-
-        if tiled_colouring:
+        if tiling:
             colours_loop = self._create_tiled_colours_loops(node)
         else:
             colours_loop = self._create_colours_loop(node)
@@ -1092,6 +1092,7 @@ class ColourTrans(LoopTrans):
                             " in an API-specific sub-class.")
 
 
+@transformation_documentation_wrapper
 class Dynamo0p3ColourTrans(ColourTrans):
 
     '''Split a Dynamo 0.3 loop over cells into colours so that it can be
@@ -1142,23 +1143,19 @@ class Dynamo0p3ColourTrans(ColourTrans):
     def __str__(self):
         return "Split a Dynamo 0.3 loop over cells into colours"
 
-    def apply(self, node, options=None):
+    def validate(self, node: LFRicLoop,
+                 options: Optional[Dict[str, Any]] = None,
+                 **kwargs):
         '''Performs LFRic-specific error checking and then uses the parent
         class to convert the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
         loop is over cells of that colour.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.domain.lfric.LFRicLoop`
-        :param options: a dictionary with options for transformations.\
-        :type options: Optional[Dict[str, Any]]
+        :param options: a dictionary with options for transformations.
 
         '''
-        if not options:
-            options = {}
-
-        # check node is a loop
-        super().validate(node, options=options)
+        super().validate(node, options=options, **kwargs)
 
         # Check we need colouring
         const = LFRicConstants()
@@ -1189,14 +1186,28 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Cannot have a loop over colours "
                                       "within an OpenMP parallel region.")
 
-        # Get the ancestor InvokeSchedule as applying the transformation
-        # creates a new Loop node.
+
+    def apply(self, node: LFRicLoop, options: Optional[Dict[str, Any]] = None,
+              **kwargs):
+        '''Performs LFRic-specific error checking and then uses the parent
+        class to convert the Loop represented by :py:obj:`node` into a
+        nested loop where the outer loop is over colours and the inner
+        loop is over cells of that colour.
+
+        :param node: the loop to transform.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        self.validate(node, options=options, **kwargs)
+
+        # Get the ancestor InvokeSchedule before applying the super() because
+        # node will be detached
         sched = node.ancestor(LFRicInvokeSchedule)
 
-        super().apply(node, options=options)
+        super().apply(node, options=options, **kwargs)
 
-        # Finally, update the information on the colourmaps required for
-        # the mesh(es) in this invoke.
+        # Update the information on the colourmaps required for the mesh(es) in
+        # this invoke.
         if sched and sched.invoke:
             sched.invoke.meshes.colourmap_init()
 
