@@ -165,7 +165,8 @@ def test_sym_writer_real_constants(fortran_reader, expressions):
                                          ("MIN(1,2)", "Min(1, 2)"),
                                          ("MOD(1,2)", "Mod(1, 2)"),
                                          ("EXP(1)", "exp(1)"),
-                                         ("LBOUND(1,2)", "LBOUND(1, 2)")
+                                         ("LBOUND(1,2)", "LBOUND(1, 2)"),
+                                         ("LBOUND(1,dim=2)", "LBOUND(1, 2)")
                                          ])
 def test_sym_writer_functions(fortran_reader, expressions):
     '''Test that certain standard functions are recognised and
@@ -192,6 +193,7 @@ def test_sym_writer_functions(fortran_reader, expressions):
                           ("f(:)", {'f': Function('f')}),
                           ("a%b", {'a_b': Symbol('a_b')}),
                           ("a%b(1)", {'a_b': Function('a_b')}),
+                          ("c + c(1)", {'c': Function('c')}),
                           ("a%b + a%b(1)", {'a_b': Function('a_b')})
                           ])
 def test_sympy_writer_create_type_map(expr, sym_map, fortran_reader):
@@ -294,7 +296,8 @@ def test_sym_writer_symbol_types(fortran_reader, expr, positive, sym_map):
                           ("f(1)", {'f': Function('f')}),
                           ("a%b", {'a_b': Symbol('a_b')}),
                           ("a%b(1)", {'a_b': Function('a_b')}),
-                          ("lbound(f)", {'f': Function('f')})])
+                          ("lbound(f)", {'f': Function('f')}),
+                          ("1_i_def", {'i_def': Symbol('i_def')})])
 def test_sympy_writer_type_map(expr, sym_map, fortran_reader):
     '''Tests that `_sympy_type_map` is setup correctly.'''
     # A dummy program to easily create the PSyIR for the
