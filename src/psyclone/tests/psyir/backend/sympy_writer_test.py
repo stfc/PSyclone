@@ -514,6 +514,37 @@ def test_sympy_writer_user_types(fortran_reader, fortran_writer,
     assert fortran_writer(new_psyir) == fortran_expr
 
 
+@pytest.mark.parametrize("fortran_expr,sympy_str",
+                         [("a .and. b", "And(a, b)"),
+                          ("a .or. b", "Or(a, b)"),
+                          ("a .eqv. b", "Equivalent(a, b)"),
+                          ("a .neqv. b", "Xor(a, b)"),
+                          ])
+def test_sympy_writer_logicals(fortran_reader, fortran_writer,
+                               fortran_expr, sympy_str):
+    '''Test handling of user-defined types, e.g. conversion of
+    ``a(i)%b(j)`` to ``a_b(i,i,1,j,j,1)``. Each Fortran expression
+    ``fortran_expr`` is first converted to a string ``sympy_str`` to be
+    parsed by SymPy. The sympy expression is then converted back to PSyIR.
+    This string must be the same as the original ``fortran_expr``.
+
+    '''
+    source = f'''program test_prog
+                logical :: a, b, x
+                x = {fortran_expr}
+                end program test_prog'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    # Get the actual fortran expression requested:
+    psyir_expr = psyir.children[0].children[0].rhs
+
+    # Convert the PSyIR to a SymPy string:
+    sympy_writer = SymPyWriter()
+    out = sympy_writer._to_str([psyir_expr])
+    # Make sure we get the expected string as output:
+    assert out[0] == sympy_str
+
+
 @pytest.mark.parametrize("expression", ["def", "if", "raise", "del",
                                         "import", "return", "elif", "in",
                                         "try", "and", "else", "is", "while",
