@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Laboratory
+# Modifications: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
 # The compiler to use may be specified via the F90 environment
 #
@@ -95,9 +95,7 @@ LFRIC_INCLUDE_FLAGS += -I$(EXTRACT_DIR)
 transform: main_psy.f90 main_alg.f90
 
 	
-# TODO #2950 : Restore compilation and execution
-# compile: transform $(EXEC)
-compile: transform
+compile: transform $(EXEC)
 
 run: compile
 	./$(EXEC)
