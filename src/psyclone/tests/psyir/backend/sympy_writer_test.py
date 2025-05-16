@@ -256,13 +256,13 @@ def test_sym_writer_rename_members(fortran_reader, expressions):
      ("a%x", True, {"a_x": Symbol("a%x", **{"positive": True})}),
      ("a%x(i)", False, {"a_x": Function("a_x"), "i": Symbol("i")}),
      ("a%x(i)", True, {"a_x": Function("a_x"),
-                        "i": Symbol("i", **{"positive": True})}),
+                       "i": Symbol("i", **{"positive": True})}),
      ("b(i)%x(i)", False, {"b_x": Function("b_x"), "i": Symbol("i")}),
      ("b(b_c)%c(i)", False, {"b_c_1": Symbol("b_c"), "b_c": Function("b_c"),
-       "i": Symbol("i")}),
+                             "i": Symbol("i")}),
      ("b(b_c)%c(i)", True, {"b_c_1": Symbol("b_c", **{"positive": True}),
                             "b_c": Function("b_c"),
-       "i": Symbol("i", **{"positive": True})}),
+                            "i": Symbol("i", **{"positive": True})}),
      ])
 def test_sym_writer_symbol_types(fortran_reader, expr, positive, sym_map):
     '''Tests that arrays are detected as SymPy functions, and scalars
@@ -294,8 +294,7 @@ def test_sym_writer_symbol_types(fortran_reader, expr, positive, sym_map):
                           ("f(1)", {'f': Function('f')}),
                           ("a%b", {'a_b': Symbol('a_b')}),
                           ("a%b(1)", {'a_b': Function('a_b')}),
-                          ("lbound(f)", {'f': Function('f')})
-                         ])
+                          ("lbound(f)", {'f': Function('f')})])
 def test_sympy_writer_type_map(expr, sym_map, fortran_reader):
     '''Tests that `_sympy_type_map` is setup correctly.'''
     # A dummy program to easily create the PSyIR for the
