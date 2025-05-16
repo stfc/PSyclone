@@ -112,8 +112,8 @@ def test_scalar_kernel_load_meta_err():
             f"a scalar argument but found 'gh_triple'." in str(err.value))
 
 
-def test_kern_colourmap(monkeypatch):
-    ''' Tests for error conditions in the colourmap getter of LFRicKern. '''
+def test_kern_getter_errors():
+    ''' Tests for error conditions in the getter properties of LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -122,16 +122,16 @@ def test_kern_colourmap(monkeypatch):
         _ = kern.colourmap
     assert ("Kernel 'testkern_code' is not inside a coloured loop"
             in str(err.value))
-
-
-def test_kern_ncolours(monkeypatch):
-    ''' Tests for error conditions in the ncolours getter of LFRicKern. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    kern = psy.invokes.invoke_list[0].schedule.children[4].loop_body[0]
     with pytest.raises(InternalError) as err:
         _ = kern.ncolours_var
+    assert ("Kernel 'testkern_code' is not inside a coloured loop"
+            in str(err.value))
+    with pytest.raises(InternalError) as err:
+        _ = kern.tilecolourmap
+    assert ("Kernel 'testkern_code' is not inside a coloured loop"
+            in str(err.value))
+    with pytest.raises(InternalError) as err:
+        _ = kern.ntilecolours_var
     assert ("Kernel 'testkern_code' is not inside a coloured loop"
             in str(err.value))
 

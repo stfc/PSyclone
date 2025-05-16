@@ -987,9 +987,9 @@ If a loop contains one or more kernels that write to a field on a
 continuous function space then it cannot be safely executed in
 parallel on a shared-memory device. This is because fields on a
 continuous function space share dofs between neighbouring cells. One
-solution to this is to 'colour' the cells in a mesh so that all cells
-of a given colour may be safely updated in parallel
-(:numref:`fig-colouring`).
+solution to this is to add an outer 'colours' loop and a inner 'cells_in_colour'
+loop to iterate over the cells in a mesh so that all cells the same colour can
+be safely updated in parallel (:numref:`fig-colouring`).
 
 .. _fig-colouring:
 
@@ -1001,10 +1001,13 @@ of a given colour may be safely updated in parallel
 	   ensure the thread-safe update of shared dofs (black
 	   circles).  (Courtesy of S. Mullerworth, Met Office.)
 
-The loop over colours must then be performed sequentially but the loop
-over cells of a given colour may be done in parallel. A loop that
-requires colouring may be transformed using the ``Dynamo0p3ColourTrans``
-transformation.
+Alternatively the inner loops can be 'tiles_in_colour' and 'cells_in_tiles' to
+trade granularity for cell locality.
+
+In both cases the outer loop over 'colours' must then be performed sequentially
+but the loop over 'cells/tiles_in_colour' of a given colour may be done in parallel.
+A loop that requires colouring may be transformed using the ``Dynamo0p3ColourTrans``
+transformation, with the 'tiling' option set to True or False.
 
 Each mesh in the multi-grid hierarchy is coloured separately
 (https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicInfrastructure/MeshColouring)
