@@ -250,22 +250,25 @@ def test_sym_writer_rename_members(fortran_reader, expressions):
     assert SymPyWriter()._to_str(expr) == expressions[1]
 
 
-@pytest.mark.parametrize("expr, sym_map", [("a%x", {"a_x": Symbol("a%x")}),
-                                           ("a%x(i)", {"a_x": Function("a_x"),
-                                                       "i": Symbol("i")}),
-                                           ("b(i)%x(i)",
-                                            {"b_x": Function("b_x"),
-                                             "i": Symbol("i")}),
-                                           ("b(b_c)%c(i)",
-                                            {"b_c_1": Symbol("b_c"),
-                                             "b_c": Function("b_c"),
-                                             "i": Symbol("i")}),
-                                           ])
-def test_sym_writer_symbol_types(fortran_reader, expr, sym_map):
+@pytest.mark.parametrize(
+    "expr, positive, sym_map",
+    [("a%x", False, {"a_x": Symbol("a%x")}),
+     ("a%x", True, {"a_x": Symbol("a%x", **{"positive": True})}),
+     ("a%x(i)", False, {"a_x": Function("a_x"), "i": Symbol("i")}),
+     ("a%x(i)", True, {"a_x": Function("a_x"),
+                        "i": Symbol("i", **{"positive": True})}),
+     ("b(i)%x(i)", False, {"b_x": Function("b_x"), "i": Symbol("i")}),
+     ("b(b_c)%c(i)", False, {"b_c_1": Symbol("b_c"), "b_c": Function("b_c"),
+       "i": Symbol("i")}),
+     ("b(b_c)%c(i)", True, {"b_c_1": Symbol("b_c", **{"positive": True}),
+                            "b_c": Function("b_c"),
+       "i": Symbol("i", **{"positive": True})}),
+     ])
+def test_sym_writer_symbol_types(fortran_reader, expr, positive, sym_map):
     '''Tests that arrays are detected as SymPy functions, and scalars
-    as SymPy symbols. The expressions parameter contains as first
-    element the expression to parse, and as second element the
-    expected mapping of names to SymPy functions or symbols.
+    as SymPy symbols. The 'expr' parameter contains the expression to parse,
+    'positive' is whether or not to flag symbols as positive definite and
+    'sym_map' is the expected mapping of names to SymPy functions or symbols.
 
     '''
     # A dummy program to easily create the PSyIR for the
@@ -280,22 +283,21 @@ def test_sym_writer_symbol_types(fortran_reader, expr, sym_map):
     psyir = fortran_reader.psyir_from_source(source)
     expr = psyir.children[0].children[0].rhs
     sympy_writer = SymPyWriter()
-    _ = sympy_writer(expr)
+    _ = sympy_writer(expr, all_variables_positive=positive)
     assert len(sympy_writer.type_map) == len(sym_map)
     for key in sympy_writer.type_map.keys():
         assert sympy_writer.type_map[key] == sym_map[key]
 
 
-@pytest.mark.parametrize("expr, sym_map", [("i", {'i': Symbol('i')}),
-                                           ("f(1)", {'f': Function('f')}),
-                                           ("a%b", {'a_b': Symbol('a_b')}),
-                                           ("a%b(1)", {'a_b': Function('a_b')})
-                                           ])
-def test_sympy_writer_get_symbol_and_map(expr, sym_map, fortran_reader):
-    '''Tests that `get_sympy_expressions_and_symbol_map` function
-    returns the right symbol map.
-    '''
-
+@pytest.mark.parametrize("expr, sym_map",
+                         [("i", {'i': Symbol('i')}),
+                          ("f(1)", {'f': Function('f')}),
+                          ("a%b", {'a_b': Symbol('a_b')}),
+                          ("a%b(1)", {'a_b': Function('a_b')}),
+                          ("lbound(f)", {'f': Function('f')})
+                         ])
+def test_sympy_writer_type_map(expr, sym_map, fortran_reader):
+    '''Tests that `_sympy_type_map` is setup correctly.'''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
     source = f'''program test_prog
@@ -312,11 +314,14 @@ def test_sympy_writer_get_symbol_and_map(expr, sym_map, fortran_reader):
     # Ignore the converted expressions here, they are tested elsewhere
     _ = writer([expr])
     assert writer._sympy_type_map.keys() == sym_map.keys()
+    # Repeat when the supplied Node does not have a parent tree
+    expr.detach()
+    _ = writer([expr])
+    assert writer._sympy_type_map.keys() == sym_map.keys()
 
 
-def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
-    '''Tests that convenience function `convert_to_sympy_expressions`
-    works as expected.
+def test_sym_writer_parse_expr(fortran_reader):
+    '''Tests that convenience function `parse_expr` works as expected.
 
     '''
     # A dummy program to easily create the PSyIR for the
