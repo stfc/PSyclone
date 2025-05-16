@@ -52,7 +52,8 @@ from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (
     DataNode, IntrinsicCall, Node, Range, Reference, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, ScalarType,
-                                    SymbolError, SymbolTable, UnresolvedType)
+                                    SymbolError, SymbolTable, UnresolvedType,
+                                    UnsupportedType)
 
 
 class SymPyWriter(FortranWriter):
@@ -346,10 +347,15 @@ class SymPyWriter(FortranWriter):
                     orig_sym = sva.all_accesses[0].node.symbol
                 else:
                     orig_sym = None
-
-            if (sva.is_array() or
-                    (orig_sym and isinstance(orig_sym, DataSymbol)
-                     and isinstance(orig_sym.datatype, ArrayType))):
+            sym_is_array = False
+            if orig_sym:
+                if (isinstance(orig_sym, DataSymbol) and
+                    (isinstance(orig_sym.datatype, ArrayType) or
+                     (isinstance(orig_sym.datatype, UnsupportedType) and
+                      isinstance(orig_sym.datatype.partial_datatype,
+                                 ArrayType)))):
+                    sym_is_array = True
+            if sva.is_array() or sym_is_array:
                 # A Fortran array or function call. Declare a new SymPy
                 # function for it. This SymPy function will convert array
                 # expressions back into the original Fortran code.
