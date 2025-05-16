@@ -318,3 +318,44 @@ jobs:
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "NEMOv5 OpenMP for GPU (ORCA2)", nemo_version: "NEMOv5", system: "GlaDos",
           compiler:"nvhpc-24.5" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
+
+
+
+    - name: NEMO 5.0 nvidia OpenACC for GPUs (BENCH - managed memory)
+      run: |
+        # Set up environment
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%nvhpc@24.5
+        source .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export PSYCLONE_HOME=${PWD}/.runner_venv
+        export NEMO_DIR=${HOME}/${NEMODIR_NAME}
+        export TEST_DIR=BENCH_ACC_OFFLOAD_NVHPC
+
+        # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
+        # We compile with "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
+        cd $NEMO_DIR
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -acc -gpu=mem:managed,math_uniform"
+
+        # Clean up and compile
+        # Without key_mpi_off it fails to compile (even without psyclone)
+        rm -rf tests/${TEST_DIR}
+        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/acc_kernel_trans.py \
+          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
+
+        # Run test
+        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        ./nemo
+        # tail run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
+        export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "NEMOv5 OpenACC for GPU (BENCH)", nemo_version: "NEMOv5", system: "GlaDos",
+          compiler:"nvhpc-24.5" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'

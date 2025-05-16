@@ -63,11 +63,12 @@ from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
     IfBlock, ArrayReference, Assignment, BinaryOperation, Loop, Routine,
-    Literal, ACCLoopDirective)
+    Literal, ACCLoopDirective,IntrinsicCall)
 from psyclone.psyir.transformations import (ACCKernelsTrans, ACCUpdateTrans,
                                             TransformationError, ProfileTrans)
 from psyclone.transformations import ACCEnterDataTrans
 
+from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol, ArrayType
 # Set up some loop_type inference rules in order to reference useful domain
 # loop constructs by name
 Loop.set_loop_type_inference_rules({
@@ -91,7 +92,7 @@ PROFILE_TRANS = ProfileTrans()
 
 # Whether or not to add profiling calls around unaccelerated regions
 # N.B. this can inhibit PSyclone's ability to inline!
-PROFILE_NONACC = False
+PROFILE_NONACC = True
 
 # Whether or not to add OpenACC enter data and update directives to explicitly
 # move data between host and device memory
@@ -194,10 +195,13 @@ def valid_acc_kernel(node):
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_types = (IfBlock, Loop)
+    excluded_types = (IfBlock, Loop,ArrayReference,IntrinsicCall)
     excluded_nodes = node.walk(excluded_types)
 
     for enode in excluded_nodes:
+        if isinstance(enode, IntrinsicCall):
+            if "dim" in enode.argument_names :
+                return False       
 
         if isinstance(enode, IfBlock):
             # We permit IF blocks originating from WHERE constructs and
@@ -233,11 +237,11 @@ def valid_acc_kernel(node):
             # In general, this heuristic will depend upon how many levels the
             # model configuration will contain.
             child = enode.loop_body[0] if enode.loop_body.children else None
-            if isinstance(child, Loop) and child.loop_type == "levels":
+            #if isinstance(child, Loop) and child.loop_type == "levels":
                 # We have a loop around a loop over levels
-                log_msg(routine_name, "Loop is around a loop over levels",
-                        enode)
-                return False
+                #   log_msg(routine_name, "Loop is around a loop over levels",
+            #        enode)
+            #   return False
             if enode.loop_type == "levels" and \
                len(enode.loop_body.children) > 1:
                 # The body of the loop contains more than one statement.
@@ -384,7 +388,7 @@ def trans(psyir):
         if subroutine.name.lower() not in ACC_IGNORE:
             print(f"Transforming {subroutine.name} with acc kernels")
             enhance_tree_information(subroutine)
-            inline_calls(subroutine)
+            #inline_calls(subroutine)
             have_kernels = add_kernels(subroutine.children)
             if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
                 print(f"Transforming {subroutine.name} with acc enter data")
