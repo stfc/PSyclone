@@ -42,6 +42,7 @@ API-agnostic tests for various transformation classes.
 
 import os
 import pytest
+import sys
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
@@ -219,7 +220,7 @@ def test_omptaskloop_getters_and_setters():
 
 
 def test_omptaskloop_apply(monkeypatch):
-    '''Check that the gen_code method in the OMPTaskloopDirective
+    '''Check that the lowering method in the OMPTaskloopDirective
     class generates the expected code when passing options to
     the OMPTaskloopTrans's apply method and correctly overrides the
     taskloop's inbuilt value. Use the gocean API.
@@ -245,20 +246,20 @@ def test_omptaskloop_apply(monkeypatch):
 
     clauses = " nogroup"
     assert (
-        f"    !$omp parallel default(shared), private(i,j)\n"
-        f"      !$omp master\n"
-        f"      !$omp taskloop{clauses}\n"
-        f"      DO" in code)
+        f"  !$omp parallel default(shared), private(i,j)\n"
+        f"    !$omp master\n"
+        f"    !$omp taskloop{clauses}\n"
+        f"    do" in code)
     assert (
-        "      END DO\n"
-        "      !$omp end taskloop\n"
-        "      !$omp end master\n"
-        "      !$omp end parallel" in code)
+        "    enddo\n"
+        "    !$omp end taskloop\n"
+        "    !$omp end master\n"
+        "    !$omp end parallel" in code)
 
     assert taskloop_node.begin_string() == "omp taskloop"
 
     # Create a fake validate function to throw an exception
-    def validate(self, options):
+    def validate(self, options, **kwargs):
         raise TransformationError("Fake error")
     monkeypatch.setattr(taskloop, "validate", validate)
     # Test that the nogroup attribute isn't permanently changed if validate
@@ -536,6 +537,54 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
   !$omp end parallel\n'''
 
     assert expected in fortran_writer(tree)
+
+
+def test_omploop_trans_new_options(sample_psyir):
+    ''' Thest the new options and validation methods work correctly using
+    OMPLoopTrans apply'''
+    omplooptrans = OMPLoopTrans()
+    tree = sample_psyir.copy()
+
+    # Check we get the relevant error message when adding multiple invalid
+    # options.
+    with pytest.raises(ValueError) as excinfo:
+        omplooptrans.apply(tree.walk(Loop)[0], fakeoption1=1, fakeoption2=2)
+    print(excinfo.value)
+    assert ("'OMPLoopTrans' received invalid options ['fakeoption1', "
+            "'fakeoption2']. Valid options are '['node_type_check', "
+            "'verbose', 'collapse', 'force', 'ignore_dependencies_for', "
+            "'privatise_arrays', 'sequential', 'nowait', 'reprod']."
+            in str(excinfo.value))
+
+    # Check we get the relevant error message when submitting multiple
+    # options with the wrong type
+    with pytest.raises(TypeError) as excinfo:
+        omplooptrans.apply(tree.walk(Loop)[0], verbose=3, force="a")
+    assert ("'OMPLoopTrans' received options with the wrong types:\n"
+            "'verbose' option expects type 'bool' but received '3' "
+            "of type 'int'.\n"
+            "'force' option expects type 'bool' but received 'a' "
+            "of type 'str'.\n"
+            "Please see the documentation and check the provided types."
+            in str(excinfo.value))
+
+    # Check python version, as this tests have different behaviour for
+    # new python versions vs 3.8 or 3.7.
+    # TODO #2837: This can be removed when Python 3.7 and 3.8 are retired.
+    if sys.version_info[1] < 11:
+        with pytest.raises(TypeError) as excinfo:
+            omplooptrans.apply(tree.walk(Loop)[0], collapse="x")
+        assert ("The 'collapse' argument must be an integer or a bool "
+                "but got an object of type <class 'str'>" in
+                str(excinfo.value))
+    else:
+        with pytest.raises(TypeError) as excinfo:
+            omplooptrans.apply(tree.walk(Loop)[0], collapse="x")
+        assert ("'OMPLoopTrans' received options with the wrong types:\n"
+                "'collapse' option expects type 'int | bool' but "
+                "received 'x' of type 'str'.\n"
+                "Please see the documentation and check the provided types."
+                in str(excinfo.value))
 
 
 def test_omplooptrans_apply_nowait(fortran_reader, fortran_writer):

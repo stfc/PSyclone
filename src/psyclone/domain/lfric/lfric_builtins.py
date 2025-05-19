@@ -55,6 +55,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
                                   Reference, IntrinsicCall)
+from psyclone.psyir.symbols import UnsupportedFortranType
 from psyclone.utils import a_or_an
 
 # The name of the file containing the meta-data describing the
@@ -2737,10 +2738,13 @@ class LFRicRealToIntXKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = INT(proxy1%data, kind=i_<prec>)
         lhs = arg_refs[0]
-        i_precision = arg_refs[0].datatype.precision
+        datatype = arg_refs[0].symbol.datatype
+        if isinstance(datatype, UnsupportedFortranType):
+            datatype = datatype.partial_datatype
+
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.INT,
-            [arg_refs[1], ("kind", Reference(i_precision))])
+            [arg_refs[1], ("kind", Reference(datatype.precision))])
 
         # Create assignment and replace node
         return self._replace_with_assignment(lhs, rhs)
@@ -2792,10 +2796,13 @@ class LFRicRealToRealXKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = REAL(proxy1%data, kind=r_<prec>)
         lhs = arg_refs[0]
-        r_precision = arg_refs[0].datatype.precision
+        datatype = arg_refs[0].symbol.datatype
+        if isinstance(datatype, UnsupportedFortranType):
+            datatype = datatype.partial_datatype
+
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.REAL,
-            [arg_refs[1], ("kind", Reference(r_precision))])
+            [arg_refs[1], ("kind", Reference(datatype.precision))])
 
         # Create assignment and replace node
         return self._replace_with_assignment(lhs, rhs)

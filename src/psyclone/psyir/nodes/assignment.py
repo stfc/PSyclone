@@ -40,7 +40,6 @@
 ''' This module contains the Assignment node implementation.'''
 
 from psyclone.errors import InternalError
-from psyclone.f2pygen import PSyIRGen
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.datanode import DataNode
@@ -259,11 +258,3 @@ class Assignment(Statement):
 
         '''
         return isinstance(self.rhs, Literal)
-
-    def gen_code(self, parent):
-        '''F2pygen code generation of an Assignment.
-
-        :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        '''
-        parent.add(PSyIRGen(parent, self))

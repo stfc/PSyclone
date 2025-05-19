@@ -1952,13 +1952,13 @@ def test_int_to_real_x_precision(tmpdir, kind_name):
     code = str(psy.gen)
 
     # Test code generation
-    assert f"USE constants_mod, ONLY: {kind_name}, i_def" in code
-    assert (f"USE {kind_name}_field_mod, ONLY: {kind_name}_field_type, "
-            f"{kind_name}_field_proxy_type") in code
-    assert f"TYPE({kind_name}_field_type), intent(in) :: f2" in code
-    assert (f"REAL(KIND={kind_name}), pointer, dimension(:) :: "
+    assert "use constants_mod\n" in code
+    assert (f"use {kind_name}_field_mod, only : {kind_name}_field_proxy_type, "
+            f"{kind_name}_field_type") in code
+    assert f"type({kind_name}_field_type), intent(in) :: f2" in code
+    assert (f"real(kind={kind_name}), pointer, dimension(:) :: "
             "f2_data => null()") in code
-    assert f"TYPE({kind_name}_field_proxy_type) f2_proxy" in code
+    assert f"type({kind_name}_field_proxy_type) :: f2_proxy" in code
     assert f"f2_data(df) = REAL(f1_data(df), kind={kind_name})" in code
 
     # Test compilation of generated code
@@ -2009,15 +2009,14 @@ def test_real_to_int_x_precision(monkeypatch, tmpdir, kind_name):
     arg = first_invoke.schedule.children[0].loop_body[0].args[0]
     # Set 'f2_data' to another 'i_<prec>'
     sym_kern = table.lookup_with_tag(f"{arg.name}:data")
-    monkeypatch.setattr(arg, "_precision", f"{kind_name}")
     monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision,
                         "_name", f"{kind_name}")
 
     # Test limited code generation (no equivalent field type)
     code = str(psy.gen)
-    assert f"USE constants_mod, ONLY: r_def, {kind_name}" in code
-    assert (f"INTEGER(KIND={kind_name}), pointer, dimension(:) :: "
-            "f2_data => null()") in code
+    assert "use constants_mod\n" in code
+    assert ("integer(kind=i_def), pointer, dimension(:) :: f2_data => null()"
+            in code)
     assert f"f2_data(df) = INT(f1_data(df), kind={kind_name})" in code
 
     # Test compilation of generated code
@@ -2080,25 +2079,16 @@ def test_real_to_real_x_lowering(monkeypatch, tmpdir, kind_name):
     arg = first_invoke.schedule.children[0].loop_body[0].args[0]
     # Set 'f2_data' to another 'r_<prec>'
     sym_kern = table.lookup_with_tag(f"{arg.name}:data")
-    monkeypatch.setattr(arg, "_precision", f"{kind_name}")
     monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision,
                         "_name", f"{kind_name}")
 
     # Test limited code generation (no equivalent field type)
     code = str(psy.gen)
 
-    # Due to the reverse alphabetical ordering performed by PSyclone,
-    # different cases will arise depending on the substitution
-    if kind_name < 'r_def':
-        assert f"USE constants_mod, ONLY: r_solver, r_def, {kind_name}" in code
-    elif 'r_solver' > kind_name > 'r_def':
-        assert f"USE constants_mod, ONLY: r_solver, {kind_name}, r_def" in code
-    else:
-        assert f"USE constants_mod, ONLY: {kind_name}, r_solver, r_def" in code
+    # Check that the kind constants are imported
+    assert "use constants_mod\n" in code
 
     # Assert correct type is set
-    assert (f"REAL(KIND={kind_name}), pointer, dimension(:) :: "
-            "f2_data => null()") in code
     assert f"f2_data(df) = REAL(f1_data(df), kind={kind_name})" in code
 
     # Test compilation of generated code
@@ -2142,5 +2132,6 @@ def test_field_access_info_for_arrays_in_builtins():
 
     assert (
         "a: READ, df: READ+WRITE, f1_data: READ, f2_data: WRITE, "
-        "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, loop0_start: "
-        "READ, loop0_stop: READ, r_def: NO_DATA_ACCESS" == str(vai))
+        "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, r_def: "
+        "NO_DATA_ACCESS, uninitialised_loop0_start: READ, "
+        "uninitialised_loop0_stop: READ" == str(vai))

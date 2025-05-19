@@ -39,8 +39,6 @@
 Module containing tests for LFRic (Dynamo0.3) API configuration handling.
 '''
 
-from __future__ import absolute_import
-
 import re
 import pytest
 
