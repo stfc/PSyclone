@@ -243,15 +243,16 @@ class GenericInterfaceSymbol(RoutineSymbol):
 
     def reference_accesses(self):
         '''
-        Update the supplied VariablesAccessInfo with information on the symbols
-        referenced by the definition of this Symbol.
+        :returns: a map of all the symbol accessed inside this object, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
+        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 
-        :param access_info: the object in which to accumulate access
-                            information.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
         '''
         access_info = super().reference_accesses()
 
+        # pylint: disable=import-outside-toplevel
         from psyclone.core import AccessType, Signature
         for rt_info in self.routines:
             access_info.add_access(Signature(rt_info.symbol.name),

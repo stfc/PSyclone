@@ -39,6 +39,7 @@
 
 ''' This module contains the Loop node implementation.'''
 
+from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
@@ -481,18 +482,14 @@ class Loop(Statement):
         result += "End " + name
         return result
 
-    def reference_accesses(self):
-        '''Get all variable access information. It combines the data from
-        the loop bounds (start, stop and step), as well as the loop body.
-        The loop variable is marked as 'READ+WRITE' and references in start,
-        stop and step are marked as 'READ'.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessInfo:
         '''
-        from psyclone.core import VariablesAccessInfo
+        :returns: a map of all the symbol accessed inside this node, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
+
+        '''
         var_accesses = VariablesAccessInfo()
 
         # Only add the loop variable and start/stop/step values if this is

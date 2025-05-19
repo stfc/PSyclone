@@ -222,17 +222,7 @@ class SingleVariableAccessInfo():
         return f"{self._signature}:{all_accesses}"
 
     def __repr__(self):
-        '''Returns a string representation of this object with the format:
-        var_name:WRITE(2),WRITE(3),READ(5) where the numbers indicate
-        the 'location' of the corresponding access. The location is an
-        integer number that enumerates each statement in a program unit,
-        and can be used to compare if an access is earlier, later or in
-        the same statement as another access.
-
-        '''
-        all_accesses = ",".join([str(access) for access in self._accesses])
-
-        return f"{self._signature}:{all_accesses}"
+        return ",".join([str(access) for access in self._accesses])
 
     @property
     def signature(self):

@@ -93,14 +93,13 @@ class DataType(metaclass=abc.ABCMeta):
 
         '''
 
-    # pylint: disable=unused-argument
-    def reference_accesses(self, sym: Symbol):
+    def reference_accesses(self):
         '''
-        Get all symbols referenced in this datatype.
-
-        :param sym: the Symbol that this datatype is for.
-        :param access_info: instance in which to store access info.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this object, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
+        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # Avoid circular import
@@ -328,16 +327,16 @@ class UnsupportedFortranType(UnsupportedType):
             return self.partial_datatype.intrinsic
         return None
 
-    def reference_accesses(self, sym: Symbol):
+    def reference_accesses(self):
         '''
-        Get all symbols referenced in this datatype.
-
-        :param sym: the Symbol that this datatype is for.
-        :param access_info: instance in which to store access info.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this object, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
+        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        access_info = super().reference_accesses(sym)
+        access_info = super().reference_accesses()
 
         if self.partial_datatype:
             if isinstance(self.partial_datatype, DataTypeSymbol):
@@ -350,7 +349,7 @@ class UnsupportedFortranType(UnsupportedType):
                     AccessType.TYPE_INFO, self)
             else:
                 access_info.merge(
-                    self.partial_datatype.reference_accesses(sym))
+                    self.partial_datatype.reference_accesses())
         return access_info
 
     @property
@@ -523,24 +522,26 @@ class ScalarType(DataType):
             if new_sym:
                 self._precision = new_sym
 
-    def reference_accesses(self, sym):
+    def reference_accesses(self):
         '''
-        Get all symbols referenced in this datatype.
-
-        :param sym: the Symbol that this datatype is for.
-        :param access_info: instance in which to store access info.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this object, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
+        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        access_info = super().reference_accesses(sym)
+        access_info = super().reference_accesses()
 
         if isinstance(self.precision, Symbol):
+            # Avoid circular import
+            # pylint: disable=import-outside-toplevel
             from psyclone.core.signature import Signature
             from psyclone.core.access_type import AccessType
 
             access_info.add_access(
                 Signature(self.precision.name),
-                AccessType.TYPE_INFO, sym)
+                AccessType.TYPE_INFO, self)
         return access_info
 
 
@@ -594,8 +595,12 @@ class ArrayType(DataType):
 
         def reference_accesses(self):
             '''
-            An Extent cannot contain any variable accesses so there's nothing
-            to do.
+            :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            sturcture acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessType).
+            :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
+
             '''
             from psyclone.core import VariablesAccessInfo
             return VariablesAccessInfo()
@@ -1038,30 +1043,30 @@ class ArrayType(DataType):
                 if isinstance(bnd, Node):
                     bnd.replace_symbols_using(table_or_symbol)
 
-    def reference_accesses(self, sym):
+    def reference_accesses(self):
         '''
-        Get all symbols referenced in this datatype.
-
-        :param sym: the Symbol that this datatype is for.
-        :param access_info: instance in which to store access info.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this object, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
+        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.core.signature import Signature
         from psyclone.core.access_type import AccessType
 
-        access_info = super().reference_accesses(sym)
+        access_info = super().reference_accesses()
 
         if isinstance(self.intrinsic, Symbol):
             access_info.add_access(
                 Signature(self.intrinsic.name),
-                AccessType.TYPE_INFO, sym)
+                AccessType.TYPE_INFO, self)
 
         if isinstance(self.precision, Symbol):
             access_info.add_access(
                 Signature(self.precision.name),
-                AccessType.TYPE_INFO, sym)
+                AccessType.TYPE_INFO, self)
 
         for dim in self.shape:
             if isinstance(dim, ArrayType.ArrayBounds):
@@ -1305,25 +1310,27 @@ class StructureType(DataType):
                      preceding_comment=component.preceding_comment,
                      inline_comment=component.inline_comment)
 
-    def reference_accesses(self, sym):
+    def reference_accesses(self):
         '''
-        Get all symbols referenced in this datatype.
-
-        :param sym: the Symbol that this datatype is for.
-        :param access_info: instance in which to store access info.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this object, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
+        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        access_info = super().reference_accesses(sym)
+        access_info = super().reference_accesses()
         for cmpt in self.components.values():
             if isinstance(cmpt.datatype, DataTypeSymbol):
+                # Avoid circular import
+                # pylint: disable=import-outside-toplevel
                 from psyclone.core.signature import Signature
                 from psyclone.core.access_type import AccessType
                 access_info.add_access(
                     Signature(cmpt.datatype.name),
-                    AccessType.TYPE_INFO, sym)
+                    AccessType.TYPE_INFO, self)
             else:
-                access_info.merge(cmpt.datatype.reference_accesses(sym))
+                access_info.merge(cmpt.datatype.reference_accesses())
             if cmpt.initial_value:
                 access_info.merge(cmpt.initial_value.reference_accesses())
         return access_info

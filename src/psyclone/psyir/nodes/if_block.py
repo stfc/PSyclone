@@ -38,6 +38,7 @@
 
 ''' This module contains the IfBlock node implementation.'''
 
+from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.schedule import Schedule
@@ -180,19 +181,14 @@ class IfBlock(Statement):
         result += "End " + name
         return result
 
-    def reference_accesses(self):
-        '''Get all variable access information. It combines the data from
-        the condition, if-body and (if available) else-body. This could
-        later be extended to handle cases where a variable is only written
-        in one of the two branches.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessInfo:
         '''
+        :returns: a map of all the symbol accessed inside this node, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
 
-        # The first child is the if condition - all variables are read-only
+        '''
         var_accesses = self.condition.reference_accesses()
         var_accesses.next_location()
         var_accesses.merge(self.if_body.reference_accesses())

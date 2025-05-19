@@ -36,6 +36,7 @@
 
 ''' This module contains the WhileLoop node implementation.'''
 
+from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.schedule import Schedule
@@ -141,15 +142,14 @@ class WhileLoop(Statement):
         result += "End " + name
         return result
 
-    def reference_accesses(self):
-        '''Get all variable access information. It combines the data from
-        the loop condition and the loop body.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessInfo:
         '''
+        :returns: a map of all the symbol accessed inside this node, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
 
+        '''
         # The first child is the loop condition - all variables are read-only
         var_accesses = self.condition.reference_accesses()
         var_accesses.next_location()

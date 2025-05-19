@@ -42,7 +42,7 @@ from collections import namedtuple
 from collections.abc import Iterable
 from enum import Enum
 
-from psyclone.core import AccessType
+from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
@@ -910,18 +910,14 @@ class IntrinsicCall(Call):
 
         return call
 
-    def reference_accesses(self):
-        '''Get all reference access information from this node.
-
-        Any variables used as the first argument to 'inquiry intrinsics' like
-        `lbound`, `ubound`, or `size` are marked as having INQUIRY accesses.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the
-            information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessInfo:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
 
         '''
-        from psyclone.core import VariablesAccessInfo
         var_accesses = VariablesAccessInfo()
         if self.intrinsic.is_inquiry and isinstance(self.arguments[0],
                                                     Reference):

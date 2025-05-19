@@ -73,7 +73,7 @@ from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
-    SymbolError, UnresolvedType)
+    SymbolError, UnresolvedType, DataType)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import (
@@ -442,7 +442,7 @@ class MarkRoutineForGPUMixin:
         for sig in vai.all_signatures:
             name = sig.var_name
             first = vai[sig].all_accesses[0].node
-            if isinstance(first, Symbol):
+            if isinstance(first, (Symbol, DataType)):
                 table = ktable
             else:
                 try:

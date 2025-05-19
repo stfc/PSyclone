@@ -323,11 +323,10 @@ def test_scalartype_reference_accesses():
     rdef = DataSymbol("rdef", INTEGER_TYPE)
     stype2 = ScalarType(ScalarType.Intrinsic.INTEGER,
                         rdef)
-    var = DataSymbol("var", stype2)
-    vai = stype2.reference_accesses(var)
+    vai = stype2.reference_accesses()
     svaccess = vai[Signature("rdef")]
     assert svaccess.has_data_access() is False
-    assert svaccess[0].node is var
+    assert svaccess[0].node is stype2
 
 
 # ArrayType class
@@ -768,7 +767,7 @@ def test_arraytype_reference_accesses():
                       [Literal("10", ScalarType(ScalarType.Intrinsic.INTEGER,
                                                 idef)),
                        Reference(DataSymbol("ndim", INTEGER_TYPE))])
-    vai = etype.reference_accesses(Symbol("test"))
+    vai = etype.reference_accesses()
     all_names = [sig.var_name for sig in vai.all_signatures]
     assert "rdef" in all_names
     assert "idef" in all_names
@@ -997,13 +996,13 @@ def test_unsupported_fortran_type_reference_accesses():
     nelem = DataSymbol("nelem", INTEGER_TYPE)
     ptype = ArrayType(stype, [Reference(nelem)])
     utype = UnsupportedFortranType(decl, partial_datatype=ptype)
-    vai = utype.reference_accesses(Symbol("test"))
+    vai = utype.reference_accesses()
     all_names = [sig.var_name for sig in vai.all_signatures]
     assert "nelem" in all_names
     assert "some_type" in all_names
     decl2 = "type(some_type), pointer :: var"
     u2type = UnsupportedFortranType(decl2, partial_datatype=stype)
-    vai2 = u2type.reference_accesses(Symbol("test"))
+    vai2 = u2type.reference_accesses()
     assert "some_type" in [sig.var_name for sig in vai2.all_signatures]
 
 
@@ -1174,7 +1173,7 @@ def test_structuretype_reference_accesses():
          Literal("1.0", REAL_TYPE)),
         ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
     my_var = DataTypeSymbol("my_var", stype)
-    vai = stype.reference_accesses(my_var)
+    vai = stype.reference_accesses()
     assert Signature("my_type") in vai.all_signatures
     assert Signature("ndim") in vai.all_signatures
 

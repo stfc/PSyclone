@@ -215,14 +215,12 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         return (f"Built-in: {self._case_name} ("
                 f"{self._datatype}-valued field{plural})")
 
-    def reference_accesses(self):
-        '''Get all variable access information from this node. The assigned-to
-        variable will be set to 'WRITE'.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessInfo:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
 
         :raises InternalError: if an unsupported argument type is encountered.
 

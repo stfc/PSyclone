@@ -46,6 +46,7 @@ ChildrenList - a custom implementation of list.
 import copy
 import graphviz
 
+from psyclone.core import VariablesAccessInfo
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolError
 
@@ -1481,15 +1482,14 @@ class Node():
             child.lower_to_language_level()
         return self
 
-    def reference_accesses(self):
-        '''Get all variable access information. The default implementation
-        just recurses down to all children.
-
-        :param var_accesses: Stores the output results.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessInfo:
         '''
-        from psyclone.core import VariablesAccessInfo
+        :returns: a map of all the symbol accessed inside this node, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
+
+        '''
         var_accesses = VariablesAccessInfo()
         for child in self._children:
             var_accesses.merge(child.reference_accesses())

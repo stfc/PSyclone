@@ -264,12 +264,11 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
 
     def reference_accesses(self):
         '''
-        Update the supplied VariablesAccessInfo with information on the symbols
-        referenced by the definition of this Symbol.
-
-        :param access_info: the object in which to accumulate access
-                            information.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this object, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
+        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         access_info = super().reference_accesses()
@@ -286,5 +285,5 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
                 Signature(self.datatype.name),
                 AccessType.TYPE_INFO, self)
         else:
-            access_info.merge(self.datatype.reference_accesses(self))
+            access_info.merge(self.datatype.reference_accesses())
         return access_info

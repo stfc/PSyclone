@@ -209,9 +209,9 @@ class CodeBlock(Statement, DataNode):
                     result.append(part.items[1])
         return result
 
-    def reference_accesses(self):
+    def reference_accesses(self) -> VariablesAccessInfo:
         '''
-        Get all variable access information. Since this is a CodeBlock we
+        Get all symbol access map. Since this is a CodeBlock we
         only know the names of symbols accessed within it but not how they
         are accessed. Therefore we err on the side of caution and mark
         them all as READWRITE, unfortunately, this will include the names of
@@ -224,8 +224,10 @@ class CodeBlock(Statement, DataNode):
         :py:meth:`~psyclone.psyir.nodes.CodeBlock.get_symbol_names` and is
         therefore subject to the same limitations as that method.
 
-        :param var_accesses: VariablesAccessInfo instance that stores the
-            information about variable accesses.
+        :returns: a map of all the symbol accessed inside this node, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
 
         '''
         var_accesses = VariablesAccessInfo()

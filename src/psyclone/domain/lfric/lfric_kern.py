@@ -44,7 +44,7 @@ from dataclasses import dataclass
 from typing import List
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
+from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
@@ -129,17 +129,14 @@ class LFRicKern(CodedKern):
         self._argument_kinds = {api_config.default_kind["real"],
                                 api_config.default_kind["integer"]}
 
-    def reference_accesses(self):
-        '''Get all variable access information. All accesses are marked
-        according to the kernel metadata
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessInfo:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
 
         '''
-        from psyclone.core import VariablesAccessInfo
         var_accesses = VariablesAccessInfo()
         # Use the KernelCallArgList class, which can also provide variable
         # access information:

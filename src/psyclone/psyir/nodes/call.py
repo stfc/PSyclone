@@ -39,7 +39,7 @@
 from collections.abc import Iterable
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
+from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.container import Container
@@ -294,22 +294,19 @@ class Call(Statement, DataNode):
             return isinstance(child, Reference)
         return isinstance(child, DataNode)
 
-    def reference_accesses(self):
+    def reference_accesses(self) -> VariablesAccessInfo:
         '''
-        Updates the supplied var_accesses object with information on the
-        arguments passed to this call.
-
         TODO #446 - all arguments that are passed by reference are currently
         marked as having READWRITE access (unless we know that the routine is
         PURE). We could do better than this if we have the PSyIR of the called
         Routine.
 
-        :param var_accesses: VariablesAccessInfo instance that stores the
-            information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this node, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
 
         '''
-        from psyclone.core import VariablesAccessInfo
         var_accesses = VariablesAccessInfo()
 
         if self.is_pure:

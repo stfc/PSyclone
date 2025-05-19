@@ -2032,18 +2032,14 @@ class SymbolTable():
 
     def reference_accesses(self):
         '''
-        Get all variable access information *within* this table. This ensures
-        that any Symbols appearing in precision specifications, array shapes,
-        initialisation expressions or routine interfaces are captured.
-
-        N.B. imported Symbols are skipped since their properties are not a
-        part of this table.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the
-            information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this object, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
+        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.core import VariablesAccessInfo
         vai = VariablesAccessInfo()
         for sym in self.symbols:

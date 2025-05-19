@@ -173,11 +173,10 @@ class Literal(DataNode):
 
     def reference_accesses(self) -> VariablesAccessInfo:
         '''
-        Get all variable access information. Since this is a Literal, the
-        only possible place a symbol might be present is in the precision.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the
-            information about variable accesses.
+        :returns: a map of all the symbol accessed inside this node, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
 
         '''
         access_info = VariablesAccessInfo()

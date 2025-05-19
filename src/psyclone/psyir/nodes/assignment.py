@@ -39,6 +39,7 @@
 
 ''' This module contains the Assignment node implementation.'''
 
+from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.array_reference import ArrayReference
@@ -171,14 +172,12 @@ class Assignment(Statement):
             result += str(entity)
         return result
 
-    def reference_accesses(self):
-        '''Get all variable access information from this node. The assigned-to
-        variable will be set to 'WRITE'.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessInfo:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
 
         '''
         # It is important that a new instance is used to handle the LHS,

@@ -128,15 +128,15 @@ class DataTypeSymbol(Symbol):
 
     def reference_accesses(self):
         '''
-        Update the supplied VariablesAccessInfo with information on the symbols
-        referenced by the definition of this Symbol.
+        :returns: a map of all the symbol accessed inside this Symbol, the
+        keys are Signatures (unique identifiers to a symbol and its
+        sturcture acccessors) and the values are SingleVariableAccessInfo
+        (a sequence of AccessType).
+        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 
-        :param access_info: the object in which to accumulate access
-                            information.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
         '''
         access_info = super().reference_accesses()
-        access_info.merge(self.datatype.reference_accesses(self))
+        access_info.merge(self.datatype.reference_accesses())
         return access_info
 
     def replace_symbols_using(self, table_or_symbol):
