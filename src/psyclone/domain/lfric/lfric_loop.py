@@ -1075,7 +1075,7 @@ class LFRicLoop(PSyLoop):
         # The generic DA says that this loop cannot be parallelised. However,
         # we use domain-specific information to qualify this.
         if self.loop_type == "cells_in_colour":
-            # This loop is either over cells of a single colour.
+            # This loop is over cells of a single colour.
             # According to LFRic rules this is safe to parallelise.
             return True
 
