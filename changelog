@@ -1,3 +1,6 @@
+   18) PR #2989. Updates various software versions in the integration tests.
+   Most significant is move from Gnu 14.2 to Gnu 15.1.
+
    17) PR #2983 for #2978. Ignore redundant return statements when creating
    PSyIR.
 
