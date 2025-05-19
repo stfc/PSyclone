@@ -41,6 +41,7 @@
 import abc
 from collections.abc import Iterable
 from typing import Union, List
+import warnings
 
 from psyclone import psyGen
 from psyclone.core import Signature
@@ -369,7 +370,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 list_of_names = ignore_dependencies_for
         else:
             # TODO 2668 - options dict is deprecated.
-            print(self._deprecation_warning)
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
             verbose = options.get("verbose", False)
             collapse = options.get("collapse", False)
             ignore_dep_analysis = options.get("force", False)
