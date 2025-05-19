@@ -609,16 +609,30 @@ class LFRicKern(CodedKern):
         is guaranteed to write the same value to a given dof. This method
         returns True if this is such a kernel.
 
-        :returns: True if this kernel updates an argument on a continuous
-                  space and all of the updated arguments have 'GH_WRITE'
+        :returns: True if this kernel only updates fields on continuous
+                  spaces and all of the updated arguments have 'GH_WRITE'
                   access, False otherwise.
         '''
-        if self.arguments.iteration_space_arg().discontinuous:
-            return False
-        accesses = set(arg.access for arg in self.args)
-        all_writes = AccessType.all_write_accesses()
-        all_writes.remove(AccessType.WRITE)
-        return (not accesses.intersection(set(all_writes)))
+        found = False
+        for arg in self.args:
+            if arg.access not in AccessType.all_write_accesses():
+                # Argument is not updated.
+                continue
+            if arg.is_operator:
+                # An Operator is updated.
+                return False
+            if not arg.is_field:
+                # We don't care about Scalars and Literals.
+                continue
+            if arg.discontinuous:
+                # Field on a discontinuous space is updated.
+                return False
+            if arg.access == AccessType.WRITE:
+                found = True
+            else:
+                # Any access other than WRITE on a continuous field.
+                return False
+        return found
 
     @property
     def base_name(self):
