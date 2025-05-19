@@ -140,7 +140,7 @@ def test_array_create_invalid2():
     with pytest.raises(GenerationError) as excinfo:
         _ = ArrayReference.create(symbol_temp, children)
     assert ("the indices argument has '3' elements, but it must have a number "
-            "of dimensions less or equal to the 'temp' shape, which has "
+            "of dimensions less or equal to the shape of 'temp', which has "
             "'1'." in str(excinfo.value))
 
 
