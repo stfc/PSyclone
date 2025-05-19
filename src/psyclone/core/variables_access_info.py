@@ -238,7 +238,7 @@ class VariablesAccessInfo(dict):
                                                   component_indices)
         # Increase the current location of this instance by the amount of
         # locations just merged in
-        self._location = self._location + max_new_location
+        self._location = self._location + other_access_info._location
 
     def is_called(self, signature: Signature) -> bool:
         '''

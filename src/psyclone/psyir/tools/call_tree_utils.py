@@ -251,6 +251,7 @@ class CallTreeUtils():
         :rtype: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
+        node_list = node_list if isinstance(node_list, list) else [node_list]
         variables_info = VariablesAccessInfo()
         for node in node_list:
             variables_info.merge(node.reference_accesses())
