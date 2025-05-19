@@ -137,6 +137,4 @@ jobs:
         . .runner_venv/bin/activate
         cd examples/nemo/eg1
         psyclone -s ./openmp_cpu_levels_trans.py --log-level DEBUG --log-file log.out ../code/tra_adv.F90
-        if ! [-f log.out]; then
-          exit 1
-        fi
+        test -f log.out
