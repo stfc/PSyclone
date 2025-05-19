@@ -1172,7 +1172,6 @@ def test_structuretype_reference_accesses():
         ("george", atype, Symbol.Visibility.PRIVATE,
          Literal("1.0", REAL_TYPE)),
         ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
-    my_var = DataTypeSymbol("my_var", stype)
     vai = stype.reference_accesses()
     assert Signature("my_type") in vai.all_signatures
     assert Signature("ndim") in vai.all_signatures
