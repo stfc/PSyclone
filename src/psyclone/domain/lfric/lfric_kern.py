@@ -601,13 +601,14 @@ class LFRicKern(CodedKern):
         return self._mesh_properties
 
     @property
-    def all_continuous_updates_are_writes(self) -> bool:
+    def all_updates_are_continuous_writes(self) -> bool:
         '''
         Normally, a field on a continuous function space that is updated must
         have GH_INC access. However, the LFRic API supports the special case
         where such a field may have GH_WRITE access if every call of the kernel
         is guaranteed to write the same value to a given dof. This method
-        returns True if this is such a kernel.
+        returns True if this is such a kernel (all updated quantities have
+        GH_WRITE access and are fields on continuous function spaces).
 
         :returns: True if this kernel only updates fields on continuous
                   spaces and all of the updated arguments have 'GH_WRITE'
@@ -616,14 +617,12 @@ class LFRicKern(CodedKern):
         found = False
         for arg in self.args:
             if arg.access not in AccessType.all_write_accesses():
-                # Argument is not updated.
+                # Argument is not updated. This also excludes all Scalars
+                # and Literals since LFRicKern's can't write to them.
                 continue
             if arg.is_operator:
                 # An Operator is updated.
                 return False
-            if not arg.is_field:
-                # We don't care about Scalars and Literals.
-                continue
             if arg.discontinuous:
                 # Field on a discontinuous space is updated.
                 return False

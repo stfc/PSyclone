@@ -2041,7 +2041,7 @@ class DynMeshes():
             )
             # Array holding the last cell of a given colour.
             if (Config.get().distributed_memory and
-                    not call.all_continuous_updates_are_writes):
+                    not call.all_updates_are_continuous_writes):
                 # This will require a loop into the halo and so the array is
                 # 2D (indexed by colour *and* halo depth).
                 base_name = "last_halo_cell_all_colours_" + carg_name
@@ -4782,7 +4782,7 @@ class HaloReadAccess(HaloDepth):
                 pass
             else:  # there is no stencil
                 if (field.discontinuous or call.iterates_over == "dof" or
-                        call.all_continuous_updates_are_writes):
+                        call.all_updates_are_continuous_writes):
                     # There are only local accesses or the kernel is of the
                     # special form where any iteration is guaranteed to write
                     # the same value to a given shared entity.

@@ -449,8 +449,8 @@ def test_kern_last_cell_all_colours_intergrid():
             "last_edge_cell_all_colours_field1")
 
 
-def test_kern_all_cont_updates_are_writes(monkeypatch):
-    ''' Tests for the 'all_continuous_updates_are_writes' property of
+def test_kern_all_updates_are_cont_writes(monkeypatch):
+    ''' Tests for the 'all_updates_are_continuous_writes' property of
     LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
@@ -459,14 +459,14 @@ def test_kern_all_cont_updates_are_writes(monkeypatch):
     loop = sched.walk(LFRicLoop)[0]
     kernel = loop.kernel
     # The only argument updated by this kernel has GH_INC access.
-    assert not kernel.all_continuous_updates_are_writes
+    assert not kernel.all_updates_are_continuous_writes
     # Patch the kernel so that a different argument has GH_WRITE access.
     kernel.args[2]._access = AccessType.WRITE
     # There is still a GH_INC argument.
-    assert not kernel.all_continuous_updates_are_writes
+    assert not kernel.all_updates_are_continuous_writes
     # Change the GH_INC to be GH_WRITE.
     kernel.args[1]._access = AccessType.WRITE
-    assert kernel.all_continuous_updates_are_writes
+    assert kernel.all_updates_are_continuous_writes
     # Patch the kernel so that both updated field arguments appear to be
     # on a discontinuous space.
     monkeypatch.setattr(
@@ -475,7 +475,19 @@ def test_kern_all_cont_updates_are_writes(monkeypatch):
     monkeypatch.setattr(
         kernel.arguments._args[2]._function_spaces[0],
         "_orig_name", "w3")
-    assert not kernel.all_continuous_updates_are_writes
+    assert not kernel.all_updates_are_continuous_writes
+
+
+def test_kern_all_updates_are_cont_writes_not_op(monkeypatch):
+    ''' Tests for the 'all_updates_are_continuous_writes' property of
+    LFRicKern when the kernel updates an operator argument. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    loop = sched.walk(LFRicLoop)[0]
+    kernel = loop.kernel
+    assert not kernel.all_updates_are_continuous_writes
 
 
 def test_kern_not_coloured_inc(monkeypatch):

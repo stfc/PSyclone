@@ -311,7 +311,7 @@ class LFRicLoop(PSyLoop):
             # shared dof are guaranteed to write the same value. There
             # is therefore no need to iterate into the L1 halo in order
             # to get correct values for annexed dofs.
-            if not kern.all_continuous_updates_are_writes:
+            if not kern.all_updates_are_continuous_writes:
                 self.set_upper_bound("cell_halo", halo_depth=1)
                 return
             self.set_upper_bound("ncells")
@@ -322,7 +322,7 @@ class LFRicLoop(PSyLoop):
             # so we have to err on the side of caution and assume that
             # it is. Again, if the only arguments that are updated have
             # 'GH_WRITE' access then we can relax this condition.
-            if not kern.all_continuous_updates_are_writes:
+            if not kern.all_updates_are_continuous_writes:
                 self.set_upper_bound("cell_halo", halo_depth=1)
                 return
             self.set_upper_bound("ncells")
@@ -662,7 +662,7 @@ class LFRicLoop(PSyLoop):
                     return True
                 if (not arg.discontinuous and
                         self.kernel.iterates_over == "cell_column" and
-                        self.kernel.all_continuous_updates_are_writes and
+                        self.kernel.all_updates_are_continuous_writes and
                         self._upper_bound_name == "ncells"):
                     # This is the special case of a kernel that guarantees to
                     # write the same value to any given dof, irrespective of
