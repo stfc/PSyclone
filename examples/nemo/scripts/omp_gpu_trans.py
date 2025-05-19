@@ -41,7 +41,7 @@ import os
 from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
     normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
-    PRIVATISATION_ISSUES)
+    PRIVATISATION_ISSUES, NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import (
@@ -63,7 +63,7 @@ NEMOV4 = os.environ.get('NEMOV4', False)
 # modules). This has to be used in combination with '-I' command flag in order
 # to point to the module location directory. We also strongly recommend using
 # the '--enable-cache' flag to reduce the performance overhead.
-RESOLVE_IMPORTS = True
+RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = []
