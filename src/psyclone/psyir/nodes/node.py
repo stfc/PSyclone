@@ -43,8 +43,6 @@ This module contains the abstract Node implementation as well as
 ChildrenList - a custom implementation of list.
 
 '''
-from typing import Union
-
 import copy
 import graphviz
 
@@ -391,7 +389,7 @@ class Node():
                         f"annotation '{annotation}', valid "
                         f"annotations are: {self.valid_annotations}.")
         self._disable_tree_update = False
-        self.cached_abs_position = None
+        self._cached_abs_position = None
         self.update_signal()
 
     def __eq__(self, other):
@@ -991,47 +989,20 @@ class Node():
         # We only recompute the cache if its current invalid. The root's
         # cached position is always invalidated if the tree is changed, so
         # we use that to check the validity.
+        # pylint: disable=protected-access
         if self.root._cached_abs_position is None:
             # Reset the cache.
-            self.cached_abs_position = None
+            self._cached_abs_position = None
             position = self.START_POSITION
             # The first node found is the root, so increment the position
             # after updating the position.
             for node in self.root.walk(Node):
-                node.cached_abs_position = position
+                # pylint: disable=protected-access
+                node._cached_abs_position = position
                 position += 1
-            if self.cached_abs_position is None:
+            if self._cached_abs_position is None:
                 raise InternalError("Error in search for Node position "
                                     "in the tree")
-
-    @property
-    def cached_abs_position(self) -> Union[int, None]:
-        '''
-        :returns: the cached_abs_position of this node.
-        '''
-        # Check the caches are up to date by checking the root node.
-        if self.root._cached_abs_position is None:
-            # Invalidate the local cache. Don't use the setter as
-            # the type check is unneeded here.
-            self._cached_abs_position = None
-        return self._cached_abs_position
-
-    @cached_abs_position.setter
-    def cached_abs_position(self, abs_position: Union[int, None]):
-        '''
-        Sets the cached_abs_position of this node. Supplying None means
-        invalidating the cache.
-
-        :param abs_position: The abs_position to cache.
-
-        :raises TypeError: if the supplied abs_position is the wrong type.
-        '''
-        if abs_position is not None and not isinstance(abs_position, int):
-            raise TypeError(
-                f"Expected cached_abs_position to be an int or None "
-                f"but got: '{type(abs_position).__name__}'"
-            )
-        self._cached_abs_position = abs_position
 
     @property
     def abs_position(self):
@@ -1048,9 +1019,9 @@ class Node():
         '''
         if self.root is self:
             return self.START_POSITION
-        cache = self.cached_abs_position
-        if cache is not None:
-            return cache
+        # pylint: disable=protected-access
+        if self.root._cached_abs_position:
+            return self._cached_abs_position
         found, position = self._find_position(self.root.children,
                                               self.START_POSITION)
         if not found:
@@ -1667,6 +1638,7 @@ class Node():
         # And make a recursive copy of each child instead
         self.children.extend([child.copy() for child in other.children])
         self._disable_tree_update = False
+        self._cached_abs_position = None
 
     def copy(self):
         ''' Return a copy of this node. This is a bespoke implementation for
@@ -1681,6 +1653,7 @@ class Node():
         # Start with a shallow copy of the object
         new_instance = copy.copy(self)
         # Then refine the elements that shouldn't be shallow copied
+        # pylint: disable=protected-access
         new_instance._refine_copy(self)
         return new_instance
 
@@ -1779,7 +1752,7 @@ class Node():
         This base implementation invalidates any cached abs_position values,
         and must be called by all subclasses implementing this method.
         '''
-        self.cached_abs_position = None
+        self._cached_abs_position = None
 
     def path_from(self, ancestor):
         ''' Find the path in the psyir tree between ancestor and node and

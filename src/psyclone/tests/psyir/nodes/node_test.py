@@ -288,40 +288,24 @@ def test_compute_cached_abs_positions(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     # Check the caches are initially unset.
     for child in psyir.walk(Node):
-        assert child.cached_abs_position is None
+        assert child._cached_abs_position is None
     psyir.children[0].children[0].compute_cached_abs_positions()
     for child in psyir.walk(Node):
         # Compare to original abs_position implementation
         if child is child.root:
-            assert child.cached_abs_position == child.START_POSITION
+            assert child._cached_abs_position == child.START_POSITION
         else:
             found, position = child._find_position(child.root.children,
                                                    child.START_POSITION)
             assert found
-            assert position == child.cached_abs_position
+            assert position == child._cached_abs_position
             # Also the abs_position should use the cached value too.
-            assert child.abs_position == child.cached_abs_position
-    # Force update the setter of the root to None and check the cache
-    # is invalidated
-    psyir.cached_abs_position = None
-    for child in psyir.walk(Node):
-        assert child.cached_abs_position is None
-    # Recompute the cache.
-    psyir.children[0].children[0].compute_cached_abs_positions()
+            assert child.abs_position == child._cached_abs_position
     # Change something in the tree
     rlit = Literal("1", INTEGER_TYPE)
     psyir.children[0].children[0].rhs.replace_with(rlit)
-    # Check that caches are invalidated.
-    assert psyir.root.cached_abs_position is None
-    for child in psyir.walk(Node):
-        child.cached_abs_position is None
-
-    # Check that we get the expected type error when setting
-    # the cached_abs_position
-    with pytest.raises(TypeError) as excinfo:
-        psyir.cached_abs_position = "b"
-    assert ("Expected cached_abs_position to be an int or None but got: 'str'"
-            in str(excinfo.value))
+    # Check that cache is invalidated.
+    assert psyir.root._cached_abs_position is None
 
 
 def test_compute_cached_abs_positions_error():
