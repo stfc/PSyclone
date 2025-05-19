@@ -94,9 +94,9 @@ from psyclone.version import __VERSION__
 # code) whilst keeping the original implementation as default
 # until it is working.
 LFRIC_TESTING = False
-# off "level" choice is an arbitrary choice above CRITICAL to disiable all
+# off "level" choice is sys.maxsize to disable all
 # log messages.
-LOG_LEVELS = {"OFF": logging.CRITICAL + 10,
+LOG_LEVELS = {"OFF": sys.maxsize,
               logging.getLevelName(logging.DEBUG): logging.DEBUG,
               logging.getLevelName(logging.INFO): logging.INFO,
               logging.getLevelName(logging.WARNING): logging.WARNING,
@@ -500,14 +500,11 @@ def main(arguments):
     parser.add_argument(
         "--log-level", default="OFF",
         choices=LOG_LEVELS.keys(),
-        help="sets the level of the PSyclone logging infrastructure. 'debug'"
-             " is the most verbose while 'critical' will show the least "
-             "information."
+        help="sets the level of the logging (defaults to OFF)."
     )
     parser.add_argument(
         "--log-file", default=None,
-        help="sets the output file to use for logging. If not specified the "
-             "logging information will be output to stdout."
+        help="sets the output file to use for logging (defaults to stderr)."
     )
 
     args = parser.parse_args(arguments)

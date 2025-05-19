@@ -159,7 +159,7 @@ retained.). For example::
 Logging
 -------
 
-PSyclone now supports the Python `logging` module, to help enable improved
+PSyclone supports the Python `logging` module, to help enable improved
 general messages throughout the code. By default the logging infrastructure
 is switched off, but can be enabled either through the PSyclone script
 options or programatically by::
@@ -173,25 +173,15 @@ logging library.
 To use logging in a module, you can add::
 
     import logging
-    # Other imports.
     logger = logging.getLogger(__name__)
+    logging.info("Example of a logging message.")
 
 at the top of a module to make the logger available everywhere in the file.
 This is standard practice for using logging in Python.
 
 Python has 5 levels of information as standard in logging, `debug`, `info`,
 `warning`, `error`, and `critical`. The use of these levels is left to the
-developers and reviewers decision outside of the following cases:
-
-  #) `logging.critical` should be used when raising InternalErrors or other
-     behaviours that are symptomatic of errors inside PSyclone.
-
-  #) `logging.error` should be used when raising errors on arguments, such as
-     `TypeError` or `ValueError`.
-
-  #) `logging.info` should be used when raising `TransformationError` if there
-     can be any additional information available as to why the Transformation
-     failed.
+developers and reviewers decision.
 
 Additional contextual information (such as class/function information) should
 also be placed into logging messages when generated in a module containing

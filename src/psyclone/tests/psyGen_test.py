@@ -219,13 +219,6 @@ def test_transformation_apply_deprecation_message(capsys):
         # Cause all warnings to be triggered.
         warnings.simplefilter("always")
         TestTrans().apply(options={"a": "test"})
-        out, err = capsys.readouterr()
-        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
-                "Transformation.apply and Transformation.validate are now "
-                "deprecated. Please use "
-                "the individual arguments, or unpack the options with "
-                "**options. See the Transformations section of the "
-                "User guide for more details" in out)
         assert len(w) == 1
         assert issubclass(w[0].category, DeprecationWarning)
         assert ("PSyclone Deprecation Warning: The 'options' parameter to "

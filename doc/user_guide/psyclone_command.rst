@@ -98,10 +98,8 @@ by the command:
      --kernel-renaming {multiple,single}
                            (psykal mode) naming scheme to use when re-naming transformed kernels
      --log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}
-                           sets the level of the PSyclone logging infrastructure. 'debug' is the most
-                           verbose while 'critical' will show the least information.
-     --log-file LOG_FILE   sets the output file to use for logging. If not specified the logging information
-                           will be output to stdout.
+                           sets the level of the logging (defaults to OFF).
+     --log-file LOG_FILE   sets the output file to use for logging (defaults to stderr).
 
 Basic Use
 ---------
@@ -416,16 +414,16 @@ be generated then PSyclone will raise an exception.
 Enabling the Logging Infrastructure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-PSyclone now supports logging which can provide additional information
-on what is happening inside PSyclone. The amount of information available
-through logging is currently quite low, but will expand over time.
+PSyclone supports logging which can provide additional information
+on what is happening inside PSyclone. This logging will also
+control the behaviour of any logging calls inside a user script.
 
-Logging output can be controlled through the `--log-level` option to
-the `psyclone` script. By default, logging is set to `OFF`, which means
+Logging output can be controlled through the `--log-level` option.
+By default, logging is set to `OFF`, which means
 no logging output will be produced. There are 5 other levels as
 detailed in the `psyclone -h` information.
 
-By default the output from the logging goes into the standard output
-channels. To control the logging output, PSyclone provides the
+By default the output from the logging goes into stderr.
+To control the logging output, PSyclone provides the
 `--log-file` option. If this is set, the logging output will instead
 be directed to the provided file.

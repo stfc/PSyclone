@@ -2767,8 +2767,7 @@ class Transformation(metaclass=abc.ABCMeta):
         '''
         # TODO 2668: options are now deprecated:
         if options is not None:
-            print(self._deprecation_warning)
-            warnings.warn(self._deprecation_warning, DeprecationWarning)
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
 
     def validate(self, node, options=None, **kwargs):
         '''Method that validates that the input data is correct.

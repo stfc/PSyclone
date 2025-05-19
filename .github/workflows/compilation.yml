@@ -132,3 +132,11 @@ jobs:
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/LFRic compile
         F90=nvfortran F90FLAGS="-acc -Minfo=all -Mnofma -O2" make -C tutorial/practicals/generic run
         make -C tutorial/practicals/generic/4_openacc acc_test
+    - name: Test logfile creation.
+      run: |
+        . .runner_venv/bin/activate
+        cd examples/nemo/eg1
+        psyclone -s ./openmp_cpu_levels_trans.py --log-level DEBUG --log-file log.out ../code/tra_adv.F90
+        if ! [-f log.out]; then
+          exit 1
+        fi
