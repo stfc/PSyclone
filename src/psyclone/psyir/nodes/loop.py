@@ -485,9 +485,9 @@ class Loop(Statement):
     def reference_accesses(self) -> VariablesAccessInfo:
         '''
         :returns: a map of all the symbol accessed inside this node, the
-        keys are Signatures (unique identifiers to a symbol and its
-        sturcture acccessors) and the values are SingleVariableAccessInfo
-        (a sequence of AccessType).
+            keys are Signatures (unique identifiers to a symbol and its
+            sturcture acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
         var_accesses = VariablesAccessInfo()

@@ -305,10 +305,10 @@ VariablesAccessInfo
 -------------------
 
 The `VariablesAccessInfo` class is used to store information about all
-accesses in a region of code. To collect access information, the
-function `reference_accesses()` for the code region must be called.
-It will add the accesses for the PSyIR subtree to the specified instance
-of `VariablesAccessInfo`.
+accesses in a region of code. To collect access information, call any
+Node `reference_accesses()` method for the code region of interest.
+It will return the accesses for the PSyIR in a dictionary of
+kind `VariablesAccessInfo`.
 
 .. automethod:: psyclone.psyir.nodes.Node.reference_accesses
     :no-index:
@@ -319,21 +319,18 @@ of `VariablesAccessInfo`.
     :special-members: __str__
 
 This class collects information for each variable used in the tree
-starting with the given node. A `VariablesAccessInfo` instance can store
-information about variables in high-level concepts such as
-a kernel, as well as for language-level PSyIR. You can pass a single
-instance to more than one call to `reference_accesses()` in order to
-add more variable access information, or use the `merge()` function to
+starting with the given node. Use the `merge()` method to
 combine two `VariablesAccessInfo` objects into one. It is up to the user to
 keep track of which statements (PSyIR nodes) a given `VariablesAccessInfo`
-instance is holding information about.
+instance is holding information about. If the PSyIR tree is modified the
+`VariablesAccessInfo` maps becomes invalid, so it is not recommended to
+store them.
 
 
 SingleVariableAccessInfo
 ------------------------
-The class `VariablesAccessInfo` uses a dictionary of
-`psyclone.core.SingleVariableAccessInfo` instances to map
-from each variable to the accesses of that variable. When a new variable
+The values of the `VariablesAccessInfo` map are `SingleVariableAccessInfo`,
+which contain the sequence of accesses to a single variable. When a new variable
 is detected when adding access information to a `VariablesAccessInfo` instance
 via `add_access()`, a new instance of `SingleVariableAccessInfo` is added,
 which in turn stores all access to the specified variable.

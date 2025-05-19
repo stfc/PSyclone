@@ -159,22 +159,6 @@ def test_if_statement(fortran_reader):
     assert q_accesses[0].location < q_accesses[1].location
 
 
-@pytest.mark.xfail(reason="Calls in the NEMO API are not yet supported #446")
-def test_call(fortran_reader):
-    ''' Check that we correctly handle a call in a program '''
-    psyir = fortran_reader.psyir_from_source(
-        '''program test_prog
-             real :: a, b
-             call sub(a,b)
-           end program test_prog''')
-    schedule = psyir.children[0]
-
-    code_block = schedule.children[0]
-    call_stmt = code_block.statements[0]
-    var_accesses = call_stmt.reference_accesses()
-    assert str(var_accesses) == "a: UNKNOWN, b: UNKNOWN"
-
-
 def test_do_loop(fortran_reader):
     ''' Check the handling of do loops.
     '''

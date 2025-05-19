@@ -145,9 +145,9 @@ class WhileLoop(Statement):
     def reference_accesses(self) -> VariablesAccessInfo:
         '''
         :returns: a map of all the symbol accessed inside this node, the
-        keys are Signatures (unique identifiers to a symbol and its
-        sturcture acccessors) and the values are SingleVariableAccessInfo
-        (a sequence of AccessType).
+            keys are Signatures (unique identifiers to a symbol and its
+            sturcture acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
         # The first child is the loop condition - all variables are read-only
