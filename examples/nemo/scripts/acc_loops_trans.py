@@ -39,7 +39,7 @@ directives into Nemo code. '''
 
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT)
+    enhance_tree_information, NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import (
     ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans)
@@ -52,7 +52,7 @@ PROFILING_ENABLED = True
 # modules). This has to be used in combination with '-I' command flag in order
 # to point to the module location directory. We also strongly recommend using
 # the '--enable-cache' flag to reduce the performance overhead.
-RESOLVE_IMPORTS = True
+RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = NOT_PERFORMANT
