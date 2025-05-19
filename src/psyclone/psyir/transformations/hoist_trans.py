@@ -40,7 +40,7 @@ is a name that is often used to describe this type of transformation.
 
 '''
 
-from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.core import AccessType
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Loop, Assignment, Schedule, Call, CodeBlock)

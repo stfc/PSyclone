@@ -276,7 +276,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
 
         if self.is_import:
             # We ignore any dependencies associated with imported symbols.
-            return
+            return access_info
 
         if isinstance(self.datatype, DataTypeSymbol):
             # pylint: disable=import-outside-toplevel

@@ -93,6 +93,7 @@ class DataType(metaclass=abc.ABCMeta):
 
         '''
 
+    # pylint: disable=unused-argument
     def reference_accesses(self, sym: Symbol):
         '''
         Get all symbols referenced in this datatype.
@@ -102,6 +103,8 @@ class DataType(metaclass=abc.ABCMeta):
         :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.core import VariablesAccessInfo
         return VariablesAccessInfo()
 
@@ -338,13 +341,16 @@ class UnsupportedFortranType(UnsupportedType):
 
         if self.partial_datatype:
             if isinstance(self.partial_datatype, DataTypeSymbol):
+                # Avoid circular import
+                # pylint: disable=import-outside-toplevel
                 from psyclone.core.signature import Signature
                 from psyclone.core.access_type import AccessType
                 access_info.add_access(
                     Signature(self.partial_datatype.name),
                     AccessType.TYPE_INFO, self)
             else:
-                access_info.merge(self.partial_datatype.reference_accesses(sym))
+                access_info.merge(
+                    self.partial_datatype.reference_accesses(sym))
         return access_info
 
     @property

@@ -43,7 +43,6 @@
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
-from psyclone.core import VariablesAccessInfo
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.commentable_mixin import CommentableMixin

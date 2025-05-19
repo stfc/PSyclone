@@ -46,7 +46,7 @@ from collections import OrderedDict
 from typing import List
 
 from psyclone.configuration import Config
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.array_of_structures_reference import (

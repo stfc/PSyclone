@@ -39,7 +39,7 @@
 ''' Perform py.test tests on the psyclone.psyir.symbols.datatype module. '''
 
 import pytest
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     BinaryOperation, Container, KernelSchedule,
@@ -1004,7 +1004,7 @@ def test_unsupported_fortran_type_reference_accesses():
     decl2 = "type(some_type), pointer :: var"
     u2type = UnsupportedFortranType(decl2, partial_datatype=stype)
     vai2 = u2type.reference_accesses(Symbol("test"))
-    assert "some_type" in [sig.var_name for sig in vai.all_signatures]
+    assert "some_type" in [sig.var_name for sig in vai2.all_signatures]
 
 
 # StructureType tests

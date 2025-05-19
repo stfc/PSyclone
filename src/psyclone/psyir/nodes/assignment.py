@@ -39,7 +39,6 @@
 
 ''' This module contains the Assignment node implementation.'''
 
-from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.f2pygen import PSyIRGen
 from psyclone.psyir.nodes.literal import Literal
@@ -186,7 +185,7 @@ class Assignment(Statement):
         # It is important that a new instance is used to handle the LHS,
         # since a check in 'change_read_to_write' makes sure that there
         # is only one access to the variable!
-        var_accesses = self.lhs.reference_accesses()
+        lhs_accesses = self.lhs.reference_accesses()
         # Now change the (one) access to the assigned variable to be WRITE.
         # Note that if the LHS is a CodeBlock then reference_accesses() will
         # already have given all Signatures READWRITE access. This is not
@@ -194,7 +193,7 @@ class Assignment(Statement):
         # subject of #2863.
         if isinstance(self.lhs, Reference):
             sig, _ = self.lhs.get_signature_and_indices()
-            var_info = var_accesses[sig]
+            var_info = lhs_accesses[sig]
             try:
                 var_info.change_read_to_write()
             except InternalError as err:
@@ -210,9 +209,10 @@ class Assignment(Statement):
         # RHS is added, so that in statements like 'a=a+1' the read on
         # the RHS comes before the write on the LHS (they have the same
         # location otherwise, but the order is still important)
-        var_accesses.merge(self.rhs.reference_accesses())
-        var_accesses.next_location()
-        return var_accesses
+        rhs_accesses = self.rhs.reference_accesses()
+        rhs_accesses.merge(lhs_accesses)
+        rhs_accesses.next_location()
+        return rhs_accesses
 
     @property
     def is_array_assignment(self):

@@ -39,7 +39,7 @@
 import os
 import pytest
 from psyclone.configuration import Config
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
     ArrayReference, Assignment, BinaryOperation, Call, CodeBlock, Literal,

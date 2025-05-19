@@ -138,7 +138,8 @@ class LFRicKern(CodedKern):
 
         '''
         from psyclone.core import VariablesAccessInfo
-        var_accesses = VariablesAccessInfo()        # Use the KernelCallArgList class, which can also provide variable
+        var_accesses = VariablesAccessInfo()
+        # Use the KernelCallArgList class, which can also provide variable
         # access information:
         create_arg_list = KernCallArgList(self)
         create_arg_list.generate(var_accesses)

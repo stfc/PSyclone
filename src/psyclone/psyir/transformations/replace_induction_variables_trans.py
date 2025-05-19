@@ -37,7 +37,7 @@
 '''Module providing a transformation that removes induction variables from
 a loop. '''
 
-from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.core import AccessType
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
                                   Call, CodeBlock, Loop, Reference)

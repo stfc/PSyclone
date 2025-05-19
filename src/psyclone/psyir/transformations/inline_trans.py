@@ -37,7 +37,6 @@
 This module contains the InlineTrans transformation.
 
 '''
-from psyclone.core import VariablesAccessInfo
 from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.nodes import (

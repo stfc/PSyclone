@@ -39,7 +39,7 @@
 
 import pytest
 
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.psyir.nodes import Reference
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, INTEGER_TYPE, Symbol,

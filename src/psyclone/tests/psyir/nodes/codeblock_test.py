@@ -40,7 +40,6 @@
 
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes import CodeBlock
 from psyclone.psyir.nodes.node import colored
 from psyclone.errors import GenerationError

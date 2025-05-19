@@ -37,7 +37,6 @@
 ''' Performs py.test tests on the WhileLoop PSyIR node. '''
 
 import pytest
-from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Literal, \

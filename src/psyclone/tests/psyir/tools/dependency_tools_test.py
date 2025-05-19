@@ -39,7 +39,7 @@
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Assignment, Loop
 from psyclone.psyir.tools import DependencyTools, DTCode

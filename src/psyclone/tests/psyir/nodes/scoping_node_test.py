@@ -37,7 +37,7 @@
 ''' Performs py.test tests on the ScopingNode PSyIR node. '''
 
 import pytest
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.psyir.nodes import (
     Schedule, Assignment, Reference, Container, Loop, Literal,
     Routine, ArrayReference)
@@ -337,7 +337,6 @@ def test_reference_accesses_struct():
     assert Signature("i_def") in vai3.all_signatures
     assert Signature("r_def") in vai3.all_signatures
     table.new_symbol("var4", symbol_type=DataSymbol, datatype=ssym)
-    vai4 = sched.reference_accesses()
 
 
 def test_reference_accesses_array():

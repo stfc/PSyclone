@@ -44,7 +44,6 @@ and move it to psyir/transformations/.
 '''
 from typing import List
 
-from psyclone.core import VariablesAccessInfo
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (

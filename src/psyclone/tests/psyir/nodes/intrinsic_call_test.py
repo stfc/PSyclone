@@ -44,7 +44,6 @@ TODO #2341 - tests need to be added for all of the supported intrinsics.
 
 import pytest
 
-from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes import (
     ArrayReference, Literal, Reference, Schedule, Assignment)
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall, IAttr

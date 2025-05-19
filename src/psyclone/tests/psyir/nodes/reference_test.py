@@ -41,7 +41,6 @@
 
 import pytest
 
-from psyclone.core import VariablesAccessInfo
 from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (
     ArrayReference, Assignment, CodeBlock, colored,
@@ -190,7 +189,6 @@ def test_reference_accesses():
     reference.symbol = symbol
     var_access_info = reference.reference_accesses()
     assert "renamed_name: READ" in str(var_access_info)
-
 
 
 def test_reference_can_be_copied():

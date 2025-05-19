@@ -43,8 +43,7 @@ from enum import IntEnum
 import sympy
 
 from psyclone.configuration import Config
-from psyclone.core import (AccessType, Signature, SymbolicMaths,
-                           VariablesAccessInfo)
+from psyclone.core import AccessType, Signature, SymbolicMaths
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError

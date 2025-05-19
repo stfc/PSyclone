@@ -48,8 +48,7 @@ is not tested here.
 
 import pytest
 
-from psyclone.core import (
-    Signature, SingleVariableAccessInfo, VariablesAccessInfo)
+from psyclone.core import Signature, SingleVariableAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Literal, KernelSchedule
 from psyclone.psyir.symbols import (

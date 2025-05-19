@@ -38,7 +38,6 @@
 
 import pytest
 
-from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.symbols import (
     ContainerSymbol, GenericInterfaceSymbol, ImportInterface, INTEGER_TYPE,
     RoutineSymbol, SymbolTable, Symbol, UnresolvedInterface)
