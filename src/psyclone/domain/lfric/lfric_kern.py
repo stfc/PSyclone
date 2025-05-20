@@ -607,34 +607,16 @@ class LFRicKern(CodedKern):
         have GH_INC access. However, the LFRic API supports the special case
         where such a field may have GH_WRITE access if every call of the kernel
         is guaranteed to write the same value to a given dof. This method
-        returns True if this is such a kernel (all updated quantities have
-        GH_WRITE access and are fields on continuous function spaces).
+        returns True if this is such a kernel.
 
-        :returns: True if this kernel only updates fields on continuous
-                  spaces and all of the updated arguments have 'GH_WRITE'
-                  access, False otherwise.
+        :returns: True if this kernel updates one or more fields on continuous
+                  spaces with a 'GH_WRITE' access, False otherwise.
         '''
-        found = False
         for arg in self.args:
-            if arg.is_field and arg.access == AccessType.WRITE and not arg.discontinuous:
+            if (arg.is_field and arg.access == AccessType.WRITE and
+                    not arg.discontinuous):
                 return True
         return False
-            if arg.access not in AccessType.all_write_accesses():
-                # Argument is not updated. This also excludes all Scalars
-                # and Literals since LFRicKern's can't write to them.
-                continue
-            if arg.is_operator:
-                # An Operator is updated.
-                return False
-            if arg.discontinuous:
-                # Field on a discontinuous space is updated.
-                return False
-            if arg.access == AccessType.WRITE:
-                found = True
-            else:
-                # Any access other than WRITE on a continuous field.
-                return False
-        return found
 
     @property
     def base_name(self):
