@@ -612,11 +612,16 @@ class LFRicKern(CodedKern):
         :returns: True if this kernel updates one or more fields on continuous
                   spaces with a 'GH_WRITE' access, False otherwise.
         '''
+        found = False
         for arg in self.args:
-            if (arg.is_field and arg.access == AccessType.WRITE and
-                    not arg.discontinuous):
-                return True
-        return False
+            if arg.is_field and not arg.discontinuous:
+                if arg.access == AccessType.WRITE:
+                    found = True
+                elif arg.access == AccessType.INC:
+                    # This kernel also has a field on a continuous function
+                    # space with GH_INC access.
+                    return False
+        return found
 
     @property
     def base_name(self):
