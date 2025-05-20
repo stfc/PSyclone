@@ -80,7 +80,7 @@ class OMPLoopTrans(ParallelLoopTrans):
 
     :param str omp_schedule: the OpenMP schedule to use. Defaults to 'auto'.
     :param str omp_directive: choose which OpenMP loop directive to use.
-        Defaults to "do". The available options are "do" for "omp do"; 
+        Defaults to "do". The available options are "do" for "omp do";
         "paralleldo" for "omp parallel do"; "teamsdistributeparalleldo"
         for "omp teams distribute parallel do"; "teamsloop" for
         "omp teams loop"; and "loop" for "omp loop".
