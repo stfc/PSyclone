@@ -616,6 +616,9 @@ class LFRicKern(CodedKern):
         '''
         found = False
         for arg in self.args:
+            if arg.is_field and arg.access == AccessType.WRITE and not arg.discontinuous:
+                return True
+        return False
             if arg.access not in AccessType.all_write_accesses():
                 # Argument is not updated. This also excludes all Scalars
                 # and Literals since LFRicKern's can't write to them.
