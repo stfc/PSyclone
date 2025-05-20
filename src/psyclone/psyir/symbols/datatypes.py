@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the datatype definitions.'''
@@ -1146,13 +1147,13 @@ class StructureType(DataType):
         '''
         return self._components
 
-    def add(self, name, datatype, visibility, initial_value=None,
-            preceding_comment="", inline_comment=""):
+    def add(self, name: str, datatype, visibility, initial_value=None,
+            preceding_comment: str = "", inline_comment: str = ""):
         '''
         Create a component with the supplied attributes and add it to
         this StructureType.
 
-        :param str name: the name of the new component.
+        :param name: the name of the new component.
         :param datatype: the type of the new component.
         :type datatype: :py:class:`psyclone.psyir.symbols.DataType` |
             :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
@@ -1162,10 +1163,8 @@ class StructureType(DataType):
         :type initial_value: Optional[
             :py:class:`psyclone.psyir.nodes.DataNode`]
         :param preceding_comment: a comment that precedes this component.
-        :type preceding_comment: Optional[str]
         :param inline_comment: a comment that follows this component on the
                                same line.
-        :type inline_comment: Optional[str]
 
         :raises TypeError: if any of the supplied values are of the wrong type.
 
