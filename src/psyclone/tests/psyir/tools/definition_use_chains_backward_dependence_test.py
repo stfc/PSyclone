@@ -742,3 +742,28 @@ def test_definition_use_chains_backward_accesses_inquiry_func(
     )
     reaches = chains.find_backward_accesses()
     assert len(reaches) == 0
+
+
+def test_definition_use_chain_find_backward_accesses_pure_call(
+    fortran_reader,
+):
+    """Functionality test for the find_backward_accesses routine. This
+    tests the behaviour for a pure subrotuine call."""
+    code = """
+    pure subroutine y(in)
+        integer :: in
+        in = in + 1
+    end subroutine y
+
+    subroutine x()
+    integer :: a, b
+    a = 2
+    call y(b)
+    a = a + 2
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[1]
+    chains = DefinitionUseChain(routine.children[2].rhs.children[0])
+    reaches = chains.find_backward_accesses()
+    assert len(reaches) == 1
+    assert reaches[0] is routine.children[0].lhs

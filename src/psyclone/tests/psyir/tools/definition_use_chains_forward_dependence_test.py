@@ -1050,3 +1050,28 @@ def test_definition_use_chains_multiple_ancestor_loops(
     assert reaches[0] is loops[0].loop_body.children[0].lhs
     assert reaches[1] is loops[1].loop_body.children[0].lhs
     assert reaches[2] is loops[2].loop_body.children[0].lhs
+
+
+def test_definition_use_chain_find_forward_accesses_pure_call(
+    fortran_reader,
+):
+    """Functionality test for the find_forward_accesses routine. This
+    tests the behaviour for a pure subrotuine call."""
+    code = """
+    pure subroutine y(in)
+        integer :: in
+        in = in + 1
+    end subroutine y
+    subroutine x()
+    integer :: a, b
+    a = 2
+    call y(b)
+    a = a + 2
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[1]
+    chains = DefinitionUseChain(routine.children[0].lhs)
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 2
+    assert reaches[0] is routine.children[2].rhs.children[0]
+    assert reaches[1] is routine.children[2].lhs
