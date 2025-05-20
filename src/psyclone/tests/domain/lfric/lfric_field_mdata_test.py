@@ -91,10 +91,15 @@ end module testkern_field_mod
 '''
 
 
+@pytest.fixture(name="disable_fparser_logging", scope="function", autouse=True)
+def disable_fparser_logging_fixture():
+    '''Fixture to automate disabling of fparser logging.'''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+
+
 def test_ad_fld_type_1st_arg():
     ''' Tests that an error is raised when the first argument descriptor
     metadata for a field is invalid. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = FIELD_CODE.replace(
         "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
         "arg_type(gh_hedge,  gh_real,    gh_inc,     w1)", 1)
@@ -112,7 +117,6 @@ def test_ad_fld_type_1st_arg():
 def test_ad_field_invalid_data_type():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a field has an invalid data type. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_field_type"
     # Check real field
     code = FIELD_CODE.replace(
@@ -140,7 +144,6 @@ def test_ad_field_invalid_data_type():
 def test_field_gh_sum_invalid():
     ''' Tests that an error is raised when a field is specified with
     access type 'gh_sum'. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = FIELD_CODE.replace(
         "arg_type(gh_field,  gh_real,    gh_read,    w2)",
         "arg_type(gh_field,  gh_real,    gh_sum,     w2)", 1)
@@ -157,7 +160,6 @@ def test_field_gh_sum_invalid():
 def test_ad_fld_type_too_few_args():
     ''' Tests that an error is raised when the field argument descriptor
     metadata for a field has fewer than 3 args. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = FIELD_CODE.replace(
         "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
         "arg_type(gh_field,  gh_real,    gh_inc)", 1)
@@ -172,7 +174,6 @@ def test_ad_fld_type_too_few_args():
 def test_ad_fld_type_too_many_args():
     ''' Tests that an error is raised when the field argument descriptor
     metadata has more than 4 args. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = FIELD_CODE.replace(
         "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
         "arg_type(gh_field,  gh_real,    gh_inc,   w1, w1, w2)", 1)
@@ -239,7 +240,6 @@ def test_ad_field_init_wrong_data_type(monkeypatch):
 def test_arg_descriptor_invalid_fs():
     ''' Tests that an error is raised when an invalid function space
     name is provided as the third argument for a field. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_field_type"
     # Check real field
     code = FIELD_CODE.replace(
@@ -270,7 +270,6 @@ def test_ad_field_init_wrong_iteration_space():
     LFRicArgDescriptor._init_field() method.
 
     '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
     metadata = LFRicKernMetadata(ast, name="testkern_field_type")
     field_arg = metadata._inits[1]
@@ -288,7 +287,6 @@ def test_ad_field_init_wrong_iteration_space():
 def test_fs_discontinuous_inc_error():
     ''' Test that an error is raised if a discontinuous function space
     and 'gh_inc' are provided for the same field in the metadata. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     const = LFRicConstants()
     for fspace in const.VALID_DISCONTINUOUS_NAMES:
         code = FIELD_CODE.replace(
@@ -304,13 +302,29 @@ def test_fs_discontinuous_inc_error():
                 f"for '{fspace}'" in str(excinfo.value))
 
 
+def test_fs_continuous_with_write_and_inc_error():
+    '''Test that the expected error is raised if kernel metadata specifies
+    that one field on a continuous space has (the special case of) gh_write
+    access while another has gh_inc.
+
+    '''
+    # The field argument on wtheta has GH_WRITE access - change the space
+    # to a continuous one.
+    code = FIELD_CODE.replace("wtheta", "w2", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = LFRicKernMetadata(ast, name="testkern_field_type")
+    assert ("Kernel 'testkern_field_type' has field arguments on continuous "
+            "function spaces with both GH_INC and GH_WRITE accesses"
+            in str(excinfo.value))
+
+
 def test_fs_continuous_cells_readwrite_error():
     ''' Test that an error is raised if a field on a continuous
     function space is specified as having an access of 'gh_readwrite'
     in kernel metadata.
 
     '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     const = LFRicConstants()
     for fspace in const.CONTINUOUS_FUNCTION_SPACES:
         acc = "gh_readwrite"
@@ -333,7 +347,6 @@ def test_fs_anyspace_cells_readwrite_error():
     "'gh_readwrite' access in the metadata.
 
     '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     const = LFRicConstants()
     for fspace in const.VALID_ANY_SPACE_NAMES:
         acc = "gh_readwrite"
@@ -357,7 +370,6 @@ def test_fs_anyspace_dofs_inc_error(access):
     operates on DoFs.
 
     '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     dof_code = FIELD_CODE.replace("integer :: operates_on = cell_column",
                                   "integer :: operates_on = dof", 1)
     # gh_readinc also causes an exception so remove it for this test.
@@ -379,7 +391,6 @@ def test_fs_anyspace_dofs_inc_error(access):
 def test_arg_descriptor_field():
     ''' Test that the LFRicArgDescriptor argument representation works
     as expected for a field argument. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
     metadata = LFRicKernMetadata(ast, name="testkern_field_type")
     field_descriptor = metadata.arg_descriptors[2]
@@ -408,7 +419,6 @@ def test_arg_descriptor_field():
 def test_invalid_vector_operator():
     ''' Tests that an error is raised when a field vector does not
     use "*" as its operator. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = FIELD_CODE.replace(
         "(gh_field,  gh_real,    gh_inc,     w1)",
         "(gh_field+3,  gh_real,    gh_inc,    w1)", 1)
@@ -422,7 +432,6 @@ def test_invalid_vector_operator():
 def test_invalid_vector_value_type():
     ''' Tests that an error is raised when a vector value is not a valid
     integer. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = FIELD_CODE.replace("(gh_field,  gh_real,    gh_inc,     w1)",
                               "(gh_field*n,  gh_real,    gh_inc,     w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -437,7 +446,6 @@ def test_invalid_vector_value_type():
 def test_invalid_vector_value_range():
     ''' Tests that an error is raised when a vector value is not a valid
     value (<2). '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = FIELD_CODE.replace("(gh_field,  gh_real,    gh_inc,     w1)",
                               "(gh_field*1,  gh_real,    gh_inc,     w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -455,7 +463,6 @@ def test_invalid_vector_value_range():
 def test_arg_descriptor_field_vector():
     ''' Test that the LFRicArgDescriptor argument representation works
     as expected when we have a field vector. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the meta-data so that the second argument is a vector
     code = FIELD_CODE.replace("(gh_field,  gh_real,    gh_inc,     w1)",
                               "(gh_field*3,  gh_real,    gh_inc,    w1)", 1)
@@ -595,7 +602,6 @@ def test_field_arg_lfricconst_properties(monkeypatch):
 def test_multiple_updated_field_args():
     ''' Check that we successfully parse a kernel that writes to more
     than one of its field arguments '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = FIELD_CODE.replace("arg_type(gh_field,  gh_real,    gh_read,  w2)",
                               "arg_type(gh_field, gh_real, gh_inc, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)

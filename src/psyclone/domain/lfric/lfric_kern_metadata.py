@@ -229,17 +229,28 @@ class LFRicKernMetadata(KernelType):
         # We must have at least one argument that is written to
         const = LFRicConstants()
         write_count = 0
+        have_cont_write = False
+        have_cont_inc = False
         for arg in self._arg_descriptors:
             if arg.access != AccessType.READ:
                 write_count += 1
-                # We must not write to a field on a read-only function space
-                if arg.argument_type in const.VALID_FIELD_NAMES \
-                   and arg.function_spaces[0] in \
-                   const.READ_ONLY_FUNCTION_SPACES:
-                    raise ParseError(
-                        f"Found kernel metadata in '{self.name}' that "
-                        f"specifies writing to the read-only function space "
-                        f"'{arg.function_spaces[0]}'.")
+                if arg.argument_type in const.VALID_FIELD_NAMES:
+                    # We must not write to a field on a read-only function
+                    # space
+                    if (arg.function_spaces[0] in
+                            const.READ_ONLY_FUNCTION_SPACES):
+                        raise ParseError(
+                            f"Found kernel metadata in '{self.name}' that "
+                            f"specifies writing to the read-only function "
+                            f"space '{arg.function_spaces[0]}'.")
+                    # Check that the kernel doesn't mix GH_WRITE and GH_INC
+                    # accesses for fields on continuous function spaces.
+                    if (arg.function_spaces[0] in
+                            const.CONTINUOUS_FUNCTION_SPACES):
+                        if arg.access == AccessType.WRITE:
+                            have_cont_write = True
+                        elif arg.access == AccessType.INC:
+                            have_cont_inc = True
 
                 # We must not write to scalar arguments if it's not a
                 # built-in
@@ -250,10 +261,18 @@ class LFRicKernMetadata(KernelType):
                         f"a scalar argument but kernel '{self.name}' has a "
                         f"scalar argument with "
                         f"'{arg.access.api_specific_name()}' access.")
+
         if write_count == 0:
             raise ParseError(f"An LFRic kernel must have at least one "
                              f"argument that is updated (written to) but "
                              f"found none for kernel '{self.name}'.")
+
+        if have_cont_write and have_cont_inc:
+            raise ParseError(
+                f"Kernel '{self.name}' has field arguments on continuous "
+                f"function spaces with both GH_INC and GH_WRITE accesses but "
+                f"this is invalid (GH_WRITE on a continuous function space is "
+                f"a special case).")
 
         # Check that no shape has been supplied if no basis or
         # differential basis functions are required for the kernel
