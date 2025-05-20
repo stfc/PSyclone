@@ -1129,9 +1129,9 @@ class StructureType(DataType):
         '''
         stype = StructureType()
         for component in components:
-            if len(component) not in (4, 5, 6):
+            if len(component) not in (3, 4, 5, 6):
                 raise TypeError(
-                    f"Each component must be specified using a 4 to 6-tuple "
+                    f"Each component must be specified using a 3 to 6-tuple "
                     f"of (name, type, visibility, initial_value, "
                     f"preceding_comment, inline_comment) but found a "
                     f"tuple with {len(component)} members: {component}")
@@ -1146,7 +1146,7 @@ class StructureType(DataType):
         '''
         return self._components
 
-    def add(self, name, datatype, visibility, initial_value,
+    def add(self, name, datatype, visibility, initial_value=None,
             preceding_comment="", inline_comment=""):
         '''
         Create a component with the supplied attributes and add it to
