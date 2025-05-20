@@ -279,7 +279,6 @@ class LFRicKernelMetadata(CommonMetadata):
         # on a continuous function space does not also have a gh_inc access to
         # a field on a continuous space.
         lfric_constants = LFRicConstants()
-        have_write = False
         cont_fields = [fld for fld in field_args if fld.function_space
                        in lfric_constants.CONTINUOUS_FUNCTION_SPACES]
         if (any(fld.access == 'gh_write' for fld in cont_fields) and

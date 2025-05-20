@@ -322,7 +322,7 @@ def test_validate_continuous_write_kernel():
     Test that we reject a kernel that has field arguments on continuous
     functions spaces with GH_WRITE and GH_INC accesses. (Only one or the
     other is permitted.)
-    
+
     '''
     meta_args = [FieldArgMetadata("GH_REAL", "GH_INC", "W0"),
                  FieldArgMetadata("GH_REAL", "GH_WRITE", "W0"),
