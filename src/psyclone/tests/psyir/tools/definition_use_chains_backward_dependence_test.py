@@ -760,6 +760,7 @@ def test_definition_use_chain_find_backward_accesses_pure_call(
     a = 2
     call y(b)
     a = a + 2
+    b = 1
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[1]
@@ -767,3 +768,8 @@ def test_definition_use_chain_find_backward_accesses_pure_call(
     reaches = chains.find_backward_accesses()
     assert len(reaches) == 1
     assert reaches[0] is routine.children[0].lhs
+
+    chains = DefinitionUseChain(routine.children[3].lhs)
+    reaches = chains.find_backward_accesses()
+    assert len(reaches) == 1
+    assert reaches[0] is routine.children[1].children[1]

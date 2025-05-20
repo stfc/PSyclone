@@ -1065,6 +1065,7 @@ def test_definition_use_chain_find_forward_accesses_pure_call(
     subroutine x()
     integer :: a, b
     a = 2
+    b = 1
     call y(b)
     a = a + 2
     end subroutine"""
@@ -1073,5 +1074,10 @@ def test_definition_use_chain_find_forward_accesses_pure_call(
     chains = DefinitionUseChain(routine.children[0].lhs)
     reaches = chains.find_forward_accesses()
     assert len(reaches) == 2
-    assert reaches[0] is routine.children[2].rhs.children[0]
-    assert reaches[1] is routine.children[2].lhs
+    assert reaches[0] is routine.children[3].rhs.children[0]
+    assert reaches[1] is routine.children[3].lhs
+
+    chains = DefinitionUseChain(routine.children[1].lhs)
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 1
+    assert reaches[0] is routine.children[2].children[1]
