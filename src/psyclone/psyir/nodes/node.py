@@ -1019,8 +1019,10 @@ class Node():
         '''
         if self.root is self:
             return self.START_POSITION
+        # Need to check is not None as root abs_position is 0 which
+        # fails if statements.
         # pylint: disable=protected-access
-        if self.root._cached_abs_position:
+        if self.root._cached_abs_position is not None:
             return self._cached_abs_position
         found, position = self._find_position(self.root.children,
                                               self.START_POSITION)
