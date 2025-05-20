@@ -755,7 +755,7 @@ def test_definition_use_chain_find_backward_accesses_pure_call(
         in = in + 1
     end subroutine y
 
-    subroutine x()
+    subroutine x(a, b)
     integer :: a, b
     a = 2
     call y(b)

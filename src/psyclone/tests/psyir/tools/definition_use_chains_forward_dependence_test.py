@@ -1062,7 +1062,7 @@ def test_definition_use_chain_find_forward_accesses_pure_call(
         integer :: in
         in = in + 1
     end subroutine y
-    subroutine x()
+    subroutine x(a, b)
     integer :: a, b
     a = 2
     b = 1
