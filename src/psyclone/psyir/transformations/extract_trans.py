@@ -46,8 +46,9 @@ from psyclone.psyir.nodes import (CodeBlock, ExtractNode, Loop, Schedule,
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
-
+@transformation_documentation_wrapper
 class ExtractTrans(PSyDataTrans):
     '''This transformation inserts an ExtractNode or a node derived
     from ExtractNode into the PSyIR of a schedule. At code creation
@@ -119,7 +120,7 @@ class ExtractTrans(PSyDataTrans):
         return postfix+str(suffix)
 
     # -------------------------------------------------------------------------
-    def validate(self, node_list, options=None):
+    def validate(self, node_list, options=None, **kwargs):
         # pylint: disable=arguments-renamed
         '''Performs validation checks specific to extract-based
         transformations.
@@ -176,4 +177,18 @@ class ExtractTrans(PSyDataTrans):
 
         # Performs validation checks specific to PSyData-based
         # transformations.
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
+
+    def apply(self, node_list, options=None, read_write_info=None,
+              **kwargs):
+        """
+        Applies the ExtractTrans to the provided node_list.
+
+        :param node_list: the list of Node(s) we are checking.
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param read_write_info: information about variables that are
+           read and/or written in the instrumented code.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
+        """
+        super().apply(node_list, options=options,
+                      read_write_info=read_write_info, **kwargs)

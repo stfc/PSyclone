@@ -63,7 +63,7 @@ def test_psy_data_node_constructor():
     assert psy_node._var_name == ""
     assert psy_node._module_name is None
     assert psy_node._region_name is None
-    assert psy_node.options == {}
+    assert psy_node.options is None
     psy_node = PSyDataNode(options={"prefix": "profile"})
     assert psy_node.options == {"prefix": "profile"}
     assert psy_node._prefix == "profile_"

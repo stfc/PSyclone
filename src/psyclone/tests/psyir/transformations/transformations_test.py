@@ -899,7 +899,7 @@ def test_profile_trans_name(options):
         assert profile_node._region_name is None
 
 
-@pytest.mark.parametrize("value", [None, ["a", "b"], (), ("a",),
+@pytest.mark.parametrize("value", [["a", "b"], (), ("a",),
                                    ("a", "b", "c"), ("a", []), ([], "a")])
 def test_profile_trans_invalid_name(value):
     '''Invalid name supplied to options argument.'''

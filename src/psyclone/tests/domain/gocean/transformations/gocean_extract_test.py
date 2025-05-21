@@ -524,6 +524,8 @@ def test_driver_scalars(fortran_writer):
     # Check that the above lines occur in the same order. There might be
     # other lines between the expected lines, which will be ignored in
     # 'ordered_linex_in_text'.
+    print(expected_lines)
+    print(extract_code)
     ordered_lines_in_text(expected_lines, extract_code)
 
     # Now test the created driver:

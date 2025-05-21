@@ -38,14 +38,17 @@
 '''This module contains the GOcean-specific extract transformation.
 '''
 
+from typing import Tuple
+
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.nodes import ExtractNode
 from psyclone.psyir.symbols import REAL8_TYPE, INTEGER_TYPE
 from psyclone.psyir.tools import CallTreeUtils
 from psyclone.domain.common import ExtractDriverCreator
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
-
+@transformation_documentation_wrapper
 class GOceanExtractTrans(ExtractTrans):
     ''' GOcean1.0 API application of ExtractTrans transformation \
     to extract code into a stand-alone program. For example:
@@ -75,7 +78,7 @@ class GOceanExtractTrans(ExtractTrans):
         self._driver_creator = ExtractDriverCreator(INTEGER_TYPE, REAL8_TYPE)
 
     # ------------------------------------------------------------------------
-    def validate(self, node_list, options=None):
+    def validate(self, node_list, options=None, **kwargs):
         ''' Perform GOcean1.0 API specific validation checks before applying
         the transformation.
 
@@ -105,7 +108,7 @@ class GOceanExtractTrans(ExtractTrans):
 
         # First check constraints on Nodes in the node_list inherited from
         # the parent classes (ExtractTrans and RegionTrans)
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
 
         # Check GOceanExtractTrans specific constraints
         for node in node_list:
@@ -120,7 +123,9 @@ class GOceanExtractTrans(ExtractTrans):
                     f"allowed.")
 
     # ------------------------------------------------------------------------
-    def apply(self, nodes, options=None):
+    def apply(self, nodes, options=None, prefix: str = "extract",
+              create_driver: bool = False,  region_name: Tuple[str,str]=None,
+              **kwargs):
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the schedule within
@@ -131,39 +136,35 @@ class GOceanExtractTrans(ExtractTrans):
         ExtractNode instance that will be inserted.).
 
         :param nodes: can be a single node or a list of nodes.
-        :type nodes: :py:class:`psyclone.psyir.nodes.Node` or list of \
+        :type nodes: :py:class:`psyclone.psyir.nodes.Node` or list of
                      :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param str options["prefix"]: a prefix to use for the PSyData module \
-            name (``prefix_psy_data_mod``) and the PSyDataType \
-            (``prefix_PSyDataType``) - a "_" will be added automatically. \
-            It defaults to "extract", resulting in e.g. \
+        :param prefix: a prefix to use for the PSyData module
+            name (``prefix_psy_data_mod``) and the PSyDataType
+            (``prefix_PSyDataType``) - a "_" will be added automatically.
+            It defaults to "extract", resulting in e.g.
             ``extract_psy_data_mod``.
-        :param bool options["create_driver"]: whether or not to create a \
-            driver program at code-generation time. If set, the driver will \
-            be created in the current working directory with the name \
-            "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
+        :param create_driver: whether or not to create a
+            driver program at code-generation time. If set, the driver will
+            be created in the current working directory with the name
+            "driver-MODULE-REGION.f90" where MODULE and REGION will be the
             corresponding values for this region. Defaults to False.
-        :param (str,str) options["region_name"]: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
-            should uniquely identify a region unless aggregate information \
+        :param region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
+            should uniquely identify a region unless aggregate information
             is required (and is supported by the runtime library).
 
         '''
-        if options is None:
-            my_options = {}
-        else:
-            # We will add a default prefix, so create a copy to avoid
-            # changing the user's options:
-            my_options = options.copy()
+        if options is not None:
+            prefix = options.get("prefix", "extract")
+            create_driver = options.get("create_driver", False)
 
         ctu = CallTreeUtils()
         nodes = self.get_node_list(nodes)
-        region_name = self.get_unique_region_name(nodes, my_options)
-        my_options["region_name"] = region_name
-        my_options["prefix"] = my_options.get("prefix", "extract")
+        region_name = self.get_unique_region_name(nodes, options,
+                                                  region_name)
 
         read_write_info = ctu.get_in_out_parameters(
             nodes, include_non_data_accesses=True)
@@ -185,16 +186,22 @@ class GOceanExtractTrans(ExtractTrans):
         # that avoid any name clashes
         postfix = ExtractTrans.determine_postfix(read_write_info,
                                                  postfix="_post")
-        my_options["post_var_postfix"] = postfix
 
-        if my_options.get("create_driver", False):
+        if create_driver:
             # We need to create the driver before inserting the ExtractNode
             # (since some of the visitors used in driver creation do not
             # handle an ExtractNode in the tree)
             self._driver_creator.write_driver(nodes, read_write_info,
                                               postfix=postfix,
-                                              prefix=my_options["prefix"],
+                                              prefix=prefix,
                                               region_name=region_name)
 
-        my_options["read_write_info"] = read_write_info
-        super().apply(nodes, options=my_options)
+        # Make sure there's no duplicate arguments in kwargs
+        if "read_write_info" in kwargs:
+            kwargs.pop("read_write_info")
+        if "postfix" in kwargs:
+            kwargs.pop("post_var_postfix")
+        super().apply(nodes, region_name=region_name, prefix=prefix,
+                      create_driver=create_driver, post_var_postfix=postfix,
+                      read_write_info=read_write_info,
+                      **kwargs)

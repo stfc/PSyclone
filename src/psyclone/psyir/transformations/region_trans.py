@@ -40,6 +40,7 @@
 '''
 
 import abc
+import warnings
 
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
@@ -47,7 +48,9 @@ from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.nodes import Schedule, Node
 
+from psyclone.utils import transformation_documentation_wrapper
 
+@transformation_documentation_wrapper
 class RegionTrans(Transformation, metaclass=abc.ABCMeta):
     # Avoid pylint warning about abstract functions (apply, name) not
     # overwritten:
@@ -110,7 +113,7 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
                                   f"in a Schedule but have been passed an "
                                   f"object of type: {arg_type}")
 
-    def validate(self, nodes, options=None):
+    def validate(self, nodes, options=None, **kwargs):
         '''Checks that the nodes in node_list are valid for a region
         transformation.
 
@@ -120,9 +123,6 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
                            List[:py:obj:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str,Any]]
-        :param bool options["node-type-check"]: this flag controls if the \
-                type of the nodes enclosed in the region should be tested \
-                to avoid using unsupported nodes inside a region.
 
         :raises TransformationError: if the nodes in the list are not \
                 in the original order in which they are in the AST, \
@@ -144,12 +144,18 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
         # one was supplied via the `node_list` argument.
         node_list = self.get_node_list(nodes)
 
-        if not options:
-            options = {}
-        if not isinstance(options, dict):
-            raise TransformationError(
-                f"Transformation apply method options argument must be a "
-                f"dictionary but found '{type(options).__name__}'.")
+        if options is not None:
+            # TODO 2668 Options are now deprecated, however not all
+            # RegionTrans use the new functionality so no error message
+            # is posted here.
+            if not isinstance(options, dict):
+                raise TransformationError(
+                    f"Transformation apply method options argument must be a "
+                    f"dictionary but found '{type(options).__name__}'.")
+            node_type_check = options.get("node-type-check", True)
+        else:
+            self.validate_options(**kwargs)
+            node_type_check = self.get_option("node_type_check", **kwargs)
         node_parent = node_list[0].parent
         prev_position = -1
         for child in node_list:
@@ -165,7 +171,7 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
             prev_position = child.position
 
         # Check that the proposed region contains only supported node types
-        if options.get("node-type-check", True):
+        if node_type_check:
             for child in node_list:
                 for bad in child.walk(self.excluded_node_types):
                     # Ideally we'd just use `bad.debug_string()` always
@@ -208,3 +214,19 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
                 "Cannot apply transformation to the immediate children of a "
                 "Loop/IfBlock unless it is to a single Schedule representing"
                 " the Loop/If/Else body.")
+
+    def apply(self, nodes, options=None, node_type_check: bool = True,
+              **kwargs):
+        '''Checks that the nodes in node_list are valid for a region
+        transformation.
+
+        :param nodes: can be a single node, a schedule or a list of nodes.
+        :type nodes: Union[:py:obj:`psyclone.psyir.nodes.Node`,
+                           :py:obj:`psyclone.psyir.nodes.Schedule`,
+                           List[:py:obj:`psyclone.psyir.nodes.Node`]
+        :param bool node_type_check: this flag controls if the
+        type of the nodes enclosed in the region should be tested
+        to avoid using unsupported nodes inside a region.
+
+        '''
+        super().apply(self, nodes, node_type_check=node_type_check, **kwargs)
