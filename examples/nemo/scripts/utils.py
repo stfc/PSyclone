@@ -47,7 +47,6 @@ from psyclone.psyir.transformations import (
     Reference2ArrayRangeTrans, ScalarisationTrans)
 from psyclone.transformations import TransformationError
 
-
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
     "oce", "par_oce", "par_kind", "dom_oce", "phycst", "ice",
@@ -180,8 +179,8 @@ def _it_should_be(symbol, of_type, instance):
 
 def enhance_tree_information(schedule):
     ''' Manually fix some PSyIR issues produced by not having enough symbol
-    information from external modules. Setting NEMO_MODULES_TO_IMPORT above
-    improve the situation but its not complete (not all symbols are imported)
+    information from external modules. Using RESOLVE_IMPORTS improves the
+    situation but it's not complete (not all symbols are imported)
     and it is not transitive (imports that inside import other symbols).
 
     :param schedule: the PSyIR Schedule to transform.
