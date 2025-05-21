@@ -165,7 +165,7 @@ def trans(psyir):
                 try:
                     if loop.loop_type == "colours":
                         pass
-                    if loop.loop_type == "colour":
+                    if loop.loop_type == "cells_in_colour":
                         loop_offloading_trans.apply(
                             loop, options={"independent": True})
                         gpu_region_trans.apply(loop.ancestor(Directive))
