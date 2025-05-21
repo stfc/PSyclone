@@ -317,25 +317,6 @@ def test_validate_general_purpose_kernel():
     lfric_kernel_metadata._validate_general_purpose_kernel()
 
 
-def test_validate_continuous_write_kernel():
-    '''
-    Test that we reject a kernel that has field arguments on continuous
-    functions spaces with GH_WRITE and GH_INC accesses. (Only one or the
-    other is permitted.)
-
-    '''
-    meta_args = [FieldArgMetadata("GH_REAL", "GH_INC", "W0"),
-                 FieldArgMetadata("GH_REAL", "GH_WRITE", "W0"),
-                 FieldArgMetadata("GH_REAL", "GH_READ", "W0")]
-    lfric_kernel_metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=meta_args)
-    with pytest.raises(ParseError) as err:
-        lfric_kernel_metadata._validate_general_purpose_kernel()
-    assert ("special case of a kernel with gh_write access to a field on a "
-            "continuous function space is only supported when no other"
-            in str(err.value))
-
-
 def test_validate_domain_kernel():
     '''Test that the _validate_domain_kernel method behaves as
     expected.

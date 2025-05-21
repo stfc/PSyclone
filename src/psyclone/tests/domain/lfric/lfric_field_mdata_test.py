@@ -302,23 +302,6 @@ def test_fs_discontinuous_inc_error():
                 f"for '{fspace}'" in str(excinfo.value))
 
 
-def test_fs_continuous_with_write_and_inc_error():
-    '''Test that the expected error is raised if kernel metadata specifies
-    that one field on a continuous space has (the special case of) gh_write
-    access while another has gh_inc.
-
-    '''
-    # The field argument on wtheta has GH_WRITE access - change the space
-    # to a continuous one.
-    code = FIELD_CODE.replace("wtheta", "w2", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name="testkern_field_type")
-    assert ("Kernel 'testkern_field_type' has field arguments on continuous "
-            "function spaces with both GH_INC and GH_WRITE accesses"
-            in str(excinfo.value))
-
-
 def test_fs_continuous_cells_readwrite_error():
     ''' Test that an error is raised if a field on a continuous
     function space is specified as having an access of 'gh_readwrite'

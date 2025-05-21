@@ -258,15 +258,14 @@ class LFRicKernelMetadata(CommonMetadata):
                 "CMA operator (in order to determine the appropriate "
                 "iteration space), however this metadata has none"))
 
-        field_args = self.meta_args_get(
-            [FieldArgMetadata, FieldVectorArgMetadata,
-             InterGridArgMetadata, InterGridVectorArgMetadata])
-
         # A kernel that contains an operator argument must only
         # accept real-valued fields.
         operator_args = self.meta_args_get(
             [OperatorArgMetadata, ColumnwiseOperatorArgMetadata])
         if operator_args:
+            field_args = self.meta_args_get(
+                [FieldArgMetadata, FieldVectorArgMetadata,
+                 InterGridArgMetadata, InterGridVectorArgMetadata])
             for field_arg in field_args:
                 if field_arg.datatype != "gh_real":
                     raise ParseError(self._validation_error_str(
@@ -274,19 +273,6 @@ class LFRicKernelMetadata(CommonMetadata):
                         f"must only contain meta_args real-valued field "
                         f"arguments, however found a field of type "
                         f"'{field_arg.datatype}'"))
-
-        # Check that a kernel that has a (special) gh_write access to a field
-        # on a continuous function space does not also have a gh_inc access to
-        # a field on a continuous space.
-        lfric_constants = LFRicConstants()
-        cont_fields = [fld for fld in field_args if fld.function_space
-                       in lfric_constants.CONTINUOUS_FUNCTION_SPACES]
-        if (any(fld.access == 'gh_write' for fld in cont_fields) and
-                any(fld.access == 'gh_inc' for fld in cont_fields)):
-            raise ParseError(self._validation_error_str(
-                "The special case of a kernel with gh_write access to a field "
-                "on a continuous function space is only supported when no "
-                "other arguments have a gh_inc access"))
 
     def _validate_general_purpose_kernel(self):
         '''Validation checks for a general purpose kernel.
