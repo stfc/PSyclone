@@ -601,7 +601,7 @@ class LFRicKern(CodedKern):
         return self._mesh_properties
 
     @property
-    def all_updates_are_continuous_writes(self) -> bool:
+    def all_updates_are_writes(self) -> bool:
         '''
         Normally, a field on a continuous function space that is updated must
         have GH_INC access. However, the LFRic API supports the special case
