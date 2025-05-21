@@ -4,7 +4,7 @@ This is a wrapper library that maps PSyclone's [PSyData](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) [profiling API](
 https://psyclone.readthedocs.io/en/stable/profiling.html#profiling) to the
 timer functionality provided in LFRic (see the [LFRic API](
-https://psyclone.readthedocs.io/en/stable/lfric.html) documentation
+https://psyclone.readthedocs.io/en/latest/lfric.html) documentation
 on how to access and use the LFRic code).
 
 ## Dependencies

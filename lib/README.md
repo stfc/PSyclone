@@ -118,7 +118,7 @@ to the API they are used for. [GOcean API](
 https://psyclone.readthedocs.io/en/stable/gocean1p0.html) uses the
 [``dl_esm_inf`` library](https://github.com/stfc/dl_esm_inf) and
 [LFRic API](
-https://psyclone.readthedocs.io/en/stable/lfric.html)
+https://psyclone.readthedocs.io/en/latest/lfric.html)
 uses the LFRic infrastructure (see the linked documentation on how to
 access and use the LFRic code). The locations of the respective
 infrastructure libraries can be configured with the variables
