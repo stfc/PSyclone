@@ -274,7 +274,7 @@ class FunctionSpace():
                            differential basis functions are required.
         :param on_space: the function space at which the differential basis \
                          functions will be evaluated
-        :type on_space: :py:class:`psyclone.lfric.domain.FunctionSpace'
+        :type on_space: :py:class:`psyclone.domain.lfric.FunctionSpace'
         :returns: name for the Fortran array holding the differential basis \
                   function
         :rtype: str
