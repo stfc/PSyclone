@@ -1,3 +1,6 @@
+   20) PR #2931 (#closes 2244) adds support for LFRic colour-tiling. Needs
+   to be selected in transformation script.
+
    19) PR #2970 towards #2966. Add `--enble-cache` psyclone command flag.
 
    18) PR #2989. Updates various software versions in the integration tests.
