@@ -75,7 +75,9 @@ jobs:
         # pip install external/fparser
         pip install .[test]
 
-    # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks
+    # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks.
+    # COMPUTE_ANNEXED_DOFS is set to false for this test by using the
+    # appropriate cfg file.
     - name: LFRic passthrough (with DistributedMemory)
       run: |
         # Set up environment
@@ -83,7 +85,7 @@ jobs:
         spack load lfric-build-environment%gcc@14
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone_no_annexed.cfg
         export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
         cd ${LFRIC_DIR}
         # Clean previous version and compile again
