@@ -660,8 +660,12 @@ class LFRicLoop(PSyLoop):
                     # An upper bound that is part of the halo means
                     # that the halo might be accessed.
                     return True
+                # If a kernel updates fields on both continuous and
+                # discontinuous spaces then the iteration space is taken to be
+                # the continuous one.
+                iter_arg = self.kernel.arguments.iteration_space_arg()
                 if (not arg.discontinuous and
-                        not self.kernel.arguments.iteration_space_arg().discontinuous and
+                        not iter_arg.discontinuous and
                         self.kernel.iterates_over == "cell_column" and
                         self.kernel.all_updates_are_writes and
                         self._upper_bound_name == "ncells"):
