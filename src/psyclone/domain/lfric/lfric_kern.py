@@ -609,19 +609,23 @@ class LFRicKern(CodedKern):
         is guaranteed to write the same value to a given dof. This method
         returns True if this is such a kernel.
 
+        Note that it is forbidden for a kernel that updates more than one field
+        on continuous function spaces to have a mixture of *both* GH_INC and
+        GH_WRITE accesses. This is checked when the metadata is parsed.
+
         :returns: True if this kernel updates one or more fields on continuous
                   spaces with a 'GH_WRITE' access, False otherwise.
         '''
-        found = False
+        accesses = set(arg.access for arg in self.args)
+        all_writes = AccessType.all_write_accesses()
+        all_writes.remove(AccessType.WRITE)
+        return (not accesses.intersection(set(all_writes)))
+
         for arg in self.args:
             if arg.is_field and not arg.discontinuous:
                 if arg.access == AccessType.WRITE:
-                    found = True
-                elif arg.access == AccessType.INC:
-                    # This kernel also has a field on a continuous function
-                    # space with GH_INC access.
-                    return False
-        return found
+                    return True
+        return False
 
     @property
     def base_name(self):

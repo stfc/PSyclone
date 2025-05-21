@@ -460,11 +460,8 @@ def test_kern_all_updates_are_cont_writes(monkeypatch):
     kernel = loop.kernel
     # The only argument updated by this kernel has GH_INC access.
     assert not kernel.all_updates_are_continuous_writes
-    # Patch the kernel so that a different argument has GH_WRITE access.
+    # Patch the kernel so that two arguments have GH_WRITE access.
     kernel.args[2]._access = AccessType.WRITE
-    # There is still a GH_INC argument.
-    assert not kernel.all_updates_are_continuous_writes
-    # Change the GH_INC to be GH_WRITE.
     kernel.args[1]._access = AccessType.WRITE
     assert kernel.all_updates_are_continuous_writes
     # Patch the kernel so that both updated field arguments appear to be

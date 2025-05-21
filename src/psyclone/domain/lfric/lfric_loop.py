@@ -661,6 +661,7 @@ class LFRicLoop(PSyLoop):
                     # that the halo might be accessed.
                     return True
                 if (not arg.discontinuous and
+                        not self.kernel.arguments.iteration_space_arg().discontinuous and
                         self.kernel.iterates_over == "cell_column" and
                         self.kernel.all_updates_are_continuous_writes and
                         self._upper_bound_name == "ncells"):
