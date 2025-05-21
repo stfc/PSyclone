@@ -48,6 +48,7 @@ from psyclone.domain.common import ExtractDriverCreator
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 from psyclone.utils import transformation_documentation_wrapper
 
+
 @transformation_documentation_wrapper
 class GOceanExtractTrans(ExtractTrans):
     ''' GOcean1.0 API application of ExtractTrans transformation \
@@ -124,7 +125,8 @@ class GOceanExtractTrans(ExtractTrans):
 
     # ------------------------------------------------------------------------
     def apply(self, nodes, options=None, prefix: str = "extract",
-              create_driver: bool = False,  region_name: Tuple[str,str]=None,
+              create_driver: bool = False,
+              region_name: Tuple[str, str] = None,
               **kwargs):
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a

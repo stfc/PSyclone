@@ -46,8 +46,8 @@ from psyclone.domain.lfric import LFRicExtractDriverCreator, LFRicLoop
 from psyclone.psyir.nodes import ExtractNode
 from psyclone.psyir.tools import CallTreeUtils
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
-
 from psyclone.utils import transformation_documentation_wrapper
+
 
 @transformation_documentation_wrapper
 class LFRicExtractTrans(ExtractTrans):
@@ -110,7 +110,7 @@ class LFRicExtractTrans(ExtractTrans):
     # ------------------------------------------------------------------------
     def apply(self, nodes, options=None, prefix: str = "extract",
               create_driver: bool = False,
-              region_name: Tuple[str,str]=None, **kwargs):
+              region_name: Tuple[str, str] = None, **kwargs):
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the schedule within

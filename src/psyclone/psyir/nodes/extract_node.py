@@ -51,6 +51,7 @@ be added in Issue #298.
 
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
+
 class ExtractNode(PSyDataNode):
     '''
     This class can be inserted into a Schedule to mark Nodes for

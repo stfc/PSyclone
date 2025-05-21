@@ -111,11 +111,11 @@ class PSyDataNode(Statement):
     _default_prefix = ""
 
     def __init__(self, ast=None, children=None, parent=None, options=None,
-                 prefix: str = "", region_name: Tuple[str,str] = None,
+                 prefix: str = "", region_name: Tuple[str, str] = None,
                  post_var_postfix: str = "",
                  pre_var_postfix: str = "",
-                 pre_var_list: List[Tuple[str,str]] = None,
-                 post_var_list: List[Tuple[str,str]] = None,
+                 pre_var_list: List[Tuple[str, str]] = None,
+                 post_var_list: List[Tuple[str, str]] = None,
                  **kwargs):
 
         super().__init__(ast=ast, children=children, parent=parent)
@@ -677,7 +677,6 @@ class PSyDataNode(Statement):
         post_variable_list = \
             self._create_unique_names(post_var_list,
                                       symbol_table)
-
 
         has_var = pre_variable_list or post_variable_list
 

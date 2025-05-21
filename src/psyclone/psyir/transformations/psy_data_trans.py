@@ -280,11 +280,11 @@ class PSyDataTrans(RegionTrans):
 
     # ------------------------------------------------------------------------
     def apply(self, nodes, options=None, prefix: str = "",
-              region_name: Tuple[str,str]=None, 
+              region_name: Tuple[str, str] = None,
               post_var_postfix: str = "",
               pre_var_postfix: str = "",
-              pre_var_list: List[Tuple[str,str]] = None,
-              post_var_list: List[Tuple[str,str]] = None,
+              pre_var_list: List[Tuple[str, str]] = None,
+              post_var_list: List[Tuple[str, str]] = None,
               **kwargs):
         # pylint: disable=arguments-renamed
         '''Apply this transformation to a subset of the nodes within a

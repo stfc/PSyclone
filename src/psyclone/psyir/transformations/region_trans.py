@@ -40,7 +40,6 @@
 '''
 
 import abc
-import warnings
 
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
@@ -49,6 +48,7 @@ from psyclone.psyir.transformations.transformation_error \
 from psyclone.psyir.nodes import Schedule, Node
 
 from psyclone.utils import transformation_documentation_wrapper
+
 
 @transformation_documentation_wrapper
 class RegionTrans(Transformation, metaclass=abc.ABCMeta):

@@ -49,6 +49,7 @@ from psyclone.psyir.transformations.read_only_verify_trans \
     import ReadOnlyVerifyTrans
 from psyclone.utils import transformation_documentation_wrapper
 
+
 @transformation_documentation_wrapper
 class ValueRangeCheckTrans(ReadOnlyVerifyTrans):
     '''This transformation inserts a ValueRangeCheckNode into the PSyIR of a
@@ -110,6 +111,7 @@ class ValueRangeCheckTrans(ReadOnlyVerifyTrans):
         """
 
         super().apply(node_list, options=options, **kwargs)
+
 
 # ============================================================================
 # For automatic documentation creation:

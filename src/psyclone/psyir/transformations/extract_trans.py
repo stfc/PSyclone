@@ -48,6 +48,7 @@ from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.utils import transformation_documentation_wrapper
 
+
 @transformation_documentation_wrapper
 class ExtractTrans(PSyDataTrans):
     '''This transformation inserts an ExtractNode or a node derived
