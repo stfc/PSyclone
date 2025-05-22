@@ -7786,7 +7786,7 @@ def test_colour_trans_tiled_non_intergrid(dist_mem):
                              name="invoke_0_testkern_type",
                              dist_mem=dist_mem)
     schedule = invoke.schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
 
     if dist_mem:
         index = 4
@@ -7868,12 +7868,12 @@ def test_colour_trans_tiled_and_halo_depth():
     schedule = invoke.schedule
 
     # Set a non-default halo depth
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.walk(Loop)[0]
     rc_trans.apply(loop, {"depth": 3})
 
     # Colour the loop
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(loop, tiling=True)
 
     # Check that the generated code has a explicit '3' depth argument
@@ -7893,7 +7893,7 @@ def test_colour_trans_tiled_intergrid(dist_mem):
     schedule = invoke.schedule
     # First two kernels are prolongation, last two are restriction
     loops = schedule.walk(Loop)
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     # To a prolong kernel
     ctrans.apply(loops[1], tiling=True)
     # To a restrict kernel (also use old-style options dict)
@@ -7963,7 +7963,7 @@ def test_colour_trans_tiled_continuous_writer_intergrid(dist_mem):
     psy, invoke = get_invoke("22.1.1_intergrid_cont_restrict.f90",
                              TEST_API, idx=0, dist_mem=dist_mem)
     loop = invoke.schedule[0]
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(loop, tiling=True)
     result = psy.gen
     # Declarations.
