@@ -1299,7 +1299,7 @@ class Kern(Statement):
         '''
         parent_loop = self.ancestor(Loop)
         while parent_loop:
-            if parent_loop.loop_type == "colour":
+            if parent_loop.loop_type in ("cells_in_colour", "tiles_in_colour"):
                 return True
             parent_loop = parent_loop.ancestor(Loop)
         return False

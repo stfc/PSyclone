@@ -938,12 +938,12 @@ def test_kern_is_coloured2():
     # As we're using the generic Loop class, we have to manually set the list
     # of valid Loop types
     for loop in loops:
-        loop._valid_loop_types = ["colour", ""]
+        loop._valid_loop_types = ["cells_in_colour", ""]
     # We have no coloured loops at this point
     assert not my_kern.is_coloured()
     # Test that things work as expected, independent of which loop is coloured
     for loop in loops:
-        loop.loop_type = "colour"
+        loop.loop_type = "cells_in_colour"
         assert my_kern.is_coloured()
         loop.loop_type = ""
     assert not my_kern.is_coloured()

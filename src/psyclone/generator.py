@@ -447,6 +447,12 @@ def main(arguments):
         '-I', '--include', default=[], action="append",
         help='path to Fortran INCLUDE or module files')
     parser.add_argument(
+        '--enable-cache', action="store_true", default=False,
+        help='whether to enable caching of imported module dependencies (if '
+             'enabled, it will generate a .psycache file of each imported '
+             'module in the same location as the imported source file).'
+    )
+    parser.add_argument(
         '-l', '--limit', dest='limit', default='off',
         choices=['off', 'all', 'output'],
         help="limit the Fortran line length to 132 characters (default "
@@ -533,6 +539,10 @@ def main(arguments):
                   "(-api/--psykal-dsl flag), use the -oalg, -opsy, -okern to "
                   "specify the output destination of each psykal layer.")
             sys.exit(1)
+
+    # This has be be before the Config.get, because otherwise that creates a
+    # ModuleManager Singleton without caching
+    _ = ModuleManager.get(cache_active=args.enable_cache)
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
