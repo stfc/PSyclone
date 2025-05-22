@@ -262,7 +262,7 @@ class FunctionSpace():
             name += "_on_" + on_space.mangled_name
         return name
 
-    def get_diff_basis_name(self, qr_var=None, on_space=None):
+    def get_diff_basis_name(self, qr_var=None, on_space=None) -> str:
         '''
         Returns a name for the differential basis function on this
         FunctionSpace.  If the name of an associated quadrature object is
@@ -270,14 +270,14 @@ class FunctionSpace():
         function space at which the basis is to be evaluated is supplied then
         this is also appended to the name.
 
-        :param str qr_var: the name of the Quadrature Object for which the \
+        :param str qr_var: the name of the Quadrature Object for which the
                            differential basis functions are required.
-        :param on_space: the function space at which the differential basis \
+        :param on_space: the function space at which the differential basis
                          functions will be evaluated
-        :type on_space: :py:class:`psyclone.domain.lfric.FunctionSpace'
-        :returns: name for the Fortran array holding the differential basis \
+        :type on_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
+
+        :returns: name for the Fortran array holding the differential basis
                   function
-        :rtype: str
 
         '''
         name = "diff_basis_" + self.mangled_name
