@@ -382,7 +382,7 @@ class DataSymbol(TypedSymbol):
         '''
         :returns: a map of all the symbol accessed inside this Symbol, the
             keys are Signatures (unique identifiers to a symbol and its
-            sturcture acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 

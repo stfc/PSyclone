@@ -211,7 +211,7 @@ class CodeBlock(Statement, DataNode):
 
     def reference_accesses(self) -> VariablesAccessInfo:
         '''
-        Get all symbol access map. Since this is a CodeBlock we
+        Get the symbol access map. Since this is a CodeBlock we
         only know the names of symbols accessed within it but not how they
         are accessed. Therefore we err on the side of caution and mark
         them all as READWRITE, unfortunately, this will include the names of
@@ -226,7 +226,7 @@ class CodeBlock(Statement, DataNode):
 
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            sturcture acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
 
         '''

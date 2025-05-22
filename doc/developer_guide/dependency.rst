@@ -323,7 +323,7 @@ starting with the given node. Use the `merge()` method to
 combine two `VariablesAccessInfo` objects into one. It is up to the user to
 keep track of which statements (PSyIR nodes) a given `VariablesAccessInfo`
 instance is holding information about. If the PSyIR tree is modified the
-`VariablesAccessInfo` maps becomes invalid, so it is not recommended to
+`VariablesAccessInfo` maps become invalid, so it is not recommended to
 store them.
 
 

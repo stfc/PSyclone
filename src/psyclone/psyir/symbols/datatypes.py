@@ -97,7 +97,7 @@ class DataType(metaclass=abc.ABCMeta):
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            sturcture acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 
@@ -331,7 +331,7 @@ class UnsupportedFortranType(UnsupportedType):
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            sturcture acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 
@@ -526,7 +526,7 @@ class ScalarType(DataType):
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            sturcture acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 
@@ -597,11 +597,12 @@ class ArrayType(DataType):
             '''
             :returns: a map of all the symbol accessed inside this object, the
                 keys are Signatures (unique identifiers to a symbol and its
-                sturcture acccessors) and the values are
+                structure acccessors) and the values are
                 SingleVariableAccessInfo (a sequence of AccessTypes).
             :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 
             '''
+            # pylint: disable=import-outside-toplevel
             from psyclone.core import VariablesAccessInfo
             return VariablesAccessInfo()
 
@@ -1047,7 +1048,7 @@ class ArrayType(DataType):
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            sturcture acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 
@@ -1314,7 +1315,7 @@ class StructureType(DataType):
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            sturcture acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
 

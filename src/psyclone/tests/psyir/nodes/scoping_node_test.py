@@ -336,7 +336,6 @@ def test_reference_accesses_struct():
     assert len(vai3.all_signatures) == 2
     assert Signature("i_def") in vai3.all_signatures
     assert Signature("r_def") in vai3.all_signatures
-    table.new_symbol("var4", symbol_type=DataSymbol, datatype=ssym)
 
 
 def test_reference_accesses_array():

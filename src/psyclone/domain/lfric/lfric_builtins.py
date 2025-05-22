@@ -219,7 +219,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            sturcture acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
 
         :raises InternalError: if an unsupported argument type is encountered.

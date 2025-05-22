@@ -241,7 +241,8 @@ class CallTreeUtils():
         search paths are specified for the module manager.
 
         :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`]
+        :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`] |
+            :py:class:`psyclone.psyir.nodes.Node`
         :param bool collect_non_local_symbols: whether non-local symbols
             (i.e. symbols used in other modules either directly or
             indirectly) should be included in the in/out information.

@@ -87,7 +87,6 @@ def test_acc_data_region(fortran_reader, fortran_writer):
     dtrans = ACCDataTrans()
     dtrans.apply(sched)
     result = fortran_writer(sched)
-    print(result)
     assert ("  !$acc data copyin(d), copyout(c), copy(b)\n"
             "  do i = 1, 20, 2\n" in result)
     assert ("  enddo\n"

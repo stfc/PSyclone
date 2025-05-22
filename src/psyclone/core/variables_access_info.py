@@ -209,21 +209,12 @@ class VariablesAccessInfo(dict):
         information in this instance.
 
         :param other_access_info: the other VariablesAccessInfo instance.
-        :type other_access_info: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
-        '''
+        :type other_access_info: :py:class:`psyclone.core.VariablesAccessInfo`
 
-        # For each variable add all accesses. After merging the new data,
-        # we need to increase the location so that all further added data
-        # will have a location number that is larger.
-        max_new_location = 0
+        '''
         for signature in other_access_info.all_signatures:
             var_info = other_access_info[signature]
             for access_info in var_info.all_accesses:
-                # Keep track of how much we need to update the next location
-                # in this object:
-                if access_info.location > max_new_location:
-                    max_new_location = access_info.location
                 new_location = access_info.location + self._location
                 if signature in self:
                     var_info = self[signature]
@@ -238,6 +229,7 @@ class VariablesAccessInfo(dict):
                                                   component_indices)
         # Increase the current location of this instance by the amount of
         # locations just merged in
+        # pylint: disable=protected-access
         self._location = self._location + other_access_info._location
 
     def is_called(self, signature: Signature) -> bool:

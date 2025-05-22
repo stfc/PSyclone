@@ -278,9 +278,7 @@ class OMPTaskwaitTrans(Transformation):
                 for child in node.walk(nodes.Node):
                     if child is not node and not isinstance(child,
                                                             (Schedule, Loop)):
-                        refs = child.reference_accesses()
-                        if refs is not None:
-                            node_vars.merge(refs)
+                        node_vars.merge(child.reference_accesses())
             node_signatures = node_vars.all_signatures
             # Once we have the node's variable accesses, check for collisions
             for sig1 in taskloop_signatures:

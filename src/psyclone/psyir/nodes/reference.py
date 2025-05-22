@@ -205,19 +205,12 @@ class Reference(DataNode):
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            sturcture acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
 
         '''
         var_accesses = VariablesAccessInfo()
         sig, all_indices = self.get_signature_and_indices()
-        # if self.symbol.is_import and \
-        #         self.symbol.interface.orig_name:
-        #     # If the option is set to return the original (un-renamed)
-        #     # name of an imported symbol, get the original name from
-        #     # the interface and use it. The rest of the signature is
-        #     # used from the original access, it does not change.
-        #     sig = Signature(self.symbol.interface.orig_name, sig[1:])
         for indices in all_indices:
             for index in indices:
                 var_accesses.merge(index.reference_accesses())
