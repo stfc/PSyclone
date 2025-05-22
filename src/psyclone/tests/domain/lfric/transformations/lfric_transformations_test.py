@@ -45,7 +45,7 @@ from importlib import import_module
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.core.access_type import AccessType
+from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.domain.lfric import LFRicLoop
@@ -102,7 +102,7 @@ def test_colour_trans_create_colours_loop(dist_mem):
     assert new_loop.loop_type == "colours"
     colour_loop = new_loop.loop_body[0]
     assert isinstance(colour_loop, LFRicLoop)
-    assert colour_loop.loop_type == "colour"
+    assert colour_loop.loop_type == "cells_in_colour"
     assert new_loop.field_space == loop.field_space
     assert colour_loop.field_space == loop.field_space
     assert colour_loop.field_name == loop.field_name
@@ -4101,7 +4101,7 @@ def test_rc_invalid_loop(monkeypatch):
         rc_trans.apply(loop)
     assert ("In the LFRicRedundantComputation transformation apply "
             "method the loop type must be one of '' (cell-columns), 'dof' or "
-            "'colour', but found 'colours'") in str(excinfo.value)
+            "'cells_in_colour', but found 'colours'") in str(excinfo.value)
 
 
 def test_rc_nodm():
@@ -5504,7 +5504,8 @@ def test_rc_parent_loop_colour(monkeypatch):
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
     assert ("if the parent of the supplied Loop is also a Loop then the "
-            "supplied Loop must iterate over 'colour'" in str(excinfo.value))
+            "supplied Loop must iterate over 'cells_in_colour'"
+            in str(excinfo.value))
 
 
 def test_rc_unsupported_loop_type(monkeypatch):
@@ -6304,7 +6305,7 @@ def test_intergrid_colour(dist_mem, trans_class, tmpdir):
     ctrans.apply(loops[3])
     if reg_trans and loop_trans:
         for loop in schedule.walk(Loop):
-            if loop.loop_type == "colour":
+            if loop.loop_type == "cells_in_colour":
                 reg_trans.apply(loop)
                 loop_trans.apply(loop)
     gen = str(psy.gen).lower()
@@ -6513,7 +6514,7 @@ def test_accenterdata_builtin(tmpdir):
         if loop.loop_type == "":
             ctrans.apply(loop)
     for loop in sched.loops():
-        if loop.loop_type in ["colour", "dof"]:
+        if loop.loop_type in ["cells_in_colour", "dof"]:
             acc_loop_trans.apply(loop)
     parallel_trans.apply(sched.children)
     acc_enter_trans.apply(sched)
@@ -7769,3 +7770,225 @@ def test_all_loop_trans_base_validate(monkeypatch):
                     trans.validate(loop)
             assert "validate test exception" in str(err.value), \
                 f"{name}.validate() does not call LoopTrans.validate()"
+
+
+# There are three distinct scenarios for colouring (each activate diverging
+# paths in different places): non-intergrid kernels, intergrid kernels, and
+# continuous writer intergrid kernels.
+# TODO #2905: Aims to encapsulate this better inside the transformation
+
+def test_colour_trans_tiled_non_intergrid(dist_mem):
+    ''' Test of the tile-colouring transformation of a single loop. We test
+    when distributed memory is both off and on. For non-intergrid kernel
+    it will have halos when dist_mem is on, and last_edge_cell when it is off.
+    '''
+    psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
+                             name="invoke_0_testkern_type",
+                             dist_mem=dist_mem)
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
+
+    if dist_mem:
+        index = 4
+    else:
+        index = 0
+
+    # Invalid transformation value
+    with pytest.raises(TypeError) as err:
+        ctrans.apply(schedule.children[index], tiling="invalid")
+    assert ("'tiling' option expects type 'bool' but received 'invalid' of "
+            "type 'str'." in str(err.value))
+
+    # Colour the loop
+    ctrans.apply(schedule.children[index], tiling=True)
+
+    # Check that the symbols associated to the colour-tiling are added as
+    # accesses
+    vai = VariablesAccessInfo()
+    schedule.reference_accesses(vai)
+    for name in "tile", "colour", "cell", "tmap":
+        assert Signature(name) in vai
+
+    # Store the results of applying this code transformation as
+    # a string (Fortran is not case sensitive)
+    code = str(psy.gen).lower()
+
+    # Declare and initialise supporting variables
+    assert "integer(kind=i_def), pointer :: tmap(:,:,:)" in code
+    assert "integer(kind=i_def) :: ntilecolours" in code
+    assert """
+    ! get the tiled colourmap
+    ntilecolours = mesh%get_ntilecolours()
+    tmap => mesh%get_coloured_tiling_map()""" in code
+
+    if not dist_mem:
+        # Use last-edge version
+        assert """
+    last_edge_tile_per_colour = mesh%get_last_edge_tile_all_colours()
+    last_edge_cell_per_colour_and_tile = \
+mesh%get_last_edge_cell_all_colours_all_tiles()""" in code
+        assert """
+    do colour = loop0_start, loop0_stop, 1
+      do tile = loop1_start, last_edge_tile_per_colour(colour), 1
+        do cell = loop2_start, last_edge_cell_per_colour_and_tile\
+(colour,tile), 1
+        """ in code
+    else:
+        # Use halo version
+        assert """
+    last_halo_tile_per_colour = mesh%get_last_halo_tile_all_colours()
+    last_halo_cell_per_colour_and_tile = \
+mesh%get_last_halo_cell_all_colours_all_tiles()""" in code
+        assert """
+    do colour = loop0_start, loop0_stop, 1
+      do tile = loop1_start, last_halo_tile_per_colour\
+(colour,1), 1
+        do cell = loop2_start, last_halo_cell_per_colour_and_tile\
+(colour,tile,1), 1
+        """ in code
+
+    # Kernel calls use the tmap to get the cell index
+    assert ("call testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, "
+            "m2_data, ndf_w1, undf_w1, map_w1(:,tmap(colour,tile,cell)), "
+            "ndf_w2, undf_w2, map_w2(:,tmap(colour,tile,cell)), ndf_w3, "
+            "undf_w3, map_w3(:,tmap(colour,tile,cell)))" in code)
+
+    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # the new tile-colouring methods
+    # assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_colour_trans_tiled_and_halo_depth():
+    ''' Mix the tile-colouring transformation with a non-default halo-depth,
+    in this case the tiling methods must have an explicit depth argument.
+    '''
+    psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
+                             name="invoke_0_testkern_type",
+                             dist_mem=True)
+    schedule = invoke.schedule
+
+    # Set a non-default halo depth
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.walk(Loop)[0]
+    rc_trans.apply(loop, {"depth": 3})
+
+    # Colour the loop
+    ctrans = Dynamo0p3ColourTrans()
+    ctrans.apply(loop, tiling=True)
+
+    # Check that the generated code has a explicit '3' depth argument
+    code = str(psy.gen).lower()
+    assert "last_halo_tile_per_colour(colour,3)" in code
+    assert "last_halo_cell_per_colour_and_tile(colour,tile,3)" in code
+
+
+def test_colour_trans_tiled_intergrid(dist_mem):
+    ''' Check that we can apply colouring with tiling to a loop containing
+    an inter-grid kernel. This have the colour maps suffixed with the field
+    name (as there are multiple meshes with different colour properties). '''
+    # Use an example that contains both prolongation and restriction
+    # kernels
+    psy, invoke = get_invoke("22.2_intergrid_3levels.f90",
+                             TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    # First two kernels are prolongation, last two are restriction
+    loops = schedule.walk(Loop)
+    ctrans = Dynamo0p3ColourTrans()
+    # To a prolong kernel
+    ctrans.apply(loops[1], tiling=True)
+    # To a restrict kernel (also use old-style options dict)
+    ctrans.apply(loops[3], options={"tiling": True})
+
+    gen = str(psy.gen).lower()
+    expected = '''\
+    ntilecolour_fld_m = mesh_fld_m%get_ntilecolours()
+    tmap_fld_m => mesh_fld_m%get_coloured_tiling_map()'''
+    assert expected in gen
+    expected = '''\
+    ntilecolour_cmap_fld_c = mesh_cmap_fld_c%get_ntilecolours()
+    tmap_cmap_fld_c => mesh_cmap_fld_c%get_coloured_tiling_map()'''
+    assert expected in gen
+
+    # Check outer loop over colours
+    assert "loop1_stop = ntilecolour_fld_m" in gen
+    assert "loop2_stop" not in gen
+    assert "    do colour = loop1_start, loop1_stop, 1\n" in gen
+
+    # Chek inner loops over tiles and cells
+    if dist_mem:
+        assert ("last_halo_tile_per_colour_fld_m = "
+                "mesh_fld_m%get_last_halo_tile_all_colours()" in gen)
+        assert ("last_halo_cell_per_colour_and_tile_fld_m = "
+                "mesh_fld_m%get_last_halo_cell_all_colours_all_tiles()"
+                in gen)
+        assert (
+            "do tile = loop2_start, last_halo_tile_per_colour_fld_m"
+            "(colour,1), 1" in gen)
+        assert (
+            "do cell = loop3_start, last_halo_cell_per_colour_and_tile_fld_m"
+            "(colour,tile,1), 1" in gen)
+    else:
+        assert ("last_edge_tile_per_colour_fld_m = "
+                "mesh_fld_m%get_last_edge_tile_all_colours()" in gen)
+        assert ("last_edge_cell_per_colour_and_tile_fld_m = "
+                "mesh_fld_m%get_last_edge_cell_all_colours_all_tiles()"
+                in gen)
+        assert (
+            "do tile = loop2_start, last_edge_tile_per_colour_fld_m"
+            "(colour), 1" in gen)
+        assert (
+            "do cell = loop3_start, last_edge_cell_per_colour_and_tile_fld_m"
+            "(colour,tile), 1" in gen)
+    assert (
+        "call prolong_test_kernel_code(nlayers_fld_f, cell_map_fld_m"
+        "(:,:,tmap_fld_m(colour,tile,cell)), ncpc_fld_f_fld_m_x, "
+        "ncpc_fld_f_fld_m_y, ncell_fld_f, fld_f_data, fld_m_data, "
+        "ndf_w1, undf_w1, map_w1, undf_w2, "
+        "map_w2(:,tmap_fld_m(colour,tile,cell)))\n" in gen)
+
+    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # the new tile-colouring methods
+    # assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_colour_trans_tiled_continuous_writer_intergrid(dist_mem):
+    '''
+    Test the tile-colouring transformation for an inter-grid kernel that has
+    a GH_WRITE access to a field on a continuous space. Since it has GH_WRITE
+    it does not need to iterate into the halos (to get clean annexed dofs) and
+    therefore should use the 'last_edge_tile' colour map. Still with field
+    suffixes in the variables because there are multiple grids.
+
+    '''
+    psy, invoke = get_invoke("22.1.1_intergrid_cont_restrict.f90",
+                             TEST_API, idx=0, dist_mem=dist_mem)
+    loop = invoke.schedule[0]
+    ctrans = Dynamo0p3ColourTrans()
+    ctrans.apply(loop, tiling=True)
+    result = psy.gen
+    # Declarations.
+    assert ("integer(kind=i_def), pointer :: tmap_field1(:,:,:)"
+            in result)
+    assert "integer(kind=i_def) :: ntilecolour_field1" in result
+    assert ("integer(kind=i_def), allocatable, dimension(:) :: "
+            "last_edge_tile_per_colour_field1" in result)
+    assert ("integer(kind=i_def), allocatable, dimension(:,:) :: "
+            "last_edge_cell_per_colour_and_tile_field1" in result)
+    # Initialisation.
+    assert ("last_edge_tile_per_colour_field1 = mesh_field1%"
+            "get_last_edge_tile_all_colours()" in result)
+    assert ("last_edge_cell_per_colour_and_tile_field1 = mesh_field1%"
+            "get_last_edge_cell_all_colours_all_tiles()" in result)
+    # Usage. Since there is no need to loop into the halo, the upper loop
+    # bound should be independent of whether or not DM is enabled.
+    assert "loop0_stop = ntilecolour_field1" in result
+    assert "do colour = loop0_start, loop0_stop, 1" in result
+    assert ("do tile = loop1_start, last_edge_tile_per_colour_field1(colour)"
+            in result)
+    assert ("do cell = loop2_start, last_edge_cell_per_colour_and_tile_field1"
+            "(colour,tile), 1" in result)
+    assert ("call restrict_w2_code(nlayers_field1, cell_map_field1(:,:,"
+            "tmap_field1(colour,tile,cell))" in result)
+    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # the new tile-colouring methods
+    # assert LFRicBuild(tmpdir).code_compiles(psy)

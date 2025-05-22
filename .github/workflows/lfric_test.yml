@@ -48,7 +48,7 @@ jobs:
     env:
       LFRIC_APPS_REV: 7536
       LFRIC_CORE_REV: 52054
-      PYTHON_VERSION: 3.13.2
+      PYTHON_VERSION: 3.13.3
 
     steps:
     - uses: actions/checkout@v3
@@ -236,4 +236,40 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic all transformations", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
+          system: "GlaDos", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+
+    # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 mpi ranks each with 2 OpenMP threads
+    - name: LFRic with colour-tiling and OpenMP
+      run: |
+        # Set up environment
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment%gcc@14
+        source .runner_venv/bin/activate
+        export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
+        cd ${LFRIC_DIR}
+        # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
+        mkdir -p applications/gungho_model/optimisation/psyclone-test
+        cp ${PSYCLONE_LFRIC_DIR}/tiledcolouring_and_omp.py ${OPT_DIR}/global.py
+        # Clean previous version and compile again
+        rm -rf applications/gungho_model/working
+        ./build/local_build.py -a gungho_model -p psyclone-test -v
+        # Run
+        cd applications/gungho_model/example
+        rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
+        export OMP_NUM_THREADS=2
+        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
+        cat timer.txt
+        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "LFRic colour-tiling", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
           system: "GlaDos", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
