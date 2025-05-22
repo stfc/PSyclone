@@ -418,12 +418,12 @@ PSyclone supports logging which can provide additional information
 on what is happening inside PSyclone. This logging will also
 control the behaviour of any logging calls inside a user script.
 
-Logging output can be controlled through the `--log-level` option.
-By default, logging is set to `OFF`, which means
+Logging output can be controlled through the ``--log-level`` option.
+By default, logging is set to ``OFF``, which means
 no logging output will be produced. There are 5 other levels as
-detailed in the `psyclone -h` information.
+detailed in the ``psyclone -h`` information.
 
 By default the output from the logging goes into stderr.
 To control the logging output, PSyclone provides the
-`--log-file` option. If this is set, the logging output will instead
+``--log-file`` option. If this is set, the logging output will instead
 be directed to the provided file.
