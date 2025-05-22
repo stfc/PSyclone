@@ -1,3 +1,5 @@
+   23) PR #2993. Add documentation for the options to kwargs ongoing conversion.
+
    22) PR #2987 towards #11. Provides logging infrastructure and documentation.
 
    21) PR #2995 towards #2551. Cache abs_positions to speedup dependency tools.
