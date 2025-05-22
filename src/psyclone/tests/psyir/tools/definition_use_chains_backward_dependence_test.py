@@ -38,9 +38,10 @@ backward_accesses routine.'''
 
 import pytest
 from psyclone.psyir.nodes import (
+    Assignment,
+    Call,
     Routine,
     Reference,
-    Assignment,
     WhileLoop,
 )
 from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
@@ -748,7 +749,7 @@ def test_definition_use_chain_find_backward_accesses_pure_call(
     fortran_reader,
 ):
     """Functionality test for the find_backward_accesses routine. This
-    tests the behaviour for a pure subrotuine call."""
+    tests the behaviour for a pure subroutine call."""
     code = """
     pure subroutine y(in)
         integer :: in
@@ -764,12 +765,20 @@ def test_definition_use_chain_find_backward_accesses_pure_call(
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[1]
-    chains = DefinitionUseChain(routine.children[2].rhs.children[0])
+    # Find the a in the rhs of the second assignment
+    assign2 = routine.walk(Assignment)[1]
+    rhs_a = assign2.rhs.children[0]
+    chains = DefinitionUseChain(rhs_a)
     reaches = chains.find_backward_accesses()
     assert len(reaches) == 1
-    assert reaches[0] is routine.children[0].lhs
+    # Result is lhs of the first assignment
+    lhs_assign1 = routine.walk(Assignment)[0].lhs 
+    assert reaches[0] is lhs_assign1
 
-    chains = DefinitionUseChain(routine.children[3].lhs)
+    # Get the lhs of the b = 1 assignment
+    lhs_assign3 = routine.walk(Assignment)[2].lhs
+    chains = DefinitionUseChain(lhs_assign3)
     reaches = chains.find_backward_accesses()
     assert len(reaches) == 1
-    assert reaches[0] is routine.children[1].children[1]
+    # We should find the argument in the pure subroutine call
+    assert reaches[0] is routine.walk(Call)[0].children[1]
