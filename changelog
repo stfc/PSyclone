@@ -1,3 +1,70 @@
+   21) PR #2995 towards #2551. Cache abs_positions to speedup dependency tools.
+
+   20) PR #2931 (#closes 2244) adds support for LFRic colour-tiling. Needs
+   to be selected in transformation script.
+
+   19) PR #2970 towards #2966. Add `--enble-cache` psyclone command flag.
+
+   18) PR #2989. Updates various software versions in the integration tests.
+   Most significant is move from Gnu 14.2 to Gnu 15.1.
+
+   17) PR #2983 for #2978. Ignore redundant return statements when creating
+   PSyIR.
+
+   16) PR #2964. PScylone is now available to install from Conda. This PR adds
+   instructions in the user guide.
+
+   15) PR #2980 for #2976. Removes jsonschema as a dependency (since it is
+   only required for jupyter notebooks).
+
+   14) PR #2834 for #1010, #1910, #719, #798 and #1648. Generate PSy-layers
+   and Kernel stubs using PSyIR lowering (instead of gen_code/f2pygen).
+
+   13) PR #2877 for #2668. Adds a new `@transformation_documentation_wrapper`
+   decorator that implements docstring generation for Transformation
+   classes, allowing for inheritance. The 'options' argument to
+   Transformations is now deprecated in favour of having separate, named
+   arguments.
+
+   12) PR #2956 for #1206. Reorganise the documentation to create an
+   "instrumentation" section plus other tidying.   
+
+   11) PR #2930 towards #714. Adds the DebugChecksumTrans transformation
+   which enables a user to add checksum outputs to generic Fortran code.
+
+   10) PR #2953 for #2952. Gracefully fail when resolving transitive
+   (indirectly imported) type.
+
+   9) PR #2848 for #2845, #1792, #2336, #2271 and #649. Extends
+   reference_access and other symbol table methods to consider
+   symbols that are part of other symbols (e.g. precisions, shapes,
+   initialisations, ...)
+
+   8) PR #2908 towards #2551. Adds support for nowait and barriers for
+   omp do and omp target.
+
+   7) PR #2945 for #2943. Fix broken documentation links.
+
+   6) PR #2921 for #2532. Changes the documentation so that the User,
+   Developer and Reference Guides are all in a single build. Updates
+   RTD so that a pdf is made available (and removes the local copy).
+   Switches to using the pydata theme for the docs.
+
+   5) PR #2833. Extends the fparser caching functionality to allow the
+   location of the cache files to be configured. Also avoids repeated
+   parsing of a single file containing multiple modules.
+
+   4) PR #2664 for #1664. Add OpenACC async clause and ACCWait directive.
+
+   3) PR #2828 - adds a new ReplaceReferenceByLiteralTrans transformation.   
+
+   2) PR #2914 for #2913. Consider unresolved imports when deciding scoping
+   location of fparser2 symbols.
+   
+   1) PR #2563 for #2499. Adds ScalarisationTrans.
+
+release 3.1.0 26th of February 2025
+
 	1) PR #2827. Update Zenodo with release 3.0.0 and update link in
 	README.md.
 
@@ -72,6 +139,14 @@
 
 	25) PR #2859 for #2787. Fixes the NEMO integration tests and updates
 	the version of NVHPC used by them.
+
+	26) PR #2897 for #2892. Extends LFRic user-supplied kernels that
+	operate on dofs to accept field-vector arguments.
+
+	27) PR #2899 for #2889. Adds support for non-allocatable arrays to
+	kernel extraction.
+
+	28) #2744 update version number prior to release.
 
 release 3.0.0 6th of December 2024
 

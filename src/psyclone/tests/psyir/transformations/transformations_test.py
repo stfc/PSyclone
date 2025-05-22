@@ -42,6 +42,7 @@ API-agnostic tests for various transformation classes.
 
 import os
 import pytest
+import sys
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
@@ -219,7 +220,7 @@ def test_omptaskloop_getters_and_setters():
 
 
 def test_omptaskloop_apply(monkeypatch):
-    '''Check that the gen_code method in the OMPTaskloopDirective
+    '''Check that the lowering method in the OMPTaskloopDirective
     class generates the expected code when passing options to
     the OMPTaskloopTrans's apply method and correctly overrides the
     taskloop's inbuilt value. Use the gocean API.
@@ -245,20 +246,20 @@ def test_omptaskloop_apply(monkeypatch):
 
     clauses = " nogroup"
     assert (
-        f"    !$omp parallel default(shared), private(i,j)\n"
-        f"      !$omp master\n"
-        f"      !$omp taskloop{clauses}\n"
-        f"      DO" in code)
+        f"  !$omp parallel default(shared), private(i,j)\n"
+        f"    !$omp master\n"
+        f"    !$omp taskloop{clauses}\n"
+        f"    do" in code)
     assert (
-        "      END DO\n"
-        "      !$omp end taskloop\n"
-        "      !$omp end master\n"
-        "      !$omp end parallel" in code)
+        "    enddo\n"
+        "    !$omp end taskloop\n"
+        "    !$omp end master\n"
+        "    !$omp end parallel" in code)
 
     assert taskloop_node.begin_string() == "omp taskloop"
 
     # Create a fake validate function to throw an exception
-    def validate(self, options):
+    def validate(self, options, **kwargs):
         raise TransformationError("Fake error")
     monkeypatch.setattr(taskloop, "validate", validate)
     # Test that the nogroup attribute isn't permanently changed if validate
@@ -536,6 +537,189 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
   !$omp end parallel\n'''
 
     assert expected in fortran_writer(tree)
+
+
+def test_omploop_trans_new_options(sample_psyir):
+    ''' Thest the new options and validation methods work correctly using
+    OMPLoopTrans apply'''
+    omplooptrans = OMPLoopTrans()
+    tree = sample_psyir.copy()
+
+    # Check we get the relevant error message when adding multiple invalid
+    # options.
+    with pytest.raises(ValueError) as excinfo:
+        omplooptrans.apply(tree.walk(Loop)[0], fakeoption1=1, fakeoption2=2)
+    print(excinfo.value)
+    assert ("'OMPLoopTrans' received invalid options ['fakeoption1', "
+            "'fakeoption2']. Valid options are '['node_type_check', "
+            "'verbose', 'collapse', 'force', 'ignore_dependencies_for', "
+            "'privatise_arrays', 'sequential', 'nowait', 'reprod']."
+            in str(excinfo.value))
+
+    # Check we get the relevant error message when submitting multiple
+    # options with the wrong type
+    with pytest.raises(TypeError) as excinfo:
+        omplooptrans.apply(tree.walk(Loop)[0], verbose=3, force="a")
+    assert ("'OMPLoopTrans' received options with the wrong types:\n"
+            "'verbose' option expects type 'bool' but received '3' "
+            "of type 'int'.\n"
+            "'force' option expects type 'bool' but received 'a' "
+            "of type 'str'.\n"
+            "Please see the documentation and check the provided types."
+            in str(excinfo.value))
+
+    # Check python version, as this tests have different behaviour for
+    # new python versions vs 3.8 or 3.7.
+    # TODO #2837: This can be removed when Python 3.7 and 3.8 are retired.
+    if sys.version_info[1] < 11:
+        with pytest.raises(TypeError) as excinfo:
+            omplooptrans.apply(tree.walk(Loop)[0], collapse="x")
+        assert ("The 'collapse' argument must be an integer or a bool "
+                "but got an object of type <class 'str'>" in
+                str(excinfo.value))
+    else:
+        with pytest.raises(TypeError) as excinfo:
+            omplooptrans.apply(tree.walk(Loop)[0], collapse="x")
+        assert ("'OMPLoopTrans' received options with the wrong types:\n"
+                "'collapse' option expects type 'int | bool' but "
+                "received 'x' of type 'str'.\n"
+                "Please see the documentation and check the provided types."
+                in str(excinfo.value))
+
+
+def test_omplooptrans_apply_nowait(fortran_reader, fortran_writer):
+    '''Test the behaviour of the OMPLoopTrans is as expected when
+    we request nowait.'''
+    code = """
+    subroutine x()
+        integer :: i
+        integer, dimension(100) :: arr
+        do i = 1, 100
+            arr(i) = i
+        end do
+        do i = 1, 100
+            arr(i) = i
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    otrans = OMPParallelTrans()
+    looptrans = OMPLoopTrans(omp_directive="do")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    otrans.apply(routine.children[:])
+    looptrans.apply(loops[0], options={"nowait": True})
+    looptrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    correct = """subroutine x()
+  integer :: i
+  integer, dimension(100) :: arr
+
+  !$omp parallel default(shared), private(i)
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    arr(i) = i
+  enddo
+  !$omp end do nowait
+  !$omp barrier
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    arr(i) = i
+  enddo
+  !$omp end do nowait
+  !$omp barrier
+  !$omp end parallel
+
+end subroutine x"""
+    assert correct in out
+
+    code = """
+    subroutine x()
+        integer :: i, j
+        integer, dimension(100) :: arr, arr2
+        do i = 1, 100
+           j = i + i
+            arr(i) = j
+        end do
+        do i = 1, 100
+            j = i + i
+            arr2(i) = j
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    otrans = OMPParallelTrans()
+    looptrans = OMPLoopTrans(omp_directive="do")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    otrans.apply(routine.children[:])
+    looptrans.apply(loops[0], options={"nowait": True})
+    looptrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    correct = """subroutine x()
+  integer :: i
+  integer :: j
+  integer, dimension(100) :: arr
+  integer, dimension(100) :: arr2
+
+  !$omp parallel default(shared), private(i,j)
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    j = i + i
+    arr(i) = j
+  enddo
+  !$omp end do nowait
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    j = i + i
+    arr2(i) = j
+  enddo
+  !$omp end do nowait
+  !$omp barrier
+  !$omp end parallel
+
+end subroutine x"""
+    assert correct in out
+
+    # Check nowait is ignored on OMPParallelDo
+    code = """
+    subroutine x()
+        integer :: i
+        integer, dimension(100) :: arr
+        do i = 1, 100
+            arr(i) = i
+        end do
+        do i = 1, 100
+            arr(i) = i
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    looptrans = OMPLoopTrans(omp_directive="paralleldo")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    looptrans.apply(loops[0], options={"nowait": True})
+    looptrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    assert "nowait" not in out
+
+    # Check nowait is ignored when loop is its own dependency
+    code = """
+    subroutine x()
+        integer :: i, j
+        integer, dimension(100) :: arr
+        do j = 1, 5
+        do i = 1, 100
+            arr(i) = i
+        end do
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    otrans = OMPParallelTrans()
+    looptrans = OMPLoopTrans(omp_directive="do")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    otrans.apply(loops[1])
+    looptrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    assert "nowait" not in out
 
 
 def test_ifblock_children_region():

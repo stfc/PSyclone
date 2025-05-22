@@ -39,16 +39,15 @@
 ''' Performs py.test tests on the PSyIR Directive node. '''
 
 import os
-import pytest
 from collections import OrderedDict
+import pytest
 
-from psyclone import f2pygen
 from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.transformations import ACCDataTrans, DynamoOMPParallelLoopTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -192,30 +191,6 @@ def test_regiondirective_children_validation():
             "format is: 'Schedule'." in str(excinfo.value))
 
 
-@pytest.mark.usefixtures("dist_mem")
-def test_regiondirective_gen_post_region_code():
-    '''Test that the RegionDirective.gen_post_region_code() method does
-    nothing for language-level PSyIR.
-
-    TODO #1648 - this can be removed when the gen_post_region_code() method is
-    removed.'''
-    temporary_module = f2pygen.ModuleGen("test")
-    subroutine = nodes.Routine.create("testsub")
-    directive = nodes.RegionDirective()
-    sym = subroutine.symbol_table.new_symbol(
-            "i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    loop = nodes.Loop.create(sym,
-                             nodes.Literal("1", INTEGER_TYPE),
-                             nodes.Literal("10", INTEGER_TYPE),
-                             nodes.Literal("1", INTEGER_TYPE), [])
-    directive.dir_body.addchild(loop)
-    subroutine.addchild(directive)
-    directive.gen_post_region_code(temporary_module)
-    # No nodes should have been added to the tree.
-    assert len(temporary_module.children) == 1
-    assert isinstance(temporary_module.children[0], f2pygen.ImplicitNoneGen)
-
-
 def test_standalonedirective_children_validation():
     '''Test that children cannot be added to StandaloneDirective.'''
     cdir = nodes.StandaloneDirective()
@@ -225,4 +200,4 @@ def test_standalonedirective_children_validation():
     with pytest.raises(GenerationError) as excinfo:
         cdir.addchild(schedule)
     assert ("Item 'Schedule' can't be child 0 of 'StandaloneDirective'. The "
-            "valid format is: 'None'." in str(excinfo.value))
+            "valid format is: 'Clause*'." in str(excinfo.value))

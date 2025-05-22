@@ -95,12 +95,15 @@ module read_kernel_data_mod
         {# Collect and declare the various procedures for the same generic interface -#}
         {# ------------------------------------------------------------------------- -#}
         {% set all_reads=[] -%}
+        {% set all_reads_non_alloc=[] -%}
         {% for name, type in ALL_TYPES %}
         procedure :: ReadScalar{{name}}
           {{- all_reads.append("ReadScalar"~name) or "" }}
           {% for dim in ALL_DIMS %}
         procedure :: ReadArray{{dim}}d{{name}}
+        procedure :: ReadArray{{dim}}d{{name}}NonAlloc
             {{- all_reads.append("ReadArray"~dim~"d"~name) or "" }}
+            {{- all_reads_non_alloc.append("ReadArray"~dim~"d"~name~"NonAlloc") or "" }}
           {% endfor %}
         {% endfor %}
 
@@ -110,6 +113,8 @@ module read_kernel_data_mod
         !! the drivers created by PSyclone.
         generic, public :: ReadVariable => &
             {{all_reads|join(", &\n"+indent) }}
+        generic, public :: ReadVariableNonAlloc => &
+            {{all_reads_non_alloc|join(", &\n"+indent) }}
 
     end type ReadKernelDataType
 
@@ -251,7 +256,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated {{dim}}D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray{{dim}}d{{name}}(this, name, value)
 
@@ -322,6 +327,81 @@ contains
         {% endif %}
 
     end subroutine ReadArray{{dim}}d{{name}}
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a {{dim}}D array of {{type}}
+    !! that is not allocatable (e.g. a fixed size array).
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value A {{dim}}D-double precision array into which
+    !!             the values are read.
+    subroutine ReadArray{{dim}}d{{name}}NonAlloc(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target  :: this
+        character(*), intent(in)                          :: name
+        {{type}}, dimension({{DIMENSION}}), intent(out)   :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        {# Create list of variables: "dimid1,dimid2,dimid3,dimid4" #}
+        {% set dim_sizes = "dim_size"~range(1,dim+1)|join(",dim_size") %}
+        integer        :: {{dim_sizes}}
+        integer        :: ierr
+        {% if name == "Logical" %}
+        integer, dimension({{DIMENSION}}), allocatable :: tmp
+        {% endif %}
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        {% for i in range(1, dim+1) %}
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%{{i}}"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size{{i}}))
+        if (size(value, {{i}}) .ne. dim_size{{i}}) then
+            write(stderr,*) "Inconsistent array size for ", name, &
+                            " in rank {{i}}", &
+                            " in ReadArray{{dim}}d{{name}}NonAlloc."
+            write(stderr,*) "Declared as ", size(value,{{i}}), &
+                            " in file as", dim_size{{i}}
+        endif
+        {% endfor %}
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        {% if name == "Logical" %}
+        ! We cannot read logical directly, so read an int array.
+        ! Allocate enough space to store the values to be read:
+        allocate(tmp({{dim_sizes}}), Stat=ierr)
+        if (ierr /= 0) then
+            write(stderr,*) "Cannot allocate int-array for ", name, &
+                            " of size ", {{dim_sizes}}, &
+                            " in ReadArray{{dim}}d{{name}}."
+            stop
+        endif
+        retval = CheckError(nf90_get_var(this%ncid, varid, tmp))
+        ! Then convert each '1' in this array to .true., everything else
+        ! to .false.
+        value = tmp == 1
+        deallocate(tmp)
+        {% else %}
+        {% if name == "Char" %}
+        ! Initialise the whole array with "".
+        value = ""
+        {% else %}
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        {% endif %}
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+        {% endif %}
+
+    end subroutine ReadArray{{dim}}d{{name}}NonAlloc
 
     {% endfor -%}  {# for dim in ALL_DIMS #}
 

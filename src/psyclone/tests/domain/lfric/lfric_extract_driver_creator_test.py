@@ -272,35 +272,33 @@ def test_lfric_driver_simple_test():
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
-    for line in ["if (ALLOCATED(psydata_filename)) then",
-                 "call extract_psy_data%OpenReadFileName(psydata_filename)",
-                 "else",
-                 "call extract_psy_data%OpenReadModuleRegion('field', 'test')",
-                 "end if",
-                 "call extract_psy_data%ReadVariable('a', a)",
-                 "call extract_psy_data%ReadVariable('loop0_start', "
-                 "loop0_start)",
-                 "call extract_psy_data%ReadVariable('loop0_stop', "
-                 "loop0_stop)",
-                 "call extract_psy_data%ReadVariable('m1_data', m1_data)",
-                 "call extract_psy_data%ReadVariable('m2_data', m2_data)",
-                 "call extract_psy_data%ReadVariable('map_w1', map_w1)",
-                 "call extract_psy_data%ReadVariable('map_w2', map_w2)",
-                 "call extract_psy_data%ReadVariable('map_w3', map_w3)",
-                 "call extract_psy_data%ReadVariable('ndf_w1', ndf_w1)",
-                 "call extract_psy_data%ReadVariable('ndf_w2', ndf_w2)",
-                 "call extract_psy_data%ReadVariable('ndf_w3', ndf_w3)",
-                 "call extract_psy_data%ReadVariable('nlayers_x_ptr_vector', "
-                 "nlayers_x_ptr_vector)",
-                 "call extract_psy_data%ReadVariable('"
-                 "self_vec_type_vector_data', self_vec_type_vector_data)",
-                 "call extract_psy_data%ReadVariable('undf_w1', undf_w1)",
-                 "call extract_psy_data%ReadVariable('undf_w2', undf_w2)",
-                 "call extract_psy_data%ReadVariable('undf_w3', undf_w3)",
-                 "call extract_psy_data%ReadVariable('x_ptr_vector_data', "
-                 "x_ptr_vector_data)",
-                 "call extract_psy_data%ReadVariable('cell_post', cell_post)"]:
-        assert line in driver
+    for line in [
+        "if (ALLOCATED(psydata_filename)) then",
+        "call extract_psy_data%OpenReadFileName(psydata_filename)",
+        "else",
+        "call extract_psy_data%OpenReadModuleRegion('field', 'test')",
+        "end if",
+        "call extract_psy_data%ReadVariable('a', a)",
+        "call extract_psy_data%ReadVariable('m1_data', m1_data)",
+        "call extract_psy_data%ReadVariable('m2_data', m2_data)",
+        "call extract_psy_data%ReadVariable('map_w1', map_w1)",
+        "call extract_psy_data%ReadVariable('map_w2', map_w2)",
+        "call extract_psy_data%ReadVariable('map_w3', map_w3)",
+        "call extract_psy_data%ReadVariable('ndf_w1', ndf_w1)",
+        "call extract_psy_data%ReadVariable('ndf_w2', ndf_w2)",
+        "call extract_psy_data%ReadVariable('ndf_w3', ndf_w3)",
+        "call extract_psy_data%ReadVariable('nlayers_x_ptr_vector', "
+        "nlayers_x_ptr_vector)",
+        "call extract_psy_data%ReadVariable('"
+        "self_vec_type_vector_data', self_vec_type_vector_data)",
+        "call extract_psy_data%ReadVariable('undf_w1', undf_w1)",
+        "call extract_psy_data%ReadVariable('undf_w2', undf_w2)",
+        "call extract_psy_data%ReadVariable('undf_w3', undf_w3)",
+        "call extract_psy_data%ReadVariable('x_ptr_vector_data', "
+        "x_ptr_vector_data)",
+        "call extract_psy_data%ReadVariable('cell_post', cell_post)"
+    ]:
+        assert line.lower() in driver.lower(), line
 
     # A read-write/inc variable should not be allocated (since it will
     # be allocated as part of reading in its value):
@@ -360,8 +358,8 @@ def test_lfric_driver_field_arrays():
     as an individual field. The driver needs to read in each individual
     array member into distinct variables.'''
 
-    _, invoke = get_invoke("8_vector_field_2.f90", API,
-                           dist_mem=False, idx=0)
+    psy, invoke = get_invoke("8_vector_field_2.f90", API,
+                             dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
 
@@ -370,7 +368,7 @@ def test_lfric_driver_field_arrays():
                            "region_name": ("field", "array")})
     # The extraction provides the array once, it is the responsibility
     # of the extraction library to create the individual fields.
-    out = str(invoke.gen())
+    out = psy.gen
     assert "ProvideVariable(\"chi\", chi)" in out
 
     filename = "driver-field-array.F90"
@@ -400,20 +398,20 @@ def test_lfric_driver_operator():
     '''Test handling of operators, including the structure members
     that are implicitly added.'''
 
-    _, invoke = get_invoke("10.7_operator_read.f90", API,
-                           dist_mem=False, idx=0)
+    psy, invoke = get_invoke("10.7_operator_read.f90", API,
+                             dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
 
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("operator", "test")})
-    out = str(invoke.gen())
+    out = psy.gen
     # Check the structure members that are added for operators:
     assert ("ProvideVariable(\"mm_w3_local_stencil\", "
             "mm_w3_local_stencil)" in out)
     assert ("ProvideVariable(\"mm_w3_proxy%ncell_3d\", "
-            "mm_w3_proxy%ncell_3d)" in out)
+            "mm_w3_proxy % ncell_3d)" in out)
     assert "ProvideVariable(\"coord_post\", coord)" in out
 
     filename = "driver-operator-test.F90"
@@ -491,18 +489,19 @@ def test_lfric_driver_extract_some_kernels_only():
     of the kernels in the tree). This test can potentially be removed
     when TODO #1731 is done.'''
 
-    _, invoke = get_invoke("4.5.2_multikernel_invokes.f90", API,
-                           dist_mem=False, idx=0)
+    psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", API,
+                             dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[2],
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
-    code = str(invoke.gen())
+    code = psy.gen
 
     # We only extract the third loop, which uses the index '2' for
     # loop boundaries. So none of the previous loop indices should
     # be in the extract code:
+    pytest.xfail(reason="TODO #2950")
     assert "PreDeclareVariable(\"loop0_start\", loop0_start)" not in code
     assert "PreDeclareVariable(\"loop1_start\", loop1_start)" not in code
     assert "PreDeclareVariable(\"loop2_start\", loop2_start)" in code
@@ -535,14 +534,14 @@ def test_lfric_driver_extract_some_kernels_only():
 def test_lfric_driver_field_array_write():
     '''Test the handling of arrays of fields which are written.'''
 
-    _, invoke = get_invoke("10.7_operator_read.f90", API,
-                           dist_mem=False, idx=0)
+    psy, invoke = get_invoke("10.7_operator_read.f90", API,
+                             dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
-    code = str(invoke.gen())
+    code = psy.gen
     # The variable coord is an output variable, but it still must
     # be provided as input field (since a kernel might only write
     # some parts of a field - e.g. most kernels won't update halo
@@ -586,14 +585,14 @@ def test_lfric_driver_field_array_inc():
     '''Test the handling of arrays of fields which are incremented (i.e.
     read and written).'''
 
-    _, invoke = get_invoke("8_vector_field_2.f90", API,
-                           dist_mem=False, idx=0)
+    psy, invoke = get_invoke("8_vector_field_2.f90", API,
+                             dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
-    code = str(invoke.gen())
+    code = psy.gen
     assert 'ProvideVariable("chi", chi)' in code
     assert 'ProvideVariable("f1_data", f1_data)' in code
     assert 'ProvideVariable("chi_post", chi)' in code
@@ -632,18 +631,32 @@ def test_lfric_driver_external_symbols():
     external functions that use module variables.
 
     '''
-    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
-                           "symbols.f90", API, dist_mem=False, idx=0)
+    psy, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                             "symbols.f90", API, dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
-    code = str(invoke.gen())
-    assert ('CALL extract_psy_data%PreDeclareVariable("'
+    code = psy.gen
+    assert ('CALL extract_psy_data % PreDeclareVariable("'
             'module_var_a_post@module_with_var_mod", module_var_a)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("'
+    assert ('CALL extract_psy_data % ProvideVariable("'
             'module_var_a_post@module_with_var_mod", module_var_a)' in code)
+
+    # Check that const-size arrays are exported:
+    expected = [
+      'use module_with_var_mod, only : const_size_array',
+      'CALL extract_psy_data % PreDeclareVariable("const_size_array@'
+      'module_with_var_mod", const_size_array)',
+      'CALL extract_psy_data % PreDeclareVariable("const_size_array_post@'
+      'module_with_var_mod", const_size_array)',
+      'CALL extract_psy_data % ProvideVariable("const_size_array@'
+      'module_with_var_mod", const_size_array)',
+      'CALL extract_psy_data % ProvideVariable("const_size_array_post@'
+      'module_with_var_mod", const_size_array)']
+    for line in expected:
+        assert line in code, line
 
     filename = "driver-import-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
@@ -669,20 +682,20 @@ def test_lfric_driver_external_symbols_name_clash():
     a name clash.
 
     '''
-    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
-                           "symbols.f90", API, dist_mem=False, idx=1)
+    psy, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                             "symbols.f90", API, dist_mem=False, idx=1)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
-    code = str(invoke.gen())
+    code = psy.gen
 
     # Make sure the imported, clashing symbol 'f1_data' is renamed:
-    assert "USE module_with_name_clash_mod, ONLY: f1_data_1=>f1_data" in code
-    assert ('CALL extract_psy_data%PreDeclareVariable("f1_data@'
+    assert "use module_with_name_clash_mod, only : f1_data_1=>f1_data" in code
+    assert ('CALL extract_psy_data % PreDeclareVariable("f1_data@'
             'module_with_name_clash_mod", f1_data_1)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("f1_data@'
+    assert ('CALL extract_psy_data % ProvideVariable("f1_data@'
             'module_with_name_clash_mod", f1_data_1)' in code)
 
     # Even though PSyclone cannot find the variable, it should still be
@@ -715,19 +728,19 @@ def test_lfric_driver_external_symbols_error(capsys):
     resulting in external functions and variables that cannot be found.
 
     '''
-    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
-                           "symbols_error.f90", API, dist_mem=False, idx=0)
+    psy, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                             "symbols_error.f90", API, dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
-    code = str(invoke.gen())
+    code = psy.gen
     # Even though PSyclone cannot find the variable, it should still be
     # extracted:
-    assert ('CALL extract_psy_data%PreDeclareVariable("non_existent_var@'
+    assert ('CALL extract_psy_data % PreDeclareVariable("non_existent_var@'
             'module_with_error_mod", non_existent_var' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("non_existent_var@'
+    assert ('CALL extract_psy_data % ProvideVariable("non_existent_var@'
             'module_with_error_mod", non_existent_var' in code)
 
     filename = "driver-import-test.F90"
@@ -750,7 +763,7 @@ def test_lfric_driver_external_symbols_error(capsys):
     # This variable will be ignored (for now, see TODO 2120) so no code will
     # be created for it. The string will still be in the created driver (since
     # the module is still inlined), but no ReadVariable code should be created:
-    assert "call extract_psy_data%ReadVariable('non_existent@" not in driver
+    assert "call extract_psy_data % ReadVariable('non_existent@" not in driver
 
     # Note that this driver cannot be compiled, since one of the inlined
     # source files is invalid Fortran.

@@ -80,7 +80,7 @@ class Literal(DataNode):
     _text_name = "Literal"
     _colour = "yellow"
     _real_value = r'^[+-]?[0-9]+(\.[0-9]*)?([eE][+-]?[0-9]+)?$'
-    _int_value = r'(([+-]?[0-9]+)|(NOT_INITIALISED))'
+    _int_value = r'([+-]?[0-9]+)'
 
     def __init__(self, value, datatype, parent=None):
         super().__init__(parent=parent)
@@ -184,18 +184,21 @@ class Literal(DataNode):
             access_info.add_access(Signature(self.datatype.precision.name),
                                    AccessType.TYPE_INFO, self)
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
-        :param table: the symbol table in which to look up replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        self.datatype.replace_symbols_using(table)
-        super().replace_symbols_using(table)
+        self.datatype.replace_symbols_using(table_or_symbol)
+        super().replace_symbols_using(table_or_symbol)
 
 
 # For AutoAPI documentation generation

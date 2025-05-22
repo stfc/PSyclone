@@ -40,12 +40,13 @@
     base class for managing the declaration and initialisation of a group of
     related entities within an Invoke or Kernel stub.'''
 
-# Imports
 import abc
+from typing import List
+
 from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
 from psyclone.domain.lfric.lfric_kern import LFRicKern
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.errors import InternalError
+from psyclone.psyGen import Kern
 
 
 class LFRicCollection():
@@ -67,18 +68,10 @@ class LFRicCollection():
             # We are handling declarations/initialisations for an Invoke
             self._invoke = node
             self._kernel = None
-            self._symbol_table = self._invoke.schedule.symbol_table
-            # The list of Kernel calls we are responsible for
-            self._calls = node.schedule.kernels()
         elif isinstance(node, LFRicKern):
             # We are handling declarations for a Kernel stub
             self._invoke = None
             self._kernel = node
-            # TODO #719 The symbol table is not connected to other parts of
-            # the Stub generation.
-            self._symbol_table = LFRicSymbolTable()
-            # We only have a single Kernel call in this case
-            self._calls = [node]
         else:
             raise InternalError(f"LFRicCollection takes only an LFRicInvoke "
                                 f"or an LFRicKern but got: {type(node)}")
@@ -90,65 +83,76 @@ class LFRicCollection():
         else:
             self._dofs_only = False
 
-    def declarations(self, parent):
+    @property
+    def symtab(self):
         '''
-        Insert declarations for all necessary variables into the AST of
-        the generated code. Simply calls either '_invoke_declarations()' or
-        '_stub_declarations()' depending on whether we're handling an Invoke
-        or a Kernel stub.
+        :returns: associated symbol table.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
+        if self._invoke:
+            return self._invoke.schedule.symbol_table
+        # Otherwise it is a kernel
+        return self._kernel._stub_symbol_table
 
-        :param parent: the node in the f2pygen AST representing the routine \
-                       in which to insert the declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        :raises InternalError: if neither 'self._invoke' nor 'self._kernel' \
-                               are set.
+    @property
+    def kernel_calls(self) -> List[Kern]:
+        '''
+        :returns: associated kernels calls.
 
         '''
         if self._invoke:
-            self._invoke_declarations(parent)
-        elif self._kernel:
-            self._stub_declarations(parent)
-        else:
-            raise InternalError("LFRicCollection has neither a Kernel "
-                                "nor an Invoke - should be impossible.")
+            return self._invoke.schedule.kernels()
+        # Otherwise it is a kernel
+        return [self._kernel]
 
-    def initialise(self, parent):
+    @abc.abstractmethod
+    def initialise(self, cursor: int) -> int:
         '''
         Add code to initialise the entities being managed by this class.
         We do nothing by default - it is up to the sub-class to override
         this method if initialisation is required.
 
-        :param parent: the node in the f2pygen AST to which to add \
-                       initialisation code.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
 
         '''
 
-    @abc.abstractmethod
-    def _invoke_declarations(self, parent):
+    def invoke_declarations(self):
         '''
-        Add all necessary declarations for an Invoke.
+        Add necessary Invoke declarations for this Collection.
 
-        :param parent: node in the f2pygen AST representing the Invoke to \
-                       which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        By default we just sanity check that the class is appropriately
+        initialised - it is up to the sub-class to add required declarations.
 
-        '''
-
-    def _stub_declarations(self, parent):
-        '''
-        Add all necessary declarations for a Kernel stub. Not abstract because
-        not all entities need representing within a Kernel.
-
-        :param parent: node in the f2pygen AST representing the Kernel stub \
-                       to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :raises InternalError: if the class has been instantiated for a
+            kernel and not an invoke.
 
         '''
+        if not self._invoke:
+            raise InternalError(
+                f"invoke_declarations() can only be called with a "
+                f"{type(self).__name__} instantiated for an invoke (not a "
+                f"kernel).")
+
+    def stub_declarations(self):
+        '''
+        Add necessary Kernel Stub declarations for this Collection.
+
+        By default we just sanity check that the class is appropriately
+        initialised - it is up to the sub-class to add required declarations.
+
+        :raises InternalError: if the class has been instantiated for an
+            invoke and not a kernel.
+        '''
+        if not self._kernel:
+            raise InternalError(
+                f"stub_declarations() can only be called with a "
+                f"{type(self).__name__} instantiated for a kernel (not an "
+                f"invoke).")
 
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for (see https://psyclone-ref.readthedocs.io).
+# documentation for.
 __all__ = ['LFRicCollection']

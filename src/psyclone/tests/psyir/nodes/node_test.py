@@ -269,6 +269,60 @@ def test_node_view_error():
             in str(error.value))
 
 
+def test_compute_cached_abs_positions(fortran_reader):
+    '''
+    Test that the Node compute_cached_abs_positions work correctly, and that
+    the invalidation and getter/setters work correctly.
+    '''
+    code = """subroutine some_routine()
+    integer :: a, b, c, d
+
+    a = 2
+    b = 3 + 4
+    c = b + a
+    if (c > 8) then
+        d = c * (b + a)
+    end if
+    end subroutine some_routine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    # Check the caches are initially unset.
+    for child in psyir.walk(Node):
+        assert child._cached_abs_position is None
+    psyir.children[0].children[0].compute_cached_abs_positions()
+    for child in psyir.walk(Node):
+        # Compare to original abs_position implementation
+        if child is child.root:
+            assert child._cached_abs_position == child.START_POSITION
+        else:
+            found, position = child._find_position(child.root.children,
+                                                   child.START_POSITION)
+            assert found
+            assert position == child._cached_abs_position
+            # Also the abs_position should use the cached value too.
+            assert child.abs_position == child._cached_abs_position
+    # Change something in the tree
+    rlit = Literal("1", INTEGER_TYPE)
+    psyir.children[0].children[0].rhs.replace_with(rlit)
+    # Check that cache is invalidated.
+    assert psyir.root._cached_abs_position is None
+
+
+def test_compute_cached_abs_positions_error():
+    ''' Check that the compute_cached_abs_position method produces an internal
+    error when a node can be found as one of the children of its parent (this
+    just happens with inconsistent parent-child connections). '''
+
+    parent = Schedule()
+    node1 = Statement()
+    # Manually connect the _parent attribute which won't make a consistent
+    # two-way relationship
+    node1._parent = parent
+    with pytest.raises(InternalError) as err:
+        node1.compute_cached_abs_positions()
+    assert "Error in search for Node position in the tree" in str(err.value)
+
+
 def test_node_position():
     '''
     Test that the Node class position and abs_position methods return
@@ -700,8 +754,8 @@ def test_dag_names():
     assert schedule.dag_name == "routine_invoke_0_testkern_type_0"
     assert schedule.children[0].dag_name == "checkHaloExchange(f1)_0"
     assert schedule.children[4].dag_name == "loop_5"
-    schedule.children[4].loop_type = "colour"
-    assert schedule.children[4].dag_name == "loop_[colour]_5"
+    schedule.children[4].loop_type = "cells_in_colour"
+    assert schedule.children[4].dag_name == "loop_[cells_in_colour]_5"
     schedule.children[4].loop_type = ""
     assert (schedule.children[4].loop_body[0].dag_name ==
             "kernel_testkern_code_10")
@@ -1904,3 +1958,29 @@ def test_following(fortran_reader):
     assert routines[1] not in loops[1].following(include_children=False)
     assert routines[1] in loops[1].following(same_routine_scope=False,
                                              include_children=False)
+
+
+def test_is_descendent_of(fortran_reader):
+    '''Test the is_descendent_of function of the Node class'''
+    code = """
+    subroutine a()
+    integer :: i, j, k
+    i = 1
+    do i = 1, 100
+      j = j + 1
+    end do
+    end subroutine
+    """
+
+    psyir = fortran_reader.psyir_from_source(code)
+    one = Literal("1", INTEGER_TYPE)
+    assert not one.is_descendent_of(psyir)
+
+    routine = psyir.children[0]
+    loop = psyir.walk(Loop)[0]
+    assert loop.is_descendent_of(routine)
+    assign1 = routine.children[0]
+    assign2 = loop.loop_body.children[0]
+    assert not assign1.is_descendent_of(loop)
+    assert assign2.is_descendent_of(loop)
+    assert assign2.is_descendent_of(routine)

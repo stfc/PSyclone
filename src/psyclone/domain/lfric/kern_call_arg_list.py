@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner, and A. Pirrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements a class that manages the argument for a kernel
@@ -43,19 +43,20 @@ should be removed as we migrate to use PSyIR in LFRic.
 '''
 
 from dataclasses import dataclass
+from typing import Optional, Tuple
 
 from psyclone import psyGen
-from psyclone.core import AccessType, Signature
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
-# Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
     ArrayReference, Reference, StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
-    ImportInterface, ScalarType)
+    ImportInterface, ScalarType, ArrayType, UnsupportedFortranType,
+    ArgumentInterface)
 
 # psyir has classes created at runtime
 # pylint: disable=no-member
@@ -122,12 +123,12 @@ class KernCallArgList(ArgOrdering):
         try:
             # Check if the module is already declared:
             module = self._symtab.lookup(module_name)
+            # Get the symbol table in which the module is declared:
+            mod_sym_tab = module.find_symbol_table(self._kern)
         except KeyError:
             module = self._symtab.new_symbol(module_name,
                                              symbol_type=ContainerSymbol)
-
-        # Get the symbol table in which the module is declared:
-        mod_sym_tab = module.find_symbol_table(self._kern)
+            mod_sym_tab = self._symtab
 
         # The user-defined type must be declared in the same symbol
         # table as the container (otherwise errors will happen later):
@@ -138,9 +139,9 @@ class KernCallArgList(ArgOrdering):
             interface=ImportInterface(module))
         # Declare the actual user symbol in the local symbol table, using
         # the datatype from the root table:
-        sym = self._symtab.new_symbol(name, tag=tag,
-                                      symbol_type=DataSymbol,
-                                      datatype=user_type_symbol)
+        sym = self._symtab.find_or_create(name, tag=tag,
+                                          symbol_type=DataSymbol,
+                                          datatype=user_type_symbol)
         return sym
 
     def append_structure_reference(self, module_name, user_type, member_list,
@@ -207,8 +208,7 @@ class KernCallArgList(ArgOrdering):
 
         # Add the cell map to our argument list
         cell_ref_name, cell_ref = self.cell_ref_name(var_accesses)
-        sym = self.append_array_reference(base_name, [":", ":", cell_ref],
-                                          ScalarType.Intrinsic.INTEGER)
+        sym = self.append_array_reference(base_name, [":", ":", cell_ref])
         self.append(f"{sym.name}(:,:,{cell_ref_name})",
                     var_accesses=var_accesses, var_access_name=sym.name)
 
@@ -331,12 +331,19 @@ class KernCallArgList(ArgOrdering):
                 # REAL(KIND=r_solver), pointer:: cma_op1_matrix(:,:,:)
                 #    = > null()
                 mode = arg.access
-                sym = self._symtab.lookup_with_tag(f"{arg.name}:{suffix}")
+                sym = self._symtab.find_or_create_tag(
+                    f"{arg.name}:{suffix}", arg.name,
+                    symbol_type=DataSymbol, datatype=UnresolvedType(),
+                )
                 self.psyir_append(ArrayReference.create(sym, [":", ":", ":"]))
             else:
                 # All other variables are scalar integers
-                name = self._symtab.lookup_with_tag(
-                    f"{arg.name}:{component}:{suffix}").name
+                name = self._symtab.find_or_create_tag(
+                    f"{arg.name}:{component}:{suffix}", arg.name,
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")(),
+                    interface=ArgumentInterface(ArgumentInterface.Access.READ)
+                ).name
                 mode = AccessType.READ
                 sym = self.append_integer_reference(
                     name, tag=f"{arg.name}:{component}:{suffix}")
@@ -358,14 +365,30 @@ class KernCallArgList(ArgOrdering):
         '''
         suffix = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING[
             argvect.argument_type]
+
         # The range function below returns values from
         # 1 to the vector size which is what we
         # require in our Fortran code
         for idx in range(1, argvect.vector_size + 1):
+            # Look-up the name of the variable that stores the reference to
+            # the data in this field.
             cmpt_sym = self._symtab.lookup_with_tag(
                 f"{argvect.name}_{idx}:{suffix}")
-            self.psyir_append(Reference(cmpt_sym))
-            text = cmpt_sym.name
+            if self._kern.iterates_over == "dof":
+                # If dof kernel, add access to the field by dof ref
+                dof_sym = self._symtab.find_or_create_integer_symbol(
+                    "df", tag="dof_loop_idx")
+                # TODO #1010 removes the need to declare type and
+                # allows this to be fixed
+                self.append_array_reference(cmpt_sym.name,
+                                            [Reference(dof_sym)],
+                                            ScalarType.Intrinsic.INTEGER,
+                                            symbol=cmpt_sym)
+                # Append the dof symbol
+                text = f"{cmpt_sym.name}({dof_sym.name})"
+            else:
+                self.psyir_append(Reference(cmpt_sym))
+                text = cmpt_sym.name
             self.append(text, metadata_posn=argvect.metadata_index)
 
         if var_accesses is not None:
@@ -394,6 +417,8 @@ class KernCallArgList(ArgOrdering):
             # If dof kernel, add access to the field by dof ref
             dof_sym = self._symtab.find_or_create_integer_symbol(
                 "df", tag="dof_loop_idx")
+            # TODO #1010 removes the need to declare type and
+            # allows this to be fixed
             self.append_array_reference(sym.name, [Reference(dof_sym)],
                                         ScalarType.Intrinsic.INTEGER,
                                         symbol=sym)
@@ -426,7 +451,6 @@ class KernCallArgList(ArgOrdering):
         var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name, [cell_ref],
-                                    ScalarType.Intrinsic.INTEGER,
                                     symbol=var_sym)
         self.append(f"{var_sym.name}({cell_name})", var_accesses,
                     var_access_name=var_sym.name)
@@ -451,7 +475,6 @@ class KernCallArgList(ArgOrdering):
         var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name, [":", cell_ref],
-                                    ScalarType.Intrinsic.INTEGER,
                                     symbol=var_sym)
         name = f"{var_sym.name}(:,{cell_name})"
         self.append(name, var_accesses, var_access_name=var_sym.name)
@@ -523,7 +546,6 @@ class KernCallArgList(ArgOrdering):
         var_sym = LFRicStencils.dofmap_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name, [":", ":", cell_ref],
-                                    ScalarType.Intrinsic.INTEGER,
                                     symbol=var_sym)
         self.append(f"{var_sym.name}(:,:,{cell_name})", var_accesses,
                     var_access_name=var_sym.name)
@@ -556,7 +578,6 @@ class KernCallArgList(ArgOrdering):
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name,
                                     [":", ":", ":", cell_ref],
-                                    ScalarType.Intrinsic.INTEGER,
                                     symbol=var_sym)
         name = f"{var_sym.name}(:,:,:,{cell_name})"
         self.append(name, var_accesses, var_access_name=var_sym.name)
@@ -639,17 +660,26 @@ class KernCallArgList(ArgOrdering):
         self.append(sym.name, var_accesses)
 
         map_name = function_space.map_name
+        intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
+        dtype = UnsupportedFortranType(
+            f"{intrinsic_type.intrinsic.name}("
+            f"kind={intrinsic_type.precision.name}), pointer, "
+            f"dimension(:,:) :: {map_name} => null()",
+            partial_datatype=ArrayType(
+                intrinsic_type,
+                [ArrayType.Extent.DEFERRED, ArrayType.Extent.DEFERRED]))
+        sym = self._symtab.find_or_create_tag(
+            map_name, symbol_type=DataSymbol, datatype=dtype)
+
         if self._kern.iterates_over == 'domain':
             # This kernel takes responsibility for iterating over cells so
             # pass the whole dofmap.
-            sym = self.append_array_reference(map_name, [":", ":"],
-                                              ScalarType.Intrinsic.INTEGER)
+            self.append_array_reference(map_name, [":", ":"], symbol=sym)
             self.append(sym.name, var_accesses, var_access_name=sym.name)
         else:
             # Pass the dofmap for the cell column
             cell_name, cell_ref = self.cell_ref_name(var_accesses)
-            sym = self.append_array_reference(map_name, [":", cell_ref],
-                                              ScalarType.Intrinsic.INTEGER)
+            self.append_array_reference(map_name, [":", cell_ref], symbol=sym)
             self.append(f"{sym.name}(:,{cell_name})",
                         var_accesses, var_access_name=sym.name)
 
@@ -675,8 +705,7 @@ class KernCallArgList(ArgOrdering):
             sym = self.append_integer_reference(function_space.undf_name)
             self.append(sym.name, var_accesses)
             map_name = function_space.map_name
-            sym = self.append_array_reference(map_name, [":", ":"],
-                                              ScalarType.Intrinsic.INTEGER)
+            sym = self.append_array_reference(map_name, [":", ":"])
             self.append(sym.name, var_accesses)
         else:
             # For the coarse mesh we only need undf and the dofmap for
@@ -699,8 +728,10 @@ class KernCallArgList(ArgOrdering):
         '''
         for rule in self._kern.qr_rules.values():
             basis_name = function_space.get_basis_name(qr_var=rule.psy_name)
-            sym = self.append_array_reference(basis_name, [":", ":", ":", ":"],
-                                              ScalarType.Intrinsic.REAL)
+            sym = self.append_array_reference(
+                    basis_name, [":", ":", ":", ":"],
+                    LFRicTypes("LFRicRealScalarDataType")()
+                )
             self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -712,8 +743,7 @@ class KernCallArgList(ArgOrdering):
                 # function space
                 fspace = self._kern.eval_targets[fs_name][0]
                 basis_name = function_space.get_basis_name(on_space=fspace)
-                sym = self.append_array_reference(basis_name, [":", ":", ":"],
-                                                  ScalarType.Intrinsic.REAL)
+                sym = self.append_array_reference(basis_name, [":", ":", ":"])
                 self.append(sym.name, var_accesses)
 
     def diff_basis(self, function_space, var_accesses=None):
@@ -733,9 +763,11 @@ class KernCallArgList(ArgOrdering):
         for rule in self._kern.qr_rules.values():
             diff_basis_name = function_space.get_diff_basis_name(
                 qr_var=rule.psy_name)
-            sym = self.append_array_reference(diff_basis_name,
-                                              [":", ":", ":", ":"],
-                                              ScalarType.Intrinsic.REAL)
+            sym = self.append_array_reference(
+                    diff_basis_name,
+                    [":", ":", ":", ":"],
+                    LFRicTypes("LFRicRealScalarDataType")()
+            )
             self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -748,9 +780,10 @@ class KernCallArgList(ArgOrdering):
                 fspace = self._kern.eval_targets[fs_name][0]
                 diff_basis_name = function_space.get_diff_basis_name(
                     on_space=fspace)
-                sym = self.append_array_reference(diff_basis_name,
-                                                  [":", ":", ":"],
-                                                  ScalarType.Intrinsic.REAL)
+                sym = self.append_array_reference(
+                                  diff_basis_name,
+                                  [":", ":", ":"],
+                                  LFRicTypes("LFRicRealScalarDataType")())
                 self.append(sym.name, var_accesses)
 
     def field_bcs_kernel(self, function_space, var_accesses=None):
@@ -784,8 +817,7 @@ class KernCallArgList(ArgOrdering):
                 f"{self._kern.name} but got '{farg.argument_type}'")
 
         base_name = "boundary_dofs_" + farg.name
-        sym = self.append_array_reference(base_name, [":", ":"],
-                                          ScalarType.Intrinsic.INTEGER)
+        sym = self.append_array_reference(base_name, [":", ":"])
         self.append(sym.name, var_accesses)
 
     def operator_bcs_kernel(self, function_space, var_accesses=None):
@@ -805,8 +837,7 @@ class KernCallArgList(ArgOrdering):
         # Checks for this are performed in ArgOrdering.generate()
         op_arg = self._kern.arguments.args[0]
         base_name = "boundary_dofs_" + op_arg.name
-        sym = self.append_array_reference(base_name, [":", ":"],
-                                          ScalarType.Intrinsic.INTEGER)
+        sym = self.append_array_reference(base_name, [":", ":"])
         self.append(sym.name, var_accesses)
 
     def mesh_properties(self, var_accesses=None):
@@ -877,14 +908,14 @@ class KernCallArgList(ArgOrdering):
                     self.append_integer_reference(arg)
                 elif generic_name in ["weights_xy", "weights_z"]:
                     # 1d arrays:
-                    # TODO # 1910: These should be pointers
-                    self.append_array_reference(arg, [":"],
-                                                ScalarType.Intrinsic.REAL)
+                    self.append_array_reference(
+                                  arg, [":"],
+                                  LFRicTypes("LFRicRealScalarDataType")())
                 elif generic_name in ["weights_xyz"]:
                     # 2d arrays:
-                    # TODO #1910: These should be pointers
-                    self.append_array_reference(arg, [":", ":"],
-                                                ScalarType.Intrinsic.REAL)
+                    self.append_array_reference(
+                                  arg, [":", ":"],
+                                  LFRicTypes("LFRicRealScalarDataType")())
                 else:
                     raise InternalError(f"Found invalid kernel argument "
                                         f"'{arg}'.")
@@ -945,51 +976,63 @@ class KernCallArgList(ArgOrdering):
                 "before the ndf_positions() method")
         return self._ndf_positions
 
-    def cell_ref_name(self, var_accesses=None):
-        '''Utility routine which determines whether to return the cell value
-        or the colourmap lookup value. If supplied it also stores this access
-        in var_accesses.
+    def cell_ref_name(
+            self, var_accesses: Optional[VariablesAccessInfo] = None
+    ) -> Tuple[str, Reference]:
+        ''' Utility routine which determines whether to return the cell
+        reference or the colourmap/tilemap lookup array references. If supplied
+        with a "var_accesses" it also stores the Variables Access information.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
 
-        :returns: the Fortran code needed to access the current cell index.
-        :rtype: Tuple[str, py:class:`psyclone.psyir.nodes.Reference`]
+        :returns: the variable name and a reference to access the cell index.
+
+        TODO #2874: The name, argument, and first tuple component of this
+        and similar methods should be refactored.
 
         '''
         cell_sym = self._symtab.find_or_create_integer_symbol(
             "cell", tag="cell_loop_idx")
+        if var_accesses is not None:
+            var_accesses.add_access(Signature(cell_sym.name), AccessType.READ,
+                                    self._kern)
+
         if self._kern.is_coloured():
             colour_sym = self._symtab.find_or_create_integer_symbol(
                 "colour", tag="colours_loop_idx")
-            if self._kern.is_intergrid:
-                tag = None
-            else:
-                # If there is only one colourmap we need to specify the tag
-                # to make sure we get the right symbol.
-                tag = "cmap"
-            array_ref = self.get_array_reference(self._kern.colourmap,
-                                                 [Reference(colour_sym),
-                                                  Reference(cell_sym)],
-                                                 ScalarType.Intrinsic.INTEGER,
-                                                 tag=tag)
             if var_accesses is not None:
                 var_accesses.add_access(Signature(colour_sym.name),
                                         AccessType.READ, self._kern)
-                var_accesses.add_access(Signature(cell_sym.name),
-                                        AccessType.READ, self._kern)
-                var_accesses.add_access(Signature(array_ref.name),
-                                        AccessType.READ,
-                                        self._kern, ["colour", "cell"])
 
-            return (self._kern.colourmap + "(colour,cell)",
-                    array_ref)
+            # pylint: disable-next=import-outside-toplevel
+            from psyclone.domain.lfric import LFRicLoop
+            loop_type = self._kern.ancestor(LFRicLoop).loop_type
 
-        if var_accesses is not None:
-            var_accesses.add_access(Signature("cell"), AccessType.READ,
-                                    self._kern)
+            if loop_type == "cells_in_tile":
+                tile_sym = self._symtab.find_or_create_integer_symbol(
+                    "tile", tag="tile_loop_idx")
+                array_ref = self.get_array_reference(
+                    self._kern.tilecolourmap,
+                    [Reference(colour_sym), Reference(tile_sym),
+                     Reference(cell_sym)],
+                    tag="tmap" if self._kern.is_intergrid else None)
+                if var_accesses is not None:
+                    var_accesses.add_access(Signature(array_ref.name),
+                                            AccessType.READ,
+                                            self._kern,
+                                            ["colour", "tile", "cell"])
+            else:
+                symbol = self._kern.colourmap
+                array_ref = ArrayReference.create(
+                        symbol,
+                        [Reference(colour_sym), Reference(cell_sym)])
+                if var_accesses is not None:
+                    var_accesses.add_access(Signature(array_ref.name),
+                                            AccessType.READ,
+                                            self._kern, ["colour", "cell"])
+
+            return (array_ref.debug_string(), array_ref)
 
         return (cell_sym.name, Reference(cell_sym))
 

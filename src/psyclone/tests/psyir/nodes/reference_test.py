@@ -43,8 +43,9 @@ import pytest
 
 from psyclone.core import VariablesAccessInfo
 from psyclone.psyGen import GenerationError
-from psyclone.psyir.nodes import (ArrayReference, Assignment, colored,
-                                  KernelSchedule, Literal, Reference)
+from psyclone.psyir.nodes import (
+    ArrayReference, Assignment, CodeBlock, colored,
+    KernelSchedule, Literal, Reference)
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     UnresolvedType, ImportInterface,
                                     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
@@ -544,10 +545,8 @@ def test_reference_previous_accesses_with_codeblock(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.children[0]
     a = routine.children[1].lhs
-    codeblock = routine.children[1]
-    if a.previous_accesses() is not codeblock:
-        pytest.xfail("#2271 Codeblocks don't currently support "
-                     "reference_accesses")
+    codeblock = routine.walk(CodeBlock)[0]
+    assert a.previous_accesses()[0] is codeblock
 
 
 def test_reference_replace_symbols_using():
@@ -583,6 +582,7 @@ def test_reference_is_read(fortran_reader):
     code = """subroutine my_subroutine()
         b = a
         call somecall(c)
+        b = lbound(d, dim=x)
     end subroutine"""
 
     psyir = fortran_reader.psyir_from_source(code)
@@ -591,6 +591,12 @@ def test_reference_is_read(fortran_reader):
     assert references[1].is_read
     assert references[3].symbol.name == "c"
     assert references[3].is_read
+    # For the lbound, d should be an inquiry (so not a read) but
+    # x should be a read
+    assert references[6].symbol.name == "d"
+    assert not references[6].is_read
+    assert references[7].symbol.name == "x"
+    assert references[7].is_read
 
 
 def test_reference_is_write(fortran_reader):

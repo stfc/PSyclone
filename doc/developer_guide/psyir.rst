@@ -267,6 +267,7 @@ unchanged.) As mentioned in the previous section, the ``node.copy()`` method
 provides this functionality:
 
 .. automethod:: psyclone.psyir.nodes.Node.copy
+    :no-index:
 
 As part of this copy operation, all Symbols referred to in the new tree must
 also be replaced with their equivalents from the symbol tables in the new tree.
@@ -274,6 +275,7 @@ Since these symbol tables are associated with instances of ``ScopingNode``, it
 is ``ScopingNode._refine_copy`` which handles this:
 
 .. automethod:: psyclone.psyir.nodes.ScopingNode._refine_copy
+    :no-index:
 
 .. _update_signals_label:
 
@@ -700,8 +702,7 @@ psyclone.psyir.nodes.html#psyclone.psyir.nodes.Directive`.
 .. warning::
     Some parts of some Clauses are still under development, and not all clauses
     are encoded in Clauses classes yet (for example OpenACC clauses). These
-    clause strings are instead generated inside the ``begin_string`` or
-    ``gen_code`` methods during code generation.
+    clause strings are instead generated inside the ``begin_string``.
 
 .. _named_arguments-label:
 
@@ -934,10 +935,10 @@ PSy-layer concepts
   sub-classed in all of the domains supported by PSyclone. This then allows
   the class to be configured with a list of valid loop 'types'. For instance,
   the GOcean sub-class, `GOLoop`, has "inner" and "outer" while the LFRic
-  sub-class, `LFRicLoop`, has "dofs", "colours", "colour", ""
-  and "null". The default loop type (iterating over cells) is here
-  indicated by the empty string. The concept of a "null" loop type is
-  currently required because the dependency analysis that determines the
+  sub-class, `LFRicLoop`, has "", "null", "dofs", "colours", "cells_in_colour",
+  "tiles_in_colour" and "cells_in_tile". The default loop type (iterating over
+  cells) is here indicated by the empty string. The concept of a "null" loop
+  type is currently required because the dependency analysis that determines the
   placement of halo exchanges is handled within the `Loop` class. As a
   result, every `Kernel` call must be associated with a `Loop` node.
   However, the LFRic domain has support for kernels which operate on the
@@ -991,9 +992,7 @@ The Kernel-layer subclasses will be used to:
    translated into LFRic PSyIR using the expected datatypes as
    specified by the kernel metadata and associated LFRic rules.
 
-3) replace the existing kernel stub generation implementation so that
-   the PSyIR back ends can be used and PSyclone will rely less on
-   ``f2pygen`` and ``fparser1``. At the moment ``kernel_interface``
+3) At the moment ``kernel_interface``
    provides the same functionality as ``kern_stub_arg_list``, except
    that it uses the symbol table (which keeps datatypes and their
    declarations together).
@@ -1021,12 +1020,13 @@ call, ``LFRicBuiltinFunctor`` and ``LFRicKernelFunctor`` respectively.
 
 The ``LFRicBuiltinFunctorFactory`` class dynamically creates a
 subclass of ``LFRicBuiltInFunctor`` for every LFRic
-:ref:`Builtin <user_guide:lfric-built-ins>`. These are named following the
+:ref:`Builtin <lfric-built-ins>`. These are named following the
 scheme ``LFRic_<BUILTIN_NAME>_Functor`` so that, for example, the ``Setval_X``
 builtin is represented by the ``LFRic_Setval_X_Functor`` class. An instance
 of the appropriate class may be obtained using the factory's create method:
 
 .. automethod:: psyclone.domain.lfric.algorithm.psyir.LFRicBuiltinFunctorFactory.create
+    :no-index:
 
 Kernel-layer Classes
 --------------------
@@ -1074,6 +1074,7 @@ etc). This could be modified if a single class turns out to be
 preferable.
 
 .. autoclass:: psyclone.domain.lfric.LFRicTypes
+    :no-index:
 
 
 Kernel arguments
@@ -1087,9 +1088,8 @@ correspond to and how the arguments relate to each other (they just
 output strings).
 
 The logic and declaration of kernel variables is handled separately by
-the ``gen_stub`` method in ``LFRicKern`` and the ``gen_code`` method in
-``LFRicInvoke``. In both cases these methods make use of the subclasses
-of ``LFRicCollection`` to declare variables.
+the ``stub_declarations`` and ``invoke_declarations`` methods in the
+appropriate ``LFRicCollection``.
 
 When using the symbol table in the LFRic PSyIR we naturally capture
 arguments and datatypes together. The ``KernelInterface`` class is

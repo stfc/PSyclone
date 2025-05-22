@@ -66,11 +66,9 @@ As transformations are objects we also need to create an instance of
 ```
 
 If you would like to find out more about this transformation, it is
-documented in our
-[user guide](https://psyclone.readthedocs.io/en/latest/dynamo0p3.html)
-(search for `Dynamo0p3AsyncHaloExchangeTrans`). Alternatively, if you
-prefer, a pdf of the user guide is also available in <psyclone_home> and is
-called psyclone.pdf
+documented in the
+[User Guide](https://psyclone.readthedocs.io/en/latest/dynamo0p3.html)
+(search for `Dynamo0p3AsyncHaloExchangeTrans`).
 
 Traversing the PSyIR tree is discussed in the [user
 guide](https://psyclone.readthedocs.io/en/latest/psyir.html) (search
@@ -138,8 +136,8 @@ You will see that all halo exchanges have been converted to asynchronous halo ex
 ```bash
 InvokeSchedule[invoke='invoke_0', dm=True]
     0: Loop[type='dofs', field_space='any_space_1', it_space='dof', upper_bound='ndofs']
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
+        Reference[name:'loop0_start']
+        Reference[name:'loop0_stop']
         Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
         Schedule[]
             0: BuiltIn setval_c(grad_p,0.0_r_def)
@@ -225,8 +223,8 @@ output. For example:
 ```bash
 InvokeSchedule[invoke='invoke_0', dm=True]
     0: Loop[type='dofs', field_space='any_space_1', it_space='dof', upper_bound='ndofs']
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
+        Reference[name:'loop0_start']
+        Reference[name:'loop0_stop']
         Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
         Schedule[]
             0: BuiltIn setval_c(grad_p,0.0_r_def)

@@ -39,9 +39,9 @@ directives into Nemo code. '''
 
 import os
 from utils import (
-    insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, PARALLELISATION_ISSUES,
-    NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
+    add_profiling, inline_calls, insert_explicit_loop_parallelism,
+    normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
+    PRIVATISATION_ISSUES, NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import (
@@ -51,12 +51,18 @@ from psyclone.transformations import (
 # This environment variable informs if profiling hooks have to be inserted.
 PROFILING_ENABLED = os.environ.get('ENABLE_PROFILING', False)
 
+# By default, we don't do module inlining as it's still under development.
+INLINING_ENABLED = os.environ.get('ENABLE_INLINING', False)
+
 # This environment variable informs if this is targeting NEMOv4, in which case
 # array privatisation is disabled and some more files excluded
 NEMOV4 = os.environ.get('NEMOV4', False)
 
-# List of all module names that PSyclone will chase during the creation of the
-# PSyIR tree in order to use the symbol information from those modules
+# Whether to chase the imported modules to improve symbol information (it can
+# also be a list of module filenames to limit the chasing to only specific
+# modules). This has to be used in combination with '-I' command flag in order
+# to point to the module location directory. We also strongly recommend using
+# the '--enable-cache' flag to reduce the performance overhead.
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
@@ -153,6 +159,9 @@ def trans(psyir):
                 convert_range_loops=(psyir.name not in ["fldread.f90"]),
                 hoist_expressions=True,
         )
+        # Perform module-inlining of called routines.
+        if INLINING_ENABLED:
+            inline_calls(subroutine)
 
         # These are functions that are called from inside parallel regions,
         # annotate them with 'omp declare target'

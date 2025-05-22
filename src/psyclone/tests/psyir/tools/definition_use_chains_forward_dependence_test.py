@@ -38,13 +38,15 @@ forward_accesses routine.'''
 
 import pytest
 from psyclone.psyir.nodes import (
-    Routine,
-    IfBlock,
-    Reference,
     Assignment,
+    IfBlock,
+    Loop,
+    Reference,
+    Routine,
     Node,
     WhileLoop,
 )
+from psyclone.transformations import OMPParallelTrans
 from psyclone.psyir.symbols import (
     DataSymbol,
     INTEGER_TYPE,
@@ -172,6 +174,24 @@ end subroutine foo"""
     # control flow.
     duc3 = DefinitionUseChain(reference, control_flow_region=block3)
     assert not duc3.is_basic_block
+
+    # Test that regiondirectives (e.g. OMPParallelDirective) don't count.
+    code = """subroutine x
+    integer :: i
+    integer, dimension(100) :: arr
+
+    do i = 1, 100
+        arr(i) = i
+    end do
+    end subroutine
+    """
+    par_trans = OMPParallelTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    par_trans.apply(psyir.walk(Routine)[0].children[:])
+    reference = psyir.walk(Reference)[0]
+    parallel = psyir.walk(Routine)[0].children[0]
+    duc = DefinitionUseChain(reference, control_flow_region=[parallel])
+    assert not duc.is_basic_block
 
 
 def test_definition_use_chain_compute_forward_uses(fortran_reader):
@@ -353,6 +373,16 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
     assert blocks[1][0] is ifblock2.if_body.children[1].condition
     assert blocks[2] == ifblock2.if_body.children[1].loop_body.children[:]
     assert blocks[3][0] is ifblock2.if_body.children[2]
+
+    # Find the basic blocks for a RegionDirective
+    par_trans = OMPParallelTrans()
+    par_trans.apply(psyir.walk(Routine)[0].children[:])
+    cfn, blocks = duc._find_basic_blocks([routine.children[0]])
+    assert len(cfn) == 1
+    assert cfn[0] is None
+    assert len(blocks) == 1
+    assert len(blocks[0]) == 1
+    assert blocks[0][0] is routine.children[0].children[0]
 
 
 def test_definition_use_chain_find_forward_accesses_basic_example(
@@ -599,10 +629,11 @@ def test_definition_use_chain_foward_accesses_nested_loop_example(
     chains = DefinitionUseChain(loops[1].loop_body.children[0].rhs.children[1])
     reaches = chains.find_forward_accesses()
     # Results should be A = A + 3 and the a < i condition
-    assert len(reaches) == 3
     assert reaches[0] is loops[0].condition.children[0]
     assert reaches[1] is loops[0].loop_body.children[0].rhs.children[0]
     assert reaches[2] is loops[0].loop_body.children[0].lhs
+    assert reaches[3] is loops[1].loop_body.children[0].rhs.children[1]
+    assert len(reaches) == 4
 
 
 def test_definition_use_chain_find_forward_accesses_structure_example(
@@ -937,3 +968,85 @@ end module
     )
     reaches = chains.find_forward_accesses()
     assert len(reaches) == 0
+
+
+def test_definition_use_chains_forward_accesses_empty_schedules(
+    fortran_reader,
+):
+    '''Test the case where we have empty schedules inside
+    various type of code.'''
+    code = """
+    subroutine x()
+    integer :: a, i
+    a = 1
+    do i = 1, 100
+    end do
+    if(.TRUE.) then
+    else
+    endif
+    do while(.FALSE.)
+    end do
+    a = a + a
+    end subroutine x
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(
+            routine.children[0].lhs
+    )
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 3
+    assert reaches[0] is routine.children[4].rhs.children[0]
+    assert reaches[1] is routine.children[4].rhs.children[1]
+    assert reaches[2] is routine.children[4].lhs
+
+
+def test_definition_use_chains_backward_accesses_inquiry_func(
+    fortran_reader,
+):
+    '''Test the case where we have an inquiry function
+    accessing the symbol of interest.'''
+    code = """
+    subroutine x()
+    use some_mod, only: func
+    integer, dimension(100) :: a
+    integer :: b
+
+    a = 1
+    b = func(lbound(a))
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(routine.children[0].lhs)
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 0
+
+
+def test_definition_use_chains_multiple_ancestor_loops(
+    fortran_reader,
+):
+    '''Test the case where we have multiple ancestor loops
+    with accesses.'''
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i, j, k
+        do i = 1, 100
+            a(i) = 1
+            do j = 1, 100
+                a(j) = 2
+                do k = 1, 100
+                  a(k) = 3
+                end do
+            end do
+        end do
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    chains = DefinitionUseChain(loops[2].loop_body.children[0].lhs)
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 3
+    assert reaches[0] is loops[0].loop_body.children[0].lhs
+    assert reaches[1] is loops[1].loop_body.children[0].lhs
+    assert reaches[2] is loops[2].loop_body.children[0].lhs

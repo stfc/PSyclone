@@ -36,7 +36,6 @@
 
 ''' pytest tests for the Range class. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import ScalarType, DataSymbol, \
     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE

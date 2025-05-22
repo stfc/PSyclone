@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
-'''A transformation script that seeks to apply OpenACC KERNELS and optionally,
+"""A transformation script that seeks to apply OpenACC KERNELS and optionally,
 OpenACC DATA directives to NEMO style code. In order to use it you must first
 install PSyclone. See README.md in the top-level directory.
 
@@ -54,44 +54,67 @@ routine) then the script moves a level down the tree and then repeats
 the process of attempting to create the largest possible Kernel region.
 
 Tested with the NVIDIA HPC SDK version 23.7.
-'''
+"""
 
 import logging
-from utils import (add_profiling, enhance_tree_information, inline_calls,
-                   NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
+from utils import (
+    add_profiling,
+    enhance_tree_information,
+    NOT_PERFORMANT,
+    NEMO_MODULES_TO_IMPORT,
+)
 from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
-    IfBlock, ArrayReference, Assignment, BinaryOperation, Loop, Routine,
-    Literal, ACCLoopDirective)
-from psyclone.psyir.transformations import (ACCKernelsTrans, ACCUpdateTrans,
-                                            TransformationError, ProfileTrans)
+    IfBlock,
+    ArrayReference,
+    Assignment,
+    BinaryOperation,
+    Loop,
+    Routine,
+    Literal,
+    ACCLoopDirective,
+    IntrinsicCall,
+)
+from psyclone.psyir.transformations import (
+    ACCKernelsTrans,
+    ACCUpdateTrans,
+    TransformationError,
+    ProfileTrans,
+)
 from psyclone.transformations import ACCEnterDataTrans
+
+# from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol, ArrayType
 
 # Set up some loop_type inference rules in order to reference useful domain
 # loop constructs by name
-Loop.set_loop_type_inference_rules({
+Loop.set_loop_type_inference_rules(
+    {
         "lon": {"variable": "ji"},
         "lat": {"variable": "jj"},
         "levels": {"variable": "jk"},
-        "tracers": {"variable": "jt"}
-})
+        "tracers": {"variable": "jt"},
+    }
+)
 
-# List of all module names that PSyclone will chase during the creation of the
-# PSyIR tree in order to use the symbol information from those modules
+# Whether to chase the imported modules to improve symbol information (it can
+# also be a list of module filenames to limit the chasing to only specific
+# modules). This has to be used in combination with '-I' command flag in order
+# to point to the module location directory. We also strongly recommend using
+# the '--enable-cache' flag to reduce the performance overhead.
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = ACCKernelsTrans()
-ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
-ACC_ROUTINE_TRANS = TransInfo().get_trans_name('ACCRoutineTrans')
+ACC_LOOP_TRANS = TransInfo().get_trans_name("ACCLoopTrans")
+ACC_ROUTINE_TRANS = TransInfo().get_trans_name("ACCRoutineTrans")
 ACC_EDATA_TRANS = ACCEnterDataTrans()
 ACC_UPDATE_TRANS = ACCUpdateTrans()
 PROFILE_TRANS = ProfileTrans()
 
 # Whether or not to add profiling calls around unaccelerated regions
 # N.B. this can inhibit PSyclone's ability to inline!
-PROFILE_NONACC = False
+PROFILE_NONACC = True
 
 # Whether or not to add OpenACC enter data and update directives to explicitly
 # move data between host and device memory
@@ -102,25 +125,39 @@ FILES_TO_SKIP = NOT_PERFORMANT
 
 # Routines we do not attempt to add any OpenACC to (because it breaks with
 # the Nvidia compiler or because it just isn't worth it)
-ACC_IGNORE = ["day_mth",  # Just calendar operations
-              "obs_surf_alloc", "oce_alloc",
-              # Compiler fails w/ "Unsupported local variable"
-              # Zero performance impact since outside execution path
-              "copy_obfbdata", "merge_obfbdata",
-              "turb_ncar",  # Transforming hurts performance
-              "iom_open", "iom_get_123d", "iom_nf90_rp0123d",
-              "trc_bc_ini", "p2z_ini", "p4z_ini", "sto_par_init",
-              "bdytide_init", "bdy_init", "bdy_segs", "sbc_cpl_init",
-              "asm_inc_init", "dia_obs_init"]  # Str handling, init routine
+ACC_IGNORE = [
+    "day_mth",  # Just calendar operations
+    "obs_surf_alloc",
+    "oce_alloc",
+    # Compiler fails w/ "Unsupported local variable"
+    # Zero performance impact since outside execution path
+    "copy_obfbdata",
+    "merge_obfbdata",
+    "turb_ncar",  # Transforming hurts performance
+    "iom_open",
+    "iom_get_123d",
+    "iom_nf90_rp0123d",
+    "trc_bc_ini",
+    "p2z_ini",
+    "p4z_ini",
+    "sto_par_init",
+    "bdytide_init",
+    "bdy_init",
+    "bdy_segs",
+    "sbc_cpl_init",
+    "asm_inc_init",
+    "dia_obs_init",
+]  # Str handling, init routine
 
 
-class ExcludeSettings():
-    '''
+class ExcludeSettings:
+    """
     Class to hold settings on what to exclude from OpenACC KERNELS regions.
 
     :param Optional[dict[str, bool]] settings: map of settings to override.
 
-    '''
+    """
+
     def __init__(self, settings=None):
         if settings is None:
             settings = {}
@@ -130,16 +167,18 @@ class ExcludeSettings():
 
 
 # Routines which are exceptions to the OpenACC Kernels regions exclusion rules.
-EXCLUDING = {"default": ExcludeSettings(),
-             # Exclude for better GPU performance (requires further analysis).
-             "dyn_spg_ts": ExcludeSettings({"ifs_scalars": True}),
-             "tra_zdf_imp": ExcludeSettings({"ifs_scalars": True}),
-             # Exclude due to compiler bug preventing CPU multicore executions.
-             "dom_vvl_init": ExcludeSettings({"ifs_scalars": True})}
+EXCLUDING = {
+    "default": ExcludeSettings(),
+    # Exclude for better GPU performance (requires further analysis).
+    "dyn_spg_ts": ExcludeSettings({"ifs_scalars": True}),
+    "tra_zdf_imp": ExcludeSettings({"ifs_scalars": True}),
+    # Exclude due to compiler bug preventing CPU multicore executions.
+    "dom_vvl_init": ExcludeSettings({"ifs_scalars": True}),
+}
 
 
 def log_msg(name, msg, node):
-    '''
+    """
     Log a message indicating why a transformation could not be performed.
 
     :param str name: the name of the routine.
@@ -147,7 +186,7 @@ def log_msg(name, msg, node):
     :param node: the PSyIR node that prevented the transformation.
     :type node: :py:class:`psyclone.psyir.nodes.Node`
 
-    '''
+    """
     # Create a str representation of the position of the problematic node
     # in the PSyIR tree.
     node_strings = []
@@ -162,7 +201,7 @@ def log_msg(name, msg, node):
 
 
 def valid_acc_kernel(node):
-    '''
+    """
     Whether the sub-tree that has `node` at its root is eligible to be
     enclosed within an OpenACC KERNELS directive.
 
@@ -172,19 +211,20 @@ def valid_acc_kernel(node):
     :returns: True if the sub-tree can be enclosed in a KERNELS region.
     :rtype: bool
 
-    '''
+    """
     # The Fortran routine which our parent represents
     routine_name = node.ancestor(Routine).name
 
     try:
         # Since we do this check on a node-by-node basis, we disable the
         # check that the 'region' contains a loop.
-        ACC_KERN_TRANS.validate(node, options={"disable_loop_check":
-                                               True})
+        ACC_KERN_TRANS.validate(node, options={"disable_loop_check": True})
     except TransformationError as err:
-        log_msg(routine_name,
-                f"Node rejected by ACCKernelTrans.validate: "
-                f"{err.value}", node)
+        log_msg(
+            routine_name,
+            f"Node rejected by ACCKernelTrans.validate: " f"{err.value}",
+            node,
+        )
         return False
 
     # Allow for per-routine setting of what to exclude from within KERNELS
@@ -194,24 +234,33 @@ def valid_acc_kernel(node):
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_types = (IfBlock, Loop)
+    excluded_types = (IfBlock, Loop, ArrayReference, IntrinsicCall)
     excluded_nodes = node.walk(excluded_types)
 
     for enode in excluded_nodes:
+        if isinstance(enode, IntrinsicCall):
+            if "dim" in enode.argument_names:
+                return False
 
         if isinstance(enode, IfBlock):
             # We permit IF blocks originating from WHERE constructs and
             # single-statement IF blocks containing a Loop in KERNELS regions
-            if "was_where" in enode.annotations or \
-               "was_single_stmt" in enode.annotations and enode.walk(Loop):
+            if (
+                "was_where" in enode.annotations
+                or "was_single_stmt" in enode.annotations
+                and enode.walk(Loop)
+            ):
                 continue
 
             arrays = enode.condition.walk(ArrayReference)
             # We exclude if statements where the condition expression does
             # not refer to arrays at all as this may cause compiler issues
             # (get "Missing branch target block") or produce faster code.
-            if not arrays and excluding.ifs_scalars and \
-               not isinstance(enode.condition, BinaryOperation):
+            if (
+                not arrays
+                and excluding.ifs_scalars
+                and not isinstance(enode.condition, BinaryOperation)
+            ):
                 log_msg(routine_name, "IF references scalars", enode)
                 return False
             # When using CUDA Unified Memory, only allocated arrays reside in
@@ -221,8 +270,10 @@ def valid_acc_kernel(node):
             # arrays are often static in NEMO. Hence, we disallow IFs where the
             # logical expression involves the latter.
             if any(len(array.children) == 1 for array in arrays):
-                log_msg(routine_name,
-                        "IF references 1D arrays that may be static", enode)
+                log_msg(
+                    routine_name,
+                    "IF references 1D arrays that may be static", enode
+                )
                 return False
 
         elif isinstance(enode, Loop):
@@ -232,14 +283,16 @@ def valid_acc_kernel(node):
             # if they themselves contain several 2D loops.
             # In general, this heuristic will depend upon how many levels the
             # model configuration will contain.
-            child = enode.loop_body[0]
-            if isinstance(child, Loop) and child.loop_type == "levels":
-                # We have a loop around a loop over levels
-                log_msg(routine_name, "Loop is around a loop over levels",
-                        enode)
-                return False
-            if enode.loop_type == "levels" and \
-               len(enode.loop_body.children) > 1:
+            child = enode.loop_body[0] if enode.loop_body.children else None
+            # if isinstance(child, Loop) and child.loop_type == "levels":
+            # We have a loop around a loop over levels
+            #   log_msg(routine_name, "Loop is around a loop over levels",
+            #        enode)
+            #   return False
+            if (
+                    enode.loop_type == "levels"
+                    and len(enode.loop_body.children) > 1
+                    ):
                 # The body of the loop contains more than one statement.
                 # How many distinct loop nests are there?
                 loop_count = 0
@@ -247,16 +300,19 @@ def valid_acc_kernel(node):
                     if child.walk(Loop):
                         loop_count += 1
                         if loop_count > 1:
-                            log_msg(routine_name,
-                                    "Loop over levels contains several "
-                                    "other loops", enode)
+                            log_msg(
+                                routine_name,
+                                "Loop over levels contains several "
+                                "other loops",
+                                enode,
+                            )
                             return False
 
     return True
 
 
 def add_kernels(children):
-    '''
+    """
     Walks through the PSyIR inserting OpenACC KERNELS directives at as
     high a level as possible.
 
@@ -267,7 +323,7 @@ def add_kernels(children):
     :returns: True if any KERNELS regions are successfully added.
     :rtype: bool
 
-    '''
+    """
     added_kernels = False
     if not children:
         return added_kernels
@@ -302,7 +358,7 @@ def add_kernels(children):
 
 
 def try_kernels_trans(nodes):
-    '''
+    """
     Attempt to enclose the supplied list of nodes within a kernels
     region. If the transformation fails then the error message is
     reported but execution continues.
@@ -313,7 +369,7 @@ def try_kernels_trans(nodes):
     :returns: True if the transformation was successful, False otherwise.
     :rtype: bool
 
-    '''
+    """
     # We only enclose the proposed region if it contains a loop.
     have_loop = False
     for node in nodes:
@@ -341,15 +397,17 @@ def try_kernels_trans(nodes):
                 # We put a COLLAPSE(2) clause on any perfectly-nested lat-lon
                 # loops that have a Literal value for their step. The latter
                 # condition is necessary to avoid compiler errors.
-                if (loop.variable.name == "jj" and
-                        isinstance(loop.step_expr, Literal) and
-                        isinstance(loop.loop_body[0], Loop) and
-                        loop.loop_body[0].variable.name == "ji" and
-                        isinstance(loop.loop_body[0].step_expr, Literal) and
-                        len(loop.loop_body.children) == 1):
+                if (
+                    loop.variable.name == "jj"
+                    and isinstance(loop.step_expr, Literal)
+                    and isinstance(loop.loop_body[0], Loop)
+                    and loop.loop_body[0].variable.name == "ji"
+                    and isinstance(loop.loop_body[0].step_expr, Literal)
+                    and len(loop.loop_body.children) == 1
+                ):
                     try:
                         ACC_LOOP_TRANS.apply(loop, {"collapse": 2})
-                    except (TransformationError) as err:
+                    except TransformationError as err:
                         print(f"Failed to collapse lat-lon loop: {loop}")
                         print(f"Error was: {err}")
 
@@ -361,14 +419,16 @@ def try_kernels_trans(nodes):
 
 
 def trans(psyir):
-    '''Applies OpenACC 'kernels' directives to NEMO code. Data movement can be
+    """Applies OpenACC 'kernels' directives to NEMO code. Data movement can be
     handled manually or through CUDA's managed-memory functionality.
 
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
-    '''
-    logging.basicConfig(filename='psyclone.log', filemode='w',
-                        level=logging.INFO)
+    """
+    logging.basicConfig(
+            filename="psyclone.log",
+            filemode="w", level=logging.INFO
+            )
 
     for subroutine in psyir.walk(Routine):
         print(f"Transforming subroutine: {subroutine.name}")
@@ -384,14 +444,16 @@ def trans(psyir):
         if subroutine.name.lower() not in ACC_IGNORE:
             print(f"Transforming {subroutine.name} with acc kernels")
             enhance_tree_information(subroutine)
-            inline_calls(subroutine)
+            # inline_calls(subroutine)
             have_kernels = add_kernels(subroutine.children)
             if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
                 print(f"Transforming {subroutine.name} with acc enter data")
                 ACC_EDATA_TRANS.apply(subroutine)
         else:
-            print(f"Addition of OpenACC to routine {subroutine.name} "
-                  f"disabled!")
+            print(
+                    f"Addition of OpenACC to routine {subroutine.name} "
+                    f"disabled!"
+                    )
 
         # Add required OpenACC update directives to every routine, including to
         # those with no device code and that execute exclusively on the host
@@ -401,6 +463,8 @@ def trans(psyir):
 
         # Add profiling instrumentation
         if PROFILE_NONACC:
-            print(f"Adding profiling to non-OpenACC regions in "
-                  f"{subroutine.name}")
+            print(
+                    f"Adding profiling to non-OpenACC regions in "
+                    f"{subroutine.name}"
+                    )
             add_profiling(subroutine.children)

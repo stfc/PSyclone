@@ -38,6 +38,7 @@ module module_with_var_mod
 
   integer :: module_var_a, module_var_b
   integer, parameter :: module_const = 123
+  real, dimension(100) :: const_size_array
 
 contains
 
@@ -47,6 +48,7 @@ contains
 
   subroutine module_subroutine()
     module_var_b = module_var_b + 1
+    const_size_array (module_var_b) = const_size_array(module_var_b) + 1
   end subroutine module_subroutine
 
 

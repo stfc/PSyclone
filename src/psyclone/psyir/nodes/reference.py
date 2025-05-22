@@ -102,10 +102,18 @@ class Reference(DataNode):
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.assignment import Assignment
+        from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
         parent = self.parent
         if isinstance(parent, Assignment):
             if parent.lhs is self:
                 return False
+
+        # If we have an intrinsic call parent then we need to check if its
+        # an inquiry. Inquiry functions don't read from their first argument.
+        if isinstance(parent, IntrinsicCall):
+            if parent.arguments[0] is self and parent.is_inquiry:
+                return False
+
         # All references other than LHS of assignments represent a read. This
         # can be improved in the future by looking at Call intents.
         return True
@@ -259,23 +267,30 @@ class Reference(DataNode):
         chain = DefinitionUseChain(self)
         return chain.find_forward_accesses()
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Update any Symbols referenced by this Node with those in the
-        supplied table with matching names. If there is no match for a given
+        supplied table (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given
         Symbol then it is left unchanged.
 
-        :param table: the symbol table in which to look up replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        try:
-            self.symbol = table.lookup(self.symbol.name)
-        except KeyError:
-            pass
+        if isinstance(table_or_symbol, Symbol):
+            if self.symbol.name.lower() == table_or_symbol.name.lower():
+                self.symbol = table_or_symbol
+        else:
+            try:
+                self.symbol = table_or_symbol.lookup(self.symbol.name)
+            except KeyError:
+                pass
 
         # Walk on down the tree.
-        super().replace_symbols_using(table)
+        super().replace_symbols_using(table_or_symbol)
 
 
 # For AutoAPI documentation generation

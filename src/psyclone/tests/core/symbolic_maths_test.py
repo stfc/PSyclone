@@ -279,6 +279,26 @@ def test_symbolic_maths_greater_than(
                                   all_variables_positive=positive) == result
 
 
+@pytest.mark.parametrize("exp1, exp2, positive, result",
+                         [("i", "j", False, SymbolicMaths.Fuzzy.MAYBE),
+                          ("i+1", "i", False, SymbolicMaths.Fuzzy.FALSE),
+                          ("i+j", "i", False, SymbolicMaths.Fuzzy.MAYBE),
+                          ("i+j", "i", True, SymbolicMaths.Fuzzy.FALSE),
+                          ("2*i", "i", True, SymbolicMaths.Fuzzy.FALSE),
+                          ("i", "2*i", True, SymbolicMaths.Fuzzy.TRUE),
+                          ("i", "i+1", False, SymbolicMaths.Fuzzy.TRUE)])
+def test_symbolic_maths_less_than(
+        fortran_reader, exp1, exp2, positive, result):
+    '''
+    Tests for the greater_than() method.
+    '''
+    sym_maths = SymbolicMaths.get()
+    ir1 = fortran_reader.psyir_from_expression(exp1)
+    ir2 = fortran_reader.psyir_from_expression(exp2)
+    assert sym_maths.less_than(ir1, ir2,
+                               all_variables_positive=positive) == result
+
+
 @pytest.mark.parametrize("exp1, exp2, result", [("i", "2*i+1", set([-1])),
                                                 # Infinite solutions (i is any
                                                 # integer) are returned as

@@ -62,6 +62,7 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.generator import (
     generate, main, check_psyir, add_builtins_use)
+from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
@@ -424,7 +425,7 @@ def test_no_script_gocean():
         os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
         api="gocean")
     assert "program single_invoke_test" in alg
-    assert "MODULE psy_single_invoke_test" in str(psy)
+    assert "module psy_single_invoke_test" in str(psy)
 
 
 def test_script_gocean(script_factory):
@@ -1016,7 +1017,7 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
         "contains\n"
         "subroutine setval_c()\n"
         "  use psyclone_builtins\n"
-        "  use constants_mod, only: r_def\n"
+        "  use constants_mod\n"
         "  use field_mod, only : field_type\n"
         "  type(field_type) :: field\n"
         "  real(kind=r_def) :: value\n"
@@ -1314,6 +1315,65 @@ def test_invalid_kern_naming():
     assert "but got 'not-a-scheme'" in str(err.value)
 
 
+def test_enable_cache_flag(capsys, tmpdir, monkeypatch):
+    ''' Check that if the --enable-cache flag is provided, resolve imports will
+    create .psycache files for each imported module.
+
+    '''
+    module1 = '''
+        module module1
+            integer :: a
+        end module module1
+    '''
+    module2 = '''
+        module module2
+            integer :: b
+        end module module2
+    '''
+    code = '''
+        module test
+            use module1
+            use module2
+            real :: result
+        contains
+            subroutine mytest()
+                result = a + b
+            end subroutine mytest
+        end module test
+    '''
+    recipe = '''
+
+RESOLVE_IMPORTS = True
+
+def trans(psyir):
+    pass
+    '''
+    recipe_name = "test_cache.py"
+    for filename, content in [("module1.f90", module1),
+                              ("module2.f90", module2),
+                              ("code.f90", code),
+                              (recipe_name, recipe)]:
+        with open(tmpdir.join(filename), "w", encoding='utf-8') as my_file:
+            my_file.write(content)
+
+    # If enable-cache not used, no .psycache files exist
+    monkeypatch.chdir(tmpdir)
+    ModuleManager._instance = None
+    main(["code.f90", "-s", recipe_name])
+    assert not os.path.isfile("module1.psycache")
+    assert not os.path.isfile("module2.psycache")
+    assert not ModuleManager.get()._cache_active
+
+    # If enable-cache is used, it will generate .psycache files for each module
+    ModuleManager._instance = None
+    main(["code.f90", "-s", recipe_name, "--enable-cache"])
+    assert os.path.isfile(tmpdir.join("module1.psycache"))
+    assert os.path.isfile(tmpdir.join("module2.psycache"))
+    assert ModuleManager.get()._cache_active
+
+    ModuleManager._instance = None
+
+
 def test_main_include_invalid(capsys, tmpdir):
     '''Check that the main function complains if a non-existent location
     is specified as a search path for INCLUDE files.
@@ -1580,7 +1640,7 @@ def test_generate_unresolved_container_lfric(invoke, tmpdir, monkeypatch):
         f" use testkern_mod, only: testkern_type\n"
         f"end subroutine dummy_kernel\n"
         f"subroutine some_kernel()\n"
-        f"  use constants_mod, only: r_def\n"
+        f"  use constants_mod\n"
         f"  use field_mod, only : field_type\n"
         f"  type(field_type) :: field1, field2, field3, field4\n"
         f"  real(kind=r_def) :: scalar\n"

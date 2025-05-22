@@ -38,8 +38,8 @@
 
 .. _lfric-api:
 
-LFRic API
-=========
+The LFRic DSL
+=============
 
 This section describes the LFRic application programming
 interface (API). This API explains what a user needs to write in order
@@ -51,9 +51,9 @@ allow PSyclone to generate the PSy layer. These algorithm and kernel
 APIs are discussed separately in the following sections.
 
 The LFRic API supports the Met Office's finite element (hereafter FEM)
-based GungHo dynamical core (see :ref:`introduction`).
+based GungHo dynamical core.
 This dynamical core with atmospheric physics parameterisation
-schemes is a part of the Met Office LFRic modelling system :cite:`lfric-2019`,
+schemes is a part of the Met Office LFRic modelling system :footcite:t:`lfric-2019`,
 currently being developed in preparation for exascale computing in the 2020s.
 The LFRic repository and the associated wiki are hosted at the `Met Office
 Science Repository Service <https://code.metoffice.gov.uk/trac/home>`_.
@@ -1002,12 +1002,14 @@ Kernels should follow those for General-Purpose Kernels.
 
 The list of rules for DoF Kernels is as follows:
 
-1) A DoF Kernel must have at least one argument that is a field.
-   This rule reflects that a Kernel operates on some subset of the
-   whole domain and is therefore designed to be called from within
-   a loop that iterates over those subsets of the domain. Only fields
-   (as opposed to e.g. field vectors or operators) are accepted for DoF
-   Kernels because only they have a single value at each DoF.
+1) A DoF Kernel must have at least one argument that is a field. This rule
+   reflects that a Kernel operates on some subset of the whole domain
+   and is therefore designed to be called from within a loop that iterates
+   over those subsets of the domain. Fields (as opposed to e.g. operators)
+   are accepted for DoF Kernels because only they have a single value at
+   each DoF. Field vectors can be represented in a DoF kernel as a
+   collection of field arguments, each one corresponding to an index in the
+   field vector.
 
 2) All Kernel arguments must be either fields or scalars (`real-` and/or
    `integer`-valued). DoF Kernels cannot accept operators.
@@ -1933,7 +1935,7 @@ operates_on                    Data passed for each field/operator argument
 ============================== =======================================================
 
 (For a description of the concepts of 'owned' and 'halo' cells please see the
-:ref:`dev_guide:lfric-developers`.)
+:ref:`lfric-developers`.)
 
 procedure
 #########
@@ -2533,6 +2535,12 @@ with PSyclone's naming conventions, are:
          passed in separately. Again, the intent is determined from the
          metadata (see :ref:`meta_args <lfric-api-meta-args>`).
 
+   3) For each field vector in the order specified by the meta_args metadata,
+      there needs to be an equivalent number of arguments in the kernel as
+      the dimension of the field vector. The dimension is specified in the
+      metadata. The arguments must be ordered following the indexing of the
+      field vector.
+
 .. _lfric-kernel-arg-intents:
 
 Argument Intents
@@ -2573,7 +2581,7 @@ Kernel type name:
 Subroutine name:
     ``<base_name>_code``
 
-The latest version of the LFRic coding style guidelines are availabe in this
+The latest version of the LFRic coding style guidelines are available in this
 `LFRic wiki page
 <https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicTechnical/FortranCodingStandards>`_
 (requires login access to MOSRS, see the above :ref:`introduction <lfric-api>`
@@ -2585,7 +2593,7 @@ Built-ins
 ---------
 
 The basic concept of a PSyclone Built-in is described in the
-:ref:`built-ins` section.  In the LFRic API, calls to
+:ref:`psykal-built-ins` section.  In the LFRic API, calls to
 Built-ins generally follow a convention that the field/scalar written
 to comes first in the argument list. LFRic Built-ins must conform to the
 following rules:
@@ -2663,11 +2671,11 @@ metadata for the Built-ins that update a ``real``-valued field,
   type, public, extends(kernel_type) :: aX_plus_bY
      private
      type(arg_type) :: meta_args(5) = (/                              &
-          arg_type(GH_FIELD,  GH_REAL  GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
           arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1),        &
           arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
-          arg_type(GH_FIELD,  GH_REAL  GH_READ,  ANY_SPACE_1)         &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
           /)
      integer :: operates_on = DOF
    contains
@@ -3761,12 +3769,18 @@ be safely performed in parallel (see Section :ref:`lfric-kernel`).
 The ``GH_READWRITE`` access is used for updating discontinuous operators
 (see subsection :ref:`lfric-kernel-valid-access` for more details).
 
+.. _lfric-conventions:
+
 Conventions
 -----------
 
 The naming of LFRic API kernels and associated entities (types,
-subroutines and modules) follows the PSyclone Fortran naming
-conventions (see :ref:`fortran_naming`). However, PSyclone does not need
+subroutines and modules) follows the convention that the kernel file is
+named ``<name>_mod.[fF90]``, the module inside the kernel file is
+``<name>_mod``, the name of the kernel metadata in the module is
+``<name>_type`` and the name of the kernel subroutine in the module is
+``<name>_code``.
+However, PSyclone does not need
 this convention to be followed apart from the stub generator (see the
 :ref:`stub-generation` Section ) where the name of the metadata to be
 parsed is determined from the module name.
@@ -4006,3 +4020,5 @@ transformations have not yet been migrated to this directory.
 .. autoclass:: psyclone.transformations.Dynamo0p3RedundantComputationTrans
     :members:
     :noindex:
+
+.. footbibliography::

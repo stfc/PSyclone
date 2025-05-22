@@ -43,10 +43,9 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes import Schedule
-from psyclone.psyir.symbols import ScalarType, DataSymbol
+from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
-from psyclone.f2pygen import DeclGen, PSyIRGen, UseGen
 
 
 class Loop(Statement):
@@ -102,7 +101,7 @@ class Loop(Statement):
         self._variable = None
         if variable is not None:
             self.variable = variable
-        # Hold the set of symbols that will be private/local to the interation
+        # Hold the set of symbols that will be private/local to the iteration
         # if this loop is run concurrently. Alternatively this could be
         # implemented by moving the symbols to the loop_body symbol table.
         self._explicitly_private_symbols = set()
@@ -427,32 +426,44 @@ class Loop(Statement):
         self._check_variable(var)
         self._variable = var
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace the Symbol referred to by this object's `variable` and
         `explicit_local_symbols` properties with those in the supplied
-        SymbolTable with a matching name. If there is no matches then they
-        are left unchanged.
+        SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
-        :param table: symbol table in which to look up the replacement symbol.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         if self._variable:
-            try:
-                new_sym = table.lookup(self._variable.name)
-                self.variable = new_sym
-            except KeyError:
-                pass
+            if isinstance(table_or_symbol, Symbol):
+                if table_or_symbol.name.lower() == self._variable.name.lower():
+                    self._variable = table_or_symbol
+            else:
+                try:
+                    new_sym = table_or_symbol.lookup(self._variable.name)
+                    self.variable = new_sym
+                except KeyError:
+                    pass
 
         for symbol in list(self._explicitly_private_symbols):
-            try:
-                new_sym = table.lookup(symbol.name)
-                self._explicitly_private_symbols.remove(symbol)
-                self._explicitly_private_symbols.add(new_sym)
-            except KeyError:
-                pass
-        super().replace_symbols_using(table)
+            if isinstance(table_or_symbol, Symbol):
+                if table_or_symbol.name.lower() == symbol.name.lower():
+                    self._explicitly_private_symbols.remove(symbol)
+                    self._explicitly_private_symbols.add(table_or_symbol)
+            else:
+                try:
+                    new_sym = table_or_symbol.lookup(symbol.name)
+                    self._explicitly_private_symbols.remove(symbol)
+                    self._explicitly_private_symbols.add(new_sym)
+                except KeyError:
+                    pass
+        super().replace_symbols_using(table_or_symbol)
 
     def __str__(self):
         # Give Loop sub-classes a specialised name
@@ -538,65 +549,3 @@ class Loop(Statement):
         return dtools.can_loop_be_parallelised(
             self, test_all_variables=test_all_variables,
             signatures_to_ignore=signatures_to_ignore)
-
-    def gen_code(self, parent):
-        '''
-        Generate the Fortran Loop and any associated code.
-
-        :param parent: the node in the f2pygen AST to which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import zero_reduction_variables
-
-        if not self.is_openmp_parallel():
-            calls = self.reductions()
-            zero_reduction_variables(calls, parent)
-
-        # TODO #1010: The Fortran backend operates on a copy of the node so
-        # that the lowering changes are not reflected in the provided node.
-        # This is the correct behaviour but it means that the lowering changes
-        # to ancestors will be lost here because the ancestors use gen_code
-        # instead of lowering+backend.
-        # So we need to do the "rename_and_write" here for the invoke symbol
-        # table to be updated.
-        from psyclone.psyGen import CodedKern
-        for kernel in self.walk(CodedKern):
-            if not kernel.module_inline:
-                if kernel.modified:
-                    kernel.rename_and_write()
-
-        # Use the Fortran Backend from this point
-        parent.add(PSyIRGen(parent, self))
-
-        # TODO #1010: The Fortran backend operates on a copy of the node so
-        # that the lowering changes are not reflected in the provided node.
-        # This is the correct behaviour but it means that the lowering changes
-        # to ancestors will be lost here because the ancestors use gen_code
-        # instead of lowering+backend.
-        # Therefore we need to replicate the lowering ancestor changes
-        # manually here (all this can be removed when the invoke schedule also
-        # uses the lowering+backend), these are:
-        # - Declaring the loop variable symbols
-        for loop in self.walk(Loop):
-            # pylint: disable=protected-access
-            if loop._variable is None:
-                # This is the dummy iteration variable
-                name = "dummy"
-                kind_gen = None
-            else:
-                name = loop.variable.name
-                kind = loop.variable.datatype.precision.name
-                kind_gen = None if kind == "UNDEFINED" else kind
-            my_decl = DeclGen(parent, datatype="integer",
-                              kind=kind_gen,
-                              entity_decls=[name])
-            parent.add(my_decl)
-
-        # - Add the kernel module import statements
-        for kernel in self.walk(CodedKern):
-            if not kernel.module_inline:
-                parent.add(UseGen(parent, name=kernel.module_name, only=True,
-                                  funcnames=[kernel.name]))

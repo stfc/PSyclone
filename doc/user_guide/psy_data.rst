@@ -38,8 +38,8 @@
 
 .. _psy_data:
 
-PSyData API
-===========
+The PSyData Transformations
+===========================
 
 PSyclone provides transformations that will insert callbacks to
 an external library at runtime. These callbacks allow third-party
@@ -93,7 +93,7 @@ PSyclone provides transformations that will insert callbacks to
 the PSyData API, for example ``ProfileTrans``, ``GOceanExtractTrans``
 and ``LFRicExtractTrans``. A user can develop additional transformations
 and corresponding runtime libraries for additional functionality.
-Refer to :ref:`dev_guide:psy_data` for full details about the PSyData API.
+Refer to :ref:`psy_data` for full details about the PSyData API.
 
 .. _psydata_read_verification:
 
