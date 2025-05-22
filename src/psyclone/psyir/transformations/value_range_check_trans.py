@@ -47,8 +47,10 @@ from psyclone.psyir.nodes import ValueRangeCheckNode
 from psyclone.psyir import nodes
 from psyclone.psyir.transformations.read_only_verify_trans \
     import ReadOnlyVerifyTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ValueRangeCheckTrans(ReadOnlyVerifyTrans):
     '''This transformation inserts a ValueRangeCheckNode into the PSyIR of a
     schedule. At code creation time this node will use the PSyData API
@@ -75,7 +77,7 @@ class ValueRangeCheckTrans(ReadOnlyVerifyTrans):
         # This function is only here to change the default node type
         super().__init__(node_class=node_class)
 
-    def validate(self, node_list, options=None):
+    def validate(self, node_list, options=None, **kwargs):
         '''Performs validation checks specific to nan-test
         transformations. This function is only here so that it
         is documented.
@@ -98,7 +100,17 @@ class ValueRangeCheckTrans(ReadOnlyVerifyTrans):
         '''
         # pylint: disable=useless-super-delegation
 
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
+
+    def apply(self, node_list, options=None, **kwargs):
+        """Applies the ValueRangeCheckTrans to the supplied node_list.
+
+        :param node_list: the list of Node(s) we are applying the
+                          transformation to.
+        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+        """
+
+        super().apply(node_list, options=options, **kwargs)
 
 
 # ============================================================================

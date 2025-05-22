@@ -63,7 +63,7 @@ def test_psy_data_node_constructor():
     assert psy_node._var_name == ""
     assert psy_node._module_name is None
     assert psy_node._region_name is None
-    assert psy_node.options == {}
+    assert psy_node.options is None
     psy_node = PSyDataNode(options={"prefix": "profile"})
     assert psy_node.options == {"prefix": "profile"}
     assert psy_node._prefix == "profile_"
@@ -77,6 +77,12 @@ def test_psy_data_node_constructor():
     assert psy_node._module_name == "a_routine"
     assert psy_node._region_name == "reg1"
     assert psy_node.region_identifier == ("a_routine", "reg1")
+
+    psy_nodes = PSyDataNode(pre_var_list=["a"], post_var_list=["b"])
+    assert len(psy_nodes._pre_var_list) == 1
+    assert psy_nodes._pre_var_list[0] == "a"
+    assert len(psy_nodes._post_var_list) == 1
+    assert psy_nodes._post_var_list[0] == "b"
 
     # Test incorrect rename type
     with pytest.raises(InternalError) as error:

@@ -37,6 +37,8 @@
 '''Contains the PSyData transformation.
 '''
 
+from typing import List, Tuple
+
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyGen import InvokeSchedule, Kern
@@ -45,8 +47,10 @@ from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, \
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class PSyDataTrans(RegionTrans):
     ''' Create a PSyData region around a list of statements. For
     example:
@@ -112,7 +116,8 @@ class PSyDataTrans(RegionTrans):
         return self.__class__.__name__
 
     # ------------------------------------------------------------------------
-    def get_unique_region_name(self, nodes, options):
+    def get_unique_region_name(self, nodes, options=None,
+                               region_name: Tuple[str, str] = None):
         '''This function returns the region and module name. If they are
         specified in the user options, these names will just be returned (it
         is then up to the user to guarantee uniqueness). Otherwise a name
@@ -121,18 +126,19 @@ class PSyDataTrans(RegionTrans):
 
         :param nodes: a list of nodes.
         :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Dict[str, Any]
-        :param (str,str) options["region_name"]: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
-            should uniquely identify a region unless aggregate information \
+        :param region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
+            should uniquely identify a region unless aggregate information
             is required (and is supported by the runtime library).
 
         '''
         # We don't use a static method here since it might be useful to
         # overwrite this functions in derived classes
-        name = options.get("region_name", None)
+        if options is not None:
+            name = options.get("region_name", None)
+        else:
+            name = region_name
         if name:
             # pylint: disable=too-many-boolean-expressions
             if not isinstance(name, tuple) or not len(name) == 2 or \
@@ -168,7 +174,7 @@ class PSyDataTrans(RegionTrans):
         return (module_name, region_name)
 
     # ------------------------------------------------------------------------
-    def validate(self, nodes, options=None):
+    def validate(self, nodes, options=None, **kwargs):
         '''
         Checks that the supplied list of nodes is valid, that the location
         for this node is valid (not between a loop-directive and its loop),
@@ -221,21 +227,28 @@ class PSyDataTrans(RegionTrans):
             raise TransformationError("A PSyData node cannot be inserted "
                                       "inside an OpenACC region.")
 
-        if options is None:
-            options = {}
-        if "region_name" in options:
-            name = options["region_name"]
+        if options is not None:
+            region_name = options.get("region_name", None)
+            prefix = options.get("prefix", "")
+        else:
+            self.validate_options(**kwargs)
+            region_name = self.get_option("region_name", **kwargs)
+            prefix = self.get_option("prefix", **kwargs)
+
+        # If region_name is in options and set to None then we need to still
+        # check this, as the old implementation required that check.
+        if region_name is not None:
             # pylint: disable=too-many-boolean-expressions
-            if not isinstance(name, tuple) or not len(name) == 2 or \
-               not name[0] or not isinstance(name[0], str) or \
-               not name[1] or not isinstance(name[1], str):
+            if (not isinstance(region_name, tuple)
+                    or not len(region_name) == 2 or
+                    not region_name[0] or not isinstance(region_name[0], str)
+                    or not region_name[1]
+                    or not isinstance(region_name[1], str)):
                 raise TransformationError(
                     f"Error in {self.name}. User-supplied region name "
                     f"must be a tuple containing two non-empty strings.")
             # pylint: enable=too-many-boolean-expressions
-        prefix = options.get("prefix", None)
-        if "prefix" in options:
-            prefix = options.get("prefix", None)
+        if prefix != "":
             if prefix not in Config.get().valid_psy_data_prefixes:
                 raise TransformationError(
                     f"Error in 'prefix' parameter: found '{prefix}', while"
@@ -244,7 +257,7 @@ class PSyDataTrans(RegionTrans):
 
         # We have to create an instance of the node that will be inserted in
         # order to find out what module name it will use.
-        pdata_node = self._node_class(options=options)
+        pdata_node = self._node_class(options=options, **kwargs)
         table = node_list[0].scope.symbol_table
         for name in ([sym.name for sym in pdata_node.imported_symbols] +
                      [pdata_node.fortran_module]):
@@ -263,10 +276,16 @@ class PSyDataTrans(RegionTrans):
                 except KeyError:
                     pass
 
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
 
     # ------------------------------------------------------------------------
-    def apply(self, nodes, options=None):
+    def apply(self, nodes, options=None, prefix: str = "",
+              region_name: Tuple[str, str] = None,
+              post_var_postfix: str = "",
+              pre_var_postfix: str = "",
+              pre_var_list: List[Tuple[str, str]] = None,
+              post_var_list: List[Tuple[str, str]] = None,
+              **kwargs):
         # pylint: disable=arguments-renamed
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the
@@ -277,21 +296,39 @@ class PSyDataTrans(RegionTrans):
                      :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param str options["prefix"]: a prefix to use for the PSyData module \
-            name (``PREFIX_psy_data_mod``) and the PSyDataType \
-            (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
+        :param prefix: a prefix to use for the PSyData module
+            name (``PREFIX_psy_data_mod``) and the PSyDataType
+            (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically.
             It defaults to "".
-        :param (str,str) options["region_name"]: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
-            should uniquely identify a region unless aggregate information \
+        :param region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
+            should uniquely identify a region unless aggregate information
             is required (and is supported by the runtime library).
-
+        :param post_var_postfix: an optional postfix that will
+            be added to each variable name in the post_var_list.
+        :param pre_var_postfix: an optional postfix that will
+            be added to each variable name in the pre_var_list.
+        :param pre_var_list: container- and variable-names to be
+            supplied before the first child. The container names are
+            supported to be able to handle variables that are imported from
+            a different container (module in Fortran).
+        :param post_var_list: container- and variable-names to be \
+            supplied after the last child. The container names are \
+            supported to be able to handle variables that are imported from \
+            a different container (module in Fortran).
         '''
         node_list = self.get_node_list(nodes)
 
         # Perform validation checks
-        self.validate(node_list, options)
+        self.validate(node_list, options, prefix=prefix,
+                      region_name=region_name, **kwargs)
+
+        if not options:
+            if not pre_var_list:
+                pre_var_list = []
+            if not post_var_list:
+                post_var_list = []
 
         # Get useful references
         parent = node_list[0].parent
@@ -311,7 +348,13 @@ class PSyDataTrans(RegionTrans):
             node.detach()
 
         psy_data_node = self._node_class.create(
-            node_list, symbol_table=table, options=options)
+            node_list, symbol_table=table, options=options, prefix=prefix,
+            region_name=region_name,
+            post_var_postfix=post_var_postfix,
+            pre_var_postfix=pre_var_postfix,
+            pre_var_list=pre_var_list,
+            post_var_list=post_var_list,
+            **kwargs)
         parent.addchild(psy_data_node, position)
 
 

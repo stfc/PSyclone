@@ -301,7 +301,10 @@ def test_single_node_dynamo0p3():
                              idx=0, dist_mem=False)
     schedule = invoke.schedule
 
-    etrans.apply(schedule.children[0])
+    # Check that the read_write_info and post_var_postfix keyword arguments
+    # are ignore here too.
+    etrans.apply(schedule.children[0], read_write_info=None,
+                 post_var_postfix="")
     code = str(psy.gen)
     output = '''\
     CALL extract_psy_data % PreStart("single_invoke_psy", \

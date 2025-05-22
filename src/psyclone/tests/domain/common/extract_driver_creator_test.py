@@ -286,6 +286,8 @@ def test_rename_suffix_if_name_clash():
       'in_out_fld)',
       'CALL extract_psy_data % ProvideVariable("out_fld_post0", out_fld)']
     for line in expected_lines:
+        if line not in extract_code:
+            print(line)
         assert line in extract_code
 
     # Now we also need to check that the driver uses the new suffix,

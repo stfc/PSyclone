@@ -68,30 +68,32 @@ class ExtractNode(PSyDataNode):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options provided via transformations.
     :type options: Optional[Dict[str, Any]]
-    :param str options["prefix"]: a prefix to use for the PSyData module name
+    :param prefix: a prefix to use for the PSyData module name
         (``prefix_psy_data_mod``) and the PSyDataType
         (``prefix_PSyDataType``) - a "_" will be added automatically.
         It defaults to "extract", which means the module name used will be
         ``extract_psy_data_mode``, and the data type ``extract_PSyDataType``.
-    :param str options["post_var_postfix"]: a postfix to be used when
+    :param post_var_postfix: a postfix to be used when
         creating names to store values of output variable. A variable 'a'
         would store its value as 'a', and its output values as 'a_post' with
         the default post_var_postfix of '_post'.
-    :param options["read_write_info"]: information about variables that are
+    :param read_write_info: information about variables that are
         read and/or written in the instrumented code.
-    :type options["read_write_info"]:
-        py:class:`psyclone.psyir.tools.ReadWriteInfo`
-
+    :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
     '''
     # Textual description of the node.
     _text_name = "Extract"
     _colour = "green"
-    # The default prefix to add to the PSyData module name and PSyDataType
-    _default_prefix = "extract"
 
-    def __init__(self, ast=None, children=None, parent=None, options=None):
+    # read_write_info causes Circular dependency so can't be imported.
+    def __init__(self, ast=None, children=None, parent=None, options=None,
+                 prefix: str = "extract",
+                 post_var_postfix: str = "_post",
+                 read_write_info=None, **kwargs):
         super().__init__(ast=ast, children=children,
-                         parent=parent, options=options)
+                         parent=parent, options=options,
+                         prefix=prefix, post_var_postfix=post_var_postfix,
+                         read_write_info=read_write_info, **kwargs)
 
         # Define a postfix that will be added to variable that are
         # modified to make sure the names can be distinguished between pre-
@@ -105,13 +107,14 @@ class ExtractNode(PSyDataNode):
         # variable 'a' exists, which creates 'a_out' for the output variable,
         # which would clash with a variable 'a_out' used in the program unit).
 
-        if options is None:
-            options = {}
+        if options is not None:
+            self._post_name = options.get("post_var_postfix", "_post")
 
-        self._post_name = options.get("post_var_postfix", "_post")
-
-        # Keep a copy of the argument list:
-        self._read_write_info = options.get("read_write_info")
+            # Keep a copy of the argument list:
+            self._read_write_info = options.get("read_write_info")
+        else:
+            self._post_name = post_var_postfix
+            self._read_write_info = read_write_info
 
     def __eq__(self, other):
         '''

@@ -41,6 +41,7 @@ This is the base class for nodes that e.g. create kernel extraction
 or profiling. '''
 
 from collections import namedtuple
+from typing import List, Tuple
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
@@ -109,19 +110,49 @@ class PSyDataNode(Statement):
     #: The default prefix to add to the PSyData module name and PSyDataType
     _default_prefix = ""
 
-    def __init__(self, ast=None, children=None, parent=None, options=None):
+    def __init__(self, ast=None, children=None, parent=None, options=None,
+                 prefix: str = "", region_name: Tuple[str, str] = None,
+                 post_var_postfix: str = "",
+                 pre_var_postfix: str = "",
+                 pre_var_list: List[Tuple[str, str]] = None,
+                 post_var_list: List[Tuple[str, str]] = None,
+                 **kwargs):
 
         super().__init__(ast=ast, children=children, parent=parent)
-        if not options:
-            options = {}
 
         # Store a copy of the options so the node can later access them
-        self._options = options.copy()
+        if options:
+            self._options = options.copy()
+        else:
+            self._options = None
 
         # _prefix stores a prefix to be used with all external PSyData
         # symbols (i.e. data types and module name), used in the
         # method 'add_psydata_class_prefix'.
-        prefix = options.get("prefix", self._default_prefix)
+        if options is not None:
+            prefix = options.get("prefix", self._default_prefix)
+            name = options.get("region_name", None)
+            # Setup things for the lowering stage.
+            self._pre_var_list = options.get("pre_var_list", [])
+            self._post_var_list = options.get("post_var_list", [])
+            self._pre_var_postfix = options.get("pre_var_postfix", "")
+            self._post_var_postfix = options.get("post_var_postfix", "")
+        else:
+            name = region_name
+            self._post_var_postfix = post_var_postfix
+            self._pre_var_postfix = pre_var_postfix
+            if pre_var_list:
+                self._pre_var_list = pre_var_list.copy()
+            else:
+                self._pre_var_list = []
+            if post_var_list:
+                self._post_var_list = post_var_list.copy()
+            else:
+                self._post_var_list = []
+            # If the prefix isn't set, then we set it to the deffault
+            # for this object.
+            if prefix == "":
+                prefix = self._default_prefix
         # Check that the prefix is one of those listed as being supported
         # in the configuration file. If it *is* listed then it is assumed
         # that a matching PSyData wrapper library is available at compile time.
@@ -137,7 +168,6 @@ class PSyDataNode(Statement):
             self._prefix = ""
         else:
             self._prefix = prefix + "_"
-
         # Create the list of symbol names that will be imported from
         # the PSyData Fortran module. We use a namedtuple to improve
         # readability. Currently there is only one imported symbol (the
@@ -181,7 +211,6 @@ class PSyDataNode(Statement):
 
         # TODO: #1394 Fix code duplication between
         # PSyDataTrans and this PSyDataNode
-        name = options.get("region_name", None)
         if name:
             # pylint: disable=too-many-boolean-expressions
             if not isinstance(name, tuple) or not len(name) == 2 or \
@@ -265,7 +294,7 @@ class PSyDataNode(Statement):
         return self._region_name
 
     @classmethod
-    def create(cls, children, symbol_table, ast=None, options=None):
+    def create(cls, children, symbol_table, ast=None, options=None, **kwargs):
         '''
         Creates a new (sub-class of a) PSyData node with the supplied
         'children' nodes as its children. The symbols used by the PSyData API
@@ -313,7 +342,7 @@ class PSyDataNode(Statement):
                 f"must be an instance of psyir.symbols.SymbolTable but got "
                 f"'{type(symbol_table).__name__}'.")
 
-        data_node = cls(ast=ast, options=options)
+        data_node = cls(ast=ast, options=options, **kwargs)
         data_node.generate_symbols(symbol_table)
 
         # A PSyData node always contains a Schedule
@@ -628,21 +657,26 @@ class PSyDataNode(Statement):
                 region_name = f"{routine_schedule.name}-{region_name}"
 
         if not options:
-            options = {}
+            pre_var_list = self._pre_var_list
+            post_var_list = self._post_var_list
+            pre_suffix = self._pre_var_postfix
+            post_suffix = self._post_var_postfix
+        else:
+            pre_var_list = options.get("pre_var_list", [])
+            post_var_list = options.get("post_var_list", [])
+            pre_suffix = options.get("pre_var_postfix", "")
+            post_suffix = options.get("post_var_postfix", "")
 
         for child in self.children:
             child.lower_to_language_level()
 
         symbol_table = self.scope.symbol_table
         pre_variable_list = \
-            self._create_unique_names(options.get("pre_var_list", []),
+            self._create_unique_names(pre_var_list,
                                       symbol_table)
         post_variable_list = \
-            self._create_unique_names(options.get("post_var_list", []),
+            self._create_unique_names(post_var_list,
                                       symbol_table)
-
-        pre_suffix = options.get("pre_var_postfix", "")
-        post_suffix = options.get("post_var_postfix", "")
 
         has_var = pre_variable_list or post_variable_list
 

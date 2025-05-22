@@ -40,12 +40,16 @@
 transformation.
 '''
 
+from typing import Tuple
+
 from psyclone.domain.lfric import LFRicExtractDriverCreator, LFRicLoop
 from psyclone.psyir.nodes import ExtractNode
 from psyclone.psyir.tools import CallTreeUtils
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class LFRicExtractTrans(ExtractTrans):
     ''' LFRic API application of ExtractTrans transformation
     to extract code into a stand-alone program. For example:
@@ -72,7 +76,7 @@ class LFRicExtractTrans(ExtractTrans):
         super().__init__(ExtractNode)
         self._driver_creator = LFRicExtractDriverCreator()
 
-    def validate(self, node_list, options=None):
+    def validate(self, node_list, options=None, **kwargs):
         ''' Perform Dynamo0.3 API specific validation checks before applying
         the transformation.
 
@@ -88,7 +92,7 @@ class LFRicExtractTrans(ExtractTrans):
 
         # First check constraints on Nodes in the node_list inherited from
         # the parent classes (ExtractTrans and RegionTrans)
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
 
         # Check LFRicExtractTrans specific constraints
         for node in node_list:
@@ -104,7 +108,9 @@ class LFRicExtractTrans(ExtractTrans):
                     f"over colours is not allowed.")
 
     # ------------------------------------------------------------------------
-    def apply(self, nodes, options=None):
+    def apply(self, nodes, options=None, prefix: str = "extract",
+              create_driver: bool = False,
+              region_name: Tuple[str, str] = None, **kwargs):
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the schedule within
@@ -135,18 +141,13 @@ class LFRicExtractTrans(ExtractTrans):
             is required (and is supported by the runtime library).
 
         '''
-        if options is None:
-            my_options = {}
-        else:
-            # We will add a default prefix, so create a copy to avoid
-            # changing the user's options:
-            my_options = options.copy()
+        if options is not None:
+            prefix = options.get("prefix", "extract")
+            create_driver = options.get("create_driver", False)
 
         ctu = CallTreeUtils()
         nodes = self.get_node_list(nodes)
-        region_name = self.get_unique_region_name(nodes, my_options)
-        my_options["region_name"] = region_name
-        my_options["prefix"] = my_options.get("prefix", "extract")
+        region_name = self.get_unique_region_name(nodes, options, region_name)
         # Get the input- and output-parameters of the node list
         read_write_info = \
             ctu.get_in_out_parameters(nodes, collect_non_local_symbols=True)
@@ -168,16 +169,23 @@ class LFRicExtractTrans(ExtractTrans):
         # that avoid any name clashes
         postfix = ExtractTrans.determine_postfix(read_write_info,
                                                  postfix="_post")
-        my_options["post_var_postfix"] = postfix
-        if my_options.get("create_driver", False):
+        if create_driver:
             # We need to create the driver before inserting the ExtractNode
             # (since some of the visitors used in driver creation do not
             # handle an ExtractNode in the tree)
             self._driver_creator.write_driver(nodes, read_write_info,
                                               postfix=postfix,
-                                              prefix=my_options["prefix"],
+                                              prefix=prefix,
                                               region_name=region_name)
+
+        # Make sure there's no duplicate arguments in kwargs
+        if "read_write_info" in kwargs:
+            kwargs.pop("read_write_info")
+        if "post_var_postfix" in kwargs:
+            kwargs.pop("post_var_postfix")
         # The PSyData transformation needs to pass this object to
         # the corresponding PSyData node, so add it to the option arguments.
-        my_options["read_write_info"] = read_write_info
-        super().apply(nodes, my_options)
+        super().apply(nodes, region_name=region_name, prefix=prefix,
+                      create_driver=create_driver, post_var_postfix=postfix,
+                      read_write_info=read_write_info,
+                      **kwargs)
