@@ -204,3 +204,19 @@ def test_validate_ok():
 
     # Check that a single Schedule is accepted
     my_rt.validate(schedule)
+
+
+def test_apply_ok():
+    '''Test that the apply routine calls the super.'''
+    class test_trans(RegionTrans):
+        '''Dummy class.'''
+
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean",
+                           name="invoke_loop1")
+    schedule = invoke.schedule
+
+    # Check that correct ordering works:
+    node_list = [schedule.children[0], schedule.children[1],
+                 schedule.children[2]]
+    b = test_trans()
+    b.apply(nodes=node_list, options={"node-type-check": False})

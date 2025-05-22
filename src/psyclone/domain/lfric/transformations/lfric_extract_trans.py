@@ -181,7 +181,7 @@ class LFRicExtractTrans(ExtractTrans):
         # Make sure there's no duplicate arguments in kwargs
         if "read_write_info" in kwargs:
             kwargs.pop("read_write_info")
-        if "postfix" in kwargs:
+        if "post_var_postfix" in kwargs:
             kwargs.pop("post_var_postfix")
         # The PSyData transformation needs to pass this object to
         # the corresponding PSyData node, so add it to the option arguments.

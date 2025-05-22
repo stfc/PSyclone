@@ -815,3 +815,24 @@ def test_auto_invoke_empty_schedule(capsys):
     _, err = capsys.readouterr()
     assert ("Not adding profiling to routine 'work1' because it does not "
             "contain any statements." in err)
+
+
+def test_profiling_exit_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    EXIT block in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+
+        do i = 1, 100
+          EXIT
+        end do
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Cannot apply the ProfileTrans to a code region containing a "
+            "Fortran EXIT statement." in str(excinfo.value))

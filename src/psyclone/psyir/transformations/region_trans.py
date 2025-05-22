@@ -229,4 +229,5 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
         to avoid using unsupported nodes inside a region.
 
         '''
-        super().apply(self, nodes, node_type_check=node_type_check, **kwargs)
+        super().apply(nodes, options=options,
+                      node_type_check=node_type_check, **kwargs)

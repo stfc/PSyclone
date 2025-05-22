@@ -201,7 +201,7 @@ class GOceanExtractTrans(ExtractTrans):
         # Make sure there's no duplicate arguments in kwargs
         if "read_write_info" in kwargs:
             kwargs.pop("read_write_info")
-        if "postfix" in kwargs:
+        if "post_var_postfix" in kwargs:
             kwargs.pop("post_var_postfix")
         super().apply(nodes, region_name=region_name, prefix=prefix,
                       create_driver=create_driver, post_var_postfix=postfix,

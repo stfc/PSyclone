@@ -564,7 +564,8 @@ def test_driver_grid_properties(fortran_writer):
     psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
 
-    etrans.apply(invoke.schedule.children[0], {'create_driver': True})
+    etrans.apply(invoke.schedule.children[0], create_driver=True,
+                 read_write_info=None, post_var_postfix="")
 
     # First test extraction code
     # --------------------------
