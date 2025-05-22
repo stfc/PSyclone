@@ -35,6 +35,7 @@
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 
 '''
@@ -47,6 +48,7 @@ import os
 import re
 import shutil
 import stat
+import logging
 from sys import modules
 
 import pytest
@@ -751,7 +753,7 @@ def test_main_invalid_api(capsys):
     assert output == expected_output
 
 
-def test_main_api():
+def test_main_api(capsys, caplog):
     ''' Test that the API can be set by a command line parameter, also using
     the API name aliases. '''
 
@@ -780,6 +782,29 @@ def test_main_api():
 
     main([filename, "-api", "dynamo0.3"])
     assert Config.get().api == "lfric"
+
+    # Give invalid logging level
+    # Reset capsys
+    capsys.readouterr()
+    with pytest.raises(SystemExit):
+        main([filename, "-api", "dynamo0.3", "--log-level", "fail"])
+    _, err = capsys.readouterr()
+    # Error message check truncated as Python 3.13 changes how the
+    # array is output.
+    assert ("error: argument --log-level: invalid choice: 'fail'"
+            in err)
+
+    # Test we get the logging debug correctly with caplog. This
+    # overrides the file output that PSyclone attempts.
+    caplog.clear()
+    # Pytest fully controls the logging level, overriding anything we
+    # set in generator.main so we can't test for it.
+    with caplog.at_level(logging.DEBUG):
+        main([filename, "-api", "dynamo0.3", "--log-level", "DEBUG",
+              "--log-file", "test.out"])
+        assert Config.get().api == "lfric"
+        assert caplog.records[0].levelname == "DEBUG"
+        assert "Logging system initialised" in caplog.record_tuples[0][2]
 
 
 def test_config_flag():

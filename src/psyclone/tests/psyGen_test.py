@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified: I. Kavcic, L. Turner, O. Brunt and J. G. Wallwork, Met Office
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the psyGen module '''
@@ -45,11 +46,13 @@
 # PSyFactory, TransInfo, Transformation
 import os
 import sys
+import logging
 from unittest.mock import patch
+import warnings
 
 import pytest
 
-from fparser import api as fpapi, logging
+from fparser import api as fpapi
 from fparser.two import Fortran2003
 
 from psyclone.configuration import Config
@@ -212,15 +215,18 @@ def test_transformation_apply_deprecation_message(capsys):
         def apply(self, node=None, options=None):
             super().apply(node, options=options)
 
-    instance = TestTrans()
-    instance.apply(options={"dict": True})
-    out, err = capsys.readouterr()
-    assert ("PSyclone Deprecation Warning: The 'options' parameter to "
-            "Transformation.apply and Transformation.validate are now "
-            "deprecated. Please use "
-            "the individual arguments, or unpack the options with "
-            "**options. See the Transformations section of the "
-            "User guide for more details" in out)
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to be triggered.
+        warnings.simplefilter("always")
+        TestTrans().apply(options={"a": "test"})
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
+                "Transformation.apply and Transformation.validate are now "
+                "deprecated. Please use "
+                "the individual arguments, or unpack the options with "
+                "**options. See the Transformations section of the "
+                "User guide for more details" in str(w[0].message))
 
 
 def test_transformation_get_valid_options():
