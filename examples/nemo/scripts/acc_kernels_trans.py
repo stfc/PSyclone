@@ -97,8 +97,11 @@ Loop.set_loop_type_inference_rules(
     }
 )
 
-# List of all module names that PSyclone will chase during the creation of the
-# PSyIR tree in order to use the symbol information from those modules
+# Whether to chase the imported modules to improve symbol information (it can
+# also be a list of module filenames to limit the chasing to only specific
+# modules). This has to be used in combination with '-I' command flag in order
+# to point to the module location directory. We also strongly recommend using
+# the '--enable-cache' flag to reduce the performance overhead.
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # Get the PSyclone transformations we will use
