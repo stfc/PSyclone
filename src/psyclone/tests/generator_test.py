@@ -35,6 +35,7 @@
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 
 '''
@@ -47,6 +48,7 @@ import os
 import re
 import shutil
 import stat
+import logging
 from sys import modules
 
 import pytest
@@ -62,6 +64,7 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.generator import (
     generate, main, check_psyir, add_builtins_use)
+from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
@@ -750,7 +753,7 @@ def test_main_invalid_api(capsys):
     assert output == expected_output
 
 
-def test_main_api():
+def test_main_api(capsys, caplog):
     ''' Test that the API can be set by a command line parameter, also using
     the API name aliases. '''
 
@@ -779,6 +782,29 @@ def test_main_api():
 
     main([filename, "-api", "dynamo0.3"])
     assert Config.get().api == "lfric"
+
+    # Give invalid logging level
+    # Reset capsys
+    capsys.readouterr()
+    with pytest.raises(SystemExit):
+        main([filename, "-api", "dynamo0.3", "--log-level", "fail"])
+    _, err = capsys.readouterr()
+    # Error message check truncated as Python 3.13 changes how the
+    # array is output.
+    assert ("error: argument --log-level: invalid choice: 'fail'"
+            in err)
+
+    # Test we get the logging debug correctly with caplog. This
+    # overrides the file output that PSyclone attempts.
+    caplog.clear()
+    # Pytest fully controls the logging level, overriding anything we
+    # set in generator.main so we can't test for it.
+    with caplog.at_level(logging.DEBUG):
+        main([filename, "-api", "dynamo0.3", "--log-level", "DEBUG",
+              "--log-file", "test.out"])
+        assert Config.get().api == "lfric"
+        assert caplog.records[0].levelname == "DEBUG"
+        assert "Logging system initialised" in caplog.record_tuples[0][2]
 
 
 def test_config_flag():
@@ -1312,6 +1338,65 @@ def test_invalid_kern_naming():
                         kern_naming="not-a-scheme")
     assert "Invalid kernel-renaming scheme supplied" in str(err.value)
     assert "but got 'not-a-scheme'" in str(err.value)
+
+
+def test_enable_cache_flag(capsys, tmpdir, monkeypatch):
+    ''' Check that if the --enable-cache flag is provided, resolve imports will
+    create .psycache files for each imported module.
+
+    '''
+    module1 = '''
+        module module1
+            integer :: a
+        end module module1
+    '''
+    module2 = '''
+        module module2
+            integer :: b
+        end module module2
+    '''
+    code = '''
+        module test
+            use module1
+            use module2
+            real :: result
+        contains
+            subroutine mytest()
+                result = a + b
+            end subroutine mytest
+        end module test
+    '''
+    recipe = '''
+
+RESOLVE_IMPORTS = True
+
+def trans(psyir):
+    pass
+    '''
+    recipe_name = "test_cache.py"
+    for filename, content in [("module1.f90", module1),
+                              ("module2.f90", module2),
+                              ("code.f90", code),
+                              (recipe_name, recipe)]:
+        with open(tmpdir.join(filename), "w", encoding='utf-8') as my_file:
+            my_file.write(content)
+
+    # If enable-cache not used, no .psycache files exist
+    monkeypatch.chdir(tmpdir)
+    ModuleManager._instance = None
+    main(["code.f90", "-s", recipe_name])
+    assert not os.path.isfile("module1.psycache")
+    assert not os.path.isfile("module2.psycache")
+    assert not ModuleManager.get()._cache_active
+
+    # If enable-cache is used, it will generate .psycache files for each module
+    ModuleManager._instance = None
+    main(["code.f90", "-s", recipe_name, "--enable-cache"])
+    assert os.path.isfile(tmpdir.join("module1.psycache"))
+    assert os.path.isfile(tmpdir.join("module2.psycache"))
+    assert ModuleManager.get()._cache_active
+
+    ModuleManager._instance = None
 
 
 def test_main_include_invalid(capsys, tmpdir):

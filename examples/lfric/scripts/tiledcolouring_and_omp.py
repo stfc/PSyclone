@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,31 +31,45 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter
+# Authors: S. Siso, STFC Daresbury Lab
 
-# Ensure that any XPASS ("unexpectedly passing") results are reported
-# as failures in the test suite.
-[tool:pytest]
-xfail_strict=true
-filterwarnings=ignore::DeprecationWarning
+''' File containing a PSyclone transformation script for the LFRic
+API to apply tiled-colouring and OpenMP threading.'''
 
-[flake8]
-# Ignore E266 too many leading '#' for block comment since we use those for
-# Doxygen markup.
-extend-ignore = E266
-# List of files and directories to exclude. Note we also ignore specific
-# errors on specific lines with # noqa: <error> in a few other files.
-exclude =
-    .git,__pycache__,conf.py,
-    # Contain multiple imports flagged with F401 imported but unused
-    __init__.py,
-    tutorial/practicals/LFRic/single_node/1_openmp/omp_script.py,
-    tutorial/practicals/LFRic/single_node/2_openacc/acc_parallel.py,
-    tutorial/practicals/generic/2_profiling/profile_trans.py,
-    tutorial/practicals/generic/3_openmp/omp_trans.py,
-    tutorial/practicals/generic/4_openacc/kernels_trans.py,
-    # Contains star import causing F403 unable to detect undefined names and
-    # F405 may be undefined, or defined from star imports
-    examples/nemo/eg4/dawn_script.py,
-    # Skip external submodules and build directories
-    external, build
+from psyclone.transformations import Dynamo0p3ColourTrans, \
+    DynamoOMPParallelLoopTrans
+from psyclone.psyir.nodes import Loop, Routine, FileContainer
+from psyclone.domain.lfric import LFRicConstants
+
+
+def trans(psyir: FileContainer):
+    ''' PSyclone transformation script to apply tiled-colouring and OpenMP
+    threading.
+
+    :param psyir: the PSyIR of the PSy-layer.
+
+    '''
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = DynamoOMPParallelLoopTrans()
+    const = LFRicConstants()
+
+    for subroutine in psyir.walk(Routine):
+
+        print(f"Transforming invoke '{subroutine.name}'...")
+
+        # Colour all of the loops over cells (with the tiling option)
+        # unless they are on discontinuous spaces
+        for child in subroutine.children:
+            if isinstance(child, Loop) \
+               and child.field_space.orig_name \
+               not in const.VALID_DISCONTINUOUS_NAMES \
+               and child.iteration_space == "cell_column":
+                ctrans.apply(child, tiling=True)
+
+        # Then apply OpenMP to each of the colour loop
+        for child in subroutine.children:
+            if isinstance(child, Loop):
+                if child.loop_type == "colours":
+                    otrans.apply(child.loop_body[0])
+                else:
+                    otrans.apply(child)

@@ -41,7 +41,7 @@
 
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessInfo
@@ -469,7 +469,8 @@ class LFRicKern(CodedKern):
         '''
         :returns: the symbol representing the colourmap for this kernel call.
 
-        :raises InternalError: if this kernel is not coloured.
+        :raises InternalError: if this kernel is not coloured or the dictionary
+            of inter-grid kernels and colourmaps has not been constructed.
 
         '''
         if not self.is_coloured():
@@ -482,14 +483,47 @@ class LFRicKern(CodedKern):
             try:
                 cmap = sched.symbol_table.lookup_with_tag("cmap")
             except KeyError:
-                # We have to do this here as _init_colourmap (which calls this
-                # method) is only called at code-generation time.
+                # Declare array holding map from a given colour-cell to
+                # the index of the cell (this is not initialised until code
+                # lowering)
                 cmap = sched.symbol_table.find_or_create_tag(
                     "cmap", symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
                         "integer(kind=i_def), pointer :: cmap(:,:)"))
 
         return cmap
+
+    @property
+    def tilecolourmap(self) -> DataSymbol:
+        '''
+        Getter for the name of the tilecolourmap associated with this
+        kernel call.
+
+        :returns: the symbol representing the tilecolourmap.
+
+        :raises InternalError: if this kernel is not coloured or the dictionary
+            of inter-grid kernels and colourmaps has not been constructed.
+
+        '''
+        if not self.is_coloured():
+            raise InternalError(f"Kernel '{self.name}' is not inside a "
+                                f"coloured loop.")
+        sched = self.ancestor(InvokeSchedule)
+        if self.is_intergrid:
+            tmap = self._intergrid_ref.tilecolourmap_symbol.name
+        else:
+            try:
+                tmap = sched.symbol_table.lookup_with_tag("tilecolourmap").name
+            except KeyError:
+                # Declare array holding map from a given tile-colour-cell to
+                # the index of the cell (this is not initialised until code
+                # lowering)
+                tmap = sched.symbol_table.find_or_create_tag(
+                    "tilecolourmap", root_name="tmap", symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(
+                        "integer(kind=i_def), pointer :: tmap(:,:,:)")).name
+
+        return tmap
 
     @property
     def last_cell_all_colours_symbol(self):
@@ -541,7 +575,35 @@ class LFRicKern(CodedKern):
             ncols_sym = self._intergrid_ref.ncolours_var_symbol
             return ncols_sym.name if ncols_sym is not None else None
 
-        return self.scope.symbol_table.lookup_with_tag("ncolour").name
+        try:
+            symbol = self.scope.symbol_table.lookup_with_tag("ncolour")
+        except KeyError:
+            return None
+        return symbol.name
+
+    @property
+    def ntilecolours_var(self) -> Optional[str]:
+        '''
+        Getter for the name of the variable holding the number of colours
+        (over tiled cells) associated with this kernel call.
+
+        :return: name of the variable holding the number of colours
+
+        :raises InternalError: if this kernel is not coloured or the
+            colour-map information has not been initialised.
+        '''
+        if not self.is_coloured():
+            raise InternalError(f"Kernel '{self.name}' is not inside a "
+                                f"coloured loop.")
+        if self.is_intergrid:
+            ncols_sym = self._intergrid_ref.ntilecolours_var_symbol
+            return ncols_sym.name if ncols_sym is not None else None
+
+        try:
+            symbol = self.scope.symbol_table.lookup_with_tag("ntilecolours")
+        except KeyError:
+            return None
+        return symbol.name
 
     @property
     def fs_descriptors(self):

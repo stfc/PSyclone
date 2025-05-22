@@ -81,6 +81,7 @@ from psyclone.psyir.transformations.parallel_loop_trans import (
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
+from psyclone.utils import transformation_documentation_wrapper
 
 
 def check_intergrid(node):
@@ -813,10 +814,12 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # colouring.
         const = LFRicConstants()
         if node.field_space.orig_name not in const.VALID_DISCONTINUOUS_NAMES:
-            if node.loop_type != 'colour' and node.has_inc_arg():
+            if (node.loop_type not in ('cells_in_colour', 'tiles_in_colour')
+                    and node.has_inc_arg()):
                 raise TransformationError(
                     f"Error in {self.name} transformation. The kernel has an "
-                    f"argument with INC access. Colouring is required.")
+                    f"argument with INC access but the loop is of type "
+                    f"'{node.loop_type}'. Colouring is required.")
         # As this is a domain-specific loop, we don't perform general
         # dependence analysis because it is too conservative and doesn't
         # account for the special steps taken for such a loop at code-
@@ -922,7 +925,9 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
         # If the loop is not already coloured then check whether or not
         # it should be
-        if node.loop_type != 'colour' and node.has_inc_arg():
+        if (node.loop_type not in ('cells_in_colour', 'tiles_in_colour',
+                                   'cells_in_tile')
+                and node.has_inc_arg()):
             raise TransformationError(
                 f"Error in {self.name} transformation. The kernel has an "
                 f"argument with INC access. Colouring is required.")
@@ -1019,27 +1024,34 @@ class ColourTrans(LoopTrans):
     def __str__(self):
         return "Split a loop into colours"
 
-    def apply(self, node, options=None):
+    def apply(self, node: Loop, options: Optional[Dict[str, Any]] = None,
+              tiling: bool = False, **kwargs):
         '''
         Converts the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
-        loop is over cells of that colour.
+        loop is over cells (or tiles and cells) of that colour.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: options for the transformation.
-        :type options: Optional[Dict[str, Any]]
+        :param tiling: whether to enable colour tiling.
 
         '''
+        # TODO #2668: Deprecate options dictionary
+        if options:
+            tiling = options.get("tiling", False)
+
         self.validate(node, options=options)
 
-        colours_loop = self._create_colours_loop(node)
+        if tiling:
+            colours_loop = self._create_tiled_colours_loops(node)
+        else:
+            colours_loop = self._create_colours_loop(node)
 
         # Add this loop as a child of the original node's parent
         node.parent.addchild(colours_loop, index=node.position)
 
-        # Add contents of node to colour loop.
-        colours_loop.loop_body[0].loop_body.children.extend(
+        # Add contents of node to the inner loop body.
+        colours_loop.walk(Schedule)[-1].children.extend(
             node.loop_body.pop_all_children())
 
         # remove original loop
@@ -1056,13 +1068,30 @@ class ColourTrans(LoopTrans):
         :returns: doubly-nested loop over colours and cells of a given colour.
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
-        :raises NotImplementedError: this method must be overridden in an \
+        :raises NotImplementedError: this method must be overridden in an
                                      API-specific sub-class.
         '''
         raise InternalError("_create_colours_loop() must be overridden in an "
                             "API-specific sub-class.")
 
+    def _create_tiled_colours_loops(self, node: Loop) -> Loop:
+        '''
+        Creates nested loop (colours, tiles of a given colour and cells) to
+        replace the supplied loop over cells.
 
+        :param node: the loop for which to create a coloured version.
+
+        :returns: triply-nested loop over colours, tiles of a given colour,
+            and cells.
+
+        :raises NotImplementedError: this method must be overridden in an
+                                     API-specific sub-class.
+        '''
+        raise InternalError("_create_tiled_colours_loops() must be overridden"
+                            " in an API-specific sub-class.")
+
+
+@transformation_documentation_wrapper
 class Dynamo0p3ColourTrans(ColourTrans):
 
     '''Split a Dynamo 0.3 loop over cells into colours so that it can be
@@ -1113,20 +1142,16 @@ class Dynamo0p3ColourTrans(ColourTrans):
     def __str__(self):
         return "Split a Dynamo 0.3 loop over cells into colours"
 
-    def apply(self, node, options=None):
-        '''Performs LFRic-specific error checking and then uses the parent
-        class to convert the Loop represented by :py:obj:`node` into a
-        nested loop where the outer loop is over colours and the inner
-        loop is over cells of that colour.
+    def validate(self, node: LFRicLoop,
+                 options: Optional[Dict[str, Any]] = None,
+                 **kwargs):
+        ''' Validate the transformation.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.domain.lfric.LFRicLoop`
-        :param options: a dictionary with options for transformations.\
-        :type options: Optional[Dict[str, Any]]
+        :param options: a dictionary with options for transformations.
 
         '''
-        # check node is a loop
-        super().validate(node, options=options)
+        super().validate(node, options=options, **kwargs)
 
         # Check we need colouring
         const = LFRicConstants()
@@ -1157,14 +1182,27 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Cannot have a loop over colours "
                                       "within an OpenMP parallel region.")
 
-        # Get the ancestor InvokeSchedule as applying the transformation
-        # creates a new Loop node.
+    def apply(self, node: LFRicLoop, options: Optional[Dict[str, Any]] = None,
+              **kwargs):
+        ''' Convert the given LFRic-specific loop into a double or triple
+        nested loop where the outer loop iterates over colours and the inner
+        loops iterates over cells or tile and cells. This enables safe
+        parallelisation of the second loop.
+
+        :param node: the loop to transform.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        self.validate(node, options=options, **kwargs)
+
+        # Get the ancestor InvokeSchedule before applying the super() because
+        # node will be detached
         sched = node.ancestor(LFRicInvokeSchedule)
 
-        super().apply(node, options=options)
+        super().apply(node, options=options, **kwargs)
 
-        # Finally, update the information on the colourmaps required for
-        # the mesh(es) in this invoke.
+        # Update the information on the colourmaps required for the mesh(es) in
+        # this invoke.
         if sched and sched.invoke:
             sched.invoke.meshes.colourmap_init()
 
@@ -1191,7 +1229,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         # Create a colour loop. This loops over cells of a particular colour
         # and can be run in parallel.
         colour_loop = node.__class__(parent=colours_loop.loop_body,
-                                     loop_type="colour")
+                                     loop_type="cells_in_colour")
         colour_loop.field_space = node.field_space
         colour_loop.field_name = node.field_name
         colour_loop.iteration_space = node.iteration_space
@@ -1210,6 +1248,81 @@ class Dynamo0p3ColourTrans(ColourTrans):
         # Add this loop as a child of our loop over colours
         colours_loop.loop_body.addchild(colour_loop)
 
+        return colours_loop
+
+    def _create_tiled_colours_loops(self, node: Loop) -> Loop:
+        '''
+        Creates a nested loop hierarchy (colours, tiles and cells of a given
+        colour inside a tile) which can be used to replace the supplied loop
+        over cells.
+
+        If it iterates over halos it will look like:
+
+        do colour = 1, ntilecolours
+          do tile = 1, last_halo_tile_per_colour(colour, hdepth)
+            do cell =  1, last_halo_cell_per_colour_and_tile(tile, colour, hd)
+
+        If it does not iterate over halos it will look like:
+
+        do colour = 1, ntilecolours
+          do tile = 1, last_edge_tile_per_colour(colour)
+            do cell =  1, last_edge_cell_per_colour_and_tile(tile, colour)
+
+        :param node: the loop for which to create a coloured version.
+
+        :returns: triply-nested loop over colours and cells of a given colour.
+
+        '''
+        # Create a 'colours' loop. This loops over colours and must be run
+        # sequentially.
+        colours_loop = node.__class__(parent=node.parent, loop_type="colours")
+        colours_loop.field_space = node.field_space
+        colours_loop.iteration_space = node.iteration_space
+        colours_loop.set_lower_bound("start")
+        colours_loop.set_upper_bound("ntilecolours")
+
+        # Create a 'tiles_in_colour' loop. This loops over tiles of a
+        # particular colour and can be run in parallel.
+        colour_loop = node.__class__(parent=colours_loop.loop_body,
+                                     loop_type="tiles_in_colour")
+        colour_loop.field_space = node.field_space
+        colour_loop.field_name = node.field_name
+        colour_loop.iteration_space = node.iteration_space
+        colour_loop.set_lower_bound("start")
+        colour_loop.kernel = node.kernel
+        if node.upper_bound_name in LFRicConstants().HALO_ACCESS_LOOP_BOUNDS:
+            # If the original loop went into the halo then this coloured loop
+            # must also go into the halo.
+            index = node.upper_bound_halo_depth
+            colour_loop.set_upper_bound("ntiles_per_colour_halo", index)
+        else:
+            # No halo access.
+            colour_loop.set_upper_bound("ntiles_per_colour")
+
+        # Add this loop as a child of our loop over colours
+        colours_loop.loop_body.addchild(colour_loop)
+
+        # Create a cells loop. This loops over cells of a particular tile
+        # and can be run in parallel.
+        tile_loop = node.__class__(parent=colour_loop.loop_body,
+                                   loop_type="cells_in_tile")
+        tile_loop.field_space = node.field_space
+        tile_loop.field_name = node.field_name
+        tile_loop.iteration_space = node.iteration_space
+        tile_loop.set_lower_bound("start")
+        tile_loop.kernel = node.kernel
+        if node.upper_bound_name in LFRicConstants().HALO_ACCESS_LOOP_BOUNDS:
+            # If the original loop went into the halo then this coloured loop
+            # must also go into the halo.
+            index = node.upper_bound_halo_depth
+            tile_loop.set_upper_bound("ncells_per_colour_and_tile_halo",
+                                      index)
+        else:
+            # No halo access.
+            tile_loop.set_upper_bound("ncells_per_colour_and_tile")
+
+        # Add this loop as a child of our loop over colours
+        colour_loop.loop_body.addchild(tile_loop)
         return colours_loop
 
 
@@ -1850,7 +1963,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
         :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyir.nodes.Loop` but the original loop does\
-            not iterate over 'colour'.
+            not iterate over 'cells_in_colour'.
         :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyir.nodes.Loop` but the parent does not
             iterate over 'colours'.
@@ -1911,12 +2024,12 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                 f"LFRicInvokeSchedule, or a Loop, but found "
                 f"{type(node.parent)}")
         if isinstance(node.parent.parent, Loop):
-            if node.loop_type != "colour":
+            if node.loop_type != "cells_in_colour":
                 raise TransformationError(
                     f"In the Dynamo0p3RedundantComputation transformation "
                     f"apply method, if the parent of the supplied Loop is "
                     f"also a Loop then the supplied Loop must iterate over "
-                    f"'colour', but found '{node.loop_type}'")
+                    f"'cells_in_colour', but found '{node.loop_type}'")
             if node.parent.parent.loop_type != "colours":
                 raise TransformationError(
                     f"In the Dynamo0p3RedundantComputation transformation "
@@ -1934,13 +2047,13 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                 "In the Dynamo0p3RedundantComputation transformation apply "
                 "method distributed memory must be switched on")
 
-        # loop must iterate over cell-column, dof or colour. Note, an
+        # loop must iterate over cell-column, dof or cell-in-colour. Note, an
         # empty loop_type iterates over cell-columns.
-        if node.loop_type not in ["", "dof", "colour"]:
+        if node.loop_type not in ["", "dof", "cells_in_colour"]:
             raise TransformationError(
                 f"In the Dynamo0p3RedundantComputation transformation apply "
                 f"method the loop type must be one of '' (cell-columns), 'dof'"
-                f" or 'colour', but found '{node.loop_type}'")
+                f" or 'cells_in_colour', but found '{node.loop_type}'")
 
         for kern in node.kernels():
             if "halo" in kern.iterates_over:
@@ -2027,7 +2140,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         if loop.loop_type == "":
             # Loop is over cells
             loop.set_upper_bound("cell_halo", depth)
-        elif loop.loop_type == "colour":
+        elif loop.loop_type == "cells_in_colour":
             # Loop is over cells of a single colour
             loop.set_upper_bound("colour_halo", depth)
         elif loop.loop_type == "dof":
