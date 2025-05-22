@@ -1072,12 +1072,14 @@ def test_structure_type():
 def test_create_structuretype():
     ''' Test the create() method of StructureType. '''
     # One member will have its type defined by a DataTypeSymbol
+    # One memeber will have its initial value defined by the
+    # default.
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
     stype = StructureType.create([
         ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
         ("george", REAL_TYPE, Symbol.Visibility.PRIVATE,
          Literal("1.0", REAL_TYPE)),
-        ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
+        ("barry", tsymbol, Symbol.Visibility.PUBLIC)])
     assert len(stype.components) == 3
     george = stype.lookup("george")
     assert isinstance(george, StructureType.ComponentType)
@@ -1094,7 +1096,7 @@ def test_create_structuretype():
         StructureType.create([
             ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
             ("george", Symbol.Visibility.PRIVATE)])
-    assert ("Each component must be specified using a 4 to 6-tuple of (name, "
+    assert ("Each component must be specified using a 3 to 6-tuple of (name, "
             "type, visibility, initial_value, preceding_comment, "
             "inline_comment) but found a tuple with 2 members: ('george', "
             in str(err.value))
