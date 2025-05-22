@@ -802,6 +802,7 @@ class ACCDataDirective(ACCRegionDirective):
         Ensures that the various data-movement clauses are up-to-date.
 
         '''
+        super()._update_node()
         self._update_data_movement_clauses()
 
     def _update_data_movement_clauses(self):
