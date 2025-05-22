@@ -88,6 +88,11 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone_no_annexed.cfg
         export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
         cd ${LFRIC_DIR}
+        # Ensure no transformations are applied by supplying an empty
+        # transformation script.
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
+        mkdir -p ${OPT_DIR}
+        cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
         ./build/local_build.py -a gungho_model -v
