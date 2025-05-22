@@ -1,3 +1,6 @@
+   24) PR #2999 for #2988. Fixed the unneccessary failure when 3 arguments
+   provided to Structure…
+
    23) PR #2993. Add documentation for the options to kwargs ongoing conversion.
 
    22) PR #2987 towards #11. Provides logging infrastructure and documentation.
