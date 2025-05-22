@@ -401,7 +401,6 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
     assert blocks[1][0] is routine.walk(OMPParallelDirective)[0].dir_body
 
 
-
 def test_definition_use_chain_find_forward_accesses_basic_example(
     fortran_reader,
 ):

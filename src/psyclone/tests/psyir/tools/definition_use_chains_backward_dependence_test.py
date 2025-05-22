@@ -772,7 +772,7 @@ def test_definition_use_chain_find_backward_accesses_pure_call(
     reaches = chains.find_backward_accesses()
     assert len(reaches) == 1
     # Result is lhs of the first assignment
-    lhs_assign1 = routine.walk(Assignment)[0].lhs 
+    lhs_assign1 = routine.walk(Assignment)[0].lhs
     assert reaches[0] is lhs_assign1
 
     # Get the lhs of the b = 1 assignment
