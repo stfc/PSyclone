@@ -47,6 +47,7 @@ import os
 from collections import OrderedDict
 import abc
 from typing import Any, Dict
+import warnings
 
 try:
     from sphinx.util.typing import stringify_annotation
@@ -1298,7 +1299,7 @@ class Kern(Statement):
         '''
         parent_loop = self.ancestor(Loop)
         while parent_loop:
-            if parent_loop.loop_type == "colour":
+            if parent_loop.loop_type in ("cells_in_colour", "tiles_in_colour"):
                 return True
             parent_loop = parent_loop.ancestor(Loop)
         return False
@@ -2766,7 +2767,7 @@ class Transformation(metaclass=abc.ABCMeta):
         '''
         # TODO 2668: options are now deprecated:
         if options is not None:
-            print(self._deprecation_warning)
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
 
     def validate(self, node, options=None, **kwargs):
         '''Method that validates that the input data is correct.
