@@ -40,7 +40,7 @@
 class for all API-specific loop fusion transformations.
 '''
 
-from psyclone.core import SymbolicMaths, VariablesAccessInfo
+from psyclone.core import SymbolicMaths
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.tools import DependencyTools
@@ -205,11 +205,11 @@ class LoopFuseTrans(LoopTrans):
         routine = node1.ancestor(Routine)
         if routine:
             remaining_names = {sig.var_name for sig in
-                               VariablesAccessInfo(routine).all_signatures}
+                               routine.reference_accesses().all_signatures}
             del_names = {sig.var_name for sig in
-                         VariablesAccessInfo(node2.start_expr).all_signatures +
-                         VariablesAccessInfo(node2.stop_expr).all_signatures +
-                         VariablesAccessInfo(node2.step_expr).all_signatures}
+                         node2.start_expr.reference_accesses().all_signatures +
+                         node2.stop_expr.reference_accesses().all_signatures +
+                         node2.step_expr.reference_accesses().all_signatures}
             for name in del_names:
                 if name not in remaining_names:
                     try:

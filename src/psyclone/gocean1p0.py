@@ -53,7 +53,7 @@ from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config, ConfigurationError
-from psyclone.core import Signature
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
 from psyclone.errors import GenerationError, InternalError
@@ -1024,16 +1024,15 @@ class GOKern(CodedKern):
                     var_accesses.add_access(signature, acc, self,
                                             [i_expr, j_expr])
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. All accesses are marked
-        according to the kernel metadata.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the\
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessInfo:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
+        var_accesses = VariablesAccessInfo()
         # Grid properties are accessed using one of the fields. This stores
         # the field used to avoid repeatedly determining the best field:
         field_for_grid_property = None
@@ -1067,8 +1066,9 @@ class GOKern(CodedKern):
                     var_accesses.add_access(signature, arg.access,
                                             self, [Reference(symbol_i),
                                                    Reference(symbol_j)])
-        super().reference_accesses(var_accesses)
+        var_accesses.merge(super().reference_accesses())
         var_accesses.next_location()
+        return var_accesses
 
     @property
     def index_offset(self):

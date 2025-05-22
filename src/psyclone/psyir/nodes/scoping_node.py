@@ -171,20 +171,21 @@ class ScopingNode(Node):
         # call to _refine_copy and only do this call when that depth is zero.
         self.replace_symbols_using(self._symbol_table)
 
-    def reference_accesses(self, access_info: VariablesAccessInfo):
+    def reference_accesses(self) -> VariablesAccessInfo:
         '''
-        Get all variable access information. This specialisation is required
-        to query the SymbolTable associated with a Scoping node.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the
-            information about variable accesses.
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
+        var_accesses = VariablesAccessInfo()
         # During the updating process when moving a Routine (and its
         # associated Symbol), it's possible that we won't have a SymbolTable.
         if self._symbol_table:
-            self._symbol_table.reference_accesses(access_info)
-        super().reference_accesses(access_info)
+            var_accesses.merge(self._symbol_table.reference_accesses())
+        var_accesses.merge(super().reference_accesses())
+        return var_accesses
 
     def replace_symbols_using(self, table_or_symbol):
         '''

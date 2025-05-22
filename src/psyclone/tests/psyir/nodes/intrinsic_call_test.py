@@ -44,7 +44,6 @@ TODO #2341 - tests need to be added for all of the supported intrinsics.
 
 import pytest
 
-from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes import (
     ArrayReference, Literal, Reference, Schedule, Assignment)
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall, IAttr
@@ -436,7 +435,7 @@ def test_reference_accesses_bounds(operator, fortran_reader):
 
     # The access to 'a' should be reported as 'NO_DATA_ACCESS' as its
     # actual data is not accessed.
-    vai = VariablesAccessInfo(schedule)
+    vai = schedule.reference_accesses()
     assert str(vai) == "a: NO_DATA_ACCESS, b: READ, n: WRITE"
 
 

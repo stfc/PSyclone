@@ -38,7 +38,6 @@
 
 import pytest
 
-from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.symbols import (
     ContainerSymbol, GenericInterfaceSymbol, ImportInterface, INTEGER_TYPE,
     RoutineSymbol, SymbolTable, Symbol, UnresolvedInterface)
@@ -210,8 +209,7 @@ def test_gis_reference_accesses():
     birch = RoutineSymbol("birch")
     coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False),
                                                  (birch, True)])
-    vai = VariablesAccessInfo()
-    coppice.reference_accesses(vai)
+    vai = coppice.reference_accesses()
     all_names = [sig.var_name for sig in vai.all_signatures]
     assert len(all_names) == 3
     assert "ash" in all_names

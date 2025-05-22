@@ -405,7 +405,7 @@ class ScalarisationTrans(LoopTrans):
         # simplicity. Otherwise if its a read we can't scalarise safely.
         # If its a write then this symbol can be scalarised.
 
-        var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+        var_accesses = node.loop_body.reference_accesses()
 
         # Find all the arrays that are only accessed by a single index, and
         # that index is only read inside the loop.
