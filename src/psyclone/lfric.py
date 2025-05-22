@@ -2128,7 +2128,8 @@ class LFRicMeshes():
                         datatype=ArrayType(
                                 LFRicTypes("LFRicIntegerScalarDataType")(),
                                 [ArrayType.Extent.DEFERRED]*1))
-                # Add these symbols into the LFRicInterGrid entry for this kernel
+                # Add these symbols into the LFRicInterGrid entry for this
+                # kernel
                 call._intergrid_ref.set_colour_info(colour_map, ncolours,
                                                     last_cell)
             else:
