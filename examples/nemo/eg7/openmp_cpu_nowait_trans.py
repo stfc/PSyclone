@@ -94,9 +94,11 @@ def add_parallel_region_to_contiguous_directives(schedule):
             elif isinstance(child, IfBlock):
                 add_parallel_region_to_contiguous_directives(child.if_body)
                 if child.else_body:
-                    add_parallel_region_to_contiguous_directives(child.else_body)
-    # If we get to the end and need to enclose some nodes in a parallel directive
-    # we do it now
+                    add_parallel_region_to_contiguous_directives(
+                        child.else_body
+                    )
+    # If we get to the end and need to enclose some nodes in a parallel
+    # directive we do it now
     if start >= 0:
         sets.append((start, end))
 
