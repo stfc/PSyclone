@@ -979,8 +979,7 @@ class Node():
 
     def compute_cached_abs_positions(self):
         '''
-        Cache the absolute positions for all nodes in this node's
-        root's tree.
+        Cache the absolute positions for all nodes in this node's root's tree.
         This involves computing the absolute positions for all of the nodes
         in the tree, and storing them.
 
@@ -1019,8 +1018,8 @@ class Node():
         '''
         if self.root is self:
             return self.START_POSITION
-        # Need to check is not None as root abs_position is 0 which
-        # fails if statements.
+        # Check if the cached values have been invalidated by checking the
+        # root (which receives invalidations from all connected nodes)
         # pylint: disable=protected-access
         if self.root._cached_abs_position is not None:
             return self._cached_abs_position
