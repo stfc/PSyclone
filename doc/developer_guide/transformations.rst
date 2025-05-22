@@ -519,7 +519,7 @@ this causes issues, please open an issue.
 Moving to the new transformations options
 =========================================
 PSyclone is currently moving from a dictionary of options to keyword arguments
-to control the `apply` and `validate` transformation methods. For example:
+to control the ``apply`` and ``validate`` transformation methods. For example:
 
 .. code-block:: python
 
@@ -532,34 +532,34 @@ to control the `apply` and `validate` transformation methods. For example:
 This update is happening gradually, with developers being asked to update
 transformations as they are otherwise being modified.
 
-Note that while the `options` dict is being deprecated, it is still
+Note that while the ``options`` dict is being deprecated, it is still
 accepted and ovverides the keyword arguments if both are provided.
 
 The steps required to update the transformations are detailed here (see
-the `ParallelLoopTrans` class for reference):
+the ``ParallelLoopTrans`` class for reference):
 
-1. Import the `transformation_documentation_wrapper` from `psyclone.utils` and
-   add `@transformation_documentation_wrapper` to the class definition. If
+1. Import the ``transformation_documentation_wrapper`` from ``psyclone.utils`` and
+   add ``@transformation_documentation_wrapper`` to the class definition. If
    there are no calls to super.apply() or super.validate(), then disable
    option inheritance in the documentation by using
-   `@transformation_documentation_wrapper(inherit=False)`.
-2. Update the `apply` method to have a keyword argument for each available
+   ``@transformation_documentation_wrapper(inherit=False)``.
+2. Update the ``apply`` method to have a keyword argument for each available
    option. These arguments should have type hints and default values defined
-   in the signature if possible. The `options` argument should remain, and
-   `**kwargs` should also be available. If type hints are not possible for one
+   in the signature if possible. The ``options`` argument should remain, and
+   ``**kwargs`` should also be available. If type hints are not possible for one
    of the keyword arguments, then type hints will need to be provided in the
    documentation as normal, and type checking will need to be done manually in
-   validate as `validate_options` cannot automatically do type checking where no
-   type hint is available. Note that if there is no `apply` method it should be
+   validate as ``validate_options`` cannot automatically do type checking where no
+   type hint is available. Note that if there is no ``apply`` method it should be
    added if the Transformation takes any options as the new infrastructure is
-   built upon the `apply` definition (e.g. `LoopTrans` has
+   built upon the ``apply`` definition (e.g. ``LoopTrans`` has
    validation used for subclasses, but performs no actions in its newly added
-   `apply` method).
-3. The `validate` method should call the `validate_options` method on each of
-   the keyword arguments and `**kwargs`. This method should not be called on
-   the `options` dictionary. The `options` input should overrule the keyword
+   ``apply`` method).
+3. The ``validate`` method should call the ``validate_options`` method on each of
+   the keyword arguments and ``**kwargs``. This method should not be called on
+   the ``options`` dictionary. The ``options`` input should overrule the keyword
    arguments when determining options to the apply and validate method.
-   There should also be a `# TODO 2668` to remove the options argument later:
+   There should also be a ``# TODO 2668`` to remove the options argument later:
    
 .. code-block:: python
 
@@ -569,17 +569,17 @@ the `ParallelLoopTrans` class for reference):
         #TODO #2668: Deprecate options dictionary.
         tiling = options.get("tiling", False)
 
-4. Modify the `validate` method to take `**kwargs` (but no other keyword
-   arguments other than options). Use the `get_option('optname', **kwargs)`
+4. Modify the ``validate`` method to take ``**kwargs`` (but no other keyword
+   arguments other than options). Use the ``get_option('optname', **kwargs)``
    to get each of the options out of the kwargs, as this will also give
    the default value if the option isn't passed into validate.
-5. If the `apply` method doesn't call `super().apply` all the way up to
-   the base `Transformation` class, then it should do a
-   `warnings.warn(self._deprecation_warning, DeprecationWarning, 2)` message
-   if the `options` dict is provided.
-6. Rewrite the documentation on the `apply` method to document the new
+5. If the ``apply`` method doesn't call ``super().apply`` all the way up to
+   the base ``Transformation`` class, then it should do a
+   ``warnings.warn(self._deprecation_warning, DeprecationWarning, 2)`` message
+   if the ``options`` dict is provided.
+6. Rewrite the documentation on the ``apply`` method to document the new
    keyword arguments, and remove any reference to options. Remove the
-   documentation on the keyword arguments to `validate`, as these will be
+   documentation on the keyword arguments to ``validate``, as these will be
    generated automatically by PSyclone.
 7. Repeat this process for any classes that the class inherits from.
 
