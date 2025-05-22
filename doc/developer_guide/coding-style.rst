@@ -155,6 +155,54 @@ retained.). For example::
     except KeyError as err:
         raise InternalError("Useful message here") from err
 
+
+Logging
+-------
+
+PSyclone supports the Python ``logging`` module, to help report useful
+information throughout the code. By default the logging infrastructure
+is switched off, but can be enabled either through the PSyclone command's
+options or programatically with:
+
+.. code-block:: python
+
+    import logging
+    logging.basicConfig(level=logging.LEVEL)
+
+where ``logging.LEVEL`` is the required level of those defined in the standard
+logging library.
+
+To use logging in a module, you can add:
+
+.. code-block:: python
+
+    import logging
+    logger = logging.getLogger(__name__)
+    logging.info("Example of a logging message.")
+
+The logger should be initialised in the module scope.
+
+Logging has 5 levels of information: ``debug``, ``info``,
+``warning``, ``error``, and ``critical``. The use of these levels is left to the
+developers and reviewers decision.
+
+Additional contextual information (such as class/function information) should
+also be placed into logging messages when generated in a module containing
+large numbers of classes or functions.
+
+Note that the ``warning`` log level should not be used to give important
+warnings to users, but only to give warning information for developers.
+For warnings aimed at users, instead use ``warnings.warn`` from the Python
+standard ``warnings`` import, i.e.:
+
+.. code-block:: python
+
+   warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+
+Logging should also be explicitly tested through the use of the ``caplog``
+pytest fixture.
+
+
 .. _interface_description:
 
 Interface Description
