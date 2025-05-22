@@ -146,7 +146,7 @@ def test_omp_remove_barrier_reduce_barrier_set():
     '''Test the _reduce_barrier_set method of OMPMinimiseSyncTrans.'''
     # Create some barriers
     barriers = []
-    for i in range(5):
+    for _ in range(5):
         barriers.append(OMPBarrierDirective())
 
     # Create a barrier set {0}, {1,2}, {2,3}, {3,4}
@@ -589,8 +589,3 @@ def test_no_barrier_from_nowait(fortran_reader):
     assert ("Found a nowait with no barrier satisfying its dependency which "
             "is unsupported behaviour for OMPMinimiseSyncTrans." in
             str(excinfo.value))
-
-
-# Remaining things to test:
-# The while loop needs covering, not sure if it is yet or if we need to make a
-# manual example to test that.

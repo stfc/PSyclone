@@ -63,7 +63,13 @@ Loop.set_loop_type_inference_rules({
 })
 
 
-def find_sets(schedule):
+def add_parallel_region_to_contiguous_directives(schedule):
+    '''Adds OMPParallelDirective nodes around areas of the schedule with
+    contiguous OpenMP directives.
+
+    :param schedule: The Schedule to add OpenMPParallelDirectives to.
+    :type schedule: :py:class:`psyclone.nodes.Schedule`
+    '''
     par_trans = OMPParallelTrans()
     start = -1
     end = -1
@@ -84,16 +90,15 @@ def find_sets(schedule):
                 end = -1
             # Recurse appropriately to sub schedules:
             if isinstance(child, Loop):
-                find_sets(child.loop_body)
+                add_parallel_region_to_contiguous_directives(child.loop_body)
             elif isinstance(child, IfBlock):
-                find_sets(child.if_body)
+                add_parallel_region_to_contiguous_directives(child.if_body)
                 if child.else_body:
-                    find_sets(child.else_body)
-    # If we get to the end and need to cover some nodes we do it now
+                    add_parallel_region_to_contiguous_directives(child.else_body)
+    # If we get to the end and need to enclose some nodes in a parallel directive
+    # we do it now
     if start >= 0:
         sets.append((start, end))
-        start = -1
-        end = -1
 
     for subset in sets[::-1]:
         par_trans.apply(schedule[subset[0]:subset[1]])
@@ -142,5 +147,5 @@ def trans(psyir):
     # Apply the largest possible parallel regions and remove any barriers that
     # can be removed.
     for routine in psyir.walk(Routine):
-        find_sets(routine)
+        add_parallel_region_to_contiguous_directives(routine)
         minsync_trans.apply(routine)
