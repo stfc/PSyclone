@@ -44,16 +44,15 @@ from typing import Dict, List, Optional
 import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
-from psyclone.core import (SingleVariableAccessInfo,
+from psyclone.core import (Signature, SingleVariableAccessInfo,
                            VariablesAccessInfo)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (
     DataNode, IntrinsicCall, Node, Range, Reference, StructureReference)
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, ScalarType,
-                                    SymbolError, SymbolTable, UnresolvedType,
-                                    UnsupportedType)
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, ScalarType, Symbol,
+                                    SymbolError, SymbolTable, UnresolvedType)
 
 
 class SymPyWriter(FortranWriter):
@@ -252,6 +251,69 @@ class SymPyWriter(FortranWriter):
         # pylint: enable=protected-access
         return new_func
 
+    @staticmethod
+    def _ndims_for_struct_access(sig: Signature,
+                                 sva: SingleVariableAccessInfo) -> List[int]:
+        '''
+        The same Signature can be accessed with different numbers of indices,
+        e.g. a%b, a%b(1) and a(1)%b. This routine examines all accesses and
+        returns a list of the maximum number of dimensions that is used for
+        each component of the Signature.
+
+        :param sig: the Signature of the structure access.
+        :param sva: details on all accesses for the Signature.
+
+        :returns: the number of dimensions of each component of the structure
+                  access represented by the supplied Signature.
+        '''
+        # This list will hold lists of the number of indices on
+        # each component, one list per access, e.g.:
+        #  a%b => [0,0] and  a(2)%b => [1,0]
+        num_dims_for_access = []
+        for access in sva.all_accesses:
+            indices = access.component_indices
+            # Create the list of number of indices on each component for
+            # this access.
+            num_dims = []
+            for i in range(len(sig)):
+                num_dims.append(len(indices[i]))
+            num_dims_for_access.append(num_dims)
+        # For each component, find the maximum number of dimensions
+        # seen in any access.
+        max_dims = []
+        for i in range(len(sig)):
+            max_dims.append(max(dims[i] for dims in num_dims_for_access))
+        return max_dims
+
+    @staticmethod
+    def _specialise_array_symbol(sym: Symbol, sva: SingleVariableAccessInfo):
+        '''
+        If we can be confident that the supplied Symbol should be of ArrayType
+        due to the way it is accessed then we specialise it in place.
+
+        :param sym: the Symbol to specialise.
+        :param sva: information on the ways in which the Symbol is accessed.
+
+        '''
+        if all(acs.is_array() for acs in sva.all_accesses):
+            return
+        if not sym or isinstance(sym, DataSymbol):
+            return
+        # Find an access that has indices.
+        for acs in sva.all_accesses:
+            if not acs.is_array():
+                continue
+            ndims = None
+            for indices in acs.component_indices:
+                if indices:
+                    ndims = len(indices)
+            if ndims is not None:
+                sym.specialise(
+                    DataSymbol,
+                    datatype=ArrayType(UnresolvedType(),
+                                       [ArrayType.Extent.DEFERRED]*ndims))
+            return
+
     # -------------------------------------------------------------------------
     def _create_type_map(self, list_of_expressions: List[Node],
                          identical_variables: Optional[Dict[str, str]] = None,
@@ -329,13 +391,9 @@ class SymPyWriter(FortranWriter):
         for sig in vai.all_signatures:
             sva: SingleVariableAccessInfo = vai[sig]
 
-            if not sig.is_structure:
-                unique_sym = self._symbol_table.new_symbol(sig.var_name,
-                                                           tag=sig.var_name)
-            else:
-                flat_name = "_".join([name for name in sig])
-                unique_sym = self._symbol_table.find_or_create_tag(
-                    str(sig), root_name=flat_name)
+            flat_name = "_".join(name for name in sig)
+            unique_sym = self._symbol_table.find_or_create_tag(
+                str(sig), root_name=flat_name)
 
             try:
                 # Depending on the situation, we won't always
@@ -347,41 +405,15 @@ class SymPyWriter(FortranWriter):
                     orig_sym = sva.all_accesses[0].node.symbol
                 else:
                     orig_sym = None
-            sym_is_array = False
-            if orig_sym:
-                if (isinstance(orig_sym, DataSymbol) and
-                    (isinstance(orig_sym.datatype, ArrayType) or
-                     (isinstance(orig_sym.datatype, UnsupportedType) and
-                      isinstance(orig_sym.datatype.partial_datatype,
-                                 ArrayType)))):
-                    sym_is_array = True
-            if sva.is_array() or sym_is_array:
+
+            if sva.is_array() or (orig_sym and orig_sym.is_array):
                 # A Fortran array or function call. Declare a new SymPy
                 # function for it. This SymPy function will convert array
                 # expressions back into the original Fortran code.
                 if sig.is_structure:
-                    # The same Signature can cover accesses with different
-                    # numbers of indices, e.g. a%b, a%b(1) and a(1)%b. We
-                    # therefore have to examine all accesses and establish the
-                    # maximum number of dimensions that is used for each
-                    # component of the Signature.
-                    # This list will hold lists of indices, one list per access
-                    num_dims_for_access = []
-                    for access in sva.all_accesses:
-                        indices = access.component_indices
-                        num_dims = []
-                        for i, name in enumerate(sig):
-                            num_dims.append(len(indices[i]))
-                        num_dims_for_access.append(num_dims)
-                    # For each component, find the maximum number of dimensions
-                    # seen in any access.
-                    max_dims = []
-                    for i in range(len(sig)):
-                        max_dims.append(max(dims[i] for dims in
-                                            num_dims_for_access))
+                    max_dims = self._ndims_for_struct_access(sig, sva)
                     # We store the signature and the list of dimensions
-                    # associated with each component as part of the Sympy
-                    # function.
+                    # associated with each component as part of the Sympy fn.
                     self._sympy_type_map[unique_sym.name] = \
                         self._create_sympy_array_function(unique_sym.name,
                                                           sig, max_dims)
@@ -389,27 +421,9 @@ class SymPyWriter(FortranWriter):
                     # Not a structure access.
                     self._sympy_type_map[unique_sym.name] = \
                         self._create_sympy_array_function(sig.var_name)
-
-                if not all(acs.is_array() for acs in sva.all_accesses):
-                    # To avoid confusion in sympy_reader, we take the
-                    # opportunity to specialise any Symbol that we are now
-                    # confident is an array.
-                    if orig_sym and not isinstance(orig_sym, DataSymbol):
-                        # Find an access that has indices.
-                        for acs in sva.all_accesses:
-                            if not acs.is_array():
-                                continue
-                            ndims = None
-                            for indices in acs.component_indices:
-                                if indices:
-                                    ndims = len(indices)
-                            if ndims is not None:
-                                orig_sym.specialise(
-                                    DataSymbol,
-                                    datatype=ArrayType(
-                                        UnresolvedType(),
-                                        [ArrayType.Extent.DEFERRED]*ndims))
-                            break
+                    # To avoid confusion in sympy_reader, we specialise any
+                    # Symbol that we are now confident is an array.
+                    self._specialise_array_symbol(orig_sym, sva)
             else:
                 # A scalar access.
                 if sig.is_structure:
