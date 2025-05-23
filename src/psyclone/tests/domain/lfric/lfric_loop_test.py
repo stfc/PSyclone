@@ -58,12 +58,12 @@ from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import Message, DTCode
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import Dynamo0p3ColourTrans
+from psyclone.transformations import LFRicColourTrans
 
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
-    "test_files", "dynamo0p3")
+    "test_files", "lfric")
 TEST_API = "lfric"
 
 
@@ -112,7 +112,7 @@ def test_constructor_invalid_loop_type(monkeypatch):
 
 def test_set_lower_bound_functions(monkeypatch):
     ''' Test that we raise appropriate exceptions when the lower bound of
-    a LFRicLoop is set to invalid values.
+    an LFRicLoop is set to invalid values.
 
     '''
     # Make sure we get an LFRicSymbolTable
@@ -133,7 +133,7 @@ def test_set_lower_bound_functions(monkeypatch):
 
 def test_set_upper_bound_functions(monkeypatch):
     ''' Test that we raise appropriate exceptions when the upper bound of
-    a LFRicLoop is set to invalid values.
+    an LFRicLoop is set to invalid values.
 
     '''
     # Make sure we get an LFRicSymbolTable
@@ -794,7 +794,7 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     msgs = dtools.get_all_messages()
     assert msgs[0].code == DTCode.ERROR_WRITE_WRITE_RACE
     # Colour the loop.
-    trans = Dynamo0p3ColourTrans()
+    trans = LFRicColourTrans()
     trans.apply(loop)
     loops = schedule.walk(LFRicLoop)
     assert not loops[0].independent_iterations()
