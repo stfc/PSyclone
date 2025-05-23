@@ -72,7 +72,7 @@ PROFILE_LINK=-ldummy
 # For NVIDIA profiling
 #PROFILE_PATH=$(PSYROOT)/lib/profiling/nvidia
 #PROFILE_LIB=$(PROFILE_PATH)/libnvtx_prof.a
-#PROFILE_LINK="-lnvtx_prof -lnvToolsExt"
+#PROFILE_LINK=-lnvtx_prof -lnvtx3interop -cuda
 
 .PHONY: transform compile run
 
