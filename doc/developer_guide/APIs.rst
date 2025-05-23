@@ -801,7 +801,7 @@ in the ``_compute_halo_read_info`` function within the
 Asynchronous Halo Exchanges
 +++++++++++++++++++++++++++
 
-The Dynamo0p3AsynchronousHaloExchange transformation allows the
+The LFRicAsynchronousHaloExchange transformation allows the
 default synchronous halo exchange to be split into a halo exchange
 start and a halo exchange end which are represented separately as nodes
 in the schedule. These can then be moved in the schedule to allow
@@ -864,17 +864,17 @@ the meta-data) is stored in ``LFRicKernMetadata._eval_targets``. This
 information is then used in the ``LFRicKern._setup()`` method which
 populates ``LFRicKern._eval_targets``. This is an ``OrderedDict`` which has
 the (mangled) names of the target function spaces as keys and 2-tuples
-consisting of ``FunctionSpace`` and ``DynKernelArgument`` objects as
-values. The ``DynKernelArgument`` object provides the kernel argument
+consisting of ``FunctionSpace`` and ``LFRicKernelArgument`` objects as
+values. The ``LFRicKernelArgument`` object provides the kernel argument
 from which to extract the function space and the ``FunctionSpace`` object
 holds full information on the target function space.
 
-The ``DynInvokeBasisFunctions`` class is responsible for managing the
+The ``LFRicInvokeBasisFunctions`` class is responsible for managing the
 evaluators required by all of the kernels called from an Invoke.
-``DynInvokeBasisFunctions._eval_targets`` collects all of the unique target
+``LFRicInvokeBasisFunctions._eval_targets`` collects all of the unique target
 function spaces from the ``LFRicKern._eval_targets`` of each kernel.
 
-``DynInvokeBasisFunctions._basis_fns`` is a list holding information on
+``LFRicInvokeBasisFunctions._basis_fns`` is a list holding information on
 each basis/differential basis function required by a kernel within the
 invoke. Each entry in this list is a ``dict`` with keys:
 
@@ -884,9 +884,9 @@ Key           Entry                      	  Type
 shape         Shape of the evaluator              `str`
 type          Whether basis or differential basis `str`
 fspace        Function space             	  `FunctionSpace`
-arg           Associated kernel argument 	  `DynKernelArgument`
+arg           Associated kernel argument 	  `LFRicKernelArgument`
 qr_var        Quadrature argument name   	  `str`
-nodal_fspaces Target function spaces     	  list of `(FunctionSpace, DynKernelArgument)`
+nodal_fspaces Target function spaces     	  list of `(FunctionSpace, LFRicKernelArgument)`
 ============= =================================== ===================
 
 Precision
@@ -907,7 +907,7 @@ Modifying the Schedule
 ----------------------
 
 Transformations modify the schedule. At the moment only one of these
-transformations - the ``Dynamo0p3RedundantComputationTrans`` class in
+transformations - the ``LFRicRedundantComputationTrans`` class in
 ``transformations.py`` - affects halo exchanges. This transformation can
 mean there is a requirement for new halo exchanges, it can mean
 existing halo exchanges are no longer required and it can mean that
@@ -916,7 +916,7 @@ the properties of a halo exchange (e.g. depth) can change.
 The redundant computation transformation is applied to a loop in a
 schedule. When this is done the ``update_halo_exchanges()`` method for
 that loop is called - see the ``apply()`` method in
-``Dynamo0p3RedundantComputationTrans``.
+``LFRicRedundantComputationTrans``.
 
 The first thing that the ``update_halo_exchanges()`` method does is call
 the ``create_halo_exchanges()`` method to add in any new halo exchanges
@@ -1006,7 +1006,7 @@ trade granularity for cell locality.
 
 In both cases the outer loop over 'colours' must then be performed sequentially
 but the loop over 'cells/tiles_in_colour' of a given colour may be done in parallel.
-A loop that requires colouring may be transformed using the ``Dynamo0p3ColourTrans``
+A loop that requires colouring may be transformed using the ``LFRicColourTrans``
 transformation, with the 'tiling' option set to True or False.
 
 Each mesh in the multi-grid hierarchy is coloured separately
@@ -1050,7 +1050,7 @@ migration to the use of language-level PSyIR for the LFRic PSy layer
 is at an early stage, in practise this often requires that suitable
 Symbols be constructed and inserted into the symbol table of the PSy
 layer routine. A lot of this work is currently performed in the
-``DynKernelArgument.infer_datatype()`` method but ultimately (see
+``LFRicKernelArgument.infer_datatype()`` method but ultimately (see
 https://github.com/stfc/PSyclone/issues/1258) much of this will be
 removed.
 

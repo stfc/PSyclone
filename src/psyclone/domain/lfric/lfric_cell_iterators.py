@@ -54,7 +54,7 @@ class LFRicCellIterators(LFRicCollection):
     :param kern_or_invoke: the Kernel or Invoke for which to manage cell
                            iterators.
     :type kern_or_invoke: :py:class:`psyclone.domain.lfric.LFRicKern` |
-                          :py:class:`psyclone.dynamo0p3.LFRicInvoke`
+                          :py:class:`psyclone.lfric.LFRicInvoke`
 
     :raises GenerationError: if an Invoke has no field or operator arguments.
 

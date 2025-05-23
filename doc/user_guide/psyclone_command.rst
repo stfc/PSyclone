@@ -386,7 +386,7 @@ specified directory:
     > cd <PSYCLONEHOME>/src/psyclone
     > psyclone -d . use.f90 
     More than one match for kernel file 'testkern.[fF]90' found!
-    > psyclone -d tests/test_files/dynamo0p3 -api lfric use.f90 
+    > psyclone -d tests/test_files/lfric -api lfric use.f90 
     [code output]
 
 .. note:: The ``-d`` option can be repeated to add as many search
