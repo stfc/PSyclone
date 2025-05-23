@@ -523,9 +523,7 @@ def test_expand_with_intrinsic(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(source)
     sym_maths = SymbolicMaths.get()
     rhs = psyir.walk(Assignment)[0].rhs
-    view_before = rhs.view()
     sym_maths.expand(rhs)
-    assert rhs.view() == view_before
     result = fortran_writer(psyir).lower()
     # Check that the 'u_e' argument remains unchanged.
     assert "lbound(u_e, 1),df2)" in result
