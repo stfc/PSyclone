@@ -58,7 +58,7 @@ from psyclone.psyGen import PSyFactory
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
-    "test_files", "dynamo0p3")
+    "test_files", "lfric")
 TEST_API = "lfric"
 
 
@@ -413,7 +413,7 @@ def test_scalar_invoke_uniq_declns_valid_intrinsic():
 def test_scalar_arg_lfricconst_properties(monkeypatch):
     ''' Tests that properties of all supported types of user-defined,
     read-only, scalar arguments ('real', 'integer' and 'logical') defined
-    in LFRicConstants are correctly set up in the DynKernelArgument class.
+    in LFRicConstants are correctly set up in the LFRicKernelArgument class.
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -461,7 +461,7 @@ def test_scalar_arg_lfricconst_properties(monkeypatch):
 
 def test_scalar_reduction_lfricconst_properties():
     ''' Tests that properties of 'real' scalar reduction arguments defined
-    in LFRicConstants are correctly set up in the DynKernelArgument class.
+    in LFRicConstants are correctly set up in the LFRicKernelArgument class.
 
     '''
     _, invoke_info = parse(

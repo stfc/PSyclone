@@ -58,7 +58,7 @@ class LFRicStencils(LFRicCollection):
     routine or Kernel stub.
 
     :param node: the Invoke or Kernel stub for which to provide stencil info.
-    :type node: :py:class:`psyclone.dynamo0p3.LFRicInvoke` or
+    :type node: :py:class:`psyclone.lfric.LFRicInvoke` or
                 :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises GenerationError: if a literal has been supplied for a stencil
@@ -128,7 +128,7 @@ class LFRicStencils(LFRicCollection):
         problem by returning a string in either case.
 
         :param arg: the argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: the content of the stencil extent.
 
@@ -147,7 +147,7 @@ class LFRicStencils(LFRicCollection):
         to create a unique string.
 
         :param arg: kernel argument with which stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param str context: a context for this stencil (e.g. "size" or
                             "direction").
 
@@ -176,7 +176,7 @@ class LFRicStencils(LFRicCollection):
         supplied kernel argument.
 
         :param arg: kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a valid unique map name for a stencil in the PSy layer.
         :rtype: str
@@ -195,7 +195,7 @@ class LFRicStencils(LFRicCollection):
                        the symbol with this name.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a dofmap symbol for a stencil in the PSy layer.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -219,7 +219,7 @@ class LFRicStencils(LFRicCollection):
                        the symbol with this name.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a symbol for the stencil size.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -245,7 +245,7 @@ class LFRicStencils(LFRicCollection):
                        the symbol with this name.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: the symbol representing the max stencil branch length.
 
@@ -266,7 +266,7 @@ class LFRicStencils(LFRicCollection):
                        the symbol with this name.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a Fortran variable name for the stencil direction.
         :rtype: str

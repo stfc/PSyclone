@@ -23,7 +23,7 @@ use the NetCDF library::
 
  To compile the example, the following dependencies are needed:
 - the infrastructure library ``liblfric.a`` provided in
-  ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``
+  ``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``
 - one of the LFRic PSyData wrapper libraries, either:
     - ``lib_kernel_data_netcdf`` from
       ``<PSYCLONEHOME>/lib/extract/netcdf/lfric`` and NetCDF, or
