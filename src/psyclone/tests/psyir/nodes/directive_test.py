@@ -48,10 +48,10 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
 from psyclone.psyir.symbols import INTEGER_TYPE
-from psyclone.transformations import ACCDataTrans, DynamoOMPParallelLoopTrans
+from psyclone.transformations import ACCDataTrans, LFRicOMPParallelLoopTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+    os.path.abspath(__file__)))), "test_files", "lfric")
 
 
 def test_directive_backward_dependence():
@@ -64,7 +64,7 @@ def test_directive_backward_dependence():
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     for child in schedule.children:
         otrans.apply(child)
     # 1: omp directive no backwards dependence

@@ -36,8 +36,8 @@
 ''' File containing a PSyclone transformation script for the LFRic
 API to apply tiled-colouring and OpenMP threading.'''
 
-from psyclone.transformations import Dynamo0p3ColourTrans, \
-    DynamoOMPParallelLoopTrans
+from psyclone.transformations import LFRicColourTrans, \
+    LFRicOMPParallelLoopTrans
 from psyclone.psyir.nodes import Loop, Routine, FileContainer
 from psyclone.domain.lfric import LFRicConstants
 
@@ -49,8 +49,8 @@ def trans(psyir: FileContainer):
     :param psyir: the PSyIR of the PSy-layer.
 
     '''
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
+    ctrans = LFRicColourTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     const = LFRicConstants()
 
     for subroutine in psyir.walk(Routine):

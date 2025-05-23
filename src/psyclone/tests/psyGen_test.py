@@ -61,7 +61,7 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (lfric_builtins, LFRicInvokeSchedule,
                                    LFRicKern, LFRicKernMetadata)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import DynGlobalSum, DynKernelArguments
+from psyclone.lfric import LFRicGlobalSum, LFRicKernelArguments
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
@@ -80,16 +80,16 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (Dynamo0p3RedundantComputationTrans,
-                                      Dynamo0p3KernelConstTrans,
-                                      Dynamo0p3ColourTrans,
-                                      Dynamo0p3OMPLoopTrans,
+from psyclone.transformations import (LFRicRedundantComputationTrans,
+                                      LFRicKernelConstTrans,
+                                      LFRicColourTrans,
+                                      LFRicOMPLoopTrans,
                                       OMPParallelTrans)
 from psyclone.psyir.backend.visitor import VisitorError
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
+                         "test_files", "lfric")
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "test_files", "gocean1p0")
 
@@ -548,7 +548,7 @@ def test_invokeschedule_node_str():
     symbol = RoutineSymbol("name")
     # Create a plain InvokeSchedule
     sched = InvokeSchedule(symbol, None, None)
-    # Manually supply it with an Invoke object created with the Dynamo API.
+    # Manually supply it with an Invoke object created with the LFRic API.
     sched._invoke = psy.invokes.invoke_list[0]
     output = sched.node_str()
     assert colored("InvokeSchedule", InvokeSchedule._colour) in output
@@ -767,7 +767,7 @@ def test_codedkern_lower_to_language_level(monkeypatch):
 
     # TODO #1085 LFRic Arguments do not have a translation to PSyIR
     # yet, we monkeypatch a dummy expression for now:
-    monkeypatch.setattr(DynKernelArguments, "psyir_expressions",
+    monkeypatch.setattr(LFRicKernelArguments, "psyir_expressions",
                         lambda x: [Literal("1", INTEGER_TYPE)])
 
     # In DSL-level it is a CodedKern with no children
@@ -905,7 +905,7 @@ def test_kern_is_coloured1():
     kern = schedule.walk(Kern)[0]
     assert not kern.is_coloured()
     # Colour the loop around the kernel
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(schedule[0])
     assert kern.is_coloured()
     # Test when the Kernel appears to have no parent loop
@@ -958,7 +958,7 @@ def test_haloexchange_unknown_halo_depth():
 
 def test_globalsum_node_str():
     '''test the node_str method in the GlobalSum class. The simplest way
-    to do this is to use a dynamo0p3 builtin example which contains a
+    to do this is to use an LFRic builtin example which contains a
     scalar and then call node_str() on that.
 
     '''
@@ -968,7 +968,7 @@ def test_globalsum_node_str():
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     gsum = None
     for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, DynGlobalSum):
+        if isinstance(child, LFRicGlobalSum):
             gsum = child
             break
     assert gsum
@@ -989,7 +989,7 @@ def test_globalsum_children_validation():
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     gsum = None
     for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, DynGlobalSum):
+        if isinstance(child, LFRicGlobalSum):
             gsum = child
             break
     with pytest.raises(GenerationError) as excinfo:
@@ -1002,8 +1002,8 @@ def test_args_filter():
     '''the args_filter() method is in both Loop() and Arguments() classes
     with the former method calling the latter. This example tests the
     case when unique is set to True and therefore any replicated names
-    are not returned. The simplest way to do this is to use a
-    dynamo0p3 example which includes two kernels which share argument
+    are not returned. The simplest way to do this is to use an
+    LFRic example which includes two kernels which share argument
     names. We choose dm=False to make it easier to fuse the loops.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
                            api="lfric")
@@ -1210,7 +1210,7 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do directive to the loop
     otrans.apply(schedule.children[0], {"reprod": True})
@@ -1452,8 +1452,8 @@ def test_argument_forward_dependence(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         api="lfric")
@@ -1519,8 +1519,8 @@ def test_argument_backward_dependence(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         api="lfric")
@@ -1616,8 +1616,7 @@ def test_haloexchange_can_be_printed():
 def test_haloexchange_node_str():
     ''' Test the node_str() method of HaloExchange. '''
 
-    # We have to use the LFRic (Dynamo0.3) API as that's currently the only
-    # one that supports halo exchanges.
+    # Use the LFRic API for this test.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         api="lfric")
@@ -1763,7 +1762,7 @@ def test_find_write_arguments_for_write():
     '''When backward_write_dependencies or forward_write_dependencies in
     class Argument are called from a field argument that does not read
     then we should return an empty list. This test checks this
-    functionality. We use the LFRic (Dynamo0.3) API to create the
+    functionality. We use the LFRic API to create the
     required objects.
 
     '''
@@ -1794,8 +1793,8 @@ def test_find_w_args_hes_no_vec(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         api="lfric")
@@ -1837,8 +1836,8 @@ def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         api="lfric")
@@ -1880,8 +1879,8 @@ def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         api="lfric")
@@ -1925,8 +1924,8 @@ def test_find_w_args_hes_vec_no_dep(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         api="lfric")
@@ -2020,8 +2019,8 @@ def test_find_w_args_multiple_deps_error(monkeypatch, annexed, tmpdir):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
@@ -2036,7 +2035,7 @@ def test_find_w_args_multiple_deps_error(monkeypatch, annexed, tmpdir):
         index = 1
     else:
         index = 4
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[index], {"depth": 2})
     del schedule.children[index]
     loop = schedule.children[index+2]
@@ -2061,8 +2060,8 @@ def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
@@ -2096,8 +2095,8 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
@@ -2112,7 +2111,7 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
         index = 1
     else:
         index = 4
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[index], {"depth": 2})
     loop = schedule.children[index+3]
     kernel = loop.loop_body[0]
@@ -2248,7 +2247,7 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     # raising an exception. This limitation is the subject of issue
     # #520.
     monkeypatch.setattr(kernels[0], "_module_name", "testkern_mod")
-    ktrans = Dynamo0p3KernelConstTrans()
+    ktrans = LFRicKernelConstTrans()
     ktrans.apply(kernels[0], {"number_of_layers": 100})
     # Generate the code (this triggers the generation of new kernels)
     _ = str(psy.gen)
