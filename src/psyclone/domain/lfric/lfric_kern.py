@@ -663,12 +663,10 @@ class LFRicKern(CodedKern):
         return self._mesh_properties
 
     @property
-    def all_updates_are_writes(self):
+    def all_updates_are_writes(self) -> bool:
         '''
-        :returns: True if all of the arguments updated by this kernel have \
+        :returns: True if all arguments updated by this kernel have
                   'GH_WRITE' access, False otherwise.
-        :rtype: bool
-
         '''
         accesses = set(arg.access for arg in self.args)
         all_writes = AccessType.all_write_accesses()

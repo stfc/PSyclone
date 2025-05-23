@@ -1,3 +1,5 @@
+   28) PR #2994 for #2992. Fix bug with COMPUTE_ANNEXED_DOFS set to False.
+
    27) PR #2979 for #2942. Change 'dynamo' references to 'LFRic' throughout.
 
    26) PR #3002 for #2838. Upgrade CI dependencies.

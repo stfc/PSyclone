@@ -698,6 +698,34 @@ def test_halo_for_discontinuous_2(tmpdir, monkeypatch, annexed):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
+def test_halo_for_annexed_dofs_read(tmpdir, annexed, monkeypatch):
+    '''
+    Test that a halo exchange is inserted before a kernel that reads from
+    both a continuous field and an operator in order to ensure annexed dofs
+    are clean.
+
+    '''
+    api_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    psy, invoke = get_invoke("15.1.11_builtin_and_op_kernel_invoke.f90",
+                             idx=0, api=TEST_API, dist_mem=True)
+    result = str(psy.gen).lower()
+    if annexed:
+        assert "loop0_stop = f2_proxy%vspace%get_last_dof_annexed" in result
+        assert "loop1_stop = mesh%get_last_edge_cell()" in result
+        # Halo dofs are left dirty, even though the annexed dofs are clean
+        assert "call f2_proxy%set_dirty()" in result
+        # No halo exchange required
+        assert "call f2_proxy%halo_exchange" not in result
+    else:
+        assert "loop0_stop = f2_proxy%vspace%get_last_dof_owned()" in result
+        assert "loop1_stop = mesh%get_last_edge_cell()" in result
+        # f2 must be halo-exchanged to clean its annexed dofs.
+        assert "call f2_proxy%set_dirty()" in result
+        assert "call f2_proxy%halo_exchange(depth=1)" in result
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
 def test_lfricloop_halo_read_access_error1(monkeypatch):
     '''Test that the halo_read_access method in class LFRicLoop raises the
     expected exception when an unsupported field access is found.

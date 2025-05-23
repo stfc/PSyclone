@@ -5046,7 +5046,8 @@ class HaloReadAccess(HaloDepth):
                 pass
             else:  # there is no stencil
                 if (field.discontinuous or call.iterates_over == "dof" or
-                        call.all_updates_are_writes):
+                        (not call.arguments.iteration_space_arg().discontinuous
+                         and call.all_updates_are_writes)):
                     # There are only local accesses or the kernel is of the
                     # special form where any iteration is guaranteed to write
                     # the same value to a given shared entity.
