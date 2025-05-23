@@ -237,6 +237,7 @@ def test_ambiguous_call_array_reference(fortran_reader, fortran_writer):
       b = work(a)
     end program test'''
     result = apply_trans(fortran_reader, fortran_writer, code)
+    assert "a(:) = 1" in result
     assert "b(:) = work(a)" in result
 
 
