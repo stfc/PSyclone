@@ -499,6 +499,11 @@ class DefinitionUseChain:
                         # Note that this assumes two symbols are not
                         # aliases of each other.
                         continue
+                    if reference.is_pure:
+                        # Pure subroutines only touch their arguments, so we'll
+                        # catch the arguments that are passed into the call
+                        # later as References.
+                        continue
                     # For now just assume calls are bad if we have a non-local
                     # variable and we treat them as though they were a write.
                     if defs_out is not None:
@@ -758,6 +763,11 @@ class DefinitionUseChain:
                         # will be caught by Reference walk already.
                         # Note that this assumes two symbols are not
                         # aliases of each other.
+                        continue
+                    if reference.is_pure:
+                        # Pure subroutines only touch their arguments, so we'll
+                        # catch the arguments that are passed into the call
+                        # later as References.
                         continue
                     # For now just assume calls are bad if we have a non-local
                     # variable and we treat them as though they were a write.
