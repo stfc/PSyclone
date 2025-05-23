@@ -73,7 +73,7 @@ class LFRicExtractTrans(ExtractTrans):
         self._driver_creator = LFRicExtractDriverCreator()
 
     def validate(self, node_list, options=None):
-        ''' Perform Dynamo0.3 API specific validation checks before applying
+        ''' Perform LFRic API specific validation checks before applying
         the transformation.
 
         :param node_list: the list of Node(s) we are checking.
@@ -99,7 +99,7 @@ class LFRicExtractTrans(ExtractTrans):
             ancestor = node.ancestor(LFRicLoop)
             if ancestor and ancestor.loop_type == 'colours':
                 raise TransformationError(
-                    f"Error in {self.name} for Dynamo0.3 API: Extraction of a "
+                    f"Error in {self.name} for LFRic API: Extraction of a "
                     f"Loop over cells in a colour without its ancestor Loop "
                     f"over colours is not allowed.")
 

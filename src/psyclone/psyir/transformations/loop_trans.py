@@ -89,13 +89,6 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["node-type-check"]: this flag controls if the \
-            type of the nodes enclosed in the loop should be tested to \
-            avoid including unsupported nodes in a transformation.
-        :param bool options["verbose"]: log the reason the validation failed,
-            at the moment with a comment in the provided PSyIR node.
 
         :raises TransformationError: if the supplied node is not a (fully- \
                 formed) Loop.

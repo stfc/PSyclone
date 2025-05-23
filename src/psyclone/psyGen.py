@@ -47,6 +47,7 @@ import os
 from collections import OrderedDict
 import abc
 from typing import Any, Dict
+import warnings
 
 try:
     from sphinx.util.typing import stringify_annotation
@@ -736,7 +737,7 @@ class GlobalSum(Statement):
     in, a schedule.
 
     :param scalar: the scalar that the global sum is stored into
-    :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :type scalar: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param parent: optional parent (default None) of this object
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -795,7 +796,7 @@ class HaloExchange(Statement):
     manipulated in, a schedule.
 
     :param field: the field that this halo exchange will act on
-    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :type field: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param check_dirty: optional argument default True indicating whether \
                         this halo exchange should be subject to a run-time \
                         check for clean/dirty halos.
@@ -2766,7 +2767,7 @@ class Transformation(metaclass=abc.ABCMeta):
         '''
         # TODO 2668: options are now deprecated:
         if options is not None:
-            print(self._deprecation_warning)
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
 
     def validate(self, node, options=None, **kwargs):
         '''Method that validates that the input data is correct.

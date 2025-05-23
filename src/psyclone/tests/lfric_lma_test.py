@@ -35,7 +35,7 @@
 # Modified I. Kavcic and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-''' This module tests the support for LMA operators in the LFRic (Dynamo 0.3)
+''' This module tests the support for LMA operators in the LFRic
     API using pytest.
 
 '''
@@ -50,7 +50,7 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
                                    LFRicKern, LFRicKernMetadata)
-from psyclone.dynamo0p3 import DynFuncDescriptor03, FunctionSpace
+from psyclone.lfric import LFRicFuncDescriptor, FunctionSpace
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -61,7 +61,7 @@ from psyclone.psyir import symbols
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
+                         "test_files", "lfric")
 
 TEST_API = "lfric"
 
@@ -95,7 +95,7 @@ end module testkern_qr
 
 @pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use Dynamo0.3 as API.'''
+    '''Make sure that all tests here use LFRic as API.'''
     Config.get().api = "lfric"
 
 
@@ -304,14 +304,14 @@ def test_fs_descriptor_wrong_type():
         _ = LFRicKernMetadata(ast, name=name)
     assert ("'meta_funcs' metadata must consist of an array of structure "
             "constructors, all of type 'func_type'" in str(excinfo.value))
-    # Check that the DynFuncDescriptor03 rejects it too
+    # Check that the LFRicFuncDescriptor rejects it too
 
     class FakeCls():
         ''' Class that just has a name property (which is not "func_type") '''
         name = "not-func-type"
 
     with pytest.raises(ParseError) as excinfo:
-        DynFuncDescriptor03(FakeCls())
+        LFRicFuncDescriptor(FakeCls())
     assert ("each meta_func entry must be of type 'func_type' but found "
             in str(excinfo.value))
 
@@ -434,7 +434,7 @@ def test_invoke_uniq_declns_valid_access_op():
 def test_operator_arg_lfricconst_properties(monkeypatch):
     ''' Tests that properties of supported LMA operator arguments
     ('real'-valued 'operator_type') defined in LFRicConstants are
-    correctly set up in the DynKernelArgument class.
+    correctly set up in the LFRicKernelArgument class.
 
     '''
     ast = fpapi.parse(CODE, ignore_comments=False)

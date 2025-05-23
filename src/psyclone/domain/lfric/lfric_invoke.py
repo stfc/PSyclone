@@ -84,11 +84,12 @@ class LFRicInvoke(Invoke):
 
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import (DynFunctionSpaces, DynGlobalSum,
-                                        DynLMAOperators, DynReferenceElement,
-                                        DynCMAOperators, DynBasisFunctions,
-                                        DynMeshes, DynBoundaryConditions,
-                                        DynProxies, LFRicMeshProperties)
+        from psyclone.lfric import (LFRicFunctionSpaces, LFRicGlobalSum,
+                                    LFRicLMAOperators,
+                                    LFRicReferenceElement,
+                                    LFRicCMAOperators, LFRicBasisFunctions,
+                                    LFRicMeshes, LFRicBoundaryConditions,
+                                    LFRicProxies, LFRicMeshProperties)
         from psyclone.domain.lfric import (
             LFRicCellIterators, LFRicHaloDepths, LFRicLoopBounds,
             LFRicRunTimeChecks,
@@ -100,7 +101,7 @@ class LFRicInvoke(Invoke):
         self.stencil = LFRicStencils(self)
 
         # Initialise our information on the function spaces used by this Invoke
-        self.function_spaces = DynFunctionSpaces(self)
+        self.function_spaces = LFRicFunctionSpaces(self)
 
         # Initialise the object holding all information on the dofmaps
         # required by this Invoke
@@ -110,28 +111,28 @@ class LFRicInvoke(Invoke):
         self.fields = LFRicFields(self)
 
         # Initialise info on all of the LMA operators used in this Invoke
-        self.lma_ops = DynLMAOperators(self)
+        self.lma_ops = LFRicLMAOperators(self)
 
         # Initialise the object holding all information on the column-
         # -matrix assembly operators required by this Invoke
-        self.cma_ops = DynCMAOperators(self)
+        self.cma_ops = LFRicCMAOperators(self)
 
         self.halo_depths = LFRicHaloDepths(self)
 
         # Initialise the object holding all information on the quadrature
         # and/or evaluators required by this Invoke
-        self.evaluators = DynBasisFunctions(self)
+        self.evaluators = LFRicBasisFunctions(self)
 
         # Initialise the object holding all information related to meshes
         # and inter-grid operations
-        self.meshes = DynMeshes(self, self.psy_unique_vars)
+        self.meshes = LFRicMeshes(self, self.psy_unique_vars)
 
         # Initialise the object holding information on any boundary-condition
         # kernel calls
-        self.boundary_conditions = DynBoundaryConditions(self)
+        self.boundary_conditions = LFRicBoundaryConditions(self)
 
         # Information on all proxies required by this Invoke
-        self.proxies = DynProxies(self)
+        self.proxies = LFRicProxies(self)
 
         # Run-time checks for this Invoke
         self.run_time_checks = LFRicRunTimeChecks(self)
@@ -140,7 +141,7 @@ class LFRicInvoke(Invoke):
         self.cell_iterators = LFRicCellIterators(self)
 
         # Information on the required properties of the reference element
-        self.reference_element_properties = DynReferenceElement(self)
+        self.reference_element_properties = LFRicReferenceElement(self)
 
         # Properties of the mesh
         self.mesh_properties = LFRicMeshProperties(self)
@@ -184,7 +185,7 @@ class LFRicInvoke(Invoke):
                         arg_types=const.VALID_SCALAR_NAMES,
                         arg_accesses=AccessType.get_valid_reduction_modes(),
                         unique=True):
-                    global_sum = DynGlobalSum(scalar, parent=loop.parent)
+                    global_sum = LFRicGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
         # Add the halo depth(s) for any kernel(s) that operate in the halos
@@ -210,7 +211,7 @@ class LFRicInvoke(Invoke):
         :type fspace: :py:class:`psyclone.domain.lfric.FunctionSpace`
 
         :returns: an argument object which is on the requested function space.
-        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :rtype: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :raises GenerationError: if the argument object does not exist.
 

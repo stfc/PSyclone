@@ -45,7 +45,7 @@ F90FLAGS ?= -Wall -g -fcheck=bound
 OBJ = alg.o mixed_precision_psy.o mixed_kernel_mod.o
 
 EXEC = will_not_run.exe
-LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH = ../../../src/psyclone/tests/test_files/lfric/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
