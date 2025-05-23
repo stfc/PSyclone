@@ -150,8 +150,8 @@ class BaseDriverCreator:
 
     @staticmethod
     def _create_output_var_code(
-            name: str, program: Routine, is_input: bool, read_var: str,
-            postfix: str, module_name: str = None
+        name: str, program: Routine, is_input: bool, read_var: str,
+        postfix: str, module_name: str = None
     ) -> Tuple[Symbol, Symbol]:
         '''
         This function creates all code required for an output variable:
@@ -258,14 +258,15 @@ class BaseDriverCreator:
             verified after executing the kernel. Each entry is a 2-tuple
             containing the symbol of the computed variable, and the symbol
             of the variable that contains the originally computed value read
-            from the file.a
+            from the file.
 
         '''
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
 
-        # First handle variables that are read:
-        # -------------------------------------
+        # First handle the local variables that are read (local variables do
+        # not have a module_name and are guaranteed to be in the symtab when
+        # doing lookups, external variables are handled below)
         read_stmts = []
         for module_name, signature in read_write_info.read_list:
             if not module_name:
@@ -330,7 +331,7 @@ class BaseDriverCreator:
 
         :param name: a proposed unit name.
 
-        :returns: a valid program or routine  name with special characters
+        :returns: a valid program or routine name with special characters
             removed and restricted to a length of 63 characters.
 
         '''

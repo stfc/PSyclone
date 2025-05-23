@@ -99,6 +99,10 @@ compile: transform $(EXEC)
 
 run: compile
 	./$(EXEC)
+	make driver-main-init
+	make driver-main-update
+	./driver-main-init
+	./driver-main-update
 
 $(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(EXTRACT_DIR) -l$(EXTRACT_NAME) \

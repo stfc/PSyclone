@@ -268,7 +268,7 @@ def test_lfric_driver_dm_test():
     # while it has been removed from the driver (because it is executed in a)
     # single rank (and without the infrastructure imported).
     assert "set_dirty" in code
-    assert "ser_dirty" not in driver
+    assert "set_dirty" not in driver
 
     # If there is a method call other than the ones from the DM infrastructure
     # it will fail

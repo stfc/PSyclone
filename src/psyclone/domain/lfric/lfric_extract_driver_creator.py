@@ -371,7 +371,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                                    read_write_info, postfix)
         BaseDriverCreator.add_result_tests(program, output_symbols)
 
-        # Replace allocatables with pointers
+        # Replace pointers with allocatables
         for symbol in program_symbol_table.datasymbols:
             if isinstance(symbol.datatype, UnsupportedFortranType):
                 symbol.datatype = symbol.datatype.copy()

@@ -255,9 +255,7 @@ class ExtractNode(PSyDataNode):
                                              postfix="_post")
             # Remove the spurious "_" at the end of the prefix or use default
             prefix = self._prefix[:-1] if self._prefix else "extract"
-            # We need to create the driver before inserting the ExtractNode
-            # (since some of the visitors used in driver creation do not
-            # handle an ExtractNode in the tree)
+            # Create and write the driver code
             self._driver_creator.write_driver(self.children,
                                               read_write_info,
                                               postfix=postfix,
@@ -375,7 +373,7 @@ class ExtractNode(PSyDataNode):
 
     @staticmethod
     def _flatten_datatype(structure_reference: StructureReference) -> DataType:
-        ''' Ideally this should be replaces by structure_reference.datatype
+        ''' Ideally this should be replaced by structure_reference.datatype
         but until it works, this utility method provides hardcoded type
         information depending on the PSyKAL DSL and names involved.
 
@@ -398,8 +396,8 @@ class ExtractNode(PSyDataNode):
     @staticmethod
     def bring_external_symbols(read_write_info, symbol_table: SymbolTable):
         '''
-        Use the ModuleManager to explore external dependencies and bring into
-        scope symbols used in other modules (with the ImportInterface). The
+        Use the ModuleManager to explore external dependencies and bring
+        symbols used in other modules into scope (with ImportInterface). The
         symbols will be tagged with a 'signature@module_name' tag.
 
         :param read_write_info: information about the symbols usage in the
@@ -408,6 +406,8 @@ class ExtractNode(PSyDataNode):
         :param symbol_table: the associated symbol table.
 
         '''
+        # Cyclic import
+        # pylint: disable=import-outside-toplevel
         from psyclone.parse import ModuleManager
         mod_man = ModuleManager.get()
         for module_name, signature in read_write_info.set_of_all_used_vars:
