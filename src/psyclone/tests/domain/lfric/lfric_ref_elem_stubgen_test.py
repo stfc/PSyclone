@@ -37,7 +37,7 @@
 
 '''
 Module containing pytest tests for the reference-element stub generation
-functionality of the LFRic (Dynamo0.3) API.
+functionality of the LFRic API.
 '''
 
 import os
@@ -47,7 +47,7 @@ from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "../..", "test_files", "dynamo0p3")
+                         "../..", "test_files", "lfric")
 TEST_API = "lfric"
 
 REF_ELEM_QUAD_MDATA = '''

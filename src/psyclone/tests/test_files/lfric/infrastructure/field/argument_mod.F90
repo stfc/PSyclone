@@ -1,5 +1,3 @@
-
-
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -51,7 +49,7 @@
 !> @details In order to create the correct PSy code, PSyclone requires several
 !!          kernel argument properties. These properties are stored in kernels
 !!          as the kernel metadata descriptors (see PSyclone documentation:
-!!          https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#metadata).
+!!          https://psyclone.readthedocs.io/en/latest/lfric.html#metadata).
 !!          The elements of PSyclone LFRic API kernel metadata are:
 !!
 !!          1) `type(arg_type) :: meta_args(...)` that describes properties of

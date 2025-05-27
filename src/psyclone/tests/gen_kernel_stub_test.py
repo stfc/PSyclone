@@ -69,7 +69,7 @@ def test_failures():
 def test_gen_success():
     ''' Test for successful completion of the generate() function. '''
     base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "dynamo0p3")
+                             "test_files", "lfric")
     stub_string = generate(os.path.join(base_path, "testkern_mod.F90"),
                            api="lfric")
     assert isinstance(stub_string, str)

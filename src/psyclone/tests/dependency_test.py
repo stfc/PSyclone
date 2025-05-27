@@ -272,7 +272,7 @@ def test_lfric():
 
     '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+                                 "test_files", "lfric",
                                  "1_single_invoke.f90"),
                     api="lfric")
     psy = PSyFactory("lfric", distributed_memory=False).create(info)
@@ -294,7 +294,7 @@ def test_lfric_kern_cma_args():
 
     '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+                                 "test_files", "lfric",
                                  "27.access_tests.f90"),
                     api="lfric")
     psy = PSyFactory("lfric", distributed_memory=False).create(info)

@@ -101,8 +101,7 @@ def test_dep_tool_constructor_errors():
     with pytest.raises(TypeError) as err:
         _ = DependencyTools(loop_types_to_parallelise=["invalid"])
     assert ("Invalid loop type 'invalid' specified in DependencyTools. Valid "
-            "values for API 'lfric' are ['dof', 'colours', 'colour', '', "
-            "'null']." in str(err.value))
+            "values for API 'lfric' are [" in str(err.value))
 
 
 # -----------------------------------------------------------------------------

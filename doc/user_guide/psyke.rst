@@ -312,11 +312,11 @@ example ``15.1.2_builtin_and_normal_kernel_invoke.f90``:
 .. code-block:: python
 
   from psyclone.domain.lfric.transformations import LFRicExtractTrans
-  from psyclone.transformations import DynamoOMPParallelLoopTrans
+  from psyclone.transformations import LFRicOMPParallelLoopTrans
 
   # Get instances of the transformations
   etrans = LFRicExtractTrans()
-  otrans = DynamoOMPParallelLoopTrans()
+  otrans = LFRicOMPParallelLoopTrans()
 
   # Get Invoke and its Schedule
   invoke = psy.invokes.get("invoke_0")
