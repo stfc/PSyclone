@@ -220,7 +220,7 @@ class KernelInterface(ArgOrdering):
         used to dimension the field vector arguments.
 
         :param argvect: the field vector to add.
-        :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type argvect: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
@@ -261,7 +261,7 @@ class KernelInterface(ArgOrdering):
         dimension the field argument.
 
         :param arg: the field to add.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
@@ -297,7 +297,7 @@ class KernelInterface(ArgOrdering):
         '''Not implemented.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
@@ -313,7 +313,7 @@ class KernelInterface(ArgOrdering):
         '''Not implemented.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
@@ -329,7 +329,7 @@ class KernelInterface(ArgOrdering):
         '''Not implemented.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
@@ -348,7 +348,7 @@ class KernelInterface(ArgOrdering):
         operator symbol (as well as ncells).
 
         :param arg: the operator to add.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: an unused optional argument that stores
             information about variable accesses.
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
@@ -392,7 +392,7 @@ class KernelInterface(ArgOrdering):
         '''Not implemented.
 
         :param arg: the CMA operator argument.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
@@ -408,7 +408,7 @@ class KernelInterface(ArgOrdering):
         argument list.
 
         :param scalar_arg: the scalar to add.
-        :type scalar_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type scalar_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
@@ -461,7 +461,7 @@ class KernelInterface(ArgOrdering):
         '''Not implemented.
 
         :param arg: the CMA operator argument.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
@@ -530,7 +530,7 @@ class KernelInterface(ArgOrdering):
         :param function_space: the function space for this dofmap.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param operator: the CMA operator.
-        :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type operator: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
@@ -557,8 +557,8 @@ class KernelInterface(ArgOrdering):
         basis_name_func = function_space.get_basis_name
         # This import must be placed here to avoid circular dependencies
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynBasisFunctions
-        first_dim_value_func = DynBasisFunctions.basis_first_dim_value
+        from psyclone.lfric import LFRicBasisFunctions
+        first_dim_value_func = LFRicBasisFunctions.basis_first_dim_value
         self._create_basis(function_space, self.basis_mapping,
                            basis_name_func, first_dim_value_func)
 
@@ -578,8 +578,8 @@ class KernelInterface(ArgOrdering):
         basis_name_func = function_space.get_diff_basis_name
         # This import must be placed here to avoid circular dependencies
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynBasisFunctions
-        first_dim_value_func = DynBasisFunctions.diff_basis_first_dim_value
+        from psyclone.lfric import LFRicBasisFunctions
+        first_dim_value_func = LFRicBasisFunctions.diff_basis_first_dim_value
         self._create_basis(function_space, self.diff_basis_mapping,
                            basis_name_func, first_dim_value_func)
 

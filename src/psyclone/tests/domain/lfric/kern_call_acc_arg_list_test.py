@@ -58,7 +58,7 @@ BASE_PATH = get_base_path(TEST_API)
 
 def test_acc_arg_list_cell_map(dist_mem, monkeypatch):
     '''Test the cell_map() method.'''
-    # We need a LFRicKern in order to construct an instance of
+    # We need an LFRicKern in order to construct an instance of
     # KernCallAccArgList
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.0_intergrid_prolong.f90"),
