@@ -43,7 +43,7 @@ import pytest
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Call, CodeBlock, Reference, \
-    ArrayReference, Literal, BinaryOperation
+    Literal, BinaryOperation
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, Symbol, \
     StructureType
 

@@ -44,7 +44,7 @@ from fparser.two.Fortran2003 import Structure_Constructor
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Call, ArrayReference, CodeBlock, Literal, Reference)
+    Call, CodeBlock, Literal, Reference)
 from psyclone.psyir.symbols import (
     Symbol, DataTypeSymbol, StructureType, RoutineSymbol, ScalarType)
 from psyclone.domain.common.algorithm import (

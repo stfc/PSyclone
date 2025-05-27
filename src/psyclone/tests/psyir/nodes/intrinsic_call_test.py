@@ -434,10 +434,10 @@ def test_reference_accesses_bounds(operator, fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     schedule = psyir.walk(Assignment)[0]
 
-    # The access to 'a' should be reported as 'NO_DATA_ACCESS' as its
+    # The access to 'a' should be reported as 'UNKNOWN' as its
     # actual data is not accessed.
     vai = VariablesAccessInfo(schedule)
-    assert str(vai) == "a: NO_DATA_ACCESS, b: READ, n: WRITE"
+    assert str(vai) == "a: UNKNOWN, b: READ, n: WRITE"
 
 
 def test_enumerator_name_matches_name_field():

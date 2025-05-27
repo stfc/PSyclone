@@ -2133,6 +2133,6 @@ def test_field_access_info_for_arrays_in_builtins():
 
     assert (
         "a: READ, df: READ+WRITE, f1_data: READ, f2_data: WRITE, "
-        "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, r_def: "
-        "NO_DATA_ACCESS, uninitialised_loop0_start: READ, "
+        "field_type: UNKNOWN, i_def: UNKNOWN, r_def: "
+        "UNKNOWN, uninitialised_loop0_start: READ, "
         "uninitialised_loop0_stop: READ" == str(vai))

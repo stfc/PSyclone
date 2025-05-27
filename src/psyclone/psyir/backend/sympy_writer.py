@@ -324,7 +324,7 @@ class SymPyWriter(FortranWriter):
                 # reserved symbol, a new unique name will be created by
                 # the symbol table.
                 unique_sym = self._symbol_table.new_symbol(name, tag=name)
-                
+
                 if (isinstance(ref.parent, Call) and
                         ref.parent.children[0] is ref):
                     self._sympy_type_map[unique_sym.name] = \

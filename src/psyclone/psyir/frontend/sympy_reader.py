@@ -149,7 +149,6 @@ class SymPyReader():
         :rtype: str
 
         '''
-        return "TODO"
         # pylint: disable=protected-access, no-member
         args = [printer._print(i) for i in function.args]
         name = function.__class__.__name__

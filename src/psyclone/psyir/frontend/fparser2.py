@@ -5055,11 +5055,6 @@ class Fparser2Reader():
 
         if isinstance(symbol, DataSymbol):
             call_or_array = ArrayReference(symbol, parent=parent)
-        # elif (isinstance(node.parent, Fortran2003.Assignment_Stmt) and
-        #       node.parent.children[0] is node):
-        #     # In the specific case that this is the top-refernce in the lhs of
-        #     # an Assignment, we can also guarantee it is an ArrayReference
-        #     call_or_array = ArrayReference(symbol, parent=parent)
         else:
             # Generic Symbols (unresolved), RoutineSymbols and DataTypeSymbols
             # (constructors) are all processed as Calls

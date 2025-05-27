@@ -356,7 +356,7 @@ class Call(Statement, DataNode):
         if self.routine and self.routine.symbol:
             return self.routine.symbol
         return None
-    
+
     @property
     def routine(self):
         '''
