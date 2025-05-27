@@ -95,7 +95,7 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
-        ./build/local_build.py -a gungho_model -v
+        ./build/local_build.py -a gungho_model -v -p psyclone-test
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
