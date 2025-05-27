@@ -225,7 +225,7 @@ class ExtractNode(PSyDataNode):
         ctu.get_non_local_read_write_info(copy_dsl_tree.children,
                                           read_write_info)
 
-        options = {'pre_var_list': read_write_info.read_list,
+        options = {'pre_var_list': read_write_info.set_of_all_used_vars,
                    'post_var_list': read_write_info.write_list,
                    'post_var_postfix': self._post_name}
 

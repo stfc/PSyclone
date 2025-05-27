@@ -117,7 +117,9 @@ class ReadWriteInfo:
         :rtype: Set[Tuple[str, :py:class:`psyclone.core.Signature`]]
 
         '''
-        return set(self._read_list) | set(self._write_list)
+        all_vars = list(set(self._read_list) | set(self._write_list))
+        all_vars.sort()
+        return all_vars
 
     # -------------------------------------------------------------------------
     def add_read(self, signature, container_name=None):
