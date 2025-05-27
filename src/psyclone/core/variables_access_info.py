@@ -155,7 +155,7 @@ class VariablesAccessInfo(dict):
                     mode = "WRITE"
                 else:
                     # The data associated with this signature is not accessed.
-                    mode = "NO_DATA_ACCESS"
+                    mode = "UNKNOWN"
             output_list.append(f"{signature}: {mode}")
         return ", ".join(output_list)
 

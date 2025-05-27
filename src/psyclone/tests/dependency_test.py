@@ -85,8 +85,9 @@ def test_assignment(fortran_reader):
     array_assignment = schedule.children[1]
     assert isinstance(array_assignment, Assignment)
     var_accesses = VariablesAccessInfo(array_assignment)
-    assert (str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "
-                                 "i: READ, j: READ, x: READ, y: READ")
+    assert (str(var_accesses) == "c: WRITE, d: READ, e: READ, f: UNKNOWN, "
+                                 "i: READ, j: READ, x: READWRITE, "
+                                 "y: READWRITE")
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)

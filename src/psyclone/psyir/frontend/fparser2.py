@@ -68,7 +68,7 @@ from psyclone.psyir.symbols import (
     INTEGER_TYPE, NoType, RoutineSymbol, ScalarType, StaticInterface,
     StructureType, Symbol, SymbolError, UnknownInterface,
     UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
-    UnsupportedType)
+    UnsupportedType, SymbolTable)
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
@@ -357,6 +357,52 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
     # imported with a wildcard import.
     return symbol_table.new_symbol(
         name, interface=UnresolvedInterface(), **kargs)
+
+
+def _refine_symbols_with_usage_location(
+    symtab: SymbolTable,
+    execution_part: Fortran2003.Execution_Part
+):
+    ''' Refine the symbol infomration that we obtained from parsing
+    the declarations sections by knowledge infered by looking at the
+    usage location of the symbols in the execution_part
+
+    :param symtab: SymbolTable to enhance information for.
+    :param execution_part: fparser nodes to analyse for symbol usage.
+
+    '''
+    # The top-reference of the assingment lhs is guaranteed to be a DataSymbol
+    for assignment in walk(execution_part, Fortran2003.Assignment_Stmt):
+        if isinstance(assignment.items[0], Fortran2003.Part_Ref):
+            name = assignment.items[0].items[0].string.lower()
+            symbol = symtab.lookup(name, otherwise=None)
+            if symbol is None:
+                symtab.new_symbol(name, symbol_type=DataSymbol,
+                                  datatype=UnresolvedType(),
+                                  interface=UnresolvedInterface())
+            # pylint: disable=unidiomatic-typecheck
+            if type(symbol) is Symbol:
+                symbol.specialise(subclass=DataSymbol,
+                                  datatype=UnresolvedType())
+    # References that have a Subscript in a top-level children is a DataSymbol
+    for part_ref in walk(execution_part, Fortran2003.Part_Ref):
+        for child in part_ref.items:
+            if isinstance(child, Fortran2003.Section_Subscript_List):
+                if not any(isinstance(subchild, Fortran2003.Subscript_Triplet)
+                           for subchild in child.items):
+                    continue
+                if isinstance(part_ref.parent, Fortran2003.Data_Ref):
+                    continue
+                name = part_ref.items[0].string.lower()
+                symbol = symtab.lookup(name, otherwise=None)
+                if symbol is None:
+                    symtab.new_symbol(name, symbol_type=DataSymbol,
+                                      datatype=UnresolvedType(),
+                                      interface=UnresolvedInterface())
+                # pylint: disable=unidiomatic-typecheck
+                if type(symbol) is Symbol:
+                    symbol.specialise(subclass=DataSymbol,
+                                      datatype=UnresolvedType())
 
 
 def _find_or_create_psyclone_internal_cmp(node):
@@ -4962,9 +5008,16 @@ class Fparser2Reader():
 
     def _part_ref_handler(self, node, parent):
         '''
-        Transforms an fparser2 Part_Ref to the PSyIR representation. If the
-        node is connected to a SymbolTable, it checks the reference has been
-        previously declared.
+        Transforms an fparser2 Part_Ref to the PSyIR representation.
+
+        fparser2 cannot always disambiguate between Array Accessors, Calls and
+        DerivedType constuctors, and it fallbacks to Part_Ref when unknown.
+        PSyclone has a better chance of properly categorising them because we
+        chase import 'use' statements to retrieve symbol information. If
+        psyclone does not find the definition we will fallback as Call. The
+        reason for this is that it is the more safe options. Constructors and
+        accessors can be cosidered calls (of unknown purity and elemental attr)
+        but the opposite is not true.
 
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
@@ -4980,16 +5033,20 @@ class Fparser2Reader():
 
         '''
         reference_name = node.items[0].string.lower()
-        # We can't say for sure that the symbol we create here should be a
-        # DataSymbol as fparser2 often identifies function calls as
-        # part-references instead of function-references.
         symbol = _find_or_create_unresolved_symbol(parent, reference_name)
 
-        if isinstance(symbol, RoutineSymbol):
+        if isinstance(symbol, DataSymbol):
+            call_or_array = ArrayReference(symbol, parent=parent)
+        # elif (isinstance(node.parent, Fortran2003.Assignment_Stmt) and
+        #       node.parent.children[0] is node):
+        #     # In the specific case that this is the top-refernce in the lhs of
+        #     # an Assignment, we can also guarantee it is an ArrayReference
+        #     call_or_array = ArrayReference(symbol, parent=parent)
+        else:
+            # Generic Symbols (unresolved), RoutineSymbols and DataTypeSymbols
+            # (constructors) are all processed as Calls
             call_or_array = Call(parent=parent)
             call_or_array.addchild(Reference(symbol))
-        else:
-            call_or_array = ArrayReference(symbol, parent=parent)
         self.process_nodes(parent=call_or_array, nodes=node.items[1].items)
         return call_or_array
 
@@ -5513,6 +5570,10 @@ class Fparser2Reader():
                 # valid.
                 pass
             else:
+                # We found a 'execution_part', before processing it we try
+                # to refine the symbol information
+                _refine_symbols_with_usage_location(routine.symbol_table,
+                                                    sub_exec)
                 # Put the comments from the end of the declarations part
                 # at the start of the execution part manually
                 self.process_nodes(routine, lost_comments + sub_exec.content)

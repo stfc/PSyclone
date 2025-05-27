@@ -841,8 +841,9 @@ def test_validate_structure(fortran_reader):
     trans = ArrayAssignment2LoopsTrans()
     with pytest.raises(TransformationError) as err:
         trans.validate(assignments[0])
-    assert ("contains the access 'grid%data(my_func(1),jf)' which is an "
-            "UnresolvedType" in str(err.value))
+    assert ("ArrayAssignment2LoopsTrans does not accept calls to symbols "
+            "not guaranteed to be arrays or elemental  functions, but found:"
+            " my_func" in str(err.value))
     # TODO #1858 - once we've extended Reference2ArrayRangeTrans to support
     # StructureMembers we can use it as part of this transformation and this
     # example will be supported.

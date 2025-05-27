@@ -312,16 +312,11 @@ class SymPyWriter(FortranWriter):
             # TODO #2542. References should be iterated with the
             # reference_acess method when its issues are fixed.
             for ref in expr.walk(Reference):
-                if (isinstance(ref.parent, Call) and
-                        ref.parent.children[0] is ref):
-                    continue
-
                 name = ref.name
                 # The reserved Python keywords do not have tags, so they
                 # will not be found.
                 if name in self._symbol_table.tags_dict:
                     continue
-
                 # Any symbol from the list of expressions to be handled
                 # will be created with a tag, so if the same symbol is
                 # used more than once, the previous test will prevent
@@ -329,6 +324,13 @@ class SymPyWriter(FortranWriter):
                 # reserved symbol, a new unique name will be created by
                 # the symbol table.
                 unique_sym = self._symbol_table.new_symbol(name, tag=name)
+                
+                if (isinstance(ref.parent, Call) and
+                        ref.parent.children[0] is ref):
+                    self._sympy_type_map[unique_sym.name] = \
+                        self._create_sympy_array_function(name)
+                    continue
+
                 # Test if an array or an array expression is used:
                 if not ref.is_array:
                     self._sympy_type_map[unique_sym.name] = sympy.Symbol(
@@ -495,7 +497,7 @@ class SymPyWriter(FortranWriter):
         for expr in expression_str_list:
             try:
                 result.append(parse_expr(expr, self.type_map))
-            except SyntaxError as err:
+            except (SyntaxError, TypeError) as err:
                 raise VisitorError(f"Invalid SymPy expression: '{expr}'.") \
                     from err
 
