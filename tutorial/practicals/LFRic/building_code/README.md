@@ -17,7 +17,7 @@ linked as needed in each tutorial.
 This tutorial shows how to create and use simple LFRic kernels to
 perform mathematical operations on the LFRic field data. It starts with
 different kernels for different LFRic finite-element [function spaces](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces)
+https://psyclone.readthedocs.io/en/latest/lfric.html#supported-function-spaces)
 and uses them as a template to write generic kernels that can
 operate on any function space.
 
@@ -28,8 +28,8 @@ subroutine argument list and loops that update an LFRic field.
 
 ### [Tutorial 2: Built-ins](2_built_ins)
 
-This tutorial shows how to use the [PSyclone LFRic (Dynamo 0.3 API) built-ins](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins)
+This tutorial shows how to use the [PSyclone LFRic API built-ins](
+https://psyclone.readthedocs.io/en/latest/lfric.html#built-ins)
 instead of kernels for simple linear algebra operations on fields.
 
 ### [Tutorial 3: Time evolution](3_time_evolution)
@@ -64,7 +64,7 @@ that calls one or more [algorithms](
 background/LFRic_structure.md#algorithm-layer). The
 algorithms, in turn, contain `invoke` calls to one or more [kernels](
 background/LFRic_structure.md#kernel-layer) and/or [PSyclone built-ins](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins).
+https://psyclone.readthedocs.io/en/latest/lfric.html#built-ins).
 
 The driver in each tutorial provides the framework to build an executable
 program through the set-up of the LFRic infrastructure objects and calls
@@ -101,8 +101,8 @@ tree targets to the `make` process:
 It is advisable to run `make transform` whilst completing the kernel and
 and algorithm code to ensure that the code is correct. PSyclone checks
 that the source is syntactically correct and that it abides by the
-PSyclone [LFRIC (Dynamo 0.3) API](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html) rules.
+PSyclone [LFRIC API](
+https://psyclone.readthedocs.io/en/latest/lfric.html) rules.
 
 ---
 
@@ -142,8 +142,8 @@ this tutorial repository.
 ## LFRic code support
 
 All the tutorials here use a pared-down version of the LFRic infrastructure
-stored in the [`src/psyclone/tests/test_files/dynamo0p3/infrastructure`](
-../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure/README.md)
+stored in the [`src/psyclone/tests/test_files/lfric/infrastructure`](
+../../../../src/psyclone/tests/test_files/lfric/infrastructure/README.md)
 directory of the PSyclone repository. For more information on LFRic code
 structure and functionality see the [*LFRic code structure* section](
 background/LFRic_structure.md).

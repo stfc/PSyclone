@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2025, Science and Technology Facilities Council
+! Copyright (c) 2025, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,28 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Author: A. R. Porter, STFC Daresbury Lab
 
-program single_invoke
+program single_invoke_builtin_then_kernel
 
-  ! Description: invokes a single built-in kernel that claims to perform
-  ! two reduction operations (forbidden in the Dynamo 0.3 API) and then
-  ! write to a field. Must be used with the fake kernel meta-data in
-  ! multi_reduction_builtins_mod.f90.
-  use constants_mod, only: r_def
-  use field_mod,     only: field_type
+  ! Description: single invoke call with a builtin followed by a kernel call
+  ! with an operator argument.
+  use constants_mod,        only: r_def
+  use field_mod,            only: field_type
+  use operator_mod,         only: operator_type
+  use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
 
   implicit none
 
-  real(r_def)      :: rsum1, rsum2
-  type(field_type) :: f1
+  type(field_type) :: f2, f4
+  real(r_def)      :: scalar = 0.0
+  type(operator_type), pointer    :: mass_matrix => null()
 
-  call invoke( X_innerproduct_Y(f1, rsum1, rsum2) )
+  call invoke(                               &
+       setval_c(f2, 0.0),                    &
+       ! f4 - discont. space, written
+       ! f2 - continuous space, read - needs halo exchange to get
+       ! clean annexed dofs.
+       dg_matrix_vector_kernel_type(f4, f2, mass_matrix) )
 
-end program single_invoke
+end program single_invoke_builtin_then_kernel

@@ -275,7 +275,7 @@ class PSyLoop(Loop):
                              operator) to search for.
         :returns: all unique arguments of the given type from kernels inside \
             this loop that are modified.
-        :rtype: List[:py:class:`psyclone.psyGen.DynKernelArgument`]
+        :rtype: List[:py:class:`psyclone.psyGen.LFRicKernelArgument`]
         '''
         arg_names = []
         args = []

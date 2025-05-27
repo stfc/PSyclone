@@ -103,7 +103,7 @@ class KernStubArgList(ArgOrdering):
         information.
 
         :param arg: the CMA operator argument.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -136,7 +136,7 @@ class KernStubArgList(ArgOrdering):
         var_access object.
 
         :param argvect: the field vector to add.
-        :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type argvect: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -157,7 +157,7 @@ class KernStubArgList(ArgOrdering):
         argument list. If supplied it also stores this access in var_accesses.
 
         :param arg: the field to be added.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -173,7 +173,7 @@ class KernStubArgList(ArgOrdering):
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -192,7 +192,7 @@ class KernStubArgList(ArgOrdering):
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -212,7 +212,7 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -231,7 +231,7 @@ class KernStubArgList(ArgOrdering):
         in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional `SingleVariableAccessInfo` \
             instance to store the information about variable accesses.
         :type var_accesses: \
@@ -252,7 +252,7 @@ class KernStubArgList(ArgOrdering):
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional `VariablesAccessInfo` instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -272,7 +272,7 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional `VariablesAccessInfo` instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -297,7 +297,7 @@ class KernStubArgList(ArgOrdering):
         also stores this access in var_accesses.
 
         :param arg: the meta-data description of the operator.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -430,7 +430,7 @@ class KernStubArgList(ArgOrdering):
         also stores this access in var_accesses.
 
         :param function_space: the 'to' function space of the operator.
-        :type function_space: :py:class:`psyclone.dynamo3.FunctionSpace`
+        :type function_space: :py:class:`psyclone.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -453,7 +453,7 @@ class KernStubArgList(ArgOrdering):
         if self._kern.mesh.properties:
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
-            from psyclone.dynamo0p3 import LFRicMeshProperties
+            from psyclone.lfric import LFRicMeshProperties
             self.extend(LFRicMeshProperties(self._kern).
                         kern_args(stub=True, var_accesses=var_accesses))
 
@@ -480,7 +480,7 @@ class KernStubArgList(ArgOrdering):
             dofmap is required.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param operator: the CMA operator.
-        :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type operator: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \

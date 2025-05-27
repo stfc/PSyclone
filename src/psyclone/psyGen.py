@@ -737,7 +737,7 @@ class GlobalSum(Statement):
     in, a schedule.
 
     :param scalar: the scalar that the global sum is stored into
-    :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :type scalar: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param parent: optional parent (default None) of this object
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -796,7 +796,7 @@ class HaloExchange(Statement):
     manipulated in, a schedule.
 
     :param field: the field that this halo exchange will act on
-    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :type field: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param check_dirty: optional argument default True indicating whether \
                         this halo exchange should be subject to a run-time \
                         check for clean/dirty halos.

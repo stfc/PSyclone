@@ -204,7 +204,7 @@ class GOLoop(PSyLoop):
         single loop information to the base class so it creates the one we
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
-        in the Dynamo api.
+        in the LFRic API.
 
         :param parent: optional parent node (default None).
         :type parent: :py:class:`psyclone.psyir.nodes.Node`

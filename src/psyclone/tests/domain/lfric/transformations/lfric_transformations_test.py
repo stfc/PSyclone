@@ -38,7 +38,7 @@
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
 #           J. Dendy, Met Office
 
-''' Tests of transformations with the LFRic (Dynamo 0.3) API '''
+''' Tests of transformations with the LFRic API '''
 
 import inspect
 from importlib import import_module
@@ -49,8 +49,8 @@ from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.domain.lfric import LFRicLoop
-from psyclone.dynamo0p3 import (LFRicHaloExchangeStart, LFRicHaloExchangeEnd,
-                                LFRicHaloExchange)
+from psyclone.lfric import (LFRicHaloExchangeStart,
+                            LFRicHaloExchangeEnd, LFRicHaloExchange)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
 from psyclone.psyir.backend.visitor import VisitorError
@@ -65,9 +65,9 @@ from psyclone.psyir.transformations import (
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (
-    OMPParallelTrans, Dynamo0p3ColourTrans, Dynamo0p3OMPLoopTrans,
-    DynamoOMPParallelLoopTrans, MoveTrans, Dynamo0p3RedundantComputationTrans,
-    Dynamo0p3AsyncHaloExchangeTrans, Dynamo0p3KernelConstTrans,
+    OMPParallelTrans, LFRicColourTrans, LFRicOMPLoopTrans,
+    LFRicOMPParallelLoopTrans, MoveTrans, LFRicRedundantComputationTrans,
+    LFRicAsyncHaloExchangeTrans, LFRicKernelConstTrans,
     ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans)
 
 
@@ -84,7 +84,7 @@ def setup():
 
 def test_colour_trans_create_colours_loop(dist_mem):
     '''
-    Test the '_create_colours_loop()' method of Dynamo0p3ColourTrans.
+    Test the '_create_colours_loop()' method of LFRicColourTrans.
     We test with and without distributed memory and for the case where
     the kernel has a 'GH_WRITE' access to a continuous field. (The latter
     is a special case as it does not require a halo access.)
@@ -93,7 +93,7 @@ def test_colour_trans_create_colours_loop(dist_mem):
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            name="invoke_0_testkern_type", dist_mem=dist_mem)
     schedule = invoke.schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     loop = schedule.walk(Loop)[0]
     kernel = loop.loop_body[0]
 
@@ -150,7 +150,7 @@ def test_colour_trans_declarations(tmpdir, dist_mem):
                              name="invoke_0_testkern_type",
                              dist_mem=dist_mem)
     schedule = invoke.schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
 
     if dist_mem:
         index = 4
@@ -180,7 +180,7 @@ def test_colour_trans(tmpdir, dist_mem):
                              name="invoke_0_testkern_type",
                              dist_mem=dist_mem)
     schedule = invoke.schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
 
     if dist_mem:
         index = 4
@@ -259,7 +259,7 @@ def test_colour_trans_operator(tmpdir, dist_mem):
                              name="invoke_0_testkern_operator_type",
                              dist_mem=dist_mem)
     schedule = invoke.schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
 
     if dist_mem:
         index = 3
@@ -291,7 +291,7 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
                              "field_kernel_type",
                              dist_mem=dist_mem)
     schedule = invoke.schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     loop = schedule.walk(Loop)[0]
 
     # Colour the loop
@@ -336,7 +336,7 @@ def test_colour_trans_stencil(dist_mem, tmpdir):
                              name="invoke_0_testkern_stencil_type",
                              dist_mem=dist_mem)
     schedule = invoke.schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     loop = schedule.walk(Loop)[0]
 
     # Colour the loop
@@ -368,7 +368,7 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
                              name="invoke_0_testkern_mesh_prop_type",
                              dist_mem=dist_mem)
     schedule = invoke.schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
 
     if dist_mem:
         index = 1
@@ -400,7 +400,7 @@ def test_colour_trans_continuous_write(dist_mem, tmpdir):
     psy, invoke = get_invoke("14.1.2_stencil_w2_write.f90", TEST_API,
                              name="invoke_0", dist_mem=dist_mem)
     schedule = invoke.schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     for loop in schedule.walk(Loop):
         ctrans.apply(loop)
     gen = str(psy.gen)
@@ -425,7 +425,7 @@ def test_colour_continuous_writer_intergrid(tmpdir, dist_mem):
     psy, invoke = get_invoke("22.1.1_intergrid_cont_restrict.f90",
                              TEST_API, idx=0, dist_mem=dist_mem)
     loop = invoke.schedule[0]
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(loop)
     result = str(psy.gen).lower()
     # Declarations.
@@ -451,12 +451,12 @@ def test_colouring_not_a_loop(dist_mem):
                            name="invoke_0_testkern_type", dist_mem=dist_mem)
 
     schedule = invoke.schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
 
     # Erroneously attempt to colour the schedule rather than the loop
     with pytest.raises(TransformationError) as excinfo:
         ctrans.apply(schedule)
-    assert ("Target of Dynamo0p3ColourTrans transformation must be a "
+    assert ("Target of LFRicColourTrans transformation must be a "
             "sub-class of Loop but got 'LFRicInvokeSchedule'" in
             str(excinfo.value))
 
@@ -468,20 +468,20 @@ def test_no_colour_dofs(dist_mem):
     _, invoke = get_invoke("15.12.3_single_pointwise_builtin.f90", TEST_API,
                            name="invoke_0", dist_mem=dist_mem)
     schedule = invoke.schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     with pytest.raises(TransformationError) as excinfo:
         ctrans.apply(schedule.children[0])
     val = str(excinfo.value)
-    assert "Error in DynamoColour transformation" in val
+    assert "Error in LFRicColour transformation" in val
     assert ("Only loops over cells may be coloured but this loop is over "
             "dof" in val)
 
 
 def test_omp_str():
-    ''' Test the str method of the Dynamo0p3OMPLoopTrans class. '''
-    olooptrans = Dynamo0p3OMPLoopTrans()
+    ''' Test the str method of the LFRicOMPLoopTrans class. '''
+    olooptrans = LFRicOMPLoopTrans()
     oname = str(olooptrans)
-    assert oname == "Add an OpenMP DO directive to a Dynamo 0.3 loop"
+    assert oname == "Add an OpenMP DO directive to an LFRic loop"
 
 
 def test_omp_not_a_loop(dist_mem):
@@ -491,14 +491,14 @@ def test_omp_not_a_loop(dist_mem):
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            name="invoke_0_testkern_type", dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
 
     # Erroneously attempt to apply OpenMP to the schedule rather than
     # the loop
     with pytest.raises(TransformationError) as excinfo:
         otrans.apply(schedule)
 
-    assert ("Target of Dynamo0p3OMPLoopTrans transformation must be a sub-"
+    assert ("Target of LFRicOMPLoopTrans transformation must be a sub-"
             "class of Loop but got 'LFRicInvokeSchedule'" in
             str(excinfo.value))
 
@@ -510,22 +510,22 @@ def test_omp_parallel_not_a_loop(dist_mem):
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            name="invoke_0_testkern_type", dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
 
     # Erroneously attempt to apply OpenMP to the schedule rather than
     # the loop
     with pytest.raises(TransformationError) as excinfo:
         otrans.apply(schedule)
-    assert ("Error in DynamoOMPParallelLoopTrans transformation. The "
-            "supplied node must be a LFRicLoop but got 'LFRicInvokeSchedule'"
+    assert ("Error in LFRicOMPParallelLoopTrans transformation. The "
+            "supplied node must be an LFRicLoop but got 'LFRicInvokeSchedule'"
             in str(excinfo.value))
 
 
 def test_colour_str():
-    ''' Test the str method of the Dynamo0p3ColourTrans class. '''
-    ctrans = Dynamo0p3ColourTrans()
+    ''' Test the str method of the LFRicColourTrans class. '''
+    ctrans = LFRicColourTrans()
     cstr = str(ctrans)
-    assert cstr == "Split a Dynamo 0.3 loop over cells into colours"
+    assert cstr == "Split an LFRic loop over cells into colours"
 
 
 def test_omp_colour_trans(tmpdir, dist_mem):
@@ -536,8 +536,8 @@ def test_omp_colour_trans(tmpdir, dist_mem):
                              dist_mem=dist_mem)
     schedule = invoke.schedule
 
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
+    ctrans = LFRicColourTrans()
+    otrans = LFRicOMPParallelLoopTrans()
 
     if dist_mem:
         index = 4
@@ -577,8 +577,8 @@ def test_omp_parallel_colouring_needed(monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("11_any_space.f90", TEST_API,
                            name="invoke_0_testkern_any_space_1_type",
                            dist_mem=dist_mem)
@@ -590,11 +590,11 @@ def test_omp_parallel_colouring_needed(monkeypatch, annexed, dist_mem):
     else:
         index = 0
     schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     # Apply OpenMP to the loop
     with pytest.raises(TransformationError) as excinfo:
         otrans.apply(schedule.children[index])
-    assert "Error in DynamoOMPParallelLoopTrans" in str(excinfo.value)
+    assert "Error in LFRicOMPParallelLoopTrans" in str(excinfo.value)
     assert "kernel has an argument with INC access" in str(excinfo.value)
     assert "Colouring is required" in str(excinfo.value)
 
@@ -608,8 +608,8 @@ def test_omp_colouring_needed(monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("11_any_space.f90", TEST_API,
                            name="invoke_0_testkern_any_space_1_type",
                            dist_mem=dist_mem)
@@ -622,11 +622,11 @@ def test_omp_colouring_needed(monkeypatch, annexed, dist_mem):
         index = 0
     schedule = invoke.schedule
 
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     # Apply OpenMP to the loop
     with pytest.raises(TransformationError) as excinfo:
         otrans.apply(schedule.children[index])
-    assert "Error in Dynamo0p3OMPLoopTrans transfo" in str(excinfo.value)
+    assert "Error in LFRicOMPLoopTrans transfo" in str(excinfo.value)
     assert "kernel has an argument with INC access" in str(excinfo.value)
     assert "Colouring is required" in str(excinfo.value)
 
@@ -640,8 +640,8 @@ def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("1.1.0_single_invoke_xyoz_qr.f90", TEST_API,
                              name="invoke_0_testkern_qr_type",
                              dist_mem=dist_mem)
@@ -654,8 +654,8 @@ def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
     else:
         index = 0
 
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = Dynamo0p3OMPLoopTrans()
+    ctrans = LFRicColourTrans()
+    otrans = LFRicOMPLoopTrans()
 
     # Colour the loop
     ctrans.apply(schedule.children[index])
@@ -665,7 +665,7 @@ def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
     with pytest.raises(TransformationError) as excinfo:
         otrans.apply(schedule.children[index])
 
-    assert "Error in Dynamo0p3OMPLoopTrans" in str(excinfo.value)
+    assert "Error in LFRicOMPLoopTrans" in str(excinfo.value)
     assert "target loop is over colours" in str(excinfo.value)
     assert "must be computed serially" in str(excinfo.value)
 
@@ -690,8 +690,8 @@ def test_colouring_after_openmp(dist_mem, monkeypatch):
                            name="invoke_0_testkern_w3_type", dist_mem=dist_mem)
     schedule = invoke.schedule
 
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
+    ctrans = LFRicColourTrans()
+    otrans = LFRicOMPParallelLoopTrans()
 
     if dist_mem:
         index = 3
@@ -723,16 +723,16 @@ def test_colouring_multi_kernel(monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", TEST_API,
                              name="invoke_0",
                              dist_mem=dist_mem)
 
     schedule = invoke.schedule
 
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
+    ctrans = LFRicColourTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     mtrans = MoveTrans()
 
     if dist_mem:
@@ -773,7 +773,7 @@ def test_omp_region_omp_do(dist_mem):
         "1_single_invoke_w3.f90", TEST_API,
         name="invoke_0_testkern_w3_type", dist_mem=dist_mem)
     schedule = invoke.schedule
-    olooptrans = Dynamo0p3OMPLoopTrans()
+    olooptrans = LFRicOMPLoopTrans()
     ptrans = OMPParallelTrans()
 
     if dist_mem:
@@ -830,7 +830,7 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
     psy, invoke = get_invoke("1_single_invoke_any_discontinuous_space.f90",
                              TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    olooptrans = Dynamo0p3OMPLoopTrans()
+    olooptrans = LFRicOMPLoopTrans()
     ptrans = OMPParallelTrans()
     # Put an OMP PARALLEL around this loop
     if dist_mem and not annexed:
@@ -893,7 +893,7 @@ def test_multi_kernel_single_omp_region(dist_mem):
     else:
         index = 0
 
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
 
     # Apply OpenMP to each of the loops
@@ -946,8 +946,8 @@ def test_multi_different_kernel_omp(
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("4.7_multikernel_invokes.f90", TEST_API,
                              name="invoke_0",
                              dist_mem=dist_mem)
@@ -964,8 +964,8 @@ def test_multi_different_kernel_omp(
         index1 = 0
         index2 = 1
 
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
+    ctrans = LFRicColourTrans()
+    otrans = LFRicOMPParallelLoopTrans()
 
     # Colour each loop
     ctrans.apply(schedule.children[index1])
@@ -1010,8 +1010,8 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
     how the test has been set up.
 
     '''
-    dyn_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
+    lfric_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", False)
     for same_space in [False, True]:
         _, invoke = get_invoke("4.7_multikernel_invokes.f90",
                                TEST_API, name="invoke_0", dist_mem=dist_mem)
@@ -1069,6 +1069,9 @@ def test_loop_fuse(dist_mem):
         index = 0
 
     ftrans = LFRicLoopFuseTrans()
+
+    assert ("Fuse two adjacent loops together with LFRic-specific "
+            "validity checks" in str(ftrans))
 
     # Fuse the loops
     ftrans.apply(schedule.children[index],
@@ -1129,7 +1132,7 @@ def test_loop_fuse_omp(dist_mem):
     schedule = invoke.schedule
 
     ftrans = LFRicLoopFuseTrans()
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
 
     ftrans.apply(schedule.children[0], schedule.children[1])
 
@@ -1189,7 +1192,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
     schedule = invoke.schedule
 
     ftrans = LFRicLoopFuseTrans()
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
 
     if dist_mem and not annexed:
         # there are 3 halo exchange calls
@@ -1248,14 +1251,14 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", TEST_API,
                              name="invoke_0", dist_mem=dist_mem)
     schedule = invoke.schedule
 
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = Dynamo0p3OMPLoopTrans()
+    ctrans = LFRicColourTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     ftrans = LFRicLoopFuseTrans()
     mtrans = MoveTrans()
@@ -1406,7 +1409,7 @@ def test_omp_par_and_halo_exchange_error():
                            name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
 
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
 
     # Apply OpenMP to each of the loops
@@ -1431,7 +1434,7 @@ def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
     psy, invoke = get_invoke("15.7.2_setval_X_builtin.f90", TEST_API,
                              idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     # Apply OpenMP parallelisation to the loop
     otrans.apply(schedule.children[0])
     result = str(psy.gen)
@@ -1483,7 +1486,7 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
     psy, invoke = get_invoke("15.14.2_multiple_set_kernels.f90", TEST_API,
                              idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     # Apply OpenMP parallelisation to the loop
     for child in schedule.children:
         otrans.apply(child)
@@ -1584,7 +1587,7 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
                  {"same_space": True})
     ftrans.apply(schedule.children[0], schedule.children[1],
                  {"same_space": True})
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     # Apply OpenMP parallelisation to the loop
     otrans.apply(schedule.children[0])
     result = str(psy.gen)
@@ -1655,7 +1658,7 @@ def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
                              idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
 
-    olooptrans = Dynamo0p3OMPLoopTrans()
+    olooptrans = LFRicOMPLoopTrans()
     ptrans = OMPParallelTrans()
 
     # Put an OMP PARALLEL around this loop
@@ -1714,7 +1717,7 @@ def test_builtin_multiple_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
                              idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
 
-    olooptrans = Dynamo0p3OMPLoopTrans()
+    olooptrans = LFRicOMPLoopTrans()
     ptrans = OMPParallelTrans()
 
     # Put an OMP PARALLEL around the loops
@@ -1820,7 +1823,7 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
     ftrans.apply(schedule[0], schedule[1], {"same_space": True})
     ftrans.apply(schedule[0], schedule[1], {"same_space": True})
 
-    olooptrans = Dynamo0p3OMPLoopTrans()
+    olooptrans = LFRicOMPLoopTrans()
     ptrans = OMPParallelTrans()
 
     # Put an OMP PARALLEL around the loop
@@ -1894,7 +1897,7 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
     psy, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
                              TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     # Apply OpenMP parallelisation to the loop
     otrans.apply(schedule.children[0])
     code = str(psy.gen)
@@ -1936,7 +1939,7 @@ def test_reduction_real_do(tmpdir, dist_mem):
     psy, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
                              TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do directive to the loop
     otrans.apply(schedule.children[0], {"reprod": False})
@@ -1982,7 +1985,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
     psy, invoke = get_invoke("15.15.1_two_same_builtin_reductions.f90",
                              TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     # Apply OpenMP parallelisation to the loop
     for child in schedule.children:
         if isinstance(child, Loop):
@@ -2064,7 +2067,7 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do to the loop
     for child in schedule.children:
@@ -2154,7 +2157,7 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do to the loop
     for child in schedule.children:
@@ -2260,7 +2263,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
                      {"position": "after"})
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do to the loop
     for child in schedule.children:
@@ -2344,7 +2347,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
                      {"position": "after"})
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do to the loop
     for child in schedule.children:
@@ -2459,7 +2462,7 @@ def test_multi_reduction_same_name_real_do():
             psy, invoke = get_invoke(file_name, TEST_API,
                                      idx=0, dist_mem=distmem)
             schedule = invoke.schedule
-            otrans = Dynamo0p3OMPLoopTrans()
+            otrans = LFRicOMPLoopTrans()
             rtrans = OMPParallelTrans()
             # Apply an OpenMP do to the loop
             for child in schedule.children:
@@ -2513,7 +2516,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
     file_name = "15.16.1_two_different_builtin_reductions.f90"
     psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     # Apply OpenMP parallelisation to the loop
     for child in schedule.children:
         if isinstance(child, Loop):
@@ -2594,7 +2597,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     # Apply OpenMP parallelisation to the loop
     for child in schedule.children:
         if isinstance(child, Loop):
@@ -2675,7 +2678,7 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
     file_name = "15.17.1_one_reduction_one_standard_builtin.f90"
     psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do to the loop
     for child in schedule.children:
@@ -2781,7 +2784,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
             mtrans = MoveTrans()
             mtrans.apply(schedule.children[1], schedule.children[2],
                          {"position": "after"})
-        rtrans = DynamoOMPParallelLoopTrans()
+        rtrans = LFRicOMPParallelLoopTrans()
         ftrans.apply(schedule.children[0], schedule.children[1],
                      {"same_space": True})
         rtrans.apply(schedule.children[0])
@@ -2866,7 +2869,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
             mtrans.apply(schedule.children[1], schedule.children[2],
                          {"position": "after"})
         rtrans = OMPParallelTrans()
-        otrans = Dynamo0p3OMPLoopTrans()
+        otrans = LFRicOMPLoopTrans()
         ftrans.apply(schedule.children[0], schedule.children[1],
                      {"same_space": True})
         otrans.apply(schedule.children[0], {"reprod": False})
@@ -2936,7 +2939,7 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
     file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
     psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     # Apply OpenMP parallelisation to the loop
     for child in schedule.children:
         if isinstance(child, Loop):
@@ -3025,7 +3028,7 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                          {"same_space": True})
         assert "The upper bound names are not the same" in str(excinfo.value)
     else:  # not (distmem and annexed)
-        otrans = DynamoOMPParallelLoopTrans()
+        otrans = LFRicOMPParallelLoopTrans()
         ftrans.apply(schedule.children[0], schedule.children[1],
                      {"same_space": True})
         otrans.apply(schedule.children[0])
@@ -3104,7 +3107,7 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
         assert "The upper bound names are not the same" in str(excinfo.value)
     else:  # not (distmem and annexed)
         rtrans = OMPParallelTrans()
-        otrans = Dynamo0p3OMPLoopTrans()
+        otrans = LFRicOMPLoopTrans()
         ftrans.apply(schedule.children[0], schedule.children[1],
                      {"same_space": True})
         otrans.apply(schedule.children[0], {"reprod": False})
@@ -3210,7 +3213,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
     psy, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
                              TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do directive to the loop
     otrans.apply(schedule.children[0], {"reprod": True})
@@ -3293,7 +3296,7 @@ def test_no_global_sum_in_parallel_region():
         psy, invoke = get_invoke(file_name, TEST_API, idx=0,
                                  dist_mem=distmem)
         schedule = invoke.schedule
-        otrans = Dynamo0p3OMPLoopTrans()
+        otrans = LFRicOMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
         for child in schedule.children:
@@ -3320,7 +3323,7 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
     file_name = "15.17.1_one_reduction_one_standard_builtin.f90"
     psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do to the loop
     for child in schedule.children:
@@ -3454,7 +3457,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
         ftrans.apply(schedule.children[0], schedule.children[1],
                      {"same_space": True})
         rtrans = OMPParallelTrans()
-        otrans = Dynamo0p3OMPLoopTrans()
+        otrans = LFRicOMPLoopTrans()
         otrans.apply(schedule.children[0], {"reprod": True})
         rtrans.apply(schedule.children[0])
         result = str(psy.gen)
@@ -3559,7 +3562,7 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
         assert "The upper bound names are not the same" in str(excinfo.value)
     else:  # not distmem and annexed
         rtrans = OMPParallelTrans()
-        otrans = Dynamo0p3OMPLoopTrans()
+        otrans = LFRicOMPLoopTrans()
         ftrans.apply(schedule.children[0], schedule.children[1],
                      {"same_space": True})
         otrans.apply(schedule.children[0], {"reprod": True})
@@ -3642,7 +3645,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
     psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     rtrans = OMPParallelTrans()
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     for child in schedule.children:
         if isinstance(child, LFRicLoop):
             otrans.apply(child, {"reprod": True})
@@ -3763,7 +3766,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
                            TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     rtrans = OMPParallelTrans()
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     for child in schedule.children:
         if isinstance(child, LFRicLoop):
             otrans.apply(child, {"reprod": True})
@@ -3888,7 +3891,7 @@ def test_reductions_reprod():
             _, invoke = get_invoke(file_name, TEST_API, idx=0,
                                    dist_mem=distmem)
             schedule = invoke.schedule
-            otrans = Dynamo0p3OMPLoopTrans()
+            otrans = LFRicOMPLoopTrans()
             rtrans = OMPParallelTrans()
             # Apply an OpenMP do directive to the loop
             otrans.apply(schedule.children[0], {"reprod": reprod})
@@ -3912,7 +3915,7 @@ def test_list_multiple_reductions(dist_mem):
     _, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
                            TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do directive to the loop
     otrans.apply(schedule.children[0], {"reprod": False})
@@ -4064,99 +4067,99 @@ def test_move_fail():
 
 def test_rc_str():
     '''Test the str method and name property of the
-    Dynamo0p3RedundantComputationTrans class. '''
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    LFRicRedundantComputationTrans class. '''
+    rc_trans = LFRicRedundantComputationTrans()
     rc_name = str(rc_trans)
     assert rc_name == "Change iteration space to perform redundant computation"
 
 
 def test_rc_node_not_loop():
-    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    '''Test that LFRicRedundantComputationTrans raises an exception if the
     node argument is not a loop. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[0])
-    assert ("Target of Dynamo0p3RedundantComputationTrans transformation must "
+    assert ("Target of LFRicRedundantComputationTrans transformation must "
             "be a sub-class of Loop but got \'LFRicHaloExchange\'" in
             str(excinfo.value))
 
 
 def test_rc_invalid_loop(monkeypatch):
-    ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    ''' Test that LFRicRedundantComputationTrans raises an exception if the
     supplied loop does not iterate over cells or dofs. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[4]
     # set the loop to a type that should raise an exception
     monkeypatch.setattr(loop, "loop_type", value="colours")
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
-    assert ("In the Dynamo0p3RedundantComputation transformation apply "
+    assert ("In the LFRicRedundantComputation transformation apply "
             "method the loop type must be one of '' (cell-columns), 'dof' or "
             "'cells_in_colour', but found 'colours'") in str(excinfo.value)
 
 
 def test_rc_nodm():
-    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if
+    '''Test that LFRicRedundantComputationTrans raises an exception if
     distributed memory is not set. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
-    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
+    assert ("In the LFRicRedundantComputation transformation apply method "
             "distributed memory must be switched on") in str(excinfo.value)
 
 
 def test_rc_no_halo_kernels():
     '''
-    Test that Dynamo0p3RedundantComputationTrans refuses to transform a kernel
+    Test that LFRicRedundantComputationTrans refuses to transform a kernel
     that operates on halo cells.
 
     '''
     _, invoke = get_invoke("1.4.1_into_halos_plus_domain_invoke.f90",
                            TEST_API, idx=0, dist_mem=True)
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = invoke.schedule.walk(LFRicLoop)[0]
     with pytest.raises(TransformationError) as err:
         rc_trans.validate(loop)
-    assert ("Dynamo0p3RedundantComputationTrans transformation to kernels that"
+    assert ("LFRicRedundantComputationTrans transformation to kernels that"
             " operate on halo cells but kernel 'testkern_halo_only_code' "
             "operates on 'halo_cell_column'" in str(err.value))
 
 
 def test_rc_invalid_depth():
-    ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    ''' Test that LFRicRedundantComputationTrans raises an exception if the
     supplied depth is less than 1. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[4]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": 0})
-    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
+    assert ("In the LFRicRedundantComputation transformation apply method "
             "the supplied depth is less than 1") in str(excinfo.value)
 
 
 def test_rc_invalid_depth_continuous():
-    ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    ''' Test that LFRicRedundantComputationTrans raises an exception if the
     supplied depth equals 1 when modifying a continuous field. '''
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[4]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": 1})
-    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
+    assert ("In the LFRicRedundantComputation transformation apply method "
             "the supplied depth (1) must be greater than the existing halo "
             "depth (1)") in str(excinfo.value)
 
@@ -4172,7 +4175,7 @@ def test_rc_continuous_depth():
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[4]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
@@ -4197,7 +4200,7 @@ def test_rc_continuous_no_depth():
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[4]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4231,7 +4234,7 @@ def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
     psy, invoke = get_invoke("1_single_invoke_w3.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     if annexed:
         # there are no halo exchange calls
         index = 0
@@ -4267,7 +4270,7 @@ def test_rc_discontinuous_no_depth(monkeypatch, annexed):
     psy, invoke = get_invoke("1_single_invoke_w3.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     if annexed:
         # there are no halo exchange calls
         index = 0
@@ -4298,7 +4301,7 @@ def test_rc_all_discontinuous_depth(tmpdir):
     psy, invoke = get_invoke("1_single_invoke_wtheta.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
@@ -4321,7 +4324,7 @@ def test_rc_all_discontinuous_no_depth(tmpdir):
     psy, invoke = get_invoke("1_single_invoke_w2v.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4344,7 +4347,7 @@ def test_rc_all_discontinuous_vector_depth(tmpdir):
     psy, invoke = get_invoke("1_single_invoke_w3_only_vector.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
@@ -4370,7 +4373,7 @@ def test_rc_all_discontinuous_vector_no_depth(tmpdir):
     psy, invoke = get_invoke("1_single_invoke_wtheta_only_vector.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4398,7 +4401,7 @@ def test_rc_all_disc_prev_depend_depth(tmpdir):
     psy, invoke = get_invoke("4.12_multikernel_invokes_w2v.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[1]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
@@ -4423,7 +4426,7 @@ def test_rc_all_disc_prev_depend_no_depth():
     psy, invoke = get_invoke("4.12_multikernel_invokes_w2v.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[1]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4447,7 +4450,7 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir):
     psy, invoke = get_invoke("8.2.1_multikernel_invokes_w3_vector.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[1]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
@@ -4474,7 +4477,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir):
     psy, invoke = get_invoke("8.2.1_multikernel_invokes_w3_vector.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[1]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4501,7 +4504,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
     psy, invoke = get_invoke("8.2.2_multikernel_invokes_wtheta_vector.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[1]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4535,7 +4538,7 @@ def test_rc_dofs_depth():
     psy, invoke = get_invoke("15.1.2_inc_X_plus_Y_builtin.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
@@ -4559,7 +4562,7 @@ def test_rc_dofs_no_depth():
     psy, invoke = get_invoke("15.1.2_inc_X_plus_Y_builtin.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4586,7 +4589,7 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
     psy, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     if annexed:
         index = 4
     else:
@@ -4631,7 +4634,7 @@ def test_rc_dofs_no_depth_prev_dep():
     psy, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[5]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4652,7 +4655,7 @@ def test_rc_dofs_no_depth_prev_dep():
 def test_continuous_no_set_clean():
     '''Test that set_clean is not added for the default iteration space of
     a continuous loop. This is probably covered from tests in
-    dynamo0p3_test.py but it is good to have a specific test. '''
+    lfric_test.py but it is good to have a specific test. '''
     psy, _ = get_invoke("1_single_invoke.f90",
                         TEST_API, idx=0, dist_mem=True)
     result = str(psy.gen)
@@ -4665,7 +4668,7 @@ def test_continuous_no_set_clean():
 def test_discontinuous_no_set_clean():
     ''' Test that set_clean is not added for the default iteration
     space of a discontinuous loop. This is probably covered from tests
-    in dynamo0p3_test.py but it is good to have a specific test. '''
+    in lfric_test.py but it is good to have a specific test. '''
     psy, _ = get_invoke("1_single_invoke_w3.f90", TEST_API,
                         idx=0, dist_mem=True)
     result = str(psy.gen)
@@ -4706,7 +4709,7 @@ def test_rc_vector_depth(tmpdir):
     psy, invoke = get_invoke("8_vector_field.f90", TEST_API, idx=0,
                              dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[5]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
@@ -4732,7 +4735,7 @@ def test_rc_vector_no_depth(tmpdir):
     psy, invoke = get_invoke("8_vector_field.f90", TEST_API, idx=0,
                              dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[5]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4759,7 +4762,7 @@ def test_rc_no_halo_decrease():
     psy, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # First, change the size of the f2 halo exchange to 3 by performing
     # redundant computation in the first loop
     loop = schedule.walk(Loop)[0]
@@ -4808,7 +4811,7 @@ def test_rc_updated_dependence_analysis():
     assert not f2_field.backward_dependence()
     # set our loop to redundantly compute to the level 2 halo. This
     # introduces a new halo exchange
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 2})
     previous_field = f2_field.backward_dependence()
@@ -4830,7 +4833,7 @@ def test_rc_no_loop_decrease():
     _, invoke = get_invoke("1_single_invoke_w2v.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # first set our loop to redundantly compute to the level 2 halo
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 2})
@@ -4880,7 +4883,7 @@ def test_rc_remove_halo_exchange(tmpdir, monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     #
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.walk(Loop)[0]
     rc_trans.apply(loop, {"depth": 1})
     result = str(psy.gen)
@@ -4918,7 +4921,7 @@ def test_rc_max_remove_halo_exchange(tmpdir):
     # of depth 1
     assert "call f3_proxy%halo_exchange(depth=1)" in result
     assert "if (f3_proxy%is_dirty(depth=1)) then" in result
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.walk(Loop)[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4959,7 +4962,7 @@ def test_rc_continuous_halo_remove(fortran_writer):
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     result = fortran_writer(schedule)
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     f3_inc_hex = schedule.children[2]
     f3_inc_loop = schedule.children[4]
     f3_read_hex = schedule.children[7]
@@ -5009,7 +5012,7 @@ def test_rc_discontinuous_halo_remove(monkeypatch, fortran_writer):
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     result = fortran_writer(schedule)
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     f4_write_loop = schedule.children[5]
     f4_read_loop = schedule.children[9]
     assert "call f4_proxy%halo_exchange(depth=1)" in result
@@ -5050,7 +5053,7 @@ def test_rc_reader_halo_remove(fortran_writer):
     result = fortran_writer(schedule)
     assert "call f2_proxy%halo_exchange(depth=1)" in result
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Redundant computation to avoid halo exchange for f2
     rc_trans.apply(schedule.children[1], {"depth": 2})
@@ -5078,7 +5081,7 @@ def test_rc_vector_reader_halo_remove(fortran_writer):
     assert "is_dirty" not in result
     assert "halo_exchange" not in result
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Redundant computation for first loop
     rc_trans.apply(schedule.children[0], {"depth": 1})
@@ -5107,7 +5110,7 @@ def test_rc_vector_reader_halo_readwrite(fortran_writer):
     assert "is_dirty" not in result
     assert "halo_exchange" not in result
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Redundant computation for first loop: both fields have
     # read dependencies for all three components
@@ -5148,7 +5151,7 @@ def test_stencil_rc_max_depth_1(monkeypatch):
     attempts to compute redundantly into the halo to the maximum depth
     then the stencil will access beyond the halo bounds. This is
     therefore not allowed and exceptions are raised in the
-    Dynamo0p3RedundantComputationTrans transformation and in
+    LFRicRedundantComputationTrans transformation and in
     _compute_single_halo_info. This test checks these exceptions are
     raised correctly.
 
@@ -5157,10 +5160,10 @@ def test_stencil_rc_max_depth_1(monkeypatch):
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     loop = schedule[4]
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
-    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
+    assert ("In the LFRicRedundantComputation transformation apply method "
             "the loop contains field 'f2' with a stencil access in kernel "
             "'testkern_stencil_code', so it is invalid to set redundant "
             "computation to maximum depth" in str(excinfo.value))
@@ -5183,7 +5186,7 @@ def test_rc_invalid_depth_type():
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     loop = schedule.children[4]
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": "2"})
     assert (f"the supplied depth should be an integer but found "
@@ -5200,8 +5203,8 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("4.6_multikernel_invokes.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
@@ -5213,7 +5216,7 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
         move_trans = MoveTrans()
         move_trans.apply(schedule.children[7], schedule.children[6])
     # make the first loop redundantly compute to halo level 3
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[index], {"depth": 3})
     # try to fuse the loops. This should fail as the depths are different
     if annexed:
@@ -5253,7 +5256,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
                            TEST_API, idx=0, dist_mem=True)
     # First test for f1 readwrite to read dependency
     schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[0], {"depth": 3})
     f_trans = LFRicLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
@@ -5290,8 +5293,8 @@ def test_rc_max_w_to_r_continuous_known_halo(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("14.10_halo_continuous_cell_w_to_r.f90",
                            TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
@@ -5306,7 +5309,7 @@ def test_rc_max_w_to_r_continuous_known_halo(monkeypatch, annexed):
     r_loop = schedule.children[index2]
 
     # make both the writer and reader loops use the full halo
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(w_loop)
     rc_trans.apply(r_loop)
 
@@ -5349,7 +5352,7 @@ def test_red_comp_w_to_n_r_clean_gt_cleaned(tmpdir):
     # make the writer loop write redundantly into the level 1 halo. We
     # now make the level one halo clean but we still definitely need a
     # halo exchange as one of the readers reads the halo to level 2
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(w_loop, {"depth": 1})
 
     # the halo exchange should be both required and known to be needed
@@ -5401,15 +5404,15 @@ def test_rc_no_directive():
     schedule = invoke.schedule
 
     # Create a colouring transformation and apply this to the loop
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(schedule[4])
 
     # Create an openmp transformation and apply this to the loop
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     otrans.apply(schedule[4].loop_body[0])
 
     # Create a redundant computation transformation and apply this to the loop
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(
             schedule[4].loop_body[0].dir_body[0], {"depth": 1})
@@ -5431,7 +5434,7 @@ def test_rc_wrong_parent(monkeypatch):
     # Make the parent of the loop a halo exchange
     monkeypatch.setattr(schedule.children[4], "_parent", schedule.children[0])
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[4], {"depth": 1})
@@ -5462,7 +5465,7 @@ def test_rc_parent_loop_colour(monkeypatch):
 
     # Apply colouring
     # Create colour transformation
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     # Colour the loop
     ctrans.apply(schedule.children[4])
 
@@ -5470,7 +5473,7 @@ def test_rc_parent_loop_colour(monkeypatch):
     # InvokeSchedule (we use halo exchange in this case)
     monkeypatch.setattr(schedule.children[4], "_parent", schedule.children[0])
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
@@ -5483,7 +5486,7 @@ def test_rc_parent_loop_colour(monkeypatch):
     # exception is encountered before the previous one.
     monkeypatch.setattr(schedule.children[4], "_loop_type", "cells")
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
@@ -5496,7 +5499,7 @@ def test_rc_parent_loop_colour(monkeypatch):
     monkeypatch.setattr(schedule.children[4].loop_body[0], "_loop_type",
                         "cells")
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
@@ -5519,7 +5522,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
 
     # Apply colouring
     # Create colour transformation
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     # Colour the loop
     ctrans.apply(schedule.children[4])
 
@@ -5527,7 +5530,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
     monkeypatch.setattr(schedule.children[4].loop_body[0], "_loop_type",
                         "invalid")
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Switch off validation
     monkeypatch.setattr(rc_trans, "validate",
@@ -5553,11 +5556,11 @@ def test_rc_colour_no_loop_decrease():
     schedule = invoke.schedule
 
     # Create our colour transformation
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     # Colour the loop
     ctrans.apply(schedule.children[4])
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # First set our loop to redundantly compute to the level 2 halo
     loop = schedule.children[4].loop_body[0]
     rc_trans.apply(loop, {"depth": 2})
@@ -5589,12 +5592,12 @@ def test_rc_colour(tmpdir):
     schedule = invoke.schedule
 
     # Create our colour transformation
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     # Colour the loop
     ctrans.apply(schedule.children[4])
 
     # Create our redundant computation transformation
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the colour loop
     rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 2})
 
@@ -5638,12 +5641,12 @@ def test_rc_max_colour(tmpdir):
     schedule = invoke.schedule
 
     # Create our colour transformation
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     # Colour the loop
     ctrans.apply(schedule.children[4])
 
     # Create our redundant computation transformation
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     # Apply redundant computation to the colour loop out to the full
     # halo depth
     rc_trans.apply(schedule.children[4].loop_body[0])
@@ -5688,7 +5691,7 @@ def test_colour_discontinuous():
         schedule = invoke.schedule
 
         # Create our colour transformation
-        ctrans = Dynamo0p3ColourTrans()
+        ctrans = LFRicColourTrans()
 
         with pytest.raises(TransformationError) as excinfo:
             # Colour the loop
@@ -5707,10 +5710,10 @@ def test_rc_then_colour(tmpdir):
     schedule = invoke.schedule
 
     # Create our colour transformation
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
 
     # Create our redundant computation transformation
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Apply redundant computation to the loop, out to the level-3 halo
     rc_trans.apply(schedule.children[4], {"depth": 3})
@@ -5763,10 +5766,10 @@ def test_rc_then_colour2(tmpdir):
     schedule = invoke.schedule
 
     # Create our colour transformation
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
 
     # Create our redundant computation transformation
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Apply redundant computation to the loop to the full halo depth
     rc_trans.apply(schedule[4])
@@ -5817,13 +5820,13 @@ def test_loop_fuse_then_rc(tmpdir):
     ftrans.apply(schedule.children[4], schedule.children[5])
 
     # Create our redundant computation transformation
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Apply redundant computation to the loop
     rc_trans.apply(schedule.children[4])
 
     # Create our colour transformation
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
 
     # Colour the loop
     ctrans.apply(schedule.children[4])
@@ -5896,8 +5899,8 @@ def test_haloex_colouring(tmpdir, monkeypatch, annexed):
         assert not depth_info.max_depth
 
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     if annexed:
         w_loop_idx = 1
         r_loop_idx = 3
@@ -5906,7 +5909,7 @@ def test_haloex_colouring(tmpdir, monkeypatch, annexed):
         w_loop_idx = 2
         r_loop_idx = 5
         halo_idx = 4
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
 
     # Begin with a loop which modifies the continuous field f1
     # followed by a loop which modifies the continuous field f3 and
@@ -5977,8 +5980,8 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
         assert not depth_info.var_depth
 
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
 
     if annexed:
         w_loop_idx = 1
@@ -5986,8 +5989,8 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
     else:
         w_loop_idx = 2
         r_loop_idx = 5
-    ctrans = Dynamo0p3ColourTrans()
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    ctrans = LFRicColourTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Begin with a loop which modifies the continuous field f1
     # followed by a loop which modifies the continuous field f3 to the
@@ -6066,15 +6069,15 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         assert depth_info.var_depth.value == "1"
 
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     w_loop_idx = 2
     if annexed:
         r_loop_idx = 4
     else:
         r_loop_idx = 5
-    ctrans = Dynamo0p3ColourTrans()
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    ctrans = LFRicColourTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Begin with a loop which modifies the continuous field f1 to the
     # maximum depth followed by a loop which modifies the continuous
@@ -6154,12 +6157,12 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         assert not depth_info.var_depth
 
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     w_loop_idx = 2
     r_loop_idx = 5
-    ctrans = Dynamo0p3ColourTrans()
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    ctrans = LFRicColourTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # Begin with a loop which modifies the continuous field f1 to the
     # maximum depth followed by a loop which modifies the continuous
@@ -6209,8 +6212,8 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     # At the start we have two halo exchange calls for field f1, one
     # before the first loop and one between the two loops when annexed
     # is False, and just the latter halo exchange when annexed is True
@@ -6235,8 +6238,8 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
         r_loop_idx = 3
     else:
         r_loop_idx = 4
-    ctrans = Dynamo0p3ColourTrans()
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    ctrans = LFRicColourTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     # We then apply redundant computation so that the loop which
     # modifies the continuous field f1 does so to depth=2. The code
@@ -6293,7 +6296,7 @@ def test_intergrid_colour(dist_mem, trans_class, tmpdir):
     schedule = invoke.schedule
     # First two kernels are prolongation, last two are restriction
     loops = schedule.walk(Loop)
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     reg_trans = trans_class[0]() if trans_class[0] else None
     loop_trans = trans_class[1]() if trans_class[1] else None
     # To a prolong kernel
@@ -6355,13 +6358,13 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
     schedule = invoke.schedule
     # First two kernels are prolongation, last two are restriction
     loops = schedule.walk(Loop)
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     # To a prolong kernel
     ctrans.apply(loops[1])
     # To a restrict kernel
     ctrans.apply(loops[3])
     loops = schedule.walk(Loop)
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     # Apply OMP to loops over coloured cells
     otrans.apply(loops[2])
     otrans.apply(loops[5])
@@ -6391,9 +6394,9 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
                              TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     # Get the various transformations we need
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ptrans = OMPParallelTrans()
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     # Colour the first loop (where 'cmap_fld_c' is the field on the coarse
     # mesh)
     loops = schedule.walk(Loop)
@@ -6439,7 +6442,7 @@ def test_intergrid_omp_para_region2(dist_mem, tmpdir):
                              TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     loops = schedule.walk(Loop)
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ftrans = LFRicLoopFuseTrans()
     ctrans.apply(loops[0])
     ctrans.apply(loops[1])
@@ -6464,7 +6467,7 @@ def test_intergrid_err(dist_mem):
 
     if dist_mem:
         # Cannot apply redundant computation unless DM is enabled
-        rc_trans = Dynamo0p3RedundantComputationTrans()
+        rc_trans = LFRicRedundantComputationTrans()
         with pytest.raises(TransformationError) as excinfo:
             rc_trans.apply(loops[2], {"depth": 2})
             assert expected_err in str(excinfo.value)
@@ -6502,7 +6505,7 @@ def test_accenterdata_builtin(tmpdir):
     acc_enter_trans = ACCEnterDataTrans()
     parallel_trans = ACCParallelTrans()
     acc_loop_trans = ACCLoopTrans()
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     psy, invoke = get_invoke("15.14.4_builtin_and_normal_kernel_invoke.f90",
                              TEST_API, name="invoke_0", dist_mem=False)
     sched = invoke.schedule
@@ -6669,7 +6672,7 @@ def test_acclooptrans():
     acc_par_trans = ACCParallelTrans()
     acc_loop_trans = ACCLoopTrans()
     acc_enter_trans = ACCEnterDataTrans()
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule
@@ -6704,35 +6707,35 @@ def test_async_hex_wrong_node():
 
     '''
     node = Loop()
-    ahex = Dynamo0p3AsyncHaloExchangeTrans()
+    ahex = LFRicAsyncHaloExchangeTrans()
     with pytest.raises(TransformationError) as err:
         ahex.apply(node)
     assert "node must be a synchronous halo exchange" in str(err.value)
 
 
 def test_async_hex_name():
-    ''' Name test for the Dynamo0p3AsyncHaloExchangeTrans class. '''
-    ahex = Dynamo0p3AsyncHaloExchangeTrans()
-    assert ahex.name == "Dynamo0p3AsyncHaloExchangeTrans"
+    ''' Name test for the LFRicAsyncHaloExchangeTrans class. '''
+    ahex = LFRicAsyncHaloExchangeTrans()
+    assert ahex.name == "LFRicAsyncHaloExchangeTrans"
 
 
 def test_async_hex_str():
-    ''' String test for the Dynamo0p3AsyncHaloExchangeTrans class. '''
-    ahex = Dynamo0p3AsyncHaloExchangeTrans()
+    ''' String test for the LFRicAsyncHaloExchangeTrans class. '''
+    ahex = LFRicAsyncHaloExchangeTrans()
     assert (str(ahex) == "Changes a synchronous halo exchange into an "
             "asynchronous one.")
 
 
 def test_async_hex(tmpdir):
     ''' Test that we can convert a synchronous halo exchange to an
-    asynchronous one using the Dynamo0p3AsyncHaloExchangeTrans transformation.
+    asynchronous one using the LFRicAsyncHaloExchangeTrans transformation.
 
     '''
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     f2_hex = schedule.children[1]
-    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    ahex_trans = LFRicAsyncHaloExchangeTrans()
     ahex_trans.apply(f2_hex)
     result = str(psy.gen)
     assert (
@@ -6751,7 +6754,7 @@ def test_async_hex(tmpdir):
 
 def test_async_hex_move_1(tmpdir):
     ''' Test that we can convert a synchronous halo exchange to an
-    asynchronous one using the Dynamo0p3AsyncHaloExchangeTrans
+    asynchronous one using the LFRicAsyncHaloExchangeTrans
     transformation and then move them to new valid locations. In this
     case we move them before and after other halo exchanges
     respectively.
@@ -6761,7 +6764,7 @@ def test_async_hex_move_1(tmpdir):
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     m1_hex = schedule.children[2]
-    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    ahex_trans = LFRicAsyncHaloExchangeTrans()
     ahex_trans.apply(m1_hex)
 
     mtrans = MoveTrans()
@@ -6787,7 +6790,7 @@ def test_async_hex_move_1(tmpdir):
 
 def test_async_hex_preserve_properties():
     '''Test that an asynchronous halo exchange created by the
-    Dynamo0p3AsyncHaloExchangeTrans transformation maintains the properties
+    LFRicAsyncHaloExchangeTrans transformation maintains the properties
     of the original halo exchange.
 
     '''
@@ -6802,7 +6805,7 @@ def test_async_hex_preserve_properties():
     stencil_type = f2_hex._compute_stencil_type()
     halo_depth = f2_hex._compute_halo_depth()
 
-    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    ahex_trans = LFRicAsyncHaloExchangeTrans()
     ahex_trans.apply(f2_hex)
     f2_async_hex_start = schedule.children[1]
 
@@ -6826,7 +6829,7 @@ def test_async_hex_preserve_properties():
     stencil_type = f1_hex._compute_stencil_type()
     halo_depth = f1_hex._compute_halo_depth()
 
-    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    ahex_trans = LFRicAsyncHaloExchangeTrans()
     ahex_trans.apply(f1_hex)
 
     f1_async_hex_start = schedule.children[6]
@@ -6846,20 +6849,20 @@ def test_async_hex_preserve_properties():
 
 def test_async_hex_move_2(tmpdir, monkeypatch):
     ''' Test that we can convert a synchronous halo exchange to an
-    asynchronous one using the Dynamo0p3AsyncHaloExchangeTrans
+    asynchronous one using the LFRicAsyncHaloExchangeTrans
     transformation and then move them to new valid locations. In this
     case we move a haloexchangestart before a loop.
 
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", False)
     psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", TEST_API,
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
     f2_hex = schedule.children[10]
-    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    ahex_trans = LFRicAsyncHaloExchangeTrans()
     ahex_trans.apply(f2_hex)
 
     mtrans = MoveTrans()
@@ -6888,7 +6891,7 @@ def test_async_hex_move_error_1():
     schedule = invoke.schedule
 
     m1_hex = schedule.children[1]
-    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    ahex_trans = LFRicAsyncHaloExchangeTrans()
     ahex_trans.apply(m1_hex)
 
     mtrans = MoveTrans()
@@ -6915,7 +6918,7 @@ def test_async_hex_move_error_2():
     schedule = invoke.schedule
 
     f1_hex = schedule.children[5]
-    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    ahex_trans = LFRicAsyncHaloExchangeTrans()
     ahex_trans.apply(f1_hex)
 
     mtrans = MoveTrans()
@@ -6946,7 +6949,7 @@ def test_rc_remove_async_halo_exchange(monkeypatch, tmpdir):
                              idx=0, dist_mem=True)
     schedule = invoke.schedule
 
-    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    ahex_trans = LFRicAsyncHaloExchangeTrans()
 
     f2_hex = schedule.children[3]
     ahex_trans.apply(f2_hex)
@@ -6961,7 +6964,7 @@ def test_rc_remove_async_halo_exchange(monkeypatch, tmpdir):
     assert "if (m1_proxy%is_dirty(depth=1)) then" in result
     assert "call m1_proxy%halo_exchange(depth=1)" in result
 
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.walk(Loop)[0]
     rc_trans.apply(loop, {"depth": 1})
     result = str(psy.gen)
@@ -7000,13 +7003,13 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
     # Make it so that halo exchanges are required to depth 2 for
     # fields m1, m2, f1 and f2. m2 will have a set clean for depth 1
     # after the last loop.
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[2]
     rc_trans.apply(loop, {"depth": 2})
 
     # make m2 halo exchange asynchronous and check depths and set
     # clean are generated correctly for m2
-    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    ahex_trans = LFRicAsyncHaloExchangeTrans()
     m2_hex = schedule.children[5]
     ahex_trans.apply(m2_hex)
     result = str(psy.gen)
@@ -7046,7 +7049,7 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
     # increase depth of redundant computation. We do this to all loops
     # to remove halo exchanges for f1 and f2 just because we can :-)
     # Check depths and set clean are still generated correctly for m2
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     for loop in schedule.walk(Loop):
         rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
@@ -7099,7 +7102,7 @@ def test_vector_halo_exchange_remove():
     # computation. If they are removed correctly then the two loops
     # will be adjacent to each other and will follow 3 haloexchange
     # calls.
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[3], {"depth": 2})
     assert len(schedule.children) == 5
     for index in [0, 1, 2]:
@@ -7118,12 +7121,12 @@ def test_vector_async_halo_exchange(tmpdir):
 
     # Create vector halo exchanges after the first loop by performing
     # redundant computation.
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[4], {"depth": 2})
     # make all f1 vector halo exchanges asynchronous before the first
     # loop and one of them before the second loop, then check depths
     # and set clean are still generated correctly
-    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    ahex_trans = LFRicAsyncHaloExchangeTrans()
     for index in [5, 2, 1, 0]:
         my_hex = schedule.children[index]
         ahex_trans.apply(my_hex)
@@ -7152,7 +7155,7 @@ def test_vector_async_halo_exchange(tmpdir):
     # computation. If they are removed correctly then the two loops
     # will be adjacent to each other and will follow 6 haloexchange
     # start and end calls.
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.walk(Loop)[0], {"depth": 2})
     num_init_assignments = len([x for x in schedule.children
                                 if isinstance(x, Assignment)])
@@ -7180,12 +7183,12 @@ def test_async_halo_exchange_nomatch1():
 
     # create vector halo exchanges after the first loop by performing
     # redundant computation
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[4], {"depth": 2})
 
     # make the first vector component of the halo exchange for f1
     # asynchronous before the first loop.
-    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    ahex_trans = LFRicAsyncHaloExchangeTrans()
     my_hex = schedule.children[0]
     ahex_trans.apply(my_hex)
 
@@ -7200,7 +7203,7 @@ def test_async_halo_exchange_nomatch1():
     with pytest.raises(GenerationError) as excinfo:
         hex_start._get_hex_end()
     assert ("Halo exchange start for field 'f1' should match with a halo "
-            "exchange end, but found <class 'psyclone.dynamo0p3."
+            "exchange end, but found <class 'psyclone.lfric."
             "LFRicHaloExchange'>") in str(excinfo.value)
 
 
@@ -7215,7 +7218,7 @@ def test_async_halo_exchange_nomatch2():
 
     # make the last vector component of the halo exchange for f1
     # asynchronous after the first loop.
-    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    ahex_trans = LFRicAsyncHaloExchangeTrans()
     my_hex = schedule.children[0]
     ahex_trans.apply(my_hex)
 
@@ -7231,17 +7234,17 @@ def test_async_halo_exchange_nomatch2():
     assert ("Halo exchange start for field 'f1' has no matching halo "
             "exchange end") in str(excinfo.value)
 
-# tests for Dynamo0p3KernelConstTrans transformation
+# tests for LFRicKernelConstTrans transformation
 
 
 def create_kernel(file_name):
     '''Utility function that returns the first kernel object from the
     PSyIR schedule generated from processing the test code provided in
-    the 'file_name' argument. Assumes that this file is a dynamo0p3
+    the 'file_name' argument. Assumes that this file is an LFRic
     test file and that the first kernel is the child of the first
     child in the schedule.
 
-    :param str file_name: The name of the dynamo0p3 example algorithm \
+    :param str file_name: The name of the LFRic example algorithm \
     file.
 
     '''
@@ -7253,17 +7256,17 @@ def create_kernel(file_name):
 
 
 def test_kern_const_str():
-    ''' String test for the Dynamo0p3KernelConstTrans class. '''
-    kct = Dynamo0p3KernelConstTrans()
+    ''' String test for the LFRicKernelConstTrans class. '''
+    kct = LFRicKernelConstTrans()
     assert (str(kct) == "Makes the number of degrees of freedom, the number "
             "of quadrature points and the number of layers constant in a "
             "Kernel.")
 
 
 def test_kern_const_name():
-    ''' Name test for the Dynamo0p3KernelConstTrans class. '''
-    kct = Dynamo0p3KernelConstTrans()
-    assert kct.name == "Dynamo0p3KernelConstTrans"
+    ''' Name test for the LFRicKernelConstTrans class. '''
+    kct = LFRicKernelConstTrans()
+    assert kct.name == "LFRicKernelConstTrans"
 
 
 def test_kern_const_apply(capsys, monkeypatch):
@@ -7274,7 +7277,7 @@ def test_kern_const_apply(capsys, monkeypatch):
     '''
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
 
-    kctrans = Dynamo0p3KernelConstTrans()
+    kctrans = LFRicKernelConstTrans()
 
     element_order_expected = (
         "    Modified ndf_w1, arg position 8, function space w1, value 12.\n"
@@ -7338,7 +7341,7 @@ def test_kern_const_anyspace_anydspace_apply(capsys):
     '''
     kernel = create_kernel("1.5.3_single_invoke_write_any_anyd_space.f90")
 
-    kctrans = Dynamo0p3KernelConstTrans()
+    kctrans = LFRicKernelConstTrans()
 
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     result, _ = capsys.readouterr()
@@ -7363,7 +7366,7 @@ def test_kern_const_anyw2_apply(capsys):
     '''
     kernel = create_kernel("21.1_single_invoke_multi_anyw2.f90")
 
-    kctrans = Dynamo0p3KernelConstTrans()
+    kctrans = LFRicKernelConstTrans()
 
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     result, _ = capsys.readouterr()
@@ -7539,7 +7542,7 @@ def test_kern_const_ndofs():
                      162,  200,  2,    8,    18,   32,   50,   72,
                      98,   128,  162,  200]}
 
-    kct = Dynamo0p3KernelConstTrans()
+    kct = LFRicKernelConstTrans()
     for order_h in range(10):
         for order_v in range(10):
             for function_space in ["w3", "w2", "w1", "w0", "wtheta", "w2h",
@@ -7568,12 +7571,12 @@ def test_kern_const_invalid():
     '''
     kernel = create_kernel("1_single_invoke.f90")
 
-    kctrans = Dynamo0p3KernelConstTrans()
+    kctrans = LFRicKernelConstTrans()
 
-    # Node is not a dynamo kernel
+    # Node is not an LFRic kernel
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(None)
-    assert "Supplied node must be a dynamo kernel" in str(excinfo.value)
+    assert "Supplied node must be an LFRic kernel" in str(excinfo.value)
 
     # Cell shape not quadrilateral
     with pytest.raises(TransformationError) as excinfo:
@@ -7624,8 +7627,8 @@ def test_kern_const_invalid_dofs(monkeypatch):
     '''
     kernel = create_kernel("1_single_invoke.f90")
 
-    kctrans = Dynamo0p3KernelConstTrans()
-    monkeypatch.setattr(Dynamo0p3KernelConstTrans, "space_to_dofs",
+    kctrans = LFRicKernelConstTrans()
+    monkeypatch.setattr(LFRicKernelConstTrans, "space_to_dofs",
                         {"wa": [], "wb": []})
 
     with pytest.raises(InternalError) as excinfo:
@@ -7643,7 +7646,7 @@ def test_kern_const_invalid_kern(monkeypatch):
     '''
     kernel = create_kernel("1_single_invoke.f90")
 
-    kctrans = Dynamo0p3KernelConstTrans()
+    kctrans = LFRicKernelConstTrans()
 
     def dummy():
         '''A dummy function that always raises an exception.'''
@@ -7664,7 +7667,7 @@ def test_kern_const_invalid_quad(monkeypatch):
     '''
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
 
-    kctrans = Dynamo0p3KernelConstTrans()
+    kctrans = LFRicKernelConstTrans()
     monkeypatch.setattr(kernel, "_eval_shapes", ["gh_quadrature_face"])
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
@@ -7692,7 +7695,7 @@ def test_kern_const_invalid_make_constant1():
     for symbol in symbol_table.argument_list:
         symbol.interface = AutomaticInterface()
     symbol_table._argument_list = []
-    kctrans = Dynamo0p3KernelConstTrans()
+    kctrans = LFRicKernelConstTrans()
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert ("The argument index '7' is greater than the number of "
@@ -7709,7 +7712,7 @@ def test_kern_const_invalid_make_constant2():
     '''
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
 
-    kctrans = Dynamo0p3KernelConstTrans()
+    kctrans = LFRicKernelConstTrans()
     kernel_schedule = kernel.get_kernel_schedule()
     symbol_table = kernel_schedule.symbol_table
     symbol = symbol_table._argument_list[7]
@@ -7737,7 +7740,7 @@ def test_kern_const_invalid_make_constant2():
 
 
 def test_all_loop_trans_base_validate(monkeypatch):
-    ''' Check that all LFRic (Dynamo) transformations that sub-class LoopTrans
+    ''' Check that all LFRic transformations that sub-class LoopTrans
     call the base validate() method. '''
     # First get a valid Loop object that we can pass in.
     _, invoke = get_invoke("1_single_invoke.f90", TEST_API,
@@ -7783,7 +7786,7 @@ def test_colour_trans_tiled_non_intergrid(dist_mem):
                              name="invoke_0_testkern_type",
                              dist_mem=dist_mem)
     schedule = invoke.schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
 
     if dist_mem:
         index = 4
@@ -7864,12 +7867,12 @@ def test_colour_trans_tiled_and_halo_depth():
     schedule = invoke.schedule
 
     # Set a non-default halo depth
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.walk(Loop)[0]
     rc_trans.apply(loop, {"depth": 3})
 
     # Colour the loop
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(loop, tiling=True)
 
     # Check that the generated code has a explicit '3' depth argument
@@ -7889,7 +7892,7 @@ def test_colour_trans_tiled_intergrid(dist_mem):
     schedule = invoke.schedule
     # First two kernels are prolongation, last two are restriction
     loops = schedule.walk(Loop)
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     # To a prolong kernel
     ctrans.apply(loops[1], tiling=True)
     # To a restrict kernel (also use old-style options dict)
@@ -7959,7 +7962,7 @@ def test_colour_trans_tiled_continuous_writer_intergrid(dist_mem):
     psy, invoke = get_invoke("22.1.1_intergrid_cont_restrict.f90",
                              TEST_API, idx=0, dist_mem=dist_mem)
     loop = invoke.schedule[0]
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(loop, tiling=True)
     result = psy.gen
     # Declarations.
