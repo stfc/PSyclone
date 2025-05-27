@@ -52,6 +52,7 @@ import traceback
 import importlib
 import shutil
 from typing import Union, Callable, List, Tuple
+import logging
 
 from fparser.api import get_reader
 from fparser.two import Fortran2003
@@ -93,6 +94,14 @@ from psyclone.version import __VERSION__
 # code) whilst keeping the original implementation as default
 # until it is working.
 LFRIC_TESTING = False
+# off "level" choice is sys.maxsize to disable all
+# log messages.
+LOG_LEVELS = {"OFF": sys.maxsize,
+              logging.getLevelName(logging.DEBUG): logging.DEBUG,
+              logging.getLevelName(logging.INFO): logging.INFO,
+              logging.getLevelName(logging.WARNING): logging.WARNING,
+              logging.getLevelName(logging.ERROR): logging.ERROR,
+              logging.getLevelName(logging.CRITICAL): logging.CRITICAL}
 
 
 def load_script(
@@ -439,9 +448,9 @@ def main(arguments):
         help='path to Fortran INCLUDE or module files')
     parser.add_argument(
         '--enable-cache', action="store_true", default=False,
-        help='whether to enable caching imported module dependencies (if '
+        help='whether to enable caching of imported module dependencies (if '
              'enabled, it will generate a .psycache file of each imported '
-             'module in the same location as the output file).'
+             'module in the same location as the imported source file).'
     )
     parser.add_argument(
         '-l', '--limit', dest='limit', default='off',
@@ -494,8 +503,28 @@ def main(arguments):
         help='(psykal mode) naming scheme to use when re-naming transformed'
              ' kernels')
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
+    parser.add_argument(
+        "--log-level", default="OFF",
+        choices=LOG_LEVELS.keys(),
+        help="sets the level of the logging (defaults to OFF)."
+    )
+    parser.add_argument(
+        "--log-file", default=None,
+        help="sets the output file to use for logging (defaults to stderr)."
+    )
 
     args = parser.parse_args(arguments)
+
+    # Set the logging system up.
+    loglevel = LOG_LEVELS[args.log_level]
+    if args.log_file:
+        logname = args.log_file
+        logging.basicConfig(filename=logname,
+                            level=loglevel)
+    else:
+        logging.basicConfig(level=loglevel)
+    logger = logging.getLogger(__name__)
+    logger.debug("Logging system initialised.")
 
     # Validate that the given arguments are for the right operation mode
     if not args.psykal_dsl:
@@ -511,10 +540,8 @@ def main(arguments):
                   "specify the output destination of each psykal layer.")
             sys.exit(1)
 
-    # This has be be before the Config.get, because otherwise that creates a
-    # ModuleManager Singelton without caching
-    if args.enable_cache:
-        _ = ModuleManager.get(cache_active=True)
+    # ModuleManager Singleton without caching
+    _ = ModuleManager.get(cache_active=args.enable_cache)
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
