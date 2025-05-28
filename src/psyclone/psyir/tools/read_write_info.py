@@ -60,7 +60,7 @@ class ReadWriteInfo:
     @property
     def read_list(self):
         '''
-        :returns the sorted list of container_name,signature pairs that
+        :returns: the sorted list of container_name,signature pairs that
             are read.
         :rtype: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
 
@@ -74,9 +74,8 @@ class ReadWriteInfo:
     # -------------------------------------------------------------------------
     @property
     def signatures_read(self):
-        '''Convenience function to return only the signatures read.
-
-        :returns the list of all signatures read.
+        '''
+        :returns: the list of all signatures read.
         :rtype: List[:py:class:`psyclone.core.Signature`]
 
         '''
@@ -86,7 +85,7 @@ class ReadWriteInfo:
     @property
     def write_list(self):
         '''
-        :returns the sorted list of container_name,signature pairs that
+        :returns: the sorted list of container_name,signature pairs that
             are written.
         :rtype: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
 
@@ -100,9 +99,8 @@ class ReadWriteInfo:
     # -------------------------------------------------------------------------
     @property
     def signatures_written(self):
-        '''Convenience function to return only the signatures written.
-
-        :returns the list of all signatures written.
+        '''
+        :returns: the list of all signatures written.
         :rtype: List[:py:class:`psyclone.core.Signature`]
 
         '''
@@ -112,7 +110,7 @@ class ReadWriteInfo:
     @property
     def all_used_vars_list(self):
         '''
-        :returns the sorted list of container_name,signature pairs that
+        :returns: the sorted list of container_name,signature pairs that
             are used.
         :rtype: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
 
