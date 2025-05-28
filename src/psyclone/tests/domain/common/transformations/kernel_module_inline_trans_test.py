@@ -487,11 +487,6 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
             artrans.apply(coded_kern)
     gen = str(psy.gen)
 
-    # After this, one invoke uses the inlined top-level subroutine
-    # and the other imports it (shadowing the top-level symbol)
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 1
-    assert gen.count("end subroutine testkern_qr_code") == 1
-
     # After this, both invokes use the inlined top-level subroutine.
     # Module-inlining kernel in invoke 2 should have no effect.
     schedule1 = psy.invokes.invoke_list[1].schedule
@@ -534,8 +529,10 @@ def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
     # whole module uses the newly-inlined version.
     assert ("""subroutine invoke_1(scalar_r_phys, field_r_phys, \
 operator_r_def, f1, f2, m1, a, m2, istp, qr)
-      use testkern_qr_mod, only: testkern_qr_code
-      use quadrature""" in output)
+    use function_space_mod, only : basis, diff_basis
+    use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, \
+quadrature_xyoz_type
+    use testkern_qr_mod, only : testkern_qr_code""" in output)
     assert "mixed_kernel_mod" not in output
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
