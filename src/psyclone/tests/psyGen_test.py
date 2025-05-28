@@ -599,8 +599,7 @@ def test_kern_get_kernel_schedule():
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
-    sym, kern_schedules = kern.get_kernel_schedule()
-    assert sym is None
+    kern_schedules = kern.get_kernel_schedule()
     assert len(kern_schedules) == 1
     assert isinstance(kern_schedules[0], KernelSchedule)
 

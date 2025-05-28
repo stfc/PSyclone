@@ -1494,7 +1494,7 @@ def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     assert rtrans.name == "ACCRoutineTrans"
     rtrans.apply(kern)
     # Check that there is a acc routine directive in the kernel
-    _, schedules = kern.get_kernel_schedule()
+    schedules = kern.get_kernel_schedule()
     code = fortran_writer(schedules[0])
     assert "!$acc routine seq\n" in code
 
@@ -1518,7 +1518,7 @@ def test_accroutinetrans_with_routine(fortran_writer):
     assert isinstance(kern, GOKern)
     rtrans = ACCRoutineTrans()
     assert rtrans.name == "ACCRoutineTrans"
-    _, routines = kern.get_kernel_schedule()
+    routines = kern.get_kernel_schedule()
     rtrans.apply(routines[0])
     # Check that there is a acc routine directive in the routine
     code = fortran_writer(routines[0])

@@ -41,7 +41,7 @@
 
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
@@ -59,8 +59,9 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     Loop, Literal, Reference, KernelSchedule, Container, Routine)
 from psyclone.psyir.symbols import (
-    DataSymbol, ScalarType, ArrayType, UnsupportedFortranType, DataTypeSymbol,
-    UnresolvedType, ContainerSymbol, INTEGER_TYPE, UnresolvedInterface)
+    DataSymbol, GenericInterfaceSymbol, ScalarType, ArrayType, DataTypeSymbol,
+    UnresolvedType, ContainerSymbol, INTEGER_TYPE, UnresolvedInterface,
+    UnsupportedFortranType)
 
 
 class LFRicKern(CodedKern):
@@ -780,28 +781,36 @@ class LFRicKern(CodedKern):
 
         return stub_module
 
+    def get_interface_symbol(self) -> Union[GenericInterfaceSymbol, None]:
+        '''
+        :returns: the interface symbol for this kernel if it is polymorphic,
+                  None otherwise.
+        '''
+        kscheds = self.get_kernel_schedule()
+        if len(kscheds) == 1:
+            return None
+        cntr = kscheds[0].ancestor(Container)
+        return cntr.symbol_table.lookup(self.name)
+
     def get_kernel_schedule(self):
-        '''Returns a PSyIR Schedule representing the kernel code. The base
-        class creates the PSyIR schedule on first invocation which is
-        then checked for consistency with the kernel metadata
-        here. The Schedule is just generated on first invocation, this
-        allows us to retain transformations that may subsequently be
-        applied to the Schedule.
+        '''Returns the PSyIR Schedule(s) representing the kernel code. The base
+        class creates the PSyIR schedule(s) on first invocation which is then
+        checked for consistency with the kernel metadata here. The Schedule is
+        just generated on first invocation, this allows us to retain
+        transformations that may subsequently be applied to the Schedule(s).
 
         Once issue #935 is implemented, this routine will return the
         PSyIR Schedule using LFRic-specific PSyIR where possible.
 
-        :returns: the Symbol defining the interface to this kernel (if it is
-            polymorphic) and a list of the Schedule(s) representing the kernel
-            code.
-        :rtype: tuple[Optional[:py:class:`psyclone.psyir.symbols.Symbol`],
-                      list[:py:class:`psyclone.psyGen.KernelSchedule`]]
+        :returns: the Schedule(s) representing the kernel implementation.
+        :rtype: list[:py:class:`psyclone.psyGen.KernelSchedule`]
 
-        :raises GenerationError: if 0 or >1 subroutines matching this kernel
+        :raises InternalError: if no subroutines matching this kernel
             can be found in the parse tree of the associated source code.
+
         '''
-        if self._kern_schedules:
-            return self._interface_symbol, self._kern_schedules
+        if self._schedules:
+            return self._schedules
 
         # Check for a local implementation of this kernel first.
         container = self.ancestor(Container)
@@ -833,10 +842,6 @@ class LFRicKern(CodedKern):
                     f"Failed to find any routines for Kernel '{self.name}'. "
                     f"Source of Kernel is:\n{self.ast}")
 
-        self._interface_symbol = None
-        if len(routines) > 1:
-            self._interface_symbol = container.symbol_table.lookup(self.name)
-
         new_schedules = []
         for routine in routines[:]:
             # TODO #935 - replace the PSyIR argument data symbols with LFRic
@@ -850,9 +855,9 @@ class LFRicKern(CodedKern):
             routine.replace_with(ksched)
             new_schedules.append(ksched)
 
-        self._kern_schedules = new_schedules
+        self._schedules = new_schedules
 
-        return self._interface_symbol, self._kern_schedules
+        return self._schedules
 
     def validate_kernel_code_args(self, table):
         '''Check that the arguments in the kernel code match the expected

@@ -485,12 +485,12 @@ def test_check_outer_scope_accesses(config_instance):
     config_instance.include_paths = []
     # Multiple wildcard imports are handled by bringing them into the routine
     # and so aren't a problem.
-    _, kschedules = kcall.get_kernel_schedule()
+    kschedules = kcall.get_kernel_schedule()
     kschedules[0].check_outer_scope_accesses(kcall, "Kernel")
     # Now try where there's only a single wildcard import so we know the origin
     # of the symbol.
     kcall0 = schedule.walk(CodedKern)[0]
-    _, kscheds = kcall0.get_kernel_schedule()
+    kscheds = kcall0.get_kernel_schedule()
     ctable = kscheds[0].ancestor(Container).symbol_table
     # To do this, we manually remove all ContainerSymbols apart from the one
     # from which 'go_wp' is imported.

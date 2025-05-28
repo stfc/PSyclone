@@ -7686,8 +7686,7 @@ def test_kern_const_invalid_make_constant1():
     '''
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
 
-    _, kernel_schedules = kernel.get_kernel_schedule()
-    kernel_schedule = kernel_schedules[0]
+    kernel_schedule = kernel.get_kernel_schedule()[0]
     symbol_table = kernel_schedule.symbol_table
     # Make the symbol table's argument list empty. We have to make sure that
     # the interface of any existing argument Symbols is set to
@@ -7714,8 +7713,7 @@ def test_kern_const_invalid_make_constant2():
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
 
     kctrans = LFRicKernelConstTrans()
-    _, kernel_schedules = kernel.get_kernel_schedule()
-    kernel_schedule = kernel_schedules[0]
+    kernel_schedule = kernel.get_kernel_schedule()[0]
     symbol_table = kernel_schedule.symbol_table
     symbol = symbol_table._argument_list[7]
     # Expecting scalar integer. Set to array.

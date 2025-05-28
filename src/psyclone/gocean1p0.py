@@ -1084,14 +1084,13 @@ class GOKern(CodedKern):
         list comprising just one Schedule.
 
         :returns: a schedule representing the GOcean kernel code.
-        :rtype: tuple[NoneType,
-                      list[:py:class:`psyclone.gocean1p0.GOKernelSchedule`]]
+        :rtype: list[:py:class:`psyclone.gocean1p0.GOKernelSchedule`]
 
         :raises GenerationError: if there is a problem raising the language-
                                  level PSyIR of this kernel to GOcean PSyIR.
         '''
-        if self._kern_schedules:
-            return None, self._kern_schedules
+        if self._schedules:
+            return self._schedules
 
         # Construct the PSyIR of the Fortran parse tree.
         astp = Fparser2Reader()
@@ -1112,9 +1111,9 @@ class GOKern(CodedKern):
         # We know the above loop will find the named routine because the
         # previous raising transformation would have failed otherwise.
         # pylint: disable=undefined-loop-variable
-        self._kern_schedules = [routine]
+        self._schedules = [routine]
 
-        return None, self._kern_schedules
+        return self._schedules
 
 
 class GOKernelArguments(Arguments):

@@ -1340,8 +1340,8 @@ class CodedKern(Kern):
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._fp2_ast = None  #: The fparser2 AST for the kernel
-        self._kern_schedules = None  #: PSyIR schedule(s) for the kernel
-        self._interface_symbol = None
+        #: PSyIR schedule(s) for the kernel
+        self._schedules = None
         #: Whether or not this kernel has been transformed
         self._modified = False
         #: Whether or not to in-line this kernel into the module containing
@@ -1350,16 +1350,23 @@ class CodedKern(Kern):
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
         self.arg_descriptors = call.ktype.arg_descriptors
 
+    def get_interface_symbol(self) -> None:
+        '''
+        By default, a Kern is not polymorphic and therefore has no interface
+        symbol.
+
+        '''
+        return None
+
     def get_kernel_schedule(self):
         '''
-        Returns a PSyIR Schedule representing the kernel code. The Schedule
-        is just generated on first invocation, this allows us to retain
-        transformations that may subsequently be applied to the Schedule.
+        Returns the PSyIR Schedule(s) representing the kernel code. The
+        Schedules are just generated on first invocation, this allows us to
+        retain transformations that may subsequently be applied to the
+        Schedule(s).
 
-        :returns: Interface symbol (if any) and Schedule(s) representing the
-                  kernel code.
-        :rtype: tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
-                      list[:py:class:`psyclone.psyir.nodes.KernelSchedule`]]
+        :returns: Schedule(s) representing the kernel code.
+        :rtype: list[:py:class:`psyclone.psyir.nodes.KernelSchedule`]
 
         :raises NotImplementedError: must be overridden in sub-class.
 
@@ -1665,7 +1672,7 @@ class CodedKern(Kern):
         # Start from the root of the schedule as we want to output
         # any module information surrounding the kernel subroutine
         # as well as the subroutine itself.
-        _, schedules = self.get_kernel_schedule()
+        schedules = self.get_kernel_schedule()
         new_kern_code = fortran_writer(schedules[0].root)
         fll = FortLineLength()
         new_kern_code = fll.process(new_kern_code)
@@ -1705,7 +1712,7 @@ class CodedKern(Kern):
 
         '''
         # We need to get the kernel schedule before modifying self.name.
-        interface_sym, kern_schedules = self.get_kernel_schedule()
+        kern_schedules = self.get_kernel_schedule()
         container = kern_schedules[0].ancestor(Container)
 
         # Use the suffix to create a new kernel name.  This will
@@ -1715,6 +1722,7 @@ class CodedKern(Kern):
 
         # If the kernel is polymorphic, we can just change the name of
         # the interface.
+        interface_sym = self.get_interface_symbol()
         if interface_sym:
             orig_kern_name = interface_sym.name
             new_kern_name = self._new_name(orig_kern_name, suffix, "_code")

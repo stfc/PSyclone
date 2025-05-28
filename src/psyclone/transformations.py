@@ -410,7 +410,7 @@ class MarkRoutineForGPUMixin:
             # or that the frontend failed to convert it into PSyIR) reraise it
             # as a TransformationError
             try:
-                _, kernel_schedules = node.get_kernel_schedule()
+                kernel_schedules = node.get_kernel_schedule()
             except Exception as error:
                 raise TransformationError(
                     f"Failed to create PSyIR for kernel '{node.name}'. "
@@ -549,7 +549,7 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
             node.modified = True
 
             # Get the schedule representing the kernel subroutine
-            _, routines = node.get_kernel_schedule()
+            routines = node.get_kernel_schedule()
         else:
             routines = [node]
 
@@ -2416,7 +2416,7 @@ class LFRicKernelConstTrans(Transformation):
         arg_list_info = KernCallArgList(kernel)
         arg_list_info.generate()
         try:
-            _, kernel_schedules = kernel.get_kernel_schedule()
+            kernel_schedules = kernel.get_kernel_schedule()
         except NotImplementedError as excinfo:
             raise TransformationError(
                 f"Failed to parse kernel '{kernel.name}'. Error reported was "
@@ -2766,8 +2766,8 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
             # Flag that the kernel has been modified
             node.modified = True
 
-            # Get the schedule representing the kernel subroutine
-            sym, routines = node.get_kernel_schedule()
+            # Get the schedule(s) representing the kernel subroutine
+            routines = node.get_kernel_schedule()
         else:
             routines = [node]
 
@@ -3008,7 +3008,7 @@ class KernelImportsToArguments(Transformation):
 
         # Check that there are no unqualified imports or undeclared symbols
         try:
-            _, kernels = node.get_kernel_schedule()
+            kernels = node.get_kernel_schedule()
         except SymbolError as err:
             raise TransformationError(
                 f"Kernel '{node.name}' contains undeclared symbol: "
@@ -3040,7 +3040,7 @@ class KernelImportsToArguments(Transformation):
         '''
         self.validate(node, options)
 
-        _, kernels = node.get_kernel_schedule()
+        kernels = node.get_kernel_schedule()
         # validate() has ensured that there is only one kernel routine.
         kernel = kernels[0]
         symtab = kernel.symbol_table

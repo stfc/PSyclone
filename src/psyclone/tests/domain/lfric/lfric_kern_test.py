@@ -151,19 +151,18 @@ def test_get_kernel_schedule(monkeypatch):
     # matrix vector kernel
     kernel = schedule[2].loop_body[0]
 
-    assert kernel._kern_schedules is None
+    assert kernel._schedules is None
 
-    sym, kernel_schedules = kernel.get_kernel_schedule()
-    assert sym is None
+    kernel_schedules = kernel.get_kernel_schedule()
     assert len(kernel_schedules) == 1
     assert isinstance(kernel_schedules[0], KernelSchedule)
-    assert kernel._kern_schedules[0] is kernel_schedules[0]
+    assert kernel._schedules[0] is kernel_schedules[0]
 
-    _, kernel_schedules_2 = kernel.get_kernel_schedule()
+    kernel_schedules_2 = kernel.get_kernel_schedule()
     assert kernel_schedules[0] is kernel_schedules_2[0]
     # Check the internal error for the case where we fail to get any
     # implementation for the kernel.
-    kernel._kern_schedules = None
+    kernel._schedules = None
     # Monkeypatch the frontend so that it just returns an empty Container.
     monkeypatch.setattr(Fparser2Reader, "generate_psyir",
                         lambda _1, _2: Container("dummy_mod"))
@@ -187,8 +186,8 @@ def test_get_kernel_schedule_same_container(monkeypatch):
     for kern in sched.walk(LFRicKern):
         mod_inline_trans.apply(kern)
         # Remove the cached schedule to force get_kernel_schedule() to search.
-        monkeypatch.setattr(kern, "_kern_schedules", None)
-        _, schedules = kern.get_kernel_schedule()
+        monkeypatch.setattr(kern, "_schedules", None)
+        schedules = kern.get_kernel_schedule()
         # The returned schedule should be the one in the local Container.
         assert schedules[0] in sched.ancestor(Container).walk(Routine)
 
@@ -264,7 +263,7 @@ def test_validate_kernel_code_args(monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
     # matrix vector kernel
     kernel = schedule[2].loop_body[0]
-    _, schedules = kernel.get_kernel_schedule()
+    schedules = kernel.get_kernel_schedule()
     sched = schedules[0]
     kernel.validate_kernel_code_args(sched.symbol_table)
 

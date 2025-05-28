@@ -103,7 +103,7 @@ def test_validate_with_imported_subroutine_call():
     schedule = invoke.schedule
     kern_call = schedule.walk(CodedKern)[0]
     # Create a call to made up subroutine and module symbols
-    _, kern_schedules = kern_call.get_kernel_schedule()
+    kern_schedules = kern_call.get_kernel_schedule()
     kern_schedule = kern_schedules[0]
     mymod = kern_schedule.symbol_table.new_symbol(
             "mymod",
@@ -162,7 +162,7 @@ def test_validate_no_inline_global_var(parser):
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
     block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
-    _, kschedules = kernels[0].get_kernel_schedule()
+    kschedules = kernels[0].get_kernel_schedule()
     ksched = kschedules[0]
     ksched.pop_all_children()
     ksched.addchild(block)
@@ -179,7 +179,7 @@ def test_validate_no_inline_global_var(parser):
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
     block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
-    _, kschedules = kernels[0].get_kernel_schedule()
+    kschedules = kernels[0].get_kernel_schedule()
     ksched = kschedules[0]
     ksched.pop_all_children()
     ksched.addchild(block)
@@ -196,7 +196,7 @@ def test_validate_no_inline_global_var(parser):
 
     # But make sure that an IntrinsicCall routine name is not considered
     # a global symbol, as they are implicitly declared everywhere
-    _, kschedules = kernels[0].get_kernel_schedule()
+    kschedules = kernels[0].get_kernel_schedule()
     ksched = kschedules[0]
     ksched.pop_all_children()
     ksched.addchild(
@@ -262,7 +262,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    monkeypatch.setattr(kern_call, "_kern_schedules", [routine])
+    monkeypatch.setattr(kern_call, "_schedules", [routine])
 
     # and try to apply the transformation
     inline_trans = KernelModuleInlineTrans()
@@ -285,7 +285,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    monkeypatch.setattr(kern_call, "_kern_schedules", [routine])
+    monkeypatch.setattr(kern_call, "_schedules", [routine])
 
     # and try to apply the transformation
     with pytest.raises(TransformationError) as err:
@@ -307,7 +307,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    monkeypatch.setattr(kern_call, "_kern_schedules", [routine])
+    monkeypatch.setattr(kern_call, "_schedules", [routine])
 
     container = kern_call.ancestor(Container)
     assert "compute_cv_code" not in container.symbol_table
@@ -411,7 +411,7 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
     # Put a new, different symbol (with the same name) into the table of the
     # parent Container.
     routine.parent.scope.symbol_table.add(DataSymbol("a", REAL_TYPE))
-    monkeypatch.setattr(kern_call, "_kern_schedules", [routine])
+    monkeypatch.setattr(kern_call, "_schedules", [routine])
 
     # The transformation should succeed (because the symbol named 'a' is
     # actually local to the routine. However, the dependence analysis thinks it

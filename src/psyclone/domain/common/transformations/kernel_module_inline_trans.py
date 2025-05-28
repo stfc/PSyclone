@@ -316,8 +316,7 @@ class KernelModuleInlineTrans(Transformation):
             # Where mixed-precision kernels are supported (e.g. in LFRic) the
             # call to get_kernel_schedule() will return the one which has an
             # interface matching the arguments in the call.
-            interface_sym, routines = node.get_kernel_schedule()
-            return (routines, interface_sym)
+            return (node.get_kernel_schedule(), node.get_interface_symbol())
 
         # We have a generic routine call.
         routines = node.get_callees()
@@ -614,8 +613,4 @@ class KernelModuleInlineTrans(Transformation):
                 if kern.name == node.name:
                     kern.module_inline = True
                     # pylint: disable=protected-access
-                    kern._kern_schedules = updated_routines
-                    if interface_sym:
-                        kern._interface_symbol = (
-                            updated_routines[0].scope.symbol_table.lookup(
-                                interface_sym.name))
+                    kern._schedules = updated_routines

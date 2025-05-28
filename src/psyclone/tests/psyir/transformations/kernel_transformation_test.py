@@ -306,7 +306,6 @@ def test_transform_kern_with_interface(kernel_outputdir):
     assert LFRicBuild(kernel_outputdir).code_compiles(psy)
     kernels = sched.coded_kernels()
     rtrans.apply(kernels[1], options={"force": True})
-    psy.gen
     assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
 
@@ -443,7 +442,7 @@ def test_gpumixin_validate_no_call():
             in str(err.value))
 
     # The same error happens for unsupported GPU intrinsics
-    _, kschedules = kernel.get_kernel_schedule()
+    kschedules = kernel.get_kernel_schedule()
     call = kschedules[0].walk(Call)[0]
     call.replace_with(
         IntrinsicCall.create(IntrinsicCall.Intrinsic.GET_COMMAND))
@@ -469,7 +468,7 @@ def test_kernel_gpu_annotation_trans(rtrans, expected_directive,
     rtrans.apply(kern)
 
     # Check that the directive has been added to the kernel code
-    _, kschedules = kern.get_kernel_schedule()
+    kschedules = kern.get_kernel_schedule()
     code = fortran_writer(kschedules[0])
     assert expected_directive in code
 

@@ -100,7 +100,8 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the node is not a GOKern.
+        :raises TransformationError: if the node is not a GOKern or has more
+                                     than one implementation.
 
         '''
         if not isinstance(node, GOKern):
@@ -108,6 +109,13 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
                 f"Error in {self.name} transformation. This transformation "
                 f"can only be applied to 'GOKern' nodes, but found "
                 f"'{type(node).__name__}'.")
+
+        kschedules = node.get_kernel_schedule()
+        # GOcean Kernels must have a single implementation.
+        if len(kschedules) != 1:
+            raise TransformationError(
+                f"GOcean kernels must have a single implementation but "
+                f"'{node.name}' corresponds to an interface.")
 
     def apply(self, node, options=None):
         '''Apply this transformation to the supplied node.
@@ -179,10 +187,9 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         inner_loop.iteration_space = "go_all_pts"
         outer_loop.iteration_space = "go_all_pts"
 
-        # Update Kernel
-        _, kschedules = node.get_kernel_schedule()
-        # GOcean Kernels must have a single implementation.
-        kschedule = kschedules[0]
+        # Update Kernel. Validate has checked that it's not polymorphic.
+        kschedule = node.get_kernel_schedule()[0]
+
         kernel_st = kschedule.symbol_table
         iteration_indices = kernel_st.iteration_indices
         data_arguments = kernel_st.data_arguments

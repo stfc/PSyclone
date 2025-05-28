@@ -112,11 +112,14 @@ class OMPTaskTrans(ParallelLoopTrans):
 
         for kern in kerns:
             kintrans.validate(kern)
-            cond_trans.validate(kern.get_kernel_schedule())
+            routines = kern.get_kernel_schedule()
+            for routine in routines:
+                cond_trans.validate(routine)
             # We need to apply these transformations to ensure we can
             # validate the InlineTrans
             kintrans.apply(kern)
-            cond_trans.apply(kern.get_kernel_schedule())
+            for routine in routines:
+                cond_trans.apply(routine)
             kern.lower_to_language_level()
 
         calls = node_copy.walk(Call)
@@ -172,7 +175,7 @@ class OMPTaskTrans(ParallelLoopTrans):
         intrans = InlineTrans()
         for kern in kerns:
             kintrans.apply(kern)
-            _, schedules = kern.get_kernel_schedule()
+            schedules = kern.get_kernel_schedule()
             for sched in schedules:
                 cond_trans.apply(sched)
             kern.lower_to_language_level()
