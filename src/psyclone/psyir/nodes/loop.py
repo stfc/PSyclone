@@ -506,13 +506,13 @@ class Loop(Statement):
                                     AccessType.READ, self)
 
             # Accesses of the start/stop/step expressions
-            var_accesses.merge(self.start_expr.reference_accesses())
-            var_accesses.merge(self.stop_expr.reference_accesses())
-            var_accesses.merge(self.step_expr.reference_accesses())
+            var_accesses.update(self.start_expr.reference_accesses())
+            var_accesses.update(self.stop_expr.reference_accesses())
+            var_accesses.update(self.step_expr.reference_accesses())
             var_accesses.next_location()
 
         for child in self.loop_body.children:
-            var_accesses.merge(child.reference_accesses())
+            var_accesses.update(child.reference_accesses())
             var_accesses.next_location()
         return var_accesses
 

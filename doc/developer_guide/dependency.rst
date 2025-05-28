@@ -319,7 +319,7 @@ kind `VariablesAccessInfo`.
     :special-members: __str__
 
 This class collects information for each variable used in the tree
-starting with the given node. Use the `merge()` method to
+starting with the given node. Use the `update()` method to
 combine two `VariablesAccessInfo` objects into one. It is up to the user to
 keep track of which statements (PSyIR nodes) a given `VariablesAccessInfo`
 instance is holding information about. If the PSyIR tree is modified the

@@ -82,7 +82,7 @@ def test_variables_access_info():
     var_accesses2.add_access(Signature("written"), AccessType.READ, node)
 
     # Now merge the new instance with the previous instance:
-    var_accesses.merge(var_accesses2)
+    var_accesses.update(var_accesses2)
     assert str(var_accesses) == "new_var: READ, read: READ, " \
                                 "read_written: READ+WRITE, written: READ+WRITE"
 
@@ -150,7 +150,7 @@ def test_component_indices_auto_extension():
 
 
 # -----------------------------------------------------------------------------
-def test_variables_access_info_merge():
+def test_variables_access_info_update():
     '''Tests the merge operation of VariablesAccessInfo.
     '''
     # First create one instance representing for example:
@@ -176,7 +176,7 @@ def test_variables_access_info_merge():
     var_accesses2.add_access(Signature("g"), AccessType.WRITE, node)
 
     # Now merge the second instance into the first one
-    var_accesses1.merge(var_accesses2)
+    var_accesses1.update(var_accesses2)
 
     # The e=f access pattern should have the same location
     # as the c=d (since there is no next_location after
@@ -188,7 +188,7 @@ def test_variables_access_info_merge():
     assert c_accesses[0].location == e_accesses[0].location
 
     # Test that the g=h part has a higher location than the
-    # c=d data. This makes sure that merge() increases the
+    # c=d data. This makes sure that update() increases the
     # location number of accesses when merging.
     c_accesses = var_accesses1[Signature("c")]
     g_accesses = var_accesses1[Signature("g")]
@@ -222,7 +222,7 @@ def test_constructor(fortran_reader):
     node2 = assignments[1]
     vai1 = node1.reference_accesses()
     assert str(vai1) == "a: WRITE, b: READ, c: READ"
-    vai1.merge(node2.reference_accesses())
+    vai1.update(node2.reference_accesses())
     assert str(vai1) == "a: READ+WRITE, b: READ, c: READ+WRITE"
 
 

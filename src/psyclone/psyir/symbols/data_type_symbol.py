@@ -136,7 +136,7 @@ class DataTypeSymbol(Symbol):
 
         '''
         access_info = super().reference_accesses()
-        access_info.merge(self.datatype.reference_accesses())
+        access_info.update(self.datatype.reference_accesses())
         return access_info
 
     def replace_symbols_using(self, table_or_symbol):

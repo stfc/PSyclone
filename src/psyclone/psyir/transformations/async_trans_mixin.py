@@ -88,7 +88,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         else:
             var_accesses = VariablesAccessInfo()
             for node in nodes:
-                var_accesses.merge(node.reference_accesses())
+                var_accesses.update(node.reference_accesses())
         writes = []
         for signature in var_accesses.all_signatures:
             if var_accesses.is_written(signature):

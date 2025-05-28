@@ -390,5 +390,5 @@ class DataSymbol(TypedSymbol):
         access_info = super().reference_accesses()
 
         if self.initial_value:
-            access_info.merge(self.initial_value.reference_accesses())
+            access_info.update(self.initial_value.reference_accesses())
         return access_info

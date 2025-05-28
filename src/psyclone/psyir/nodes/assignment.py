@@ -208,7 +208,7 @@ class Assignment(Statement):
         # the RHS comes before the write on the LHS (they have the same
         # location otherwise, but the order is still important)
         rhs_accesses = self.rhs.reference_accesses()
-        rhs_accesses.merge(lhs_accesses)
+        rhs_accesses.update(lhs_accesses)
         rhs_accesses.next_location()
         return rhs_accesses
 

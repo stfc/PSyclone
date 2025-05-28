@@ -928,12 +928,12 @@ class IntrinsicCall(Call):
             var_accesses.add_access(sig, AccessType.INQUIRY, self.arguments[0])
             for idx_list in indices:
                 for idx in idx_list:
-                    var_accesses.merge(idx.reference_accesses())
+                    var_accesses.update(idx.reference_accesses())
         elif self.arguments:
-            var_accesses.merge(self.arguments[0].reference_accesses())
+            var_accesses.update(self.arguments[0].reference_accesses())
 
         for child in self.arguments[1:]:
-            var_accesses.merge(child.reference_accesses())
+            var_accesses.update(child.reference_accesses())
         return var_accesses
 
     # TODO #2102: Maybe the three properties below can be removed if intrinsic

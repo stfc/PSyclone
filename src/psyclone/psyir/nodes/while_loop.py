@@ -153,6 +153,6 @@ class WhileLoop(Statement):
         # The first child is the loop condition - all variables are read-only
         var_accesses = self.condition.reference_accesses()
         var_accesses.next_location()
-        var_accesses.merge(self.loop_body.reference_accesses())
+        var_accesses.update(self.loop_body.reference_accesses())
         var_accesses.next_location()
         return var_accesses

@@ -177,7 +177,7 @@ class ChunkLoopTrans(LoopTrans):
         # No child has a write dependency to the loop variable.
         # Find variable access info for the loop variable and step
         bounds_ref = node.start_expr.reference_accesses()
-        bounds_ref.merge(node.stop_expr.reference_accesses())
+        bounds_ref.update(node.stop_expr.reference_accesses())
         # The current implementation of ChunkLoopTrans does not allow
         # the step size to be non-constant, so it is ignored.
 

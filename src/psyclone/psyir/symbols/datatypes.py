@@ -349,7 +349,7 @@ class UnsupportedFortranType(UnsupportedType):
                     Signature(self.partial_datatype.name),
                     AccessType.TYPE_INFO, self)
             else:
-                access_info.merge(
+                access_info.update(
                     self.partial_datatype.reference_accesses())
         return access_info
 
@@ -1072,8 +1072,8 @@ class ArrayType(DataType):
 
         for dim in self.shape:
             if isinstance(dim, ArrayType.ArrayBounds):
-                access_info.merge(dim.lower.reference_accesses())
-                access_info.merge(dim.upper.reference_accesses())
+                access_info.update(dim.lower.reference_accesses())
+                access_info.update(dim.upper.reference_accesses())
         return access_info
 
 
@@ -1330,9 +1330,9 @@ class StructureType(DataType):
                     Signature(cmpt.datatype.name),
                     AccessType.TYPE_INFO, self)
             else:
-                access_info.merge(cmpt.datatype.reference_accesses())
+                access_info.update(cmpt.datatype.reference_accesses())
             if cmpt.initial_value:
-                access_info.merge(cmpt.initial_value.reference_accesses())
+                access_info.update(cmpt.initial_value.reference_accesses())
         return access_info
 
 

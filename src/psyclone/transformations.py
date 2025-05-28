@@ -2950,7 +2950,7 @@ class ACCDataTrans(RegionTrans):
                         continue
                     var_accesses = VariablesAccessInfo()
                     for idx in access.indices:
-                        var_accesses.merge(idx.reference_accesses())
+                        var_accesses.update(idx.reference_accesses())
                     for var in loop_vars:
                         if var not in var_accesses.all_signatures:
                             continue

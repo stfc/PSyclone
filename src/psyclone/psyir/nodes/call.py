@@ -323,7 +323,7 @@ class Call(Statement, DataNode):
         # Continue processing references in any index expressions.
         for indices in indices_list:
             for idx in indices:
-                var_accesses.merge(idx.reference_accesses())
+                var_accesses.update(idx.reference_accesses())
 
         for arg in self.arguments:
             if isinstance(arg, Reference):
@@ -333,13 +333,13 @@ class Call(Statement, DataNode):
                 # Continue processing references in any index expressions.
                 for indices in indices_list:
                     for idx in indices:
-                        var_accesses.merge(idx.reference_accesses())
+                        var_accesses.update(idx.reference_accesses())
             else:
                 # This argument is not a Reference so continue to walk down the
                 # tree. (e.g. it could be/contain a Call to
                 # an impure routine in which case any arguments to that Call
                 # will have READWRITE access.)
-                var_accesses.merge(arg.reference_accesses())
+                var_accesses.update(arg.reference_accesses())
         # Make sure that the next statement will be on the next location
         var_accesses.next_location()
         return var_accesses

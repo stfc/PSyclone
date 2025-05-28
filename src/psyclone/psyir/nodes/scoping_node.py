@@ -183,8 +183,8 @@ class ScopingNode(Node):
         # During the updating process when moving a Routine (and its
         # associated Symbol), it's possible that we won't have a SymbolTable.
         if self._symbol_table:
-            var_accesses.merge(self._symbol_table.reference_accesses())
-        var_accesses.merge(super().reference_accesses())
+            var_accesses.update(self._symbol_table.reference_accesses())
+        var_accesses.update(super().reference_accesses())
         return var_accesses
 
     def replace_symbols_using(self, table_or_symbol):

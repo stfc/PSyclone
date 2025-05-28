@@ -287,10 +287,10 @@ def test_lfric_kern_cma_args():
     invoke_write.setup_psy_layer_symbols()
     var_accesses_read = VariablesAccessInfo()
     for kernel in invoke_read.schedule.coded_kernels():
-        var_accesses_read.merge(kernel.reference_accesses())
+        var_accesses_read.update(kernel.reference_accesses())
     var_accesses_write = VariablesAccessInfo()
     for kernel in invoke_write.schedule.coded_kernels():
-        var_accesses_write.merge(kernel.reference_accesses())
+        var_accesses_write.update(kernel.reference_accesses())
 
     # Check the parameters that will change access type according to read or
     # write declaration of the argument:

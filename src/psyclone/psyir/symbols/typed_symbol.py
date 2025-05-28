@@ -285,5 +285,5 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
                 Signature(self.datatype.name),
                 AccessType.TYPE_INFO, self)
         else:
-            access_info.merge(self.datatype.reference_accesses())
+            access_info.update(self.datatype.reference_accesses())
         return access_info

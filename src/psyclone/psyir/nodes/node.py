@@ -1524,7 +1524,7 @@ class Node():
         '''
         var_accesses = VariablesAccessInfo()
         for child in self._children:
-            var_accesses.merge(child.reference_accesses())
+            var_accesses.update(child.reference_accesses())
         return var_accesses
 
     @property

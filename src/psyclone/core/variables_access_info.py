@@ -204,9 +204,12 @@ class VariablesAccessInfo(dict):
                 result.append(sig)
         return result
 
-    def merge(self, other_access_info):
-        '''Merges data from a VariablesAccessInfo instance to the
-        information in this instance.
+    def update(self, other_access_info):
+        ''' Updates this dictonary with the entries of the provided
+        VariableAccessInfo. If there is repeated signatures, the provided
+        values are appened in the existing sequence of accesses. The 'location'
+        property of the provided accesses (values on the dictionary) will be
+        updated to be after the existing entries.
 
         :param other_access_info: the other VariablesAccessInfo instance.
         :type other_access_info: :py:class:`psyclone.core.VariablesAccessInfo`

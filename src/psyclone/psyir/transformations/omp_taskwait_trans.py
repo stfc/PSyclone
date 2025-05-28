@@ -228,7 +228,7 @@ class OMPTaskwaitTrans(Transformation):
         for child in taskloop.walk(nodes.Node):
             if child is not taskloop and not isinstance(child,
                                                         (Schedule, Loop)):
-                taskloop_vars.merge(child.reference_accesses())
+                taskloop_vars.update(child.reference_accesses())
         taskloop_signatures = taskloop_vars.all_signatures
         # Find our parent serial region if it has a barrier
         parent_single = taskloop.ancestor(OMPSingleDirective)
@@ -278,7 +278,7 @@ class OMPTaskwaitTrans(Transformation):
                 for child in node.walk(nodes.Node):
                     if child is not node and not isinstance(child,
                                                             (Schedule, Loop)):
-                        node_vars.merge(child.reference_accesses())
+                        node_vars.update(child.reference_accesses())
             node_signatures = node_vars.all_signatures
             # Once we have the node's variable accesses, check for collisions
             for sig1 in taskloop_signatures:

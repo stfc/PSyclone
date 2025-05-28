@@ -1066,7 +1066,7 @@ class GOKern(CodedKern):
                     var_accesses.add_access(signature, arg.access,
                                             self, [Reference(symbol_i),
                                                    Reference(symbol_j)])
-        var_accesses.merge(super().reference_accesses())
+        var_accesses.update(super().reference_accesses())
         var_accesses.next_location()
         return var_accesses
 

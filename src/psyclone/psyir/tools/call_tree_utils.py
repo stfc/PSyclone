@@ -180,7 +180,7 @@ class CallTreeUtils():
         if not variables_info:
             variables_info = VariablesAccessInfo()
             for node in node_list:
-                variables_info.merge(node.reference_accesses())
+                variables_info.update(node.reference_accesses())
 
         if include_non_data_accesses:
             all_accesses = variables_info.all_signatures
@@ -217,7 +217,7 @@ class CallTreeUtils():
         if not variables_info:
             variables_info = VariablesAccessInfo()
             for node in node_list:
-                variables_info.merge(node.reference_accesses())
+                variables_info.update(node.reference_accesses())
 
         for signature in variables_info.all_signatures:
             if variables_info.is_written(signature):
@@ -255,7 +255,7 @@ class CallTreeUtils():
         node_list = node_list if isinstance(node_list, list) else [node_list]
         variables_info = VariablesAccessInfo()
         for node in node_list:
-            variables_info.merge(node.reference_accesses())
+            variables_info.update(node.reference_accesses())
         read_write_info = ReadWriteInfo()
         self.get_input_parameters(
             read_write_info, node_list, variables_info,

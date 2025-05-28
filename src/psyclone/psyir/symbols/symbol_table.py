@@ -1211,8 +1211,8 @@ class SymbolTable():
         from psyclone.core import Signature, VariablesAccessInfo
         vai = VariablesAccessInfo()
         if self.node:
-            vai.merge(self.node.reference_accesses())
-        vai.merge(self.reference_accesses())
+            vai.update(self.node.reference_accesses())
+        vai.update(self.reference_accesses())
         sig = Signature(symbol.name)
         if sig not in vai:
             return
@@ -2044,7 +2044,7 @@ class SymbolTable():
         vai = VariablesAccessInfo()
         for sym in self.symbols:
             if not sym.is_import:
-                vai.merge(sym.reference_accesses())
+                vai.update(sym.reference_accesses())
         return vai
 
     def wildcard_imports(self, scope_limit=None) -> List[ContainerSymbol]:

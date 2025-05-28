@@ -213,7 +213,7 @@ class Reference(DataNode):
         sig, all_indices = self.get_signature_and_indices()
         for indices in all_indices:
             for index in indices:
-                var_accesses.merge(index.reference_accesses())
+                var_accesses.update(index.reference_accesses())
         var_accesses.add_access(sig, AccessType.READ, self, all_indices)
         return var_accesses
 
