@@ -108,7 +108,7 @@ class ReadWriteInfo:
 
     # -------------------------------------------------------------------------
     @property
-    def set_of_all_used_vars(self):
+    def all_used_vars_list(self):
         '''This property returns a set with all (container_name, Signature)
         tuples. Since it is a set this guarantees that each tuple is only
         listed once.

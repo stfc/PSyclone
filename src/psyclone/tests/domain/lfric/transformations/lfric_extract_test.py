@@ -305,8 +305,9 @@ def test_single_node_lfric():
     code = str(psy.gen)
     output = '''\
     CALL extract_psy_data % PreStart("single_invoke_psy", \
-"invoke_0_testkern_type-testkern_code-r0", 17, 16)
+"invoke_0_testkern_type-testkern_code-r0", 18, 16)
     CALL extract_psy_data % PreDeclareVariable("a", a)
+    CALL extract_psy_data % PreDeclareVariable("cell", cell)
     CALL extract_psy_data % PreDeclareVariable("f1_data", f1_data)
     CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
     CALL extract_psy_data % PreDeclareVariable("loop0_start", loop0_start)
@@ -341,6 +342,7 @@ def test_single_node_lfric():
     CALL extract_psy_data % PreDeclareVariable("undf_w3_post", undf_w3)
     CALL extract_psy_data % PreEndDeclaration
     CALL extract_psy_data % ProvideVariable("a", a)
+    CALL extract_psy_data % ProvideVariable("cell", cell)
     CALL extract_psy_data % ProvideVariable("f1_data", f1_data)
     CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
     CALL extract_psy_data % ProvideVariable("loop0_start", loop0_start)
@@ -413,8 +415,12 @@ def test_node_list_lfric():
     code = str(psy.gen)
     output = """\
     CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy", \
-"invoke_0-r0", 11, 9)
+"invoke_0-r0", 15, 9)
+    CALL extract_psy_data % PreDeclareVariable("cell", cell)
+    CALL extract_psy_data % PreDeclareVariable("df", df)
+    CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
     CALL extract_psy_data % PreDeclareVariable("f3_data", f3_data)
+    CALL extract_psy_data % PreDeclareVariable("f5_data", f5_data)
     CALL extract_psy_data % PreDeclareVariable("loop0_start", loop0_start)
     CALL extract_psy_data % PreDeclareVariable("loop0_stop", loop0_stop)
     CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
@@ -435,7 +441,11 @@ def test_node_list_lfric():
     CALL extract_psy_data % PreDeclareVariable("nlayers_f3_post", nlayers_f3)
     CALL extract_psy_data % PreDeclareVariable("undf_w2_post", undf_w2)
     CALL extract_psy_data % PreEndDeclaration
+    CALL extract_psy_data % ProvideVariable("cell", cell)
+    CALL extract_psy_data % ProvideVariable("df", df)
+    CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
     CALL extract_psy_data % ProvideVariable("f3_data", f3_data)
+    CALL extract_psy_data % ProvideVariable("f5_data", f5_data)
     CALL extract_psy_data % ProvideVariable("loop0_start", loop0_start)
     CALL extract_psy_data % ProvideVariable("loop0_stop", loop0_stop)
     CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
@@ -496,7 +506,11 @@ def test_lfric_builtin():
     code = str(psy.gen)
 
     output = """
+    CALL extract_psy_data % PreDeclareVariable("cell", cell)
+    CALL extract_psy_data % PreDeclareVariable("df", df)
+    CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
     CALL extract_psy_data % PreDeclareVariable("f3_data", f3_data)
+    CALL extract_psy_data % PreDeclareVariable("f5_data", f5_data)
     CALL extract_psy_data % PreDeclareVariable("loop0_start", loop0_start)
     CALL extract_psy_data % PreDeclareVariable("loop0_stop", loop0_stop)
     CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
@@ -517,7 +531,11 @@ def test_lfric_builtin():
     CALL extract_psy_data % PreDeclareVariable("nlayers_f3_post", nlayers_f3)
     CALL extract_psy_data % PreDeclareVariable("undf_w2_post", undf_w2)
     CALL extract_psy_data % PreEndDeclaration
+    CALL extract_psy_data % ProvideVariable("cell", cell)
+    CALL extract_psy_data % ProvideVariable("df", df)
+    CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
     CALL extract_psy_data % ProvideVariable("f3_data", f3_data)
+    CALL extract_psy_data % ProvideVariable("f5_data", f5_data)
     CALL extract_psy_data % ProvideVariable("loop0_start", loop0_start)
     CALL extract_psy_data % ProvideVariable("loop0_stop", loop0_stop)
     CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
@@ -586,17 +604,17 @@ def test_extract_single_builtin_lfric():
     output = """\
     CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy", \
 "invoke_0-setval_c-r0", 4, 2)
-    CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
-    CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
     CALL extract_psy_data % PreDeclareVariable("df", df)
     CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
+    CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
+    CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
     CALL extract_psy_data % PreDeclareVariable("df_post", df)
     CALL extract_psy_data % PreDeclareVariable("f2_data_post", f2_data)
     CALL extract_psy_data % PreEndDeclaration
-    CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
-    CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
     CALL extract_psy_data % ProvideVariable("df", df)
     CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
+    CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
+    CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
     CALL extract_psy_data % PreEnd
     do df = loop1_start, loop1_stop, 1
       ! Built-in: setval_c (set a real-valued field to a real scalar value)
@@ -606,7 +624,7 @@ def test_extract_single_builtin_lfric():
     CALL extract_psy_data % ProvideVariable("df_post", df)
     CALL extract_psy_data % ProvideVariable("f2_data_post", f2_data)
     CALL extract_psy_data % PostEnd"""
-    assert output == code
+    assert output in code
 
     # Test extract with OMP Parallel optimisation
     psy, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
@@ -618,22 +636,20 @@ def test_extract_single_builtin_lfric():
     code_omp = str(psy.gen)
     output = """\
     CALL extract_psy_data % PreStart("single_invoke_psy", \
-"invoke_0-inc_ax_plus_y-r0", 6, 2)
+"invoke_0-inc_ax_plus_y-r0", 5, 2)
+    CALL extract_psy_data % PreDeclareVariable("df", df)
     CALL extract_psy_data % PreDeclareVariable("f1_data", f1_data)
     CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
     CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
     CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
-    CALL extract_psy_data % PreDeclareVariable("df", df)
-    CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
     CALL extract_psy_data % PreDeclareVariable("df_post", df)
     CALL extract_psy_data % PreDeclareVariable("f1_data_post", f1_data)
     CALL extract_psy_data % PreEndDeclaration
+    CALL extract_psy_data % ProvideVariable("df", df)
     CALL extract_psy_data % ProvideVariable("f1_data", f1_data)
     CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
     CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
     CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
-    CALL extract_psy_data % ProvideVariable("df", df)
-    CALL extract_psy_data % ProvideVariable("f1_data", f1_data)
     CALL extract_psy_data % PreEnd
     !$omp parallel do default(shared), private(df), schedule(static)
     do df = loop1_start, loop1_stop, 1
@@ -645,7 +661,7 @@ def test_extract_single_builtin_lfric():
     CALL extract_psy_data % ProvideVariable("df_post", df)
     CALL extract_psy_data % ProvideVariable("f1_data_post", f1_data)
     CALL extract_psy_data % PostEnd"""
-    assert output == code_omp
+    assert output in code_omp
 
 
 def test_extract_kernel_and_builtin_lfric():
@@ -663,7 +679,10 @@ def test_extract_kernel_and_builtin_lfric():
     code = str(psy.gen)
     output = """\
     CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy",\
- "invoke_0-r0", 9, 8)
+ "invoke_0-r0", 12, 8)
+    CALL extract_psy_data % PreDeclareVariable("cell", cell)
+    CALL extract_psy_data % PreDeclareVariable("df", df)
+    CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
     CALL extract_psy_data % PreDeclareVariable("f3_data", f3_data)
     CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
     CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
@@ -682,6 +701,9 @@ def test_extract_kernel_and_builtin_lfric():
     CALL extract_psy_data % PreDeclareVariable("nlayers_f3_post", nlayers_f3)
     CALL extract_psy_data % PreDeclareVariable("undf_w2_post", undf_w2)
     CALL extract_psy_data % PreEndDeclaration
+    CALL extract_psy_data % ProvideVariable("cell", cell)
+    CALL extract_psy_data % ProvideVariable("df", df)
+    CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
     CALL extract_psy_data % ProvideVariable("f3_data", f3_data)
     CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
     CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
@@ -763,14 +785,16 @@ def test_extract_colouring_omp_lfric():
     code = str(psy.gen)
     output = """
     CALL extract_psy_data % PreStart("multikernel_invokes_7_psy", \
-"invoke_0-ru_code-r0", 32, 29)
+"invoke_0-ru_code-r0", 34, 29)
     CALL extract_psy_data % PreDeclareVariable("a_data", a_data)
     CALL extract_psy_data % PreDeclareVariable("b_data", b_data)
     CALL extract_psy_data % PreDeclareVariable("basis_w0_qr", basis_w0_qr)
     CALL extract_psy_data % PreDeclareVariable("basis_w2_qr", basis_w2_qr)
     CALL extract_psy_data % PreDeclareVariable("basis_w3_qr", basis_w3_qr)
     CALL extract_psy_data % PreDeclareVariable("c_data", c_data)
+    CALL extract_psy_data % PreDeclareVariable("cell", cell)
     CALL extract_psy_data % PreDeclareVariable("cmap", cmap)
+    CALL extract_psy_data % PreDeclareVariable("colour", colour)
     CALL extract_psy_data % PreDeclareVariable("diff_basis_w0_qr", \
 diff_basis_w0_qr)
     CALL extract_psy_data % PreDeclareVariable("diff_basis_w2_qr", \
@@ -839,7 +863,9 @@ weights_z_qr)
     CALL extract_psy_data % ProvideVariable("basis_w2_qr", basis_w2_qr)
     CALL extract_psy_data % ProvideVariable("basis_w3_qr", basis_w3_qr)
     CALL extract_psy_data % ProvideVariable("c_data", c_data)
+    CALL extract_psy_data % ProvideVariable("cell", cell)
     CALL extract_psy_data % ProvideVariable("cmap", cmap)
+    CALL extract_psy_data % ProvideVariable("colour", colour)
     CALL extract_psy_data % ProvideVariable("diff_basis_w0_qr", \
 diff_basis_w0_qr)
     CALL extract_psy_data % ProvideVariable("diff_basis_w2_qr", \

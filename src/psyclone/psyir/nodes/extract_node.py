@@ -225,7 +225,7 @@ class ExtractNode(PSyDataNode):
         ctu.get_non_local_read_write_info(copy_dsl_tree.children,
                                           read_write_info)
 
-        options = {'pre_var_list': read_write_info.set_of_all_used_vars,
+        options = {'pre_var_list': read_write_info.all_used_vars_list,
                    'post_var_list': read_write_info.write_list,
                    'post_var_postfix': self._post_name}
 
@@ -290,7 +290,7 @@ class ExtractNode(PSyDataNode):
         suffix = ""
         # Create the a set of all input and output variables (to avoid
         # checking input+output variables more than once)
-        all_vars = read_write_info.set_of_all_used_vars
+        all_vars = read_write_info.all_used_vars_list
         # The signatures in the input/output list need to be converted
         # back to strings to easily append the suffix.
         all_vars_string = [str(input_var) for _, input_var in all_vars]
@@ -410,7 +410,7 @@ class ExtractNode(PSyDataNode):
         # pylint: disable=import-outside-toplevel
         from psyclone.parse import ModuleManager
         mod_man = ModuleManager.get()
-        for module_name, signature in read_write_info.set_of_all_used_vars:
+        for module_name, signature in read_write_info.all_used_vars_list:
             if not module_name:
                 # Ignore local symbols, which will have been added above
                 continue
