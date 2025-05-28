@@ -492,7 +492,7 @@ def has_cmp_interface(code):
     generic interface and its 3 implementations are part of a given code.
     '''
 
-    # Check that the generic interface in in the code
+    # Check that the generic interface is in the code
     assert '''interface test_psyclone_internal_cmp
     procedure :: test_psyclone_internal_cmp_int, \
 test_psyclone_internal_cmp_logical, \

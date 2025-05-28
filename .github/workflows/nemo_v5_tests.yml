@@ -142,7 +142,6 @@ jobs:
       run: |
         # Set up environment
         source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@24.11
         spack unload && spack load nemo-build-environment%oneapi
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts

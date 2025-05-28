@@ -67,7 +67,9 @@ def trans(psyir):
                     ktrans.apply(kern)
                     itrans.apply(kern)
             except TransformationError:
-                continue  # TODO #2856 Currenly we refuse offloading REAL
+                # TODO #2856: Currenly we refuse to offload code containing
+                # the REAL intrinsic
+                continue
 
             # Apply the OpenACC Loop transformation to *every* loop
             # nest in the schedule
