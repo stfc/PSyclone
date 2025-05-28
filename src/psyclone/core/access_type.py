@@ -63,7 +63,7 @@ class AccessType(Enum):
     #: a variable, e.g. when a variable is passed to a subroutine
     #: and the access type of this variable in the subroutine
     #: is unknown.
-    #: TODO #2863 - VariablesAccessInfo does not currently consider
+    #: TODO #2863 - VariablesAccessMap does not currently consider
     #: UNKNOWN accesses and it should!
     UNKNOWN = 7
     #: A symbol representing a routine is called.

@@ -42,7 +42,7 @@ import os
 
 import pytest
 
-from psyclone.core import VariablesAccessInfo
+from psyclone.core import VariablesAccessMap
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    LFRicKern)
 from psyclone.errors import InternalError
@@ -148,7 +148,7 @@ def test_lfric_acc():
     # Find the first kernel:
     kern = invoke.schedule.walk(psyGen.CodedKern)[0]
     create_acc_arg_list = KernCallAccArgList(kern)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     assert "f1_data: READ+WRITE" in var_info
@@ -182,7 +182,7 @@ def test_lfric_acc_operator():
     kern = invoke.schedule.walk(psyGen.CodedKern)[0]
     invoke.setup_psy_layer_symbols()
     create_acc_arg_list = KernCallAccArgList(kern)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     assert "lma_op1_proxy%ncell_3d: READ" in var_info
@@ -207,7 +207,7 @@ def test_lfric_stencil():
     # Find the first kernel:
     kern = invoke.schedule.walk(psyGen.CodedKern)[0]
     create_acc_arg_list = KernCallAccArgList(kern)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     assert "f1: READ+WRITE" in var_info
@@ -233,7 +233,7 @@ def test_lfric_field():
     # Find the first kernel:
     kern = invoke.schedule.walk(psyGen.CodedKern)[0]
     create_acc_arg_list = KernCallAccArgList(kern)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     # Check fields

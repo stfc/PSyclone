@@ -49,7 +49,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
 from psyclone.configuration import Config
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern, GOKernelSchedule
 from psyclone.psyir.nodes import Reference
@@ -136,7 +136,7 @@ def test_gok_reference_accesses(fortran_writer):
 
     # Get the first kernel
     kern1 = schedule.walk(GOKern)[0]
-    vai = VariablesAccessInfo(kern1)
+    vai = kern1.reference_accesses()
     assert str(vai) == "cu_fld: WRITE, p_fld: READ, u_fld: READ"
     p_fld = vai[Signature("p_fld")]
     # We can't have lists in a set, so we convert the lists to string
@@ -183,7 +183,7 @@ def test_gok_access_info_scalar_and_property():
 
     # Get the first kernel
     kern1 = schedule.walk(GOKern)[0]
-    vai = VariablesAccessInfo(kern1)
+    vai = kern1.reference_accesses()
 
     # Check that we get the grid properties listed:
     assert (str(vai) == "p_fld: READWRITE, "

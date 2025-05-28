@@ -44,7 +44,7 @@ LFRic-specific PSyIR classes.
 import os
 import pytest
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric import FunctionSpace, KernelInterface, LFRicTypes
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
@@ -75,7 +75,7 @@ def test_init():
     assert kernel_interface._arglist == []
 
 
-@pytest.mark.parametrize("var_accesses", [None, VariablesAccessInfo()])
+@pytest.mark.parametrize("var_accesses", [None, VariablesAccessMap()])
 def test_generate(var_accesses):
     '''Test that the KernelInterface class generate method creates the
     expected symbols and adds them to the symbol table and its

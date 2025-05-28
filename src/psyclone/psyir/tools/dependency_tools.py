@@ -43,8 +43,7 @@ from enum import IntEnum
 import sympy
 
 from psyclone.configuration import Config
-from psyclone.core import (AccessType, Signature, SymbolicMaths,
-                           VariablesAccessInfo)
+from psyclone.core import AccessType, Signature, SymbolicMaths
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -814,7 +813,7 @@ class DependencyTools():
                             f"instance of class Loop but got "
                             f"'{type(loop).__name__}'")
 
-        var_accesses = VariablesAccessInfo(loop)
+        var_accesses = loop.reference_accesses()
         if not signatures_to_ignore:
             signatures_to_ignore = []
 
@@ -880,8 +879,8 @@ class DependencyTools():
         # has done tests for loop boundaries (depending on domain)
 
         self._clear_messages()
-        vars1 = VariablesAccessInfo(loop1)
-        vars2 = VariablesAccessInfo(loop2)
+        vars1 = loop1.reference_accesses()
+        vars2 = loop2.reference_accesses()
 
         # Check if the loops have the same loop variable
         loop_var1 = loop1.variable

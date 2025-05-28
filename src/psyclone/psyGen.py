@@ -61,7 +61,7 @@ except ImportError:
         from psyclone.utils import stringify_annotation
 
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
-from psyclone.core import AccessType
+from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -1024,18 +1024,17 @@ class Kern(Statement):
         return (self.coloured_name(colour) + " " + self.name +
                 "(" + self.arguments.names + ")")
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. The API specific classes
-        add the accesses to the arguments. So the code here only calls
-        the baseclass, and increases the location.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
-        super().reference_accesses(var_accesses)
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+
+        '''
+        var_accesses = super().reference_accesses()
         var_accesses.next_location()
+        return var_accesses
 
     @property
     def is_reduction(self):

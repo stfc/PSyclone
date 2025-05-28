@@ -37,7 +37,6 @@
 This module contains the InlineTrans transformation.
 
 '''
-from psyclone.core import VariablesAccessInfo
 from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.nodes import (
@@ -895,8 +894,7 @@ class InlineTrans(Transformation):
         # (automatic) array, are passed by argument and are written
         # to before the call then we can't perform inlining.
         for asym in routine.symbol_table.automatic_datasymbols:
-            vai = VariablesAccessInfo()
-            asym.reference_accesses(vai)
+            vai = asym.reference_accesses()
             for sig in vai.all_signatures:
                 sym = routine_table.lookup(sig.var_name)
                 if sym not in routine_table.argument_list:

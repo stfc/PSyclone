@@ -41,7 +41,7 @@ import os
 import re
 import pytest
 
-from psyclone.core import AccessType, VariablesAccessInfo, Signature
+from psyclone.core import AccessType, VariablesAccessMap, Signature
 from psyclone.domain.lfric import (KernCallArgList, KernStubArgList,
                                    LFRicConstants, LFRicKern,
                                    LFRicKernMetadata, LFRicLoop)
@@ -97,7 +97,7 @@ def test_argordering_append():
     assert len(arg_list._arglist) == 2
     assert arg_list._arg_index_to_metadata_index[1] == 3
     # Access info captured.
-    vinfo = VariablesAccessInfo()
+    vinfo = VariablesAccessMap()
     arg_list.append("beckfoot", var_accesses=vinfo, mode=AccessType.WRITE)
     assert len(arg_list._arglist) == 3
     assert vinfo.all_signatures == [Signature("beckfoot")]
@@ -158,7 +158,7 @@ def test_argordering_extend():
     arg_list.append("roger")
     arg_list.extend(["peggy", "nancy"])
     assert len(arg_list._arglist) == 3
-    vinfo = VariablesAccessInfo()
+    vinfo = VariablesAccessMap()
     arg_list.extend(["flint", "captain"], var_accesses=vinfo,
                     mode=AccessType.WRITE)
     assert len(arg_list._arglist) == 5

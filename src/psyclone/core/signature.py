@@ -47,7 +47,7 @@ class Signature:
     '''Given a variable access of the form ``a(i,j)%b(k,l)%c``, the signature
     of this access is the tuple ``(a,b,c)``. For a simple scalar variable
     ``a`` the signature would just be ``(a,)``.
-    The signature is the key used in `VariablesAccessInfo`. In order to make
+    The signature is the key used in `VariablesAccessMap`. In order to make
     sure two different signature objects containing the same variable
     can be used as a key, this class implements `__hash__` and other special
     functions.

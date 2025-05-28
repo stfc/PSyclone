@@ -373,7 +373,7 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
     Test that validate() works correctly when two symbols in nested scopes
     have a name clash.
 
-    TODO #2424 - this xfails at the moment because VariablesAccessInfo does not
+    TODO #2424 - this xfails at the moment because VariablesAccessMap does not
     support nested scopes.
 
     '''
@@ -412,7 +412,7 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
     try:
         intrans.validate(kern_call)
     except TransformationError:
-        pytest.xfail(reason="TODO #2424 - VariablesAccessInfo does not support"
+        pytest.xfail(reason="TODO #2424 - VariablesAccessMap does not support"
                      " nested scopes")
 
 

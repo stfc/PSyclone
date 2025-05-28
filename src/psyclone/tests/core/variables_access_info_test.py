@@ -34,11 +34,11 @@
 # Author: Joerg Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter, R. W. Ford and S. Siso, STFC Daresbury Laboratory
 
-'''This module tests the VariablesAccessInfoClass.'''
+'''This module tests the VariablesAccessMapClass.'''
 
 import pytest
 
-from psyclone.core import ComponentIndices, Signature, VariablesAccessInfo
+from psyclone.core import ComponentIndices, Signature, VariablesAccessMap
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Assignment, Node
@@ -47,10 +47,10 @@ from psyclone.tests.utilities import get_invoke
 
 # -----------------------------------------------------------------------------
 def test_variables_access_info():
-    '''Test the implementation of VariablesAccessInfo, a class that manages
+    '''Test the implementation of VariablesAccessMap, a class that manages
     a list of variables, each with a list of accesses.
     '''
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     node1 = Node()
     var_accesses.add_access(Signature("read"), AccessType.READ, node1)
     node2 = Node()
@@ -77,12 +77,12 @@ def test_variables_access_info():
     assert var_accesses.location == 2
 
     # Create a new instance
-    var_accesses2 = VariablesAccessInfo()
+    var_accesses2 = VariablesAccessMap()
     var_accesses2.add_access(Signature("new_var"), AccessType.READ, node)
     var_accesses2.add_access(Signature("written"), AccessType.READ, node)
 
     # Now merge the new instance with the previous instance:
-    var_accesses.merge(var_accesses2)
+    var_accesses.update(var_accesses2)
     assert str(var_accesses) == "new_var: READ, read: READ, " \
                                 "read_written: READ+WRITE, written: READ+WRITE"
 
@@ -90,7 +90,7 @@ def test_variables_access_info():
 # -----------------------------------------------------------------------------
 def test_variables_access_info_errors():
     '''Tests if errors are handled correctly. '''
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     node = Node()
     var_accesses.add_access(Signature("read"), AccessType.READ, node)
     with pytest.raises(KeyError) as err:
@@ -117,11 +117,6 @@ def test_variables_access_info_errors():
     assert "Cannot add '[[]]' with length 1 as indices for 'a%b' which "\
            "requires 2 elements." in str(err.value)
 
-    with pytest.raises(InternalError) as err:
-        _ = VariablesAccessInfo(options=1)
-    assert ("The options argument for VariablesAccessInfo must be a "
-            "dictionary or None, but got 'int'." in str(err.value))
-
 
 # -----------------------------------------------------------------------------
 def test_component_indices_auto_extension():
@@ -131,7 +126,7 @@ def test_component_indices_auto_extension():
     adding "ssh_fld%grid%tmask" with indices ["i", "j"] will automatically
     create component_indices like [[], [], ["i", "j"]].
     '''
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     node = Node()
     sig = Signature(("a", "b", "c"))
     # This should auto-extent the component indices,
@@ -155,12 +150,12 @@ def test_component_indices_auto_extension():
 
 
 # -----------------------------------------------------------------------------
-def test_variables_access_info_merge():
-    '''Tests the merge operation of VariablesAccessInfo.
+def test_variables_access_info_update():
+    '''Tests the merge operation of VariablesAccessMap.
     '''
     # First create one instance representing for example:
     # a=b; c=d
-    var_accesses1 = VariablesAccessInfo()
+    var_accesses1 = VariablesAccessMap()
     node = Node()
     var_accesses1.add_access(Signature("b"), AccessType.READ, node)
     var_accesses1.add_access(Signature("a"), AccessType.WRITE, node)
@@ -173,7 +168,7 @@ def test_variables_access_info_merge():
 
     # First create one instance representing for example:
     # e=f; g=h
-    var_accesses2 = VariablesAccessInfo()
+    var_accesses2 = VariablesAccessMap()
     var_accesses2.add_access(Signature("f"), AccessType.READ, node)
     var_accesses2.add_access(Signature("e"), AccessType.WRITE, node)
     var_accesses2.next_location()
@@ -181,7 +176,7 @@ def test_variables_access_info_merge():
     var_accesses2.add_access(Signature("g"), AccessType.WRITE, node)
 
     # Now merge the second instance into the first one
-    var_accesses1.merge(var_accesses2)
+    var_accesses1.update(var_accesses2)
 
     # The e=f access pattern should have the same location
     # as the c=d (since there is no next_location after
@@ -193,7 +188,7 @@ def test_variables_access_info_merge():
     assert c_accesses[0].location == e_accesses[0].location
 
     # Test that the g=h part has a higher location than the
-    # c=d data. This makes sure that merge() increases the
+    # c=d data. This makes sure that update() increases the
     # location number of accesses when merging.
     c_accesses = var_accesses1[Signature("c")]
     g_accesses = var_accesses1[Signature("g")]
@@ -225,25 +220,10 @@ def test_constructor(fortran_reader):
     assignments = psyir.walk(Assignment)
     node1 = assignments[0]
     node2 = assignments[1]
-    vai1 = VariablesAccessInfo(node1)
+    vai1 = node1.reference_accesses()
     assert str(vai1) == "a: WRITE, b: READ, c: READ"
-    vai2 = VariablesAccessInfo([node1, node2])
-    assert str(vai2) == "a: READ+WRITE, b: READ, c: READ+WRITE"
-
-    with pytest.raises(InternalError) as err:
-        VariablesAccessInfo([node1, node2, 3])
-    assert "One element in the node list is not a Node, but of type " in \
-        str(err.value)
-    # The error message is slightly different between python 2 and 3
-    # so only test for the part that is the same in both:
-    assert "'int'>" in str(err.value)
-
-    with pytest.raises(InternalError) as err:
-        VariablesAccessInfo(1)
-    assert "Error in VariablesAccessInfo" in str(err.value)
-    # The error message is slightly different between python 2 and 3
-    # so only test for the part that is the same in both:
-    assert "'int'>" in str(err.value)
+    vai1.update(node2.reference_accesses())
+    assert str(vai1) == "a: READ+WRITE, b: READ, c: READ+WRITE"
 
 
 # -----------------------------------------------------------------------------
@@ -262,7 +242,7 @@ def test_derived_type_scalar(fortran_reader):
         end subroutine tmp
         end module test'''
     node1 = fortran_reader.psyir_from_source(code).walk(Assignment)[0]
-    vai1 = VariablesAccessInfo(node1)
+    vai1 = node1.reference_accesses()
     assert str(vai1) == "a%b: WRITE, b%c: READ, c%d%e: READ"
 
 
@@ -317,7 +297,7 @@ def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
         end module test'''
 
     node1 = fortran_reader.psyir_from_source(code).walk(Assignment)[0]
-    vai1 = VariablesAccessInfo(node1)
+    vai1 = node1.reference_accesses()
     assert str(vai1) == "a%b%c: READ, c%e: WRITE, i: READ, j: READ, k: READ"
 
     # Verify that the index expression is correct. Convert the index
@@ -347,8 +327,7 @@ def test_symbol_array_detection(fortran_reader):
     assert "In Symbol.is_array_access: index variable 'j' specified, but " \
            "no access information given." in str(error.value)
 
-    vai = VariablesAccessInfo()
-    scalar_assignment.reference_accesses(vai)
+    vai = scalar_assignment.reference_accesses()
 
     # For 'a' we don't have access information, nor symbol table information
     access_info_a = vai[Signature("a")]
@@ -384,23 +363,6 @@ def test_symbol_array_detection(fortran_reader):
 
 
 # -----------------------------------------------------------------------------
-def test_variables_access_info_options():
-    '''Test handling of options for VariablesAccessInfo.
-    '''
-    vai = VariablesAccessInfo()
-    assert vai.options("USE-ORIGINAL-NAMES") is False
-
-    vai = VariablesAccessInfo(options={'USE-ORIGINAL-NAMES': True})
-    assert vai.options("USE-ORIGINAL-NAMES") is True
-    assert vai.options() == {"USE-ORIGINAL-NAMES": True}
-
-    with pytest.raises(InternalError) as err:
-        vai.options("invalid")
-    assert ("Option key 'invalid' is invalid, it must be one of "
-            "['USE-ORIGINAL-NAMES']." in str(err.value))
-
-
-# -----------------------------------------------------------------------------
 @pytest.mark.parametrize("function", ["size", "lbound", "ubound"])
 def test_variables_access_info_shape_bounds(fortran_reader, function):
     '''Test that access to an array using shape, or lbound/ubound is marked
@@ -419,7 +381,7 @@ def test_variables_access_info_shape_bounds(fortran_reader, function):
     node1 = psyir.walk(Assignment)[0]
 
     # Array-shape accesses are 'inquiry'
-    vai = VariablesAccessInfo(node1)
+    vai = node1.reference_accesses()
     assert str(vai) == "a: NO_DATA_ACCESS, n: WRITE"
 
 
@@ -430,7 +392,7 @@ def test_variables_access_info_domain_loop():
     expected.
     '''
     _, invoke = get_invoke("25.1_kern_two_domain.f90", "lfric", idx=0)
-    vai = VariablesAccessInfo(invoke.schedule)
+    vai = invoke.schedule.reference_accesses()
     assert str(vai) == (
         "a: READ, b: READ, f1_data: READWRITE, f2_data: "
         "READWRITE, field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, "
@@ -448,7 +410,7 @@ def test_lfric_access_info():
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    vai = VariablesAccessInfo(schedule)
+    vai = schedule.reference_accesses()
 
     # Make sure literals (e.g. 1_i_def or 2.0_r_def in this example) are not
     # reported as variables in the access list (but that the associated

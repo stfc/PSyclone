@@ -65,10 +65,10 @@ class KernStubArgList(ArgOrdering):
         '''Adds a cell argument to the argument list and if supplied stores
         this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         self.append("cell", var_accesses)
@@ -77,10 +77,10 @@ class KernStubArgList(ArgOrdering):
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         self.append("nlayers", var_accesses)
@@ -89,10 +89,10 @@ class KernStubArgList(ArgOrdering):
         '''Add the number of columns in the mesh to the argument list and if
         supplied stores this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         self.append("ncell_2d", var_accesses)
@@ -104,10 +104,10 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the CMA operator argument.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # The CMA operator itself
@@ -137,10 +137,10 @@ class KernStubArgList(ArgOrdering):
 
         :param argvect: the field vector to add.
         :type argvect: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # the range function below returns values from
@@ -158,10 +158,10 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the field to be added.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         text = arg.name + "_" + arg.function_space.mangled_name
@@ -174,10 +174,10 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # Import here to avoid circular dependency
@@ -193,10 +193,10 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # Import here to avoid circular dependency
@@ -213,10 +213,10 @@ class KernStubArgList(ArgOrdering):
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # Import here to avoid circular dependency
@@ -253,10 +253,10 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional `VariablesAccessInfo` instance to store \
+        :param var_accesses: optional `VariablesAccessMap` instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # Import here to avoid circular dependency
@@ -273,10 +273,10 @@ class KernStubArgList(ArgOrdering):
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional `VariablesAccessInfo` instance to store \
+        :param var_accesses: optional `VariablesAccessMap` instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # The stencil_2D differs from the stencil in that the direction
@@ -298,10 +298,10 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the meta-data description of the operator.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         size = arg.name + "_ncell_3d"
@@ -316,10 +316,10 @@ class KernStubArgList(ArgOrdering):
         :param function_space: the function space for which the compulsory \
             arguments are added.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         self.append(function_space.undf_name, var_accesses)
@@ -335,10 +335,10 @@ class KernStubArgList(ArgOrdering):
         :param function_space: the function space for which to provide \
                                the basis functions
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises InternalError: if the evaluator shape is not recognised.
 
@@ -374,10 +374,10 @@ class KernStubArgList(ArgOrdering):
         :param function_space: the function space for which the differential \
             basis functions are required.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises InternalError: if the evaluator shape is not recognised.
 
@@ -414,10 +414,10 @@ class KernStubArgList(ArgOrdering):
         :param function_space: the function space for which boundary dofs \
             are required.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         arg = self._kern.arguments.get_arg_on_space(function_space)
@@ -431,10 +431,10 @@ class KernStubArgList(ArgOrdering):
 
         :param function_space: the 'to' function space of the operator.
         :type function_space: :py:class:`psyclone.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         self.field_bcs_kernel(function_space, var_accesses=var_accesses)
@@ -444,10 +444,10 @@ class KernStubArgList(ArgOrdering):
         specified in the kernel metadata. If supplied it also stores this
         access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         if self._kern.mesh.properties:
@@ -462,10 +462,10 @@ class KernStubArgList(ArgOrdering):
         Adds the necessary arguments to the argument list, and optionally
         adds variable access information to the var_accesses object.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         for rule in self._kern.qr_rules.values():
@@ -481,10 +481,10 @@ class KernStubArgList(ArgOrdering):
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param operator: the CMA operator.
         :type operator: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises InternalError: if no kernel argument is supplied.
         :raises InternalError: if the supplied kernel argument is not a \
