@@ -545,7 +545,7 @@ def test_lfric_driver_field_array_inc():
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
                 "testkern_coord_w0_2_mod"]:
-        assert f"module {mod}" in driver
+        assert f"module {mod}" in driver, driver
         assert f"end module {mod}" in driver
 
     # While the actual code is LFRic, the driver is stand-alone, and as such

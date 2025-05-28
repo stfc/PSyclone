@@ -228,6 +228,7 @@ class ExtractNode(PSyDataNode):
         options = {'pre_var_list': read_write_info.all_used_vars_list,
                    'post_var_list': read_write_info.write_list,
                    'post_var_postfix': self._post_name}
+        print(read_write_info.all_used_vars_list)
 
         if self._driver_creator:
             nodes = self.children

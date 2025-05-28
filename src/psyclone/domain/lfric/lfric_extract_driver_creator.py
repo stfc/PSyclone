@@ -342,12 +342,10 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                                    symbol_type=DataSymbol,
                                                    datatype=psy_data_type)
 
-        # Copy the nodes that are part of the extraction
-        program.children.extend([n.copy() for n in nodes[0].children])
-
+        extract_region = nodes[0].copy()
         # StructureReference must have been flattened before creating the
         # driver, or are method calls. In both cases they are not allowed.
-        for sref in program.walk(StructureReference):
+        for sref in extract_region.walk(StructureReference):
             dm_methods = ("set_dirty", "set_clean")
             if (isinstance(sref.parent, Call) and
                     sref.member.name in dm_methods):
@@ -359,16 +357,20 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                  f"StructureReferences, but found: "
                                  f"{sref.debug_string()}")
 
-        # Find all imported modules and add them to the symbol table
-        self.import_modules(program)
-        self._add_precision_symbols(program.scope.symbol_table)
-
         # Add cmd line hander, read in, and result comparison for the code
         self._add_command_line_handler(program, psy_data, module_name,
                                        local_name)
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    original_symbol_table,
                                                    read_write_info, postfix)
+
+        # Copy the nodes that are part of the extraction
+        program.children.extend(extract_region.pop_all_children())
+
+        # Find all imported modules and add them to the symbol table
+        self.import_modules(program)
+        self._add_precision_symbols(program.scope.symbol_table)
+
         BaseDriverCreator.add_result_tests(program, output_symbols)
 
         # Replace pointers with allocatables

@@ -98,9 +98,12 @@ transform: main_psy.f90 main_alg.f90
 compile: transform $(EXEC)
 
 run: compile
+	# Run application and extract data into files
 	./$(EXEC)
+	# Compile drivers
 	make driver-main-init
 	make driver-main-update
+	# Run drivers with extracted data
 	./driver-main-init
 	./driver-main-update
 
