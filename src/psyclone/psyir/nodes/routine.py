@@ -212,7 +212,7 @@ class Routine(Schedule, CommentableMixin):
 
         '''
         # TODO #2424 - this suffers from the limitation that
-        # VariablesAccessInfo does not work with nested scopes. (e.g. 2
+        # VariablesAccessMap does not work with nested scopes. (e.g. 2
         # different symbols with the same name but declared in different,
         # nested scopes will be assumed to be the same symbol).
         vai = self.reference_accesses()

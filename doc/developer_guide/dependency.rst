@@ -36,7 +36,7 @@
 
 .. testsetup::
 
-    from psyclone.core import AccessType, Signature, VariablesAccessInfo
+    from psyclone.core import AccessType, Signature, VariablesAccessMap
     from psyclone.psyir.frontend.fortran import FortranReader
     from psyclone.psyir.backend.fortran import FortranWriter
     from psyclone.psyir.nodes import Loop
@@ -272,7 +272,7 @@ exception to this is if a kernel is called, in which case the metadata
 for the kernel declaration will be used to determine the variable
 accesses for the call statement. The information about all variable
 usage of a PSyIR node or a list of nodes can be gathered by creating
-an object of type `psyclone.core.VariablesAccessInfo`.  This class
+an object of type `psyclone.core.VariablesAccessMap`.  This class
 uses a `Signature` object to keep track of the variables used.
 
 Signature
@@ -301,37 +301,37 @@ An individual access to a ``Signature`` is described by an instance of the
     :no-index:
     :members:
 
-VariablesAccessInfo
+VariablesAccessMap
 -------------------
 
-The `VariablesAccessInfo` class is used to store information about all
+The `VariablesAccessMap` class is used to store information about all
 accesses in a region of code. To collect access information, call any
 Node `reference_accesses()` method for the code region of interest.
 It will return the accesses for the PSyIR in a dictionary of
-kind `VariablesAccessInfo`.
+kind `VariablesAccessMap`.
 
 .. automethod:: psyclone.psyir.nodes.Node.reference_accesses
     :no-index:
 
-.. autoclass:: psyclone.core.VariablesAccessInfo
+.. autoclass:: psyclone.core.VariablesAccessMap
     :no-index:
     :members:
     :special-members: __str__
 
 This class collects information for each variable used in the tree
 starting with the given node. Use the `update()` method to
-combine two `VariablesAccessInfo` objects into one. It is up to the user to
-keep track of which statements (PSyIR nodes) a given `VariablesAccessInfo`
+combine two `VariablesAccessMap` objects into one. It is up to the user to
+keep track of which statements (PSyIR nodes) a given `VariablesAccessMap`
 instance is holding information about. If the PSyIR tree is modified the
-`VariablesAccessInfo` maps become invalid, so it is not recommended to
+`VariablesAccessMap` maps become invalid, so it is not recommended to
 store them.
 
 
 SingleVariableAccessInfo
 ------------------------
-The values of the `VariablesAccessInfo` map are `SingleVariableAccessInfo`,
+The values of the `VariablesAccessMap` map are `SingleVariableAccessInfo`,
 which contain the sequence of accesses to a single variable. When a new variable
-is detected when adding access information to a `VariablesAccessInfo` instance
+is detected when adding access information to a `VariablesAccessMap` instance
 via `add_access()`, a new instance of `SingleVariableAccessInfo` is added,
 which in turn stores all access to the specified variable.
 
@@ -428,7 +428,7 @@ wrapped in an outer loop over all accesses.
 
       # Create an access info object to collect the accesses
       # in the index expression
-      accesses = VariablesAccessInfo(index_expression)
+      accesses = VariablesAccessMap(index_expression)
       
       # Then test if the index variable is used. Note that
       # the key of `access` is a signature, as is the `index_variable`
@@ -466,13 +466,13 @@ If two statements have consecutive locations, this does not necessarily mean
 that the statements are executed one after another. For example in if-statements
 the statements in the if-body are counted first, then the statements in the
 else-body. It is the responsibility of the user to handle these cases - for
-example by creating separate `VariablesAccessInfo` for statements in the if-body
+example by creating separate `VariablesAccessMap` for statements in the if-body
 and for the else-body.
 
 .. note:: When using different instances for an if- and else-body, the first
     statement of the if-body will
     have the same location number as the first statement of the else-body. So
-    you can only compare location numbers from the same `VariablesAccessInformation`
+    you can only compare location numbers from the same `VariablesAccessMaprmation`
     instance. If you merge two instances together, the locations of the merged-in
     instance will be appropriately increased to follow the locations of the
     instance to which it is merged.
@@ -482,14 +482,14 @@ The location number is not exactly a line number - several statements can be
 on one line, which will get different location numbers. And certain lines
 will not have a location number (e.g. comment lines).
 
-As stated above, one instance of `VariablesAccessInfo` can be extended by adding
+As stated above, one instance of `VariablesAccessMap` can be extended by adding
 additional variable information. It is the responsibility of the user to make
-sure the accesses are added in the right order - the `VariablesAccessInfo` object
+sure the accesses are added in the right order - the `VariablesAccessMap` object
 will always assume accesses happen at the current location, and a call to 
 `next_location()` is required (internally) to increase the location number.
 
 .. note:: It is not possible to add access information about an earlier
-     usage to an existing `VariablesAccessInfo` object. 
+     usage to an existing `VariablesAccessMap` object. 
 
 
 Access Examples
@@ -550,7 +550,7 @@ thread-private. Note that this code does not handle the usage of
     Private variable j
 
 
-The next, hypothetical example shows how the `VariablesAccessInfo` class
+The next, hypothetical example shows how the `VariablesAccessMap` class
 can be used iteratively. Assume that you have a function
 `can_be_parallelised` that determines
 if the given variable accesses can be parallelised, and the aim is to
@@ -566,7 +566,7 @@ until we find accesses that would prevent parallelisation:
 .. testcode::
 
    # Create an empty instance to store accesses
-   accesses = VariablesAccessInfo()
+   accesses = VariablesAccessMap()
    list_of_parallelisable_statements = []
    for next_statement in statements:
        # Add the variable accesses of the next statement to

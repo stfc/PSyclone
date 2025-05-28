@@ -51,7 +51,7 @@ from typing import Any, Dict, Optional
 
 from psyclone import psyGen
 from psyclone.configuration import Config
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature, VariablesAccessMap
 from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
                                    LFRicInvokeSchedule, LFRicKern, LFRicLoop)
 from psyclone.lfric import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
@@ -2948,7 +2948,7 @@ class ACCDataTrans(RegionTrans):
                 for access in array_accesses:
                     if not isinstance(access, StructureMember):
                         continue
-                    var_accesses = VariablesAccessInfo()
+                    var_accesses = VariablesAccessMap()
                     for idx in access.indices:
                         var_accesses.update(idx.reference_accesses())
                     for var in loop_vars:

@@ -43,7 +43,7 @@ from typing import List
 
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 
@@ -209,7 +209,7 @@ class CodeBlock(Statement, DataNode):
                     result.append(part.items[1])
         return result
 
-    def reference_accesses(self) -> VariablesAccessInfo:
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
         Get the symbol access map. Since this is a CodeBlock we
         only know the names of symbols accessed within it but not how they
@@ -218,7 +218,7 @@ class CodeBlock(Statement, DataNode):
         any routines that are called.
 
         TODO #2863 - it would be better to use AccessType.UNKNOWN here but
-        currently VariablesAccessInfo does not consider that type of access.
+        currently VariablesAccessMap does not consider that type of access.
 
         This method makes use of
         :py:meth:`~psyclone.psyir.nodes.CodeBlock.get_symbol_names` and is
@@ -230,7 +230,7 @@ class CodeBlock(Statement, DataNode):
             (a sequence of AccessTypes).
 
         '''
-        var_accesses = VariablesAccessInfo()
+        var_accesses = VariablesAccessMap()
         for name in self.get_symbol_names():
             var_accesses.add_access(Signature(name), AccessType.READWRITE,
                                     self)

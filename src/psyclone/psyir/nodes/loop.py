@@ -39,7 +39,7 @@
 
 ''' This module contains the Loop node implementation.'''
 
-from psyclone.core import VariablesAccessInfo
+from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
@@ -482,7 +482,7 @@ class Loop(Statement):
         result += "End " + name
         return result
 
-    def reference_accesses(self) -> VariablesAccessInfo:
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
@@ -490,7 +490,7 @@ class Loop(Statement):
             (a sequence of AccessTypes).
 
         '''
-        var_accesses = VariablesAccessInfo()
+        var_accesses = VariablesAccessMap()
 
         # Only add the loop variable and start/stop/step values if this is
         # not an LFRic domain loop. We need to access the variable directly

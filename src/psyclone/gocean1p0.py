@@ -53,7 +53,7 @@ from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config, ConfigurationError
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature, VariablesAccessMap
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
 from psyclone.errors import GenerationError, InternalError
@@ -988,10 +988,10 @@ class GOKern(CodedKern):
         :type signature: :py:class:`psyclone.core.Signature`
         :param arg:  the meta-data information for this argument.
         :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
-        :param var_accesses: VariablesAccessInfo instance that stores the\
+        :param var_accesses: VariablesAccessMap instance that stores the\
             information about the field accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # TODO #2530: if we parse the actual kernel code, it might not
@@ -1024,7 +1024,7 @@ class GOKern(CodedKern):
                     var_accesses.add_access(signature, acc, self,
                                             [i_expr, j_expr])
 
-    def reference_accesses(self) -> VariablesAccessInfo:
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
@@ -1032,7 +1032,7 @@ class GOKern(CodedKern):
             (a sequence of AccessTypes).
 
         '''
-        var_accesses = VariablesAccessInfo()
+        var_accesses = VariablesAccessMap()
         # Grid properties are accessed using one of the fields. This stores
         # the field used to avoid repeatedly determining the best field:
         field_for_grid_property = None

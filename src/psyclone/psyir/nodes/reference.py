@@ -40,7 +40,7 @@
 ''' This module contains the implementation of the Reference node.'''
 
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import Symbol
@@ -201,7 +201,7 @@ class Reference(DataNode):
         '''
         return (Signature(self.name), [[]])
 
-    def reference_accesses(self) -> VariablesAccessInfo:
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
@@ -209,7 +209,7 @@ class Reference(DataNode):
             (a sequence of AccessTypes).
 
         '''
-        var_accesses = VariablesAccessInfo()
+        var_accesses = VariablesAccessMap()
         sig, all_indices = self.get_signature_and_indices()
         for indices in all_indices:
             for index in indices:

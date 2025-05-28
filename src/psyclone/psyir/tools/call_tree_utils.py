@@ -37,7 +37,7 @@
 ''' This module provides tools to analyse the sequence of calls
 across different subroutines and modules.'''
 
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature, VariablesAccessMap
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import Container, Reference
@@ -173,12 +173,12 @@ class CallTreeUtils():
         :param variables_info: optional variable usage information,
             can be used to avoid repeatedly collecting this information.
         :type variables_info:
-            :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.variables_info.VariablesAccessMap`
 
         '''
         # Collect the information about all variables used:
         if not variables_info:
-            variables_info = VariablesAccessInfo()
+            variables_info = VariablesAccessMap()
             for node in node_list:
                 variables_info.update(node.reference_accesses())
 
@@ -210,12 +210,12 @@ class CallTreeUtils():
         :param variables_info: optional variable usage information,
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
-        Optional[:py:class:`psyclone.core.variables_info.VariablesAccessInfo`]
+        Optional[:py:class:`psyclone.core.variables_info.VariablesAccessMap`]
 
         '''
         # Collect the information about all variables used:
         if not variables_info:
-            variables_info = VariablesAccessInfo()
+            variables_info = VariablesAccessMap()
             for node in node_list:
                 variables_info.update(node.reference_accesses())
 
@@ -253,7 +253,7 @@ class CallTreeUtils():
 
         '''
         node_list = node_list if isinstance(node_list, list) else [node_list]
-        variables_info = VariablesAccessInfo()
+        variables_info = VariablesAccessMap()
         for node in node_list:
             variables_info.update(node.reference_accesses())
         read_write_info = ReadWriteInfo()

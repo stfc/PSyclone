@@ -41,7 +41,7 @@
 
 import re
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import ScalarType, Symbol, ArrayType
 
@@ -171,7 +171,7 @@ class Literal(DataNode):
         return (f"{self.coloured_name(colour)}"
                 f"[value:'{self._value}', {self.datatype}]")
 
-    def reference_accesses(self) -> VariablesAccessInfo:
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
@@ -179,7 +179,7 @@ class Literal(DataNode):
             (a sequence of AccessTypes).
 
         '''
-        access_info = VariablesAccessInfo()
+        access_info = VariablesAccessMap()
         if isinstance(self.datatype.precision, Symbol):
             access_info.add_access(Signature(self.datatype.precision.name),
                                    AccessType.TYPE_INFO, self)

@@ -100,13 +100,13 @@ class DataType(metaclass=abc.ABCMeta):
             keys are Signatures (unique identifiers to a symbol and its
             structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.core import VariablesAccessInfo
-        return VariablesAccessInfo()
+        from psyclone.core import VariablesAccessMap
+        return VariablesAccessMap()
 
     @property
     def is_allocatable(self) -> Union[bool, None]:
@@ -334,7 +334,7 @@ class UnsupportedFortranType(UnsupportedType):
             keys are Signatures (unique identifiers to a symbol and its
             structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         access_info = super().reference_accesses()
@@ -529,7 +529,7 @@ class ScalarType(DataType):
             keys are Signatures (unique identifiers to a symbol and its
             structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         access_info = super().reference_accesses()
@@ -600,12 +600,12 @@ class ArrayType(DataType):
                 keys are Signatures (unique identifiers to a symbol and its
                 structure acccessors) and the values are
                 SingleVariableAccessInfo (a sequence of AccessTypes).
-            :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
+            :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
             '''
             # pylint: disable=import-outside-toplevel
-            from psyclone.core import VariablesAccessInfo
-            return VariablesAccessInfo()
+            from psyclone.core import VariablesAccessMap
+            return VariablesAccessMap()
 
     @dataclass(frozen=True)
     class ArrayBounds:
@@ -1051,7 +1051,7 @@ class ArrayType(DataType):
             keys are Signatures (unique identifiers to a symbol and its
             structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # pylint: disable=import-outside-toplevel
@@ -1316,7 +1316,7 @@ class StructureType(DataType):
             keys are Signatures (unique identifiers to a symbol and its
             structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         access_info = super().reference_accesses()

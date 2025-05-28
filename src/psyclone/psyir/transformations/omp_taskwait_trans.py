@@ -38,7 +38,7 @@
 applied to an OMPParallelDirective to satisfy any task-based dependencies
 created by OpenMP Taskloops.'''
 
-from psyclone.core import VariablesAccessInfo
+from psyclone.core import VariablesAccessMap
 from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir import nodes
@@ -224,7 +224,7 @@ class OMPTaskwaitTrans(Transformation):
                                OMPTaskwaitDirective))
         # Find the taskloop's variable access info. We need to skip over the
         # Loop variable writes from the Loop, so we skip the Loop children.
-        taskloop_vars = VariablesAccessInfo()
+        taskloop_vars = VariablesAccessMap()
         for child in taskloop.walk(nodes.Node):
             if child is not taskloop and not isinstance(child,
                                                         (Schedule, Loop)):
@@ -274,7 +274,7 @@ class OMPTaskwaitTrans(Transformation):
             if not isinstance(node, OMPTaskwaitDirective):
                 # For all our other node types we calculate their own
                 # variable accesses
-                node_vars = VariablesAccessInfo()
+                node_vars = VariablesAccessMap()
                 for child in node.walk(nodes.Node):
                     if child is not node and not isinstance(child,
                                                             (Schedule, Loop)):

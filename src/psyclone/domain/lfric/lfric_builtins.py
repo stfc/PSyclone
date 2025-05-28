@@ -45,7 +45,7 @@
 # pylint: disable=too-many-lines
 import abc
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
@@ -215,7 +215,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         return (f"Built-in: {self._case_name} ("
                 f"{self._datatype}-valued field{plural})")
 
-    def reference_accesses(self) -> VariablesAccessInfo:
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
@@ -225,11 +225,11 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         :raises InternalError: if an unsupported argument type is encountered.
 
         '''
-        var_accesses = VariablesAccessInfo()
+        var_accesses = VariablesAccessMap()
         table = self.scope.symbol_table
         # Collect all write access in a separate object, so they can be added
         # after all read access (which must happen before something is written)
-        written = VariablesAccessInfo()
+        written = VariablesAccessMap()
         suffix_map = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
 
         for arg in self.args:

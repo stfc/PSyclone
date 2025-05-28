@@ -34,11 +34,11 @@
 # Author: Joerg Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter, R. W. Ford and S. Siso, STFC Daresbury Laboratory
 
-'''This module tests the VariablesAccessInfoClass.'''
+'''This module tests the VariablesAccessMapClass.'''
 
 import pytest
 
-from psyclone.core import ComponentIndices, Signature, VariablesAccessInfo
+from psyclone.core import ComponentIndices, Signature, VariablesAccessMap
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Assignment, Node
@@ -47,10 +47,10 @@ from psyclone.tests.utilities import get_invoke
 
 # -----------------------------------------------------------------------------
 def test_variables_access_info():
-    '''Test the implementation of VariablesAccessInfo, a class that manages
+    '''Test the implementation of VariablesAccessMap, a class that manages
     a list of variables, each with a list of accesses.
     '''
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     node1 = Node()
     var_accesses.add_access(Signature("read"), AccessType.READ, node1)
     node2 = Node()
@@ -77,7 +77,7 @@ def test_variables_access_info():
     assert var_accesses.location == 2
 
     # Create a new instance
-    var_accesses2 = VariablesAccessInfo()
+    var_accesses2 = VariablesAccessMap()
     var_accesses2.add_access(Signature("new_var"), AccessType.READ, node)
     var_accesses2.add_access(Signature("written"), AccessType.READ, node)
 
@@ -90,7 +90,7 @@ def test_variables_access_info():
 # -----------------------------------------------------------------------------
 def test_variables_access_info_errors():
     '''Tests if errors are handled correctly. '''
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     node = Node()
     var_accesses.add_access(Signature("read"), AccessType.READ, node)
     with pytest.raises(KeyError) as err:
@@ -126,7 +126,7 @@ def test_component_indices_auto_extension():
     adding "ssh_fld%grid%tmask" with indices ["i", "j"] will automatically
     create component_indices like [[], [], ["i", "j"]].
     '''
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     node = Node()
     sig = Signature(("a", "b", "c"))
     # This should auto-extent the component indices,
@@ -151,11 +151,11 @@ def test_component_indices_auto_extension():
 
 # -----------------------------------------------------------------------------
 def test_variables_access_info_update():
-    '''Tests the merge operation of VariablesAccessInfo.
+    '''Tests the merge operation of VariablesAccessMap.
     '''
     # First create one instance representing for example:
     # a=b; c=d
-    var_accesses1 = VariablesAccessInfo()
+    var_accesses1 = VariablesAccessMap()
     node = Node()
     var_accesses1.add_access(Signature("b"), AccessType.READ, node)
     var_accesses1.add_access(Signature("a"), AccessType.WRITE, node)
@@ -168,7 +168,7 @@ def test_variables_access_info_update():
 
     # First create one instance representing for example:
     # e=f; g=h
-    var_accesses2 = VariablesAccessInfo()
+    var_accesses2 = VariablesAccessMap()
     var_accesses2.add_access(Signature("f"), AccessType.READ, node)
     var_accesses2.add_access(Signature("e"), AccessType.WRITE, node)
     var_accesses2.next_location()

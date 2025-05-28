@@ -36,7 +36,7 @@
 
 ''' This module contains the ScopingNode implementation.'''
 
-from psyclone.core import VariablesAccessInfo
+from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import (
     RoutineSymbol, SymbolError, SymbolTable)
@@ -171,7 +171,7 @@ class ScopingNode(Node):
         # call to _refine_copy and only do this call when that depth is zero.
         self.replace_symbols_using(self._symbol_table)
 
-    def reference_accesses(self) -> VariablesAccessInfo:
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
@@ -179,7 +179,7 @@ class ScopingNode(Node):
             (a sequence of AccessTypes).
 
         '''
-        var_accesses = VariablesAccessInfo()
+        var_accesses = VariablesAccessMap()
         # During the updating process when moving a Routine (and its
         # associated Symbol), it's possible that we won't have a SymbolTable.
         if self._symbol_table:

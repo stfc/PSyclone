@@ -41,7 +41,7 @@ import os
 import re
 import pytest
 
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature, VariablesAccessMap
 from psyclone.domain.lfric import (KernCallArgList, LFRicSymbolTable,
                                    LFRicTypes, LFRicKern)
 from psyclone.errors import GenerationError, InternalError
@@ -102,7 +102,7 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
     kernel = schedule.kernels()[0]
 
     create_arg_list = KernCallArgList(kernel)
-    vai = VariablesAccessInfo()
+    vai = VariablesAccessMap()
     create_arg_list.generate(vai)
 
     # Verify that no array expression turns up in the access information
@@ -228,7 +228,7 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
     ctrans.apply(schedule.children[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    var_info = VariablesAccessInfo()
+    var_info = VariablesAccessMap()
     create_arg_list.generate(var_accesses=var_info)
     assert str(var_info) == ("a: READ, adjacent_face: READ, cell: READ, "
                              "cmap: READ, colour: READ, f1_data: READ+WRITE, "
@@ -386,7 +386,7 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
 
     schedule = psy.invokes.invoke_list[0].schedule
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    access_info = VariablesAccessInfo()
+    access_info = VariablesAccessMap()
     create_arg_list.generate(access_info)
     assert create_arg_list._arglist == [
         'cell', 'nlayers_op_a', 'op_a_proxy%ncell_3d', 'op_a_local_stencil',
@@ -496,7 +496,7 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    vai = VariablesAccessInfo()
+    vai = VariablesAccessMap()
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate(vai)
 
@@ -620,7 +620,7 @@ def test_ref_element_handling(fortran_writer):
 
     schedule = psy.invokes.invoke_list[0].schedule
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    vai = VariablesAccessInfo()
+    vai = VariablesAccessMap()
     create_arg_list.generate(vai)
 
     assert (create_arg_list._arglist == [

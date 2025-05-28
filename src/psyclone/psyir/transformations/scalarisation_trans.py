@@ -38,7 +38,7 @@
 import itertools
 from typing import Optional, Dict, Any, List, Tuple
 
-from psyclone.core import VariablesAccessInfo, Signature, SymbolicMaths
+from psyclone.core import VariablesAccessMap, Signature, SymbolicMaths
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Call, CodeBlock, Literal, \
         IfBlock, Loop, Node, Range, Reference, Routine, StructureReference
@@ -100,7 +100,7 @@ class ScalarisationTrans(LoopTrans):
 
     @staticmethod
     def _is_local_array(signature: Signature,
-                        var_accesses: VariablesAccessInfo) -> bool:
+                        var_accesses: VariablesAccessMap) -> bool:
         '''
         :param signature: The signature to check if it is a local array symbol
                           or not.
@@ -136,7 +136,7 @@ class ScalarisationTrans(LoopTrans):
     @staticmethod
     def _have_same_unmodified_index(
             signature: Signature,
-            var_accesses: VariablesAccessInfo) -> bool:
+            var_accesses: VariablesAccessMap) -> bool:
         '''
         :param signature: The signature to check.
         :param var_accesses: The VariableAccessesInfo object containing
@@ -178,7 +178,7 @@ class ScalarisationTrans(LoopTrans):
     @staticmethod
     def _check_first_access_is_write(signature: Signature,
                                      loop: Loop,
-                                     var_accesses: VariablesAccessInfo) \
+                                     var_accesses: VariablesAccessMap) \
             -> bool:
         '''
         :param signature: The signature to check.
@@ -276,7 +276,7 @@ class ScalarisationTrans(LoopTrans):
     @staticmethod
     def _value_unused_after_loop(sig: Signature,
                                  loop: Loop,
-                                 var_accesses: VariablesAccessInfo) -> bool:
+                                 var_accesses: VariablesAccessMap) -> bool:
         '''
         :param sig: The signature to check.
         :param loop: The loop the transformation is operating on.

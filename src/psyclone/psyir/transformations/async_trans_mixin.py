@@ -38,7 +38,7 @@
 import abc
 from typing import List, Union
 
-from psyclone.core import VariablesAccessInfo
+from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes import (
         Directive, Loop, Node,
 )
@@ -86,7 +86,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         if isinstance(nodes, Loop):
             var_accesses = nodes.loop_body.reference_accesses()
         else:
-            var_accesses = VariablesAccessInfo()
+            var_accesses = VariablesAccessMap()
             for node in nodes:
                 var_accesses.update(node.reference_accesses())
         writes = []

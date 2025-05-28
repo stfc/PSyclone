@@ -132,7 +132,7 @@ class DataTypeSymbol(Symbol):
             keys are Signatures (unique identifiers to a symbol and its
             structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         access_info = super().reference_accesses()

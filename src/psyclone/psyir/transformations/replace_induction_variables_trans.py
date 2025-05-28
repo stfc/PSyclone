@@ -142,7 +142,7 @@ class ReplaceInductionVariablesTrans(Transformation):
         :param accesses_in_loop_body: the access information for all \
             variables in the loop body.
         :type accesses_in_loop_body: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         :returns: whether the assignment is an induction statement that \
             can be replaced.

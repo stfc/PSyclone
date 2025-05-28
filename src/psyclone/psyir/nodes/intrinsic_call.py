@@ -42,7 +42,7 @@ from collections import namedtuple
 from collections.abc import Iterable
 from enum import Enum
 
-from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
@@ -910,7 +910,7 @@ class IntrinsicCall(Call):
 
         return call
 
-    def reference_accesses(self) -> VariablesAccessInfo:
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
@@ -918,7 +918,7 @@ class IntrinsicCall(Call):
             (a sequence of AccessTypes).
 
         '''
-        var_accesses = VariablesAccessInfo()
+        var_accesses = VariablesAccessMap()
         if self.intrinsic.is_inquiry and isinstance(self.arguments[0],
                                                     Reference):
             # If this is an inquiry access (which doesn't actually access the

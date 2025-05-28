@@ -48,12 +48,11 @@ from psyclone.core.single_variable_access_info import SingleVariableAccessInfo
 from psyclone.errors import InternalError
 
 
-class VariablesAccessInfo(dict):
-    '''This class stores all `SingleVariableAccessInfo` instances for all
-    variables in the corresponding code section. It maintains 'location'
-    information, which is an integer number that is increased for each new
-    statement. It can be used to easily determine if one access is before
-    another.
+class VariablesAccessMap(dict):
+    ''' This dictionary stores `SingleVariableAccessInfo` instances indexed by
+    their signature. It also maintains 'location' information, which is an
+    integer number that is increased for each new statement. It can be used to
+    easily determine if one access is syntactically before another.
 
     '''
 
@@ -211,8 +210,8 @@ class VariablesAccessInfo(dict):
         property of the provided accesses (values on the dictionary) will be
         updated to be after the existing entries.
 
-        :param other_access_info: the other VariablesAccessInfo instance.
-        :type other_access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        :param other_access_info: the other VariablesAccessMap instance.
+        :type other_access_info: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         for signature in other_access_info.all_signatures:
@@ -294,4 +293,4 @@ class VariablesAccessInfo(dict):
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
 # documentation for.
-__all__ = ["VariablesAccessInfo"]
+__all__ = ["VariablesAccessMap"]

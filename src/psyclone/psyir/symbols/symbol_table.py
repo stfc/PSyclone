@@ -1208,8 +1208,8 @@ class SymbolTable():
 
         # Check for any references to it.
         # pylint: disable=import-outside-toplevel
-        from psyclone.core import Signature, VariablesAccessInfo
-        vai = VariablesAccessInfo()
+        from psyclone.core import Signature, VariablesAccessMap
+        vai = VariablesAccessMap()
         if self.node:
             vai.update(self.node.reference_accesses())
         vai.update(self.reference_accesses())
@@ -2036,12 +2036,12 @@ class SymbolTable():
             keys are Signatures (unique identifiers to a symbol and its
             structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # pylint: disable=import-outside-toplevel
-        from psyclone.core import VariablesAccessInfo
-        vai = VariablesAccessInfo()
+        from psyclone.core import VariablesAccessMap
+        vai = VariablesAccessMap()
         for sym in self.symbols:
             if not sym.is_import:
                 vai.update(sym.reference_accesses())

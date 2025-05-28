@@ -39,7 +39,7 @@
 from collections.abc import Iterable
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.container import Container
@@ -294,7 +294,7 @@ class Call(Statement, DataNode):
             return isinstance(child, Reference)
         return isinstance(child, DataNode)
 
-    def reference_accesses(self) -> VariablesAccessInfo:
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
         TODO #446 - all arguments that are passed by reference are currently
         marked as having READWRITE access (unless we know that the routine is
@@ -307,7 +307,7 @@ class Call(Statement, DataNode):
             (a sequence of AccessTypes).
 
         '''
-        var_accesses = VariablesAccessInfo()
+        var_accesses = VariablesAccessMap()
 
         if self.is_pure:
             # If the called routine is pure then any arguments are only

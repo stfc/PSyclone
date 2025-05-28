@@ -41,7 +41,7 @@
 import os
 import pytest
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -285,10 +285,10 @@ def test_lfric_kern_cma_args():
     invoke_write = psy.invokes.get('invoke_write')
     invoke_read.setup_psy_layer_symbols()
     invoke_write.setup_psy_layer_symbols()
-    var_accesses_read = VariablesAccessInfo()
+    var_accesses_read = VariablesAccessMap()
     for kernel in invoke_read.schedule.coded_kernels():
         var_accesses_read.update(kernel.reference_accesses())
-    var_accesses_write = VariablesAccessInfo()
+    var_accesses_write = VariablesAccessMap()
     for kernel in invoke_write.schedule.coded_kernels():
         var_accesses_write.update(kernel.reference_accesses())
 
@@ -520,7 +520,7 @@ def test_lfric_stub_args():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -556,7 +556,7 @@ def test_lfric_stub_args2():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -576,7 +576,7 @@ def test_lfric_stub_args3():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -595,7 +595,7 @@ def test_lfric_stub_boundary_dofs():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     assert "boundary_dofs_field_1: READ" in str(var_accesses)
@@ -609,7 +609,7 @@ def test_lfric_stub_field_vector():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -630,7 +630,7 @@ def test_lfric_stub_basis():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -651,7 +651,7 @@ def test_lfric_stub_cma_operators():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -675,7 +675,7 @@ def test_lfric_stub_banded_dofmap():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -690,7 +690,7 @@ def test_lfric_stub_indirection_dofmap():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -707,7 +707,7 @@ def test_lfric_stub_boundary_dofmap():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     assert "boundary_dofs_op_1: READ" in str(var_accesses)

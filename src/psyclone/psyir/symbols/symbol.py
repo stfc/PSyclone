@@ -569,9 +569,9 @@ class Symbol(CommentableMixin):
             keys are Signatures (unique identifiers to a symbol and its
             structure acccessors) and the values are SingleVariableAccessInfo
             (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # pylint: disable=import-outside-toplevel
-        from psyclone.core import VariablesAccessInfo
-        return VariablesAccessInfo()
+        from psyclone.core import VariablesAccessMap
+        return VariablesAccessMap()
