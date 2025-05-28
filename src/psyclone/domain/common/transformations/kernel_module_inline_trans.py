@@ -121,7 +121,7 @@ class KernelModuleInlineTrans(Transformation):
 
         # Check that the PSyIR of the routine/kernel can be retrieved.
         try:
-            kernels, _ = KernelModuleInlineTrans._get_psyir_to_inline(node)
+            kernels = KernelModuleInlineTrans._get_psyir_to_inline(node)
         except Exception as error:
             raise TransformationError(
                 f"{self.name} failed to retrieve PSyIR for {kern_or_call} "
@@ -197,8 +197,8 @@ class KernelModuleInlineTrans(Transformation):
             if routine.name.lower() == kname.lower():
                 # Compare the routine to be inlined with the one that
                 # is already present.
-                (new_rt, ) = self._prepare_code_to_inline([kernel_schedule])
-                if routine == new_rt:
+                new_rts = self._prepare_code_to_inline([kernel_schedule])
+                if len(new_rts) == 1 and routine == new_rts[0]:
                     # It's the same so we can proceed (although all we need to
                     # do is update the RoutineSymbol referenced by the Call.)
                     return
@@ -291,7 +291,7 @@ class KernelModuleInlineTrans(Transformation):
         return copied_routines
 
     @staticmethod
-    def _get_psyir_to_inline(node):
+    def _get_psyir_to_inline(node) -> list[Routine]:
         '''
         Wrapper that gets the PSyIR of the routine or kernel
         corresponding to the call described by `node`. This supports calls to
@@ -302,11 +302,7 @@ class KernelModuleInlineTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.nodes.Call` |
                     :py:class:`psyclone.psyGen.CodedKern`
 
-        :returns: the PSyIR of the routine implementation(s) and the associated
-            interface symbol if it is polymorphic.
-        :rtype: tuple[
-            list[:py:class:`psyclone.psyir.nodes.Routine`],
-            :py:class:`psyclone.psyir.symbols.GenericInterfaceSymbol`)]
+        :returns: the PSyIR of the routine implementation(s)
 
         '''
         # TODO #2054 - once CodedKern has been migrated so that it subclasses
@@ -316,16 +312,10 @@ class KernelModuleInlineTrans(Transformation):
             # Where mixed-precision kernels are supported (e.g. in LFRic) the
             # call to get_kernel_schedule() will return the one which has an
             # interface matching the arguments in the call.
-            return (node.get_kernel_schedule(), node.get_interface_symbol())
+            return node.get_kernel_schedule()
 
         # We have a generic routine call.
-        routines = node.get_callees()
-        caller_name = node.routine.name.lower()
-        interface_sym = None
-        if len(routines) > 1:
-            interface_sym = routines[0].symbol_table.lookup(caller_name)
-
-        return (routines, interface_sym)
+        return node.get_callees()
 
     @staticmethod
     def _rm_imported_routine_symbol(symbol: Symbol,
@@ -445,6 +435,11 @@ class KernelModuleInlineTrans(Transformation):
 
         self.validate(node, options)
 
+        if isinstance(node, CodedKern):
+            caller_name = node.name
+        else:
+            caller_name = node.routine.symbol.name
+
         # Get the PSyIR of the routine to module inline as well as the name
         # with which it is being called.
         # Note that we use the resolved callee subroutine name and not the
@@ -453,15 +448,15 @@ class KernelModuleInlineTrans(Transformation):
         # may already be in use, but the equality check below guarantees
         # that if it exists it is only valid when it references the exact same
         # implementation.
-        codes_to_inline, interface_sym = (
-            KernelModuleInlineTrans._get_psyir_to_inline(node))
+        codes_to_inline = KernelModuleInlineTrans._get_psyir_to_inline(node)
+        interface_sym = codes_to_inline[0].symbol_table.lookup(
+            caller_name) if len(codes_to_inline) > 1 else None
+
         callsite_table = node.scope.symbol_table
 
         if interface_sym:
-            called_sym = callsite_table.lookup(interface_sym.name,
-                                               otherwise=None)
+            called_sym = callsite_table.lookup(caller_name, otherwise=None)
         else:
-            caller_name = codes_to_inline[0].name
             for routine in codes_to_inline:
                 # N.B.in a PSyKAl DSL, we won't have a RoutineSymbol for the
                 # Kernel that is being called, so we look it up instead of

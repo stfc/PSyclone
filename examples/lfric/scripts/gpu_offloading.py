@@ -63,7 +63,7 @@ INVOKE_EXCLUSIONS = [
 ]
 
 # We won't attempt to inline calls to routines with names that contain
-# these strings.
+# these strings (because they're not computationally important).
 INLINE_EXCLUSIONS = ["abort", "logging"]
 
 OFFLOAD_DIRECTIVES = os.getenv('LFRIC_OFFLOAD_DIRECTIVES', "none")
