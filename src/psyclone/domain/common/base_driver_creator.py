@@ -218,9 +218,9 @@ class BaseDriverCreator:
         '''This function creates the code that reads in the data file
         produced during extraction. For each:
 
-        - read variable, it will declare the symbol and add code that reads in
+        - input variable, it will declare the symbol and add code that reads in
           the variable using the PSyData library.
-        - write variable, it will create code to read in the expected value,
+        - output variable, it will create code to read in the expected value,
           and at the end compare the driver value with the expected one.
 
         :param program: the PSyIR Routine to which any code must be added.
@@ -234,11 +234,9 @@ class BaseDriverCreator:
             create the corresponding variable that stores the output
             value from the kernel data file.
 
-        :returns: all output parameters, i.e. variables that need to be
-            verified after executing the kernel. Each entry is a 2-tuple
-            containing the symbol of the computed variable, and the symbol
-            of the variable that contains the originally computed value read
-            from the file.
+        :returns: all output variables. Each entry is a 2-tuple containing the
+            symbol of the output variable, and the symbol that contains the
+            originally values read from the data file.
 
         '''
         symbol_table = program.scope.symbol_table

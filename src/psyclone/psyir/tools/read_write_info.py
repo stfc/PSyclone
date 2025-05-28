@@ -59,7 +59,8 @@ class ReadWriteInfo:
     # -------------------------------------------------------------------------
     @property
     def read_list(self):
-        ''':returns the sorted list of container_name,signature pairs that \
+        '''
+        :returns the sorted list of container_name,signature pairs that
             are read.
         :rtype: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
 
@@ -84,7 +85,8 @@ class ReadWriteInfo:
     # -------------------------------------------------------------------------
     @property
     def write_list(self):
-        ''':returns the sorted list of container_name,signature pairs that \
+        '''
+        :returns the sorted list of container_name,signature pairs that
             are written.
         :rtype: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
 
@@ -109,12 +111,10 @@ class ReadWriteInfo:
     # -------------------------------------------------------------------------
     @property
     def all_used_vars_list(self):
-        '''This property returns a set with all (container_name, Signature)
-        tuples. Since it is a set this guarantees that each tuple is only
-        listed once.
-
-        :returns:  set with all (container_name, Signature) pairs.
-        :rtype: Set[Tuple[str, :py:class:`psyclone.core.Signature`]]
+        '''
+        :returns the sorted list of container_name,signature pairs that
+            are used.
+        :rtype: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
 
         '''
         all_vars = list(set(self._read_list) | set(self._write_list))

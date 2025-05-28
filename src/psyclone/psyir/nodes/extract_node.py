@@ -228,7 +228,6 @@ class ExtractNode(PSyDataNode):
         options = {'pre_var_list': read_write_info.all_used_vars_list,
                    'post_var_list': read_write_info.write_list,
                    'post_var_postfix': self._post_name}
-        print(read_write_info.all_used_vars_list)
 
         if self._driver_creator:
             nodes = self.children
@@ -236,19 +235,6 @@ class ExtractNode(PSyDataNode):
 
             self.bring_external_symbols(read_write_info,
                                         self.ancestor(Routine).symbol_table)
-
-            # Even variables that are output-only need to be written with their
-            # values at the time the kernel is called: many kernels will only
-            # write to part of a field (e.g. in case of MPI the halo region
-            # will not be written). Since the comparison in the driver uses
-            # the whole field (including values not updated), we need to write
-            # the current value of an output-only field as well. This is
-            # achieved by adding any written-only field to the list of fields
-            # read. This will trigger to write the values in the extraction,
-            # and the driver code created will read in their values.
-            for sig in read_write_info.write_list:
-                if sig not in read_write_info.read_list:
-                    read_write_info.read_list.append(sig)
 
             # Determine a unique postfix to be used for output variables
             # that avoid any name clashes

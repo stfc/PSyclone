@@ -40,12 +40,13 @@
 
 import pytest
 
+from psyclone.configuration import Config, ConfigurationError
 from psyclone.core import Signature
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import ExtractNode, Node, Schedule, Routine
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols import SymbolTable, ArrayType
 from psyclone.psyir.tools import ReadWriteInfo
 from psyclone.tests.utilities import get_invoke
 
@@ -462,3 +463,35 @@ various_variable_access_patterns", "invoke_3-compute_kernel_code-r1", 12, 8)
     CALL extract_psy_data_2 % PreStart("psy_extract_example_with_various_\
 variable_access_patterns", "invoke_3-compute_kernel_code-r2", 12, 8)
     """ in code
+
+
+def test_extraction_flatten_datatype(monkeypatch):
+    ''' Test that the flatten datatype method resolve the GOcean datatypes
+    using DSL information and it raises the appropriate error if a gocean
+    properties does not exist.'''
+    _, invoke = get_invoke("driver_test.f90",
+                           "gocean", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    en = ExtractNode()
+
+    # Get the reference to the 6th argument, which is the gocean
+    # property.
+    ref = schedule.children[0].loop_body.children[0] \
+        .loop_body.children[0].arguments.args[5].psyir_expression()
+    # Make sure we have the right reference:
+    assert ref.children[0].children[0].name == "gphiu"
+    dtype = en._flatten_datatype(ref)
+    # Gphiu is a 2D array
+    assert isinstance(dtype, ArrayType)
+    assert len(dtype.shape) == 2
+
+    # Monkey patch the grid property dictionary to remove the
+    # go_grid_lat_u entry, triggering an earlier error:
+    api_config = Config.get().api_conf("gocean")
+    grid_properties = api_config.grid_properties
+    monkeypatch.delitem(grid_properties, "go_grid_lat_u")
+
+    with pytest.raises(InternalError) as err:
+        dtype = en._flatten_datatype(ref)
+    assert ("Could not find type for reference 'in_fld%grid%gphiu' in the"
+            " config file" in str(err.value))

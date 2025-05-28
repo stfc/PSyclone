@@ -96,4 +96,9 @@ data:
 The driver files can be compiled with `make driver-main-init` and `make driver-main-update`,
 which will generate executables with the same name. Finally, once the drivers are compiled
 and the data dumps generated, the kernel can be executed and compared with the original
-results:
+results with:
+
+```shell
+./driver-main-init
+./driver-main-update
+````
