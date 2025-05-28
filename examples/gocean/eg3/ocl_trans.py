@@ -62,7 +62,7 @@ def trans(psyir):
         move_boundaries_trans.apply(kern)
         # Change the syntax to remove the return statements introduced by the
         # previous transformation
-        _, kschedules = kern.get_kernel_schedule()
+        kschedules = kern.get_kernel_schedule()
         # NOTE: we assume the kernel is not polymorphic and thus there is
         # only one schedule associated with it.
         fold_trans.apply(kschedules[0])

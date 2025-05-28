@@ -55,7 +55,7 @@ def trans(psyir):
     # Loop over all of the Kernels Calls
     for kernel in psyir.coded_kernels():
         try:
-            _, kernel_schedules = kernel.get_kernel_schedule()
+            kernel_schedules = kernel.get_kernel_schedule()
             for ksched in kernel_schedules:
                 if ksched not in already_printed:
                     kern = fortran_writer(ksched)

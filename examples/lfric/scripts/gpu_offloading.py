@@ -84,7 +84,7 @@ def _inline_calls(kern):
     matrans = Matmul2CodeTrans()
 
     if isinstance(kern, CodedKern):
-        _, scheds = kern.get_kernel_schedule()
+        scheds = kern.get_kernel_schedule()
     else:
         scheds = [kern]
     for sched in scheds:
