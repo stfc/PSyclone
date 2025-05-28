@@ -486,12 +486,13 @@ class Call(Statement, DataNode):
             cursor = table.node
             have_codeblock = False
             while cursor:
+                # We want to look in both Containers and FileContainers.
                 if isinstance(cursor, Container):
                     routines = []
                     for name in cursor.resolve_routine(rsym.name):
                         # Since we're looking in the local Container, the
                         # target is permitted to be private.
-                        psyir = cursor.find_routine_psyir(rsym.name,
+                        psyir = cursor.find_routine_psyir(name,
                                                           allow_private=True)
                         if psyir:
                             routines.append(psyir)

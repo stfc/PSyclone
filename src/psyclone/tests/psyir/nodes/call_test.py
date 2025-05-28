@@ -48,7 +48,7 @@ from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
     ArrayType, INTEGER_TYPE, ContainerSymbol, DataSymbol, NoType,
-    RoutineSymbol, REAL_TYPE, SymbolError)
+    RoutineSymbol, REAL_TYPE, SymbolError, UnresolvedInterface)
 
 
 class SpecialCall(Call):
@@ -678,6 +678,45 @@ end module some_mod'''
     call = psyir.walk(Call)[0]
     result = call.get_callees()
     assert result == [psyir.walk(Routine)[1]]
+
+
+def test_call_get_callees_local_unresolved_interface(fortran_reader,
+                                                     monkeypatch):
+    '''
+    Check that get_callees() works as expected when the target of the Call
+    is an unresolved interface that exists in the same Container as the call
+    site. This shouldn't ever occur in practise so we use monkeypatch.
+
+    '''
+    code = '''
+module some_mod
+  implicit none
+  integer :: luggage
+  interface polymorph
+    module procedure :: morph1, morph2
+  end interface
+contains
+  subroutine top()
+    luggage = 0
+    call polymorph(luggage)
+  end subroutine top
+
+  subroutine morph1(arg)
+    integer, intent(inout) :: arg
+  end subroutine morph1
+
+  subroutine morph2(arg)
+    real, intent(inout) :: arg
+  end subroutine morph2
+end module some_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    # Monkeypatch the called symbol so that it appears to be unresolved.
+    monkeypatch.setattr(call.routine.symbol, "_interface",
+                        UnresolvedInterface())
+    result = call.get_callees()
+    assert len(result) == 2
+    assert result == psyir.walk(Routine)[1:]
 
 
 def test_call_get_callees_local_file_container(fortran_reader):
