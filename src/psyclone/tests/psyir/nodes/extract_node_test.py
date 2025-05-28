@@ -40,7 +40,7 @@
 
 import pytest
 
-from psyclone.configuration import Config, ConfigurationError
+from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
