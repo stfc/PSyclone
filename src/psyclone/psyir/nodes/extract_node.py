@@ -64,7 +64,7 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, REAL8_TYPE, ArrayType, ContainerSymbol,
     ImportInterface, DataType, SymbolTable)
-# from psyclone.psyir.tools import ReadWriteInfo
+from psyclone.errors import InternalError
 
 
 class ExtractNode(PSyDataNode):
@@ -382,14 +382,29 @@ class ExtractNode(PSyDataNode):
         '''
         signature, _ = structure_reference.get_signature_and_indices()
         if Config.get().api == "gocean":
-            if signature[-1] in ("data", "gphiu"):
-                return ArrayType(REAL8_TYPE, [ArrayType.Extent.DEFERRED,
-                                              ArrayType.Extent.DEFERRED])
-            if signature[-1] == "tmask":
-                return ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED,
-                                                ArrayType.Extent.DEFERRED])
-            if signature[-1] == "dx":
-                return REAL8_TYPE
+            api_config = Config.get().api_conf("gocean")
+            grid_properties = api_config.grid_properties
+            for prop_name in grid_properties:
+                gocean_property = grid_properties[prop_name]
+                property_name = gocean_property.fortran.split('%')[-1]
+                # Search for a property with the same name as the signature
+                # inner accessor
+                if signature[-1] == property_name:
+                    break
+            else:
+                raise InternalError(
+                    f"Could not find type for reference "
+                    f"'{structure_reference.debug_string()}' "
+                    f"in the config file '{Config.get().filename}'.")
+            if gocean_property.intrinsic_type == 'real':
+                scalar_type = REAL8_TYPE
+            else:
+                scalar_type = INTEGER_TYPE
+            if gocean_property.type == "scalar":
+                return scalar_type
+            # Everything else is a 2D field
+            return ArrayType(scalar_type, [ArrayType.Extent.DEFERRED,
+                                           ArrayType.Extent.DEFERRED])
 
         # Everything else defaults to integer
         return INTEGER_TYPE
