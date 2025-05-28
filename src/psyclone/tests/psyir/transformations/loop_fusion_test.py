@@ -40,7 +40,6 @@
 '''
 
 from unittest import mock
-
 import pytest
 
 from psyclone.psyir.nodes import Literal, Loop, Schedule, Return
@@ -253,6 +252,41 @@ def test_fuse_ok(tmpdir, fortran_reader, fortran_writer):
   enddo"""
     assert expected in out
     assert Compile(tmpdir).string_compiles(out)
+
+
+def test_fuse_removes_unused_symbols(
+         monkeypatch, fortran_reader, fortran_writer):
+    '''This tests verifies that loop fusion removes any unused symbols after
+    the transformation.
+
+    '''
+    code = '''subroutine sub()
+              integer :: ji, jj, n, n1
+              integer, dimension(10,10) :: s, t
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=1, n1
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    fuse = LoopFuseTrans()
+    # Monkeypatch to mimic the case where these are fine to fuse (e.g.
+    # because of additional DSL knowledge)
+    monkeypatch.setattr(fuse, "validate", lambda _1, _2, options: True)
+
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+    fuse.apply(loop1, loop2)
+
+    out = fortran_writer(psyir)
+    # The unused symbol n1 now should not be declared
+    assert "n1" not in out
 
 
 # ----------------------------------------------------------------------------

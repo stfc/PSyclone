@@ -79,8 +79,37 @@ class FortLineLength():
 
     ''' This class take a free format fortran code as a string and
     line wraps any lines that are larger than the specified line
-    length'''
+    length
 
+    .. warning::
+        The :class:`line_length.FortLineLength` class is only partially aware
+        of Fortran syntax. This awareness is required so that appropriate
+        continuation characters can be used (for example ``&`` at the end of
+        a line and ``!$omp&`` at the start of a line for OpenMP directives,
+        ``&`` at the end of a line for statements and ``&`` at the end of a
+        line and ``&`` at the beginning of a line for strings).
+
+        Whilst statements only require an ``&`` at the end of the line when
+        line wrapping with free-form fortran they may optionally also have an
+        ``&`` at the beginning of the subsequent line. In contrast, when
+        splitting a string over multiple lines an ``&`` is required at both
+        locations. Therefore an instance of the
+        :class:`line_length.FortLineLength` class will always add ``&`` at the
+        beginning of a continuation line for a statement, in case the line is
+        split within a string.
+
+        One known situation that could cause an instance of the
+        :class:`line_length.FortLineLength` class to fail is when an inline
+        comment is used at the end of a line to make it longer than the 132
+        character limit. Whilst PSyclone does not generate such code for the
+        PSy-layer, this might occur in Algorithm-layer code, even if the
+        Algorithm-layer code conforms to the 132 line length limit. The reason
+        for this is that PSyclone's internal parser concatenates lines
+        together, thus a long line correctly split with continuation characters
+        in the Algorithm-layer becomes a line that needs to be split by an
+        instance of the :class:`line_length.FortLineLength` class.
+
+    '''
     # pylint: disable=too-many-instance-attributes
     def __init__(self, line_length=132):
         self._line_length = line_length

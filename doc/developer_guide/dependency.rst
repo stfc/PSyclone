@@ -469,7 +469,7 @@ Variable accesses are stored in the order in which they happen. For example,
 an assignment `a=a+1` will store two access for the variable `a`, the
 first one being a READ access, followed by a WRITE access, since this is the
 order in which the accesses are executed.
-Additionally, the function `reference_accessess()` keeps track of the location
+Additionally, the function `reference_accesses()` keeps track of the location
 at which the accesses happen. A location is an integer number, starting with 0,
 which is increased for each new statement. This makes it possible to
 compare accesses to variables: if two accesses have the same location value,
@@ -607,7 +607,7 @@ until we find accesses that would prevent parallelisation:
 .. note:: There is a certain overlap in the dependency analysis code
           and the variable access API. More work on unifying those two
           approaches will be undertaken in the future. Also, when calling
-          `reference_accesses()` for a Dynamo or GOcean kernel, the
+          `reference_accesses()` for an LFRic or GOcean kernel, the
           variable access mode for parameters is taken
           from the kernel metadata, not from the actual kernel source 
           code.
@@ -673,7 +673,7 @@ implementation differs from the DependencyTools as it is control-flow aware, so
 can find many dependencies for a single Reference in a given Routine or scope.
 
 This is primarily used to implement the `Reference.next_accesses` and
-`Reference.previous_accessess` functions, but can be used directly as follows:
+`Reference.previous_accesses` functions, but can be used directly as follows:
 
 .. code::
 

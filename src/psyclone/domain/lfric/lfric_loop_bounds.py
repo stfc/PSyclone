@@ -39,9 +39,9 @@
 ''' This module provides the LFRicLoopBounds Class that handles all variables
     required for specifying loop limits within an LFRic PSy-layer routine.'''
 
-from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicCollection
-from psyclone.f2pygen import AssignGen, CommentGen, DeclGen
+from psyclone.domain.lfric import LFRicCollection, LFRicLoop, LFRicTypes
+from psyclone.psyir.nodes import Assignment, Reference
+from psyclone.psyir.symbols import DataSymbol
 
 
 class LFRicLoopBounds(LFRicCollection):
@@ -50,61 +50,61 @@ class LFRicLoopBounds(LFRicCollection):
     an LFRic PSy-layer routine.
     '''
 
-    def _invoke_declarations(self, parent):
+    def initialise(self, cursor: int) -> int:
         '''
-        Only needed because method is virtual in parent class.
-
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-
-    def initialise(self, parent):
-        '''
-        Updates the f2pygen AST so that all of the variables holding the lower
+        Updates the PSyIR so that all of the variables holding the lower
         and upper bounds of all loops in an Invoke are initialised.
 
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
 
         '''
-        loops = self._invoke.schedule.loops()
+        loops = filter(lambda x: isinstance(x, LFRicLoop),
+                       self._invoke.schedule.loops())
 
-        if not loops:
-            return
-
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Set-up all of the loop bounds"))
-        parent.add(CommentGen(parent, ""))
-
-        sym_table = self._invoke.schedule.symbol_table
-        config = Config.get()
-        api_config = config.api_conf("lfric")
-
+        first = True
         for idx, loop in enumerate(loops):
 
             if loop.loop_type == "null":
-                # 'null' loops don't need any bounds.
+                # Generic or 'null' loops don't need any variables to be set
                 continue
 
+            # Set the lower bound
             root_name = f"loop{idx}_start"
-            lbound = sym_table.find_or_create_integer_symbol(root_name,
-                                                             tag=root_name)
-            parent.add(AssignGen(parent, lhs=lbound.name,
-                                 rhs=loop._lower_bound_fortran()))
-            entities = [lbound.name]
+            lbound = self.symtab.new_symbol(
+                root_name, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            assignment = Assignment.create(
+                    lhs=Reference(lbound),
+                    rhs=loop.lower_bound_psyir())
+            loop.children[0] = Reference(lbound)
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
+            if first:
+                assignment.preceding_comment = (
+                    "Set-up all of the loop bounds")
+                first = False
 
-            if loop.loop_type != "colour":
+            # Set the upper bound
+            if loop.loop_type not in ("cells_in_colour", "tiles_in_colour",
+                                      "cells_in_tile"):
                 root_name = f"loop{idx}_stop"
-                ubound = sym_table.find_or_create_integer_symbol(root_name,
-                                                                 tag=root_name)
-                entities.append(ubound.name)
-                parent.add(AssignGen(parent, lhs=ubound.name,
-                                     rhs=loop._upper_bound_fortran()))
+                ubound = self.symtab.new_symbol(
+                    root_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                self._invoke.schedule.addchild(
+                    Assignment.create(
+                        lhs=Reference(ubound),
+                        rhs=loop.upper_bound_psyir()
+                    ), cursor)
+                cursor += 1
+                loop.children[1] = Reference(ubound)
+            else:
+                # If it needs a color look-up, it has to be in-place
+                loop.children[1] = loop.upper_bound_psyir()
 
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=entities))
+        return cursor
 
 
 # ---------- Documentation utils -------------------------------------------- #

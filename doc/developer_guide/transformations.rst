@@ -132,7 +132,7 @@ they have their own, on-board memory which is separate from that of
 the host. Managing (i.e. minimising) data movement between host and
 GPU is then a very important part of obtaining good performance.
 
-Since PSyclone operates at the level of Invokes for the LFRic (Dynamo0.3) and
+Since PSyclone operates at the level of Invokes for the LFRic and
 GOcean1.0 APIs and of single routines for the NEMO API, it has no information
 about where an application starts and thus no single place in which to initiate
 data transfers to a GPU. (We assume that the host is responsible for model I/O
@@ -140,7 +140,7 @@ and therefore for populating fields with initial values.) Fortunately, OpenACC
 provides support for this kind of situation with the ``enter data`` directive.
 This may be used to "define scalars, arrays and subarrays to be allocated in
 the current device memory for the remaining duration of the program"
-:cite:`openacc_enterdata`. The ``ACCEnterDataTrans`` transformation adds
+:footcite:t:`openacc_enterdata`. The ``ACCEnterDataTrans`` transformation adds
 an ``enter data`` directive to an Invoke or a routine:
 
 .. autoclass:: psyclone.transformations.ACCEnterDataTrans
@@ -192,7 +192,7 @@ description of the ``ACCDataTrans`` transformation in the
 OpenCL
 ======
 
-PSyclone is able to generate an OpenCL :cite:`opencl` version of
+PSyclone is able to generate an OpenCL :footcite:t:`opencl` version of
 PSy-layer code for the GOcean 1.0 API and its associated kernels.
 Such code may then be executed on devices such as GPUs and FPGAs
 (Field-Programmable Gate Arrays).
@@ -254,7 +254,7 @@ The second routine created by PSyclone sets the kernel arguments, e.g.:
       ...
     END SUBROUTINE compute_cu_code_set_args
 
-The third routine generated is the ususal psy-layer routine that is
+The third routine generated is the usual psy-layer routine that is
 responsible for calling all of the kernels. However, it must now also
 call ``psy_init``, create buffers on the compute device (if they are
 not already present) and copy data over:
@@ -515,3 +515,73 @@ If an OpenMP task region contains an `LBOUND`, `UBOUND` or `SIZE` intrinsic insi
 an if condition or a loop condition, and that intrinsic contains an array section
 then PSyclone may generate extra dependencies, which may hurt code performance. If
 this causes issues, please open an issue.
+
+Moving to the new transformations options
+=========================================
+PSyclone is currently moving from a dictionary of options to keyword arguments
+to control the ``apply`` and ``validate`` transformation methods. For example:
+
+.. code-block:: python
+
+   # Previous implementation
+   LFRicColourTrans().apply(loop, option={"tiling": true}
+   # New implementation
+   LFRicColourTrans().apply(loop, tiling=True)
+
+
+This update is happening gradually, with developers being asked to update
+transformations as they are otherwise being modified.
+
+Note that while the ``options`` dict is being deprecated, it is still
+accepted and ovverides the keyword arguments if both are provided.
+
+The steps required to update the transformations are detailed here (see
+the ``ParallelLoopTrans`` class for reference):
+
+1. Import the ``transformation_documentation_wrapper`` from ``psyclone.utils`` and
+   add ``@transformation_documentation_wrapper`` to the class definition. If
+   there are no calls to super.apply() or super.validate(), then disable
+   option inheritance in the documentation by using
+   ``@transformation_documentation_wrapper(inherit=False)``.
+2. Update the ``apply`` method to have a keyword argument for each available
+   option. These arguments should have type hints and default values defined
+   in the signature if possible. The ``options`` argument should remain, and
+   ``**kwargs`` should also be available. If type hints are not possible for one
+   of the keyword arguments, then type hints will need to be provided in the
+   documentation as normal, and type checking will need to be done manually in
+   validate as ``validate_options`` cannot automatically do type checking where no
+   type hint is available. Note that if there is no ``apply`` method it should be
+   added if the Transformation takes any options as the new infrastructure is
+   built upon the ``apply`` definition (e.g. ``LoopTrans`` has
+   validation used for subclasses, but performs no actions in its newly added
+   ``apply`` method).
+3. The ``validate`` method should call the ``validate_options`` method on each of
+   the keyword arguments and ``**kwargs``. This method should not be called on
+   the ``options`` dictionary. The ``options`` input should overrule the keyword
+   arguments when determining options to the apply and validate method.
+   There should also be a ``# TODO 2668`` to remove the options argument later:
+   
+.. code-block:: python
+
+    if not options:
+        self.validate_options(tiling=tiling, **kwargs)
+    else:
+        #TODO #2668: Deprecate options dictionary.
+        tiling = options.get("tiling", False)
+
+4. Modify the ``validate`` method to take ``**kwargs`` (but no other keyword
+   arguments other than options). Use the ``get_option('optname', **kwargs)``
+   to get each of the options out of the kwargs, as this will also give
+   the default value if the option isn't passed into validate.
+5. If the ``apply`` method doesn't call ``super().apply`` all the way up to
+   the base ``Transformation`` class, then it should do a
+   ``warnings.warn(self._deprecation_warning, DeprecationWarning, 2)`` message
+   if the ``options`` dict is provided.
+6. Rewrite the documentation on the ``apply`` method to document the new
+   keyword arguments, and remove any reference to options. Remove the
+   documentation on the keyword arguments to ``validate``, as these will be
+   generated automatically by PSyclone.
+7. Repeat this process for any classes that the class inherits from.
+
+
+.. footbibliography::

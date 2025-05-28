@@ -164,7 +164,7 @@ When the `Parser` instance parses the code it expects to find Fortran
 code containing a program, module, subroutine or function (and it
 aborts if not). Currently the first of these (there may be more than
 one subroutine for example) is assumed to be the one that is
-required. This limititation is captured in issue #307.
+required. This limitation is captured in issue #307.
 
 The native `fparser2` tree of the Fortran code is then walked and all
 use statement names are captured and stored in a map (called
@@ -318,7 +318,7 @@ are arrays, not functions)::
 But the following are not::
 
     program alg
-      ! delare vars
+      ! declare vars
       call invoke(kern(a%b(), c*d, e+1.0))
     end program alg
 
@@ -380,7 +380,7 @@ All these classes can be specialised in each PSyclone API to support the
 specific features of a particular API. The class diagram for the above base classes
 is shown below using the LFRic API as an illustration.
 
-.. image:: dynamo0p3_topclasses.png
+.. image:: lfric_topclasses.png
     :width: 80%
     :align: center
 
@@ -418,14 +418,14 @@ To add a new built-in operation into an API use the following steps:
  7. Add an appropriate Fortran ``single_invoke`` example for the new
     Built-in in the relevant ``src/psyclone/tests/test_files/`` subdirectory.
     *e.g.* for the LFRic API it is
-    ``src/psyclone/tests/test_files/dynamo0p3/``.
+    ``src/psyclone/tests/test_files/lfric/``.
     Names of examples follow the template
     ``<category.number>.<subcategory.number>_<built-in_name>.f90``.
     *e.g.* for the LFRic API ``<category.number>`` is 15 and
     ``<built-in_name>`` follows the :ref:`LFRic API Built-in naming
     scheme <lfric-built-ins-names>`.
  8. Document the new Built-in in the documentation of the
-    relevant API (*e.g.* ``doc/dynamo0p3.rst`` for LFRic (Dynamo0.3) API).
+    relevant API (*e.g.* ``doc/lfric.rst`` for LFRic API).
 
 
 If the API being extended does not currently support any Built-ins

@@ -35,7 +35,7 @@
 # Modified by J. Henrichs, Bureau of Meteorology
 
 '''
-Module containing tests for the LFRic (Dynamo0.3) constants class.
+Module containing tests for the LFRic constants class.
 '''
 
 import pytest

@@ -52,8 +52,8 @@ from psyclone.psyir.transformations import (
     ACCKernelsTrans, InlineTrans, Matmul2CodeTrans, OMPTargetTrans,
     TransformationError)
 from psyclone.transformations import (
-    Dynamo0p3ColourTrans, Dynamo0p3OMPLoopTrans,
-    Dynamo0p3RedundantComputationTrans, OMPParallelTrans,
+    LFRicColourTrans, LFRicOMPLoopTrans,
+    LFRicRedundantComputationTrans, OMPParallelTrans,
     ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans,
     OMPDeclareTargetTrans, OMPLoopTrans)
 
@@ -134,9 +134,9 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    rtrans = Dynamo0p3RedundantComputationTrans()
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = LFRicRedundantComputationTrans()
+    ctrans = LFRicColourTrans()
+    otrans = LFRicOMPLoopTrans()
     const = LFRicConstants()
     cpu_parallel = OMPParallelTrans()
     mod_inline_trans = KernelModuleInlineTrans()
@@ -230,7 +230,7 @@ def trans(psyir):
                 try:
                     if loop.loop_type == "colours":
                         pass
-                    if loop.loop_type == "colour":
+                    if loop.loop_type == "cells_in_colour":
                         loop_offloading_trans.apply(
                             loop, options={"independent": True})
                         gpu_region_trans.apply(loop.ancestor(Directive))

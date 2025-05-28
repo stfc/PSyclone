@@ -51,7 +51,7 @@ from psyclone.psyir.nodes import Routine, FileContainer, IntrinsicCall, Call
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import (
-    ACCRoutineTrans, OMPDeclareTargetTrans, Dynamo0p3KernelConstTrans)
+    ACCRoutineTrans, OMPDeclareTargetTrans, LFRicKernelConstTrans)
 
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -88,7 +88,7 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
     code = str(psy.gen).lower()
     # Work out the value of the tag used to re-name the kernel
     tag = re.search('use continuity(.+?)_mod', code).group(1)
-    assert f"use continuity{tag}_mod, only: continuity{tag}_code" in code
+    assert f"use continuity{tag}_mod, only : continuity{tag}_code" in code
     assert f"call continuity{tag}_code(" in code
     # The kernel and module name should have gained the tag just identified
     # and be written to the CWD
@@ -171,7 +171,7 @@ def test_kernel_module_name(kernel_outputdir, mod_name, sub_name, monkeypatch):
     sched = invoke.schedule
     kernels = sched.coded_kernels()
     kern = kernels[0]
-    ktrans = Dynamo0p3KernelConstTrans()
+    ktrans = LFRicKernelConstTrans()
     ktrans.apply(kern, {"number_of_layers": 100})
     # Modify the kernel module and subroutine names.
     monkeypatch.setattr(kern, "_module_name", mod_name)
@@ -200,7 +200,7 @@ def test_kern_case_insensitive(mod_name, sub_name, kernel_outputdir,
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kern = kernels[0]
-    ktrans = Dynamo0p3KernelConstTrans()
+    ktrans = LFRicKernelConstTrans()
     ktrans.apply(kern, {"number_of_layers": 100})
     monkeypatch.setattr(kern, "_module_name", mod_name)
     monkeypatch.setattr(kern, "_name", sub_name)
@@ -336,7 +336,7 @@ def test_gpumixin_validate_no_schedule(monkeypatch):
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kern = kernels[0]
-    # We monkeypatch the 'get_kernel_schedule' method of DynKern so that it
+    # We monkeypatch the 'get_kernel_schedule' method of LFRicKern so that it
     # just raises an exception.
 
     def broken(_1_):
@@ -489,8 +489,8 @@ def test_1kern_trans(kernel_outputdir):
     code = str(psy.gen).lower()
     tag = re.search('use testkern(.+?)_mod', code).group(1)
     # We should have a USE for the original kernel and a USE for the new one
-    assert f"use testkern{tag}_mod, only: testkern{tag}_code" in code
-    assert "use testkern_mod, only: testkern_code" in code
+    assert f"use testkern{tag}_mod, only : testkern{tag}_code" in code
+    assert "use testkern_mod, only : testkern_code" in code
     # Similarly, we should have calls to both the original and new kernels
     assert "call testkern_code(" in code
     assert f"call testkern{tag}_code(" in code
@@ -508,7 +508,7 @@ def test_2kern_trans(kernel_outputdir):
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     assert len(kernels) == 5
-    ktrans = Dynamo0p3KernelConstTrans()
+    ktrans = LFRicKernelConstTrans()
     ktrans.apply(kernels[1], {"number_of_layers": 100})
     ktrans.apply(kernels[2], {"number_of_layers": 100})
     # Generate the code (this triggers the generation of new kernels)
@@ -516,7 +516,7 @@ def test_2kern_trans(kernel_outputdir):
     # Find the tags added to the kernel/module names
     for match in re.finditer('use testkern_any_space_2(.+?)_mod', code):
         tag = match.group(1)
-        assert (f"use testkern_any_space_2{tag}_mod, only: "
+        assert (f"use testkern_any_space_2{tag}_mod, only : "
                 f"testkern_any_space_2{tag}_code" in code)
         assert f"call testkern_any_space_2{tag}_code(" in code
         filepath = os.path.join(str(kernel_outputdir),
