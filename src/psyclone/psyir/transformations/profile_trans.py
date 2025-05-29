@@ -110,23 +110,24 @@ class ProfileTrans(PSyDataTrans):
                         )
                     # Also can't support Labelled statements.
                     if isinstance(child, BlockBase):
-                        # An instance of BlockBase describes a block of code (no surprise
-                        # there), so we have to examine the first statement within it. We
-                        # must allow for the case where the block is empty though.
+                        # An instance of BlockBase describes a block of code
+                        # so we have to examine the first statement within it.
+                        # We must allow for the case where the block is empty
+                        # though.
                         if (child.content and child.content[0] and
-                                 (not isinstance(child.content[0],
-                                                 Comment)) and
-                                 child.content[0].item and
-                                 child.content[0].item.label):
+                            (not isinstance(child.content[0],
+                                            Comment)) and
+                            child.content[0].item and
+                                child.content[0].item.label):
                             raise TransformationError(
-                                "Cannot apply the ProfileTrans to a code region "
-                                "containing a labelled statement."
+                                "Cannot apply the ProfileTrans to a code "
+                                "region containing a labelled statement."
                             )
                     elif isinstance(child, StmtBase):
                         if child.item and child.item.label:
                             raise TransformationError(
-                                "Cannot apply the ProfileTrans to a code region "
-                                "containing a labelled statement."
+                                "Cannot apply the ProfileTrans to a code "
+                                "region containing a labelled statement."
                             )
 
         super().validate(nodes, options)
