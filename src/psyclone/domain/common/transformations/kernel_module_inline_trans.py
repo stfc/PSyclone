@@ -291,7 +291,7 @@ class KernelModuleInlineTrans(Transformation):
         return copied_routines
 
     @staticmethod
-    def _get_psyir_to_inline(node) -> list[Routine]:
+    def _get_psyir_to_inline(node) -> List[Routine]:
         '''
         Wrapper that gets the PSyIR of the routine or kernel
         corresponding to the call described by `node`. This supports calls to
