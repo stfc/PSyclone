@@ -76,6 +76,9 @@ ifeq ($(TYPE), netcdf)
 	F90FLAGS += $$(nf-config --fflags)
 	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 	GENERATED_FILES += main-init.nc main-update.nc
+else ifeq ($(TYPE), standalone_ascii)
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone_ascii/dl_esm_inf
+	GENERATED_FILES += main-init.ascii main-update.ascii
 else
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/dl_esm_inf
 	GENERATED_FILES += main-init.binary main-update.binary
