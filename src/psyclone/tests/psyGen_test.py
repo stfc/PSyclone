@@ -838,7 +838,8 @@ def test_kern_children_validation():
 def test_codedkern_get_kernel_schedule(monkeypatch):
     '''
     Check that CodedKern.get_kernel_schedule() raises a NotImplementedError
-    (as it must be implemented by sub-classes).
+    (as it must be implemented by sub-classes). Also check that
+    get_interface_symbol() returns None.
 
     '''
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
@@ -850,6 +851,7 @@ def test_codedkern_get_kernel_schedule(monkeypatch):
         kern.get_kernel_schedule()
     assert ("get_kernel_schedule() must be overridden in class "
             in str(err.value))
+    assert kern.get_interface_symbol() is None
 
 
 def test_inlinedkern_children_validation():

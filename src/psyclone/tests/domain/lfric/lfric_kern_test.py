@@ -56,8 +56,9 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Container, KernelSchedule, Reference, Routine
-from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
-    INTEGER_TYPE, ArrayType
+from psyclone.psyir.symbols import (
+    ArgumentInterface, ArrayType, DataSymbol, GenericInterfaceSymbol,
+    INTEGER_TYPE, REAL_TYPE)
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import LFRicColourTrans
 from psyclone.psyir.backend.visitor import VisitorError
@@ -157,6 +158,8 @@ def test_get_kernel_schedule(monkeypatch):
     assert len(kernel_schedules) == 1
     assert isinstance(kernel_schedules[0], KernelSchedule)
     assert kernel._schedules[0] is kernel_schedules[0]
+    # Not a polymorphic kernel so has no interface symbol
+    assert kernel.get_interface_symbol() is None
 
     kernel_schedules_2 = kernel.get_kernel_schedule()
     assert kernel_schedules[0] is kernel_schedules_2[0]
@@ -192,11 +195,27 @@ def test_get_kernel_schedule_same_container(monkeypatch):
         assert schedules[0] in sched.ancestor(Container).walk(Routine)
 
 
+def test_get_kernel_schedule_mixed_precision():
+    '''
+    Test that get_kernel_schedule() and get_interface_symbol() work for a
+    mixed-precision kernel.
+
+    '''
+    _, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
+                           name="invoke_0", dist_mem=False)
+    sched = invoke.schedule
+    for kern in sched.walk(LFRicKern, stop_type=LFRicKern):
+        assert len(kern.get_kernel_schedule()) == 2
+        isym = kern.get_interface_symbol()
+        assert isinstance(isym, GenericInterfaceSymbol)
+        assert isym.name == "mixed_code"
+
+
 @pytest.mark.xfail(reason="get_kernel_schedule has been extended to return all"
                    " implementations of a polymorphic kernel. We need to "
                    "put back (and fix) the ability to resolve which "
                    "implementation is being called.")
-def test_get_kernel_schedule_mixed_precision():
+def test_get_kernel_schedule_mixed_precision_match():
     '''
     Test that we can get the correct schedule for a mixed-precision kernel.
 
