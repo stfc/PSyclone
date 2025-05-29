@@ -127,12 +127,11 @@ class GOOpenCLTrans(Transformation):
         :raises TransformationError: if any of the provided options is invalid.
         :raises TransformationError: if any of the provided options is not
             compatible with a previous OpenCL environment.
-        :raises TransformationError: if any kernel in this invoke has more than
-            one implementation (corresponds to an interface).
         :raises TransformationError: if any kernel in this invoke has a
             global variable used by an import.
         :raises TransformationError: if any kernel does not iterate over
             the whole grid.
+
         '''
         if isinstance(node, InvokeSchedule):
             if not isinstance(node, GOInvokeSchedule):
@@ -196,26 +195,20 @@ class GOOpenCLTrans(Transformation):
         for kern in node.kernels():
             KernelModuleInlineTrans().validate(kern)
 
-            kscheds = kern.get_kernel_schedule()
-            # GOcean Kernels must have a single implementation.
-            if len(kscheds) > 1:
-                raise TransformationError(
-                    f"GOcean kernels must have a single implementation but "
-                    f"'{node.name}' corresponds to an interface.")
-            ksched = kscheds[0]
+            for ksched in kern.get_kernel_schedule():
 
-            global_variables = set(ksched.symbol_table.imported_symbols)
-            prec_symbols = set(ksched.symbol_table.precision_datasymbols)
-            if global_variables.difference(prec_symbols):
-                names = sorted([sym.name for sym in
-                                global_variables.difference(prec_symbols)])
-                raise TransformationError(
-                    f"The Symbol Table for kernel '{kern.name}' contains the "
-                    f"following symbols with 'global' scope: {names}. An "
-                    f"OpenCL kernel cannot call other kernels and all of the "
-                    f"data it accesses must be passed by argument. Use the "
-                    f"KernelImportsToArguments transformation to convert such "
-                    f"symbols to kernel arguments first.")
+                global_variables = set(ksched.symbol_table.imported_symbols)
+                prec_symbols = set(ksched.symbol_table.precision_datasymbols)
+                if global_variables.difference(prec_symbols):
+                    names = sorted([sym.name for sym in
+                                    global_variables.difference(prec_symbols)])
+                    raise TransformationError(
+                        f"The Symbol Table for kernel '{kern.name}' contains "
+                        f"the following symbols with 'global' scope: {names}. "
+                        f"An OpenCL kernel cannot call other kernels and all "
+                        f"of the data it accesses must be passed by argument. "
+                        f"Use the KernelImportsToArguments transformation to "
+                        f"convert such symbols to kernel arguments first.")
 
         # In OpenCL all kernel loops should iterate the whole grid
         for kernel in node.kernels():

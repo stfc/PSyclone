@@ -100,8 +100,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the node is not a GOKern or has more
-                                     than one implementation.
+        :raises TransformationError: if the node is not a GOKern.
 
         '''
         if not isinstance(node, GOKern):
@@ -109,13 +108,6 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
                 f"Error in {self.name} transformation. This transformation "
                 f"can only be applied to 'GOKern' nodes, but found "
                 f"'{type(node).__name__}'.")
-
-        kschedules = node.get_kernel_schedule()
-        # GOcean Kernels must have a single implementation.
-        if len(kschedules) != 1:
-            raise TransformationError(
-                f"GOcean kernels must have a single implementation but "
-                f"'{node.name}' corresponds to an interface.")
 
     def apply(self, node, options=None):
         '''Apply this transformation to the supplied node.
@@ -187,64 +179,64 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         inner_loop.iteration_space = "go_all_pts"
         outer_loop.iteration_space = "go_all_pts"
 
-        # Update Kernel. Validate has checked that it's not polymorphic.
-        kschedule = node.get_kernel_schedule()[0]
+        # Update Kernel implementation(s).
+        for kschedule in node.get_kernel_schedule():
 
-        kernel_st = kschedule.symbol_table
-        iteration_indices = kernel_st.iteration_indices
-        data_arguments = kernel_st.data_arguments
+            kernel_st = kschedule.symbol_table
+            iteration_indices = kernel_st.iteration_indices
+            data_arguments = kernel_st.data_arguments
 
-        # Create new symbols and insert them as kernel arguments at the end of
-        # the kernel argument list
-        xstart_symbol = kernel_st.new_symbol(
-            "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        xstop_symbol = kernel_st.new_symbol(
-            "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        ystart_symbol = kernel_st.new_symbol(
-            "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        ystop_symbol = kernel_st.new_symbol(
-            "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        kernel_st.specify_argument_list(
-            iteration_indices + data_arguments +
-            [xstart_symbol, xstop_symbol, ystart_symbol, ystop_symbol])
+            # Create new symbols and insert them as kernel arguments at the
+            # end of the kernel argument list
+            xstart_symbol = kernel_st.new_symbol(
+                "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            xstop_symbol = kernel_st.new_symbol(
+                "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            ystart_symbol = kernel_st.new_symbol(
+                "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            ystop_symbol = kernel_st.new_symbol(
+                "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            kernel_st.specify_argument_list(
+                iteration_indices + data_arguments +
+                [xstart_symbol, xstop_symbol, ystart_symbol, ystop_symbol])
 
-        # Create boundary masking conditions
-        condition1 = BinaryOperation.create(
-            BinaryOperation.Operator.LT,
-            Reference(iteration_indices[0]),
-            Reference(xstart_symbol))
-        condition2 = BinaryOperation.create(
-            BinaryOperation.Operator.GT,
-            Reference(iteration_indices[0]),
-            Reference(xstop_symbol))
-        condition3 = BinaryOperation.create(
-            BinaryOperation.Operator.LT,
-            Reference(iteration_indices[1]),
-            Reference(ystart_symbol))
-        condition4 = BinaryOperation.create(
-            BinaryOperation.Operator.GT,
-            Reference(iteration_indices[1]),
-            Reference(ystop_symbol))
+            # Create boundary masking conditions
+            condition1 = BinaryOperation.create(
+                BinaryOperation.Operator.LT,
+                Reference(iteration_indices[0]),
+                Reference(xstart_symbol))
+            condition2 = BinaryOperation.create(
+                BinaryOperation.Operator.GT,
+                Reference(iteration_indices[0]),
+                Reference(xstop_symbol))
+            condition3 = BinaryOperation.create(
+                BinaryOperation.Operator.LT,
+                Reference(iteration_indices[1]),
+                Reference(ystart_symbol))
+            condition4 = BinaryOperation.create(
+                BinaryOperation.Operator.GT,
+                Reference(iteration_indices[1]),
+                Reference(ystop_symbol))
 
-        condition = BinaryOperation.create(
-            BinaryOperation.Operator.OR,
-            BinaryOperation.create(
+            condition = BinaryOperation.create(
                 BinaryOperation.Operator.OR,
-                condition1,
-                condition2),
-            BinaryOperation.create(
-                BinaryOperation.Operator.OR,
-                condition3,
-                condition4)
-            )
+                BinaryOperation.create(
+                    BinaryOperation.Operator.OR,
+                    condition1,
+                    condition2),
+                BinaryOperation.create(
+                    BinaryOperation.Operator.OR,
+                    condition3,
+                    condition4)
+                )
 
-        # Insert the conditional mask as the first statement of the kernel
-        if_statement = IfBlock.create(condition, [Return()])
-        kschedule.children.insert(0, if_statement)
+            # Insert the conditional mask as the first statement of the kernel
+            if_statement = IfBlock.create(condition, [Return()])
+            kschedule.children.insert(0, if_statement)
 
 
 # For Sphinx AutoAPI documentation generation
