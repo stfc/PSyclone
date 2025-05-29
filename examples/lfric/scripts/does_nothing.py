@@ -47,3 +47,4 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    print("PSyclone script: Does nothing")
