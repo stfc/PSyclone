@@ -877,3 +877,19 @@ def test_profiling_labelled_statement(fortran_reader):
         ptrans.validate(psyir.children[0].children[0])
     assert ("Cannot apply the ProfileTrans to a code region containing a "
             "labelled statement." in str(excinfo.value))
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          do a= 1, 100
+             end do
+        end do
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Cannot apply the ProfileTrans to a code region containing a "
+            "labelled statement." in str(excinfo.value))
