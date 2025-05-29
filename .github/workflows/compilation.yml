@@ -56,7 +56,7 @@ env:
   HDF5_VERSION: 1.14.5
   NETCDF_C_VERSION: 4.9.2
   NETCDF_FORTRAN_VERSION: 4.6.1
-  NVFORTRAN_VERSION: 25.3
+  NVFORTRAN_VERSION: 25.5
   OPENMPI_VERSION: 5.0.7
   PYTHON_VERSION: 3.13.3
 
@@ -132,3 +132,9 @@ jobs:
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/LFRic compile
         F90=nvfortran F90FLAGS="-acc -Minfo=all -Mnofma -O2" make -C tutorial/practicals/generic run
         make -C tutorial/practicals/generic/4_openacc acc_test
+    - name: Test logfile creation.
+      run: |
+        . .runner_venv/bin/activate
+        cd examples/nemo/eg1
+        psyclone -s ./openmp_cpu_levels_trans.py --log-level DEBUG --log-file log.out ../code/tra_adv.F90
+        test -f log.out
