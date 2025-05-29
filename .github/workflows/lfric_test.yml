@@ -85,7 +85,8 @@ jobs:
       run: |
         # Set up environment
         source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc@14
+        spack load lfric-build-environment%gcc
+        spack load gcc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone_no_annexed.cfg
@@ -123,6 +124,7 @@ jobs:
         # Set up environment
         source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%nvhpc
+        spack load nvhpc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -158,6 +160,7 @@ jobs:
         # Set up environment
         source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%nvhpc
+        spack load nvhpc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -192,7 +195,8 @@ jobs:
       run: |
         # Set up environment
         source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc@14
+        spack load lfric-build-environment%gcc
+        spack load gcc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -228,7 +232,8 @@ jobs:
       run: |
         # Set up environment
         source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc@14
+        spack load lfric-build-environment%gcc
+        spack load gcc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
