@@ -1,3 +1,21 @@
+   29) PR #3000 for #2973. Improves handling of pure subroutines in definition
+   use chains.
+
+   28) PR #2994 for #2992. Fix bug with COMPUTE_ANNEXED_DOFS set to False.
+
+   27) PR #2979 for #2942. Change 'dynamo' references to 'LFRic' throughout.
+
+   26) PR #3002 for #2838. Upgrade CI dependencies.
+
+   25) PR #3001 for #2929. Improve docs for OMPLoopTrans.
+
+   24) PR #2999 for #2988. Fixed the unneccessary failure when 3 arguments
+   provided to Structure…
+
+   23) PR #2993. Add documentation for the options to kwargs ongoing conversion.
+
+   22) PR #2987 towards #11. Provides logging infrastructure and documentation.
+
    21) PR #2995 towards #2551. Cache abs_positions to speedup dependency tools.
 
    20) PR #2931 (#closes 2244) adds support for LFRic colour-tiling. Needs

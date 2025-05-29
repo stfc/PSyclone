@@ -286,7 +286,7 @@ with a `trans` function defined. For example:
 
            :param psy: the PSy object that PSyclone has constructed for the
                        'invoke'(s) found in the Algorithm file.
-           :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+           :type psy: :py:class:`psyclone.lfric.LFRicPSy`
 
            '''
            for invoke in psy.invokes.invoke_list:

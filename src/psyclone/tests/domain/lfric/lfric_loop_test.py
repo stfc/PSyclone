@@ -58,12 +58,12 @@ from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import Message, DTCode
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import Dynamo0p3ColourTrans
+from psyclone.transformations import LFRicColourTrans
 
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
-    "test_files", "dynamo0p3")
+    "test_files", "lfric")
 TEST_API = "lfric"
 
 
@@ -112,7 +112,7 @@ def test_constructor_invalid_loop_type(monkeypatch):
 
 def test_set_lower_bound_functions(monkeypatch):
     ''' Test that we raise appropriate exceptions when the lower bound of
-    a LFRicLoop is set to invalid values.
+    an LFRicLoop is set to invalid values.
 
     '''
     # Make sure we get an LFRicSymbolTable
@@ -133,7 +133,7 @@ def test_set_lower_bound_functions(monkeypatch):
 
 def test_set_upper_bound_functions(monkeypatch):
     ''' Test that we raise appropriate exceptions when the upper bound of
-    a LFRicLoop is set to invalid values.
+    an LFRicLoop is set to invalid values.
 
     '''
     # Make sure we get an LFRicSymbolTable
@@ -698,6 +698,34 @@ def test_halo_for_discontinuous_2(tmpdir, monkeypatch, annexed):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
+def test_halo_for_annexed_dofs_read(tmpdir, annexed, monkeypatch):
+    '''
+    Test that a halo exchange is inserted before a kernel that reads from
+    both a continuous field and an operator in order to ensure annexed dofs
+    are clean.
+
+    '''
+    api_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    psy, invoke = get_invoke("15.1.11_builtin_and_op_kernel_invoke.f90",
+                             idx=0, api=TEST_API, dist_mem=True)
+    result = str(psy.gen).lower()
+    if annexed:
+        assert "loop0_stop = f2_proxy%vspace%get_last_dof_annexed" in result
+        assert "loop1_stop = mesh%get_last_edge_cell()" in result
+        # Halo dofs are left dirty, even though the annexed dofs are clean
+        assert "call f2_proxy%set_dirty()" in result
+        # No halo exchange required
+        assert "call f2_proxy%halo_exchange" not in result
+    else:
+        assert "loop0_stop = f2_proxy%vspace%get_last_dof_owned()" in result
+        assert "loop1_stop = mesh%get_last_edge_cell()" in result
+        # f2 must be halo-exchanged to clean its annexed dofs.
+        assert "call f2_proxy%set_dirty()" in result
+        assert "call f2_proxy%halo_exchange(depth=1)" in result
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
 def test_lfricloop_halo_read_access_error1(monkeypatch):
     '''Test that the halo_read_access method in class LFRicLoop raises the
     expected exception when an unsupported field access is found.
@@ -794,7 +822,7 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     msgs = dtools.get_all_messages()
     assert msgs[0].code == DTCode.ERROR_WRITE_WRITE_RACE
     # Colour the loop.
-    trans = Dynamo0p3ColourTrans()
+    trans = LFRicColourTrans()
     trans.apply(loop)
     loops = schedule.walk(LFRicLoop)
     assert not loops[0].independent_iterations()
