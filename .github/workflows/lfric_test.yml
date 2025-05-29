@@ -74,6 +74,8 @@ jobs:
         # pip install external/fparser
         pip install .[test]
         # Fetch the specified version of LFRic apps
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
+        spack load fcm%gcc
         fcm co -r ${LFRIC_APPS_REV} https://code.metoffice.gov.uk/svn/lfric_apps/main/trunk/ lfric_apps
 
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks.
