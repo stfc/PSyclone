@@ -46,8 +46,7 @@ jobs:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     env:
-      LFRIC_APPS_REV: 7536
-      LFRIC_CORE_REV: 52054
+      LFRIC_APPS_REV: 10772
       PYTHON_VERSION: 3.13.3
 
     steps:
@@ -74,6 +73,8 @@ jobs:
         # than the latest release from pypi.
         # pip install external/fparser
         pip install .[test]
+        # Fetch the specified version of LFRic apps
+        fcm co -r ${LFRIC_APPS_REV} https://code.metoffice.gov.uk/svn/lfric_apps/main/trunk/ lfric_apps
 
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks.
     # COMPUTE_ANNEXED_DOFS is set to false for this test by using the
@@ -86,11 +87,11 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone_no_annexed.cfg
-        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
+        export LFRIC_DIR=${GITHUB_WORKSPACE}/lfric_apps
         cd ${LFRIC_DIR}
         # Ensure no transformations are applied by supplying an empty
         # transformation script.
-        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
@@ -123,13 +124,10 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
+        export LFRIC_DIR=${GITHUB_WORKSPACE}/lfric_apps
         cd ${LFRIC_DIR}
-        # Update the PSyclone commands to ensure transformed kernels are written
-        # to working directory.
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk ../lfric_core_${LFRIC_CORE_REV}/infrastructure/build/psyclone/.
         # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
-        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
@@ -161,13 +159,10 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
+        export LFRIC_DIR=${GITHUB_WORKSPACE}/lfric_apps
         cd ${LFRIC_DIR}
-        # Update the PSyclone commands to ensure transformed kernels are written
-        # to working directory.
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk ../lfric_core_${LFRIC_CORE_REV}/infrastructure/build/psyclone/.
         # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
-        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
@@ -199,11 +194,11 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
+        export LFRIC_DIR=${GITHUB_WORKSPACE}/lfric_apps
         cd ${LFRIC_DIR}
         # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
-        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
-        mkdir -p applications/gungho_model/optimisation/psyclone-test
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
+        mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
@@ -235,11 +230,11 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
+        export LFRIC_DIR=${GITHUB_WORKSPACE}/lfric_apps
         cd ${LFRIC_DIR}
         # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
-        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
-        mkdir -p applications/gungho_model/optimisation/psyclone-test
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
+        mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/tiledcolouring_and_omp.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
