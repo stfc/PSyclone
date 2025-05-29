@@ -181,12 +181,6 @@ def test_omp_remove_barrier_get_max_barrier_dependency():
 
     assert OMPMinimiseSyncTrans._get_max_barrier_dependency(barriers) == 3
 
-######################################
-# Beginning of Functionality Testing #
-######################################
-# This tests _eliminate_barrier through apply, since the apply functionality
-# is mostly encapsulates the eliminate_barrier usage.
-
 
 def test_basic_barrier_removal(fortran_reader, fortran_writer):
     ''' Tests the basic barrier removal idea - 4 loops A, B, C, D.

@@ -43,8 +43,8 @@ from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
-    HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
-    Reference2ArrayRangeTrans, ScalarisationTrans)
+    HoistTrans, InlineTrans, Maxval2LoopTrans, OMPMinimiseSyncTrans,
+    ProfileTrans, Reference2ArrayRangeTrans, ScalarisationTrans)
 from psyclone.transformations import TransformationError
 
 # USE statements to chase to gather additional symbol information.
@@ -391,6 +391,7 @@ def insert_explicit_loop_parallelism(
         loop_directive_trans=None,
         collapse: bool = True,
         privatise_arrays: bool = False,
+        asynchronous_parallelism: bool = False,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
@@ -409,6 +410,8 @@ def insert_explicit_loop_parallelism(
         many nested loops as possible.
     :param privatise_arrays: whether to attempt to privatise arrays that cause
         write-write race conditions.
+    :param asynchronous_parallelism: whether to attempt to add asynchronocity
+    to the parallel sections.
 
     '''
     # Add the parallel directives in each loop
@@ -417,7 +420,7 @@ def insert_explicit_loop_parallelism(
             continue  # Skip if an outer loop is already parallelised
 
         opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
-                "verbose": True, "nowait": True}
+                "verbose": True, "nowait": asynchronous_parallelism}
 
         routine_name = loop.ancestor(Routine).name
 
@@ -471,6 +474,12 @@ def insert_explicit_loop_parallelism(
             # The parallelisation restrictions will be explained with a comment
             # associted to the loop in the generated output.
             continue
+
+    # If we are adding asynchronous parallelism then we now try to minimise
+    # the number of barriers.
+    if asynchronous_parallelism:
+        minsync_trans = OMPMinimiseSyncTrans()
+        minsync_trans.apply(schedule.ancestor(Routine))
 
 
 def add_profiling(children):

@@ -34,8 +34,8 @@
 # -----------------------------------------------------------------------------
 # Authors: A. B. G. Chalk, STFC Daresbury Lab
 
-''' PSyclone transformation script showing the introduction of OpenMP
-directives into Nemo code. '''
+''' PSyclone transformation script showing the introduction of
+asynchronous OpenMP directives into Nemo code. '''
 
 from psyclone.psyir.transformations import (
         ArrayAssignment2LoopsTrans,

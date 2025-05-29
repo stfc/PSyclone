@@ -35,8 +35,8 @@
 # Authors: S. Siso, STFC Daresbury Lab
 # Authors: A. B. G. Chalk, STFC Daresbury Lab
 
-''' PSyclone transformation script showing the introduction of OpenMP for GPU
-directives into Nemo code. '''
+''' PSyclone transformation script showing the introduction of
+asynchronous OpenMP GPU directives into Nemo code. '''
 
 from psyclone.psyir.nodes import Loop, Assignment, Routine
 from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans
