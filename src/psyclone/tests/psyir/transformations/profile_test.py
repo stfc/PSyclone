@@ -835,4 +835,45 @@ def test_profiling_exit_statement(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         ptrans.validate(psyir.children[0].children[0])
     assert ("Cannot apply the ProfileTrans to a code region containing a "
-            "Fortran EXIT statement." in str(excinfo.value))
+            "Fortran EXIT or GOTO statement." in str(excinfo.value))
+
+
+def test_profiling_goto_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    GOTO block in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+          a = a + i
+          GOTO 123
+        end do
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Cannot apply the ProfileTrans to a code region containing a "
+            "Fortran EXIT or GOTO statement." in str(excinfo.value))
+
+
+def test_profiling_labelled_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    labelled statement in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          a = a + 1
+        end do
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Cannot apply the ProfileTrans to a code region containing a "
+            "labelled statement." in str(excinfo.value))
