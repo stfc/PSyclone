@@ -33,12 +33,16 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module provides the Profile transformation.
 '''
 
-from psyclone.psyir.nodes import Return, ProfileNode
+from fparser.two.Fortran2003 import (Comment, Exit_Stmt,
+                                     Goto_Stmt, BlockBase, StmtBase)
+from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.nodes import CodeBlock, Return, ProfileNode
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 
 
@@ -75,3 +79,55 @@ class ProfileTrans(PSyDataTrans):
 
     def __init__(self):
         super().__init__(ProfileNode)
+
+    def validate(self, nodes, options=None):
+        """
+        Checks that the supplied list of nodes is valid for profiling
+        callipers.
+
+        :param nodes: a node or list of nodes to be instrumented with
+                      profiling.
+        :type nodes: :py:class:`psyclone.psyir.nodes.Node` or
+                     list[:py:class:`psyclone.psyir.nodes.Node`]
+
+        :raises TransformationError: if the supplied region contains an
+                                     EXIT or GOTO statement.
+        :raises TransformationError: if the supplied region contains a
+                                     labelled statement.
+        """
+        # Find all the codeblocks.
+        node_list = self.get_node_list(nodes)
+        for node in node_list:
+            codeblocks = node.walk(CodeBlock)
+            for block in codeblocks:
+                for child in block._fp2_nodes:
+                    if isinstance(child,
+                                  (Goto_Stmt, Exit_Stmt)):
+                        raise TransformationError(
+                            "Cannot apply the ProfileTrans to a code region "
+                            "containing a Fortran EXIT or GOTO "
+                            "statement."
+                        )
+                    # Also can't support Labelled statements.
+                    if isinstance(child, BlockBase):
+                        # An instance of BlockBase describes a block of code
+                        # so we have to examine the first statement within it.
+                        # We must allow for the case where the block is empty
+                        # though.
+                        if (child.content and child.content[0] and
+                            (not isinstance(child.content[0],
+                                            Comment)) and
+                            child.content[0].item and
+                                child.content[0].item.label):
+                            raise TransformationError(
+                                "Cannot apply the ProfileTrans to a code "
+                                "region containing a labelled statement."
+                            )
+                    elif isinstance(child, StmtBase):
+                        if child.item and child.item.label:
+                            raise TransformationError(
+                                "Cannot apply the ProfileTrans to a code "
+                                "region containing a labelled statement."
+                            )
+
+        super().validate(nodes, options)
