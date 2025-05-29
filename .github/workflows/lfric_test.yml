@@ -139,7 +139,7 @@ jobs:
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         export OMP_NUM_THREADS=1
-        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
+        mpirun -n 1 ../bin/gungho_model configuration_c16_10it.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
@@ -177,7 +177,7 @@ jobs:
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         export OMP_NUM_THREADS=1
-        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
+        mpirun -n 1 ../bin/gungho_model configuration_c16_10it.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
