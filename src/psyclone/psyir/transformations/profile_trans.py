@@ -33,12 +33,15 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module provides the Profile transformation.
 '''
 
-from psyclone.psyir.nodes import Return, ProfileNode
+from fparser.two.Fortran2003 import Exit_Stmt
+from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.nodes import CodeBlock, Return, ProfileNode
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 
 
@@ -75,3 +78,27 @@ class ProfileTrans(PSyDataTrans):
 
     def __init__(self):
         super().__init__(ProfileNode)
+
+    def validate(self, nodes, options=None):
+        """
+        Checks that the supplied list of nodes is valid for profiling
+        callipers.
+        :param nodes: a node or list of nodes to be instrumented with
+                      profiling.
+        :type nodes: :py:class:`psyclone.psyir.nodes.Node` or
+                     list[:py:class:`psyclone.psyir.nodes.Node`]
+        :raises TransformationError: if the supplied region contains an
+                                     EXIT statement.
+        """
+        # Find all the codeblocks.
+        node_list = self.get_node_list(nodes)
+        for node in node_list:
+            codeblocks = node.walk(CodeBlock)
+            for block in codeblocks:
+                if isinstance(block._fp2_nodes[0], Exit_Stmt):
+                    raise TransformationError(
+                        "Cannot apply the ProfileTrans to a code region "
+                        "containing a Fortran EXIT statement."
+                    )
+
+        super().validate(nodes, options)
