@@ -479,7 +479,7 @@ def insert_explicit_loop_parallelism(
     # the number of barriers.
     if asynchronous_parallelism:
         minsync_trans = OMPMinimiseSyncTrans()
-        minsync_trans.apply(schedule.ancestor(Routine))
+        minsync_trans.apply(schedule)
 
 
 def add_profiling(children):
