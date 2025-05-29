@@ -38,20 +38,11 @@
 ''' PSyclone transformation script showing the introduction of
 asynchronous OpenMP GPU directives into Nemo code. '''
 
-from psyclone.psyir.nodes import Loop, Assignment, Routine
+from psyclone.psyir.nodes import Loop, Assignment, Directive, Routine
 from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans
 from psyclone.psyir.transformations import OMPTargetTrans, OMPLoopTrans
 from psyclone.psyir.transformations import OMPMinimiseSyncTrans
 from psyclone.transformations import TransformationError
-
-# Set up some loop_type inference rules in order to reference useful domain
-# loop constructs by name
-Loop.set_loop_type_inference_rules({
-        "lon": {"variable": "ji"},
-        "lat": {"variable": "jj"},
-        "levels": {"variable": "jk"},
-        "tracers": {"variable": "jt"}
-})
 
 
 def trans(psyir):
@@ -66,29 +57,16 @@ def trans(psyir):
     omp_loop_trans.omp_directive = "loop"
     opts = {"nowait": True}
 
-    # First convert assignments to loops whenever possible unless
-    # they have an ancestor levels loop
+    # First convert assignments to loops whenever possible
     for assignment in psyir.walk(Assignment):
-        ancestor = assignment.ancestor(Loop)
-        has_levels_ancestor = False
-        while ancestor:
-            if ancestor.loop_type == "levels":
-                has_levels_ancestor = True
-                break
-            ancestor = ancestor.ancestor(Loop)
-        if has_levels_ancestor:
-            continue
         try:
-            parent = assignment.parent
-            pos = assignment.position
             ArrayAssignment2LoopsTrans().apply(assignment)
-            omp_target_trans.apply(parent[pos], options=opts)
-            omp_loop_trans.apply(parent[pos].dir_body.children[0])
         except TransformationError:
             pass
 
+    # Apply loop_trans to all the loops possible.
     for loop in psyir.walk(Loop):
-        if loop.loop_type == "levels":
+        if not loop.ancestor(Directive):
             try:
                 omp_target_trans.apply(loop, options=opts)
                 omp_loop_trans.apply(loop, nowait=True)

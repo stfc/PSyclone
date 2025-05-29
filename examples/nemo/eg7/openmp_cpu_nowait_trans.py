@@ -46,21 +46,13 @@ from psyclone.psyir.transformations import (
 from psyclone.transformations import OMPParallelTrans
 from psyclone.psyir.nodes import (
         Assignment,
+        Directive,
         IfBlock,
         Loop,
         OMPBarrierDirective,
         OMPDoDirective,
         Routine,
 )
-
-# Set up some loop_type inference rules in order to reference useful domain
-# loop constructs by name
-Loop.set_loop_type_inference_rules({
-        "lon": {"variable": "ji"},
-        "lat": {"variable": "jj"},
-        "levels": {"variable": "jk"},
-        "tracers": {"variable": "jt"}
-})
 
 
 def add_parallel_region_to_contiguous_directives(schedule):
@@ -119,33 +111,22 @@ def trans(psyir):
     loop_trans = OMPLoopTrans()
     minsync_trans = OMPMinimiseSyncTrans()
 
-    # First convert assignments to loops whenever possible unless
-    # they have an ancestor levels loop
+    # First convert assignments to loops whenever possible
     for assignment in psyir.walk(Assignment):
-        ancestor = assignment.ancestor(Loop)
-        has_levels_ancestor = False
-        while ancestor:
-            if ancestor.loop_type == "levels":
-                has_levels_ancestor = True
-                break
-            ancestor = ancestor.ancestor(Loop)
-        if has_levels_ancestor:
-            continue
         try:
-            parent = assignment.parent
-            pos = assignment.position
             ArrayAssignment2LoopsTrans().apply(assignment)
-            loop_trans.apply(parent[pos], nowait=True)
         except TransformationError:
             pass
 
+    # Apply loop_trans to all the loops possible.
     for loop in psyir.walk(Loop):
-        if loop.loop_type == "levels":
+        if not loop.ancestor(Directive):
             try:
                 loop_trans.apply(loop, nowait=True)
             except TransformationError:
                 # Not all of the loops in the example can be parallelised.
                 pass
+
     # Apply the largest possible parallel regions and remove any barriers that
     # can be removed.
     for routine in psyir.walk(Routine):
