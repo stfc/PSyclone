@@ -3,8 +3,8 @@ Integration tests Results
 #########################
 
 
-Slowdown against baseline (last 10 entries)
-===========================================
+Comparison against baseline (last 10 entries)
+=============================================
 
 
 `View chart 1 <https://charts.mongodb.com/charts-project-0-gvldi/embed/charts?id=706f9e2a-90f6-42b5-8974-dc957c3171ed>`_
