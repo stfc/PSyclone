@@ -40,6 +40,7 @@ import abc
 from typing import Set, Tuple
 
 from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.reference import Reference
@@ -84,9 +85,33 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                   SYNCHRONISATION.
         '''
 
+        def symbol_guaranteed_uninitialised(symbol: Symbol) -> bool:
+            ''' Check if we can guarantee that the symbol is uninitialised by
+            checking that it is a local-automatic symbol that has not been used
+            before the directive.
+
+            :param symbol: the symbol to check.
+            :param loop: the loop of interest.
+            '''
+            if not symbol.is_automatic:
+                return False
+            if self.ancestor((Loop, WhileLoop)):
+                # If there is looping, looking at preceding is not enough
+                return False
+            for node in self.preceding():
+                if isinstance(node, CodeBlock):
+                    lname = symbol.name.lower()
+                    names = [n.lower() for n in node.get_symbol_names()]
+                    if lname in names:
+                        return False
+                if isinstance(node, Reference):
+                    if node.symbol is symbol:
+                        return False
+            return True
+
         # TODO #598: Improve the handling of scalar variables, there are
-        # remaining issues when we have accesses of variables after the
-        # parallel region that we currently declare as private. We could use
+        # remaining issues when we have accesses after the parallel region
+        # of variables that we currently declare as private. We could use
         # the DefinitionUseChain to prove that there are no more uses after
         # the loop.
         # e.g:
@@ -122,12 +147,10 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             if (isinstance(symbol, DataSymbol) and
                     isinstance(self.dir_body[0], Loop) and
                     symbol in self.dir_body[0].explicitly_private_symbols):
-                if any(ref.symbol is symbol for ref in self.preceding()
-                       if isinstance(ref, Reference)):
-                    # If it's used before the loop, make it firstprivate
-                    fprivate.add(symbol)
-                else:
+                if symbol_guaranteed_uninitialised(symbol):
                     private.add(symbol)
+                else:
+                    fprivate.add(symbol)
                 continue
 
             # All arrays not explicitly marked as threadprivate are shared
@@ -151,7 +174,6 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             # in every iteration of a loop.
             # If one such scalar is potentially read before it is written, it
             # will be considered firstprivate.
-
             has_been_read = False
             last_read_position = 0
             for access in accesses:
@@ -160,6 +182,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                     last_read_position = access.node.abs_position
 
                 if access.access_type == AccessType.WRITE:
+
                     # Check if the write access is outside a loop. In this case
                     # it will be marked as shared. This is done because it is
                     # likely to be re-used later. e.g:
@@ -205,8 +228,10 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                         limit=loop_ancestor,
                         include_self=True)
                     if conditional_write:
-                        fprivate.add(symbol)
-                        break
+                        if not symbol_guaranteed_uninitialised(symbol):
+                            # If it is not uninitialised make it firstprivate
+                            fprivate.add(symbol)
+                            break
 
                     # Already found the first write and decided if it is
                     # shared, private or firstprivate. We can stop looking.
