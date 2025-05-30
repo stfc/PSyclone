@@ -41,7 +41,7 @@ from a PSyIR tree. '''
 
 # pylint: disable=too-many-lines
 from psyclone.core import Signature
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import (
@@ -54,7 +54,7 @@ from psyclone.psyir.symbols import (
     GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
     RoutineSymbol, ScalarType, StructureType, Symbol, SymbolTable,
     UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
-    UnsupportedType, )
+    UnsupportedType, TypedSymbol)
 
 
 # Mapping from PSyIR types to Fortran data types. Simply reverse the
@@ -462,11 +462,13 @@ class FortranWriter(LanguageWriter):
 
         # Construct the list of symbol names for the ONLY clause
         only_list = []
+        rename_list = []
         for dsym in symbol_table.symbols_imported_from(symbol):
             if dsym.interface.orig_name:
                 # This variable is renamed on import. Use Fortran's
                 # 'new_name=>orig_name' syntax to reflect this.
                 only_list.append(f"{dsym.name}=>{dsym.interface.orig_name}")
+                rename_list.append(only_list[-1])
             else:
                 # This variable is not renamed.
                 only_list.append(dsym.name)
@@ -485,6 +487,12 @@ class FortranWriter(LanguageWriter):
                     f"only : " +
                     ", ".join(sorted(only_list)) + "\n")
 
+        # We have a wildcard import, however, we still need to list any
+        # symbols that are renamed.
+        if rename_list:
+            renames = ", ".join(sorted(rename_list))
+            return (f"{self._nindent}use{intrinsic_str}{symbol.name}, "
+                    f"{renames}\n")
         return f"{self._nindent}use{intrinsic_str}{symbol.name}\n"
 
     def gen_vardecl(self, symbol, include_visibility=False):
@@ -500,6 +508,7 @@ class FortranWriter(LanguageWriter):
         :returns: the Fortran variable declaration as a string.
         :rtype: str
 
+        :raises VisitorError: if the symbol is not typed.
         :raises VisitorError: if the symbol is of UnresolvedType.
         :raises VisitorError: if the symbol is of UnsupportedType other than
             UnsupportedFortranType.
@@ -516,6 +525,9 @@ class FortranWriter(LanguageWriter):
 
         '''
         # pylint: disable=too-many-branches
+        if not isinstance(symbol, (TypedSymbol, StructureType.ComponentType)):
+            raise VisitorError(f"Symbol '{symbol.name}' must be a symbol with"
+                               f" a datatype in order to use 'gen_vardecl'.")
         if isinstance(symbol.datatype, UnresolvedType):
             raise VisitorError(f"Symbol '{symbol.name}' has a UnresolvedType "
                                f"and we can not generate a declaration for "
@@ -1492,15 +1504,7 @@ class FortranWriter(LanguageWriter):
             body += self._visit(child)
         self._depth -= 1
 
-        # A generation error is raised if variable is not defined. This
-        # happens in LFRic kernel that iterate over a domain.
-        try:
-            variable_name = node.variable.name
-        except GenerationError:
-            # If a kernel iterates over a domain - there is
-            # no loop. But the loop node is maintained since it handles halo
-            # exchanges. So just return the body in this case
-            return body
+        variable_name = node.variable.name
 
         return (
             f"{self._nindent}do {variable_name} = {start}, {stop}, {step}\n"

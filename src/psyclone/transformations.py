@@ -54,7 +54,7 @@ from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
                                    LFRicInvokeSchedule, LFRicKern, LFRicLoop)
-from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
+from psyclone.lfric import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
@@ -62,11 +62,11 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Directive, Literal, Loop, Node,
+    Call, CodeBlock, Container, Directive, Literal, Loop, Node,
     OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
-    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
-    Return, Routine, Schedule)
+    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Return,
+    Routine, Schedule)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
@@ -81,6 +81,7 @@ from psyclone.psyir.transformations.parallel_loop_trans import (
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
+from psyclone.utils import transformation_documentation_wrapper
 
 
 def check_intergrid(node):
@@ -310,7 +311,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
                                           nogroup=self.omp_nogroup)
         return _directive
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the OMPTaskloopTrans transformation to the specified node in
         a Schedule. This node must be a Loop since this transformation
         corresponds to wrapping the generated code with directives like so:
@@ -323,8 +324,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
           end do
           !$OMP END TASKLOOP
 
-        At code-generation time (when
-        :py:meth:`OMPTaskloopDirective.gen_code` is called), this node must be
+        At code-generation time (when lowering is called), this node must be
         within (i.e. a child of) an OpenMP SERIAL region.
 
         If the keyword "nogroup" is specified in the options, it will cause a
@@ -352,7 +352,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         self.omp_nogroup = options.get("nogroup", current_nogroup)
 
         try:
-            super().apply(node, options)
+            super().apply(node, options, **kwargs)
         finally:
             # Reset the nogroup value to the original value
             self.omp_nogroup = current_nogroup
@@ -418,15 +418,17 @@ class MarkRoutineForGPUMixin:
                     f"Failed to create PSyIR for kernel '{node.name}'. "
                     f"Cannot transform such a kernel.") from error
 
-            # Check that it's not a mixed-precision kernel (which will have
-            # more than one Routine implementing it). We can't transform
-            # these at the moment because we can't correctly manipulate their
-            # metadata - TODO #1946.
-            routines = kernel_schedule.root.walk(Routine)
-            if len(routines) > 1:
-                raise TransformationError(
-                    f"Cannot apply {self.name} to kernel '{node.name}' as "
-                    f"it has multiple implementations - TODO #1946")
+            if not node.ancestor(Container, shared_with=kernel_schedule):
+                # The KernelSchedule to be transformed has not been inlined
+                # into the Container of the call-site. Therefore we can
+                # Check that it's not a mixed-precision kernel (which will have
+                # more than one Routine implementing it). We can't transform
+                # these at the moment because we can't correctly manipulate
+                # their metadata - TODO #1946.
+                if len(kernel_schedule.root.walk(Routine)) > 1:
+                    raise TransformationError(
+                        f"Cannot apply {self.name} to kernel '{node.name}' as "
+                        f"it has multiple implementations - TODO #1946")
 
             k_or_r = "Kernel"
         else:
@@ -436,24 +438,35 @@ class MarkRoutineForGPUMixin:
 
         # Check that the routine does not access any data that is imported via
         # a 'use' statement.
-        # TODO #2271 - this implementation will not catch symbols from literal
-        # precisions or intialisation expressions.
-        refs = kernel_schedule.walk(Reference)
-        for ref in refs:
-            if ref.symbol.is_import:
+        vai = VariablesAccessInfo()
+        kernel_schedule.reference_accesses(vai)
+        ktable = kernel_schedule.symbol_table
+        for sig in vai.all_signatures:
+            name = sig.var_name
+            first = vai[sig].all_accesses[0].node
+            if isinstance(first, Symbol):
+                table = ktable
+            else:
+                try:
+                    table = first.scope.symbol_table
+                except SymbolError:
+                    # The node associated with this access is not within a
+                    # scoping region.
+                    table = ktable
+            symbol = table.lookup(name)
+            if symbol.is_import:
                 # resolve_type does nothing if the Symbol type is known.
                 try:
-                    ref.symbol.resolve_type()
+                    symbol.resolve_type()
                 except (SymbolError, FileNotFoundError):
                     # TODO #11 - log that we failed to resolve this Symbol.
                     pass
-                if (isinstance(ref.symbol, DataSymbol) and
-                        ref.symbol.is_constant):
+                if (isinstance(symbol, DataSymbol) and symbol.is_constant):
                     # An import of a compile-time constant is fine.
                     continue
                 raise TransformationError(
                     f"{k_or_r} '{node.name}' accesses the symbol "
-                    f"'{ref.symbol}' which is imported. If this symbol "
+                    f"'{symbol}' which is imported. If this symbol "
                     f"represents data then it must first be converted to a "
                     f"{k_or_r} argument using the KernelImportsToArguments "
                     f"transformation.")
@@ -473,20 +486,6 @@ class MarkRoutineForGPUMixin:
                     f"'{node.name}' because its PSyIR contains one or more "
                     f"CodeBlocks:{cblock_txt}You may use '{option_txt}' to "
                     f"override this check.")
-        else:
-            # Check any accesses within CodeBlocks.
-            # TODO #2271 - this will be handled as part of the checking to be
-            # implemented using the dependence analysis.
-            for cblock in cblocks:
-                names = cblock.get_symbol_names()
-                for name in names:
-                    sym = kernel_schedule.symbol_table.lookup(name)
-                    if sym.is_import:
-                        raise TransformationError(
-                            f"{k_or_r} '{node.name}' accesses the symbol "
-                            f"'{sym.name}' within a CodeBlock and this symbol "
-                            f"is imported. {type(self).__name__} cannot be "
-                            f"applied to such a {k_or_r}.")
 
         calls = kernel_schedule.walk(Call)
         for call in calls:
@@ -679,8 +678,7 @@ class ACCLoopTrans(ParallelLoopTrans):
              ...
           end do
 
-        At code-generation time (when
-        :py:meth:`psyclone.psyir.nodes.ACCLoopDirective.gen_code` is called),
+        At code-generation time (when lowering is called),
         this node must be within (i.e. a child of) a PARALLEL region.
 
         :param node: the supplied node to which we will apply the
@@ -721,7 +719,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         >>> from psyclone.parse.algorithm import parse
         >>> from psyclone.psyGen import PSyFactory
-        >>> ast, invokeInfo = parse("dynamo.F90")
+        >>> ast, invokeInfo = parse("lfric.F90")
         >>> psy = PSyFactory("lfric").create(invokeInfo)
         >>> schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
         >>> # Uncomment the following line to see a text view of the schedule
@@ -751,9 +749,9 @@ class OMPParallelLoopTrans(OMPLoopTrans):
           !$OMP END PARALLEL DO
 
         :param node: the node (loop) to which to apply the transformation.
-        :type node: :py:class:`psyclone.f2pygen.DoGen`
-        :param options: a dictionary with options for transformations\
-                        and validation.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param options: a dictionary with options for transformations
+            and validation.
         :type options: Optional[Dict[str, Any]]
         '''
         self.validate(node, options=options)
@@ -772,9 +770,9 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         node_parent.addchild(directive, index=node_position)
 
 
-class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
+class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
 
-    ''' Dynamo-specific OpenMP loop transformation. Adds Dynamo specific
+    ''' LFRic-specific OpenMP loop transformation. Adds LFRic specific
         validity checks. Actual transformation is done by the
         :py:class:`base class <OMPParallelLoopTrans>`.
 
@@ -790,7 +788,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
                          omp_schedule=omp_schedule)
 
     def __str__(self):
-        return "Add an OpenMP Parallel Do directive to a Dynamo loop"
+        return "Add an OpenMP Parallel Do directive to an LFRic loop"
 
     def validate(self, node, options=None):
         '''
@@ -802,14 +800,14 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the supplied Node is not a LFRicLoop.
+        :raises TransformationError: if the supplied Node is not an LFRicLoop.
         :raises TransformationError: if the associated loop requires
             colouring.
         '''
         if not isinstance(node, LFRicLoop):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "
-                f"must be a LFRicLoop but got '{type(node).__name__}'")
+                f"must be an LFRicLoop but got '{type(node).__name__}'")
 
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is discontinuous (including
@@ -817,10 +815,12 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # colouring.
         const = LFRicConstants()
         if node.field_space.orig_name not in const.VALID_DISCONTINUOUS_NAMES:
-            if node.loop_type != 'colour' and node.has_inc_arg():
+            if (node.loop_type not in ('cells_in_colour', 'tiles_in_colour')
+                    and node.has_inc_arg()):
                 raise TransformationError(
                     f"Error in {self.name} transformation. The kernel has an "
-                    f"argument with INC access. Colouring is required.")
+                    f"argument with INC access but the loop is of type "
+                    f"'{node.loop_type}'. Colouring is required.")
         # As this is a domain-specific loop, we don't perform general
         # dependence analysis because it is too conservative and doesn't
         # account for the special steps taken for such a loop at code-
@@ -877,10 +877,10 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
         OMPParallelLoopTrans.apply(self, node)
 
 
-class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
+class LFRicOMPLoopTrans(OMPLoopTrans):
 
-    ''' LFRic (Dynamo 0.3) specific orphan OpenMP loop transformation. Adds
-    Dynamo-specific validity checks.
+    ''' LFRic specific orphan OpenMP loop transformation. Adds
+    LFRic-specific validity checks.
 
     :param str omp_schedule: the OpenMP schedule to use. Must be one of \
         'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
@@ -891,10 +891,10 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         super().__init__(omp_directive="do", omp_schedule=omp_schedule)
 
     def __str__(self):
-        return "Add an OpenMP DO directive to a Dynamo 0.3 loop"
+        return "Add an OpenMP DO directive to an LFRic loop"
 
-    def validate(self, node, options=None):
-        ''' Perform LFRic (Dynamo 0.3) specific loop validity checks for the
+    def validate(self, node, options=None, **kwargs):
+        ''' Perform LFRic specific loop validity checks for the
         OMPLoopTrans.
 
         :param node: the Node in the Schedule to check
@@ -926,13 +926,15 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
         # If the loop is not already coloured then check whether or not
         # it should be
-        if node.loop_type != 'colour' and node.has_inc_arg():
+        if (node.loop_type not in ('cells_in_colour', 'tiles_in_colour',
+                                   'cells_in_tile')
+                and node.has_inc_arg()):
             raise TransformationError(
                 f"Error in {self.name} transformation. The kernel has an "
                 f"argument with INC access. Colouring is required.")
 
-    def apply(self, node, options=None):
-        ''' Apply LFRic (Dynamo 0.3) specific OMPLoopTrans.
+    def apply(self, node, options=None, **kwargs):
+        ''' Apply LFRic specific OMPLoopTrans.
 
         :param node: the Node in the Schedule to check.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
@@ -979,7 +981,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add the selected OpenMP loop directive to a GOcean loop"
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Checks that the supplied node is a valid target for parallelisation
         using OMP directives.
@@ -1023,27 +1025,34 @@ class ColourTrans(LoopTrans):
     def __str__(self):
         return "Split a loop into colours"
 
-    def apply(self, node, options=None):
+    def apply(self, node: Loop, options: Optional[Dict[str, Any]] = None,
+              tiling: bool = False, **kwargs):
         '''
         Converts the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
-        loop is over cells of that colour.
+        loop is over cells (or tiles and cells) of that colour.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: options for the transformation.
-        :type options: Optional[Dict[str, Any]]
+        :param tiling: whether to enable colour tiling.
 
         '''
+        # TODO #2668: Deprecate options dictionary
+        if options:
+            tiling = options.get("tiling", False)
+
         self.validate(node, options=options)
 
-        colours_loop = self._create_colours_loop(node)
+        if tiling:
+            colours_loop = self._create_tiled_colours_loops(node)
+        else:
+            colours_loop = self._create_colours_loop(node)
 
         # Add this loop as a child of the original node's parent
         node.parent.addchild(colours_loop, index=node.position)
 
-        # Add contents of node to colour loop.
-        colours_loop.loop_body[0].loop_body.children.extend(
+        # Add contents of node to the inner loop body.
+        colours_loop.walk(Schedule)[-1].children.extend(
             node.loop_body.pop_all_children())
 
         # remove original loop
@@ -1060,16 +1069,33 @@ class ColourTrans(LoopTrans):
         :returns: doubly-nested loop over colours and cells of a given colour.
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
-        :raises NotImplementedError: this method must be overridden in an \
+        :raises NotImplementedError: this method must be overridden in an
                                      API-specific sub-class.
         '''
         raise InternalError("_create_colours_loop() must be overridden in an "
                             "API-specific sub-class.")
 
+    def _create_tiled_colours_loops(self, node: Loop) -> Loop:
+        '''
+        Creates nested loop (colours, tiles of a given colour and cells) to
+        replace the supplied loop over cells.
 
-class Dynamo0p3ColourTrans(ColourTrans):
+        :param node: the loop for which to create a coloured version.
 
-    '''Split a Dynamo 0.3 loop over cells into colours so that it can be
+        :returns: triply-nested loop over colours, tiles of a given colour,
+            and cells.
+
+        :raises NotImplementedError: this method must be overridden in an
+                                     API-specific sub-class.
+        '''
+        raise InternalError("_create_tiled_colours_loops() must be overridden"
+                            " in an API-specific sub-class.")
+
+
+@transformation_documentation_wrapper
+class LFRicColourTrans(ColourTrans):
+
+    '''Split an LFRic loop over cells into colours so that it can be
     parallelised. For example:
 
     >>> from psyclone.parse.algorithm import parse
@@ -1080,15 +1106,15 @@ class Dynamo0p3ColourTrans(ColourTrans):
     >>>
     >>> TEST_API = "lfric"
     >>> _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-    >>>              "tests", "test_files", "dynamo0p3",
+    >>>              "tests", "test_files", "lfric",
     >>>              "4.6_multikernel_invokes.f90"),
     >>>              api=TEST_API)
     >>> psy = PSyFactory(TEST_API).create(info)
     >>> invoke = psy.invokes.get('invoke_0')
     >>> schedule = invoke.schedule
     >>>
-    >>> ctrans = Dynamo0p3ColourTrans()
-    >>> otrans = DynamoOMPParallelLoopTrans()
+    >>> ctrans = LFRicColourTrans()
+    >>> otrans = LFRicOMPParallelLoopTrans()
     >>>
     >>> # Colour all of the loops
     >>> for child in schedule.children:
@@ -1101,7 +1127,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
 
-    Colouring in the LFRic (Dynamo 0.3) API is subject to the following rules:
+    Colouring in the LFRic API is subject to the following rules:
 
     * Only kernels which operate on 'CELL_COLUMN's and which increment a
       field on a continuous function space require colouring. Kernels that
@@ -1115,29 +1141,25 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
     '''
     def __str__(self):
-        return "Split a Dynamo 0.3 loop over cells into colours"
+        return "Split an LFRic loop over cells into colours"
 
-    def apply(self, node, options=None):
-        '''Performs LFRic-specific error checking and then uses the parent
-        class to convert the Loop represented by :py:obj:`node` into a
-        nested loop where the outer loop is over colours and the inner
-        loop is over cells of that colour.
+    def validate(self, node: LFRicLoop,
+                 options: Optional[Dict[str, Any]] = None,
+                 **kwargs):
+        ''' Validate the transformation.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.domain.lfric.LFRicLoop`
-        :param options: a dictionary with options for transformations.\
-        :type options: Optional[Dict[str, Any]]
+        :param options: a dictionary with options for transformations.
 
         '''
-        # check node is a loop
-        super().validate(node, options=options)
+        super().validate(node, options=options, **kwargs)
 
         # Check we need colouring
         const = LFRicConstants()
         if node.field_space.orig_name in \
            const.VALID_DISCONTINUOUS_NAMES:
             raise TransformationError(
-                "Error in DynamoColour transformation. Loops iterating over "
+                "Error in LFRicColour transformation. Loops iterating over "
                 "a discontinuous function space are not currently supported.")
 
         # Colouring is only necessary (and permitted) if the loop is
@@ -1145,7 +1167,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         # an empty string.
         if node.loop_type != "":
             raise TransformationError(
-                f"Error in DynamoColour transformation. Only loops over cells "
+                f"Error in LFRicColour transformation. Only loops over cells "
                 f"may be coloured but this loop is over {node.loop_type}")
 
         # Check whether we have a field that has INC access
@@ -1161,14 +1183,27 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Cannot have a loop over colours "
                                       "within an OpenMP parallel region.")
 
-        # Get the ancestor InvokeSchedule as applying the transformation
-        # creates a new Loop node.
+    def apply(self, node: LFRicLoop, options: Optional[Dict[str, Any]] = None,
+              **kwargs):
+        ''' Convert the given LFRic-specific loop into a double or triple
+        nested loop where the outer loop iterates over colours and the inner
+        loops iterates over cells or tile and cells. This enables safe
+        parallelisation of the second loop.
+
+        :param node: the loop to transform.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        self.validate(node, options=options, **kwargs)
+
+        # Get the ancestor InvokeSchedule before applying the super() because
+        # node will be detached
         sched = node.ancestor(LFRicInvokeSchedule)
 
-        super().apply(node, options=options)
+        super().apply(node, options=options, **kwargs)
 
-        # Finally, update the information on the colourmaps required for
-        # the mesh(es) in this invoke.
+        # Update the information on the colourmaps required for the mesh(es) in
+        # this invoke.
         if sched and sched.invoke:
             sched.invoke.meshes.colourmap_init()
 
@@ -1195,7 +1230,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         # Create a colour loop. This loops over cells of a particular colour
         # and can be run in parallel.
         colour_loop = node.__class__(parent=colours_loop.loop_body,
-                                     loop_type="colour")
+                                     loop_type="cells_in_colour")
         colour_loop.field_space = node.field_space
         colour_loop.field_name = node.field_name
         colour_loop.iteration_space = node.iteration_space
@@ -1214,6 +1249,81 @@ class Dynamo0p3ColourTrans(ColourTrans):
         # Add this loop as a child of our loop over colours
         colours_loop.loop_body.addchild(colour_loop)
 
+        return colours_loop
+
+    def _create_tiled_colours_loops(self, node: Loop) -> Loop:
+        '''
+        Creates a nested loop hierarchy (colours, tiles and cells of a given
+        colour inside a tile) which can be used to replace the supplied loop
+        over cells.
+
+        If it iterates over halos it will look like:
+
+        do colour = 1, ntilecolours
+          do tile = 1, last_halo_tile_per_colour(colour, hdepth)
+            do cell =  1, last_halo_cell_per_colour_and_tile(tile, colour, hd)
+
+        If it does not iterate over halos it will look like:
+
+        do colour = 1, ntilecolours
+          do tile = 1, last_edge_tile_per_colour(colour)
+            do cell =  1, last_edge_cell_per_colour_and_tile(tile, colour)
+
+        :param node: the loop for which to create a coloured version.
+
+        :returns: triply-nested loop over colours and cells of a given colour.
+
+        '''
+        # Create a 'colours' loop. This loops over colours and must be run
+        # sequentially.
+        colours_loop = node.__class__(parent=node.parent, loop_type="colours")
+        colours_loop.field_space = node.field_space
+        colours_loop.iteration_space = node.iteration_space
+        colours_loop.set_lower_bound("start")
+        colours_loop.set_upper_bound("ntilecolours")
+
+        # Create a 'tiles_in_colour' loop. This loops over tiles of a
+        # particular colour and can be run in parallel.
+        colour_loop = node.__class__(parent=colours_loop.loop_body,
+                                     loop_type="tiles_in_colour")
+        colour_loop.field_space = node.field_space
+        colour_loop.field_name = node.field_name
+        colour_loop.iteration_space = node.iteration_space
+        colour_loop.set_lower_bound("start")
+        colour_loop.kernel = node.kernel
+        if node.upper_bound_name in LFRicConstants().HALO_ACCESS_LOOP_BOUNDS:
+            # If the original loop went into the halo then this coloured loop
+            # must also go into the halo.
+            index = node.upper_bound_halo_depth
+            colour_loop.set_upper_bound("ntiles_per_colour_halo", index)
+        else:
+            # No halo access.
+            colour_loop.set_upper_bound("ntiles_per_colour")
+
+        # Add this loop as a child of our loop over colours
+        colours_loop.loop_body.addchild(colour_loop)
+
+        # Create a cells loop. This loops over cells of a particular tile
+        # and can be run in parallel.
+        tile_loop = node.__class__(parent=colour_loop.loop_body,
+                                   loop_type="cells_in_tile")
+        tile_loop.field_space = node.field_space
+        tile_loop.field_name = node.field_name
+        tile_loop.iteration_space = node.iteration_space
+        tile_loop.set_lower_bound("start")
+        tile_loop.kernel = node.kernel
+        if node.upper_bound_name in LFRicConstants().HALO_ACCESS_LOOP_BOUNDS:
+            # If the original loop went into the halo then this coloured loop
+            # must also go into the halo.
+            index = node.upper_bound_halo_depth
+            tile_loop.set_upper_bound("ncells_per_colour_and_tile_halo",
+                                      index)
+        else:
+            # No halo access.
+            tile_loop.set_upper_bound("ncells_per_colour_and_tile")
+
+        # Add this loop as a child of our loop over colours
+        colour_loop.loop_body.addchild(tile_loop)
         return colours_loop
 
 
@@ -1420,10 +1530,8 @@ class OMPSingleTrans(ParallelRegionTrans):
         '''Apply the OMPSingleTrans transformation to the specified node in a
         Schedule.
 
-        At code-generation time this node must be within (i.e. a child of)
-        an OpenMP PARALLEL region. Code generation happens when
-        :py:meth:`OMPLoopDirective.gen_code` is called, or when the PSyIR
-        tree is given to a backend.
+        At code-generation time (when lowering is called) this node must be
+        within (i.e. a child of) an OpenMP PARALLEL region.
 
         If the keyword "nowait" is specified in the options, it will cause a
         nowait clause to be added if it is set to True, otherwise no clause
@@ -1716,7 +1824,7 @@ class MoveTrans(Transformation):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> ast,invokeInfo=parse("dynamo.F90")
+    >>> ast,invokeInfo=parse("lfric.F90")
     >>> psy=PSyFactory("lfric").create(invokeInfo)
     >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
     >>> # Uncomment the following line to see a text view of the schedule
@@ -1813,7 +1921,7 @@ class MoveTrans(Transformation):
             location.parent.children.insert(location_index+1, my_node)
 
 
-class Dynamo0p3RedundantComputationTrans(LoopTrans):
+class LFRicRedundantComputationTrans(LoopTrans):
     '''This transformation allows the user to modify a loop's bounds so
     that redundant computation will be performed. Redundant
     computation can result in halo exchanges being modified, new halo
@@ -1856,7 +1964,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
         :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyir.nodes.Loop` but the original loop does\
-            not iterate over 'colour'.
+            not iterate over 'cells_in_colour'.
         :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyir.nodes.Loop` but the parent does not
             iterate over 'colours'.
@@ -1905,48 +2013,48 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         dir_node = node.ancestor(Directive)
         if dir_node:
             raise TransformationError(
-                f"In the Dynamo0p3RedundantComputation transformation apply "
+                f"In the LFRicRedundantComputation transformation apply "
                 f"method the supplied loop is sits beneath a directive of "
                 f"type {type(dir_node)}. Redundant computation must be applied"
                 f" before directives are added.")
         if not (isinstance(node.parent, LFRicInvokeSchedule) or
                 isinstance(node.parent.parent, Loop)):
             raise TransformationError(
-                f"In the Dynamo0p3RedundantComputation transformation "
+                f"In the LFRicRedundantComputation transformation "
                 f"apply method the parent of the supplied loop must be the "
                 f"LFRicInvokeSchedule, or a Loop, but found "
                 f"{type(node.parent)}")
         if isinstance(node.parent.parent, Loop):
-            if node.loop_type != "colour":
+            if node.loop_type != "cells_in_colour":
                 raise TransformationError(
-                    f"In the Dynamo0p3RedundantComputation transformation "
+                    f"In the LFRicRedundantComputation transformation "
                     f"apply method, if the parent of the supplied Loop is "
                     f"also a Loop then the supplied Loop must iterate over "
-                    f"'colour', but found '{node.loop_type}'")
+                    f"'cells_in_colour', but found '{node.loop_type}'")
             if node.parent.parent.loop_type != "colours":
                 raise TransformationError(
-                    f"In the Dynamo0p3RedundantComputation transformation "
+                    f"In the LFRicRedundantComputation transformation "
                     f"apply method, if the parent of the supplied Loop is "
                     f"also a Loop then the parent must iterate over "
                     f"'colours', but found '{node.parent.parent.loop_type}'")
             if not isinstance(node.parent.parent.parent, LFRicInvokeSchedule):
                 raise TransformationError(
-                    f"In the Dynamo0p3RedundantComputation transformation "
+                    f"In the LFRicRedundantComputation transformation "
                     f"apply method, if the parent of the supplied Loop is "
                     f"also a Loop then the parent's parent must be the "
                     f"LFRicInvokeSchedule, but found {type(node.parent)}")
         if not Config.get().distributed_memory:
             raise TransformationError(
-                "In the Dynamo0p3RedundantComputation transformation apply "
+                "In the LFRicRedundantComputation transformation apply "
                 "method distributed memory must be switched on")
 
-        # loop must iterate over cell-column, dof or colour. Note, an
+        # loop must iterate over cell-column, dof or cell-in-colour. Note, an
         # empty loop_type iterates over cell-columns.
-        if node.loop_type not in ["", "dof", "colour"]:
+        if node.loop_type not in ["", "dof", "cells_in_colour"]:
             raise TransformationError(
-                f"In the Dynamo0p3RedundantComputation transformation apply "
+                f"In the LFRicRedundantComputation transformation apply "
                 f"method the loop type must be one of '' (cell-columns), 'dof'"
-                f" or 'colour', but found '{node.loop_type}'")
+                f" or 'cells_in_colour', but found '{node.loop_type}'")
 
         for kern in node.kernels():
             if "halo" in kern.iterates_over:
@@ -1967,14 +2075,14 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if not node.upper_bound_halo_depth:
                     raise TransformationError(
-                        "In the Dynamo0p3RedundantComputation transformation "
+                        "In the LFRicRedundantComputation transformation "
                         "apply method the loop is already set to the maximum "
                         "halo depth so this transformation does nothing")
                 for call in node.kernels():
                     for arg in call.arguments.args:
                         if arg.stencil:
                             raise TransformationError(
-                                f"In the Dynamo0p3RedundantComputation "
+                                f"In the LFRicRedundantComputation "
                                 f"transformation apply method the loop "
                                 f"contains field '{arg.name}' with a stencil "
                                 f"access in kernel '{call.name}', so it is "
@@ -1983,12 +2091,12 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         else:
             if not isinstance(depth, int):
                 raise TransformationError(
-                    f"In the Dynamo0p3RedundantComputation transformation "
+                    f"In the LFRicRedundantComputation transformation "
                     f"apply method the supplied depth should be an integer but"
                     f" found type '{type(depth)}'")
             if depth < 1:
                 raise TransformationError(
-                    "In the Dynamo0p3RedundantComputation transformation "
+                    "In the LFRicRedundantComputation transformation "
                     "apply method the supplied depth is less than 1")
 
             if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
@@ -1997,13 +2105,13 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                         upper_bound = int(node.upper_bound_halo_depth.value)
                         if upper_bound >= depth:
                             raise TransformationError(
-                                f"In the Dynamo0p3RedundantComputation "
+                                f"In the LFRicRedundantComputation "
                                 f"transformation apply method the supplied "
                                 f"depth ({depth}) must be greater than the "
                                 f"existing halo depth ({upper_bound})")
                 else:
                     raise TransformationError(
-                        "In the Dynamo0p3RedundantComputation transformation "
+                        "In the LFRicRedundantComputation transformation "
                         "apply method the loop is already set to the maximum "
                         "halo depth so can't be set to a fixed value")
 
@@ -2033,7 +2141,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         if loop.loop_type == "":
             # Loop is over cells
             loop.set_upper_bound("cell_halo", depth)
-        elif loop.loop_type == "colour":
+        elif loop.loop_type == "cells_in_colour":
             # Loop is over cells of a single colour
             loop.set_upper_bound("colour_halo", depth)
         elif loop.loop_type == "dof":
@@ -2041,13 +2149,13 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         else:
             raise TransformationError(
                 f"Unsupported loop_type '{loop.loop_type}' found in "
-                f"Dynamo0p3Redundant ComputationTrans.apply()")
+                f"LFRicRedundant ComputationTrans.apply()")
         # Add/remove halo exchanges as required due to the redundant
         # computation
         loop.update_halo_exchanges()
 
 
-class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
+class LFRicAsyncHaloExchangeTrans(Transformation):
     '''Splits a synchronous halo exchange into a halo exchange start and
     halo exchange end. For example:
 
@@ -2060,8 +2168,8 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
     >>>
-    >>> from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans
-    >>> trans = Dynamo0p3AsyncHaloExchangeTrans()
+    >>> from psyclone.transformations import LFRicAsyncHaloExchangeTrans
+    >>> trans = LFRicAsyncHaloExchangeTrans()
     >>> trans.apply(schedule.children[0])
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
@@ -2077,7 +2185,7 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
         :returns: the name of this transformation as a string.
         :rtype: str
         '''
-        return "Dynamo0p3AsyncHaloExchangeTrans"
+        return "LFRicAsyncHaloExchangeTrans"
 
     def apply(self, node, options=None):
         '''Transforms a synchronous halo exchange, represented by a
@@ -2127,12 +2235,12 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
         if not isinstance(node, psyGen.HaloExchange) or \
            isinstance(node, (LFRicHaloExchangeStart, LFRicHaloExchangeEnd)):
             raise TransformationError(
-                f"Error in Dynamo0p3AsyncHaloExchange transformation. Supplied"
+                f"Error in LFRicAsyncHaloExchange transformation. Supplied"
                 f" node must be a synchronous halo exchange but found "
                 f"'{type(node)}'.")
 
 
-class Dynamo0p3KernelConstTrans(Transformation):
+class LFRicKernelConstTrans(Transformation):
     '''Modifies a kernel so that the number of dofs, number of layers and
     number of quadrature points are fixed in the kernel rather than
     being passed in by argument.
@@ -2146,8 +2254,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
     >>>
-    >>> from psyclone.transformations import Dynamo0p3KernelConstTrans
-    >>> trans = Dynamo0p3KernelConstTrans()
+    >>> from psyclone.transformations import LFRicKernelConstTrans
+    >>> trans = LFRicKernelConstTrans()
     >>> for kernel in schedule.coded_kernels():
     >>>     trans.apply(kernel, number_of_layers=150)
     >>>     kernel_schedule = kernel.get_kernel_schedule()
@@ -2197,7 +2305,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         :returns: the name of this transformation as a string.
         :rtype: str
         '''
-        return "Dynamo0p3KernelConstTrans"
+        return "LFRicKernelConstTrans"
 
     def apply(self, node, options=None):
         # pylint: disable=too-many-statements, too-many-locals
@@ -2344,7 +2452,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
                               element_order_v+3)
             else:
                 raise TransformationError(
-                    f"Error in Dynamo0p3KernelConstTrans transformation. "
+                    f"Error in LFRicKernelConstTrans transformation. "
                     f"Support is currently limited to 'xyoz' quadrature but "
                     f"found {kernel.eval_shapes}.")
 
@@ -2361,16 +2469,16 @@ class Dynamo0p3KernelConstTrans(Transformation):
                           f"function space {info.function_space}")
                 else:
                     try:
-                        ndofs = Dynamo0p3KernelConstTrans. \
+                        ndofs = LFRicKernelConstTrans. \
                                 space_to_dofs[
                                     info.function_space](element_order_h,
                                                          element_order_v)
                     except KeyError as err:
                         raise InternalError(
-                            f"Error in Dynamo0p3KernelConstTrans "
+                            f"Error in LFRicKernelConstTrans "
                             f"transformation. Unsupported function space "
                             f"'{info.function_space}' found. Expecting one of "
-                            f"""{Dynamo0p3KernelConstTrans.
+                            f"""{LFRicKernelConstTrans.
                                  space_to_dofs.keys()}.""") from err
                     make_constant(symbol_table, info.position, ndofs,
                                   function_space=info.function_space)
@@ -2382,7 +2490,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         '''This method checks whether the input arguments are valid for
         this transformation.
 
-        :param node: a dynamo 0.3 kernel node.
+        :param node: an LFRic kernel node.
         :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
@@ -2396,7 +2504,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             should or shouldn't be set as constants in a kernel.
 
         :raises TransformationError: if the node argument is not a \
-            dynamo 0.3 kernel, the cellshape argument is not set to \
+            lFRic kernel, the cellshape argument is not set to \
             "quadrilateral", the element_order_h or element_order_v arguments\
             are not a 0 or a positive integer, the number of layers argument\
             is not a positive integer, the quadrature argument is not a\
@@ -2408,8 +2516,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
         '''
         if not isinstance(node, LFRicKern):
             raise TransformationError(
-                f"Error in Dynamo0p3KernelConstTrans transformation. Supplied "
-                f"node must be a dynamo kernel but found '{type(node)}'.")
+                f"Error in LFRicKernelConstTrans transformation. Supplied "
+                f"node must be an LFRic kernel but found '{type(node)}'.")
 
         if not options:
             options = {}
@@ -2421,7 +2529,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         if cellshape.lower() != "quadrilateral":
             # Only quadrilaterals are currently supported
             raise TransformationError(
-                f"Error in Dynamo0p3KernelConstTrans transformation. Supplied "
+                f"Error in LFRicKernelConstTrans transformation. Supplied "
                 f"cellshape must be set to 'quadrilateral' but found "
                 f"'{cellshape}'.")
 
@@ -2432,7 +2540,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
              element_order_v < 0):
             # element order must be 0 or a positive integer
             raise TransformationError(
-                f"Error in Dynamo0p3KernelConstTrans transformation. The "
+                f"Error in LFRicKernelConstTrans transformation. The "
                 f"element_order_h and element_order_v argument must be >= 0 "
                 f"but found element_order_h = '{element_order_h}', "
                 f"element_order_v = '{element_order_v}'.")
@@ -2441,14 +2549,14 @@ class Dynamo0p3KernelConstTrans(Transformation):
            (not isinstance(number_of_layers, int) or number_of_layers < 1):
             # number of layers must be a positive integer
             raise TransformationError(
-                f"Error in Dynamo0p3KernelConstTrans transformation. The "
+                f"Error in LFRicKernelConstTrans transformation. The "
                 f"number_of_layers argument must be > 0 but found "
                 f"'{number_of_layers}'.")
 
         if quadrature not in [False, True]:
             # quadrature must be a boolean value
             raise TransformationError(
-                f"Error in Dynamo0p3KernelConstTrans transformation. The "
+                f"Error in LFRicKernelConstTrans transformation. The "
                 f"quadrature argument must be boolean but found "
                 f"'{quadrature}'.")
 
@@ -2457,7 +2565,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # As a minimum, element orders or number of layers must have
             # values.
             raise TransformationError(
-                "Error in Dynamo0p3KernelConstTrans transformation. At least "
+                "Error in LFRicKernelConstTrans transformation. At least "
                 "one of [element_order_h, element_order_v] or "
                 "number_of_layers must be set otherwise this transformation "
                 "does nothing.")
@@ -2465,7 +2573,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         if quadrature and (element_order_h is None or element_order_v is None):
             # if quadrature then element order
             raise TransformationError(
-                "Error in Dynamo0p3KernelConstTrans transformation. If "
+                "Error in LFRicKernelConstTrans transformation. If "
                 "quadrature is set then both element_order_h and "
                 "element_order_v must also be set (as the values of the "
                 "former are derived from the latter.")
@@ -2536,7 +2644,7 @@ class ACCEnterDataTrans(Transformation):
 
         # pylint: disable=import-outside-toplevel
         if isinstance(sched, LFRicInvokeSchedule):
-            from psyclone.dynamo0p3 import DynACCEnterDataDirective as \
+            from psyclone.lfric import LFRicACCEnterDataDirective as \
                 AccEnterDataDir
         elif isinstance(sched, GOInvokeSchedule):
             from psyclone.gocean1p0 import GOACCEnterDataDirective as \
@@ -2915,16 +3023,14 @@ class KernelImportsToArguments(Transformation):
                 f"Kernel '{node.name}' contains undeclared symbol: "
                 f"{err.value}") from err
 
-        symtab = kernel.symbol_table
-        for container in symtab.containersymbols:
-            if container.wildcard_import:
-                raise TransformationError(
-                    f"Kernel '{node.name}' has a wildcard import of symbols "
-                    f"from container '{container.name}'. This is not "
-                    f"supported.")
-
-        # TODO #649. Check for variables accessed by the kernel but declared
-        # in an outer scope.
+        try:
+            kernel.check_outer_scope_accesses(node, "Kernel",
+                                              permit_unresolved=False,
+                                              ignore_non_data_accesses=True)
+        except SymbolError as err:
+            raise TransformationError(
+                f"Cannot apply {self.name} to Kernel '{node.name}' because it "
+                f"accesses data from its outer scope: {err.value}") from err
 
     def apply(self, node, options=None):
         '''
@@ -2938,7 +3044,6 @@ class KernelImportsToArguments(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-
         self.validate(node, options)
 
         kernel = node.get_kernel_schedule()
@@ -2950,17 +3055,23 @@ class KernelImportsToArguments(Transformation):
         # TODO #11: When support for logging is added, we could warn the user
         # if no imports are found in the kernel.
         for imported_var in kernel.symbol_table.imported_symbols[:]:
-            count_imported_vars_removed += 1
 
             # Resolve the data type information if it is not available
-            # pylint: disable=unidiomatic-typecheck
+            updated_sym = imported_var
+            # pylint: disable-next=unidiomatic-typecheck
             if (type(imported_var) is Symbol or
                     isinstance(imported_var.datatype, UnresolvedType)):
                 updated_sym = imported_var.resolve_type()
                 # If we have a new symbol then we must update the symbol table
                 if updated_sym is not imported_var:
                     kernel.symbol_table.swap(imported_var, updated_sym)
-            # pylint: enable=unidiomatic-typecheck
+
+            if updated_sym in kernel.symbol_table.precision_datasymbols:
+                # Symbols specifying compile-time precision can't be passed
+                # as arguments.
+                continue
+
+            count_imported_vars_removed += 1
 
             # Copy the imported symbol into the InvokeSchedule SymbolTable
             invoke_symtab.copy_external_import(
@@ -3025,12 +3136,12 @@ __all__ = [
    "ACCParallelTrans",
    "ACCRoutineTrans",
    "ColourTrans",
-   "Dynamo0p3AsyncHaloExchangeTrans",
-   "Dynamo0p3ColourTrans",
-   "Dynamo0p3KernelConstTrans",
-   "Dynamo0p3OMPLoopTrans",
-   "Dynamo0p3RedundantComputationTrans",
-   "DynamoOMPParallelLoopTrans",
+   "LFRicAsyncHaloExchangeTrans",
+   "LFRicColourTrans",
+   "LFRicKernelConstTrans",
+   "LFRicOMPLoopTrans",
+   "LFRicRedundantComputationTrans",
+   "LFRicOMPParallelLoopTrans",
    "GOceanOMPLoopTrans",
    "GOceanOMPParallelLoopTrans",
    "KernelImportsToArguments",

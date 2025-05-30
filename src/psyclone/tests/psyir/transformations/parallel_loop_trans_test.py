@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 ''' pytest tests for the parallel_loop_trans module. '''
 
@@ -249,6 +250,30 @@ def test_paralooptrans_apply_collapse(fortran_reader, fortran_writer):
             in fortran_writer(test_loop.parent.parent))
 
 
+def test_paralooptrans_apply_nowait(fortran_reader, fortran_writer):
+    ''' Test the 'nowait' option. '''
+    trans = ParaTrans()
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer :: i, j, k
+          real :: var(10,10,10) = 1
+
+          do i = 1, 10
+            do j = 1, 10
+              do k = 1, 10
+                var(i,j,k) = var(i, j, k) + 1
+              end do
+            end do
+          end do
+        end subroutine my_sub''')
+
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"nowait": True})
+    # On the base class nowait does nothing.
+    assert ("!$omp parallel do"
+            in fortran_writer(test_loop.parent.parent))
+
+
 def test_paralooptrans_collapse_options(fortran_reader, fortran_writer):
     '''
     Test the 'collapse' option, also in combination with the 'force' and
@@ -298,6 +323,24 @@ enddo
     test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
     trans.apply(test_loop, {"collapse": True, "verbose": True,
                             "ignore_dependencies_for": ["var"]})
+    assert '''\
+!$omp parallel do collapse(2) default(shared), private(i,j,k)
+do i = 1, 10, 1
+  do j = 1, 10, 1
+    ! Loop cannot be collapsed because one of the bounds depends on the \
+previous iteration variable 'j'
+    do k = 1, j, 1
+      var(i,j,k) = var(i,map(j),k)
+    enddo
+  enddo
+enddo
+''' in fortran_writer(test_loop.parent.parent)
+
+    # Check that the collapse logic can uses the "ignore_dependencies_for" and
+    # "force" logic to skip dependencies with the new options as well.
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, collapse=True, verbose=True,
+                ignore_dependencies_for=["var"])
     assert '''\
 !$omp parallel do collapse(2) default(shared), private(i,j,k)
 do i = 1, 10, 1
@@ -508,7 +551,7 @@ def test_paralooptrans_apply_calls_validate(fortran_reader, monkeypatch):
     trans = ParaTrans()
 
     # Monkeypatch the validate() method so that it raises a unique error.
-    def fake(_1, _2, options):
+    def fake(_1, _2, options, **kwargs):
         raise TransformationError("just a test")
     monkeypatch.setattr(ParaTrans, "validate", fake)
     with pytest.raises(TransformationError) as err:
@@ -617,3 +660,207 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
         trans.apply(loop, {"privatise_arrays": 3})
     assert ("The 'privatise_arrays' option must be a bool but got an object "
             "of type int" in str(err.value))
+
+
+def test_parallel_loop_trans_find_next_dependency(fortran_reader):
+    '''
+        Test the _find_next_dependency function in the ParallelLoopTrans
+        class.
+    '''
+    # Create an instance
+    paratrans = ParaTrans()
+    # First test easy case.
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i
+
+        do i = 1, 100
+           a(i) = i
+        end do
+
+        do i = 1, 100
+           a(i) = i
+        end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    direc = paratrans._directive(None)
+    loop = psyir.walk(Loop)[0]
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.children[0].addchild(direc, 0)
+    result = psyir.walk(Loop)[1].loop_body.children[0].lhs
+    assert paratrans._find_next_dependency(loop, direc) is result
+
+    # Test when we have a loop in a loop and the next access is prior.
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i, j
+        do j = 1, 100
+            a(j) = j
+            do i = 1, 100
+               a(i) = a(i) + i
+            end do
+        end do
+    end subroutine
+    """
+    direc = paratrans._directive(None)
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[1]
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Loop)[0].loop_body.addchild(direc)
+    result = psyir.walk(Loop)[0].loop_body.children[0].lhs
+    assert paratrans._find_next_dependency(loop, direc) is result
+
+    # Test when we have a loop in a loop and an access after outside all of
+    # the loops that the next access found it the prior one
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i, j
+        do j = 1, 100
+            a(j) = j
+            do i = 1, 100
+               a(i) = a(i) + i
+            end do
+        end do
+        a(1) = 1
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    direc = paratrans._directive(None)
+    loop = psyir.walk(Loop)[1]
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Loop)[0].loop_body.addchild(direc)
+    result = psyir.walk(Loop)[0].loop_body.children[0].lhs
+    assert paratrans._find_next_dependency(loop, direc) is result
+
+    # Test that an access after inside the same ancestor loop is the
+    # next access.
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i, j
+        do j = 1, 100
+            a(j) = j
+            do i = 1, 100
+               a(i) = a(i) + i
+            end do
+            a(1) = 1
+        end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    direc = paratrans._directive(None)
+    loop = psyir.walk(Loop)[1]
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Loop)[0].loop_body.addchild(direc, 1)
+    result = psyir.walk(Loop)[0].loop_body.children[2].lhs
+    assert paratrans._find_next_dependency(loop, direc) is result
+
+    # Test that if the loop is in a loop and the next access is outside
+    # the ancestor loop, we get False.
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i, j
+        do j = 1, 100
+            do i = 1, 100
+               a(i) = a(i) + i
+            end do
+        end do
+        a(1) = 1
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    direc = paratrans._directive(None)
+    loop = psyir.walk(Loop)[1]
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Loop)[0].loop_body.addchild(direc)
+    result = False
+    assert paratrans._find_next_dependency(loop, direc) is result
+
+    # Test that if there is no followup access we get True
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i, j
+        do i = 1, 100
+           a(i) = a(i) + i
+        end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    direc = paratrans._directive(None)
+    loop = psyir.walk(Loop)[0]
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.children[0].addchild(direc)
+    result = True
+    assert paratrans._find_next_dependency(loop, direc) is result
+
+    # Test that we find the correct access to handle nested loops.
+    # Make sure we use all the "find ancestor loop of loop" code.
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i, j
+        do i = 1, 100
+            do j = 1, 100
+                a(j) = 1
+            end do
+            do j = 1, 100
+                a(j) = a(j) + i
+            end do
+            do j = 1, 100
+                a(j) = a(j) + i
+            end do
+        end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[2]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Loop)[0].loop_body.addchild(direc, 1)
+    result = psyir.walk(Loop)[3].loop_body.children[0].lhs
+    assert paratrans._find_next_dependency(loop, direc) is result
+
+    # Test when there are multiple ancestor loops with accesses.
+    code = """
+    subroutine test
+        integer, dimension(100) :: a
+        integer :: i, j, k
+        do i = 1, 100
+            a(i) = 1
+            do j = 1, 100
+                a(j) = 2
+                do k = 1, 100
+                  a(k) = 3
+                end do
+            end do
+        end do
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[2]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Loop)[1].loop_body.addchild(direc)
+    result = psyir.walk(Loop)[1].loop_body.children[0].lhs
+    assert paratrans._find_next_dependency(loop, direc) is result
+
+
+def test_parallel_loop_trans_add_asynchronicity():
+    '''Test the _add_asynchronicity function of the parallel loop trans.'''
+    # Create an instance
+    paratrans = ParaTrans()
+    # Default implementation does nothing.
+    paratrans._add_asynchronicity(None)

@@ -68,9 +68,9 @@ specific platforms such as multi-node, multi-core and GPGPUs architectures
 without affecting the user-supplied Algorithm and Kernel layers.
 
 Rather than requiring that the PSy layer be written manually, PSyclone uses
-the provided Algorithm and Kernel implementations to generate an inital PSyIR
+the provided Algorithm and Kernel implementations to generate an initial PSyIR
 for the PSy-layer, optionally with distributed-memory parallelism.
-This then can be programatically optimised by applying PSyclone transformations
+This then can be programmatically optimised by applying PSyclone transformations
 (e.g. kernel fusing, colouring, inlining, ...) to better fit the target architecture.
 
 The rest of this section describes how to use the ``psyclone`` command to process PSyKAl
@@ -268,7 +268,7 @@ depending on the precision of the fields being passed to them::
     end interface   
 
 
-.. _built-ins:
+.. _psykal-built-ins:
 
 Built-ins
 ---------
@@ -348,8 +348,8 @@ In the PSyKAl model, the PSy layer is the bridge between the Algorithm
 full-field operations and the Kernel/Built-Ins individual element
 operations. As such, it is responsible for:
 
-1. calling any Kernel and expanding any Buit-In so that they iterate over
-   their specified interation space;
+1. calling any Kernel and expanding any Built-In so that they iterate over
+   their specified iteration space;
 2. map the Kernel and Built-In arguments supplied by an Algorithm ``invoke``
    call to the arguments required by a Built-in or Kernel method;
 3. include any required distributed-memory operations such as halo swaps

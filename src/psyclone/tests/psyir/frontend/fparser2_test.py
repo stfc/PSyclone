@@ -1698,6 +1698,8 @@ def test_process_use_stmts_resolving_external_imports(
     reader = FortranStringReader('''
     module test
         use other1
+        private
+        public a_func
     contains
         subroutine test_function()
             use other2, only : an_array
@@ -1722,10 +1724,15 @@ def test_process_use_stmts_resolving_external_imports(
     # the right symbol kind and datatype
     assert isinstance(symtab.lookup("other1"), ContainerSymbol)
     assert isinstance(symtab.lookup("a_func"), RoutineSymbol)
+    assert isinstance(symtab.lookup("N"), DataSymbol)
     assert isinstance(symtab.lookup("unused_array"), DataSymbol)
     assert symtab.lookup("n").datatype == INTEGER_TYPE
     # But not the private symbols
     assert "private_array" not in symtab
+    # The local symbols respect the local visibility statements
+    assert symtab.lookup("other1").visibility == Symbol.Visibility.PRIVATE
+    assert symtab.lookup("N").visibility == Symbol.Visibility.PRIVATE
+    assert symtab.lookup("a_func").visibility == Symbol.Visibility.PUBLIC
 
     routine = psyir.children[0]
     innersymtab = routine.symbol_table
@@ -2331,23 +2338,38 @@ def test_handling_unaryopbase():
     assert isinstance(new_node, CodeBlock)
 
 
-@pytest.mark.usefixtures("f2008_parser")
-def test_handling_return_stmt():
+def test_handling_return_stmt(fortran_reader):
     ''' Test that fparser2 Return_Stmt is converted to the expected PSyIR
     tree structure.
     '''
-    reader = FortranStringReader("return")
-    return_stmt = Execution_Part.match(reader)[0][0]
-    assert isinstance(return_stmt, Return_Stmt)
-
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [return_stmt])
-    # Check a new node was generated and connected to parent
-    assert len(fake_parent.children) == 1
-    new_node = fake_parent.children[0]
-    assert isinstance(new_node, Return)
-    assert not new_node.children
+    test_code = '''
+        module test_mod
+        contains
+          subroutine single_exit(a)
+              integer, intent(inout) :: a
+              a = 3
+              return
+          end subroutine
+          subroutine multiple_exit(a)
+              integer, intent(inout) :: a
+              if (a .eq. 4) then
+                  return
+              end if
+              a  = 3
+              return 4
+          end subroutine
+        end module test_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(test_code)
+    routines = psyir.walk(Routine)
+    # First subroutine return is redundant
+    assert len(routines[0].walk(Return)) == 0
+    # Second subroutine has a multi-exit return and an unsupported
+    # alternate return
+    assert len(routines[1].walk(Return)) == 1
+    assert len(routines[1].walk(CodeBlock)) == 1
+    assert ("Fortran alternate returns are not supported." in
+            routines[1].walk(CodeBlock)[0].preceding_comment)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -2940,3 +2962,24 @@ def test_structures_duplicate_name(f2008_parser):
     # Its shape must refer to "nelem" in the table of the Routine.
     assert isinstance(ycompt.datatype.shape[0].upper, Reference)
     assert ycompt.datatype.shape[0].upper.symbol is nelem
+
+
+def test_structuretype_used_before_def(fortran_reader):
+    '''
+    Test that an existing Symbol of unresolved type is specialised to
+    a DataTypeSymbol.
+
+    '''
+    test_code = '''\
+        module test_mod
+          use some_mod, only: my_type
+        contains
+          subroutine test_code()
+            type(my_type) :: var
+          end subroutine
+        end module test_mod'''
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].symbol_table
+    mytype = sym_table.lookup("my_type")
+    assert isinstance(mytype, DataTypeSymbol)
+    assert mytype.is_import

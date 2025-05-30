@@ -48,111 +48,6 @@ in the PSyKAl DSLs, for a particular architecture. However, transformations
 could be added for other reasons, such as to aid debugging or for
 performance monitoring.
 
-
-.. _sec_transformations_script:
-
-PSyclone User Scripts
----------------------
-
-A convenient way to apply transformations to a codebase is through the
-:ref:`psyclone_command` tool, which has the optional ``-s <SCRIPT_NAME>``
-flag that allows users to specify a script file to programatically modify
-input code::
-
-    > psyclone -s optimise.py input_source.f90
-
-In this case, the current directory is prepended to the Python search path
-**PYTHONPATH** which will then be used to try to find the script file. Thus,
-the search begins in the current directory and continues over any pre-existing
-directories in the search path, failing if the file cannot be found.
-
-Alternatively, script files may be specified with a path. In this case
-the file must exist in the specified location. This location is then added to
-the Python search path **PYTHONPATH** as before. For example::
-
-    > psyclone -s ./optimise.py input_source.f90
-    > psyclone -s ../scripts/optimise.py input_source.f90
-    > psyclone -s /home/me/PSyclone/scripts/optimise.py input_source.f90
-
-A valid PSyclone user script file must contain a **trans** function which accepts
-a :ref:`PSyIR node<psyir-ug>` representing the root of the psy-layer
-code (as a FileConatainer):
-
-.. code-block:: python
-
-    def trans(psyir):
-        # ...
-
-The example below adds an OpenMP directive to a specific PSyKAL kernel:
-
-.. code-block:: python
-
-    def trans(psyir):
-        from psyclone.transformations import OMPParallelLoopTrans
-        from psyclone.psyir.node import Routine
-        for subroutine in psyir.walk(Routine):
-            if subroutine.name == 'invoke_0_v3_kernel_type':
-                ol = OMPParallelLoopTrans()
-                ol.apply(subroutine.children[0])
-
-
-The script may apply as many transformations as is required for the intended
-optimisation, and may also apply transformations to all the routines (i.e. invokes
-and/or kernels) contained within the provided tree.
-The :ref:`examples section<examples>` provides a list of psyclone user scripts
-and associated usage instructions for multiple applications.
-
-
-Script Global Variables
-+++++++++++++++++++++++
-
-In addition to the ``trans`` function, there are special global variables that can be set
-to control some of the behaviours of the front-end (before the optimisation function
-is applied). These are:
-
-.. code-block:: python
-
-    # List of all files that psyclone will skip processing
-    FILES_TO_SKIP = ["boken_file1.f90", "boken_file2.f90"]
-
-    # Boolean to decide whether PSyclone should chase external modules while
-    # creating a PSyIR tree in order to obtain better external symbol information.
-    # It can also be a list of module names for more precise control
-    RESOLVE_IMPORTS = ["relevant_module1.f90", "relevant_module2.f90"]
-
-    def trans(psyir):
-        # ...
-
-
-PSyKAl algorithm code transformations
-+++++++++++++++++++++++++++++++++++++
-
-When using PSyKAl, the ``trans`` functions is used to transform the PSy-layer (the
-layer in charge of the Parallel-System and Loops traversal orders), however, a
-second optional transformation entry point ``trans_alg`` can be provided to
-directly transform the Algorithm-layer (this is currently only implemented for
-GOcean, but in the future it will also affect the LFRic DSL).
-
-.. code-block:: python
-
-   def trans_alg(psyir):
-       # ...
-
-As with the `trans()` function it is up to the script what it does with
-the algorithm PSyIR. Note that the `trans_alg()` script is applied to
-the algorithm layer before the PSy-layer is generated so any changes
-applied to the algorithm layer will be reflected in the PSy-layer PSyIR tree
-object that is passed to the `trans()` function.
-
-For example, if the `trans_alg()` function in the script merged two
-`invoke` calls into one then the PSyIR node passed to the
-`trans()` function of the script would only contain one Routine
-associated with the merged invoke.
-
-An example of the use of a script making use of the `trans_alg()`
-function can be found in examples/gocean/eg7.
-
-
 Finding transformations
 -----------------------
 
@@ -168,6 +63,7 @@ provided to show the available transformations
           the path indicated in the documentation.
 
 .. autoclass:: psyclone.psyGen.TransInfo
+    :no-index:
     :members:
 
 
@@ -179,6 +75,47 @@ can be applied, and one to actually apply the transformation. They are
 described in detail in the
 :ref:`overview of all transformations<sec_transformations_available>`,
 but the following general guidelines apply.
+
+Ongoing Changes to the options parameter
+++++++++++++++++++++++++++++++++++++++++
+PSyclone has supported an ``options`` dictionary to provide options to both
+validate and apply functions on Transformation classes. This behaviour
+is now deprecated, and we are in the process of adding an alternative
+way to pass options to Transformations.
+
+In the future, each option will have its own argument, for example::
+    
+    def apply(node, option1: int = 0, option2: bool = False, ...):
+
+These can be inherited from parent Transformation classes if appropriate.
+All of the options (including inherited options) will be visible in the
+sphinx generated documentation, and a ``get_valid_options`` function is
+available on each Transformation class to view the possible options
+programmatically.
+
+For existing transformation scripts, switching to using the new options
+strategy can be done by unpacking the current options dict, for example::
+
+    options = {"option1": 2, "option2": True}
+    mytransformation.apply(node, **options)
+    mytransformation.apply(node, option1=2, option2=True)
+
+would be the new possible ways to call the ``apply`` method we defined above,
+as opposed to the old strategy of::
+
+    options = {"option1": 2, "option2: True}
+    mytransformation.apply(node, options=options)
+
+Options dictionaries will continue to remain in the code until they have been
+deprecated for all Transformations, and providing an options dict will
+make the Transformation ignore any other arguments (i.e. only the new or
+old method of providing options can be used - the two cannot be mixed).
+
+This new functionality also performs checks on options supplied as arguments.
+All arguments will be checked to see if they are valid options for the
+Transformation, and their types will also be checked. If an invalid option is
+supplied, or the type of an option is incorrect then an Exception will be
+thrown.
 
 Validation
 +++++++++++
@@ -216,7 +153,7 @@ described above. Besides potentially modifying the validation
 process, optional parameters for the transformation are also
 provided this way. A simple example::
 
-    kctrans = Dynamo0p3KernelConstTrans()
+    kctrans = LFRicKernelConstTrans()
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0, "quadrature": True})
 
 The same ``options`` dictionary will be used when calling ``validate``.
@@ -251,133 +188,139 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.psyir.transformations.Abs2CodeTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.ACCDataTrans
-    :noindex:
+    :no-index:
     :members: apply
 
 ####
 
 .. autoclass:: psyclone.transformations.ACCEnterDataTrans
-    :noindex:
+    :no-index:
     :members: apply
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ACCKernelsTrans
-    :noindex:
+    :no-index:
     :members: apply
 
 ####
 
 .. autoclass:: psyclone.transformations.ACCLoopTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.ACCParallelTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.AllArrayAccess2LoopTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ArrayAccess2LoopTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ArrayAssignment2LoopsTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ChunkLoopTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.ColourTrans
     :members: apply
-    :noindex:
+    :no-index:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.DebugChecksumTrans
+      :members: apply
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.DotProduct2CodeTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.extract_trans.ExtractTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.HoistLocalArraysTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.HoistLoopBoundExprTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.HoistTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.InlineTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.domain.common.transformations.KernelModuleInlineTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.LoopFuseTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.LoopSwapTrans
    :members: apply
-   :noindex:
+   :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.LoopTiling2DTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Matmul2CodeTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 .. note:: This transformation is currently limited to translating the
           matrix vector form of MATMUL to equivalent PSyIR code.
@@ -386,7 +329,7 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.psyir.transformations.Max2CodeTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 .. warning:: This transformation assumes that the MAX Intrinsic acts on
              PSyIR Real scalar data and does not check that this is
@@ -397,13 +340,13 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.psyir.transformations.Maxval2LoopTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Min2CodeTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 .. warning:: This transformation assumes that the MIN Intrinsic acts on
              PSyIR Real scalar data and does not check that this is
@@ -414,7 +357,7 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.psyir.transformations.Minval2LoopTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
@@ -422,32 +365,32 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.transformations.MoveTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.domain.gocean.transformations.GOOpenCLTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.OMPDeclareTargetTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.OMPLoopTrans
     :members: apply, omp_schedule, omp_directive
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.OMPMasterTrans
     :inherited-members:
     :exclude-members: name
-    :noindex:
+    :no-index:
 
 .. note:: PSyclone does not support (distributed-memory) halo swaps or
           global sums within OpenMP master regions.  Attempting to
@@ -463,14 +406,14 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.transformations.OMPParallelLoopTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.OMPParallelTrans
     :inherited-members:
     :exclude-members: name
-    :noindex:
+    :no-index:
 
 .. note:: PSyclone does not support (distributed-memory) halo swaps or
           global sums within OpenMP parallel regions.  Attempting to
@@ -487,7 +430,7 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.transformations.OMPSingleTrans
     :inherited-members:
     :exclude-members: name
-    :noindex:
+    :no-index:
 
 .. note:: PSyclone does not support (distributed-memory) halo swaps or
           global sums within OpenMP single regions.  Attempting to
@@ -503,75 +446,73 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.psyir.transformations.OMPTargetTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.transformations.OMPTaskloopTrans
     :members: apply, omp_grainsize, omp_num_tasks
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.OMPTaskTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.OMPTaskwaitTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Product2LoopTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ProfileTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ReadOnlyVerifyTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Reference2ArrayRangeTrans
     :members: apply
-    :noindex:
+    :no-index:
 
 ####
 
-.. _replace_induction_variable_trans:
-
 .. autoclass:: psyclone.psyir.transformations.ReplaceInductionVariablesTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Sign2CodeTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Sum2LoopTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ScalarisationTrans
       :members: apply
-      :noindex:
+      :no-index:
 
 ####
 
@@ -709,20 +650,20 @@ applied to either or both the PSy-layer and Kernel-layer PSyIR.
 ####
 
 .. autoclass:: psyclone.transformations.ACCRoutineTrans
-   :noindex:
+   :no-index:
    :members:
 
 ####
 
 .. autoclass:: psyclone.psyir.transformations.FoldConditionalReturnExpressionsTrans
-   :noindex:
+   :no-index:
    :members:
 
 ####
 
 .. autoclass:: psyclone.transformations.KernelImportsToArguments
     :members: apply
-    :noindex:
+    :no-index:
 
 
 .. note:: This transformation is only supported by the GOcean 1.0 API.
@@ -925,7 +866,7 @@ mentioned run-time configuration options could look something like::
 OpenACC
 -------
 
-PSyclone supports the generation of code targetting GPUs through the
+PSyclone supports the generation of code targeting GPUs through the
 addition of OpenACC directives. This is achieved by a user applying
 various OpenACC transformations to the PSyIR before the final Fortran
 code is generated. The steps to parallelisation are very similar to

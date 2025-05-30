@@ -37,7 +37,6 @@
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran and c module'''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Assignment, Reference
