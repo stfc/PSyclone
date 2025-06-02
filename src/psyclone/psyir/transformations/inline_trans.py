@@ -240,11 +240,6 @@ class InlineTrans(Transformation):
         # TODO #924 - while doing this we should ensure that any References
         # to common/shared Symbols in the inlined code are updated to point
         # to the ones at the call site.
-        if isinstance(new_stmts[-1], Return):
-            # If the final statement of the routine is a return then
-            # remove it from the list.
-            del new_stmts[-1]
-
         if routine.return_symbol:
             # This is a function
             assignment = node.ancestor(Statement, excluding=Call)

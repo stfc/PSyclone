@@ -42,7 +42,6 @@
 import os
 import pytest
 from psyclone.errors import UnresolvedDependencyError
-from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
@@ -67,12 +66,12 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import ChunkLoopTrans, OMPTaskTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import (
-    Dynamo0p3OMPLoopTrans, OMPParallelTrans,
-    OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans,
+    LFRicOMPLoopTrans, OMPParallelTrans,
+    OMPParallelLoopTrans, LFRicOMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+    os.path.abspath(__file__)))), "test_files", "lfric")
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
                                 "gocean1p0")
@@ -163,118 +162,6 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch):
     assert ("Lowering 'OMPParallelDirective' does not support symbols that "
             "need synchronisation unless they are in a depend clause, but "
             "found: 'a' which is not in a depend clause." in str(err.value))
-
-
-def test_ompparallel_gen_code_clauses(monkeypatch):
-    ''' Check that the OMP Parallel region clauses are generated
-    appropriately. '''
-
-    # Check with an LFRic kernel, the cell variable must be private
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    tree = psy.invokes.invoke_list[0].schedule
-    ptrans = OMPParallelTrans()
-    tdir = OMPDoDirective()
-    loops = tree.walk(Loop)
-    loop = loops[0]
-    parent = loop.parent
-    loop.detach()
-    tdir.children[0].addchild(loop)
-    parent.addchild(tdir, index=0)
-    ptrans.apply(loops[0].parent.parent)
-
-    assert isinstance(tree.children[0], OMPParallelDirective)
-    pdir = tree.children[0]
-    code = str(psy.gen).lower()
-    assert len(pdir.children) == 4
-    assert "private(cell)" in code
-
-    # Check that making a change (add private k variable) after the first
-    # time psy.gen is called recomputes the clauses attributes
-    new_loop = pdir.children[0].children[0].children[0].children[0].copy()
-    routine = pdir.ancestor(Routine)
-    routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
-    # Change the loop variable to j
-    jvar = DataSymbol("k", INTEGER_SINGLE_TYPE)
-    new_loop.variable = jvar
-    tdir2 = OMPDoDirective()
-    tdir2.children[0].addchild(new_loop)
-    # Add loop
-    pdir.children[0].addchild(tdir2)
-
-    code = str(psy.gen).lower()
-    assert "private(cell,k)" in code
-
-    # Monkeypatch a case with private and firstprivate clauses
-    monkeypatch.setattr(pdir, "infer_sharing_attributes",
-                        lambda: ({Symbol("a")}, {Symbol("b")}, None))
-
-    code = str(psy.gen).lower()
-    assert "private(a)" in code
-    assert "firstprivate(b)" in code
-
-    # Monkeypatch a case with shared variables that need synchronisation
-    monkeypatch.setattr(pdir, "infer_sharing_attributes",
-                        lambda: ({}, {}, {Symbol("a")}))
-    with pytest.raises(GenerationError) as err:
-        code = str(psy.gen).lower()
-    assert ("OMPParallelDirective.gen_code() does not support symbols that "
-            "need synchronisation, but found: ['a']" in str(err.value))
-
-
-def test_omp_paralleldo_clauses_gen_code(monkeypatch):
-    ''' Check that the OMP ParallelDo clauses are generated
-    appropriately. '''
-
-    # Check with an LFRic kernel, the cell variable must be private
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    tree = psy.invokes.invoke_list[0].schedule
-    ptrans = OMPParallelLoopTrans()
-    loops = tree.walk(Loop)
-    ptrans.apply(loops[0])
-
-    assert isinstance(tree.children[0], OMPParallelDoDirective)
-    pdir = tree.children[0]
-    code = str(psy.gen).lower()
-    assert len(pdir.children) == 2
-    assert "private(cell)" in code
-    assert "schedule(auto)" in code
-    assert "firstprivate" not in code
-
-    # Check that making a change (add private k variable) after the first
-    # time psy.gen is called recomputes the clauses attributes
-    routine = pdir.ancestor(Routine)
-    routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
-    # Change the loop variable to k
-    kvar = DataSymbol("k", INTEGER_SINGLE_TYPE)
-    pdir.children[0].children[0].variable = kvar
-    # Change the schedule to 'none'
-    pdir.omp_schedule = "none"
-
-    # No 'schedule' clause should now be present on the OMP directive.
-    code = str(psy.gen).lower()
-    assert "schedule(" not in code
-    assert "private(k)" in code
-    assert "firstprivate" not in code
-
-    # Monkeypatch a case with firstprivate clauses
-    monkeypatch.setattr(pdir, "infer_sharing_attributes",
-                        lambda: ({Symbol("a")}, {Symbol("b")}, None))
-
-    code = str(psy.gen).lower()
-    assert "private(a)" in code
-    assert "firstprivate(b)" in code
-
-    # Monkeypatch a case with shared variables that need synchronisation
-    monkeypatch.setattr(pdir, "infer_sharing_attributes",
-                        lambda: ({}, {}, {Symbol("a")}))
-    with pytest.raises(GenerationError) as err:
-        code = str(psy.gen).lower()
-    assert ("OMPParallelDoDirective.gen_code() does not support symbols that "
-            "need synchronisation, but found: ['a']" in str(err.value))
 
 
 def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
@@ -675,7 +562,7 @@ def test_directiveinfer_sharing_attributes_lfric():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # We use Transformations to introduce the necessary directives
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do directive to the loop
     otrans.apply(schedule.children[0], {"reprod": True})
@@ -1160,7 +1047,7 @@ def test_omp_forward_dependence():
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     for child in schedule.children:
         otrans.apply(child)
     read4 = schedule.children[4]
@@ -1280,27 +1167,6 @@ def test_omp_single_nested_validate_global_constraints(monkeypatch):
             "region") in str(excinfo.value)
 
 
-@pytest.mark.parametrize("nowait", [False, True])
-def test_omp_single_gencode(nowait):
-    '''Check that the gen_code method in the OMPSingleDirective class
-    generates the expected code.
-    '''
-    subroutine = Routine.create("testsub")
-    temporary_module = ModuleGen("test")
-    parallel = OMPParallelDirective.create()
-    single = OMPSingleDirective(nowait=nowait)
-    parallel.dir_body.addchild(single)
-    subroutine.addchild(parallel)
-    parallel.gen_code(temporary_module)
-
-    clauses = ""
-    if nowait:
-        clauses += " nowait"
-
-    assert "!$omp single" + clauses + "\n" in str(temporary_module.root)
-    assert "!$omp end single\n" in str(temporary_module.root)
-
-
 def test_omp_master_strings():
     ''' Test the begin_string and end_string methods of the OMPMaster
         directive '''
@@ -1308,22 +1174,6 @@ def test_omp_master_strings():
 
     assert omp_master.begin_string() == "omp master"
     assert omp_master.end_string() == "omp end master"
-
-
-def test_omp_master_gencode():
-    '''Check that the gen_code method in the OMPMasterDirective class
-    generates the expected code.
-    '''
-    subroutine = Routine.create("testsub")
-    temporary_module = ModuleGen("test")
-    parallel = OMPParallelDirective.create()
-    master = OMPMasterDirective()
-    parallel.dir_body.addchild(master)
-    subroutine.addchild(parallel)
-    parallel.gen_code(temporary_module)
-
-    assert "!$omp master\n" in str(temporary_module.root)
-    assert "!$omp end master\n" in str(temporary_module.root)
 
 
 def test_omp_master_validate_global_constraints():
@@ -1411,21 +1261,6 @@ def test_omptaskwait_strings():
     assert taskwait.begin_string() == "omp taskwait"
 
 
-def test_omptaskwait_gencode():
-    '''Check that the gen_code method in the OMPTaskwaitDirective
-    class generates the expected code.
-    '''
-    subroutine = Routine.create("testsub")
-    temporary_module = ModuleGen("test")
-    parallel = OMPParallelDirective.create()
-    directive = OMPTaskwaitDirective()
-    parallel.dir_body.addchild(directive)
-    subroutine.addchild(parallel)
-    parallel.gen_code(temporary_module)
-
-    assert "!$omp taskwait\n" in str(temporary_module.root)
-
-
 def test_omp_taskwait_clauses():
     ''' Test the clauses property of the OMPTaskwait directive. '''
     omp_taskwait = OMPTaskwaitDirective()
@@ -1453,37 +1288,12 @@ def test_omp_taskloop_init():
         OMPTaskloopDirective(grainsize=32, num_tasks=32)
     assert ("OMPTaskloopDirective must not have both grainsize and "
             "numtasks clauses specified.") in str(excinfo.value)
-
-
-@pytest.mark.parametrize("grainsize,num_tasks,nogroup,clauses",
-                         [(None, None, False, ""),
-                          (32, None, False, " grainsize(32)"),
-                          (None, 32, True, " num_tasks(32), nogroup")])
-def test_omp_taskloop_gencode(grainsize, num_tasks, nogroup, clauses):
-    '''Check that the gen_code method in the OMPTaskloopDirective
-    class generates the expected code.
-    '''
-    temporary_module = ModuleGen("test")
-    subroutine = Routine.create("testsub")
-    parallel = OMPParallelDirective.create()
-    single = OMPSingleDirective()
-    directive = OMPTaskloopDirective(grainsize=grainsize, num_tasks=num_tasks,
-                                     nogroup=nogroup)
-    parallel.dir_body.addchild(single)
-    single.dir_body.addchild(directive)
-    sym = subroutine.symbol_table.new_symbol(
-            "i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    loop = Loop.create(sym,
-                       Literal("1", INTEGER_TYPE),
-                       Literal("10", INTEGER_TYPE),
-                       Literal("1", INTEGER_TYPE),
-                       [])
-    directive.dir_body.addchild(loop)
-    subroutine.addchild(parallel)
-    parallel.gen_code(temporary_module)
-
-    assert "!$omp taskloop" + clauses + "\n" in str(temporary_module.root)
-    assert "!$omp end taskloop\n" in str(temporary_module.root)
+    tl1 = OMPTaskloopDirective(grainsize=32)
+    assert tl1.walk(OMPGrainsizeClause)
+    assert not tl1.walk(OMPNumTasksClause)
+    tl2 = OMPTaskloopDirective(num_tasks=32)
+    assert not tl2.walk(OMPGrainsizeClause)
+    assert tl2.walk(OMPNumTasksClause)
 
 
 @pytest.mark.parametrize("nogroup", [False, True])
@@ -1580,11 +1390,6 @@ def test_omp_declare_target_directive_constructor_and_strings(monkeypatch):
     target = OMPDeclareTargetDirective()
     assert target.begin_string() == "omp declare target"
     assert str(target) == "OMPDeclareTargetDirective[]"
-
-    monkeypatch.setattr(target, "validate_global_constraints", lambda: None)
-    temporary_module = ModuleGen("test")
-    target.gen_code(temporary_module)
-    assert "!$omp declare target\n" in str(temporary_module.root)
 
 
 def test_omp_declare_target_directive_validate_global_constraints():
@@ -4836,34 +4641,3 @@ def test_omp_serial_check_dependency_valid_pairing():
     assert test_dir._check_dependency_pairing_valid(
                array_reference1, array_reference2, None, None
            )
-
-
-def test_omptarget_gen_code():
-    ''' Check that the OMPTarget gen_code produces the right code '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    kern = schedule.children[-1]
-
-    # Add an OMPTarget and move the kernel inside it
-    target = OMPTargetDirective()
-    schedule.addchild(target)
-    target.dir_body.addchild(kern.detach())
-
-    # Check that the "omp target" is produced, and that the set_dirty is
-    # generated after it
-    code = str(psy.gen)
-    assert """
-      !$omp target
-      DO cell = loop0_start, loop0_stop, 1
-        CALL testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, \
-m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), \
-ndf_w3, undf_w3, map_w3(:,cell))
-      END DO
-      !$omp end target
-      !
-      ! Set halos dirty/clean for fields modified in the above loop(s)
-      !
-      CALL f1_proxy%set_dirty()
-    """ in code

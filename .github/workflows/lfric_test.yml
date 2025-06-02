@@ -46,9 +46,9 @@ jobs:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     env:
-      LFRIC_APPS_REV: 7536
-      LFRIC_CORE_REV: 52054
-      PYTHON_VERSION: 3.13.2
+      LFRIC_APPS_REV: 10798
+      LFRIC_CORE_REV: 52772
+      PYTHON_VERSION: 3.13.3
 
     steps:
     - uses: actions/checkout@v3
@@ -74,25 +74,47 @@ jobs:
         # than the latest release from pypi.
         # pip install external/fparser
         pip install .[test]
+        # Fetch the specified version of LFRic apps
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
+        spack load fcm%gcc
+        fcm co -r ${LFRIC_APPS_REV} https://code.metoffice.gov.uk/svn/lfric_apps/main/trunk/ lfric_apps
+        # We need to patch lfric_core to resolve issues with the nvfortran compiler
+        # see https://code.metoffice.gov.uk/trac/lfric/ticket/4621
+        fcm co -r ${LFRIC_CORE_REV} https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
+        sed -i "s|lfric_core_rev=$LFRIC_CORE_REV|lfric_core_rev=|g" lfric_apps/dependencies.sh
+        sed -i "s|lfric_core_sources=|lfric_core_sources=$PWD/lfric_core|g" lfric_apps/dependencies.sh
+        cd lfric_core
+        svn patch ${GITHUB_WORKSPACE}/examples/lfric/scripts/KGOs/nvidia_lfric_core.patch
 
-    # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks
+    # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks.
+    # COMPUTE_ANNEXED_DOFS is set to false for this test by using the
+    # appropriate cfg file.
     - name: LFRic passthrough (with DistributedMemory)
       run: |
         # Set up environment
         source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc@14
+        spack load lfric-build-environment%gcc
+        spack load gcc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone_no_annexed.cfg
+        export LFRIC_DIR=${GITHUB_WORKSPACE}/lfric_apps
         cd ${LFRIC_DIR}
+        # Ensure no transformations are applied by supplying an empty
+        # transformation script.
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
+        mkdir -p ${OPT_DIR}
+        cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
-        ./build/local_build.py -a gungho_model -v
+        ./build/local_build.py -a gungho_model -v -p psyclone-test
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
+        # Number of OMP threads have to be set even when psyclone does not inject OpenMP
+        # because some psykal-lite routines have it.
+        export OMP_NUM_THREADS=1
         mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
@@ -112,16 +134,14 @@ jobs:
         # Set up environment
         source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%nvhpc
+        spack load nvhpc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
+        export LFRIC_DIR=${GITHUB_WORKSPACE}/lfric_apps
         cd ${LFRIC_DIR}
-        # Update the PSyclone commands to ensure transformed kernels are written
-        # to working directory.
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk ../lfric_core_${LFRIC_CORE_REV}/infrastructure/build/psyclone/.
-        # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
-        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
+        # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
@@ -131,7 +151,7 @@ jobs:
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         export OMP_NUM_THREADS=1
-        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
+        mpirun -n 1 ../bin/gungho_model configuration_c16_10it.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
@@ -142,7 +162,7 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic OpenMP offloading", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
-          compiler:"spack-nvhpc-24.5", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+          compiler:"spack-nvhpc-24.11", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
     # PSyclone, compile and run MetOffice gungho_model on GPU
     - name: LFRic GungHo with OpenACC offload
@@ -150,16 +170,14 @@ jobs:
         # Set up environment
         source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%nvhpc
+        spack load nvhpc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
+        export LFRIC_DIR=${GITHUB_WORKSPACE}/lfric_apps
         cd ${LFRIC_DIR}
-        # Update the PSyclone commands to ensure transformed kernels are written
-        # to working directory.
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk ../lfric_core_${LFRIC_CORE_REV}/infrastructure/build/psyclone/.
-        # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
-        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
+        # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
@@ -169,7 +187,7 @@ jobs:
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         export OMP_NUM_THREADS=1
-        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
+        mpirun -n 1 ../bin/gungho_model configuration_c16_10it.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
@@ -180,22 +198,23 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic OpenACC", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
-          compiler:"spack-nvhpc-24.5", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+          compiler:"spack-nvhpc-24.11", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
     # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 mpi ranks each with 2 OpenMP threads
     - name: LFRic with all transformations
       run: |
         # Set up environment
         source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc@14
+        spack load lfric-build-environment%gcc
+        spack load gcc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
+        export LFRIC_DIR=${GITHUB_WORKSPACE}/lfric_apps
         cd ${LFRIC_DIR}
-        # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
-        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
-        mkdir -p applications/gungho_model/optimisation/psyclone-test
+        # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
+        mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
@@ -216,4 +235,41 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic all transformations", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
+          system: "GlaDos", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+
+    # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 mpi ranks each with 2 OpenMP threads
+    - name: LFRic with colour-tiling and OpenMP
+      run: |
+        # Set up environment
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment%gcc
+        spack load gcc
+        source .runner_venv/bin/activate
+        export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        export LFRIC_DIR=${GITHUB_WORKSPACE}/lfric_apps
+        cd ${LFRIC_DIR}
+        # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
+        mkdir -p ${OPT_DIR}
+        cp ${PSYCLONE_LFRIC_DIR}/tiledcolouring_and_omp.py ${OPT_DIR}/global.py
+        # Clean previous version and compile again
+        rm -rf applications/gungho_model/working
+        ./build/local_build.py -a gungho_model -p psyclone-test -v
+        # Run
+        cd applications/gungho_model/example
+        rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
+        export OMP_NUM_THREADS=2
+        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
+        cat timer.txt
+        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "LFRic colour-tiling", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
           system: "GlaDos", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"'})'

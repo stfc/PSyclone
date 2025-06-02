@@ -47,7 +47,7 @@ from psyclone.transformations import check_intergrid
 
 class LFRicLoopFuseTrans(LoopFuseTrans):
     ''' LFRic API specialisation of the
-    :py:class:`base class <LoopFuseTrans>` in order to fuse two Dynamo
+    :py:class:`base class <LoopFuseTrans>` in order to fuse two LFRic
     loops after performing validity checks. For example:
 
     >>> from psyclone.parse.algorithm import parse
@@ -74,7 +74,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
     '''
 
     def __str__(self):
-        return ("Fuse two adjacent loops together with Dynamo-specific "
+        return ("Fuse two adjacent loops together with LFRic-specific "
                 "validity checks")
 
     def validate(self, node1, node2, options=None):
@@ -142,7 +142,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                 f"'same_space' flag must be either bool or None type, but the "
                 f"type of flag provided was '{type(same_space).__name__}'.")
         super().validate(node1, node2, options=my_options)
-        # Now test for Dynamo-specific constraints
+        # Now test for LFRic-specific constraints
 
         # 1) Check that we don't have an inter-grid kernel
         check_intergrid(node1)

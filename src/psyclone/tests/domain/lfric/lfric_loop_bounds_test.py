@@ -40,7 +40,6 @@ class. '''
 import os
 
 from psyclone.domain.lfric import LFRicLoopBounds
-from psyclone.f2pygen import SubroutineGen, ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import symbols
@@ -48,7 +47,7 @@ from psyclone.psyir import symbols
 
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+        os.path.abspath(__file__)))), "test_files", "lfric")
 TEST_API = "lfric"
 
 
@@ -65,38 +64,32 @@ def test_lbounds_construction():
     assert isinstance(lbounds, LFRicLoopBounds)
 
 
-def test_lbounds_initialise(monkeypatch):
+def test_lbounds_initialise(monkeypatch, fortran_writer):
     ''' Test the initialise method of LFRicLoopBounds. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.0.1_single_named_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    mod = ModuleGen()
-    fake_parent = SubroutineGen(mod)
     lbounds = LFRicLoopBounds(invoke)
 
     table = invoke.schedule.symbol_table
-    assert "loop0_start" not in table
-    assert "loop0_stop" not in table
 
-    lbounds.initialise(fake_parent)
+    lbounds.initialise(0)
 
-    # Check that new symbols have been added.
+    # Check that new symbols exist
     start_sym = table.lookup("loop0_start")
     assert start_sym.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
     stop_sym = table.lookup("loop0_stop")
     assert stop_sym.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
 
-    assert "Set-up all of the loop bounds" in str(fake_parent.children[1].root)
+    assert "Set-up all of the loop bounds" in fortran_writer(invoke.schedule)
     # Monkeypatch the schedule so that it appears to have no loops.
     monkeypatch.setattr(invoke.schedule, "loops", lambda: [])
     lbounds = LFRicLoopBounds(invoke)
-    fake_parent = SubroutineGen(mod)
     # The initialise() should not raise an error but nothing should be
-    # added to the f2pygen tree.
-    lbounds.initialise(fake_parent)
-    assert fake_parent.children == []
+    # added to the PSyIR tree.
+    lbounds.initialise(0)
     # Symbols representing loop bounds should be unaffected.
     assert table.lookup("loop0_start") is start_sym
     assert table.lookup("loop0_stop") is stop_sym

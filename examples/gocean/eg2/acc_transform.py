@@ -61,6 +61,16 @@ def trans(psyir):
     for schedule in psyir.children[0].children:
         if schedule.name == 'invoke_0_inc_field':
 
+            # Put an 'acc routine' directive inside each kernel
+            try:
+                for kern in schedule.coded_kernels():
+                    ktrans.apply(kern)
+                    itrans.apply(kern)
+            except TransformationError:
+                # TODO #2856: Currenly we refuse to offload code containing
+                # the REAL intrinsic
+                continue
+
             # Apply the OpenACC Loop transformation to *every* loop
             # nest in the schedule
             for child in schedule.children:
@@ -72,11 +82,3 @@ def trans(psyir):
 
             # Add an enter-data directive
             dtrans.apply(schedule)
-
-            # Put an 'acc routine' directive inside each kernel
-            for kern in schedule.coded_kernels():
-                try:
-                    ktrans.apply(kern)
-                    itrans.apply(kern)
-                except TransformationError:
-                    pass  # TODO #2856 Currenly we refuse offloading REAL

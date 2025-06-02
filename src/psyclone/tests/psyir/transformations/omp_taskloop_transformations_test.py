@@ -35,7 +35,6 @@
 '''
 API-agnostic tests for OpenMP task transformation classes.
 '''
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
@@ -113,7 +112,7 @@ def test_omptaskloop_getters_and_setters():
 
 
 def test_omptaskloop_apply(monkeypatch):
-    '''Check that the gen_code method in the OMPTaskloopDirective
+    '''Check that the lowering method in the OMPTaskloopDirective
     class generates the expected code when passing options to
     the OMPTaskloopTrans's apply method and correctly overrides the
     taskloop's inbuilt value. Use the gocean API.
@@ -139,20 +138,20 @@ def test_omptaskloop_apply(monkeypatch):
 
     clauses = " nogroup"
     assert (
-        "    !$omp parallel default(shared), private(i,j)\n" +
-        "      !$omp master\n" +
-        f"      !$omp taskloop{clauses}\n" +
-        "      DO" in code)
+        "  !$omp parallel default(shared), private(i,j)\n" +
+        "    !$omp master\n" +
+        f"    !$omp taskloop{clauses}\n" +
+        "    do" in code)
     assert (
-        "      END DO\n" +
-        "      !$omp end taskloop\n" +
-        "      !$omp end master\n" +
-        "      !$omp end parallel" in code)
+        "    enddo\n" +
+        "    !$omp end taskloop\n" +
+        "    !$omp end master\n" +
+        "    !$omp end parallel" in code)
 
     assert taskloop_node.begin_string() == "omp taskloop"
 
     # Create a fake validate function to throw an exception
-    def validate(self, options):
+    def validate(self, options, **kwargs):
         raise TransformationError("Fake error")
     monkeypatch.setattr(taskloop, "validate", validate)
     # Test that the nogroup attribute isn't permanently changed if validate

@@ -217,7 +217,7 @@ def test_arg_declaration_error(fortran_reader):
     code = (
         "subroutine setval_c()\n"
         "  use builtins\n"
-        "  use constants_mod, only: r_def\n"
+        "  use constants_mod\n"
         "  use field_mod, only : field_type\n"
         "  type(field_type) :: field\n"
         "  real(kind=r_def) :: value\n"

@@ -51,7 +51,7 @@ from psyclone.domain.lfric.metadata_to_arguments_rules import (
     MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.symbols import DataSymbol, ArrayType
 
 
 class ArgOrdering:
@@ -102,10 +102,11 @@ class ArgOrdering:
         '''
         if self._forced_symtab:
             return self._forced_symtab
-        elif self._kern and self._kern.ancestor(psyGen.InvokeSchedule):
-            return self._kern.ancestor(psyGen.InvokeSchedule).symbol_table
-        else:
-            return LFRicSymbolTable()
+        if self._kern and self._kern.ancestor(psyGen.InvokeSchedule):
+            # _kern may be outdated, so go back up to the invoke first
+            current_invoke = self._kern.ancestor(psyGen.InvokeSchedule).invoke
+            return current_invoke.schedule.symbol_table
+        return LFRicSymbolTable()
 
     def psyir_append(self, node):
         '''Appends a PSyIR node to the PSyIR argument list.
@@ -197,13 +198,25 @@ class ArgOrdering:
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric import LFRicTypes
         if tag is None:
             tag = name
-        sym = self._symtab.find_or_create_integer_symbol(name, tag)
+        else:
+            # If it has a tag, first try to look up for it
+            try:
+                sym = self._symtab.lookup_with_tag(tag)
+                self.psyir_append(Reference(sym))
+                return sym
+            except KeyError:
+                pass
+        sym = self._symtab.find_or_create(
+                name, tag=tag, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
         self.psyir_append(Reference(sym))
         return sym
 
-    def get_array_reference(self, array_name, indices, intrinsic_type,
+    def get_array_reference(self, array_name, indices, intrinsic_type=None,
                             tag=None, symbol=None):
         # pylint: disable=too-many-arguments
         '''This function creates an array reference. If there is no symbol
@@ -215,9 +228,10 @@ class ArgOrdering:
         :param indices: the indices to be used in the PSyIR reference. It \
             must either be ":", or a PSyIR node.
         :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
-        :param intrinsic_type: the intrinsic type of the array.
+        :param intrinsic_type: the intrinsic type of the array. Defaults to
+            LFRicIntegerScalarDataType.
         :type intrinsic_type: \
-            :py:class:`psyclone.psyir.symbols.datatypes.ScalarType.Intrinsic`
+            Optional[:py:class:`psyclone.psyir.symbols.datatypes.ScalarType`]
         :param tag: optional tag for the symbol.
         :type tag: Optional[str]
         :param symbol: optional the symbol to use.
@@ -229,11 +243,17 @@ class ArgOrdering:
         '''
         if not tag:
             tag = array_name
+        if intrinsic_type is None:
+            # pylint: disable=import-outside-toplevel
+            from psyclone.domain.lfric import LFRicTypes
+            intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
+
         if not symbol:
-            symbol = self._symtab.find_or_create_array(array_name,
-                                                       len(indices),
-                                                       intrinsic_type,
-                                                       tag)
+            symbol = self._symtab.find_or_create(
+                array_name, tag=tag, symbol_type=DataSymbol,
+                datatype=ArrayType(
+                    intrinsic_type,
+                    [ArrayType.Extent.DEFERRED for _ in indices]))
         else:
             if symbol.name != array_name:
                 raise InternalError(f"Specified symbol '{symbol.name}' has a "
@@ -248,7 +268,7 @@ class ArgOrdering:
             ref = ArrayReference.create(symbol, indices)
         return ref
 
-    def append_array_reference(self, array_name, indices, intrinsic_type,
+    def append_array_reference(self, array_name, indices, intrinsic_type=None,
                                tag=None, symbol=None):
         # pylint: disable=too-many-arguments
         '''This function adds an array reference. If there is no symbol with
@@ -263,7 +283,7 @@ class ArgOrdering:
         :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
         :param intrinsic_type: the intrinsic type of the array.
         :type intrinsic_type: \
-            :py:class:`psyclone.psyir.symbols.datatypes.ScalarType.Intrinsic`
+            Optional[:py:class:`psyclone.psyir.symbols.datatypes.ScalarType`]
         :param tag: optional tag for the symbol.
         :type tag: Optional[str]
         :param symbol: optional the symbol to use.
@@ -589,7 +609,7 @@ class ArgOrdering:
         information.
 
         :param arg: the CMA operator argument.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -604,7 +624,7 @@ class ArgOrdering:
         var_access object.
 
         :param argvect: the field vector to add.
-        :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type argvect: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -618,7 +638,7 @@ class ArgOrdering:
         argument list. If supplied it also stores this access in var_accesses.
 
         :param arg: the field to be added.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -633,7 +653,7 @@ class ArgOrdering:
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -648,7 +668,7 @@ class ArgOrdering:
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -664,7 +684,7 @@ class ArgOrdering:
         metadata. If supplied it also stores this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -680,7 +700,7 @@ class ArgOrdering:
         var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -696,7 +716,7 @@ class ArgOrdering:
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -712,7 +732,7 @@ class ArgOrdering:
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -726,7 +746,7 @@ class ArgOrdering:
         also stores this access in var_accesses.
 
         :param arg: the meta-data description of the operator.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -740,7 +760,7 @@ class ArgOrdering:
         information.
 
         :param scalar_arg: the kernel argument.
-        :type scalar_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type scalar_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance that \
             stores information about variable accesses.
         :type var_accesses: \
@@ -915,8 +935,7 @@ class ArgOrdering:
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
         sym = self.append_array_reference(
-            function_space.cbanded_map_name, indices=[":", ":"],
-            intrinsic_type=ScalarType.Intrinsic.INTEGER)
+            function_space.cbanded_map_name, indices=[":", ":"])
         self.append(sym.name, var_accesses)
 
     def indirection_dofmap(self, function_space, operator=None,
@@ -928,7 +947,7 @@ class ArgOrdering:
             dofmap is required.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param operator: the CMA operator (not used at the moment).
-        :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type operator: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
@@ -937,8 +956,7 @@ class ArgOrdering:
         '''
         # pylint: disable=unused-argument
         map_name = function_space.cma_indirection_map_name
-        self.append_array_reference(map_name, [":"],
-                                    ScalarType.Intrinsic.INTEGER, tag=map_name)
+        self.append_array_reference(map_name, [":"], tag=map_name)
         self.append(map_name, var_accesses)
 
     def ref_element_properties(self, var_accesses=None):
@@ -954,9 +972,9 @@ class ArgOrdering:
         if self._kern.reference_element.properties:
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
-            from psyclone.dynamo0p3 import DynReferenceElement
+            from psyclone.lfric import LFRicReferenceElement
             refelem_args_symbols = \
-                DynReferenceElement(self._kern).kern_args_symbols()
+                LFRicReferenceElement(self._kern).kern_args_symbols()
             for symbol in refelem_args_symbols:
                 # All kernel arguments are simple references:
                 self.psyir_append(Reference(symbol))
