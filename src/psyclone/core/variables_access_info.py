@@ -204,11 +204,11 @@ class VariablesAccessMap(dict):
         return result
 
     def update(self, other_access_info):
-        ''' Updates this dictonary with the entries of the provided
-        VariableAccessInfo. If there is repeated signatures, the provided
-        values are appened in the existing sequence of accesses. The 'location'
-        property of the provided accesses (values on the dictionary) will be
-        updated to be after the existing entries.
+        ''' Updates this dictionary with the entries in the provided
+        VariablesAccessMap. If there are repeated signatures, the provided
+        values are appeneded to the existing sequence of accesses. The
+        'location' property of the provided accesses (values in the dictionary)
+        will be updated to be after the existing entries.
 
         :param other_access_info: the other VariablesAccessMap instance.
         :type other_access_info: :py:class:`psyclone.core.VariablesAccessMap`

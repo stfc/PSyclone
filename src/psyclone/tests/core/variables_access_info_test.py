@@ -34,7 +34,7 @@
 # Author: Joerg Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter, R. W. Ford and S. Siso, STFC Daresbury Laboratory
 
-'''This module tests the VariablesAccessMapClass.'''
+'''This module tests the VariablesAccessMap class.'''
 
 import pytest
 

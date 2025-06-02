@@ -472,7 +472,7 @@ and for the else-body.
 .. note:: When using different instances for an if- and else-body, the first
     statement of the if-body will
     have the same location number as the first statement of the else-body. So
-    you can only compare location numbers from the same `VariablesAccessMaprmation`
+    you can only compare location numbers from the same `VariablesAccessMap`
     instance. If you merge two instances together, the locations of the merged-in
     instance will be appropriately increased to follow the locations of the
     instance to which it is merged.
