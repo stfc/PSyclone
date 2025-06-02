@@ -503,5 +503,6 @@ class BinaryOperation(Operation):
         '''
         return self.children[0], self.children[1]
 
+
 # For automatic API documentation generation
 __all__ = ["Operation", "UnaryOperation", "BinaryOperation"]
