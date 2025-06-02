@@ -35,7 +35,7 @@
 # Modified I. Kavcic and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-''' This module tests the LFRic (Dynamo 0.3) kernel-stub generator using
+''' This module tests the LFRic kernel-stub generator using
     pytest. '''
 
 import os
@@ -51,7 +51,7 @@ from psyclone.gen_kernel_stub import generate
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
+                         "test_files", "lfric")
 TEST_API = "lfric"
 
 
@@ -93,36 +93,40 @@ def test_stub_generate_with_anyw2():
                                    "testkern_multi_anyw2_basis_mod.f90"),
                       api=TEST_API)
     expected_output = (
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_any_w2,"
-        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_any_w2_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_any_w2,"
-        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_any_w2_qr_xyoz")
-    assert expected_output in str(result)
+        "    real(kind=r_def), dimension(3,ndf_any_w2,np_xy_qr_xyoz,"
+        "np_z_qr_xyoz), intent(in) :: basis_any_w2_qr_xyoz\n"
+        "    real(kind=r_def), dimension(1,ndf_any_w2,np_xy_qr_xyoz,"
+        "np_z_qr_xyoz), intent(in) :: diff_basis_any_w2_qr_xyoz")
+    assert expected_output in result
 
 
 SIMPLE = (
-    "  MODULE simple_mod\n"
-    "    IMPLICIT NONE\n"
-    "    CONTAINS\n"
-    "    SUBROUTINE simple_code(nlayers, field_1_w1, ndf_w1, undf_w1,"
+    "module simple_mod\n"
+    "  implicit none\n"
+    "  public\n"
+    "\n"
+    "  contains\n"
+    "  subroutine simple_code(nlayers, field_1_w1, ndf_w1, undf_w1,"
     " map_w1)\n"
-    "      USE constants_mod\n"
-    "      IMPLICIT NONE\n"
-    "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-    "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
-    "      INTEGER(KIND=i_def), intent(in) :: undf_w1\n"
-    "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
+    "    use constants_mod\n"
+    "    integer(kind=i_def), intent(in) :: nlayers\n"
+    "    integer(kind=i_def), intent(in) :: ndf_w1\n"
+    "    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1\n"
+    "    integer(kind=i_def), intent(in) :: undf_w1\n"
+    "    real(kind=r_def), dimension(undf_w1), intent(inout) :: "
     "field_1_w1\n"
-    "    END SUBROUTINE simple_code\n"
-    "  END MODULE simple_mod")
+    "\n"
+    "\n"
+    "  end subroutine simple_code\n"
+    "\n"
+    "end module simple_mod\n")
 
 
 def test_stub_generate_working():
     ''' Check that the stub generate produces the expected output '''
     result = generate(os.path.join(BASE_PATH, "testkern_simple_mod.f90"),
                       api=TEST_API)
-    assert SIMPLE in str(result)
+    assert SIMPLE == result
 
 
 # Fields : intent
@@ -162,7 +166,7 @@ def test_load_meta_wrong_type():
             f"'gh_hedge'" in str(excinfo.value))
 
 
-def test_intent():
+def test_intent(fortran_writer):
     ''' test that field intent is generated correctly for kernel stubs '''
     ast = fpapi.parse(INTENT, ignore_comments=False)
     metadata = LFRicKernMetadata(ast)
@@ -170,28 +174,33 @@ def test_intent():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE dummy_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE dummy_code(nlayers, field_1_w3, field_2_w1, "
+        "module dummy_mod\n"
+        "  implicit none\n"
+        "  public\n"
+        "\n"
+        "  contains\n"
+        "  subroutine dummy_code(nlayers, field_1_w3, field_2_w1, "
         "field_3_w1, ndf_w3, undf_w3, map_w3, ndf_w1, undf_w1, map_w1)\n"
-        "      USE constants_mod\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_w3, undf_w1\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w3) :: "
+        "    use constants_mod\n"
+        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: ndf_w1\n"
+        "    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1\n"
+        "    integer(kind=i_def), intent(in) :: ndf_w3\n"
+        "    integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3\n"
+        "    integer(kind=i_def), intent(in) :: undf_w3\n"
+        "    integer(kind=i_def), intent(in) :: undf_w1\n"
+        "    real(kind=r_def), dimension(undf_w3), intent(inout) :: "
         "field_1_w3\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
+        "    real(kind=r_def), dimension(undf_w1), intent(inout) :: "
         "field_2_w1\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w1) :: "
+        "    real(kind=r_def), dimension(undf_w1), intent(in) :: "
         "field_3_w1\n"
-        "    END SUBROUTINE dummy_code\n"
-        "  END MODULE dummy_mod")
-    assert output in str(generated_code)
+        "\n"
+        "\n"
+        "  end subroutine dummy_code\n"
+        "\n"
+        "end module dummy_mod\n")
+    assert output == fortran_writer(generated_code)
 
 
 # Fields : spaces
@@ -223,7 +232,7 @@ end module dummy_mod
 '''
 
 
-def test_spaces():
+def test_spaces(fortran_writer):
     ''' Test that field spaces are handled correctly for kernel stubs.
 
     '''
@@ -231,12 +240,14 @@ def test_spaces():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    generated_code = str(kernel.gen_stub)
+    generated_code = fortran_writer(kernel.gen_stub)
     output = (
-        "  MODULE dummy_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE dummy_code(nlayers, field_1_w0, field_2_w1, "
+        "module dummy_mod\n"
+        "  implicit none\n"
+        "  public\n"
+        "\n"
+        "  contains\n"
+        "  subroutine dummy_code(nlayers, field_1_w0, field_2_w1, "
         "field_3_w2, field_4_w2broken, field_5_w2trace, field_6_w3, "
         "field_7_wtheta, field_8_w2h, field_9_w2v, field_10_w2htrace, "
         "field_11_w2vtrace, field_12_wchi, "
@@ -247,71 +258,82 @@ def test_spaces():
         "ndf_w2v, undf_w2v, map_w2v, ndf_w2htrace, undf_w2htrace, "
         "map_w2htrace, ndf_w2vtrace, undf_w2vtrace, map_w2vtrace, "
         "ndf_wchi, undf_wchi, map_wchi)\n"
-        "      USE constants_mod\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2broken\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2broken) "
+        "    use constants_mod\n"
+        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: ndf_w0\n"
+        "    integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0\n"
+        "    integer(kind=i_def), intent(in) :: ndf_w1\n"
+        "    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1\n"
+        "    integer(kind=i_def), intent(in) :: ndf_w2\n"
+        "    integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2\n"
+        "    integer(kind=i_def), intent(in) :: ndf_w2broken\n"
+        "    integer(kind=i_def), dimension(ndf_w2broken), intent(in) "
         ":: map_w2broken\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2h\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2h) "
+        "    integer(kind=i_def), intent(in) :: ndf_w2h\n"
+        "    integer(kind=i_def), dimension(ndf_w2h), intent(in) "
         ":: map_w2h\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2htrace\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2htrace) "
+        "    integer(kind=i_def), intent(in) :: ndf_w2htrace\n"
+        "    integer(kind=i_def), dimension(ndf_w2htrace), intent(in) "
         ":: map_w2htrace\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2trace\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2trace) "
+        "    integer(kind=i_def), intent(in) :: ndf_w2trace\n"
+        "    integer(kind=i_def), dimension(ndf_w2trace), intent(in) "
         ":: map_w2trace\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) "
+        "    integer(kind=i_def), intent(in) :: ndf_w2v\n"
+        "    integer(kind=i_def), dimension(ndf_w2v), intent(in) "
         ":: map_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2vtrace\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2vtrace) "
+        "    integer(kind=i_def), intent(in) :: ndf_w2vtrace\n"
+        "    integer(kind=i_def), dimension(ndf_w2vtrace), intent(in) "
         ":: map_w2vtrace\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_wchi\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) "
+        "    integer(kind=i_def), intent(in) :: ndf_w3\n"
+        "    integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3\n"
+        "    integer(kind=i_def), intent(in) :: ndf_wchi\n"
+        "    integer(kind=i_def), dimension(ndf_wchi), intent(in) "
         ":: map_wchi\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) "
+        "    integer(kind=i_def), intent(in) :: ndf_wtheta\n"
+        "    integer(kind=i_def), dimension(ndf_wtheta), intent(in) "
         ":: map_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_w0, undf_w1, undf_w2, "
-        "undf_w2broken, undf_w2trace, undf_w3, undf_wtheta, undf_w2h, "
-        "undf_w2v, undf_w2htrace, undf_w2vtrace, undf_wchi\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) "
+        "    integer(kind=i_def), intent(in) :: undf_w0\n"
+        "    integer(kind=i_def), intent(in) :: undf_w1\n"
+        "    integer(kind=i_def), intent(in) :: undf_w2\n"
+        "    integer(kind=i_def), intent(in) :: undf_w2broken\n"
+        "    integer(kind=i_def), intent(in) :: undf_w2trace\n"
+        "    integer(kind=i_def), intent(in) :: undf_w3\n"
+        "    integer(kind=i_def), intent(in) :: undf_wtheta\n"
+        "    integer(kind=i_def), intent(in) :: undf_w2h\n"
+        "    integer(kind=i_def), intent(in) :: undf_w2v\n"
+        "    integer(kind=i_def), intent(in) :: undf_w2htrace\n"
+        "    integer(kind=i_def), intent(in) :: undf_w2vtrace\n"
+        "    integer(kind=i_def), intent(in) :: undf_wchi\n"
+        "    real(kind=r_def), dimension(undf_w0), intent(inout) "
         ":: field_1_w0\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) "
+        "    real(kind=r_def), dimension(undf_w1), intent(inout) "
         ":: field_2_w1\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2) "
+        "    real(kind=r_def), dimension(undf_w2), intent(inout) "
         ":: field_3_w2\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2broken) "
+        "    real(kind=r_def), dimension(undf_w2broken), intent(inout) "
         ":: field_4_w2broken\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2trace) "
+        "    real(kind=r_def), dimension(undf_w2trace), intent(inout) "
         ":: field_5_w2trace\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w3) "
+        "    real(kind=r_def), dimension(undf_w3), intent(inout) "
         ":: field_6_w3\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_wtheta) "
+        "    real(kind=r_def), dimension(undf_wtheta), intent(inout) "
         ":: field_7_wtheta\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2h) "
+        "    real(kind=r_def), dimension(undf_w2h), intent(inout) "
         ":: field_8_w2h\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2v) "
+        "    real(kind=r_def), dimension(undf_w2v), intent(inout) "
         ":: field_9_w2v\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2htrace) "
+        "    real(kind=r_def), dimension(undf_w2htrace), intent(inout) "
         ":: field_10_w2htrace\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2vtrace) "
+        "    real(kind=r_def), dimension(undf_w2vtrace), intent(inout) "
         ":: field_11_w2vtrace\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_wchi) "
+        "    real(kind=r_def), dimension(undf_wchi), intent(in) "
         ":: field_12_wchi\n"
-        "    END SUBROUTINE dummy_code\n"
-        "  END MODULE dummy_mod")
-    assert output in generated_code
+        "\n"
+        "\n"
+        "  end subroutine dummy_code\n"
+        "\n"
+        "end module dummy_mod\n")
+    assert output == generated_code
 
 
 ANY_SPACES = '''
@@ -335,7 +357,7 @@ end module dummy_mod
 '''
 
 
-def test_any_spaces():
+def test_any_spaces(fortran_writer):
     ''' Test that any_space and any_discontinuous_space metadata are handled
     correctly for kernel stubs.
 
@@ -344,39 +366,44 @@ def test_any_spaces():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    generated_code = str(kernel.gen_stub)
+    generated_code = fortran_writer(kernel.gen_stub)
     output = (
-        "  MODULE dummy_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE dummy_code(nlayers, field_1_adspc1_field_1, "
+        "module dummy_mod\n"
+        "  implicit none\n"
+        "  public\n"
+        "\n"
+        "  contains\n"
+        "  subroutine dummy_code(nlayers, field_1_adspc1_field_1, "
         "field_2_aspc7_field_2, field_3_adspc4_field_3, "
         "ndf_adspc1_field_1, undf_adspc1_field_1, map_adspc1_field_1, "
         "ndf_aspc7_field_2, undf_aspc7_field_2, map_aspc7_field_2, "
         "ndf_adspc4_field_3, undf_adspc4_field_3, map_adspc4_field_3)\n"
-        "      USE constants_mod\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_adspc1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension("
-        "ndf_adspc1_field_1) :: map_adspc1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_adspc4_field_3\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension("
-        "ndf_adspc4_field_3) :: map_adspc4_field_3\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc7_field_2\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_aspc7_field_2) :: map_aspc7_field_2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_adspc1_field_1, "
-        "undf_aspc7_field_2, undf_adspc4_field_3\n"
-        "      REAL(KIND=r_def), intent(in), dimension"
-        "(undf_adspc1_field_1) :: field_1_adspc1_field_1\n"
-        "      REAL(KIND=r_def), intent(inout), dimension"
-        "(undf_aspc7_field_2) :: field_2_aspc7_field_2\n"
-        "      REAL(KIND=r_def), intent(inout), dimension"
-        "(undf_adspc4_field_3) :: field_3_adspc4_field_3\n"
-        "    END SUBROUTINE dummy_code\n"
-        "  END MODULE dummy_mod")
-    assert output in generated_code
+        "    use constants_mod\n"
+        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: ndf_adspc1_field_1\n"
+        "    integer(kind=i_def), dimension("
+        "ndf_adspc1_field_1), intent(in) :: map_adspc1_field_1\n"
+        "    integer(kind=i_def), intent(in) :: ndf_adspc4_field_3\n"
+        "    integer(kind=i_def), dimension("
+        "ndf_adspc4_field_3), intent(in) :: map_adspc4_field_3\n"
+        "    integer(kind=i_def), intent(in) :: ndf_aspc7_field_2\n"
+        "    integer(kind=i_def), "
+        "dimension(ndf_aspc7_field_2), intent(in) :: map_aspc7_field_2\n"
+        "    integer(kind=i_def), intent(in) :: undf_adspc1_field_1\n"
+        "    integer(kind=i_def), intent(in) :: undf_aspc7_field_2\n"
+        "    integer(kind=i_def), intent(in) :: undf_adspc4_field_3\n"
+        "    real(kind=r_def), dimension"
+        "(undf_adspc1_field_1), intent(in) :: field_1_adspc1_field_1\n"
+        "    real(kind=r_def), dimension"
+        "(undf_aspc7_field_2), intent(inout) :: field_2_aspc7_field_2\n"
+        "    real(kind=r_def), dimension"
+        "(undf_adspc4_field_3), intent(inout) :: field_3_adspc4_field_3\n"
+        "\n"
+        "\n"
+        "  end subroutine dummy_code\n"
+        "\n"
+        "end module dummy_mod\n")
+    assert output == generated_code
 
 
 # Fields : vectors
@@ -397,34 +424,38 @@ end module dummy_mod
 '''
 
 
-def test_vectors():
+def test_vectors(fortran_writer):
     ''' test that field vectors are handled correctly for kernel stubs '''
     ast = fpapi.parse(VECTORS, ignore_comments=False)
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    generated_code = kernel.gen_stub
+    generated_code = fortran_writer(kernel.gen_stub)
     output = (
-        "  MODULE dummy_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE dummy_code(nlayers, field_1_w0_v1, "
+        "module dummy_mod\n"
+        "  implicit none\n"
+        "  public\n"
+        "\n"
+        "  contains\n"
+        "  subroutine dummy_code(nlayers, field_1_w0_v1, "
         "field_1_w0_v2, field_1_w0_v3, ndf_w0, undf_w0, map_w0)\n"
-        "      USE constants_mod\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_w0\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
+        "    use constants_mod\n"
+        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: ndf_w0\n"
+        "    integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0\n"
+        "    integer(kind=i_def), intent(in) :: undf_w0\n"
+        "    real(kind=r_def), dimension(undf_w0), intent(inout) :: "
         "field_1_w0_v1\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
+        "    real(kind=r_def), dimension(undf_w0), intent(inout) :: "
         "field_1_w0_v2\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
+        "    real(kind=r_def), dimension(undf_w0), intent(inout) :: "
         "field_1_w0_v3\n"
-        "    END SUBROUTINE dummy_code\n"
-        "  END MODULE dummy_mod")
-    assert output in str(generated_code)
+        "\n"
+        "\n"
+        "  end subroutine dummy_code\n"
+        "\n"
+        "end module dummy_mod\n")
+    assert output in generated_code
 
 
 def test_arg_descriptor_vec_str():
@@ -444,7 +475,7 @@ def test_arg_descriptor_vec_str():
     assert expected_output in result
 
 
-def test_enforce_bc_kernel_stub_gen():
+def test_enforce_bc_kernel_stub_gen(fortran_writer):
     ''' Test that the enforce_bc_kernel boundary layer argument modification
     is handled correctly for kernel stubs.
 
@@ -454,31 +485,36 @@ def test_enforce_bc_kernel_stub_gen():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    generated_code = kernel.gen_stub
+    generated_code = fortran_writer(kernel.gen_stub)
     output = (
-        "  MODULE enforce_bc_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE enforce_bc_code(nlayers, field_1_aspc1_field_1, "
+        "module enforce_bc_mod\n"
+        "  implicit none\n"
+        "  public\n"
+        "\n"
+        "  contains\n"
+        "  subroutine enforce_bc_code(nlayers, field_1_aspc1_field_1, "
         "ndf_aspc1_field_1, undf_aspc1_field_1, map_aspc1_field_1, "
         "boundary_dofs_field_1)\n"
-        "      USE constants_mod\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_aspc1_field_1) :: map_aspc1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_aspc1_field_1\n"
-        "      REAL(KIND=r_def), intent(inout), "
-        "dimension(undf_aspc1_field_1) :: field_1_aspc1_field_1\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_aspc1_field_1,2) :: boundary_dofs_field_1\n"
-        "    END SUBROUTINE enforce_bc_code\n"
-        "  END MODULE enforce_bc_mod")
-    assert output in str(generated_code)
+        "    use constants_mod\n"
+        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: ndf_aspc1_field_1\n"
+        "    integer(kind=i_def), "
+        "dimension(ndf_aspc1_field_1), intent(in) :: map_aspc1_field_1\n"
+        "    integer(kind=i_def), intent(in) :: undf_aspc1_field_1\n"
+        "    real(kind=r_def), "
+        "dimension(undf_aspc1_field_1), intent(inout) :: field_1_aspc1_field_1"
+        "\n"
+        "    integer(kind=i_def), "
+        "dimension(ndf_aspc1_field_1,2), intent(in) :: boundary_dofs_field_1\n"
+        "\n"
+        "\n"
+        "  end subroutine enforce_bc_code\n"
+        "\n"
+        "end module enforce_bc_mod\n")
+    assert output == generated_code
 
 
-def test_enforce_op_bc_kernel_stub_gen():
+def test_enforce_op_bc_kernel_stub_gen(fortran_writer):
     ''' Test that the enforce_operator_bc_kernel boundary dofs argument
     modification is handled correctly for kernel stubs.
 
@@ -489,31 +525,35 @@ def test_enforce_op_bc_kernel_stub_gen():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    generated_code = str(kernel.gen_stub)
+    generated_code = fortran_writer(kernel.gen_stub)
     output = (
-        "  MODULE enforce_operator_bc_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE enforce_operator_bc_code(cell, nlayers, "
+        "module enforce_operator_bc_mod\n"
+        "  implicit none\n"
+        "  public\n"
+        "\n"
+        "  contains\n"
+        "  subroutine enforce_operator_bc_code(cell, nlayers, "
         "op_1_ncell_3d, op_1, ndf_aspc1_op_1, ndf_aspc2_op_1, "
         "boundary_dofs_op_1)\n"
-        "      USE constants_mod\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_op_1, "
-        "ndf_aspc2_op_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: cell\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension("
-        "op_1_ncell_3d,ndf_aspc1_op_1,ndf_aspc2_op_1) :: op_1\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_aspc1_op_1,2) :: boundary_dofs_op_1\n"
-        "    END SUBROUTINE enforce_operator_bc_code\n"
-        "  END MODULE enforce_operator_bc_mod")
-    assert output in generated_code
+        "    use constants_mod\n"
+        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: ndf_aspc1_op_1\n"
+        "    integer(kind=i_def), intent(in) :: ndf_aspc2_op_1\n"
+        "    integer(kind=i_def), intent(in) :: cell\n"
+        "    integer(kind=i_def), intent(in) :: op_1_ncell_3d\n"
+        "    real(kind=r_def), dimension("
+        "op_1_ncell_3d,ndf_aspc1_op_1,ndf_aspc2_op_1), intent(inout) :: op_1\n"
+        "    integer(kind=i_def), "
+        "dimension(ndf_aspc1_op_1,2), intent(in) :: boundary_dofs_op_1\n"
+        "\n"
+        "\n"
+        "  end subroutine enforce_operator_bc_code\n"
+        "\n"
+        "end module enforce_operator_bc_mod\n")
+    assert output == generated_code
 
 
-def test_multi_qr_stub_gen():
+def test_multi_qr_stub_gen(fortran_writer):
     ''' Test that the stub generator correctly handles a kernel requiring
     more than one quadrature rule. '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
@@ -522,8 +562,8 @@ def test_multi_qr_stub_gen():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    generated_code = str(kernel.gen_stub)
-    assert ("SUBROUTINE testkern_2qr_code(nlayers, field_1_w1, field_2_w2, "
+    generated_code = fortran_writer(kernel.gen_stub)
+    assert ("subroutine testkern_2qr_code(nlayers, field_1_w1, field_2_w2, "
             "field_3_w2, field_4_w3, ndf_w1, undf_w1, map_w1, "
             "basis_w1_qr_face, basis_w1_qr_edge, ndf_w2, undf_w2, map_w2, "
             "diff_basis_w2_qr_face, diff_basis_w2_qr_edge, ndf_w3, undf_w3, "
@@ -531,33 +571,37 @@ def test_multi_qr_stub_gen():
             "diff_basis_w3_qr_face, diff_basis_w3_qr_edge, nfaces_qr_face, "
             "np_xyz_qr_face, weights_xyz_qr_face, nedges_qr_edge, "
             "np_xyz_qr_edge, weights_xyz_qr_edge)" in generated_code)
-    assert ("INTEGER(KIND=i_def), intent(in) :: np_xyz_qr_face, "
-            "nfaces_qr_face, np_xyz_qr_edge, nedges_qr_edge" in generated_code)
+    assert ("    integer(kind=i_def), intent(in) :: np_xyz_qr_face\n"
+            "    integer(kind=i_def), intent(in) :: nfaces_qr_face\n"
+            "    integer(kind=i_def), intent(in) :: np_xyz_qr_edge\n"
+            "    integer(kind=i_def), intent(in) :: nedges_qr_edge\n"
+            in generated_code)
     assert (
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,"
-        "np_xyz_qr_face,nfaces_qr_face) :: basis_w1_qr_face\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,"
-        "np_xyz_qr_edge,nedges_qr_edge) :: basis_w1_qr_edge\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,"
-        "np_xyz_qr_face,nfaces_qr_face) :: diff_basis_w2_qr_face\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,"
-        "np_xyz_qr_edge,nedges_qr_edge) :: diff_basis_w2_qr_edge\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,"
-        "np_xyz_qr_face,nfaces_qr_face) :: basis_w3_qr_face\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,"
-        "np_xyz_qr_face,nfaces_qr_face) :: diff_basis_w3_qr_face\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,"
-        "np_xyz_qr_edge,nedges_qr_edge) :: basis_w3_qr_edge\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,"
-        "np_xyz_qr_edge,nedges_qr_edge) :: diff_basis_w3_qr_edge"
+        "    real(kind=r_def), dimension(3,ndf_w1,"
+        "np_xyz_qr_face,nfaces_qr_face), intent(in) :: basis_w1_qr_face\n"
+        "    real(kind=r_def), dimension(3,ndf_w1,"
+        "np_xyz_qr_edge,nedges_qr_edge), intent(in) :: basis_w1_qr_edge\n"
+        "    real(kind=r_def), dimension(1,ndf_w2,"
+        "np_xyz_qr_face,nfaces_qr_face), intent(in) :: diff_basis_w2_qr_face\n"
+        "    real(kind=r_def), dimension(1,ndf_w2,"
+        "np_xyz_qr_edge,nedges_qr_edge), intent(in) :: diff_basis_w2_qr_edge\n"
+        "    real(kind=r_def), dimension(1,ndf_w3,"
+        "np_xyz_qr_face,nfaces_qr_face), intent(in) :: basis_w3_qr_face\n"
+        "    real(kind=r_def), dimension(3,ndf_w3,"
+        "np_xyz_qr_face,nfaces_qr_face), intent(in) :: diff_basis_w3_qr_face\n"
+        "    real(kind=r_def), dimension(1,ndf_w3,"
+        "np_xyz_qr_edge,nedges_qr_edge), intent(in) :: basis_w3_qr_edge\n"
+        "    real(kind=r_def), dimension(3,ndf_w3,"
+        "np_xyz_qr_edge,nedges_qr_edge), intent(in) :: diff_basis_w3_qr_edge"
         in generated_code)
-    assert ("      REAL(KIND=r_def), intent(in), dimension(np_xyz_qr_face,"
-            "nfaces_qr_face) :: weights_xyz_qr_face\n"
-            "      REAL(KIND=r_def), intent(in), dimension(np_xyz_qr_edge,"
-            "nedges_qr_edge) :: weights_xyz_qr_edge\n" in generated_code)
+    assert ("    real(kind=r_def), dimension(np_xyz_qr_face,"
+            "nfaces_qr_face), intent(in) :: weights_xyz_qr_face\n"
+            "    real(kind=r_def), dimension(np_xyz_qr_edge,"
+            "nedges_qr_edge), intent(in) :: weights_xyz_qr_edge\n"
+            in generated_code)
 
 
-def test_qr_plus_eval_stub_gen():
+def test_qr_plus_eval_stub_gen(fortran_writer):
     ''' Test the stub generator for a kernel that requires both an evaluator
     and quadrature. '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
@@ -566,36 +610,37 @@ def test_qr_plus_eval_stub_gen():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    gen_code = str(kernel.gen_stub)
+    code = fortran_writer(kernel.gen_stub)
     assert (
-        "SUBROUTINE testkern_qr_eval_code(nlayers, field_1_w1, field_2_w2,"
+        "subroutine testkern_qr_eval_code(nlayers, field_1_w1, field_2_w2,"
         " field_3_w2, field_4_w3, ndf_w1, undf_w1, map_w1, basis_w1_qr_face, "
         "basis_w1_on_w1, ndf_w2, undf_w2, map_w2, diff_basis_w2_qr_face, "
         "diff_basis_w2_on_w1, ndf_w3, undf_w3, map_w3, basis_w3_qr_face, "
         "basis_w3_on_w1, diff_basis_w3_qr_face, diff_basis_w3_on_w1, "
         "nfaces_qr_face, np_xyz_qr_face, weights_xyz_qr_face)"
-        in gen_code)
-    assert ("INTEGER(KIND=i_def), intent(in) :: np_xyz_qr_face, nfaces_qr_face"
-            in gen_code)
+        in code)
+    assert ("    integer(kind=i_def), intent(in) :: np_xyz_qr_face\n"
+            "    integer(kind=i_def), intent(in) :: nfaces_qr_face\n"
+            in code)
     assert (
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,np_xyz_qr_face"
-        ",nfaces_qr_face) :: basis_w1_qr_face\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,ndf_w1) :: "
+        "    real(kind=r_def), dimension(3,ndf_w1,np_xyz_qr_face"
+        ",nfaces_qr_face), intent(in) :: basis_w1_qr_face\n"
+        "    real(kind=r_def), dimension(3,ndf_w1,ndf_w1), intent(in) :: "
         "basis_w1_on_w1\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,np_xyz_qr_face"
-        ",nfaces_qr_face) :: diff_basis_w2_qr_face\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,ndf_w1) :: "
+        "    real(kind=r_def), dimension(1,ndf_w2,np_xyz_qr_face"
+        ",nfaces_qr_face), intent(in) :: diff_basis_w2_qr_face\n"
+        "    real(kind=r_def), dimension(1,ndf_w2,ndf_w1), intent(in) :: "
         "diff_basis_w2_on_w1\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,np_xyz_qr_face"
-        ",nfaces_qr_face) :: basis_w3_qr_face\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,np_xyz_qr_face"
-        ",nfaces_qr_face) :: diff_basis_w3_qr_face\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,ndf_w1) :: "
+        "    real(kind=r_def), dimension(1,ndf_w3,np_xyz_qr_face"
+        ",nfaces_qr_face), intent(in) :: basis_w3_qr_face\n"
+        "    real(kind=r_def), dimension(3,ndf_w3,np_xyz_qr_face"
+        ",nfaces_qr_face), intent(in) :: diff_basis_w3_qr_face\n"
+        "    real(kind=r_def), dimension(1,ndf_w3,ndf_w1), intent(in) :: "
         "basis_w3_on_w1\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,ndf_w1) :: "
+        "    real(kind=r_def), dimension(3,ndf_w3,ndf_w1), intent(in) :: "
         "diff_basis_w3_on_w1\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_xyz_qr_face,"
-        "nfaces_qr_face) :: weights_xyz_qr_face" in gen_code)
+        "    real(kind=r_def), dimension(np_xyz_qr_face,"
+        "nfaces_qr_face), intent(in) :: weights_xyz_qr_face" in code)
 
 
 SUB_NAME = '''
@@ -615,7 +660,7 @@ end module dummy_mod
 '''
 
 
-def test_sub_name():
+def test_sub_name(fortran_writer):
     ''' test for expected behaviour when the kernel subroutine does
     not conform to the convention of having "_code" at the end of its
     name. In this case we append "_code to the name and _mod to the
@@ -624,21 +669,25 @@ def test_sub_name():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    generated_code = kernel.gen_stub
+    generated_code = fortran_writer(kernel.gen_stub)
     output = (
-        "  MODULE dummy_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE dummy_code(nlayers, field_1_w1, "
+        "module dummy_mod\n"
+        "  implicit none\n"
+        "  public\n"
+        "\n"
+        "  contains\n"
+        "  subroutine dummy_code(nlayers, field_1_w1, "
         "ndf_w1, undf_w1, map_w1)\n"
-        "      USE constants_mod\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_w1\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
+        "    use constants_mod\n"
+        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: ndf_w1\n"
+        "    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1\n"
+        "    integer(kind=i_def), intent(in) :: undf_w1\n"
+        "    real(kind=r_def), dimension(undf_w1), intent(inout) :: "
         "field_1_w1\n"
-        "    END SUBROUTINE dummy_code\n"
-        "  END MODULE dummy_mod")
-    assert output in str(generated_code)
+        "\n"
+        "\n"
+        "  end subroutine dummy_code\n"
+        "\n"
+        "end module dummy_mod\n")
+    assert output == generated_code

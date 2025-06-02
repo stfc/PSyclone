@@ -1,3 +1,43 @@
+   29) PR #3000 for #2973. Improves handling of pure subroutines in definition
+   use chains.
+
+   28) PR #2994 for #2992. Fix bug with COMPUTE_ANNEXED_DOFS set to False.
+
+   27) PR #2979 for #2942. Change 'dynamo' references to 'LFRic' throughout.
+
+   26) PR #3002 for #2838. Upgrade CI dependencies.
+
+   25) PR #3001 for #2929. Improve docs for OMPLoopTrans.
+
+   24) PR #2999 for #2988. Fixed the unneccessary failure when 3 arguments
+   provided to Structure…
+
+   23) PR #2993. Add documentation for the options to kwargs ongoing conversion.
+
+   22) PR #2987 towards #11. Provides logging infrastructure and documentation.
+
+   21) PR #2995 towards #2551. Cache abs_positions to speedup dependency tools.
+
+   20) PR #2931 (#closes 2244) adds support for LFRic colour-tiling. Needs
+   to be selected in transformation script.
+
+   19) PR #2970 towards #2966. Add `--enble-cache` psyclone command flag.
+
+   18) PR #2989. Updates various software versions in the integration tests.
+   Most significant is move from Gnu 14.2 to Gnu 15.1.
+
+   17) PR #2983 for #2978. Ignore redundant return statements when creating
+   PSyIR.
+
+   16) PR #2964. PScylone is now available to install from Conda. This PR adds
+   instructions in the user guide.
+
+   15) PR #2980 for #2976. Removes jsonschema as a dependency (since it is
+   only required for jupyter notebooks).
+
+   14) PR #2834 for #1010, #1910, #719, #798 and #1648. Generate PSy-layers
+   and Kernel stubs using PSyIR lowering (instead of gen_code/f2pygen).
+
    13) PR #2877 for #2668. Adds a new `@transformation_documentation_wrapper`
    decorator that implements docstring generation for Transformation
    classes, allowing for inheritance. The 'options' argument to

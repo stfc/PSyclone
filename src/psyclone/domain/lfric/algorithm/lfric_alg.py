@@ -416,14 +416,14 @@ class LFRicAlg:
     def kernel_from_metadata(parse_tree, kernel_name):
         '''
         Given an fparser1 parse tree for an LFRic kernel, creates and returns
-        a LFRicKern object.
+        an LFRicKern object.
 
         :param parse_tree: the fparser1 parse tree for the LFRic kernel.
         :type parse_tree: :py:class:`fparser.one.block_statements.BeginSource`
         :param str kernel_name: the name of the kernel contained in the \
-            supplied parse tree for which a LFRicKern is to be created.
+            supplied parse tree for which an LFRicKern is to be created.
 
-        :returns: a LFRicKern object describing the LFRic kernel.
+        :returns: an LFRicKern object describing the LFRic kernel.
         :rtype: :py:class:`psyclone.domain.lfric.LFRicKern`
 
         :raises ValueError: if an LFRic kernel with the specified name cannot \
@@ -437,7 +437,7 @@ class LFRicAlg:
                 f"Failed to find kernel '{kernel_name}' in supplied "
                 f"code: '{parse_tree}'. Is it a valid LFRic kernel? Original "
                 f"error was '{err}'.") from err
-        # Construct a LFRicKern using the metadata.
+        # Construct an LFRicKern using the metadata.
         kern = LFRicKern()
         kern.load_meta(ktype)
         return kern

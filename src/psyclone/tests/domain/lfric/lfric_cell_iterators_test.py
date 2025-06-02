@@ -40,13 +40,12 @@ import pytest
 
 from psyclone.domain.lfric import LFRicCellIterators
 from psyclone.errors import GenerationError
-from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.domain.lfric import LFRicKern
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "../..", "test_files", "dynamo0p3")
+                         "../..", "test_files", "lfric")
 TEST_API = "lfric"
 
 
@@ -62,15 +61,15 @@ def test_lfriccelliterators_kernel():
     sched = invoke.schedule
     kern = sched.walk(LFRicKern)[0]
     obj = LFRicCellIterators(kern)
-    # We should have a single 'nlayers'.
+    # We should have no 'nlayers' (it's up to the stub_declarations to bring
+    # them when needed)
     assert isinstance(obj._nlayers_names, dict)
-    assert len(obj._nlayers_names.keys()) == 1
-    assert "nlayers" in obj._nlayers_names
+    assert len(obj._nlayers_names.keys()) == 0
 
 
-def test_lfriccelliterators_kernel_stub_declns():
+def test_lfriccelliterators_kernel_stub_declns(fortran_writer):
     '''
-    Check that LFRicCellIterators._stub_declarations() creates the correct
+    Check that LFRicCellIterators.stub_declarations() creates the correct
     declarations for an LFRicKern.
     '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -79,38 +78,26 @@ def test_lfriccelliterators_kernel_stub_declns():
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
     kern = sched.walk(LFRicKern)[0]
-    obj = LFRicCellIterators(kern)
-    node = SubroutineGen(ModuleGen("test_mod"), "test")
-    obj._stub_declarations(node)
-    output1 = str(node.root).lower()
-    assert "integer(kind=i_def), intent(in) :: nlayers" in output1
-    # Calling the 'initialise' method in the case of an LFRicKern should
-    # do nothing.
-    obj.initialise(node)
-    output2 = str(node.root).lower()
-    assert output2 == output1
+    output = fortran_writer(kern.gen_stub)
+    assert "integer(kind=i_def), intent(in) :: nlayers" in output
 
 
 def test_lfriccelliterators_invoke_codegen():
     '''
-    Check that _invoke_declarations() creates the right declarations and
+    Check that invoke_declarations() creates the right declarations and
     initialisations for an invoke containing more than one kernel.
     '''
     _, info = parse(
         os.path.join(BASE_PATH, "15.1.2_builtin_and_normal_kernel_invoke.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    obj = LFRicCellIterators(invoke)
-    node = SubroutineGen(ModuleGen("test_mod"), "test_sub")
-    obj._invoke_declarations(node)
+    output = str(psy.gen)
     # The invoke has three kernels that operate on cell columns (and two
     # builtins but they don't need nlayers).
-    assert ("integer(kind=i_def) nlayers_f1, nlayers_f3, nlayers_f4"
-            in str(node.root).lower())
-    obj.initialise(node)
-    output = str(node.root).lower()
-    assert "! initialise number of layers" in output
+    assert "integer(kind=i_def) :: nlayers_f1" in output
+    assert "integer(kind=i_def) :: nlayers_f3" in output
+    assert "integer(kind=i_def) :: nlayers_f4" in output
+    assert "! Initialise number of layers" in output
     assert "nlayers_f1 = f1_proxy%vspace%get_nlayers()" in output
     assert "nlayers_f3 = f3_proxy%vspace%get_nlayers()" in output
     assert "nlayers_f4 = f4_proxy%vspace%get_nlayers()" in output

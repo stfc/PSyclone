@@ -51,7 +51,7 @@ from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
 from psyclone.psyir.symbols import (
     ArrayType, ScalarType, UnsupportedFortranType)
 from psyclone.tests.utilities import get_base_path, get_invoke
-from psyclone.transformations import Dynamo0p3ColourTrans
+from psyclone.transformations import LFRicColourTrans
 
 TEST_API = "lfric"
 
@@ -201,7 +201,7 @@ def test_kerncallarglist_colouring(dist_mem, fortran_writer):
                         TEST_API, dist_mem=dist_mem, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     loops = schedule.walk(Loop)
     ctrans.apply(loops[0])
 
@@ -224,7 +224,7 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
                         TEST_API, dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(schedule.children[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
@@ -256,7 +256,7 @@ def test_kerncallarglist_evaluator(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(schedule.children[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
@@ -296,7 +296,7 @@ def test_kerncallarglist_stencil(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(schedule.children[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
@@ -561,6 +561,7 @@ def test_indirect_dofmap(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
+    psy.invokes.invoke_list[0].setup_psy_layer_symbols()
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert (create_arg_list._arglist == [
@@ -584,9 +585,6 @@ def test_indirect_dofmap(fortran_writer):
         assert (psyir_args[i].symbol.datatype ==
                 LFRicTypes("LFRicIntegerScalarDataType")())
 
-    # Create a dummy LFRic symbol table to simplify creating
-    # standard LFRic types:
-    dummy_sym_tab = LFRicSymbolTable()
     # Test all 1D real arrays:
     for i in [2, 3]:
         # The datatype of a field reference is of UnsupportedFortranType
@@ -606,16 +604,12 @@ def test_indirect_dofmap(fortran_writer):
     assert len(psyir_args[4].datatype.partial_datatype.shape) == 3
 
     # Test all 1D integer arrays:
-    int_1d = dummy_sym_tab.find_or_create_array("doesnt_matter1dint", 1,
-                                                ScalarType.Intrinsic.INTEGER)
     for i in [15, 19]:
-        assert psyir_args[i].datatype == int_1d.datatype
+        assert "(:)" in psyir_args[i].datatype.declaration
 
     # Test all 2D integer arrays:
-    int_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
-                                                ScalarType.Intrinsic.INTEGER)
     for i in [14, 18]:
-        assert psyir_args[i].symbol.datatype == int_2d.datatype
+        assert "(:,:)" in psyir_args[i].symbol.datatype.declaration
 
 
 def test_ref_element_handling(fortran_writer):
@@ -669,10 +663,10 @@ def test_ref_element_handling(fortran_writer):
     # standard LFRic types:
     dummy_sym_tab = LFRicSymbolTable()
     # Test all 2D integer arrays:
-    int_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
-                                                ScalarType.Intrinsic.INTEGER)
+    i2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
+                                             ScalarType.Intrinsic.INTEGER)
     for i in [4]:
-        assert psyir_args[i].symbol.datatype == int_2d.datatype
+        assert psyir_args[i].symbol.datatype.partial_datatype == i2d.datatype
 
     int_arr_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dreal", 2,
                                                     ScalarType.Intrinsic.REAL)

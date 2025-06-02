@@ -59,7 +59,7 @@ from psyclone.tests.utilities import Compile
 
 
 TESTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LFRIC_TEST_FILES_DIR = os.path.join(TESTS_DIR, "test_files", "dynamo0p3")
+LFRIC_TEST_FILES_DIR = os.path.join(TESTS_DIR, "test_files", "lfric")
 
 
 TL_CODE = (
@@ -131,7 +131,7 @@ def test_generate_adjoint_str(caplog, tmpdir):
 
 def test_generate_adjoint_str_lfric_api():
     '''
-    Check that specifying the LFRic (dynamo0p3) API to the generate_adjoint_str
+    Check that specifying the LFRic API to the generate_adjoint_str
     routine works as expected.
 
     '''
@@ -251,7 +251,7 @@ def test_generate_adjoint_str_generate_harness_invalid_api():
 
 def test_generate_adjoint_str_generate_harness_lfric():
     '''Test the create_test option to generate_adjoint_str() when the
-    LFRic (dynamo0p3) API is specified.'''
+    LFRic API is specified.'''
     tl_code = (
         "module testkern_mod\n"
         "  use kinds_mod, only: i_def, r_def\n"
@@ -708,18 +708,23 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
             "  real, dimension(npts) :: field_input" in harness)
     assert ("  call random_number(field)\n"
             "  field_input = field\n"
+            "\n"
             "  ! call the tangent-linear kernel\n"
             "  call kern(field, npts)\n"
+            "\n"
             "  ! compute the inner product of the results of the tangent-"
             "linear kernel\n"
             "  inner1 = 0.0\n"
             "  inner1 = inner1 + dot_product(field, field)\n"
+            "\n"
             "  ! call the adjoint of the kernel\n"
             "  call adj_kern(field, npts)\n"
+            "\n"
             "  ! compute inner product of results of adjoint kernel with "
             "the original inputs to the tangent-linear kernel\n"
             "  inner2 = 0.0\n"
             "  inner2 = inner2 + dot_product(field, field_input)\n"
+            "\n"
             "  ! test the inner-product values for equality, allowing for "
             "the precision of the active variables\n"
             "  machinetol = spacing(max(abs(inner1), abs(inner2)))\n"

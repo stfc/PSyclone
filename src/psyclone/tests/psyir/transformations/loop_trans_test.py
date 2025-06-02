@@ -38,7 +38,6 @@
 ''' Module containing tests for the LoopTrans class. Since it is abstract we
 have to test it using various sub-classes. '''
 
-from __future__ import absolute_import
 import inspect
 import pytest
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \

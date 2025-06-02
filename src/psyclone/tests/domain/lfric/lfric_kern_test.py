@@ -36,7 +36,7 @@
 #           J. Henrichs, Bureau of Meteorology
 #           A. R. Porter, STFC Daresbury Laboratory
 
-'''This module tests the LFRicKern class within dynamo0p3 using
+'''This module tests the LFRicKern class within LFRic using
 pytest. At the moment the tests here do not fully cover LFRicKern as
 tests for other classes end up covering the rest.'''
 
@@ -57,11 +57,11 @@ from psyclone.psyir.nodes import Reference, KernelSchedule
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
     INTEGER_TYPE, ArrayType
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import Dynamo0p3ColourTrans
+from psyclone.transformations import LFRicColourTrans
 from psyclone.psyir.backend.visitor import VisitorError
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+                os.path.abspath(__file__)))), "test_files", "lfric")
 TEST_API = "lfric"
 
 CODE = '''
@@ -112,8 +112,8 @@ def test_scalar_kernel_load_meta_err():
             f"a scalar argument but found 'gh_triple'." in str(err.value))
 
 
-def test_kern_colourmap(monkeypatch):
-    ''' Tests for error conditions in the colourmap getter of LFRicKern. '''
+def test_kern_getter_errors():
+    ''' Tests for error conditions in the getter properties of LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -122,16 +122,16 @@ def test_kern_colourmap(monkeypatch):
         _ = kern.colourmap
     assert ("Kernel 'testkern_code' is not inside a coloured loop"
             in str(err.value))
-
-
-def test_kern_ncolours(monkeypatch):
-    ''' Tests for error conditions in the ncolours getter of LFRicKern. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    kern = psy.invokes.invoke_list[0].schedule.children[4].loop_body[0]
     with pytest.raises(InternalError) as err:
         _ = kern.ncolours_var
+    assert ("Kernel 'testkern_code' is not inside a coloured loop"
+            in str(err.value))
+    with pytest.raises(InternalError) as err:
+        _ = kern.tilecolourmap
+    assert ("Kernel 'testkern_code' is not inside a coloured loop"
+            in str(err.value))
+    with pytest.raises(InternalError) as err:
+        _ = kern.ntilecolours_var
     assert ("Kernel 'testkern_code' is not inside a coloured loop"
             in str(err.value))
 
@@ -413,13 +413,19 @@ def test_kern_last_cell_all_colours():
     sched = psy.invokes.invoke_list[0].schedule
     loop = sched.walk(LFRicLoop)[0]
     # Apply a colouring transformation to the loop.
-    trans = Dynamo0p3ColourTrans()
+    trans = LFRicColourTrans()
     trans.apply(loop)
-    # We have to perform code generation as that sets-up the symbol table.
-    # pylint:disable=pointless-statement
-    psy.gen
-    assert (loop.kernel.last_cell_all_colours_symbol.name
-            == "last_halo_cell_all_colours")
+
+    symbol = loop.kernel.last_cell_all_colours_symbol
+    assert symbol.name == "last_halo_cell_all_colours"
+    assert len(symbol.datatype.shape) == 2  # It's a 2-dimensional array
+
+    # Delete the symbols and try again inside a loop wihtout a halo
+    sched.symbol_table._symbols.pop("last_halo_cell_all_colours")
+    loop.kernel.parent.parent._upper_bound_name = "not-a-halo"
+    symbol = loop.kernel.last_cell_all_colours_symbol
+    assert symbol.name == "last_edge_cell_all_colours"
+    assert len(symbol.datatype.shape) == 1  # It's a 1-dimensional array
 
 
 def test_kern_last_cell_all_colours_intergrid():
@@ -434,7 +440,7 @@ def test_kern_last_cell_all_colours_intergrid():
     sched = psy.invokes.invoke_list[0].schedule
     loop = sched.walk(LFRicLoop)[0]
     # Apply a colouring transformation to the loop.
-    trans = Dynamo0p3ColourTrans()
+    trans = LFRicColourTrans()
     trans.apply(loop)
     # We have to perform code generation as that sets-up the symbol table.
     # pylint:disable=pointless-statement
@@ -443,22 +449,30 @@ def test_kern_last_cell_all_colours_intergrid():
             "last_edge_cell_all_colours_field1")
 
 
-def test_kern_all_updates_are_writes():
-    ''' Tests for the 'all_updates_are_writes' property of LFRicKern. '''
+def test_kern_all_updates_are_writes(monkeypatch):
+    ''' Tests for the 'all_updates_are_writes' property of
+    LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     loop = sched.walk(LFRicLoop)[0]
+    kernel = loop.kernel
     # The only argument updated by this kernel has GH_INC access.
-    assert not loop.kernel.all_updates_are_writes
-    # Patch the kernel so that a different argument has GH_WRITE access.
-    loop.kernel.args[2]._access = AccessType.WRITE
-    # There is still a GH_INC argument.
-    assert not loop.kernel.all_updates_are_writes
-    # Change the GH_INC to be GH_WRITE.
-    loop.kernel.args[1]._access = AccessType.WRITE
-    assert loop.kernel.all_updates_are_writes
+    assert not kernel.all_updates_are_writes
+    # Patch the kernel so that two arguments have GH_WRITE access.
+    kernel.args[2]._access = AccessType.WRITE
+    kernel.args[1]._access = AccessType.WRITE
+    assert kernel.all_updates_are_writes
+    # Patch the kernel so that both updated field arguments appear to be
+    # on a discontinuous space.
+    monkeypatch.setattr(
+        kernel.arguments._args[1]._function_spaces[0],
+        "_orig_name", "w3")
+    monkeypatch.setattr(
+        kernel.arguments._args[2]._function_spaces[0],
+        "_orig_name", "w3")
+    assert kernel.all_updates_are_writes
 
 
 def test_kern_not_coloured_inc(monkeypatch):
@@ -494,3 +508,16 @@ def test_undf_name():
     kern = sched.walk(LFRicKern)[0]
 
     assert kern.undf_name == "undf_w1"
+
+
+def test_argument_kinds():
+    ''' Test the LFRicKern.argument_kinds property. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    kern = sched.walk(LFRicKern)[0]
+
+    assert len(kern.argument_kinds) == 2
+    assert "i_def" in kern.argument_kinds
+    assert "r_def" in kern.argument_kinds

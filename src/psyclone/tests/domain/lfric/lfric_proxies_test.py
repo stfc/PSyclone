@@ -34,44 +34,43 @@
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified L. Turner, Met Office
 
-''' This module tests the DynProxies class using pytest. '''
+''' This module tests the LFRicProxies class using pytest. '''
 
 import os
 import pytest
 from psyclone.domain.lfric import LFRicConstants, LFRicKern
-from psyclone.dynamo0p3 import DynProxies
+from psyclone.lfric import LFRicProxies
 from psyclone.errors import InternalError
-from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import symbols
 
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+        os.path.abspath(__file__)))), "test_files", "lfric")
 TEST_API = "lfric"
 
 
 def test_creation():
     '''
-    Test that the constructor of DynProxies populates the symbol table with
+    Test that the constructor of LFRicProxies populates the symbol table with
     the expected symbols and associated tags.
     '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    proxies = DynProxies(invoke)
-    tags = proxies._symbol_table.get_tags()
+    proxies = LFRicProxies(invoke)
+    tags = proxies.symtab.get_tags()
     assert "f1:data" in tags
-    sym = proxies._symbol_table.lookup_with_tag("f1:data")
+    sym = proxies.symtab.lookup_with_tag("f1:data")
     assert isinstance(sym, symbols.DataSymbol)
     assert "f2:data" in tags
 
 
-def test_invoke_declarations():
+def test_invoke_declarations(fortran_writer):
     '''
-    Test the _invoke_declarations() method, primarily by checking the
+    Test the invoke_declarations() method, primarily by checking the
     generated declarations in output code.
 
     '''
@@ -80,20 +79,19 @@ def test_invoke_declarations():
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    proxies = DynProxies(invoke)
-    amod = ModuleGen("test_mod")
-    node = SubroutineGen(amod, name="a_sub")
-    amod.add(node)
-    proxies._invoke_declarations(node)
-    code = str(amod.root).lower()
-    assert ("real(kind=r_def), pointer, dimension(:) :: f1_1_data => null(), "
-            "f1_2_data => null(), f1_3_data => null()" in code)
-    assert "type(field_proxy_type) f1_proxy(3)" in code
-    assert ("r_def" in
-            invoke.invokes.psy.infrastructure_modules["constants_mod"])
+    proxies = LFRicProxies(invoke)
+    proxies.invoke_declarations()
+    code = fortran_writer(invoke.schedule)
+    assert ("real(kind=r_def), pointer, dimension(:) :: f1_1_data => null()"
+            in code)
+    assert ("real(kind=r_def), pointer, dimension(:) :: f1_2_data => null()"
+            in code)
+    assert ("real(kind=r_def), pointer, dimension(:) :: f1_3_data => null()"
+            in code)
+    assert "type(field_proxy_type), dimension(3) :: f1_proxy" in code
 
 
-def test_initialise():
+def test_initialise(fortran_writer):
     '''
     Test the initialise() method.
 
@@ -103,16 +101,11 @@ def test_initialise():
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    proxies = DynProxies(invoke)
-    amod = ModuleGen("test_mod")
-    node = SubroutineGen(amod, name="a_sub")
-    amod.add(node)
-    proxies._invoke_declarations(node)
-    proxies.initialise(node)
-    code = str(amod.root).lower()
-    assert "initialise field and/or operator proxies" in code
-    assert ("r_def" in
-            invoke.invokes.psy.infrastructure_modules["constants_mod"])
+    proxies = LFRicProxies(invoke)
+    proxies.invoke_declarations()
+    proxies.initialise(0)
+    code = fortran_writer(invoke.schedule)
+    assert "! Initialise field and/or operator proxies" in code
     assert "my_mapping_proxy = my_mapping%get_proxy()" in code
     assert "my_mapping_local_stencil => my_mapping_proxy%local_stencil" in code
 
@@ -129,11 +122,8 @@ def test_initialise_errors(monkeypatch):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     kern = invoke.schedule.walk(LFRicKern)[0]
-    proxies = DynProxies(invoke)
-    amod = ModuleGen("test_mod")
-    node = SubroutineGen(amod, name="a_sub")
-    amod.add(node)
-    proxies._invoke_declarations(node)
+    proxies = LFRicProxies(invoke)
+    proxies.invoke_declarations()
     # Monkeypatch the first kernel argument so that it is of an unrecognised
     # type.
     monkeypatch.setattr(kern.args[0], "_argument_type", "gh_wrong")
@@ -141,15 +131,15 @@ def test_initialise_errors(monkeypatch):
     monkeypatch.setattr(LFRicConstants, "ARG_TYPE_SUFFIX_MAPPING",
                         {"gh_wrong": "data"})
     with pytest.raises(InternalError) as err:
-        proxies.initialise(node)
+        proxies.initialise(0)
     assert ("Kernel argument 'my_mapping' of type 'gh_wrong' not handled in "
-            "DynProxies.initialise()" in str(err.value))
+            "LFRicProxies.initialise()" in str(err.value))
 
     # Now monkey patch the list of valid operator names so that the kernel
     # argument is recognised as an operator.
     monkeypatch.setattr(LFRicConstants, "VALID_OPERATOR_NAMES", ["gh_wrong"])
     with pytest.raises(InternalError) as err:
-        proxies.initialise(node)
+        proxies.initialise(0)
     assert ("Kernel argument 'my_mapping' is a recognised operator but its "
-            "type ('gh_wrong') is not supported by DynProxies.initialise()"
+            "type ('gh_wrong') is not supported by LFRicProxies.initialise()"
             in str(err.value))

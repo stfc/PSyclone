@@ -36,7 +36,9 @@
 # Modified: R. W. Ford, STFC Daresbury Lab
 
 F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound
+# Added -Wno-external-argument-mismatch to workaround bug in gfortran 15.1
+# Reported (and fixed): https://gcc.gnu.org/bugzilla/show_bug.cgi?id=120163
+F90FLAGS ?= -Wall -g -fcheck=bound -Wno-external-argument-mismatch
 
 # MAKEFILE_LIST is a Gnu-make variable that contains all of the
 # arguments passed to the first invocation of Make. The last entry

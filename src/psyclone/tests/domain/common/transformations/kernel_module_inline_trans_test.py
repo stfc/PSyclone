@@ -437,26 +437,20 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     assert (kern_call.ancestor(Container).symbol_table.
             lookup("compute_cv_code").is_modulevar)
 
-    # We should see it in the output of both:
-    # - the backend
-    code = fortran_writer(schedule.root)
+    # Generate the code
+    code = str(psy.gen)
     assert 'subroutine compute_cv_code(i, j, cv, p, v)' in code
 
-    # - the gen_code
-    gen = str(psy.gen)
-    assert 'SUBROUTINE compute_cv_code(i, j, cv, p, v)' in gen
+    # And the import has been remove from both, so check that the associated
+    # use no longer exists
+    assert 'use compute_cv_mod' not in code.lower()
 
-    # And the import has been remove from both
-    # check that the associated use no longer exists
-    assert 'use compute_cv_mod, only: compute_cv_code' not in code
-    assert 'USE compute_cv_mod, ONLY: compute_cv_code' not in gen
-
-    # Do the gen_code check again because repeating the call resets some
-    # aspects and we need to see if the second call still works as expected
+    # Do the check again because repeating the call resets some aspects and we
+    # need to see if the second call still works as expected
     gen = str(psy.gen)
-    assert 'SUBROUTINE compute_cv_code(i, j, cv, p, v)' in gen
-    assert 'USE compute_cv_mod, ONLY: compute_cv_code' not in gen
-    assert gen.count("SUBROUTINE compute_cv_code(") == 1
+    assert 'subroutine compute_cv_code(i, j, cv, p, v)' in gen
+    assert 'use compute_cv_mod' not in gen
+    assert gen.count("subroutine compute_cv_code(") == 1
 
     # And it is valid code
     assert GOceanBuild(tmpdir).code_compiles(psy)
@@ -472,8 +466,8 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
 
     # By default the kernel is imported once per invoke
     gen = str(psy.gen)
-    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 2
-    assert gen.count("END SUBROUTINE testkern_qr_code") == 0
+    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 2
+    assert gen.count("end subroutine testkern_qr_code") == 0
 
     # Module inline kernel in invoke 1
     inline_trans = KernelModuleInlineTrans()
@@ -485,8 +479,8 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
 
     # After this, one invoke uses the inlined top-level subroutine
     # and the other imports it (shadowing the top-level symbol)
-    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 1
-    assert gen.count("END SUBROUTINE testkern_qr_code") == 1
+    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 1
+    assert gen.count("end subroutine testkern_qr_code") == 1
 
     # Module inline kernel in invoke 2
     schedule1 = psy.invokes.invoke_list[1].schedule
@@ -496,8 +490,8 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     gen = str(psy.gen)
     # After this, no imports are remaining and both use the same
     # top-level implementation
-    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 0
-    assert gen.count("END SUBROUTINE testkern_qr_code") == 1
+    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 0
+    assert gen.count("end subroutine testkern_qr_code") == 1
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -514,11 +508,11 @@ def test_module_inline_apply_with_sub_use(tmpdir):
     inline_trans.apply(kern_call)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
-    assert 'SUBROUTINE bc_ssh_code(ji, jj, istep, ssha, tmask)' in gen
+    assert 'subroutine bc_ssh_code(ji, jj, istep, ssha, tmask)' in gen
     # check that the use within the subroutine exists
-    assert 'USE grid_mod' in gen
+    assert 'use grid_mod' in gen
     # check that the associated psy use does not exist
-    assert 'USE bc_ssh_mod, ONLY: bc_ssh_code' not in gen
+    assert 'use bc_ssh_mod' not in gen
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
@@ -534,11 +528,11 @@ def test_module_inline_apply_same_kernel(tmpdir):
     inline_trans.apply(kern_calls[0])
     gen = str(psy.gen)
     # check that the subroutine has been inlined
-    assert 'SUBROUTINE compute_cu_code(' in gen
+    assert 'subroutine compute_cu_code(' in gen
     # check that the associated psy "use" does not exist
-    assert 'USE compute_cu_mod, ONLY: compute_cu_code' not in gen
+    assert 'use compute_cu_mod' not in gen
     # check that the subroutine has only been inlined once
-    count = count_lines(gen, "SUBROUTINE compute_cu_code(")
+    count = count_lines(gen, "subroutine compute_cu_code(")
     assert count == 1, "Expecting subroutine to be inlined once"
     assert GOceanBuild(tmpdir).code_compiles(psy)
     # Calling the transformation on a second call to the same kernel
@@ -763,8 +757,8 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric",
                              name="invoke_0", dist_mem=dist_mem)
     kern_call = invoke.schedule.walk(CodedKern)[0]
@@ -772,9 +766,9 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     inline_trans.apply(kern_call)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
-    assert 'SUBROUTINE ru_code(' in gen
+    assert 'subroutine ru_code(' in gen
     # check that the associated psy "use" does not exist
-    assert 'USE ru_kernel_mod, only : ru_code' not in gen
+    assert 'use ru_kernel_mod' not in gen
     # Check that we can subsequently transform the inlined kernel.
     omptrans = OMPDeclareTargetTrans()
     omptrans.apply(kern_call)
@@ -797,8 +791,8 @@ def test_module_inline_with_interfaces(tmpdir):
     gen = str(psy.gen)
     # Both the caller and the callee are in the file and use the specialized
     # implementation name.
-    assert "CALL mixed_code_64(" in gen
-    assert "SUBROUTINE mixed_code_64(" in gen
+    assert "call mixed_code_64(" in gen
+    assert "subroutine mixed_code_64(" in gen
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)

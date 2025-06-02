@@ -33,31 +33,30 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 
-''' This module uses pytest to test the DynMeshes class. '''
+''' This module uses pytest to test the LFRicMeshes class. '''
 
-from __future__ import absolute_import, print_function
 import os
 
-from psyclone.dynamo0p3 import DynMeshes
+from psyclone.lfric import LFRicMeshes
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol
+from psyclone.psyir.symbols import DataSymbol, UnsupportedFortranType
 
 
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
-    "test_files", "dynamo0p3")
+    "test_files", "lfric")
 TEST_API = "lfric"
 
 
-def test_dyn_meshes_constructor(dist_mem):
-    ''' Checks that we can create a DynMeshes object. '''
+def test_lfric_meshes_constructor(dist_mem):
+    ''' Checks that we can create an LFRicMeshes object. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    meshes = DynMeshes(invoke, invoke._psy_unique_vars)
+    meshes = LFRicMeshes(invoke, invoke._psy_unique_vars)
     if dist_mem:
         assert meshes._mesh_tag_names == ["mesh"]
     else:
@@ -70,7 +69,7 @@ def test_add_mesh_symbols():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    meshes = DynMeshes(invoke, invoke._psy_unique_vars)
+    meshes = LFRicMeshes(invoke, invoke._psy_unique_vars)
     # Check that supplying an empty list does nothing.
     meshes._add_mesh_symbols([])
     assert meshes._mesh_tag_names == []
@@ -84,5 +83,5 @@ def test_add_mesh_symbols():
     for tag in mesh_names:
         sym = sym_table.lookup(tag)
         assert isinstance(sym, DataSymbol)
-        assert isinstance(sym.datatype, DataTypeSymbol)
-        assert sym.datatype.name == "mesh_type"
+        assert isinstance(sym.datatype, UnsupportedFortranType)
+        assert "mesh_type" in sym.datatype.type_text
