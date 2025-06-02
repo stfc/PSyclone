@@ -222,11 +222,11 @@ class KernelModuleInlineTrans(Transformation):
             code_to_inline = new_routines[orig_routine.name]
             copied_routines.append(code_to_inline)
 
-            vai = code_to_inline.reference_accesses()
+            vam = code_to_inline.reference_accesses()
 
             # First make a set with all symbols used inside the subroutine
             all_symbols = set()
-            for sig in vai.all_signatures:
+            for sig in vam.all_signatures:
                 all_symbols.add(
                     code_to_inline.symbol_table.lookup(sig.var_name))
 

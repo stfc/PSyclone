@@ -2126,12 +2126,12 @@ def test_field_access_info_for_arrays_in_builtins():
     _, invoke = get_invoke("15.1.8_a_plus_X_builtin_array_of_fields.f90",
                            api=API, idx=0, dist_mem=False)
     schedule = invoke.schedule
-    vai = schedule.reference_accesses()
+    vam = schedule.reference_accesses()
 
-    assert Signature("f2_data") in vai
+    assert Signature("f2_data") in vam
 
     assert (
         "a: READ, df: READ+WRITE, f1_data: READ, f2_data: WRITE, "
         "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, r_def: "
         "NO_DATA_ACCESS, uninitialised_loop0_start: READ, "
-        "uninitialised_loop0_stop: READ" == str(vai))
+        "uninitialised_loop0_stop: READ" == str(vam))

@@ -209,8 +209,8 @@ def test_gis_reference_accesses():
     birch = RoutineSymbol("birch")
     coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False),
                                                  (birch, True)])
-    vai = coppice.reference_accesses()
-    all_names = [sig.var_name for sig in vai.all_signatures]
+    vam = coppice.reference_accesses()
+    all_names = [sig.var_name for sig in vam.all_signatures]
     assert len(all_names) == 3
     assert "ash" in all_names
     assert "holly" in all_names

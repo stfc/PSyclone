@@ -160,8 +160,8 @@ def test_codeblock_ref_accesses(parser):
     end subroutine mytest''')
     prog = parser(reader)
     block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
-    vai = block.reference_accesses()
-    all_sigs = vai.all_signatures
+    vam = block.reference_accesses()
+    all_sigs = vam.all_signatures
     all_names = [sig.var_name for sig in all_sigs]
     assert "a" in all_names
     assert "i" in all_names
@@ -175,7 +175,7 @@ def test_codeblock_ref_accesses(parser):
     # The target of a CALL is included.
     assert "my_routine" in all_names
     # All signatures should be marked as READWRITE access.
-    assert all(vai.has_read_write(sig) for sig in all_sigs)
+    assert all(vam.has_read_write(sig) for sig in all_sigs)
 
 
 def test_codeblock_equality(parser):

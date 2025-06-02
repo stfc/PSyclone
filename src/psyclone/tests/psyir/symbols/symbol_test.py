@@ -486,5 +486,5 @@ def test_symbol_reference_accesses():
     accesses.'''
     interf = DefaultModuleInterface()
     asym = Symbol("a", interface=interf)
-    vai = asym.reference_accesses()
-    assert not vai.all_signatures
+    vam = asym.reference_accesses()
+    assert not vam.all_signatures

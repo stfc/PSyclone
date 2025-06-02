@@ -1209,12 +1209,12 @@ class SymbolTable():
         # Check for any references to it.
         # pylint: disable=import-outside-toplevel
         from psyclone.core import Signature, VariablesAccessMap
-        vai = VariablesAccessMap()
+        vam = VariablesAccessMap()
         if self.node:
-            vai.update(self.node.reference_accesses())
-        vai.update(self.reference_accesses())
+            vam.update(self.node.reference_accesses())
+        vam.update(self.reference_accesses())
         sig = Signature(symbol.name)
-        if sig not in vai:
+        if sig not in vam:
             return
 
         # TODO #2424 - ideally SingleVariableAccessInfo.AccessInfo or
@@ -1225,7 +1225,7 @@ class SymbolTable():
         from psyclone.psyir.symbols.generic_interface_symbol import (
             GenericInterfaceSymbol)
         try:
-            for access in vai[sig].all_accesses:
+            for access in vam[sig].all_accesses:
                 if isinstance(access.node, GenericInterfaceSymbol):
                     for rinfo in access.node.routines:
                         if rinfo.symbol is symbol:
@@ -2041,11 +2041,11 @@ class SymbolTable():
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.core import VariablesAccessMap
-        vai = VariablesAccessMap()
+        vam = VariablesAccessMap()
         for sym in self.symbols:
             if not sym.is_import:
-                vai.update(sym.reference_accesses())
-        return vai
+                vam.update(sym.reference_accesses())
+        return vam
 
     def wildcard_imports(self, scope_limit=None) -> List[ContainerSymbol]:
         '''

@@ -435,8 +435,8 @@ def test_reference_accesses_bounds(operator, fortran_reader):
 
     # The access to 'a' should be reported as 'NO_DATA_ACCESS' as its
     # actual data is not accessed.
-    vai = schedule.reference_accesses()
-    assert str(vai) == "a: NO_DATA_ACCESS, b: READ, n: WRITE"
+    vam = schedule.reference_accesses()
+    assert str(vam) == "a: NO_DATA_ACCESS, b: READ, n: WRITE"
 
 
 def test_enumerator_name_matches_name_field():

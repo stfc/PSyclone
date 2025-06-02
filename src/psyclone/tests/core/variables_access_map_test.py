@@ -46,7 +46,7 @@ from psyclone.tests.utilities import get_invoke
 
 
 # -----------------------------------------------------------------------------
-def test_variables_access_info():
+def test_variables_access_map():
     '''Test the implementation of VariablesAccessMap, a class that manages
     a list of variables, each with a list of accesses.
     '''
@@ -88,7 +88,7 @@ def test_variables_access_info():
 
 
 # -----------------------------------------------------------------------------
-def test_variables_access_info_errors():
+def test_variables_access_map_errors():
     '''Tests if errors are handled correctly. '''
     var_accesses = VariablesAccessMap()
     node = Node()
@@ -150,7 +150,7 @@ def test_component_indices_auto_extension():
 
 
 # -----------------------------------------------------------------------------
-def test_variables_access_info_update():
+def test_variables_access_map_update():
     '''Tests the merge operation of VariablesAccessMap.
     '''
     # First create one instance representing for example:
@@ -327,28 +327,28 @@ def test_symbol_array_detection(fortran_reader):
     assert "In Symbol.is_array_access: index variable 'j' specified, but " \
            "no access information given." in str(error.value)
 
-    vai = scalar_assignment.reference_accesses()
+    vam = scalar_assignment.reference_accesses()
 
     # For 'a' we don't have access information, nor symbol table information
-    access_info_a = vai[Signature("a")]
+    access_info_a = vam[Signature("a")]
     assert not sym_a.is_array_access(access_info=access_info_a)
 
     # For the access to 'b' we will find array access information:
-    access_info_b = vai[Signature("b")]
+    access_info_b = vam[Signature("b")]
     sym_b = symbol_table.lookup("b")
     b_is_array = sym_b.is_array_access(access_info=access_info_b)
     assert b_is_array
 
     # For the access to 'c' we don't have access information, but
     # have symbol table information.
-    access_info_c = vai[Signature("c")]
+    access_info_c = vam[Signature("c")]
     sym_c = symbol_table.lookup("c")
     c_is_array = sym_c.is_array_access(access_info=access_info_c)
     assert c_is_array
 
     # Test specifying the index variable. The access to 'b' is
     # considered an array access when using the index variable 'i'.
-    access_info_b = vai[Signature("b")]
+    access_info_b = vam[Signature("b")]
     sym_b = symbol_table.lookup("b")
     b_is_array = sym_b.is_array_access(access_info=access_info_b,
                                        index_variable="i")
@@ -364,7 +364,7 @@ def test_symbol_array_detection(fortran_reader):
 
 # -----------------------------------------------------------------------------
 @pytest.mark.parametrize("function", ["size", "lbound", "ubound"])
-def test_variables_access_info_shape_bounds(fortran_reader, function):
+def test_variables_access_map_shape_bounds(fortran_reader, function):
     '''Test that access to an array using shape, or lbound/ubound is marked
     as 'inquiry'.
 
@@ -381,19 +381,19 @@ def test_variables_access_info_shape_bounds(fortran_reader, function):
     node1 = psyir.walk(Assignment)[0]
 
     # Array-shape accesses are 'inquiry'
-    vai = node1.reference_accesses()
-    assert str(vai) == "a: NO_DATA_ACCESS, n: WRITE"
+    vam = node1.reference_accesses()
+    assert str(vam) == "a: NO_DATA_ACCESS, n: WRITE"
 
 
 # -----------------------------------------------------------------------------
-def test_variables_access_info_domain_loop():
+def test_variables_access_map_domain_loop():
     '''Tests that LFRic domain loop (that do not have an actual loop
     structure, so especially the loop variable is not defined) work as
     expected.
     '''
     _, invoke = get_invoke("25.1_kern_two_domain.f90", "lfric", idx=0)
-    vai = invoke.schedule.reference_accesses()
-    assert str(vai) == (
+    vam = invoke.schedule.reference_accesses()
+    assert str(vam) == (
         "a: READ, b: READ, f1_data: READWRITE, f2_data: "
         "READWRITE, field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, "
         "map_w3: READ, ncell_2d_no_halos: "
@@ -402,7 +402,7 @@ def test_variables_access_info_domain_loop():
 
 
 # -----------------------------------------------------------------------------
-def test_lfric_access_info():
+def test_lfric_access_map():
     '''Test some LFRic specific potential bugs:
     '''
 
@@ -410,7 +410,7 @@ def test_lfric_access_info():
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    vai = schedule.reference_accesses()
+    vam = schedule.reference_accesses()
 
     # Make sure literals (e.g. 1_i_def or 2.0_r_def in this example) are not
     # reported as variables in the access list (but that the associated
@@ -426,4 +426,4 @@ def test_lfric_access_info():
         "r_def: NO_DATA_ACCESS, undf_w1: READ, undf_w2: READ, "
         "undf_w3: READ, uninitialised_loop0_start: READ, "
         "uninitialised_loop0_stop: READ, "
-        "weights_xy_qr: READ, weights_z_qr: READ" == str(vai))
+        "weights_xy_qr: READ, weights_z_qr: READ" == str(vam))

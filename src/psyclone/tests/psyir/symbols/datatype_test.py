@@ -323,8 +323,8 @@ def test_scalartype_reference_accesses():
     rdef = DataSymbol("rdef", INTEGER_TYPE)
     stype2 = ScalarType(ScalarType.Intrinsic.INTEGER,
                         rdef)
-    vai = stype2.reference_accesses()
-    svaccess = vai[Signature("rdef")]
+    vam = stype2.reference_accesses()
+    svaccess = vam[Signature("rdef")]
     assert svaccess.has_data_access() is False
     assert svaccess[0].node is stype2
 
@@ -337,8 +337,8 @@ def test_arraytype_extent():
     xtent = ArrayType.Extent.ATTRIBUTE
     ytent = xtent.copy()
     assert isinstance(ytent, ArrayType.Extent)
-    vai = ytent.reference_accesses()
-    assert not vai.all_signatures
+    vam = ytent.reference_accesses()
+    assert not vam.all_signatures
 
 
 def test_arraytype():
@@ -767,8 +767,8 @@ def test_arraytype_reference_accesses():
                       [Literal("10", ScalarType(ScalarType.Intrinsic.INTEGER,
                                                 idef)),
                        Reference(DataSymbol("ndim", INTEGER_TYPE))])
-    vai = etype.reference_accesses()
-    all_names = [sig.var_name for sig in vai.all_signatures]
+    vam = etype.reference_accesses()
+    all_names = [sig.var_name for sig in vam.all_signatures]
     assert "rdef" in all_names
     assert "idef" in all_names
     assert "ndim" in all_names
@@ -996,8 +996,8 @@ def test_unsupported_fortran_type_reference_accesses():
     nelem = DataSymbol("nelem", INTEGER_TYPE)
     ptype = ArrayType(stype, [Reference(nelem)])
     utype = UnsupportedFortranType(decl, partial_datatype=ptype)
-    vai = utype.reference_accesses()
-    all_names = [sig.var_name for sig in vai.all_signatures]
+    vam = utype.reference_accesses()
+    all_names = [sig.var_name for sig in vam.all_signatures]
     assert "nelem" in all_names
     assert "some_type" in all_names
     decl2 = "type(some_type), pointer :: var"
@@ -1174,9 +1174,9 @@ def test_structuretype_reference_accesses():
         ("george", atype, Symbol.Visibility.PRIVATE,
          Literal("1.0", REAL_TYPE)),
         ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
-    vai = stype.reference_accesses()
-    assert Signature("my_type") in vai.all_signatures
-    assert Signature("ndim") in vai.all_signatures
+    vam = stype.reference_accesses()
+    assert Signature("my_type") in vam.all_signatures
+    assert Signature("ndim") in vam.all_signatures
 
 
 def test_structuretype_componenttype_eq():

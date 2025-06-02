@@ -894,8 +894,8 @@ class InlineTrans(Transformation):
         # (automatic) array, are passed by argument and are written
         # to before the call then we can't perform inlining.
         for asym in routine.symbol_table.automatic_datasymbols:
-            vai = asym.reference_accesses()
-            for sig in vai.all_signatures:
+            vam = asym.reference_accesses()
+            for sig in vam.all_signatures:
                 sym = routine_table.lookup(sig.var_name)
                 if sym not in routine_table.argument_list:
                     # This dependency is not an argument to the routine.

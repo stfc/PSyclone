@@ -438,11 +438,11 @@ class MarkRoutineForGPUMixin:
 
         # Check that the routine does not access any data that is imported via
         # a 'use' statement.
-        vai = kernel_schedule.reference_accesses()
+        vam = kernel_schedule.reference_accesses()
         ktable = kernel_schedule.symbol_table
-        for sig in vai.all_signatures:
+        for sig in vam.all_signatures:
             name = sig.var_name
-            first = vai[sig].all_accesses[0].node
+            first = vam[sig].all_accesses[0].node
             if isinstance(first, (Symbol, DataType)):
                 table = ktable
             else:

@@ -290,8 +290,8 @@ def test_typed_symbol_reference_accesses():
     kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
     real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, kind)
     sym = TSymbol("a", real_kind_type)
-    vai = sym.reference_accesses()
-    assert vai.all_signatures == [Signature("r_def")]
+    vam = sym.reference_accesses()
+    assert vam.all_signatures == [Signature("r_def")]
     # When the type is specified by a DataTypeSymbol.
     type_sym = DataTypeSymbol("some_type", UnresolvedType())
     struc_sym = TSymbol("b", type_sym)

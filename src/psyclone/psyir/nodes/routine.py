@@ -215,10 +215,10 @@ class Routine(Schedule, CommentableMixin):
         # VariablesAccessMap does not work with nested scopes. (e.g. 2
         # different symbols with the same name but declared in different,
         # nested scopes will be assumed to be the same symbol).
-        vai = self.reference_accesses()
+        vam = self.reference_accesses()
         table = self.symbol_table
         name = self.name
-        for sig in vai.all_signatures:
+        for sig in vam.all_signatures:
             symbol = table.lookup(sig.var_name, otherwise=None)
             if not symbol:
                 raise SymbolError(
@@ -231,7 +231,7 @@ class Routine(Schedule, CommentableMixin):
                 if permit_unresolved:
                     continue
                 if (ignore_non_data_accesses and
-                        not vai[sig].has_data_access()):
+                        not vam[sig].has_data_access()):
                     continue
                 raise SymbolError(
                     f"{kern_or_call} '{name}' contains accesses to "
