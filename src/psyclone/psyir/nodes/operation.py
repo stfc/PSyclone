@@ -41,6 +41,7 @@ sub-classes.'''
 
 from abc import ABCMeta
 from enum import Enum
+from typing import Tuple
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
@@ -202,6 +203,13 @@ class UnaryOperation(Operation):
 
         '''
         return self.children[0].datatype
+
+    @property
+    def operands(self) -> DataNode:
+        '''
+        :returns: the operand of this UnaryOperation.
+        '''
+        return self.children[0]
 
 
 class BinaryOperation(Operation):
@@ -488,6 +496,12 @@ class BinaryOperation(Operation):
                  argtypes[1].shape)
         return ArrayType(base_type, shape=shape)
 
+    @property
+    def operands(self) -> Tuple[DataNode, DataNode]:
+        '''
+        :returns: the operand of this UnaryOperation.
+        '''
+        return self.children[0], self.children[1]
 
 # For automatic API documentation generation
 __all__ = ["Operation", "UnaryOperation", "BinaryOperation"]

@@ -235,6 +235,17 @@ def test_binaryop_scalar_datatype():
             "operation 'Operator.ADD' in 'itmp1 + switch'" in str(err.value))
 
 
+def test_binaryop_operands():
+    '''Test the operand property of BinaryOperation.'''
+    ref1 = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
+    ref2 = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
+    oper = BinaryOperation.Operator.ADD
+    binaryoperation = BinaryOperation.create(oper, ref1, ref2)
+    operands = binaryoperation.operands
+    assert operands[0] is ref1
+    assert operands[1] is ref2
+
+
 def test_binaryop_get_result_precision(monkeypatch):
     '''Test the _get_result_precision method of BinaryOperation gives the
     correct precision.'''
@@ -660,6 +671,16 @@ def test_unaryop_datatype():
     assert isinstance(dtype, ArrayType)
     assert dtype == atype
     assert dtype.intrinsic == ScalarType.Intrinsic.BOOLEAN
+
+
+def test_unaryop_operand():
+    '''
+    Test the operand peroperty of UnaryOperation.
+    '''
+    oper = UnaryOperation.Operator.MINUS
+    node = Literal("1", INTEGER_SINGLE_TYPE)
+    uop = UnaryOperation.create(oper, node)
+    assert uop.operands is node
 
 
 def test_operations_can_be_copied():
