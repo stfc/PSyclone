@@ -45,7 +45,7 @@ import abc
 from collections import OrderedDict
 from typing import List
 
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes.array_of_structures_reference import (
     ArrayOfStructuresReference)
@@ -96,8 +96,7 @@ class Directive(Statement, metaclass=abc.ABCMeta):
         write_only = OrderedDict()
         table = self.scope.symbol_table
 
-        var_info = VariablesAccessInfo()
-        self.reference_accesses(var_info)
+        var_info = self.reference_accesses()
 
         for sig in var_info.all_signatures:
             vinfo = var_info[sig]

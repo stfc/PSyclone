@@ -41,7 +41,7 @@ import os
 import re
 import pytest
 
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature, VariablesAccessMap
 from psyclone.domain.lfric import (KernCallArgList, LFRicSymbolTable,
                                    LFRicTypes, LFRicKern)
 from psyclone.errors import GenerationError, InternalError
@@ -102,12 +102,12 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
     kernel = schedule.kernels()[0]
 
     create_arg_list = KernCallArgList(kernel)
-    vai = VariablesAccessInfo()
-    create_arg_list.generate(vai)
+    vam = VariablesAccessMap()
+    create_arg_list.generate(vam)
 
     # Verify that no array expression turns up in the access information
-    assert "cell_map_field2(:,:,cell)" not in str(vai)
-    assert Signature("cell_map_field2") in vai
+    assert "cell_map_field2(:,:,cell)" not in str(vam)
+    assert Signature("cell_map_field2") in vam
 
     assert create_arg_list._arglist == [
         'nlayers_field1', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
@@ -228,7 +228,7 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
     ctrans.apply(schedule.children[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    var_info = VariablesAccessInfo()
+    var_info = VariablesAccessMap()
     create_arg_list.generate(var_accesses=var_info)
     assert str(var_info) == ("a: READ, adjacent_face: READ, cell: READ, "
                              "cmap: READ, colour: READ, f1_data: READ+WRITE, "
@@ -386,7 +386,7 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
 
     schedule = psy.invokes.invoke_list[0].schedule
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    access_info = VariablesAccessInfo()
+    access_info = VariablesAccessMap()
     create_arg_list.generate(access_info)
     assert create_arg_list._arglist == [
         'cell', 'nlayers_op_a', 'op_a_proxy%ncell_3d', 'op_a_local_stencil',
@@ -496,12 +496,12 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    vai = VariablesAccessInfo()
+    vam = VariablesAccessMap()
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    create_arg_list.generate(vai)
+    create_arg_list.generate(vam)
 
     # Verify that a constant is not returned in the access info list
-    assert "1.0" not in str(vai)
+    assert "1.0" not in str(vam)
 
     assert create_arg_list._arglist == [
         'nlayers_f1', 'f1_data', 'f2_data', 'm1_data',
@@ -620,8 +620,8 @@ def test_ref_element_handling(fortran_writer):
 
     schedule = psy.invokes.invoke_list[0].schedule
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    vai = VariablesAccessInfo()
-    create_arg_list.generate(vai)
+    vam = VariablesAccessMap()
+    create_arg_list.generate(vam)
 
     assert (create_arg_list._arglist == [
         'nlayers_f1', 'f1_data', 'ndf_w1', 'undf_w1', 'map_w1(:,cell)',
@@ -631,7 +631,7 @@ def test_ref_element_handling(fortran_writer):
     assert ("cell: READ, f1_data: READ+WRITE, map_w1: READ, ndf_w1: READ, "
             "nfaces_re_h: READ, nfaces_re_v: READ, nlayers_f1: READ, "
             "normals_to_horiz_faces: READ, normals_to_vert_faces: READ, "
-            "undf_w1: READ" == str(vai))
+            "undf_w1: READ" == str(vam))
 
     check_psyir_results(create_arg_list, fortran_writer)
 

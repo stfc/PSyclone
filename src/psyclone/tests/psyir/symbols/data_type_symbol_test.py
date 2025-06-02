@@ -39,7 +39,7 @@
 
 import pytest
 
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.psyir.nodes import Reference
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, INTEGER_TYPE, Symbol,
@@ -103,6 +103,5 @@ def test_dts_reference_accesses():
     ndim = DataSymbol("ndim", INTEGER_TYPE)
     symbol = DataTypeSymbol("origin", ArrayType(REAL_SINGLE_TYPE,
                                                 [1, Reference(ndim)]))
-    vai = VariablesAccessInfo()
-    symbol.reference_accesses(vai)
-    assert vai.all_signatures == [Signature("ndim")]
+    vam = symbol.reference_accesses()
+    assert vam.all_signatures == [Signature("ndim")]

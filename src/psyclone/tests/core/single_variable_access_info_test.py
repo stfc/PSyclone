@@ -140,68 +140,68 @@ def test_variable_access_info():
     list of VariableInfo instances for one variable
     '''
 
-    vai = SingleVariableAccessInfo(Signature("var_name"))
-    assert vai.var_name == "var_name"
-    assert str(vai) == "var_name:"
-    assert vai.is_written() is False
-    assert vai.is_written_first() is False
-    assert vai.is_read() is False
+    vam = SingleVariableAccessInfo(Signature("var_name"))
+    assert vam.var_name == "var_name"
+    assert str(vam) == "var_name:"
+    assert vam.is_written() is False
+    assert vam.is_written_first() is False
+    assert vam.is_read() is False
 
-    assert vai.all_accesses == []
-    assert vai.all_read_accesses == []
-    assert vai.all_write_accesses == []
-    assert vai.signature == Signature("var_name")
+    assert vam.all_accesses == []
+    assert vam.all_read_accesses == []
+    assert vam.all_write_accesses == []
+    assert vam.signature == Signature("var_name")
 
-    vai.add_access_with_location(AccessType.INQUIRY, 3, Node(),
+    vam.add_access_with_location(AccessType.INQUIRY, 3, Node(),
                                  component_indices=None)
-    vai.add_access_with_location(AccessType.READ, 2, Node(),
+    vam.add_access_with_location(AccessType.READ, 2, Node(),
                                  component_indices=None)
-    assert str(vai) == "var_name:INQUIRY(3),READ(2)"
-    assert vai.is_read()
-    assert vai.is_read_only()
-    assert vai.all_read_accesses == [vai[1]]
-    assert vai.all_write_accesses == []
-    assert not vai.is_written()
-    assert not vai.is_written_first()
-    vai.change_read_to_write()
-    assert not vai.is_read()
-    assert vai.is_written()
-    assert vai.is_written_first()
-    assert not vai.is_read_only()
-    assert vai.all_read_accesses == []
-    assert vai.all_write_accesses == [vai[1]]
+    assert str(vam) == "var_name:INQUIRY(3),READ(2)"
+    assert vam.is_read()
+    assert vam.is_read_only()
+    assert vam.all_read_accesses == [vam[1]]
+    assert vam.all_write_accesses == []
+    assert not vam.is_written()
+    assert not vam.is_written_first()
+    vam.change_read_to_write()
+    assert not vam.is_read()
+    assert vam.is_written()
+    assert vam.is_written_first()
+    assert not vam.is_read_only()
+    assert vam.all_read_accesses == []
+    assert vam.all_write_accesses == [vam[1]]
 
     # Now we have one write access, which we should not be able to
     # change to write again:
     with pytest.raises(InternalError) as err:
-        vai.change_read_to_write()
+        vam.change_read_to_write()
     assert ("Variable 'var_name' has a 'WRITE' access. change_read_to_write() "
             "expects only inquiry accesses and a single 'READ' access."
             in str(err.value))
 
-    assert vai.all_accesses[0] == vai[0]
+    assert vam.all_accesses[0] == vam[0]
     with pytest.raises(IndexError) as err:
-        _ = vai[2]
+        _ = vam[2]
 
     # Add a READ access - we should not be able to
     # change this read to write as there's already a WRITE access.
-    vai.add_access_with_location(AccessType.READ, 1, Node(),
+    vam.add_access_with_location(AccessType.READ, 1, Node(),
                                  component_indices=None)
     with pytest.raises(InternalError) as err:
-        vai.change_read_to_write()
+        vam.change_read_to_write()
     assert ("Variable 'var_name' has a 'WRITE' access. change_read_to_write() "
             "expects only inquiry accesses and a single 'READ' access."
             in str(err.value))
     # And make sure the variable is not read_only if a write is added
-    vai.add_access_with_location(AccessType.WRITE, 3, Node(),
+    vam.add_access_with_location(AccessType.WRITE, 3, Node(),
                                  component_indices=None)
-    assert vai.is_read_only() is False
-    assert vai.all_read_accesses == [vai[2]]
-    assert vai.all_write_accesses == [vai[1], vai[3]]
+    assert vam.is_read_only() is False
+    assert vam.all_read_accesses == [vam[2]]
+    assert vam.all_write_accesses == [vam[1], vam[3]]
     # Check that we catch a case where there are no accesses at all.
-    vai = SingleVariableAccessInfo(Signature("var_name"))
+    vam = SingleVariableAccessInfo(Signature("var_name"))
     with pytest.raises(InternalError) as err:
-        vai.change_read_to_write()
+        vam.change_read_to_write()
     assert "but it does not have a 'READ' access" in str(err.value)
 
 
@@ -210,14 +210,14 @@ def test_variable_access_info_is_array(fortran_reader):
     '''Test that the SingleVariableAccesInfo class handles arrays as expected.
 
     '''
-    vai = SingleVariableAccessInfo(Signature("var_name"))
+    vam = SingleVariableAccessInfo(Signature("var_name"))
     # Add non array-like access:
-    vai.add_access_with_location(AccessType.READ, 1, Node,
+    vam.add_access_with_location(AccessType.READ, 1, Node,
                                  component_indices=None)
-    assert not vai.is_array()
+    assert not vam.is_array()
     # Add array access:
-    vai.add_access_with_location(AccessType.READ, 1, Node(), [[Node()]])
-    assert vai.is_array()
+    vam.add_access_with_location(AccessType.READ, 1, Node(), [[Node()]])
+    assert vam.is_array()
 
     # Get some real nodes:
     code = '''program test_prog
@@ -232,16 +232,16 @@ def test_variable_access_info_is_array(fortran_reader):
     # Get the reference to i
     ref_i = rhs.children[0]
 
-    vai = SingleVariableAccessInfo(Signature("b"))
-    vai.add_access_with_location(AccessType.READ, 1, rhs,
+    vam = SingleVariableAccessInfo(Signature("b"))
+    vam.add_access_with_location(AccessType.READ, 1, rhs,
                                  ComponentIndices([ref_i]))
 
     # Check that the access to "b[i]" is considered an array
     # when testing for access using "i"
-    assert vai.is_array("i")
+    assert vam.is_array("i")
     # Check that the access to "b[i]" is not considered an array
     # when testing for access using "j"
-    assert not vai.is_array("j")
+    assert not vam.is_array("j")
 
 
 # -----------------------------------------------------------------------------
@@ -252,36 +252,36 @@ def test_variable_access_info_read_write():
     used in subroutine calls (depending on kernel metadata)
     '''
 
-    vai = SingleVariableAccessInfo(Signature("var_name"))
-    assert vai.has_read_write() is False
-    assert vai.is_written_first() is False
+    vam = SingleVariableAccessInfo(Signature("var_name"))
+    assert vam.has_read_write() is False
+    assert vam.is_written_first() is False
 
     # Add a READ and WRITE access at the same location, and make sure it
     # is not reported as READWRITE access
     node = Node()
-    vai.add_access_with_location(AccessType.READ, 2, node,
+    vam.add_access_with_location(AccessType.READ, 2, node,
                                  component_indices=None)
-    assert vai[0].node == node
-    assert vai[0].location == 2
+    assert vam[0].node == node
+    assert vam[0].location == 2
     # Test a single read access:
-    assert vai.is_written_first() is False
-    vai.add_access_with_location(AccessType.WRITE, 2, Node(),
+    assert vam.is_written_first() is False
+    vam.add_access_with_location(AccessType.WRITE, 2, Node(),
                                  component_indices=None)
-    assert vai.has_read_write() is False
+    assert vam.has_read_write() is False
     # This tests a read-then-write access:
-    assert vai.is_written_first() is False
+    assert vam.is_written_first() is False
 
-    vai.add_access_with_location(AccessType.READWRITE, 2, Node(),
+    vam.add_access_with_location(AccessType.READWRITE, 2, Node(),
                                  component_indices=None)
-    assert vai.has_read_write()
+    assert vam.has_read_write()
 
     # Create a new instance, and add only one READWRITE access:
-    vai = SingleVariableAccessInfo(Signature("var_name"))
-    vai.add_access_with_location(AccessType.READWRITE, 2, Node(),
+    vam = SingleVariableAccessInfo(Signature("var_name"))
+    vam.add_access_with_location(AccessType.READWRITE, 2, Node(),
                                  component_indices=None)
-    assert vai.has_read_write()
-    assert vai.is_read()
-    assert vai.is_written()
+    assert vam.has_read_write()
+    assert vam.is_read()
+    assert vam.is_written()
 
 
 # -----------------------------------------------------------------------------
