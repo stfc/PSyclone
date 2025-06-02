@@ -77,7 +77,7 @@ jobs:
         pip install .[test]
         # Install BAF, and its version of Fab:
         # ------------------------------------
-        git clone -b main --recurse-submodules https://github.com/MetOffice/lfric-baf.git
+        git clone -b psyclone_ci_branch --recurse-submodules https://github.com/MetOffice/lfric-baf.git
         # First install Fab:
         cd lfric-baf/fab
         pip install .
@@ -86,7 +86,7 @@ jobs:
     - name: GungHo Extraction Compilation
       run:  |
         # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%gcc@14
         source .runner_venv/bin/activate
         export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
@@ -121,11 +121,10 @@ jobs:
         # we need to add the required paths manuall, and then
         # unset the environment variables (which would otherwise
         # be used as default)
-        export PATH="$(dirname $CC):$(dirname $LDMPI):/apps/spack/psyclone-spack/spack-repo/opt/spack/linux-centos9-skylake_avx512/gcc-14.1.0/rose-picker-2-mmt2v3hqjwoqgkyf4f2ijlzlsy7nubnp/bin:$PATH"
-        unset CC FC LD
+        export PATH="$(spack location -i rose-picker):$PATH"
         # Run the Fab build script
         ${LFRIC_CORE}/build.sh ./fab_gungho_model_extract.py   \
-          -fc mpif90-gfortran -ld linker-mpif90-gfortran  -cc gcc
+          --profile fast-debug --nproc 4 -fc $LD -ld $LD  -cc "$CC"
 
         # Run gungho (which will create the NetCDF kernel data files)
         # -----------------------------------------------------------
