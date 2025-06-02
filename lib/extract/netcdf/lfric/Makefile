@@ -71,7 +71,7 @@ LFRIC_INCLUDE_FLAGS += $$(nf-config --fflags)
 PSYDATA_LIB_NAME = _extract
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
-PROCESS_ARGS = -prefix=extract_ -types=char,int,logical,real,double \
+PROCESS_ARGS = -prefix=extract_ -types=char,int,long,logical,real,double \
                        -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
