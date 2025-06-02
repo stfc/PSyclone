@@ -140,7 +140,7 @@ def test_intrinsiccall_is_inquiry():
                 (IntrinsicCall.Intrinsic.MOD, True),
                 (IntrinsicCall.Intrinsic.NINT, True),
                 (IntrinsicCall.Intrinsic.NOT, True),
-                (IntrinsicCall.Intrinsic.REAL, True),
+                (IntrinsicCall.Intrinsic.REAL, False),
                 (IntrinsicCall.Intrinsic.SIGN, True),
                 (IntrinsicCall.Intrinsic.SIN, True),
                 (IntrinsicCall.Intrinsic.SINH, True),
