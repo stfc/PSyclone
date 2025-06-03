@@ -197,13 +197,14 @@ class SymPyReader():
                     new_args.append(f"{args[i]}:{args[i+1]}:"
                                     f"{args[i+2]}")
 
-        if not new_args:
-            # This reference didn't have parentheses originally and so we
-            # reproduce that input.
+        if not new_args and not function._is_call:
+            # This reference is not a function call and didn't have parentheses
+            # originally so we reproduce that input.
             return name
 
-        if function._sig is None:
-            # It's not a user defined type, just create the array access:
+        if function._sig is None or function._is_call:
+            # It's not a user defined type, just create the array access
+            # or function call:
             return f"{name}({','.join(new_args)})"
 
         # It is a user defined type. Re-assemble the original call by

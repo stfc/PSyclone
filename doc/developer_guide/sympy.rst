@@ -38,7 +38,7 @@
 
 .. testsetup::
 
-    from psyclone.core import Signature, VariablesAccessInfo
+    from psyclone.core import Signature, VariablesAccessMap
     from psyclone.psyir.frontend.fortran import FortranReader
 
     code = '''subroutine sub()

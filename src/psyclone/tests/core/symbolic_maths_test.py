@@ -529,6 +529,61 @@ def test_expand_with_intrinsic(fortran_reader, fortran_writer):
     assert "lbound(u_e, 1),df2)" in result
 
 
+def test_symbolic_maths_expand_function(fortran_reader, fortran_writer):
+    '''Test the expand method works as expected when one of the
+    Symbols in the expression corresponds to an actual function.
+
+    '''
+    source = (
+        "module test\n"
+        "  implicit none\n"
+        "  contains\n"
+        "  subroutine use_a\n"
+        "    use some_mod, only: b, c, d\n"
+        "    integer :: i, j, x\n"
+        "    x = a(i)*((b(i,j)+c(j))/d)\n"
+        "  end subroutine\n"
+        "  function a(i)\n"
+        "     integer, intent(in) :: i\n"
+        "     integer :: a\n"
+        "     a = i\n"
+        "  end function\n"
+        "end module\n")
+    psyir = fortran_reader.psyir_from_source(source)
+    sym_maths = SymbolicMaths.get()
+    assigns = psyir.walk(Assignment)
+    sym_maths.expand(assigns[0].rhs)
+    result = fortran_writer(psyir).lower()
+    assert "a(i) * b(i,j) / d +" in result
+
+
+def test_symbolic_maths_expand_function_no_arg(fortran_reader, fortran_writer):
+    '''Test the expand method works as expected when one of the Symbols in the
+    expression corresponds to a function call with no arguments.
+
+    '''
+    source = (
+        "module test\n"
+        "  implicit none\n"
+        "  contains\n"
+        "  subroutine use_a\n"
+        "    use some_mod, only: b, c, d\n"
+        "    integer :: x, i, j\n"
+        "    x = a()*((b(i,j)+c(j))/d)\n"
+        "  end subroutine\n"
+        "  function a()\n"
+        "     integer :: a\n"
+        "     a = 10\n"
+        "  end function\n"
+        "end module\n")
+    psyir = fortran_reader.psyir_from_source(source)
+    sym_maths = SymbolicMaths.get()
+    assigns = psyir.walk(Assignment)
+    sym_maths.expand(assigns[0].rhs)
+    result = fortran_writer(psyir).lower()
+    assert "x = a() * b(i,j) / d + a() *" in result
+
+
 def test_symbolic_maths_array_and_array_index(fortran_reader):
     '''Test having an expression that uses a whole array and
     the same array with an index, e.g. : `a(i) + a`.

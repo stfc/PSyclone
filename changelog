@@ -1,3 +1,10 @@
+   31) PR #2998 for #2620. Refactor reference_accesses method.
+
+   30) PR #2959. Update spack and enable NEMO multi-gpu.
+
+   29) PR #3000 for #2973. Improves handling of pure subroutines in definition
+   use chains.
+
    28) PR #2994 for #2992. Fix bug with COMPUTE_ANNEXED_DOFS set to False.
 
    27) PR #2979 for #2942. Change 'dynamo' references to 'LFRic' throughout.

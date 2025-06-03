@@ -45,14 +45,15 @@ import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.core import (Signature, SingleVariableAccessInfo,
-                           VariablesAccessInfo)
+                           VariablesAccessMap)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (
-    DataNode, IntrinsicCall, Node, Range, Reference, StructureReference)
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, ScalarType, Symbol,
-                                    SymbolError, SymbolTable, UnresolvedType)
+    Call, DataNode, IntrinsicCall, Node, Range, Reference, StructureReference)
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, RoutineSymbol, ScalarType, Symbol,
+    SymbolError, SymbolTable, UnresolvedType)
 
 
 class SymPyWriter(FortranWriter):
@@ -203,7 +204,11 @@ class SymPyWriter(FortranWriter):
                                   "never be called.")
 
     # -------------------------------------------------------------------------
-    def _create_sympy_array_function(self, name, sig=None, num_dims=None):
+    def _create_sympy_array_function(self,
+                                     name: str,
+                                     sig: Optional[Signature] = None,
+                                     num_dims: Optional[List[int]] = None,
+                                     is_call: Optional[bool] = False):
         '''Creates a Function class with the given name to be used for SymPy
         parsing. This Function overwrites the conversion to string, and will
         replace the triplicated array indices back to the normal Fortran
@@ -216,29 +221,29 @@ class SymPyWriter(FortranWriter):
         :param sig: the signature of the variable, which is required
             to convert user defined types back properly. Only defined for
             user-defined types.
-        :type sig: Optional[:py:class:`psyclone.core.Signature`]
         :param num_dims: the number of dimensions for each component of a
             user defined type.
-        :type num_dims: Optional[List[int]]
+        :param is_call: whether the Function represents an actual Call to
+            a function. If so, it is permitted to have no arguments.
 
         :returns: a SymPy function, which has a special ``_sympystr`` function
             defined as attribute to print user-defined types..
         :rtype: :py:class:`sympy.Function`
-        '''
 
-        # Now a new Fortran array is used. Create a new function
-        # instance, and overwrite how this function is converted back
-        # into a string by defining the ``_sympystr`` attribute,
-        # which points to a function that controls how this object
-        # is converted into a string. Use the ``print_fortran_array``
-        # function from the SymPyReader for this. Note that we cannot
-        # create a derived class based on ``Function`` and define
-        # this function there: SymPy tests internally if the type is a
-        # Function (not if it is an instance), therefore, SymPy's
-        # behaviour would change if we used a derived class:
+        '''
+        # Create a new sympy function instance, and overwrite how this
+        # function is converted back into a string by defining the
+        # ``_sympystr`` attribute, which points to a function that
+        # controls how this object is converted into a string. Use the
+        # ``print_fortran_array`` function from the SymPyReader for
+        # this. Note that we cannot create a derived class based on
+        # ``Function`` and define this function there: SymPy tests
+        # internally if the type is a Function (not if it is an
+        # instance), therefore, SymPy's behaviour would change if we
+        # used a derived class:
         # https://docs.sympy.org/latest/modules/functions/index.html:
-        # "It [Function class] also serves as a constructor for undefined
-        # function classes."
+        # "It [Function class] also serves as a constructor for
+        # undefined function classes."
         new_func = sympy.Function(name)
         # pylint: disable=protected-access
         new_func._sympystr = SymPyReader.print_fortran_array
@@ -248,6 +253,9 @@ class SymPyWriter(FortranWriter):
         # the indices back to the user defined types.
         new_func._sig = sig
         new_func._num_dims = num_dims
+        # We also have to store whether or not this is a function call in
+        # case it has no arguments.
+        new_func._is_call = is_call
         # pylint: enable=protected-access
         return new_func
 
@@ -297,7 +305,7 @@ class SymPyWriter(FortranWriter):
         '''
         if all(acs.is_array() for acs in sva.all_accesses):
             return
-        if not sym or isinstance(sym, DataSymbol):
+        if not sym or isinstance(sym, (DataSymbol, RoutineSymbol)):
             return
         # Find an access that has indices.
         for acs in sva.all_accesses:
@@ -384,12 +392,12 @@ class SymPyWriter(FortranWriter):
         # Find every symbol in each of the expressions, and declare this name
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
         # (either an array or a function call).
-        vai = VariablesAccessInfo()
+        vam = VariablesAccessMap()
         for expr in list_of_expressions:
-            expr.reference_accesses(vai)
+            vam.update(expr.reference_accesses())
 
-        for sig in vai.all_signatures:
-            sva: SingleVariableAccessInfo = vai[sig]
+        for sig in vam.all_signatures:
+            sva: SingleVariableAccessInfo = vam[sig]
 
             flat_name = "_".join(name for name in sig)
             unique_sym = self._symbol_table.find_or_create_tag(
@@ -406,7 +414,10 @@ class SymPyWriter(FortranWriter):
                 else:
                     orig_sym = None
 
-            if sva.is_array() or (orig_sym and orig_sym.is_array):
+            is_fn_call = isinstance(orig_sym, RoutineSymbol)
+
+            if (sva.is_array() or
+                    (orig_sym and (orig_sym.is_array or is_fn_call))):
                 # A Fortran array or function call. Declare a new SymPy
                 # function for it. This SymPy function will convert array
                 # expressions back into the original Fortran code.
@@ -415,12 +426,13 @@ class SymPyWriter(FortranWriter):
                     # We store the signature and the list of dimensions
                     # associated with each component as part of the Sympy fn.
                     self._sympy_type_map[unique_sym.name] = \
-                        self._create_sympy_array_function(unique_sym.name,
-                                                          sig, max_dims)
+                        self._create_sympy_array_function(
+                            unique_sym.name, sig, max_dims, is_call=is_fn_call)
                 else:
                     # Not a structure access.
                     self._sympy_type_map[unique_sym.name] = \
-                        self._create_sympy_array_function(sig.var_name)
+                        self._create_sympy_array_function(sig.var_name,
+                                                          is_call=is_fn_call)
                     # To avoid confusion in sympy_reader, we specialise any
                     # Symbol that we are now confident is an array.
                     self._specialise_array_symbol(orig_sym, sva)
@@ -696,6 +708,26 @@ class SymPyWriter(FortranWriter):
         # 'e' as specification, which SymPy accepts, and precision
         # information can be ignored.
         return node.value
+
+    def call_node(self, node: Call) -> str:
+        '''
+        Handler for Call nodes in the PSyIR tree. Ensures that we use the
+        name created in the type map and encodes the arguments to the call
+        in the same form as is used for array accesses (since both are mapped
+        to a Sympy function).
+
+        :param node: a PSyIR Call node.
+
+        :returns: the SymPy representation for the Call.
+
+        '''
+        target_name = node.routine.symbol.name
+        # Find the unique variable name created in _create_type_map()
+        unique_name = self._symbol_table.lookup_with_tag(target_name).name
+        # Encode the arguments to the call in the same way as we do for indices
+        # on an array access.
+        indices_str = self.gen_indices(node.arguments)
+        return f"{unique_name}({','.join(indices_str)})"
 
     def intrinsiccall_node(self, node):
         ''' This method is called when an IntrinsicCall instance is found in

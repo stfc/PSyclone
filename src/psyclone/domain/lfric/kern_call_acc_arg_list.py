@@ -61,10 +61,10 @@ class KernCallAccArgList(KernCallArgList):
     def cell_map(self, var_accesses=None):
         '''Add cell-map to the list of required arrays.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
         :type var_accesses: Optional[
-            :py:class:`psyclone.core.VariablesAccessInfo`]
+            :py:class:`psyclone.core.VariablesAccessMap`]
 
         '''
         cargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_coarse"])
@@ -85,10 +85,10 @@ class KernCallAccArgList(KernCallArgList):
         argument may actually require a lookup from a colour map array. Either
         way, this method adds the name of the variable to the argument list.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
         :type var_accesses: Optional[
-            :py:class:`psyclone.core.VariablesAccessInfo`]
+            :py:class:`psyclone.core.VariablesAccessMap`]
 
         '''
         _, ref = self.cell_ref_name(var_accesses)
@@ -100,9 +100,9 @@ class KernCallAccArgList(KernCallArgList):
 
         :param arg: the field to be added.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         const = LFRicConstants()
@@ -123,10 +123,10 @@ class KernCallAccArgList(KernCallArgList):
         :param arg: the meta-data description of the kernel argument with
             which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
         :type var_accesses: Optional[
-            :py:class:`psyclone.core.VariablesAccessInfo`]
+            :py:class:`psyclone.core.VariablesAccessMap`]
 
         '''
         # Import here to avoid circular dependency
@@ -145,10 +145,10 @@ class KernCallAccArgList(KernCallArgList):
         :param arg: the meta-data description of the kernel
             argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
         :type var_accesses: Optional[
-            :py:class:`psyclone.core.VariablesAccessInfo`]
+            :py:class:`psyclone.core.VariablesAccessMap`]
 
         '''
         self.stencil(arg, var_accesses)
@@ -160,10 +160,10 @@ class KernCallAccArgList(KernCallArgList):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
         :type var_accesses: Optional[
-            :py:class:`psyclone.core.VariablesAccessInfo`]
+            :py:class:`psyclone.core.VariablesAccessMap`]
 
         '''
         # The extent is not specified in the metadata so pass the value in
@@ -182,10 +182,10 @@ class KernCallAccArgList(KernCallArgList):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
         :type var_accesses: Optional[
-            :py:class:`psyclone.core.VariablesAccessInfo`]
+            :py:class:`psyclone.core.VariablesAccessMap`]
 
         '''
         self.stencil_unknown_extent(arg, var_accesses)
@@ -198,10 +198,10 @@ class KernCallAccArgList(KernCallArgList):
 
         :param arg: the meta-data description of the operator.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
         :type var_accesses: Optional[
-            :py:class:`psyclone.core.VariablesAccessInfo`]
+            :py:class:`psyclone.core.VariablesAccessMap`]
 
         '''
         # In case of OpenACC we do not want to transfer the same
@@ -220,10 +220,10 @@ class KernCallAccArgList(KernCallArgList):
         :param function_space: the function space for which the compulsory
             arguments are added.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
         :type var_accesses: Optional[
-            :py:class:`psyclone.core.VariablesAccessInfo`]
+            :py:class:`psyclone.core.VariablesAccessMap`]
 
         '''
         if not self._kern.iterates_over.endswith("cell_column"):
@@ -239,10 +239,10 @@ class KernCallAccArgList(KernCallArgList):
 
         :param function_space: the function space associated with the mesh.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
         :type var_accesses: Optional[
-            :py:class:`psyclone.core.VariablesAccessInfo`]
+            :py:class:`psyclone.core.VariablesAccessMap`]
 
         '''
         # Is this FS associated with the coarse or fine mesh? (All fields
@@ -265,10 +265,10 @@ class KernCallAccArgList(KernCallArgList):
 
         :param scalar_arg: the kernel argument.
         :type scalar_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance that
+        :param var_accesses: optional VariablesAccessMap instance that
             stores information about variable accesses.
         :type var_accesses: Optional[
-            :py:class:`psyclone.core.VariablesAccessInfo`]
+            :py:class:`psyclone.core.VariablesAccessMap`]
 
         '''
 

@@ -39,7 +39,7 @@
 import abc
 from typing import Set, Tuple
 
-from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.core import AccessType
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.reference import Reference
@@ -103,8 +103,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         need_sync = set()
 
         # Determine variables that must be private, firstprivate or need_sync
-        var_accesses = VariablesAccessInfo()
-        self.reference_accesses(var_accesses)
+        var_accesses = self.reference_accesses()
         for signature in var_accesses.all_signatures:
             if not var_accesses[signature].has_data_access():
                 continue
