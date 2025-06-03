@@ -45,7 +45,7 @@ import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.core import (Signature, SingleVariableAccessInfo,
-                           VariablesAccessInfo)
+                           VariablesAccessMap)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
@@ -392,12 +392,12 @@ class SymPyWriter(FortranWriter):
         # Find every symbol in each of the expressions, and declare this name
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
         # (either an array or a function call).
-        vai = VariablesAccessInfo()
+        vam = VariablesAccessMap()
         for expr in list_of_expressions:
-            expr.reference_accesses(vai)
+            vam.update(expr.reference_accesses())
 
-        for sig in vai.all_signatures:
-            sva: SingleVariableAccessInfo = vai[sig]
+        for sig in vam.all_signatures:
+            sva: SingleVariableAccessInfo = vam[sig]
 
             flat_name = "_".join(name for name in sig)
             unique_sym = self._symbol_table.find_or_create_tag(
