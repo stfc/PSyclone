@@ -51,7 +51,7 @@ from typing import Any, Dict, Optional
 
 from psyclone import psyGen
 from psyclone.configuration import Config
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature, VariablesAccessMap
 from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
                                    LFRicInvokeSchedule, LFRicKern, LFRicLoop)
 from psyclone.lfric import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
@@ -73,7 +73,7 @@ from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
-    SymbolError, UnresolvedType)
+    SymbolError, UnresolvedType, DataType)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import (
@@ -438,13 +438,12 @@ class MarkRoutineForGPUMixin:
 
         # Check that the routine does not access any data that is imported via
         # a 'use' statement.
-        vai = VariablesAccessInfo()
-        kernel_schedule.reference_accesses(vai)
+        vam = kernel_schedule.reference_accesses()
         ktable = kernel_schedule.symbol_table
-        for sig in vai.all_signatures:
+        for sig in vam.all_signatures:
             name = sig.var_name
-            first = vai[sig].all_accesses[0].node
-            if isinstance(first, Symbol):
+            first = vam[sig].all_accesses[0].node
+            if isinstance(first, (Symbol, DataType)):
                 table = ktable
             else:
                 try:
@@ -2949,7 +2948,9 @@ class ACCDataTrans(RegionTrans):
                 for access in array_accesses:
                     if not isinstance(access, StructureMember):
                         continue
-                    var_accesses = VariablesAccessInfo(access.indices)
+                    var_accesses = VariablesAccessMap()
+                    for idx in access.indices:
+                        var_accesses.update(idx.reference_accesses())
                     for var in loop_vars:
                         if var not in var_accesses.all_signatures:
                             continue

@@ -39,6 +39,7 @@
 
 ''' This module contains the Loop node implementation.'''
 
+from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
@@ -481,17 +482,15 @@ class Loop(Statement):
         result += "End " + name
         return result
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. It combines the data from
-        the loop bounds (start, stop and step), as well as the loop body.
-        The loop variable is marked as 'READ+WRITE' and references in start,
-        stop and step are marked as 'READ'.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+
+        '''
+        var_accesses = VariablesAccessMap()
 
         # Only add the loop variable and start/stop/step values if this is
         # not an LFRic domain loop. We need to access the variable directly
@@ -507,14 +506,15 @@ class Loop(Statement):
                                     AccessType.READ, self)
 
             # Accesses of the start/stop/step expressions
-            self.start_expr.reference_accesses(var_accesses)
-            self.stop_expr.reference_accesses(var_accesses)
-            self.step_expr.reference_accesses(var_accesses)
+            var_accesses.update(self.start_expr.reference_accesses())
+            var_accesses.update(self.stop_expr.reference_accesses())
+            var_accesses.update(self.step_expr.reference_accesses())
             var_accesses.next_location()
 
         for child in self.loop_body.children:
-            child.reference_accesses(var_accesses)
+            var_accesses.update(child.reference_accesses())
             var_accesses.next_location()
+        return var_accesses
 
     def independent_iterations(self,
                                test_all_variables=False,

@@ -45,7 +45,7 @@ import re
 import os
 import pytest
 
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.domain.lfric import lfric_builtins, LFRicConstants
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata)
@@ -648,8 +648,7 @@ def test_reference_accesses(monkeypatch):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     loop = psy.invokes.invoke_list[0].schedule[0]
     kern = loop.loop_body[0]
-    var_info = VariablesAccessInfo()
-    kern.reference_accesses(var_info)
+    var_info = kern.reference_accesses()
     # f2_data(df) = a + f1_data(df)
     assert var_info.is_written(Signature("f2_data"))
     assert var_info.is_read(Signature("f1_data"))
@@ -658,7 +657,7 @@ def test_reference_accesses(monkeypatch):
     # is encountered. Use monkeypatch to break one of the existing args.
     monkeypatch.setattr(kern.args[0], "_argument_type", "gh_wrong")
     with pytest.raises(InternalError) as err:
-        kern.reference_accesses(var_info)
+        var_info = kern.reference_accesses()
     assert ("LFRicBuiltin.reference_accesses only supports field and scalar "
             "arguments but got 'f2' of type 'gh_wrong'" in str(err.value))
 
@@ -2127,12 +2126,12 @@ def test_field_access_info_for_arrays_in_builtins():
     _, invoke = get_invoke("15.1.8_a_plus_X_builtin_array_of_fields.f90",
                            api=API, idx=0, dist_mem=False)
     schedule = invoke.schedule
-    vai = VariablesAccessInfo(schedule)
+    vam = schedule.reference_accesses()
 
-    assert Signature("f2_data") in vai
+    assert Signature("f2_data") in vam
 
     assert (
         "a: READ, df: READ+WRITE, f1_data: READ, f2_data: WRITE, "
         "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, r_def: "
         "NO_DATA_ACCESS, uninitialised_loop0_start: READ, "
-        "uninitialised_loop0_stop: READ" == str(vai))
+        "uninitialised_loop0_stop: READ" == str(vam))
