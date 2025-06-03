@@ -3127,6 +3127,14 @@ class KernelImportsToArguments(Transformation):
         if count_imported_vars_removed > 0:
             node.modified = True
 
+# Backwards compatibility layer
+# -----------------------------
+# To be removed once lfric is using the new names
+
+
+Dynamo0p3ColourTrans = LFRicColourTrans
+Dynamo0p3RedundantComputationTrans = LFRicRedundantComputationTrans
+Dynamo0p3OMPLoopTrans = LFRicOMPLoopTrans
 
 # For Sphinx AutoAPI documentation generation
 __all__ = [
