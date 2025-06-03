@@ -42,7 +42,7 @@ from collections import namedtuple
 from collections.abc import Iterable
 from enum import Enum
 
-from psyclone.core import AccessType
+from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
@@ -910,17 +910,15 @@ class IntrinsicCall(Call):
 
         return call
 
-    def reference_accesses(self, var_accesses):
-        '''Get all reference access information from this node.
-
-        Any variables used as the first argument to 'inquiry intrinsics' like
-        `lbound`, `ubound`, or `size` are marked as having INQUIRY accesses.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the
-            information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
+        var_accesses = VariablesAccessMap()
         if self.intrinsic.is_inquiry and isinstance(self.arguments[0],
                                                     Reference):
             # If this is an inquiry access (which doesn't actually access the
@@ -930,12 +928,13 @@ class IntrinsicCall(Call):
             var_accesses.add_access(sig, AccessType.INQUIRY, self.arguments[0])
             for idx_list in indices:
                 for idx in idx_list:
-                    idx.reference_accesses(var_accesses)
+                    var_accesses.update(idx.reference_accesses())
         elif self.arguments:
-            self.arguments[0].reference_accesses(var_accesses)
+            var_accesses.update(self.arguments[0].reference_accesses())
 
         for child in self.arguments[1:]:
-            child.reference_accesses(var_accesses)
+            var_accesses.update(child.reference_accesses())
+        return var_accesses
 
     # TODO #2102: Maybe the three properties below can be removed if intrinsic
     # is a symbol, as they would act as the super() implementation.

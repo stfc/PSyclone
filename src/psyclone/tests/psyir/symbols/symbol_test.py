@@ -48,8 +48,7 @@ is not tested here.
 
 import pytest
 
-from psyclone.core import (
-    Signature, SingleVariableAccessInfo, VariablesAccessInfo)
+from psyclone.core import Signature, SingleVariableAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Literal, KernelSchedule
 from psyclone.psyir.symbols import (
@@ -485,8 +484,7 @@ def test_symbol_replace_symbols_using(table):
 def test_symbol_reference_accesses():
     '''Test that the reference_accesses() method of a Symbol does not add any
     accesses.'''
-    vai = VariablesAccessInfo()
     interf = DefaultModuleInterface()
     asym = Symbol("a", interface=interf)
-    asym.reference_accesses(vai)
-    assert not vai.all_signatures
+    vam = asym.reference_accesses()
+    assert not vam.all_signatures
