@@ -124,7 +124,7 @@ jobs:
         export PATH="$(spack location -i rose-picker):$PATH"
         # Run the Fab build script
         ${LFRIC_CORE}/build.sh ./fab_gungho_model_extract.py   \
-          --profile fast-debug --nproc 4 -fc $LD -ld $LD  -cc "$CC"
+          --profile fast-debug --nproc 4 -fc $LDMPI -ld $LDMPI  -cc $CC
 
         # Run gungho (which will create the NetCDF kernel data files)
         # -----------------------------------------------------------
