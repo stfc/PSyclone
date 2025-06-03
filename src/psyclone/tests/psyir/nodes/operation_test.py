@@ -680,7 +680,7 @@ def test_unaryop_operand():
     oper = UnaryOperation.Operator.MINUS
     node = Literal("1", INTEGER_SINGLE_TYPE)
     uop = UnaryOperation.create(oper, node)
-    assert uop.operands is node
+    assert uop.operands[0] is node
 
 
 def test_operations_can_be_copied():

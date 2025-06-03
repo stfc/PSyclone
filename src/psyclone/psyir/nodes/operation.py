@@ -205,11 +205,11 @@ class UnaryOperation(Operation):
         return self.children[0].datatype
 
     @property
-    def operands(self) -> DataNode:
+    def operands(self) -> Tuple[DataNode]:
         '''
         :returns: the operand of this UnaryOperation.
         '''
-        return self.children[0]
+        return (self.children[0],)
 
 
 class BinaryOperation(Operation):
