@@ -136,6 +136,7 @@ jobs:
 
         # Now compile one driver
         # ----------------------
+
         cd ..
         # FILE is the 'basic' name. A driver file is then called driver-$FILE.F90, and
         # the kernel data files are called $FILE-$RANK.nc
