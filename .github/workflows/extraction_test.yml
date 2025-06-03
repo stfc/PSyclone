@@ -91,6 +91,7 @@ jobs:
         source .runner_venv/bin/activate
         export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
 
         # Set the directory names for the extraction runs:
         # -----------------------------------------------
@@ -109,6 +110,14 @@ jobs:
         # ---------------------------------------------------
         cd lfric-baf
         ./install.sh ${LFRIC_CORE} ${LFRIC_APPS}
+
+        # Copy the modified extraction script from PSyclone
+        # -------------------------------------------------
+        # This allows us to keep the extraction script working,
+        # even if we are using new features/names.
+        export EXTRACT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/extract
+        mkdir -p ${OPT_DIR}
+        cp ${PSYCLONE_LFRIC_DIR}/extract_script.py ${EXTRACT_DIR}/global.py
 
         # Build GungHo with the BAF extraction script
         # -------------------------------------------
