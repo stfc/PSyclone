@@ -493,7 +493,6 @@ def insert_explicit_loop_parallelism(
 
             # And if successful, the region directive on top.
             if region_directive_trans:
-                import pdb; pdb.set_trace()
                 region_directive_trans.apply(loop.parent.parent, options=opts)
         except TransformationError:
             # This loop cannot be transformed, proceed to next loop.
