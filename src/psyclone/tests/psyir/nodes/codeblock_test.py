@@ -197,3 +197,30 @@ def test_codeblock_equality(parser):
     prog = parser(reader)
     block4 = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
     assert block != block4
+
+
+def test_codeblock_is_potential_control_flow_jump(fortran_reader):
+    """Test the is_potential_control_flow_jump function of the CodeBlock
+    class."""
+
+    code = """subroutine test()
+    integer :: i
+    GOTO 1234
+    i = 1
+    write(*,*) "Hello"
+    do i = 1, 100
+        EXIT
+    end do
+1234 i = 3
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    codeblocks = psyir.walk(CodeBlock)
+
+    # GOTO statement
+    assert codeblocks[0].is_potential_control_flow_jump()
+    # Write statement
+    assert not codeblocks[1].is_potential_control_flow_jump()
+    # Exit statement
+    assert codeblocks[2].is_potential_control_flow_jump()
+    # labelled statement
+    assert codeblocks[3].is_potential_control_flow_jump()

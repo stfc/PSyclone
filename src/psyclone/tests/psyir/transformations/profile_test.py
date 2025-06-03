@@ -835,7 +835,10 @@ def test_profiling_exit_statement(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         ptrans.validate(psyir.children[0].children[0])
     assert ("Cannot apply the ProfileTrans to a code region containing a "
-            "Fortran EXIT or GOTO statement." in str(excinfo.value))
+            "potential control flow jump. Found '! PSyclone CodeBlock "
+            "(unsupported code) reason:\n!  - Unsupported statement: "
+            "Exit_Stmt\nEXIT\n'"
+            in str(excinfo.value))
 
 
 def test_profiling_goto_statement(fortran_reader):
@@ -856,7 +859,10 @@ def test_profiling_goto_statement(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         ptrans.validate(psyir.children[0].children[0])
     assert ("Cannot apply the ProfileTrans to a code region containing a "
-            "Fortran EXIT or GOTO statement." in str(excinfo.value))
+            "potential control flow jump. Found '\n! PSyclone CodeBlock "
+            "(unsupported code) reason:\n!  - Unsupported statement: "
+            "Goto_Stmt\nGO TO 123\n'"
+            in str(excinfo.value))
 
 
 def test_profiling_labelled_statement(fortran_reader):
@@ -875,8 +881,11 @@ def test_profiling_labelled_statement(fortran_reader):
     ptrans = ProfileTrans()
     with pytest.raises(TransformationError) as excinfo:
         ptrans.validate(psyir.children[0].children[0])
-    assert ("Cannot apply the ProfileTrans to a code region containing a "
-            "labelled statement." in str(excinfo.value))
+    assert ("Transformation Error: Cannot apply the ProfileTrans to a code "
+            "region containing a potential control flow jump. Found "
+            "'! PSyclone CodeBlock (unsupported code) reason:\n!  - "
+            "Unsupported labelled statement\n123 a = a + 1\n"
+            in str(excinfo.value))
 
     code = """subroutine a()
         integer :: i
@@ -891,5 +900,8 @@ def test_profiling_labelled_statement(fortran_reader):
     ptrans = ProfileTrans()
     with pytest.raises(TransformationError) as excinfo:
         ptrans.validate(psyir.children[0].children[0])
-    assert ("Cannot apply the ProfileTrans to a code region containing a "
-            "labelled statement." in str(excinfo.value))
+    assert ("Transformation Error: Cannot apply the ProfileTrans to a code "
+            "region containing a potential control flow jump. Found "
+            "'! PSyclone CodeBlock (unsupported code) reason:\n!  - "
+            "Unsupported labelled statement\n123 DO a = 1, 100\nEND DO\n"
+            in str(excinfo.value))

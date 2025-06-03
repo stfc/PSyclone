@@ -90,44 +90,20 @@ class ProfileTrans(PSyDataTrans):
         :type nodes: :py:class:`psyclone.psyir.nodes.Node` or
                      list[:py:class:`psyclone.psyir.nodes.Node`]
 
-        :raises TransformationError: if the supplied region contains an
-                                     EXIT or GOTO statement.
         :raises TransformationError: if the supplied region contains a
-                                     labelled statement.
+                                     potential control flow jump, e.g.
+                                     EXIT or GOTO.
         """
-        # Find all the codeblocks.
+        # Find all the codeblocks and check if they contain a control
+        # flow jump.
         node_list = self.get_node_list(nodes)
         for node in node_list:
             codeblocks = node.walk(CodeBlock)
             for block in codeblocks:
-                for child in block._fp2_nodes:
-                    if isinstance(child,
-                                  (Goto_Stmt, Exit_Stmt)):
-                        raise TransformationError(
-                            "Cannot apply the ProfileTrans to a code region "
-                            "containing a Fortran EXIT or GOTO "
-                            "statement."
-                        )
-                    # Also can't support Labelled statements.
-                    if isinstance(child, BlockBase):
-                        # An instance of BlockBase describes a block of code
-                        # so we have to examine the first statement within it.
-                        # We must allow for the case where the block is empty
-                        # though.
-                        if (child.content and child.content[0] and
-                            (not isinstance(child.content[0],
-                                            Comment)) and
-                            child.content[0].item and
-                                child.content[0].item.label):
-                            raise TransformationError(
-                                "Cannot apply the ProfileTrans to a code "
-                                "region containing a labelled statement."
-                            )
-                    elif isinstance(child, StmtBase):
-                        if child.item and child.item.label:
-                            raise TransformationError(
-                                "Cannot apply the ProfileTrans to a code "
-                                "region containing a labelled statement."
-                            )
+                if block.is_potential_control_flow_jump():
+                    raise TransformationError(
+                        f"Cannot apply the ProfileTrans to a code region "
+                        f"containing a potential control flow jump. "
+                        f"Found '{block.debug_string()}'")
 
         super().validate(nodes, options)
