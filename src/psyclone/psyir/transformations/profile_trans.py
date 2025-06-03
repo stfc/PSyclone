@@ -39,8 +39,6 @@
 '''This module provides the Profile transformation.
 '''
 
-from fparser.two.Fortran2003 import (Comment, Exit_Stmt,
-                                     Goto_Stmt, BlockBase, StmtBase)
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import CodeBlock, Return, ProfileNode
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
