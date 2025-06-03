@@ -33,90 +33,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 
-''' PSyclone compiler wrapper implementation. '''
+''' Entry point for the psyclonefc command. '''
 
 import sys
-import os
-import subprocess
-import pathlib
-from psyclone.generator import main
-
-FORTRAN_EXTENSIONS = ('.f90', '.f')
-
-
-def compiler_wrapper(arguments):
-    '''
-    PSyclone compiler wrapper.
-
-    This utility intercepts compilation commands and applies the psyclone
-    transformation tool to any encountered Fortran file before passing them
-    to the target compiler. The goal is to provide an easy way to inject
-    psyclone to build systems without needed to modify them.
-
-    The target compiler can be selected with the PSYCLONE_COMPILER environment
-    variable. Setting it is mandatory.
-
-    Other psyclone options (e.g. which transformation recipe to apply) can
-    be set with the optional PSYCLONE_OPTS environment variable.
-
-    For example, to intercept the compiler calls from a Makefile that would
-    normally be invoked as:
-
-    FC=gfortran make
-
-    We can use:
-
-    FC=psyclonefc PSYCLONE_COMPILER=gfortran PSYCLONE_OTPS="-s recipe.py" make
-
-    This will, for each fortran file:
-
-    1) Apply the C-preprocessing step as the target compiler would.
-    2) Apply the psyclone transformation
-    3) Provide the resulting transformed file to the target compiler.
-
-    Note that this wrapper can be compounded with other compiler wrappers, such
-    as:
-
-    FC=psyclonefc PSYCLONE_COMPILER=mpifort OMPI_FC=gfortran make
-
-    '''
-    fortran_compiler = os.getenv("PSYCLONE_COMPILER", default=None)
-    psyclone_options = os.getenv("PSYCLONE_OPTS", default="").split(' ')
-    psyclone_options.remove("")
-    if fortran_compiler is None:
-        sys.exit(
-            'psyclonefc error: PSYCLONE_COMPILER environment variable not '
-            'found!')
-    new_compiler_command = [fortran_compiler]
-
-    # If the command has a '-o' we will use it as output directory
-
-    for argument in arguments:
-        if argument.endswith(FORTRAN_EXTENSIONS):
-            # For each intercepted Fortran file:
-            print(f"PSycloning {argument}")
-
-            # 1) Run the preprocessor
-            # result = subprocess.run(new_compiler_command, check=False)
-            # sys.exit(result.returncode)
-
-            # 2) Run psyclone
-            stem = pathlib.Path(argument).stem
-            suffix = pathlib.Path(argument).suffix
-            output = f"{stem}.psycloned{suffix}"
-            psyclone_args = psyclone_options + ['-o', output, argument]
-            print(psyclone_args)
-            main(psyclone_options + ['-o', output, argument])
-
-            # 3) Replace the fortran file in the compiler command with the
-            # fortran file produced by psyclone
-            new_compiler_command.append(output)
-        else:
-            new_compiler_command.append(argument)
-
-    # Run the compiler and propagate error code
-    result = subprocess.run(new_compiler_command, check=False)
-    sys.exit(result.returncode)
+from psyclone.psyclonefc_cli import compiler_wrapper
 
 
 if __name__ == "__main__":
