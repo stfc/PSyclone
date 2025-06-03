@@ -880,7 +880,7 @@ class FortranWriter(LanguageWriter):
             decln_inputs[symbol.name] = set()
             read_write_info = ReadWriteInfo()
             self._call_tree_utils.get_input_parameters(read_write_info,
-                                                       symbol.initial_value)
+                                                       [symbol.initial_value])
             # The dependence analysis tools do not include symbols used to
             # define precision so check for those here.
             for lit in symbol.initial_value.walk(Literal):

@@ -43,7 +43,6 @@
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
-from psyclone.core import VariablesAccessInfo
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.commentable_mixin import CommentableMixin
@@ -213,13 +212,13 @@ class Routine(Schedule, CommentableMixin):
 
         '''
         # TODO #2424 - this suffers from the limitation that
-        # VariablesAccessInfo does not work with nested scopes. (e.g. 2
+        # VariablesAccessMap does not work with nested scopes. (e.g. 2
         # different symbols with the same name but declared in different,
         # nested scopes will be assumed to be the same symbol).
-        vai = VariablesAccessInfo(self)
+        vam = self.reference_accesses()
         table = self.symbol_table
         name = self.name
-        for sig in vai.all_signatures:
+        for sig in vam.all_signatures:
             symbol = table.lookup(sig.var_name, otherwise=None)
             if not symbol:
                 raise SymbolError(
@@ -232,7 +231,7 @@ class Routine(Schedule, CommentableMixin):
                 if permit_unresolved:
                     continue
                 if (ignore_non_data_accesses and
-                        not vai[sig].has_data_access()):
+                        not vam[sig].has_data_access()):
                     continue
                 raise SymbolError(
                     f"{kern_or_call} '{name}' contains accesses to "

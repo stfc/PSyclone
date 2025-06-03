@@ -45,7 +45,7 @@ from importlib import import_module
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType, VariablesAccessInfo, Signature
+from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.domain.lfric import LFRicLoop
@@ -7804,10 +7804,9 @@ def test_colour_trans_tiled_non_intergrid(dist_mem):
 
     # Check that the symbols associated to the colour-tiling are added as
     # accesses
-    vai = VariablesAccessInfo()
-    schedule.reference_accesses(vai)
+    vam = schedule.reference_accesses()
     for name in "tile", "colour", "cell", "tmap":
-        assert Signature(name) in vai
+        assert Signature(name) in vam
 
     # Store the results of applying this code transformation as
     # a string (Fortran is not case sensitive)
