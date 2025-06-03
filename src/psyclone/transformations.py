@@ -425,7 +425,7 @@ class MarkRoutineForGPUMixin:
         # Check that the routine(s) do(oes) not access any data that is
         # imported via a 'use' statement.
         for sched in kernel_schedules:
-            vam = sched.reference_accesses(vai)
+            vam = sched.reference_accesses()
             ktable = sched.symbol_table
             for sig in vam.all_signatures:
                 name = sig.var_name
