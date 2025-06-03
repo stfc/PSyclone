@@ -438,43 +438,43 @@ associated kernel metadata description and their precision:
 
 .. tabularcolumns:: |l|l|l|
 
-+--------------------------+------------------------------------+-----------+
-| Data Type                | Kernel Metadata                    | Precision |
-+==========================+====================================+===========+
-| REAL(R_DEF)              | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL | R_DEF     |
-+--------------------------+------------------------------------+-----------+
-| REAL(R_BL)               | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL | R_BL      |
-+--------------------------+------------------------------------+-----------+
-| REAL(R_PHYS)             | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL     | R_PHYS    |
-+--------------------------+------------------------------------+-----------+
-| REAL(R_SOLVER)           | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL     | R_SOLVER  |
-+--------------------------+------------------------------------+-----------+
-| REAL(R_TRAN)             | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL     | R_TRAN    |
-+--------------------------+------------------------------------+-----------+
-| INTEGER(I_DEF)           | GH_SCALAR/GH_SCALAR_ARRAY, GH_INTEGER  | I_DEF     |
-+--------------------------+------------------------------------+-----------+
-| LOGICAL(L_DEF)           | GH_SCALAR/GH_SCALAR_ARRAY, GH_LOGICAL  | L_DEF     |
-+--------------------------+------------------------------------+-----------+
-| FIELD_TYPE               | GH_FIELD, GH_REAL                  | R_DEF     |
-+--------------------------+------------------------------------+-----------+
-| R_BL_FIELD_TYPE          | GH_FIELD, GH_REAL                  | R_BL      |
-+--------------------------+------------------------------------+-----------+
-| R_PHYS_FIELD_TYPE        | GH_FIELD, GH_REAL                  | R_PHYS    |
-+--------------------------+------------------------------------+-----------+
-| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL                  | R_SOLVER  |
-+--------------------------+------------------------------------+-----------+
-| R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL                  | R_TRAN    |
-+--------------------------+------------------------------------+-----------+
-| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER               | I_DEF     |
-+--------------------------+------------------------------------+-----------+
-| OPERATOR_TYPE            | GH_OPERATOR, GH_REAL               | R_DEF     |
-+--------------------------+------------------------------------+-----------+
-| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR, GH_REAL               | R_SOLVER  |
-+--------------------------+------------------------------------+-----------+
-| R_TRAN_OPERATOR_TYPE     | GH_OPERATOR, GH_REAL               | R_TRAN    |
-+--------------------------+------------------------------------+-----------+
-| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR, GH_REAL    | R_SOLVER  |
-+--------------------------+------------------------------------+-----------+
++--------------------------+---------------------------------------+-----------+
+| Data Type                | Kernel Metadata                       | Precision |
++==========================+=======================================+===========+
+| REAL(R_DEF)              | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL    | R_DEF     |
++--------------------------+---------------------------------------+-----------+
+| REAL(R_BL)               | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL    | R_BL      |
++--------------------------+---------------------------------------+-----------+
+| REAL(R_PHYS)             | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL    | R_PHYS    |
++--------------------------+---------------------------------------+-----------+
+| REAL(R_SOLVER)           | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL    | R_SOLVER  |
++--------------------------+---------------------------------------+-----------+
+| REAL(R_TRAN)             | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL    | R_TRAN    |
++--------------------------+---------------------------------------+-----------+
+| INTEGER(I_DEF)           | GH_SCALAR/GH_SCALAR_ARRAY, GH_INTEGER | I_DEF     |
++--------------------------+---------------------------------------+-----------+
+| LOGICAL(L_DEF)           | GH_SCALAR/GH_SCALAR_ARRAY, GH_LOGICAL | L_DEF     |
++--------------------------+---------------------------------------+-----------+
+| FIELD_TYPE               | GH_FIELD, GH_REAL                     | R_DEF     |
++--------------------------+---------------------------------------+-----------+
+| R_BL_FIELD_TYPE          | GH_FIELD, GH_REAL                     | R_BL      |
++--------------------------+---------------------------------------+-----------+
+| R_PHYS_FIELD_TYPE        | GH_FIELD, GH_REAL                     | R_PHYS    |
++--------------------------+---------------------------------------+-----------+
+| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL                     | R_SOLVER  |
++--------------------------+---------------------------------------+-----------+
+| R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL                     | R_TRAN    |
++--------------------------+---------------------------------------+-----------+
+| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER                  | I_DEF     |
++--------------------------+---------------------------------------+-----------+
+| OPERATOR_TYPE            | GH_OPERATOR, GH_REAL                  | R_DEF     |
++--------------------------+---------------------------------------+-----------+
+| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR, GH_REAL                  | R_SOLVER  |
++--------------------------+---------------------------------------+-----------+
+| R_TRAN_OPERATOR_TYPE     | GH_OPERATOR, GH_REAL                  | R_TRAN    |
++--------------------------+---------------------------------------+-----------+
+| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR, GH_REAL       | R_SOLVER  |
++--------------------------+---------------------------------------+-----------+
 
 As can be seen from the above table, the kernel metadata does not
 capture all of the precision options. For example, from the metadata
