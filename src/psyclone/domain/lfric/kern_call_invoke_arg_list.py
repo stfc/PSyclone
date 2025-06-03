@@ -120,9 +120,9 @@ class KernCallInvokeArgList(ArgOrdering):
         types are reset (as calling generate() populates them) before calling
         this method in the parent class.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessMap`
         '''
         self._fields = []
         self._scalars = []
@@ -137,11 +137,11 @@ class KernCallInvokeArgList(ArgOrdering):
         appropriate Symbol to the SymbolTable.
 
         :param scalar_arg: the scalar kernel argument.
-        :type scalar_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance that \
+        :type scalar_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance that \
             stores information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises NotImplementedError: if a scalar of type other than real \
             or integer is found.
@@ -176,10 +176,10 @@ class KernCallInvokeArgList(ArgOrdering):
         :param function_space: the function space for which arguments \
             should be added.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
         '''
 
     def field_vector(self, argvect, var_accesses=None):
@@ -187,11 +187,11 @@ class KernCallInvokeArgList(ArgOrdering):
         argument list and an associated Symbol to the SymbolTable.
 
         :param argvect: the field vector to add.
-        :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type argvect: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         ftype = self._symtab.lookup("field_type")
@@ -210,11 +210,11 @@ class KernCallInvokeArgList(ArgOrdering):
         argument list and an appropriate Symbol to the SymbolTable.
 
         :param arg: the field to be added.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         ftype = self._symtab.lookup("field_type")
@@ -232,11 +232,11 @@ class KernCallInvokeArgList(ArgOrdering):
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises NotImplementedError: stencils are not yet supported.
 
@@ -250,11 +250,11 @@ class KernCallInvokeArgList(ArgOrdering):
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         self.stencil(arg, var_accesses)
@@ -265,11 +265,11 @@ class KernCallInvokeArgList(ArgOrdering):
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises NotImplementedError: stencils are not yet supported.
 
@@ -283,11 +283,11 @@ class KernCallInvokeArgList(ArgOrdering):
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises NotImplementedError: stencils are not yet supported.
 
@@ -300,11 +300,11 @@ class KernCallInvokeArgList(ArgOrdering):
         in var_accesses.
 
         :param arg: the meta-data description of the operator.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         consts = LFRicConstants()
@@ -333,9 +333,9 @@ class KernCallInvokeArgList(ArgOrdering):
         symbols to the SymbolTable. Optionally also adds variable access
         information to the var_accesses object.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         lfric_const = LFRicConstants()
@@ -361,10 +361,10 @@ class KernCallInvokeArgList(ArgOrdering):
         Optionally, also adds variable access information to the var_accesses
         object.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessMap instance to store
             information about variable accesses.
         :type var_accesses: Optional[
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         self.append(self._kern.halo_depth.symbol.name, var_accesses)

@@ -413,7 +413,7 @@ For example, running test 19.2 from the LFRic API test suite gives:
 .. code-block:: bash
 
   cd <PSYCLONEHOME>/src/psyclone/tests
-  psyclone test_files/dynamo0p3/19.2_single_stencil_broken.f90
+  psyclone test_files/lfric/19.2_single_stencil_broken.f90
   "Generation Error: error: expected '5' arguments in the algorithm layer but found '4'.
   Expected '4' standard arguments, '1' stencil arguments and '0' qr_arguments'"
 
@@ -1587,7 +1587,7 @@ function spaces are summarised in the table below.
 
 Horizontally discontinuous function spaces and fields over them will not
 need colouring so PSyclone does not perform it. If such attempt is made,
-PSyclone will raise a ``Generation Error`` in the **Dynamo0p3ColourTrans**
+PSyclone will raise a ``Generation Error`` in the **LFRicColourTrans**
 transformation (see :ref:`lfric-api-transformations` for more details
 on transformations). An example of fields iterating over a discontinuous
 function space ``Wtheta`` is given in ``examples/lfric/eg9``, with the
@@ -1998,7 +1998,7 @@ either CMA operators or prolongation/restriction operations) that
 operate on cell-columns follow a set of rules
 which have been specified for the LFRic API. These rules are encoded
 in the ``generate()`` method within the ``ArgOrdering`` abstract class
-in the ``dynamo0p3.py`` file. The rules, along with PSyclone's naming
+in the ``lfric.py`` file. The rules, along with PSyclone's naming
 conventions, are:
 
 1) If an LMA operator is passed then include the ``cells`` argument.
@@ -3798,7 +3798,7 @@ example.
 
 An example of applying boundary conditions to an operator is the kernel
 ``enforce_operator_bc_kernel_mod.F90`` in the
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3`` directory.
+``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric`` directory.
 Since operators are discontinuous quantities, updating their values can
 be safely performed in parallel (see Section :ref:`lfric-kernel`).
 The ``GH_READWRITE`` access is used for updating discontinuous operators
@@ -3965,8 +3965,8 @@ Transformations
 ---------------
 
 This section describes the LFRic API-specific transformations. In
-cases, excepting **Dynamo0p3RedundantComputationTrans**,
-**Dynamo0p3AsyncHaloExchangeTrans** and **Dynamo0p3KernelConstTrans**,
+cases, excepting **LFRicRedundantComputationTrans**,
+**LFRicAsyncHaloExchangeTrans** and **LFRicKernelConstTrans**,
 these transformations are specialisations of generic transformations
 described in the :ref:`transformations` section. The difference
 between these transformations and the generic ones is that these
@@ -3994,14 +3994,14 @@ are the same. The exception are loops over discontinuous spaces (see
 for which loop fusion is allowed (unless the loop bounds become different
 due to a prior transformation).
 
-The **Dynamo0p3RedundantComputationTrans** and
-**Dynamo0p3AsyncHaloExchange** transformations are only valid for the
+The **LFRicRedundantComputationTrans** and
+**LFRicAsyncHaloExchange** transformations are only valid for the
 LFRic API. This is because this API is currently the only one
 that supports distributed memory.  An example of redundant computation
 can be found in ``examples/lfric/eg8`` and an example of asynchronous
 halo exchanges can be found in ``examples/lfric/eg11``.
 
-The **Dynamo0p3KernelConstTrans** transformation is only valid for the
+The **LFRicKernelConstTrans** transformation is only valid for the
 LFRic API. This is because the properties that it makes constant
 are API specific.
 
@@ -4032,27 +4032,27 @@ transformations have not yet been migrated to this directory.
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.DynamoOMPParallelLoopTrans
+.. autoclass:: psyclone.transformations.LFRicOMPParallelLoopTrans
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.Dynamo0p3AsyncHaloExchangeTrans
+.. autoclass:: psyclone.transformations.LFRicAsyncHaloExchangeTrans
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.Dynamo0p3ColourTrans
+.. autoclass:: psyclone.transformations.LFRicColourTrans
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.Dynamo0p3KernelConstTrans
+.. autoclass:: psyclone.transformations.LFRicKernelConstTrans
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.Dynamo0p3OMPLoopTrans
+.. autoclass:: psyclone.transformations.LFRicOMPLoopTrans
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.Dynamo0p3RedundantComputationTrans
+.. autoclass:: psyclone.transformations.LFRicRedundantComputationTrans
     :members:
     :noindex:
 

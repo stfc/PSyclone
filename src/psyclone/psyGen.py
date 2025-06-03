@@ -47,6 +47,7 @@ import os
 from collections import OrderedDict
 import abc
 from typing import Any, Dict
+import warnings
 
 try:
     from sphinx.util.typing import stringify_annotation
@@ -60,7 +61,7 @@ except ImportError:
         from psyclone.utils import stringify_annotation
 
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
-from psyclone.core import AccessType
+from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -736,7 +737,7 @@ class GlobalSum(Statement):
     in, a schedule.
 
     :param scalar: the scalar that the global sum is stored into
-    :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :type scalar: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param parent: optional parent (default None) of this object
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -795,7 +796,7 @@ class HaloExchange(Statement):
     manipulated in, a schedule.
 
     :param field: the field that this halo exchange will act on
-    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :type field: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param check_dirty: optional argument default True indicating whether \
                         this halo exchange should be subject to a run-time \
                         check for clean/dirty halos.
@@ -1023,18 +1024,17 @@ class Kern(Statement):
         return (self.coloured_name(colour) + " " + self.name +
                 "(" + self.arguments.names + ")")
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. The API specific classes
-        add the accesses to the arguments. So the code here only calls
-        the baseclass, and increases the location.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
-        super().reference_accesses(var_accesses)
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+
+        '''
+        var_accesses = super().reference_accesses()
         var_accesses.next_location()
+        return var_accesses
 
     @property
     def is_reduction(self):
@@ -1298,7 +1298,7 @@ class Kern(Statement):
         '''
         parent_loop = self.ancestor(Loop)
         while parent_loop:
-            if parent_loop.loop_type == "colour":
+            if parent_loop.loop_type in ("cells_in_colour", "tiles_in_colour"):
                 return True
             parent_loop = parent_loop.ancestor(Loop)
         return False
@@ -2766,7 +2766,7 @@ class Transformation(metaclass=abc.ABCMeta):
         '''
         # TODO 2668: options are now deprecated:
         if options is not None:
-            print(self._deprecation_warning)
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
 
     def validate(self, node, options=None, **kwargs):
         '''Method that validates that the input data is correct.

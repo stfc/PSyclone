@@ -1,0 +1,24 @@
+Index: components/driver/source/io_context_collection_mod.f90
+===================================================================
+--- components/driver/source/io_context_collection_mod.f90	(revision 52772)
++++ components/driver/source/io_context_collection_mod.f90	(working copy)
+@@ -44,7 +44,6 @@
+     procedure, public :: context_exists
+     procedure, public :: get_table_len
+     procedure, public :: clear
+-    final :: destructor
+ 
+   end type io_context_collection_type
+ 
+Index: infrastructure/build/fortran/nvfortran.mk
+===================================================================
+--- infrastructure/build/fortran/nvfortran.mk	(revision 52772)
++++ infrastructure/build/fortran/nvfortran.mk	(working copy)
+@@ -42,5 +42,4 @@
+ 	LDFLAGS_OPENMP = -mp
+ endif
+ 
+-FPP = nvfortran -F
+-FPPFLAGS = -P -D__NVCOMPILER
+\ No newline at end of file
++FPPFLAGS = -P -D__NVCOMPILER

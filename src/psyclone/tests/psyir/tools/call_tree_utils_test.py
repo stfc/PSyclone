@@ -644,9 +644,9 @@ def test_call_tree_error_var_not_found(capsys):
     contain the variable is handled, i.e. printing a warning and otherwise
     ignores (TODO #2120)
     '''
-    dyn_test_dir = get_base_path("lfric")
+    lfric_test_dir = get_base_path("lfric")
     mod_man = ModuleManager.get()
-    mod_man.add_search_path(os.path.join(dyn_test_dir, "infrastructure"))
+    mod_man.add_search_path(os.path.join(lfric_test_dir, "infrastructure"))
 
     read_write_info = ReadWriteInfo()
     ctu = CallTreeUtils()
@@ -665,9 +665,9 @@ def test_call_tree_error_module_is_codeblock(capsys):
     '''Tests that a module that cannot be parsed and becomes a codeblock
     is handled correctly.
     '''
-    dyn_test_dir = get_base_path("lfric")
+    lfric_test_dir = get_base_path("lfric")
     mod_man = ModuleManager.get()
-    mod_man.add_search_path(os.path.join(dyn_test_dir, "driver_creation"))
+    mod_man.add_search_path(os.path.join(lfric_test_dir, "driver_creation"))
 
     cblock = CodeBlock([], "dummy")
     mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
