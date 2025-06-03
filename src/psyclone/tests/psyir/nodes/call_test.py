@@ -39,7 +39,7 @@
 import os
 import pytest
 from psyclone.configuration import Config
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
     ArrayReference, Assignment, BinaryOperation, Call, CodeBlock, Literal,
@@ -373,9 +373,7 @@ def test_call_reference_accesses():
     rsym = RoutineSymbol("trillian")
     # A call with an argument passed by value.
     call1 = Call.create(rsym, [Literal("1", INTEGER_TYPE)])
-    var_info = VariablesAccessInfo()
-    assert var_info._location == 0
-    call1.reference_accesses(var_info)
+    var_info = call1.reference_accesses()
     # Check that the current location number is increased after the call:
     assert var_info._location == 1
     # The Routine symbol is not considered 'read'.
@@ -384,7 +382,7 @@ def test_call_reference_accesses():
     dsym = DataSymbol("beta", INTEGER_TYPE)
     # Simple argument passed by reference.
     call2 = Call.create(rsym, [Reference(dsym)])
-    call2.reference_accesses(var_info)
+    var_info = call2.reference_accesses()
     assert var_info.has_read_write(Signature("beta"))
     assert not var_info.is_called(Signature("beta"))
     # Array access argument. The array should be READWRITE, any variable in
@@ -393,29 +391,27 @@ def test_call_reference_accesses():
     asym = DataSymbol("gamma", ArrayType(INTEGER_TYPE, shape=[10]))
     aref = ArrayReference.create(asym, [Reference(idx_sym)])
     call3 = Call.create(rsym, [aref])
-    call3.reference_accesses(var_info)
+    var_info = call3.reference_accesses()
     assert var_info.has_read_write(Signature("gamma"))
     assert var_info.is_read(Signature("ji"))
     # Argument is a temporary so any inputs to it are READ only.
     expr = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                   Literal("2", INTEGER_TYPE), Reference(dsym))
     call4 = Call.create(rsym, [expr])
-    var_info = VariablesAccessInfo()
-    call4.reference_accesses(var_info)
+    var_info = call4.reference_accesses()
     assert var_info.is_read(Signature("beta"))
     # Argument is itself a function call: call trillian(some_func(gamma(ji)))
     fsym = RoutineSymbol("some_func")
     fcall = Call.create(fsym,
                         [ArrayReference.create(asym, [Reference(idx_sym)])])
     call5 = Call.create(rsym, [fcall])
-    call5.reference_accesses(var_info)
+    var_info = call5.reference_accesses()
     assert var_info.has_read_write(Signature("gamma"))
     assert var_info.is_read(Signature("ji"))
     # Call to a PURE routine - arguments should be READ only.
     puresym = RoutineSymbol("dirk", is_pure=True)
     call6 = Call.create(puresym, [Reference(dsym)])
-    var_info = VariablesAccessInfo()
-    call6.reference_accesses(var_info)
+    var_info = call6.reference_accesses()
     assert var_info.is_read(Signature("beta"))
     assert not var_info.is_written(Signature("beta"))
 
@@ -448,22 +444,21 @@ def test_type_bound_call_reference_accesses(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
-    vai = VariablesAccessInfo()
-    call.reference_accesses(vai)
+    vam = call.reference_accesses()
     # The type-bound procedure is called.
-    assert vai.is_called(Signature("my_grid%update"))
+    assert vam.is_called(Signature("my_grid%update"))
     # As is the function defined in the same module.
-    assert vai.is_called(Signature("get_start"))
+    assert vam.is_called(Signature("get_start"))
     # All of the indices are marked as read.
     for var in ["i", "j", "k", "f"]:
-        assert vai.is_read(Signature(var))
+        assert vam.is_read(Signature(var))
     # Only the arguments to the calls are marked as read-write.
-    assert vai.has_read_write(Signature("j"))
-    assert not vai.has_read_write(Signature("k"))
-    assert not vai.has_read_write(Signature("f"))
+    assert vam.has_read_write(Signature("j"))
+    assert not vam.has_read_write(Signature("k"))
+    assert not vam.has_read_write(Signature("f"))
     # We can't tell whether 'domain%get_start(i)' is an array access
     # or a function call. We currently, dangerously, assume it is the former.
-    if not vai.has_read_write(Signature("i")):
+    if not vam.has_read_write(Signature("i")):
         pytest.xfail(reason="TODO #2823 - potential array accesses/function "
                      "calls are always assumed to be array accesses. This is "
                      "unsafe.")

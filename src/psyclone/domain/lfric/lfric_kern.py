@@ -44,7 +44,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
+from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
@@ -129,16 +129,15 @@ class LFRicKern(CodedKern):
         self._argument_kinds = {api_config.default_kind["real"],
                                 api_config.default_kind["integer"]}
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. All accesses are marked
-        according to the kernel metadata
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
+        var_accesses = VariablesAccessMap()
         # Use the KernelCallArgList class, which can also provide variable
         # access information:
         create_arg_list = KernCallArgList(self)
@@ -150,10 +149,11 @@ class LFRicKern(CodedKern):
         create_arg_list._forced_symtab = tmp_symtab
         create_arg_list.generate(var_accesses)
 
-        super().reference_accesses(var_accesses)
+        var_accesses.update(super().reference_accesses())
         # Set the current location index to the next location, since after
         # this kernel a new statement starts.
         var_accesses.next_location()
+        return var_accesses
 
     def load(self, call, parent=None):
         '''

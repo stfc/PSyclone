@@ -1208,13 +1208,13 @@ class SymbolTable():
 
         # Check for any references to it.
         # pylint: disable=import-outside-toplevel
-        from psyclone.core import Signature, VariablesAccessInfo
-        vai = VariablesAccessInfo()
+        from psyclone.core import Signature, VariablesAccessMap
+        vam = VariablesAccessMap()
         if self.node:
-            self.node.reference_accesses(vai)
-        self.reference_accesses(vai)
+            vam.update(self.node.reference_accesses())
+        vam.update(self.reference_accesses())
         sig = Signature(symbol.name)
-        if sig not in vai:
+        if sig not in vam:
             return
 
         # TODO #2424 - ideally SingleVariableAccessInfo.AccessInfo or
@@ -1225,7 +1225,7 @@ class SymbolTable():
         from psyclone.psyir.symbols.generic_interface_symbol import (
             GenericInterfaceSymbol)
         try:
-            for access in vai[sig].all_accesses:
+            for access in vam[sig].all_accesses:
                 if isinstance(access.node, GenericInterfaceSymbol):
                     for rinfo in access.node.routines:
                         if rinfo.symbol is symbol:
@@ -2030,23 +2030,22 @@ class SymbolTable():
         # Re-insert modified symbol
         self.add(symbol)
 
-    def reference_accesses(self, access_info):
+    def reference_accesses(self):
         '''
-        Get all variable access information *within* this table. This ensures
-        that any Symbols appearing in precision specifications, array shapes,
-        initialisation expressions or routine interfaces are captured.
-
-        N.B. imported Symbols are skipped since their properties are not a
-        part of this table.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the
-            information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.core import VariablesAccessMap
+        vam = VariablesAccessMap()
         for sym in self.symbols:
             if not sym.is_import:
-                sym.reference_accesses(access_info)
+                vam.update(sym.reference_accesses())
+        return vam
 
     def wildcard_imports(self, scope_limit=None) -> List[ContainerSymbol]:
         '''

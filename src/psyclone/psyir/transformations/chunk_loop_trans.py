@@ -38,7 +38,7 @@
 '''This module provides the ChunkLoopTrans, which transforms a Loop into a
 chunked implementation of the Loop'''
 
-from psyclone.core import VariablesAccessInfo, Signature, AccessType
+from psyclone.core import Signature, AccessType
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Reference, \
         Literal, Loop, Schedule, CodeBlock, IntrinsicCall
@@ -176,13 +176,8 @@ class ChunkLoopTrans(LoopTrans):
         # Dependency analysis, following rules:
         # No child has a write dependency to the loop variable.
         # Find variable access info for the loop variable and step
-        refs = VariablesAccessInfo(node.start_expr)
-        bounds_ref = VariablesAccessInfo()
-        if refs is not None:
-            bounds_ref.merge(refs)
-        refs = VariablesAccessInfo(node.stop_expr)
-        if refs is not None:
-            bounds_ref.merge(refs)
+        bounds_ref = node.start_expr.reference_accesses()
+        bounds_ref.update(node.stop_expr.reference_accesses())
         # The current implementation of ChunkLoopTrans does not allow
         # the step size to be non-constant, so it is ignored.
 
@@ -193,7 +188,7 @@ class ChunkLoopTrans(LoopTrans):
         bounds_sigs = bounds_ref.all_signatures
 
         # Find the Loop code's signatures
-        body_refs = VariablesAccessInfo(node.loop_body)
+        body_refs = node.loop_body.reference_accesses()
         body_sigs = body_refs.all_signatures
 
         for ref1 in bounds_sigs:
