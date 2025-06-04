@@ -214,28 +214,29 @@ jobs:
         export NEMO_DIR=${HOME}/${NEMODIR_NAME}
         export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC
 
-        # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
-        # We test BENCH with injecting the profiling hooks
+        # Set up FCM: PATHs are loaded from SPACK, we only need to set the
+        # environemnt variables to chose the flags and enable PROFILING hooks
+        # and prevent non-reporducible intrinsics
         cd $NEMO_DIR
-        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack_profiling.fcm arch/arch-linux_spack_profiling.fcm
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack_profile.fcm arch/arch-linux_spack_profile.fcm
         export ENABLE_PROFILING=1
         # We compile with "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
         export REPRODUCIBLE=1
-        
         # Clean up and compile
         rm -rf tests/${TEST_DIR}
-        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
+        ./makenemo -r BENCH -m linux_spack_profile -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
           -j 4 -v 1
 
         # Run reproducible test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
+        # We can compare all digits for this build
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
 
-        # Now do a fast-build (without reproducible or profiling option, which have a big impact
-        # for BENCH due to some inner-loop REAL intrinsics)
+        # Now do a fast-build (without reproducible or profiling options, which have a
+        # big impact for BENCH due to some inner-loop REAL intrinsics)
         unset REPRODUCIBLE
         unset ENABLE_PROFILING
         export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
