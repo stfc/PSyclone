@@ -244,6 +244,10 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
                                        symbol_table=gotable.detach())
         for child in routine.pop_all_children():
             gokernsched.addchild(child)
+        # Copy across any comments.
+        # FIXME Unit test.
+        gokernsched.preceding_comment = routine.preceding_comment
+        gokernsched.inline_comment = routine.inline_comment
         routine.replace_with(gokernsched)
 
 
