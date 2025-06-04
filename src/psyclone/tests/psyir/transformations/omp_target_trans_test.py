@@ -129,6 +129,11 @@ def test_omptargettrans_validate(fortran_reader):
                 char = 'a' // 'b'
             end do
         end do
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = LOG10(3)
+            end do
+        end do
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
@@ -150,6 +155,22 @@ def test_omptargettrans_validate(fortran_reader):
         omptargettrans.validate(loops[2])
     assert ("Nodes of type 'CodeBlock' cannot be enclosed by a OMPTarget"
             "Trans transformation" in str(err.value))
+
+    # The last loop is valid
+    omptargettrans.validate(loops[3])
+    # But not if we are targeting "nvidia-repr" or an invalid device
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[3], options={'device_string':
+                                                   'nvfortran-repr'})
+    assert ("'LOG10' is not available on the accelerator device, and therefore"
+            " it cannot be called from within an OMP Target region"
+            in str(err.value))
+    with pytest.raises(ValueError) as err:
+        omptargettrans.validate(loops[3], options={'device_string':
+                                                   'unknown-device'})
+    assert ("Unsupported device_string value 'unknown-device', the supported "
+            "values are '' (default), 'nvfortran-all', 'nvfortran-repr'"
+            in str(err.value))
 
 
 def test_omptargetrans_apply_nowait(fortran_reader, fortran_writer):
