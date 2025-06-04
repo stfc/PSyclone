@@ -376,6 +376,7 @@ def test_apply_mixed(fortran_reader):
     args = subroutine[0].arguments[3].children
     check_args(args, [(Reference, "field1"), (Reference, "value")])
 
+
 def test_apply_keeps_comments(fortran_reader):
     '''Test the the comments are kept when applying the transformation.'''
     code = (
@@ -395,8 +396,7 @@ def test_apply_keeps_comments(fortran_reader):
     subroutine[0].inline_comment = "Inline comment"
 
     lfric_invoke_trans.apply(subroutine[0], 5)
-    
+
     assert isinstance(subroutine[0], LFRicAlgorithmInvokeCall)
     assert subroutine[0].preceding_comment == "My comment"
     assert subroutine[0].inline_comment == "Inline comment"
-
