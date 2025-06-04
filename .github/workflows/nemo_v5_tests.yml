@@ -214,9 +214,14 @@ jobs:
         export NEMO_DIR=${HOME}/${NEMODIR_NAME}
         export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC
 
-        # Set up FCM: PATHs are loaded from SPACK, we only need to set the
-        # environemnt variables to chose the flags and enable PROFILING hooks
-        # and prevent non-reporducible intrinsics
+        # Make sure the profiling wrapper is compiled with the same compiler
+        export PROFILING_DIR=${GITHUB_WORKSPACE}/lib/profiling/nvidia/
+        cd $PROFILING_DIR
+        make clean
+        F90=$MPIF90 make
+                
+        # First do a debug-build: set the environemnt variables to use flags and intrinsics
+        # with numerically reproducible results and enable PROFILING hooks
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack_profile.fcm arch/arch-linux_spack_profile.fcm
         export ENABLE_PROFILING=1
