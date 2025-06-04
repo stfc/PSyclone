@@ -242,6 +242,7 @@ jobs:
 
         # Now do a fast-build (without reproducible or profiling options, which have a
         # big impact for BENCH due to some inner-loop REAL intrinsics)
+        cd $NEMO_DIR
         unset REPRODUCIBLE
         unset ENABLE_PROFILING
         export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
