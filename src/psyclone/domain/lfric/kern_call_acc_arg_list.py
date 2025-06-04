@@ -99,7 +99,7 @@ class KernCallAccArgList(KernCallArgList):
         argument list. If supplied it also stores this access in var_accesses.
 
         :param arg: the field to be added.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
@@ -122,7 +122,7 @@ class KernCallAccArgList(KernCallArgList):
 
         :param arg: the meta-data description of the kernel argument with
             which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
         :type var_accesses: Optional[
@@ -144,7 +144,7 @@ class KernCallAccArgList(KernCallArgList):
 
         :param arg: the meta-data description of the kernel
             argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
         :type var_accesses: Optional[
@@ -159,7 +159,7 @@ class KernCallAccArgList(KernCallArgList):
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
         :type var_accesses: Optional[
@@ -181,7 +181,7 @@ class KernCallAccArgList(KernCallArgList):
         stencil_unknown_extent method.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
         :type var_accesses: Optional[
@@ -197,7 +197,7 @@ class KernCallAccArgList(KernCallArgList):
         var_accesses.
 
         :param arg: the meta-data description of the operator.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
         :type var_accesses: Optional[
@@ -264,7 +264,7 @@ class KernCallAccArgList(KernCallArgList):
         scalars for an OpenACC data region.
 
         :param scalar_arg: the kernel argument.
-        :type scalar_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type scalar_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance that
             stores information about variable accesses.
         :type var_accesses: Optional[

@@ -40,12 +40,13 @@
 
 import pytest
 
+from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import ExtractNode, Node, Schedule, Routine
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols import SymbolTable, ArrayType
 from psyclone.psyir.tools import ReadWriteInfo
 from psyclone.tests.utilities import get_invoke
 
@@ -153,7 +154,7 @@ def test_extract_node_lower_to_language_level():
     output = (
       """CALL extract_psy_data % """
       """PreStart("psy_single_invoke_three_kernels", "invoke_0-compute_cu_"""
-      """code-r0", 7, 5)
+      """code-r0", 9, 5)
     CALL extract_psy_data % PreDeclareVariable("cu_fld_data", cu_fld_data)
     CALL extract_psy_data % PreDeclareVariable("cu_fld_internal_xstart", """
       """cu_fld_internal_xstart)
@@ -163,6 +164,8 @@ def test_extract_node_lower_to_language_level():
       """cu_fld_internal_ystart)
     CALL extract_psy_data % PreDeclareVariable("cu_fld_internal_ystop", """
       """cu_fld_internal_ystop)
+    CALL extract_psy_data % PreDeclareVariable("i", i)
+    CALL extract_psy_data % PreDeclareVariable("j", j)
     CALL extract_psy_data % PreDeclareVariable("p_fld_data", p_fld_data)
     CALL extract_psy_data % PreDeclareVariable("u_fld_data", u_fld_data)
     CALL extract_psy_data % PreDeclareVariable("cu_fld_data_post", cu_fld_data)
@@ -180,6 +183,8 @@ def test_extract_node_lower_to_language_level():
       """cu_fld_internal_ystart)
     CALL extract_psy_data % ProvideVariable("cu_fld_internal_ystop", """
       """cu_fld_internal_ystop)
+    CALL extract_psy_data % ProvideVariable("i", i)
+    CALL extract_psy_data % ProvideVariable("j", j)
     CALL extract_psy_data % ProvideVariable("p_fld_data", p_fld_data)
     CALL extract_psy_data % ProvideVariable("u_fld_data", u_fld_data)
     CALL extract_psy_data % PreEnd
@@ -220,8 +225,9 @@ def test_extract_node_gen():
     etrans.apply(invoke.schedule.children[0])
     code = str(psy.gen)
     output = '''CALL extract_psy_data % PreStart("single_invoke_psy", \
-"invoke_0_testkern_type-testkern_code-r0", 17, 16)
+"invoke_0_testkern_type-testkern_code-r0", 18, 16)
     CALL extract_psy_data % PreDeclareVariable("a", a)
+    CALL extract_psy_data % PreDeclareVariable("cell", cell)
     CALL extract_psy_data % PreDeclareVariable("f1_data", f1_data)
     CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
     CALL extract_psy_data % PreDeclareVariable("loop0_start", loop0_start)
@@ -256,6 +262,7 @@ def test_extract_node_gen():
     CALL extract_psy_data % PreDeclareVariable("undf_w3_post", undf_w3)
     CALL extract_psy_data % PreEndDeclaration
     CALL extract_psy_data % ProvideVariable("a", a)
+    CALL extract_psy_data % ProvideVariable("cell", cell)
     CALL extract_psy_data % ProvideVariable("f1_data", f1_data)
     CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
     CALL extract_psy_data % ProvideVariable("loop0_start", loop0_start)
@@ -399,10 +406,10 @@ def test_psylayer_flatten_same_symbols():
     in_fld_grid_dx = in_fld%grid%dx
     in_fld_grid_gphiu = in_fld%grid%gphiu
     CALL extract_psy_data % PreStart("psy_extract_example_with_various_\
-variable_access_patterns", "invoke_3-compute_kernel_code-r0", 10, 8)
+variable_access_patterns", "invoke_3-compute_kernel_code-r0", 12, 8)
     """ in code
 
-    # Brint the data back to the orginal structure at the end of the region1
+    # Bring the data back to the orginal structure at the end of the region1
     # and then flatten it again to prepare for the second region
     assert """
     CALL extract_psy_data % PostEnd
@@ -427,7 +434,7 @@ variable_access_patterns", "invoke_3-compute_kernel_code-r0", 10, 8)
     in_fld_grid_dx_1 = in_fld%grid%dx
     in_fld_grid_gphiu_1 = in_fld%grid%gphiu
     CALL extract_psy_data_1 % PreStart("psy_extract_example_with_\
-various_variable_access_patterns", "invoke_3-compute_kernel_code-r1", 10, 8)
+various_variable_access_patterns", "invoke_3-compute_kernel_code-r1", 12, 8)
     """ in code
 
     # Bring data back and flatten agian a thrid time
@@ -454,5 +461,37 @@ various_variable_access_patterns", "invoke_3-compute_kernel_code-r1", 10, 8)
     in_fld_grid_dx_2 = in_fld%grid%dx
     in_fld_grid_gphiu_2 = in_fld%grid%gphiu
     CALL extract_psy_data_2 % PreStart("psy_extract_example_with_various_\
-variable_access_patterns", "invoke_3-compute_kernel_code-r2", 10, 8)
+variable_access_patterns", "invoke_3-compute_kernel_code-r2", 12, 8)
     """ in code
+
+
+def test_extraction_flatten_datatype(monkeypatch):
+    ''' Test that the flatten datatype method resolve the GOcean datatypes
+    using DSL information and it raises the appropriate error if a gocean
+    properties does not exist.'''
+    _, invoke = get_invoke("driver_test.f90",
+                           "gocean", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    en = ExtractNode()
+
+    # Get the reference to the 6th argument, which is the gocean
+    # property.
+    ref = schedule.children[0].loop_body.children[0] \
+        .loop_body.children[0].arguments.args[5].psyir_expression()
+    # Make sure we have the right reference:
+    assert ref.children[0].children[0].name == "gphiu"
+    dtype = en._flatten_datatype(ref)
+    # Gphiu is a 2D array
+    assert isinstance(dtype, ArrayType)
+    assert len(dtype.shape) == 2
+
+    # Monkey patch the grid property dictionary to remove the
+    # go_grid_lat_u entry, triggering an earlier error:
+    api_config = Config.get().api_conf("gocean")
+    grid_properties = api_config.grid_properties
+    monkeypatch.delitem(grid_properties, "go_grid_lat_u")
+
+    with pytest.raises(InternalError) as err:
+        dtype = en._flatten_datatype(ref)
+    assert ("Could not find type for reference 'in_fld%grid%gphiu' in the"
+            " config file" in str(err.value))

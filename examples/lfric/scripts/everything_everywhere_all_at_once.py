@@ -42,15 +42,15 @@ DistibutedMemory, OpenMP coloring and serial transformations possible.
 '''
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import LFRicHaloExchange, LFRicHaloExchangeStart
+from psyclone.lfric import LFRicHaloExchange, LFRicHaloExchangeStart
 from psyclone.psyir.transformations import Matmul2CodeTrans
 from psyclone.psyir.nodes import IntrinsicCall, KernelSchedule
 from psyclone.psyGen import InvokeSchedule
-from psyclone.transformations import Dynamo0p3ColourTrans, \
-                                     Dynamo0p3OMPLoopTrans, \
+from psyclone.transformations import LFRicColourTrans, \
+                                     LFRicOMPLoopTrans, \
                                      OMPParallelTrans, \
-                                     Dynamo0p3RedundantComputationTrans, \
-                                     Dynamo0p3AsyncHaloExchangeTrans, \
+                                     LFRicRedundantComputationTrans, \
+                                     LFRicAsyncHaloExchangeTrans, \
                                      MoveTrans, \
                                      TransformationError
 
@@ -58,7 +58,7 @@ ENABLE_REDUNDANT_COMPUTATION = True
 ENABLE_ASYNC_HALOS = False  # TODO #2903: Async fails with FFSL
 ENABLE_OMP_COLOURING = True
 ENABLE_INTRINSIC_INLINING = True
-# LFRicLoopFuseTrans and DynKernelConstTrans could also be included but there
+# LFRicLoopFuseTrans and LFRicKernelConstTrans could also be included but there
 # are some issues to overcome, e.g. TODO #2232
 
 
@@ -69,14 +69,14 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    rtrans = Dynamo0p3RedundantComputationTrans()
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = LFRicRedundantComputationTrans()
+    ctrans = LFRicColourTrans()
+    otrans = LFRicOMPLoopTrans()
     oregtrans = OMPParallelTrans()
     inline_trans = KernelModuleInlineTrans()
     matmul_trans = Matmul2CodeTrans()
     const = LFRicConstants()
-    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    ahex_trans = LFRicAsyncHaloExchangeTrans()
     mtrans = MoveTrans()
 
     for subroutine in psyir.walk(InvokeSchedule):

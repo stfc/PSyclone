@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (ACCParallelTrans, ACCLoopTrans,
-                                      DynamoOMPParallelLoopTrans)
+                                      LFRicOMPParallelLoopTrans)
 
 
 # --------------------------------------------------------------------------- #
@@ -109,9 +109,9 @@ def test_extract_kern_builtin_no_loop():
 
 
 # -----------------------------------------------------------------------------
-def test_extract_loop_no_directive_dynamo0p3():
+def test_extract_loop_no_directive_lfric():
     ''' Test that applying Extract Transformation on a Loop without its
-    parent Directive when optimisations are applied in Dynamo0.3 API
+    parent Directive when optimisations are applied in LFRic API
     raises a TransformationError. '''
     etrans = LFRicExtractTrans()
 
@@ -119,8 +119,8 @@ def test_extract_loop_no_directive_dynamo0p3():
     _, invoke = get_invoke("4.13_multikernel_invokes_w3_anyd.f90",
                            "lfric", idx=0, dist_mem=False)
     schedule = invoke.schedule
-    # Apply DynamoOMPParallelLoopTrans to the second Loop
-    otrans = DynamoOMPParallelLoopTrans()
+    # Apply LFRicOMPParallelLoopTrans to the second Loop
+    otrans = LFRicOMPParallelLoopTrans()
     otrans.apply(schedule[1])
     loop = schedule.children[1].dir_body[0]
     # Try extracting the Loop inside the OMP Parallel DO region

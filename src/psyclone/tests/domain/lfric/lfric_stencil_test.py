@@ -46,7 +46,7 @@ from fparser import api as fpapi
 
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
                                    LFRicKernMetadata, LFRicStencils)
-from psyclone.dynamo0p3 import DynKernelArguments
+from psyclone.lfric import LFRicKernelArguments
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -56,7 +56,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "../..", "test_files", "dynamo0p3")
+                         "../..", "test_files", "lfric")
 
 TEST_API = "lfric"
 
@@ -156,7 +156,7 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
     ''' Tests that properties of all supported types of field arguments
     with stencil access ('real'-valued 'field_type' and 'integer'-valued
     'integer_field_type') defined in LFRicConstants are correctly set up
-    in the DynKernelArgument class.
+    in the LFRicKernelArgument class.
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -1811,8 +1811,8 @@ def test_multi_kernel_any_space_stencil_1(dist_mem):
     assert output3 in result
 
 
-def test_dynkernargs_unexpect_stencil_extent():
-    '''This test checks that we raise an error in DynKernelArguments if
+def test_lfrickernargs_unexpect_stencil_extent():
+    '''This test checks that we raise an error in LFRicKernelArguments if
     metadata is provided with an extent value. This is a litle tricky
     to raise as the parser does not allow this to happen. We therefore
     modify the results from the parser to raise the error.
@@ -1832,7 +1832,7 @@ def test_dynkernargs_unexpect_stencil_extent():
     del call.args[2]
     # finally call our object to raise the error
     with pytest.raises(GenerationError) as err:
-        _ = DynKernelArguments(call, None)
+        _ = LFRicKernelArguments(call, None)
     assert "extent metadata not yet supported" in str(err.value)
 
 

@@ -68,7 +68,7 @@ PROFILE_LIB = ${PROFILE_DIR}/libnvtx_prof.a
 
 # Location of the NVTX library
 NVTX_DIR ?= /usr/local/lib64/cuda10.0
-NVTX_LINK = -L${NVTX_DIR} -lnvToolsExt
+NVTX_LINK = -L${NVTX_DIR} -lnvtx3interop -cuda
 
 .PHONY: kernels profile
 

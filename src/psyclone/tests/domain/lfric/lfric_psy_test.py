@@ -47,7 +47,7 @@ from psyclone.psyGen import PSy
 from psyclone.tests.lfric_build import LFRicBuild
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         os.pardir, os.pardir, "test_files", "dynamo0p3")
+                         os.pardir, os.pardir, "test_files", "lfric")
 
 
 class DummyInvokeInfo():

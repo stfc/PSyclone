@@ -64,7 +64,7 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, REAL8_TYPE, ArrayType, ContainerSymbol,
     ImportInterface, DataType, SymbolTable)
-# from psyclone.psyir.tools import ReadWriteInfo
+from psyclone.errors import InternalError
 
 
 class ExtractNode(PSyDataNode):
@@ -225,7 +225,7 @@ class ExtractNode(PSyDataNode):
         ctu.get_non_local_read_write_info(copy_dsl_tree.children,
                                           read_write_info)
 
-        options = {'pre_var_list': read_write_info.read_list,
+        options = {'pre_var_list': read_write_info.all_used_vars_list,
                    'post_var_list': read_write_info.write_list,
                    'post_var_postfix': self._post_name}
 
@@ -236,28 +236,13 @@ class ExtractNode(PSyDataNode):
             self.bring_external_symbols(read_write_info,
                                         self.ancestor(Routine).symbol_table)
 
-            # Even variables that are output-only need to be written with their
-            # values at the time the kernel is called: many kernels will only
-            # write to part of a field (e.g. in case of MPI the halo region
-            # will not be written). Since the comparison in the driver uses
-            # the whole field (including values not updated), we need to write
-            # the current value of an output-only field as well. This is
-            # achieved by adding any written-only field to the list of fields
-            # read. This will trigger to write the values in the extraction,
-            # and the driver code created will read in their values.
-            for sig in read_write_info.write_list:
-                if sig not in read_write_info.read_list:
-                    read_write_info.read_list.append(sig)
-
             # Determine a unique postfix to be used for output variables
             # that avoid any name clashes
             postfix = self.determine_postfix(read_write_info,
                                              postfix="_post")
             # Remove the spurious "_" at the end of the prefix or use default
             prefix = self._prefix[:-1] if self._prefix else "extract"
-            # We need to create the driver before inserting the ExtractNode
-            # (since some of the visitors used in driver creation do not
-            # handle an ExtractNode in the tree)
+            # Create and write the driver code
             self._driver_creator.write_driver(self.children,
                                               read_write_info,
                                               postfix=postfix,
@@ -292,7 +277,7 @@ class ExtractNode(PSyDataNode):
         suffix = ""
         # Create the a set of all input and output variables (to avoid
         # checking input+output variables more than once)
-        all_vars = read_write_info.set_of_all_used_vars
+        all_vars = read_write_info.all_used_vars_list
         # The signatures in the input/output list need to be converted
         # back to strings to easily append the suffix.
         all_vars_string = [str(input_var) for _, input_var in all_vars]
@@ -375,7 +360,7 @@ class ExtractNode(PSyDataNode):
 
     @staticmethod
     def _flatten_datatype(structure_reference: StructureReference) -> DataType:
-        ''' Ideally this should be replaces by structure_reference.datatype
+        ''' Ideally this should be replaced by structure_reference.datatype
         but until it works, this utility method provides hardcoded type
         information depending on the PSyKAL DSL and names involved.
 
@@ -383,14 +368,29 @@ class ExtractNode(PSyDataNode):
         '''
         signature, _ = structure_reference.get_signature_and_indices()
         if Config.get().api == "gocean":
-            if signature[-1] in ("data", "gphiu"):
-                return ArrayType(REAL8_TYPE, [ArrayType.Extent.DEFERRED,
-                                              ArrayType.Extent.DEFERRED])
-            if signature[-1] == "tmask":
-                return ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED,
-                                                ArrayType.Extent.DEFERRED])
-            if signature[-1] == "dx":
-                return REAL8_TYPE
+            api_config = Config.get().api_conf("gocean")
+            grid_properties = api_config.grid_properties
+            for prop_name in grid_properties:
+                gocean_property = grid_properties[prop_name]
+                property_name = gocean_property.fortran.split('%')[-1]
+                # Search for a property with the same name as the signature
+                # inner accessor
+                if signature[-1] == property_name:
+                    break
+            else:
+                raise InternalError(
+                    f"Could not find type for reference "
+                    f"'{structure_reference.debug_string()}' "
+                    f"in the config file '{Config.get().filename}'.")
+            if gocean_property.intrinsic_type == 'real':
+                scalar_type = REAL8_TYPE
+            else:
+                scalar_type = INTEGER_TYPE
+            if gocean_property.type == "scalar":
+                return scalar_type
+            # Everything else is a 2D field
+            return ArrayType(scalar_type, [ArrayType.Extent.DEFERRED,
+                                           ArrayType.Extent.DEFERRED])
 
         # Everything else defaults to integer
         return INTEGER_TYPE
@@ -398,8 +398,8 @@ class ExtractNode(PSyDataNode):
     @staticmethod
     def bring_external_symbols(read_write_info, symbol_table: SymbolTable):
         '''
-        Use the ModuleManager to explore external dependencies and bring into
-        scope symbols used in other modules (with the ImportInterface). The
+        Use the ModuleManager to explore external dependencies and bring
+        symbols used in other modules into scope (with ImportInterface). The
         symbols will be tagged with a 'signature@module_name' tag.
 
         :param read_write_info: information about the symbols usage in the
@@ -408,9 +408,11 @@ class ExtractNode(PSyDataNode):
         :param symbol_table: the associated symbol table.
 
         '''
+        # Cyclic import
+        # pylint: disable=import-outside-toplevel
         from psyclone.parse import ModuleManager
         mod_man = ModuleManager.get()
-        for module_name, signature in read_write_info.set_of_all_used_vars:
+        for module_name, signature in read_write_info.all_used_vars_list:
             if not module_name:
                 # Ignore local symbols, which will have been added above
                 continue

@@ -46,7 +46,7 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernMetadata
-from psyclone.dynamo0p3 import DynBasisFunctions, qr_basis_alloc_args
+from psyclone.lfric import LFRicBasisFunctions, qr_basis_alloc_args
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import KernelCall, parse
 from psyclone.psyGen import CodedKern, PSyFactory
@@ -55,7 +55,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
+                         "test_files", "lfric")
 API = "lfric"
 
 
@@ -589,16 +589,16 @@ def test_internal_qr_err(monkeypatch):
             "('gh_quadrature_wrong') found" in str(excinfo.value))
 
 
-def test_dynbasisfunctions(monkeypatch):
+def test_lfricbasisfunctions(monkeypatch):
     ''' Check that we raise internal errors as required. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    # Get hold of a DynBasisFunctions object
+    # Get hold of an LFRicBasisFunctions object
     evaluator = psy.invokes.invoke_list[0].evaluators
 
-    # Test the error check in dynamo0p3.qr_basis_alloc_args() by passing in a
+    # Test the error check in lfric.qr_basis_alloc_args() by passing in a
     # dictionary containing an invalid shape entry
     basis_dict = {"shape": "gh_wrong_shape"}
     with pytest.raises(InternalError) as excinfo:
@@ -630,12 +630,12 @@ def test_dynbasisfunctions(monkeypatch):
     assert isinstance(call, LFRicKern)
     monkeypatch.setattr(call, "_eval_shapes", ["not-a-shape"])
     with pytest.raises(InternalError) as err:
-        _ = DynBasisFunctions(invoke)
+        _ = LFRicBasisFunctions(invoke)
     assert "Unrecognised evaluator shape: 'not-a-shape'" in str(err.value)
 
 
-def test_dynbasisfns_setup(monkeypatch):
-    ''' Check that DynInvokeBasisFns._setup_basis_fns_for_call() raises an
+def test_lfricbasisfns_setup(monkeypatch):
+    ''' Check that LFRicInvokeBasisFns._setup_basis_fns_for_call() raises an
      internal error if an unrecognised evaluator shape is encountered or
     if it is passed something other than a Kernel object. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -645,8 +645,8 @@ def test_dynbasisfns_setup(monkeypatch):
     sched = psy.invokes.invoke_list[0].schedule
     call = sched.children[0].loop_body[0]
     assert isinstance(call, LFRicKern)
-    dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
-    # Now we've created a DynBasisFunctions object, monkeypatch the call
+    dinf = LFRicBasisFunctions(psy.invokes.invoke_list[0])
+    # Now we've created an LFRicBasisFunctions object, monkeypatch the call
     # to have the wrong shape and try and call setup_basis_fns_for_call()
     monkeypatch.setattr(call, "_eval_shapes", ["not-a-shape"])
     with pytest.raises(InternalError) as err:
@@ -656,17 +656,17 @@ def test_dynbasisfns_setup(monkeypatch):
     # something that is not a Kernel call
     with pytest.raises(InternalError) as err:
         dinf._setup_basis_fns_for_call("call")
-    assert "Expected a LFRicKern object but got: " in str(err.value)
+    assert "Expected an LFRicKern object but got: " in str(err.value)
 
 
-def test_dynbasisfns_initialise(monkeypatch):
-    ''' Check that the DynBasisFunctions.initialise() method
+def test_lfricbasisfns_initialise(monkeypatch):
+    ''' Check that the LFRicBasisFunctions.initialise() method
     raises the expected InternalErrors. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
+    dinf = LFRicBasisFunctions(psy.invokes.invoke_list[0])
     # We need some pre-declared symbol in order to call the initialise directly
     for name in ["quadrature_xyoz_proxy_type", "qr_proxy", "f1_proxy",
                  "f2_proxy", "m2_proxy"]:
@@ -686,15 +686,15 @@ def test_dynbasisfns_initialise(monkeypatch):
             "either 'basis' or 'diff-basis'" in str(err.value))
 
 
-def test_dynbasisfns_compute(monkeypatch):
-    ''' Check that the DynBasisFunctions._compute_basis_fns() method
+def test_lfricbasisfns_compute(monkeypatch):
+    ''' Check that the LFRicBasisFunctions._compute_basis_fns() method
     raises the expected InternalErrors if an unrecognised type or shape of
     basis function is encountered. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
+    dinf = LFRicBasisFunctions(psy.invokes.invoke_list[0])
     # First supply an invalid shape for one of the basis functions
     dinf._basis_fns[0]["shape"] = "not-a-shape"
     with pytest.raises(InternalError) as err:
@@ -710,8 +710,8 @@ def test_dynbasisfns_compute(monkeypatch):
             "one of 'basis' or 'diff-basis'" in str(err.value))
 
 
-def test_dynbasisfns_dealloc(monkeypatch):
-    ''' Check that the DynBasisFunctions.deallocate() method
+def test_lfricbasisfns_dealloc(monkeypatch):
+    ''' Check that the LFRicBasisFunctions.deallocate() method
     raises the expected InternalError if an unrecognised type of
     basis function is encountered. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -721,7 +721,7 @@ def test_dynbasisfns_dealloc(monkeypatch):
     sched = psy.invokes.invoke_list[0].schedule
     call = sched.children[0].loop_body[0]
     assert isinstance(call, LFRicKern)
-    dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
+    dinf = LFRicBasisFunctions(psy.invokes.invoke_list[0])
     # Supply an invalid type for one of the basis functions
     monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
     with pytest.raises(InternalError) as err:
@@ -737,7 +737,7 @@ def test_lfrickern_setup(monkeypatch):
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
-    # Get hold of a LFRicKern object
+    # Get hold of an LFRicKern object
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[4].loop_body[0]
     # Monkeypatch a couple of __init__ routines so that we can get past
@@ -748,7 +748,7 @@ def test_lfrickern_setup(monkeypatch):
                         lambda me, mname, ktype, args: None)
     # Break the shape of the quadrature for this kernel
     monkeypatch.setattr(kern, "_eval_shapes", value=["gh_wrong_shape"])
-    # Rather than try and mock-up a LFRicKernMetadata object, it's easier
+    # Rather than try and mock-up an LFRicKernMetadata object, it's easier
     # to make one properly by parsing the kernel code.
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr_mod.F90"),
                       ignore_comments=False)
@@ -947,7 +947,7 @@ def test_stub_basis_wrong_shape(monkeypatch):
     with pytest.raises(NotImplementedError) as excinfo:
         _ = kernel.gen_stub
     assert ("Unrecognised shape 'gh_quadrature_wrong' specified in "
-            "dynamo0p3.qr_basis_alloc_args" in str(excinfo.value))
+            "lfric.qr_basis_alloc_args" in str(excinfo.value))
 
 
 def test_stub_dbasis_wrong_shape(monkeypatch):
@@ -977,4 +977,4 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
     with pytest.raises(NotImplementedError) as excinfo:
         _ = kernel.gen_stub
     assert ("Unrecognised shape 'gh_quadrature_wrong' specified in "
-            "dynamo0p3.qr_basis_alloc_args(). Should be" in str(excinfo.value))
+            "lfric.qr_basis_alloc_args(). Should be" in str(excinfo.value))

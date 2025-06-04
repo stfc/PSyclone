@@ -150,8 +150,8 @@ class BaseDriverCreator:
 
     @staticmethod
     def _create_output_var_code(
-            name: str, program: Routine, is_input: bool, read_var: str,
-            postfix: str, module_name: str = None
+        name: str, program: Routine, read_var: str,
+        postfix: str, module_name: str = None
     ) -> Tuple[Symbol, Symbol]:
         '''
         This function creates all code required for an output variable:
@@ -165,7 +165,6 @@ class BaseDriverCreator:
             f"{name}_{index}_data".
         :param program: the PSyIR Routine to which any code must
             be added. It also contains the symbol table to be used.
-        :param is_input: True if this variable is also an input parameter.
         :param read_var: the readvar method to be used including the
             name of the PSyData object (e.g. 'psy_data%ReadVar')
         :param postfix: the postfix to use for the expected output
@@ -210,25 +209,6 @@ class BaseDriverCreator:
         name_lit = Literal(post_tag, CHARACTER_TYPE)
         BaseDriverCreator.add_read_call(program, name_lit, post_sym, read_var)
 
-        # Now if a variable is written to, but not read, the variable
-        # is not allocated. So we need to allocate it and set it to 0.
-        # However, this currently does not happen because all fields are
-        # considered read (including potential halo elements), in case
-        # we just write to part of the field, but in the future we may want
-        # to re-enable it if we can guarantee that the whole field is written
-        # first.
-        # if not is_input:
-        #     if (isinstance(post_sym.datatype, ArrayType) or
-        #            (isinstance(post_sym.datatype, UnsupportedFortranType) and
-        #             isinstance(post_sym.datatype.partial_datatype,
-        #                        ArrayType))):
-        #         alloc = IntrinsicCall.create(
-        #             IntrinsicCall.Intrinsic.ALLOCATE,
-        #             [Reference(sym), ("mold", Reference(post_sym))])
-        #         program.addchild(alloc)
-        #     set_zero = Assignment.create(Reference(sym),
-        #                                  Literal("0", INTEGER_TYPE))
-        #     program.addchild(set_zero)
         return (sym, post_sym)
 
     def _create_read_in_code(
@@ -238,9 +218,9 @@ class BaseDriverCreator:
         '''This function creates the code that reads in the data file
         produced during extraction. For each:
 
-        - read variable, it will declare the symbol and add code that reads in
+        - input variable, it will declare the symbol and add code that reads in
           the variable using the PSyData library.
-        - write variable, it will create code to read in the expected value,
+        - output variable, it will create code to read in the expected value,
           and at the end compare the driver value with the expected one.
 
         :param program: the PSyIR Routine to which any code must be added.
@@ -254,20 +234,20 @@ class BaseDriverCreator:
             create the corresponding variable that stores the output
             value from the kernel data file.
 
-        :returns: all output parameters, i.e. variables that need to be
-            verified after executing the kernel. Each entry is a 2-tuple
-            containing the symbol of the computed variable, and the symbol
-            of the variable that contains the originally computed value read
-            from the file.a
+        :returns: all output variables. Each entry is a 2-tuple containing the
+            symbol of the output variable, and the symbol that contains the
+            originally values read from the data file.
 
         '''
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
 
-        # First handle variables that are read:
-        # -------------------------------------
+        # First handle the input local variables that are read (local variables
+        # do not have a module_name and are guaranteed to be in the symtab when
+        # doing lookups, external variables are handled below). Note that at
+        # the moment we consider all read and/or written as input variables.
         read_stmts = []
-        for module_name, signature in read_write_info.read_list:
+        for module_name, signature in read_write_info.all_used_vars_list:
             if not module_name:
                 orig_sym = original_symtab.lookup(signature[0])
                 sym = orig_sym.copy()
@@ -276,11 +256,11 @@ class BaseDriverCreator:
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
                 read_stmts.append((name_lit, sym))
 
-        # We do the external AFTER the locals to match the literal tags of
-        # the extracting psy-layer
+        # Now do the input external variables. This are done after the locals
+        # so that they match the literal tags of the extracting psy-layer
         ExtractNode.bring_external_symbols(read_write_info, symbol_table)
         mod_man = ModuleManager.get()
-        for module_name, signature in read_write_info.read_list:
+        for module_name, signature in read_write_info.all_used_vars_list:
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
                 orig_sym = mod_info.get_symbol(signature[0])
@@ -292,31 +272,21 @@ class BaseDriverCreator:
         for name_lit, sym in read_stmts:
             self.add_read_call(program, name_lit, sym, read_var)
 
-        # Then handle all variables that are written (note that some
-        # variables might be read and written)
-        # ----------------------------------------------------------
-        # Collect all output symbols to later create the tests for
-        # correctness. This list stores 2-tuples: first one the
-        # variable that stores the output from the kernel, the second
-        # one the variable that stores the output values read from the
-        # file. The content of these two variables should be identical
-        # at the end.
+        # Finally handle the output variables (these are the ones compared
+        # to a stored _post variable)
         output_symbols = []
-
         for module_name, signature in read_write_info.write_list:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
-            # variables have References, and will already have been declared
-            # in the symbol table.
+            # variables will already have been declared in the symbol table.
             if module_name:
                 orig_sym = mod_man.get_module_info(module_name).get_symbol(
                     signature[0])
             else:
                 orig_sym = symbol_table.lookup(signature[0])
-            is_input = read_write_info.is_read(signature)
             sym_tuple = self._create_output_var_code(
-                str(signature), program, is_input, read_var, postfix,
+                str(signature), program, read_var, postfix,
                 module_name=module_name)
             output_symbols.append(sym_tuple)
 
@@ -330,7 +300,7 @@ class BaseDriverCreator:
 
         :param name: a proposed unit name.
 
-        :returns: a valid program or routine  name with special characters
+        :returns: a valid program or routine name with special characters
             removed and restricted to a length of 63 characters.
 
         '''
@@ -347,19 +317,23 @@ class BaseDriverCreator:
         :param program: the PSyIR Routine to which any code must be added.
 
         '''
-        symbol_table = program.scope.symbol_table
+        symtab = program.scope.symbol_table
         for call in program.walk(Call):
             routine = call.routine.symbol
             if not isinstance(routine.interface, ImportInterface):
                 continue
-            if routine.name in symbol_table:
+            if routine.name in symtab:
                 # Symbol has already been added - ignore
                 continue
             # We need to create a new symbol for the module and the routine
             # called (the PSyIR backend will then create a suitable import
             # statement).
-            module = ContainerSymbol(routine.interface.container_symbol.name)
-            symbol_table.add(module)
+            if routine.interface.container_symbol.name in symtab:
+                module = symtab.lookup(routine.interface.container_symbol.name)
+            else:
+                module = ContainerSymbol(
+                            routine.interface.container_symbol.name)
+                symtab.add(module)
             new_routine_sym = RoutineSymbol(routine.name, UnresolvedType(),
                                             interface=ImportInterface(module))
-            symbol_table.add(new_routine_sym)
+            symtab.add(new_routine_sym)

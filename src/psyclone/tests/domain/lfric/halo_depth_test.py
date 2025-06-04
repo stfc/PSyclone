@@ -34,11 +34,11 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 
 '''
-pytest tests for the dynamo0p3.HaloDepth class.
+pytest tests for the lfric.HaloDepth class.
 
 '''
 
-from psyclone.dynamo0p3 import HaloDepth
+from psyclone.lfric import HaloDepth
 from psyclone.psyir import symbols, nodes
 from psyclone.tests.utilities import get_invoke
 

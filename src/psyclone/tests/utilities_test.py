@@ -367,7 +367,7 @@ def test_get_infrastructure_path():
     result = get_infrastructure_path("gocean")
     assert "dl_esm_inf" in result
     result = get_infrastructure_path("lfric")
-    assert "dynamo0p3" in result
+    assert "lfric" in result
     with pytest.raises(RuntimeError) as err:
         _ = get_infrastructure_path("wrong")
     assert "API 'wrong' is not supported" in str(err.value)

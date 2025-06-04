@@ -57,7 +57,7 @@ OBJ = main_psy.o main_alg.o other_alg_mod_psy.o other_alg_mod_alg.o \
 
 EXEC = example_openacc
 
-LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/lfric/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 # This sets up LFRIC_INCLUDE_FLAGS
@@ -72,7 +72,7 @@ PROFILE_LINK=-ldummy
 # For NVIDIA profiling
 #PROFILE_PATH=$(PSYROOT)/lib/profiling/nvidia
 #PROFILE_LIB=$(PROFILE_PATH)/libnvtx_prof.a
-#PROFILE_LINK="-lnvtx_prof -lnvToolsExt"
+#PROFILE_LINK=-lnvtx_prof -lnvtx3interop -cuda
 
 .PHONY: transform compile run
 

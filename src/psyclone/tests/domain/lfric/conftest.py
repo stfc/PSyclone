@@ -51,7 +51,7 @@ def api_setup_fixture():
 @pytest.fixture(name="lfrickern", scope="module")
 def lfrickern_fixture():
     '''
-    :returns: a LFRicKern object created from example metadata.
+    :returns: an LFRicKern object created from example metadata.
     :rtype: :py:class:`psyclone.domain.lfric.LFRicKern`
     '''
     mdata_code = '''
@@ -96,7 +96,7 @@ end module testkern_field_mod
 @pytest.fixture(name="lfrickern_halo", scope="module")
 def lfrichalokern_fixture():
     '''
-    :returns: a LFRicKern object created from example metadata which specifies
+    :returns: an LFRicKern object created from example metadata which specifies
               that the kernel operates on cell halos.
     :rtype: :py:class:`psyclone.domain.lfric.LFRicKern`
     '''
@@ -137,7 +137,7 @@ end module testkern_field_mod
 @pytest.fixture(name="lfrickern_op", scope="module")
 def lfrickern_op_fixture():
     '''
-    :returns: a LFRicKern object created from example metadata that includes \
+    :returns: an LFRicKern object created from example metadata that includes
               an operator argument.
     :rtype: :py:class:`psyclone.domain.lfric.LFRicKern`
     '''

@@ -268,7 +268,7 @@ def test_lfric_driver_dm_test():
     # while it has been removed from the driver (because it is executed in a)
     # single rank (and without the infrastructure imported).
     assert "set_dirty" in code
-    assert "ser_dirty" not in driver
+    assert "set_dirty" not in driver
 
     # If there is a method call other than the ones from the DM infrastructure
     # it will fail
@@ -545,7 +545,7 @@ def test_lfric_driver_field_array_inc():
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
                 "testkern_coord_w0_2_mod"]:
-        assert f"module {mod}" in driver
+        assert f"module {mod}" in driver, driver
         assert f"end module {mod}" in driver
 
     # While the actual code is LFRic, the driver is stand-alone, and as such

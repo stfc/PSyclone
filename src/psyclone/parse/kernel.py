@@ -827,7 +827,7 @@ class KernelType():
         operates_on = self.get_integer_variable("operates_on")
         # The GOcean API still uses the 'iterates_over' metadata entry
         # although this is deprecated in the LFRic API.
-        # Validation is left to the API-specific code in either dynamo0p3.py
+        # Validation is left to the API-specific code in either lfric.py
         # or gocean1p0.py.
         iterates_over = self.get_integer_variable("iterates_over")
         if operates_on:

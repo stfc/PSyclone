@@ -36,7 +36,7 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements PSyclone LFRic (Dynamo 0.3) API by specialising the
+''' This module implements PSyclone LFRic API by specialising the
     base class for managing the declaration and initialisation of a group of
     related entities within an Invoke or Kernel stub.'''
 
@@ -131,7 +131,7 @@ class LFRicCollection():
         '''
         if not self._invoke:
             raise InternalError(
-                f"invoke_declarations() can only be called with a "
+                f"invoke_declarations() can only be called with an "
                 f"{type(self).__name__} instantiated for an invoke (not a "
                 f"kernel).")
 
@@ -147,7 +147,7 @@ class LFRicCollection():
         '''
         if not self._kernel:
             raise InternalError(
-                f"stub_declarations() can only be called with a "
+                f"stub_declarations() can only be called with an "
                 f"{type(self).__name__} instantiated for a kernel (not an "
                 f"invoke).")
 

@@ -34,7 +34,7 @@ User Guide
     :caption: PSyKAl DSLs
 
     introduction_to_psykal
-    dynamo0p3
+    lfric
     gocean1p0
 
 .. toctree::

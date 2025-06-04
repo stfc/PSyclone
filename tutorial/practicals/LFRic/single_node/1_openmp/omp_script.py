@@ -39,9 +39,9 @@ applied via the -s option in the psyclone command, it is not designed
 to be directly run from python.
 
 '''
-from psyclone.transformations import DynamoOMPParallelLoopTrans, \
-    TransformationError, Dynamo0p3ColourTrans, OMPParallelTrans, \
-    Dynamo0p3OMPLoopTrans
+from psyclone.transformations import LFRicOMPParallelLoopTrans, \
+    TransformationError, LFRicColourTrans, OMPParallelTrans, \
+    LFRicOMPLoopTrans
 from psyclone.psyGen import Loop
 from psyclone.domain.lfric.function_space import FunctionSpace
 
@@ -55,7 +55,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
 
     # Add OpenMP parallel do directives to the loops
     for loop in psyir.loops():

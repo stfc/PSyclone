@@ -38,7 +38,7 @@
 
 ''' This module implements the PSyclone LFRic API by 1) specialising the
     required base classes in parser.py (KernelType) and
-    adding a new class (DynFuncDescriptor03) to capture function descriptor
+    adding a new class (LFRicFuncDescriptor) to capture function descriptor
     metadata and 2) specialising the required base classes in psyGen.py
     (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
     Argument). '''
@@ -107,7 +107,7 @@ def qr_basis_alloc_args(first_dim, basis_fn):
     if basis_fn["shape"] not in const.VALID_QUADRATURE_SHAPES:
         raise InternalError(
             f"Unrecognised shape ('{basis_fn['''shape''']}') specified in "
-            f"dynamo0p3.qr_basis_alloc_args(). Should be one of: "
+            f"lfric.qr_basis_alloc_args(). Should be one of: "
             f"{const.VALID_QUADRATURE_SHAPES}")
 
     qr_var = "_" + basis_fn["qr_var"]
@@ -134,15 +134,15 @@ def qr_basis_alloc_args(first_dim, basis_fn):
     else:
         raise NotImplementedError(
             f"Unrecognised shape '{basis_fn['''shape''']}' specified in "
-            f"dynamo0p3.qr_basis_alloc_args(). Should be one of: "
+            f"lfric.qr_basis_alloc_args(). Should be one of: "
             f"{const.VALID_QUADRATURE_SHAPES}")
     return alloc_args
 
 # ---------- Classes -------------------------------------------------------- #
 
 
-class DynFuncDescriptor03():
-    ''' The Dynamo 0.3 API includes a function-space descriptor as
+class LFRicFuncDescriptor():
+    ''' The LFRic API includes a function-space descriptor as
     well as an argument descriptor which is not supported by the base
     classes. This class captures the information specified in a
     function-space descriptor. '''
@@ -163,7 +163,7 @@ class DynFuncDescriptor03():
             if idx == 0:  # first func_type arg
                 if arg.name not in const.VALID_FUNCTION_SPACE_NAMES:
                     raise ParseError(
-                        f"In the dynamo0p3 API the 1st argument of a "
+                        f"In the LFRic API the 1st argument of a "
                         f"meta_func entry should be a valid function space "
                         f"name (one of {const.VALID_FUNCTION_SPACE_NAMES}), "
                         f"but found '{arg.name}' in '{func_type}'")
@@ -195,10 +195,10 @@ class DynFuncDescriptor03():
         return self._operator_names
 
     def __repr__(self):
-        return f"DynFuncDescriptor03({self._func_type})"
+        return f"LFRicFuncDescriptor({self._func_type})"
 
     def __str__(self):
-        res = "DynFuncDescriptor03 object" + os.linesep
+        res = "LFRicFuncDescriptor object" + os.linesep
         res += f"  name='{self._name}'" + os.linesep
         res += f"  nargs={len(self._operator_names)+1}" + os.linesep
         res += f"  function_space_name[{0}] = '{self._function_space_name}'" \
@@ -370,13 +370,13 @@ class LFRicMeshProperties(LFRicCollection):
     '''
     Holds all information on the the mesh properties required by either an
     invoke or a kernel stub. Note that the creation of a suitable mesh
-    object is handled in the `DynMeshes` class. This class merely deals with
+    object is handled in the `LFRicMeshes` class. This class merely deals with
     extracting the necessary properties from that object and providing them to
     kernels.
 
     :param node: kernel or invoke for which to manage mesh properties.
     :type node: :py:class:`psyclone.domain.lfric.LFRicKern` or \
-                :py:class:`psyclone.dynamo0p3.LFRicInvoke`
+                :py:class:`psyclone.domain.lfric.LFRicInvoke`
 
     '''
     def __init__(self, node):
@@ -542,7 +542,7 @@ class LFRicMeshProperties(LFRicCollection):
         '''
         super().invoke_declarations()
         for prop in self._properties:
-            # The DynMeshes class will have created a mesh object so we
+            # The LFRicMeshes class will have created a mesh object so we
             # don't need to do that here.
             if prop == MeshProperty.ADJACENT_FACE:
                 self.symtab.lookup_with_tag("adjacent_face")
@@ -612,17 +612,34 @@ class LFRicMeshProperties(LFRicCollection):
         # it now, rather than when this class was first constructed.
         need_colour_limits = False
         need_colour_halo_limits = False
+        need_tilecolour_limits = False
+        need_tilecolour_halo_limits = False
         for call in self.kernel_calls:
             if call.is_coloured() and not call.is_intergrid:
                 loop = call.parent.parent
-                # Record whether or not this coloured loop accesses the halo.
-                if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
-                    need_colour_halo_limits = True
+                is_tiled = loop.loop_type == "cells_in_tile"
+                # Record which colour maps will be needed
+                if is_tiled:
+                    has_halo = (loop.parent.parent.upper_bound_name in
+                                const.HALO_ACCESS_LOOP_BOUNDS)
+                    if has_halo:
+                        need_tilecolour_halo_limits = True
+                    else:
+                        need_tilecolour_limits = True
                 else:
-                    need_colour_limits = True
+                    has_halo = (loop.upper_bound_name in
+                                const.HALO_ACCESS_LOOP_BOUNDS)
+                    if has_halo:
+                        need_colour_halo_limits = True
+                    else:
+                        need_colour_limits = True
 
-        if not self._properties and not (need_colour_limits or
-                                         need_colour_halo_limits):
+        needs_colour_maps = (need_colour_limits or
+                             need_colour_halo_limits or
+                             need_tilecolour_limits or
+                             need_tilecolour_halo_limits)
+
+        if not self._properties and not needs_colour_maps:
             # If no mesh properties are required and there's no colouring
             # (which requires a mesh object to lookup loop bounds) then we
             # need do nothing.
@@ -694,10 +711,44 @@ class LFRicMeshProperties(LFRicCollection):
                         mesh, ["get_last_edge_cell_all_colours"])))
             self._invoke.schedule.addchild(assignment, cursor)
             cursor += 1
+        if need_tilecolour_halo_limits:
+            lhs = self.symtab.find_or_create_tag(
+                "last_halo_tile_per_colour")
+            assignment = Assignment.create(
+                    lhs=Reference(lhs),
+                    rhs=Call.create(StructureReference.create(
+                        mesh, ["get_last_halo_tile_all_colours"])))
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
+            lhs = self.symtab.find_or_create_tag(
+                "last_halo_cell_per_colour_and_tile")
+            assignment = Assignment.create(
+                    lhs=Reference(lhs),
+                    rhs=Call.create(StructureReference.create(
+                        mesh, ["get_last_halo_cell_all_colours_all_tiles"])))
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
+        if need_tilecolour_limits:
+            lhs = self.symtab.find_or_create_tag(
+                "last_edge_tile_per_colour")
+            assignment = Assignment.create(
+                    lhs=Reference(lhs),
+                    rhs=Call.create(StructureReference.create(
+                        mesh, ["get_last_edge_tile_all_colours"])))
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
+            lhs = self.symtab.find_or_create_tag(
+                "last_edge_cell_per_colour_and_tile")
+            assignment = Assignment.create(
+                    lhs=Reference(lhs),
+                    rhs=Call.create(StructureReference.create(
+                        mesh, ["get_last_edge_cell_all_colours_all_tiles"])))
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
         return cursor
 
 
-class DynReferenceElement(LFRicCollection):
+class LFRicReferenceElement(LFRicCollection):
     '''
     Holds all information on the properties of the Reference Element
     required by an Invoke or a Kernel stub.
@@ -705,7 +756,7 @@ class DynReferenceElement(LFRicCollection):
     :param node: Kernel or Invoke for which to manage Reference-Element \
                  properties.
     :type node: :py:class:`psyclone.domain.lfric.LFRicKern` or \
-                :py:class:`psyclone.dynamo0p3.LFRicInvoke`
+                :py:class:`psyclone.lfric.LFRicInvoke`
 
     :raises InternalError: if an unsupported reference-element property \
                            is encountered.
@@ -1084,7 +1135,7 @@ class DynReferenceElement(LFRicCollection):
         return cursor
 
 
-class DynFunctionSpaces(LFRicCollection):
+class LFRicFunctionSpaces(LFRicCollection):
     '''
     Handles the declaration and initialisation of all function-space-related
     quantities required by an Invoke.
@@ -1199,7 +1250,7 @@ class DynFunctionSpaces(LFRicCollection):
         return cursor
 
 
-class DynProxies(LFRicCollection):
+class LFRicProxies(LFRicCollection):
     '''
     Handles all proxy-related declarations and initialisation. Unlike other
     sub-classes of LFRicCollection, we do not have to handle Kernel-stub
@@ -1241,7 +1292,7 @@ class DynProxies(LFRicCollection):
             # Create symbols that we will associate with the internal
             # data arrays of fields, field vectors and LMA operators.
             if arg.argument_type == "gh_columnwise_operator":
-                # CMA operators are handled by the DynCMAOperators class.
+                # CMA operators are handled by the LFRicCMAOperators class.
                 continue
             ctable.add_lfric_precision_symbol(arg.precision)
             intrinsic_type = "integer" if arg in int_field_args else "real"
@@ -1284,7 +1335,7 @@ class DynProxies(LFRicCollection):
         :param str intrinsic_type: whether the Symbol represents "real" or
                                    "integer" data.
         :param arg: the metadata description of the associated kernel argument.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param int rank: the rank of the array represented by the Symbol.
 
         '''
@@ -1489,7 +1540,8 @@ class DynProxies(LFRicCollection):
                     cursor += 1
                 elif arg.is_operator:
                     if arg.argument_type == "gh_columnwise_operator":
-                        # CMA operator arguments are handled in DynCMAOperators
+                        # CMA operator arguments are handled in
+                        # LFRicCMAOperators
                         pass
                     elif arg.argument_type == "gh_operator":
                         symbol = self.symtab.lookup_with_tag(
@@ -1507,12 +1559,12 @@ class DynProxies(LFRicCollection):
                         raise InternalError(
                             f"Kernel argument '{arg.name}' is a recognised "
                             f"operator but its type ('{arg.argument_type}') is"
-                            f" not supported by DynProxies.initialise()")
+                            f" not supported by LFRicProxies.initialise()")
                 else:
                     raise InternalError(
                         f"Kernel argument '{arg.name}' of type "
                         f"'{arg.argument_type}' not "
-                        f"handled in DynProxies.initialise()")
+                        f"handled in LFRicProxies.initialise()")
             if cursor > init_cursor:
                 self._invoke.schedule[init_cursor].preceding_comment = (
                     "Initialise field and/or operator proxies")
@@ -1520,7 +1572,7 @@ class DynProxies(LFRicCollection):
         return cursor
 
 
-class DynLMAOperators(LFRicCollection):
+class LFRicLMAOperators(LFRicCollection):
     '''
     Handles all entities associated with Local-Matrix-Assembly Operators.
     '''
@@ -1602,13 +1654,13 @@ class DynLMAOperators(LFRicCollection):
             symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
 
 
-class DynCMAOperators(LFRicCollection):
+class LFRicCMAOperators(LFRicCollection):
     '''
     Holds all information on the Column-Matrix-Assembly operators
     required by an Invoke or Kernel stub.
 
     :param node: either an Invoke schedule or a single Kernel object.
-    :type node: :py:class:`psyclone.dynamo0p3.DynSchedule` or \
+    :type node: :py:class:`psyclone.lfric.LFRicSchedule` or \
                 :py:class:`psyclone.domain.lfric.LFRicKern`
 
     '''
@@ -1844,7 +1896,7 @@ class DynCMAOperators(LFRicCollection):
             symtab.append_argument(op)
 
 
-class DynMeshes():
+class LFRicMeshes():
     '''
     Holds all mesh-related information (including colour maps if
     required).  If there are no inter-grid kernels then there is only
@@ -1860,10 +1912,10 @@ class DynMeshes():
 
     :param invoke: the Invoke for which to extract information on all \
                    required inter-grid operations.
-    :type invoke: :py:class:`psyclone.dynamo0p3.LFRicInvoke`
+    :type invoke: :py:class:`psyclone.domain.lfric.LFRicInvoke`
     :param unique_psy_vars: list of arguments to the PSy-layer routine.
     :type unique_psy_vars: list of \
-                      :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects.
+                      :py:class:`psyclone.lfric.LFRicKernelArgument` objects.
     '''
 
     def __init__(self, invoke, unique_psy_vars):
@@ -1872,6 +1924,8 @@ class DynMeshes():
         # Whether or not the associated Invoke requires colourmap information
         self._needs_colourmap = False
         self._needs_colourmap_halo = False
+        self._needs_colourtilemap = False
+        self._needs_colourtilemap_halo = False
         # Keep a reference to the Invoke so we can check its properties later
         self._invoke = invoke
         # Set used to generate a list of the unique mesh objects
@@ -1993,7 +2047,7 @@ class DynMeshes():
         '''
         Sets-up information on any required colourmaps. Since colouring is
         applied by Transformations, this method is called as the final step
-        of Dynamo0p3ColourTrans.apply().
+        of LFRicColourTrans.apply().
 
         '''
         # pylint: disable=too-many-locals
@@ -2004,12 +2058,23 @@ class DynMeshes():
                      call.is_coloured()]:
             # Keep a record of whether or not any kernels (loops) in this
             # invoke have been coloured and, if so, whether the associated loop
-            # goes into the halo.
-            if (call.parent.parent.upper_bound_name in
-                    const.HALO_ACCESS_LOOP_BOUNDS):
-                self._needs_colourmap_halo = True
+            # is tiled or it goes into the halo.
+            loop = call.parent.parent
+            is_tiled = loop.loop_type == "cells_in_tile"
+            if is_tiled:
+                has_halo = (loop.parent.parent.upper_bound_name in
+                            const.HALO_ACCESS_LOOP_BOUNDS)
+                if has_halo:
+                    self._needs_colourtilemap_halo = True
+                else:
+                    self._needs_colourtilemap = True
             else:
-                self._needs_colourmap = True
+                has_halo = (loop.upper_bound_name in
+                            const.HALO_ACCESS_LOOP_BOUNDS)
+                if has_halo:
+                    self._needs_colourmap_halo = True
+                else:
+                    self._needs_colourmap = True
 
             if not call.is_intergrid:
                 non_intergrid_kern = call
@@ -2019,53 +2084,94 @@ class DynMeshes():
             # the colourmap variables associated with the coarse
             # mesh (since that determines the iteration space).
             carg_name = call._intergrid_ref.coarse.name
-            # Colour map
-            base_name = "cmap_" + carg_name
-            array_type = ArrayType(
-                LFRicTypes("LFRicRealScalarDataType")(),
-                [ArrayType.Extent.DEFERRED]*2)
-            colour_map = self.symtab.find_or_create(
-                base_name,
-                symbol_type=DataSymbol,
-                datatype=UnsupportedFortranType(
-                    f"integer(kind=i_def), pointer, dimension(:,:) :: "
-                    f"{base_name} => null()",
-                    partial_datatype=array_type),
-                tag=base_name)
-            # No. of colours
-            base_name = "ncolour_" + carg_name
-            ncolours = self.symtab.find_or_create(
-                base_name, tag=base_name,
-                symbol_type=DataSymbol,
-                datatype=LFRicTypes("LFRicIntegerScalarDataType")()
-            )
-            # Array holding the last cell of a given colour.
-            if (Config.get().distributed_memory and
-                    not call.all_updates_are_writes):
-                # This will require a loop into the halo and so the array is
-                # 2D (indexed by colour *and* halo depth).
-                base_name = "last_halo_cell_all_colours_" + carg_name
-                last_cell = self.symtab.find_or_create(
+
+            # We use different variables if it is a tiled or a regular
+            # colour map
+            if not is_tiled:
+                base_name = "cmap_" + carg_name
+                array_type = ArrayType(
+                    LFRicTypes("LFRicRealScalarDataType")(),
+                    [ArrayType.Extent.DEFERRED]*2)
+                colour_map = self.symtab.find_or_create_tag(
                     base_name,
                     symbol_type=DataSymbol,
-                    datatype=ArrayType(
-                            LFRicTypes("LFRicIntegerScalarDataType")(),
-                            [ArrayType.Extent.DEFERRED]*2),
-                    tag=base_name)
+                    datatype=UnsupportedFortranType(
+                        f"integer(kind=i_def), pointer, dimension(:,:) :: "
+                        f"{base_name} => null()",
+                        partial_datatype=array_type))
+                # No. of colours
+                base_name = "ncolour_" + carg_name
+                ncolours = self.symtab.find_or_create_tag(
+                    base_name,
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                )
+                # Array holding the last cell of a given colour.
+                if (Config.get().distributed_memory and
+                        not call.all_updates_are_writes):
+                    # This will require a loop into the halo and so the array
+                    # is 2D (indexed by colour *and* halo depth).
+                    base_name = "last_halo_cell_all_colours_" + carg_name
+                    last_cell = self.symtab.find_or_create_tag(
+                        base_name,
+                        symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicIntegerScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*2))
+                else:
+                    # Array holding the last edge cell of a given colour. Just
+                    # 1D as indexed by colour only.
+                    base_name = "last_edge_cell_all_colours_" + carg_name
+                    last_cell = self.symtab.find_or_create_tag(
+                        base_name,
+                        symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicIntegerScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*1))
+                # Add these symbols into the LFRicInterGrid entry for this
+                # kernel
+                call._intergrid_ref.set_colour_info(colour_map, ncolours,
+                                                    last_cell)
             else:
-                # Array holding the last edge cell of a given colour. Just 1D
-                # as indexed by colour only.
-                base_name = "last_edge_cell_all_colours_" + carg_name
-                last_cell = self.symtab.find_or_create(
-                    base_name,
-                    symbol_type=DataSymbol,
-                    datatype=ArrayType(
-                            LFRicTypes("LFRicIntegerScalarDataType")(),
-                            [ArrayType.Extent.DEFERRED]*1),
-                    tag=base_name)
-            # Add these symbols into the DynInterGrid entry for this kernel
-            call._intergrid_ref.set_colour_info(colour_map, ncolours,
-                                                last_cell)
+                # Tiled colour map
+                base_name = "tmap_" + carg_name
+                tilecolour_map = self.symtab.find_or_create_tag(
+                    base_name, symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(
+                        f"integer(kind=i_def), pointer :: {base_name}(:,:,:)"))
+                base_name = "ntilecolour_" + carg_name
+                ntilecolours = self.symtab.find_or_create_integer_symbol(
+                                    base_name, tag=base_name)
+                # Array holding the last cell of a given colour.
+                if (Config.get().distributed_memory and
+                        not call.all_updates_are_writes):
+                    # This will require a loop into the halo and so the array
+                    # is 2D (indexed by colour *and* halo depth).
+                    base_name = "last_halo_tile_per_colour_" + carg_name
+                    last_tile = self.symtab.find_or_create_array(
+                        base_name, 2, ScalarType.Intrinsic.INTEGER,
+                        tag=base_name)
+                    base_name = ("last_halo_cell_per_colour_and_tile_" +
+                                 carg_name)
+                    last_cell_tile = self.symtab.find_or_create_array(
+                        base_name, 3, ScalarType.Intrinsic.INTEGER,
+                        tag=base_name)
+                else:
+                    # Array holding the last edge cell of a given colour. Just
+                    # 1D as indexed by colour only.
+                    base_name = "last_edge_tile_per_colour_" + carg_name
+                    last_tile = self.symtab.find_or_create_array(
+                        base_name, 1, ScalarType.Intrinsic.INTEGER,
+                        tag=base_name)
+                    base_name = ("last_edge_cell_per_colour_and_tile_"
+                                 + carg_name)
+                    last_cell_tile = self.symtab.find_or_create_array(
+                        base_name, 2, ScalarType.Intrinsic.INTEGER,
+                        tag=base_name)
+                # Add these symbols into the dictionary entry for this
+                # inter-grid kernel
+                call._intergrid_ref.set_tilecolour_info(
+                    tilecolour_map, ntilecolours, last_tile, last_cell_tile)
 
         if non_intergrid_kern and (self._needs_colourmap or
                                    self._needs_colourmap_halo):
@@ -2097,6 +2203,48 @@ class DynMeshes():
                             LFRicTypes("LFRicIntegerScalarDataType")(),
                             [ArrayType.Extent.DEFERRED]*1),
                     tag="last_edge_cell_all_colours")
+        if non_intergrid_kern and (self._needs_colourtilemap or
+                                   self._needs_colourtilemap_halo):
+            # There aren't any inter-grid kernels but we do need colourtilemap
+            # information and that means we'll need a mesh object
+            self._add_mesh_symbols(["mesh"])
+            # Creates the colourtilemap information for this invoke if we
+            # don't already have one.
+            colour_map = non_intergrid_kern.tilecolourmap
+            # Create the No. of colours over tiles
+            _ = self.symtab.find_or_create_tag(
+                "ntilecolours",
+                symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+            )
+            if self._needs_colourtilemap_halo:
+                self.symtab.find_or_create(
+                    "last_halo_tile_per_colour",
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*2),
+                    tag="last_halo_tile_per_colour")
+                self.symtab.find_or_create(
+                    "last_halo_cell_per_colour_and_tile",
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*3),
+                    tag="last_halo_cell_per_colour_and_tile")
+            if self._needs_colourtilemap:
+                self.symtab.find_or_create_tag(
+                    "last_edge_tile_per_colour",
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*1))
+                self.symtab.find_or_create_tag(
+                    "last_edge_cell_per_colour_and_tile",
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*2))
 
     def invoke_declarations(self):
         '''
@@ -2118,18 +2266,15 @@ class DynMeshes():
                 datatype=UnresolvedType(),
                 interface=ImportInterface(csym))
 
-        if not self.intergrid_kernels and (self._needs_colourmap or
-                                           self._needs_colourmap_halo):
-            # There aren't any inter-grid kernels but we do need
-            # colourmap information
-            csym = self.symtab.lookup_with_tag("cmap")
-            # Add declarations for these variables
-            if self._needs_colourmap_halo:
-                self.symtab.find_or_create_tag(
-                    "last_halo_cell_all_colours")
-            if self._needs_colourmap:
-                self.symtab.find_or_create_tag(
-                    "last_edge_cell_all_colours")
+        if not self.intergrid_kernels:
+            if self._needs_colourmap or self._needs_colourmap_halo:
+                # There aren't any inter-grid kernels but we do need
+                # colourmap information
+                csym = self.symtab.lookup_with_tag("cmap")
+            if self._needs_colourtilemap or self._needs_colourtilemap_halo:
+                # There aren't any inter-grid kernels but we do need
+                # colourmap information
+                csym = self.symtab.lookup_with_tag("tilecolourmap")
 
     def initialise(self, cursor: int) -> int:
         '''
@@ -2191,13 +2336,33 @@ class DynMeshes():
                         is_pointer=True)
                 self._invoke.schedule.addchild(assignment, cursor)
                 cursor += 1
+            if self._needs_colourtilemap or self._needs_colourtilemap_halo:
+                # Look-up variable names for colourmap and number of colours
+                tmap = self.symtab.lookup_with_tag("tilecolourmap")
+                ntc = self.symtab.lookup_with_tag("ntilecolours")
+                # Get the number of colours
+                assignment = Assignment.create(
+                        lhs=Reference(ntc),
+                        rhs=Call.create(StructureReference.create(
+                            mesh_sym, ["get_ntilecolours"])))
+                assignment.preceding_comment = "Get the tiled colourmap"
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
+                # Get the colour map
+                assignment = Assignment.create(
+                        lhs=Reference(tmap),
+                        rhs=Call.create(StructureReference.create(
+                            mesh_sym, ["get_coloured_tiling_map"])),
+                        is_pointer=True)
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
 
         # Keep a list of quantities that we've already initialised so
         # that we don't generate duplicate assignments
         initialised = []
 
         comment_cursor = cursor
-        # Loop over the DynInterGrid objects
+        # Loop over the LFRicInterGrid objects
         for dig in self.intergrid_kernels:
             # We need pointers to both the coarse and the fine mesh as well
             # as the maximum halo depth for each.
@@ -2341,6 +2506,51 @@ class DynMeshes():
                             coarse_mesh, [name])))
                 self._invoke.schedule.addchild(assignment, cursor)
                 cursor += 1
+            # Colour map for the coarse mesh (if required)
+            if dig.tilecolourmap_symbol:
+                # Number of colours
+                assignment = Assignment.create(
+                        lhs=Reference(dig.ntilecolours_var_symbol),
+                        rhs=Call.create(StructureReference.create(
+                            coarse_mesh, ["get_ntilecolours"])))
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
+                # Colour map itself
+                assignment = Assignment.create(
+                        lhs=Reference(dig.tilecolourmap_symbol),
+                        rhs=Call.create(StructureReference.create(
+                            coarse_mesh, ["get_coloured_tiling_map"])),
+                        is_pointer=True)
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
+                # Last halo/edge tile per colour.
+                sym = dig.last_tile_var_symbol
+                if len(sym.datatype.shape) == 2:
+                    # Array is 2D so is a halo access.
+                    name = "get_last_halo_tile_all_colours"
+                else:
+                    # Array is just 1D so go to the last edge cell.
+                    name = "get_last_edge_tile_all_colours"
+                assignment = Assignment.create(
+                        lhs=Reference(sym),
+                        rhs=Call.create(StructureReference.create(
+                            coarse_mesh, [name])))
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
+                # Last halo/edge cell per colour and tile.
+                sym = dig.last_cell_tile_var_symbol
+                if len(sym.datatype.shape) == 3:
+                    # Array is 3D so is a halo access.
+                    name = "get_last_halo_cell_all_colours_all_tiles"
+                else:
+                    # Array is just 2D so go to the last edge cell.
+                    name = "get_last_edge_cell_all_colours_all_tiles"
+                assignment = Assignment.create(
+                        lhs=Reference(sym),
+                        rhs=Call.create(StructureReference.create(
+                            coarse_mesh, [name])))
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
         if cursor != comment_cursor:
             self._invoke.schedule[comment_cursor].preceding_comment = (
                 "Look-up mesh objects and loop limits for inter-grid kernels")
@@ -2352,7 +2562,7 @@ class DynMeshes():
         '''
         :returns: A list of objects describing the intergrid kernels used in
             this invoke.
-        :rtype: list[:py:class:`psyclone.dynamo3p0.DynInterGrid`]
+        :rtype: list[:py:class:`psyclone.lfric.LFRicInterGrid`]
         '''
         intergrids = []
         for call in self._invoke.schedule.coded_kernels():
@@ -2361,14 +2571,14 @@ class DynMeshes():
         return intergrids
 
 
-class DynInterGrid():
+class LFRicInterGrid():
     '''
     Holds information on quantities required by an inter-grid kernel.
 
     :param fine_arg: Kernel argument on the fine mesh.
-    :type fine_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :type fine_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param coarse_arg: Kernel argument on the coarse mesh.
-    :type coarse_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :type coarse_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
     '''
     # pylint: disable=too-few-public-methods, too-many-instance-attributes
     def __init__(self, fine_arg, coarse_arg):
@@ -2438,45 +2648,97 @@ class DynInterGrid():
         # and 1D otherwise.
         self._last_cell_var_symbol = None
 
-    def set_colour_info(self, colour_map, ncolours, last_cell):
-        '''Sets the colour_map, number of colours, and
-        last cell of a particular colour.
+        # We have no colourmap information when first created
+        self._tilecolourmap_symbol = None
+        # Symbol for the variable holding the number of colours
+        self._ntilecolours_var_symbol = None
+        # Symbol of the variable holding the last tile of a particular colour
+        self._last_tile_var_symbol = None
+        # Symbol of the variable holding the last cell of a particular tile
+        self._last_cell_tile_var_symbol = None
+
+    def set_colour_info(self, colour_map: DataSymbol,
+                        ncolours: DataSymbol, last_cell: DataSymbol):
+        '''Sets the colour_map, number of colours, and last cell of a
+        particular colour.
 
         :param colour_map: the colour map symbol.
-        :type: colour_map:py:class:`psyclone.psyir.symbols.Symbol`
         :param ncolours: the number of colours.
-        :type: ncolours: :py:class:`psyclone.psyir.symbols.Symbol`
         :param last_cell: the last halo cell of a particular colour.
-        :type last_cell: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         self._colourmap_symbol = colour_map
         self._ncolours_var_symbol = ncolours
         self._last_cell_var_symbol = last_cell
 
+    def set_tilecolour_info(self, tilecolour_map: DataSymbol,
+                            ntilecolours: DataSymbol,
+                            last_tile: DataSymbol,
+                            last_cell_tile: DataSymbol):
+        '''Sets the tilecolour_map, number of colours of tiles, last tile
+        of a particular colour and last cell of a particular tile and colour.
+
+        :param tilecolour_map: the tilecolourmap symbol.
+        :param ntilecolours: the number of tilecolours.
+        :param last_tile: the last tile of a particular colour.
+        :param last_cell_tile: the last cell of a particular tilecolour.
+        '''
+        self._tilecolourmap_symbol = tilecolour_map
+        self._ntilecolours_var_symbol = ntilecolours
+        self._last_tile_var_symbol = last_tile
+        self._last_cell_tile_var_symbol = last_cell_tile
+
     @property
-    def colourmap_symbol(self):
-        ''':returns: the colour map symbol.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+    def colourmap_symbol(self) -> DataSymbol:
+        '''
+        :returns: the colour map symbol.
         '''
         return self._colourmap_symbol
 
     @property
-    def ncolours_var_symbol(self):
-        ''':returns: the symbol for storing the number of colours.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+    def ncolours_var_symbol(self) -> DataSymbol:
+        '''
+        :returns: the symbol storing the number of colours.
         '''
         return self._ncolours_var_symbol
 
     @property
-    def last_cell_var_symbol(self):
-        ''':returns: the last halo/edge cell variable.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+    def last_cell_var_symbol(self) -> DataSymbol:
+        '''
+        :returns: the last halo/edge cell variable.
         '''
         return self._last_cell_var_symbol
 
+    @property
+    def tilecolourmap_symbol(self) -> DataSymbol:
+        '''
+        :returns: the tilecolour map symbol.
+        '''
+        return self._tilecolourmap_symbol
 
-class DynBasisFunctions(LFRicCollection):
+    @property
+    def ntilecolours_var_symbol(self) -> DataSymbol:
+        '''
+        :returns: the symbol storing the number of tilecolours.
+        '''
+        return self._ntilecolours_var_symbol
+
+    @property
+    def last_tile_var_symbol(self) -> DataSymbol:
+        '''
+        :returns: the symbol with the last tile of a given colour.
+        '''
+        return self._last_tile_var_symbol
+
+    @property
+    def last_cell_tile_var_symbol(self) -> DataSymbol:
+        '''
+        :returns: the last cell in the tilecolour.
+        '''
+        return self._last_cell_tile_var_symbol
+
+
+class LFRicBasisFunctions(LFRicCollection):
     ''' Holds all information on the basis and differential basis
     functions required by an invoke or kernel call. This covers both those
     required for quadrature and for evaluators.
@@ -2516,7 +2778,7 @@ class DynBasisFunctions(LFRicCollection):
         self._qr_vars = OrderedDict()
         # The dict of target function spaces upon which we must provide
         # evaluators. Keys are the FS names, values are (FunctionSpace,
-        # DynKernelArgument) tuples.
+        # LFRicKernelArgument) tuples.
         self._eval_targets = OrderedDict()
 
         for call in self.kernel_calls:
@@ -2665,7 +2927,7 @@ class DynBasisFunctions(LFRicCollection):
                                evaluator shape.
         '''
         if not isinstance(call, LFRicKern):
-            raise InternalError(f"Expected a LFRicKern object but got: "
+            raise InternalError(f"Expected an LFRicKern object but got: "
                                 f"'{type(call)}'")
         const = LFRicConstants()
         # We need a full FunctionSpace object for each function space
@@ -3506,14 +3768,14 @@ class DynBasisFunctions(LFRicCollection):
             self._invoke.schedule.children.append(dealloc)
 
 
-class DynBoundaryConditions(LFRicCollection):
+class LFRicBoundaryConditions(LFRicCollection):
     '''
     Manages declarations and initialisation of quantities required by
     kernels that need boundary condition information.
 
     :param node: the Invoke or Kernel stub for which we are to handle \
                  any boundary conditions.
-    :type node: :py:class:`psyclone.dynamo0p3.LFRicInvoke` or \
+    :type node: :py:class:`psyclone.domain.lfric.LFRicInvoke` or \
                 :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises GenerationError: if a kernel named "enforce_bc_code" is found \
@@ -3630,13 +3892,13 @@ class DynBoundaryConditions(LFRicCollection):
         return cursor
 
 
-class DynGlobalSum(GlobalSum):
+class LFRicGlobalSum(GlobalSum):
     '''
-    Dynamo specific global sum class which can be added to and
+    LFRic specific global sum class which can be added to and
     manipulated in a schedule.
 
     :param scalar: the kernel argument for which to perform a global sum.
-    :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :type scalar: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param parent: the parent node of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -3649,18 +3911,18 @@ class DynGlobalSum(GlobalSum):
         # Check that distributed memory is enabled
         if not Config.get().distributed_memory:
             raise GenerationError(
-                "It makes no sense to create a DynGlobalSum object when "
+                "It makes no sense to create an LFRicGlobalSum object when "
                 "distributed memory is not enabled (dm=False).")
         # Check that the global sum argument is indeed a scalar
         if not scalar.is_scalar:
             raise InternalError(
-                f"DynGlobalSum.init(): A global sum argument should be a "
+                f"LFRicGlobalSum.init(): A global sum argument should be a "
                 f"scalar but found argument of type '{scalar.argument_type}'.")
         # Check scalar intrinsic types that this class supports (only
         # "real" for now)
         if scalar.intrinsic_type != "real":
             raise GenerationError(
-                f"DynGlobalSum currently only supports real scalars, but "
+                f"LFRicGlobalSum currently only supports real scalars, but "
                 f"argument '{scalar.name}' in Kernel '{scalar.call.name}' has "
                 f"'{scalar.intrinsic_type}' intrinsic type.")
         # Initialise the parent class
@@ -3716,13 +3978,13 @@ def _create_depth_list(halo_info_list, parent):
 
     :param halo_info_list: a list containing halo access information
         derived from all read fields dependent on this halo exchange.
-    :type: list[:py:class:`psyclone.dynamo0p3.HaloReadAccess`]
+    :type: list[:py:class:`psyclone.lfric.HaloReadAccess`]
     :param parent: the parent PSyIR node of the related halo exchange.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :returns: a list containing halo depth information derived from
         the halo access information.
-    :rtype: list[:py:class:`psyclone.dynamo0p3.HaloDepth]`
+    :rtype: list[:py:class:`psyclone.lfric.HaloDepth]`
 
     '''
     # pylint: disable=too-many-branches
@@ -3805,7 +4067,7 @@ class LFRicHaloExchange(HaloExchange):
     manipulated in a schedule.
 
     :param field: the field that this halo exchange will act on
-    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :type field: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param bool check_dirty: optional argument default True indicating
         whether this halo exchange should be subject to a run-time check
         for clean/dirty halos.
@@ -3878,10 +4140,10 @@ class LFRicHaloExchange(HaloExchange):
         return depth_expr
 
     def _compute_halo_read_depth_info(self, ignore_hex_dep=False):
-        '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and
-        create an equivalent list of `psyclone.dynamo0p3.HaloDepth`
+        '''Take a list of `psyclone.lfric.HaloReadAccess` objects and
+        create an equivalent list of `psyclone.lfric.HaloDepth`
         objects. Whilst doing this we simplify the
-        `psyclone.dynamo0p3.HaloDepth` list to remove redundant depth
+        `psyclone.lfric.HaloDepth` list to remove redundant depth
         information e.g. depth=1 is not required if we have a depth=2.
         If the optional ignore_hex_dep argument is set to True then
         any read accesses contained in halo exchange nodes are
@@ -3895,7 +4157,7 @@ class LFRicHaloExchange(HaloExchange):
 
         :return: a list containing halo depth information derived from \
             all fields dependent on this halo exchange.
-        :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
+        :rtype: :func:`list` of :py:class:`psyclone.lfric.HaloDepth`
 
         '''
         # get our halo information
@@ -3919,7 +4181,7 @@ class LFRicHaloExchange(HaloExchange):
             argument that defaults to False.
 
         :return: a list containing halo information for each read dependency.
-        :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloReadAccess`
+        :rtype: :func:`list` of :py:class:`psyclone.lfric.HaloReadAccess`
 
         :raises InternalError: if there is more than one read \
             dependency associated with a halo exchange.
@@ -3978,7 +4240,7 @@ class LFRicHaloExchange(HaloExchange):
 
         :return: a HaloWriteAccess object containing the required
             information, or None if no dependence information is found.
-        :rtype: :py:class:`psyclone.dynamo0p3.HaloWriteAccess` | None
+        :rtype: :py:class:`psyclone.lfric.HaloWriteAccess` | None
 
         :raises GenerationError: if more than one write dependence is
             found for this halo exchange as this should not be possible.
@@ -4224,7 +4486,7 @@ class LFRicHaloExchangeStart(LFRicHaloExchange):
     the required properties).
 
     :param field: the field that this halo exchange will act on
-    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :type field: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param check_dirty: optional argument (default True) indicating \
     whether this halo exchange should be subject to a run-time check \
     for clean/dirty halos.
@@ -4302,7 +4564,7 @@ class LFRicHaloExchangeStart(LFRicHaloExchange):
         object or raises an exception if one is not found.
 
         :return: The corresponding halo exchange end object
-        :rtype: :py:class:`psyclone.dynamo0p3.LFRicHaloExchangeEnd`
+        :rtype: :py:class:`psyclone.lfric.LFRicHaloExchangeEnd`
         :raises GenerationError: If no matching HaloExchangeEnd is \
         found, or if the first matching haloexchange that is found is \
         not a HaloExchangeEnd
@@ -4339,7 +4601,7 @@ class LFRicHaloExchangeEnd(LFRicHaloExchange):
     transferred.
 
     :param field: the field that this halo exchange will act on
-    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :type field: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param check_dirty: optional argument (default True) indicating \
     whether this halo exchange should be subject to a run-time check \
     for clean/dirty halos.
@@ -4521,7 +4783,7 @@ def halo_check_arg(field, access_types):
     call object containing this argument.
 
     :param field: the argument object we are checking
-    :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+    :type field: :py:class:`psyclone.lfric.LFRicArgument`
     :param access_types: List of allowed access types.
     :type access_types: List of :py:class:`psyclone.psyGen.AccessType`.
     :return: the call containing the argument object
@@ -4540,7 +4802,7 @@ def halo_check_arg(field, access_types):
         call = field.call
     except AttributeError as err:
         raise GenerationError(
-            f"HaloInfo class expects an argument of type DynArgument, or "
+            f"HaloInfo class expects an argument of type LFRicArgument, or "
             f"equivalent, on initialisation, but found, "
             f"'{type(field)}'") from err
 
@@ -4562,7 +4824,7 @@ class HaloWriteAccess(HaloDepth):
     particular loop nest.
 
     :param field: the field that we are concerned with.
-    :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+    :type field: :py:class:`psyclone.lfric.LFRicArgument`
     :param parent: the parent PSyIR node associated with the scoping region
                    that contains this halo access.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
@@ -4634,7 +4896,7 @@ class HaloWriteAccess(HaloDepth):
         clean.
 
         :param field: the field that we are concerned with.
-        :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+        :type field: :py:class:`psyclone.lfric.LFRicArgument`
 
         '''
         const = LFRicConstants()
@@ -4685,7 +4947,7 @@ class HaloReadAccess(HaloDepth):
     accessed in a particular kernel within a particular loop nest.
 
     :param field: the field for which we want information.
-    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :type field: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param parent: the node where this HaloDepth belongs.
     :type parent: :py:class:`psyclone.psyir.node.Node`
 
@@ -4734,7 +4996,7 @@ class HaloReadAccess(HaloDepth):
         performs a stencil access on the field.
 
         :param field: the field that we are concerned with
-        :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+        :type field: :py:class:`psyclone.lfric.LFRicArgument`
 
         '''
         # pylint: disable=too-many-branches
@@ -4770,7 +5032,9 @@ class HaloReadAccess(HaloDepth):
             else:
                 # loop redundant computation is to the maximum depth
                 self._max_depth = True
-        elif loop.upper_bound_name == "ncolour":
+        elif loop.upper_bound_name in ("ncolour",
+                                       "ntiles_per_colour",
+                                       "ncells_per_colour_and_tile"):
             # Loop is coloured but does not access the halo.
             pass
         elif loop.upper_bound_name in ["ncells", "nannexed"]:
@@ -4782,7 +5046,8 @@ class HaloReadAccess(HaloDepth):
                 pass
             else:  # there is no stencil
                 if (field.discontinuous or call.iterates_over == "dof" or
-                        call.all_updates_are_writes):
+                        (not call.arguments.iteration_space_arg().discontinuous
+                         and call.all_updates_are_writes)):
                     # There are only local accesses or the kernel is of the
                     # special form where any iteration is guaranteed to write
                     # the same value to a given shared entity.
@@ -4898,7 +5163,7 @@ class FSDescriptors():
     :param descriptors: list of objects describing the basis/diff-basis \
                         functions required by a kernel, as obtained from \
                         metadata.
-    :type descriptors: list of :py:class:`psyclone.DynFuncDescriptor03`.
+    :type descriptors: list of :py:class:`psyclone.LFRicFuncDescriptor`.
 
     '''
     def __init__(self, descriptors):
@@ -4933,7 +5198,7 @@ class FSDescriptors():
         '''
         :return: the list of Descriptors, one for each of the meta-funcs
                  entries in the kernel metadata.
-        :rtype: List of :py:class:`psyclone.dynamo0p3.FSDescriptor`
+        :rtype: List of :py:class:`psyclone.lfric.FSDescriptor`
         '''
         return self._descriptors
 
@@ -5015,9 +5280,9 @@ class LFRicArgStencil:
     direction_arg: Any = None
 
 
-class DynKernelArguments(Arguments):
+class LFRicKernelArguments(Arguments):
     '''
-    Provides information about Dynamo kernel call arguments
+    Provides information about LFRic kernel call arguments
     collectively, as specified by the kernel argument metadata.
 
     :param call: the kernel metadata for which to extract argument info.
@@ -5042,35 +5307,35 @@ class DynKernelArguments(Arguments):
         self._args = []
         idx = 0
         for arg in call.ktype.arg_descriptors:
-            dyn_argument = DynKernelArgument(self, arg, call.args[idx],
-                                             parent_call, check)
+            lfric_argument = LFRicKernelArgument(self, arg, call.args[idx],
+                                                 parent_call, check)
             idx += 1
-            if dyn_argument.descriptor.stencil:
-                if dyn_argument.descriptor.stencil['extent']:
+            if lfric_argument.descriptor.stencil:
+                if lfric_argument.descriptor.stencil['extent']:
                     raise GenerationError("extent metadata not yet supported")
                     # if supported we would add the following
                     # line: stencil.extent =
-                    # dyn_argument.descriptor.stencil['extent']
+                    # lfric_argument.descriptor.stencil['extent']
                 # An extent argument has been added.
                 stencil_extent_arg = call.args[idx]
                 idx += 1
-                if dyn_argument.descriptor.stencil['type'] == 'xory1d':
+                if lfric_argument.descriptor.stencil['type'] == 'xory1d':
                     # a direction argument has been added
                     stencil = LFRicArgStencil(
-                        name=dyn_argument.descriptor.stencil['type'],
+                        name=lfric_argument.descriptor.stencil['type'],
                         extent_arg=stencil_extent_arg,
                         direction_arg=call.args[idx]
                         )
                     idx += 1
                 else:
                     # Create a stencil object and store a reference to it in
-                    # our new DynKernelArgument object.
+                    # our new LFRicKernelArgument object.
                     stencil = LFRicArgStencil(
-                        name=dyn_argument.descriptor.stencil['type'],
+                        name=lfric_argument.descriptor.stencil['type'],
                         extent_arg=stencil_extent_arg
                         )
-                dyn_argument.stencil = stencil
-            self._args.append(dyn_argument)
+                lfric_argument.stencil = stencil
+            self._args.append(lfric_argument)
 
         # We have now completed the construction of the kernel arguments so
         # we can go back and update the names of any stencil size and/or
@@ -5146,7 +5411,7 @@ class DynKernelArguments(Arguments):
                                     find an argument.
         :return: the first kernel argument that is on the named function \
                  space and the associated FunctionSpace object.
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynKernelArgument`,
+        :rtype: (:py:class:`psyclone.lfric.LFRicKernelArgument`,
                  :py:class:`psyclone.domain.lfric.FunctionSpace`)
         :raises: FieldNotFoundError if no field or operator argument is found \
                  for the named function space.
@@ -5156,8 +5421,8 @@ class DynKernelArguments(Arguments):
                 if function_space:
                     if func_space_name == function_space.orig_name:
                         return arg, function_space
-        raise FieldNotFoundError(f"DynKernelArguments:get_arg_on_space_name: "
-                                 f"there is no field or operator with "
+        raise FieldNotFoundError(f"LFRicKernelArguments:get_arg_on_space_name:"
+                                 f" there is no field or operator with "
                                  f"function space {func_space_name}")
 
     def get_arg_on_space(self, func_space):
@@ -5170,7 +5435,7 @@ class DynKernelArguments(Arguments):
         :type func_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :return: the first kernel argument that is on the supplied function
                  space
-        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :rtype: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :raises: FieldNotFoundError if no field or operator argument is found
                  for the specified function space.
         '''
@@ -5180,10 +5445,10 @@ class DynKernelArguments(Arguments):
                     if func_space.mangled_name == function_space.mangled_name:
                         return arg
 
-        raise FieldNotFoundError(f"DynKernelArguments:get_arg_on_space: there "
-                                 f"is no field or operator with function space"
-                                 f" {func_space.orig_name} (mangled name = "
-                                 f"'{func_space.mangled_name}')")
+        raise FieldNotFoundError(f"LFRicKernelArguments:get_arg_on_space: "
+                                 f"there is no field or operator with function"
+                                 f" space {func_space.orig_name} (mangled name"
+                                 f" = '{func_space.mangled_name}')")
 
     def has_operator(self, op_type=None):
         ''' Returns true if at least one of the arguments is an operator
@@ -5222,19 +5487,19 @@ class DynKernelArguments(Arguments):
     def first_field_or_operator(self):
         '''
         :returns: the first field or operator argument in the list.
-        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :rtype: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :raises InternalError: if no field or operator argument is found.
 
         '''
         for arg in self._args:
-            arg: DynKernelArgument
+            arg: LFRicKernelArgument
             if arg.is_field or arg.is_operator:
                 return arg
 
         raise InternalError(
-            f"Invalid LFRic kernel: failed to find a DynKernelArgument that is"
-            f" a field or operator in '{self.names}'.")
+            f"Invalid LFRic kernel: failed to find an LFRicKernelArgument that"
+            f" is a field or operator in '{self.names}'.")
 
     def iteration_space_arg(self):
         '''
@@ -5245,7 +5510,7 @@ class DynKernelArguments(Arguments):
         that requiring the largest iteration space is selected.
 
         :return: Kernel argument from which to obtain iteration space
-        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :rtype: :py:class:`psyclone.lfric.LFRicKernelArgument`
         '''
 
         # Since we always compute operators out to the L1 halo we first
@@ -5309,7 +5574,7 @@ class DynKernelArguments(Arguments):
     @property
     def dofs(self):
         ''' Currently required for Invoke base class although this
-        makes no sense for Dynamo. Need to refactor the Invoke base class
+        makes no sense for LFRic. Need to refactor the Invoke base class
         and remove the need for this property (#279). '''
         return self._dofs
 
@@ -5347,11 +5612,11 @@ class DynKernelArguments(Arguments):
         '''
         # Return nothing for the moment as it is unclear whether
         # scalars need to be explicitly dealt with (for OpenACC) in
-        # the dynamo api.
+        # the LFRic API.
         return []
 
 
-class DynKernelArgument(KernelArgument):
+class LFRicKernelArgument(KernelArgument):
     '''
     This class provides information about individual LFRic kernel call
     arguments as specified by the kernel argument metadata and the
@@ -5359,7 +5624,7 @@ class DynKernelArgument(KernelArgument):
 
     :param kernel_args: object encapsulating all arguments to the \
                         kernel call.
-    :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
+    :type kernel_args: :py:class:`psyclone.lfric.LFRicKernelArguments`
     :param arg_meta_data: information obtained from the metadata for \
                           this kernel argument.
     :type arg_meta_data: :py:class:`psyclone.domain.lfric.LFRicArgDescriptor`
@@ -5377,7 +5642,7 @@ class DynKernelArgument(KernelArgument):
     '''
     # pylint: disable=too-many-public-methods, too-many-instance-attributes
     def __init__(self, kernel_args, arg_meta_data, arg_info, call, check=True):
-        # Keep a reference to DynKernelArguments object that contains
+        # Keep a reference to LFRicKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
         # any-space function spaces.
         self._kernel_args = kernel_args
@@ -5418,7 +5683,7 @@ class DynKernelArgument(KernelArgument):
                 arg_meta_data.data_type]
         except KeyError as err:
             raise InternalError(
-                f"DynKernelArgument.__init__(): Found unsupported data "
+                f"LFRicKernelArgument.__init__(): Found unsupported data "
                 f"type '{arg_meta_data.data_type}' in the kernel argument "
                 f"descriptor '{arg_meta_data}'.") from err
 
@@ -5525,7 +5790,7 @@ class DynKernelArgument(KernelArgument):
                     break
             if not found:
                 raise GenerationError(
-                    f"DynKernelArgument.ref_name(fs): The supplied function "
+                    f"LFRicKernelArgument.ref_name(fs): The supplied function "
                     f"space (fs='{function_space.orig_name}') is not one of "
                     f"the function spaces associated with this argument "
                     f"(fss={self.function_space_names}).")
@@ -5537,14 +5802,14 @@ class DynKernelArgument(KernelArgument):
             if function_space.orig_name == self.descriptor.function_space_to:
                 return "fs_to"
             raise GenerationError(
-                f"DynKernelArgument.ref_name(fs): Function space "
+                f"LFRicKernelArgument.ref_name(fs): Function space "
                 f"'{function_space.orig_name}' is one of the 'gh_operator' "
                 f"function spaces '{self.function_spaces}' but is not being "
                 f"returned by either function_space_from "
                 f"'{self.descriptor.function_space_from}' or "
                 f"function_space_to '{self.descriptor.function_space_to}'.")
         raise GenerationError(
-            f"DynKernelArgument.ref_name(fs): Found unsupported argument "
+            f"LFRicKernelArgument.ref_name(fs): Found unsupported argument "
             f"type '{self._argument_type}'.")
 
     def _init_data_type_properties(self, arg_info, check=True):
@@ -6131,7 +6396,7 @@ class DynKernelArgument(KernelArgument):
     def stencil(self):
         '''
         :returns: stencil information for this argument if it exists.
-        :rtype: :py:class:`psyclone.dynamo0p3.LFRicArgStencil`
+        :rtype: :py:class:`psyclone.lfric.LFRicArgStencil`
         '''
         return self._stencil
 
@@ -6141,7 +6406,7 @@ class DynKernelArgument(KernelArgument):
         Sets stencil information for this kernel argument.
 
         :param value: stencil information for this argument.
-        :type value: :py:class:`psyclone.dynamo0p3.LFRicArgStencil`
+        :type value: :py:class:`psyclone.lfric.LFRicArgStencil`
 
         '''
         self._stencil = value
@@ -6245,7 +6510,7 @@ class DynKernelArgument(KernelArgument):
             f"'{str(self)}' is not a scalar, field or operator argument")
 
 
-class DynACCEnterDataDirective(ACCEnterDataDirective):
+class LFRicACCEnterDataDirective(ACCEnterDataDirective):
     '''
     Sub-classes ACCEnterDataDirective to provide an API-specific implementation
     of data_on_device().
@@ -6254,7 +6519,7 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
     def data_on_device(self, _):
         '''
         Provide a hook to be able to add information about data being on a
-        device (or not). This is currently not used in dynamo0p3.
+        device (or not). This is currently not used in LFRic.
 
         '''
         return None
@@ -6264,16 +6529,16 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 # The list of module members that we wish AutoAPI to generate
 # documentation for.
 __all__ = [
-    'DynFuncDescriptor03',
-    'DynFunctionSpaces',
-    'DynProxies',
-    'DynLMAOperators',
-    'DynCMAOperators',
-    'DynMeshes',
-    'DynInterGrid',
-    'DynBasisFunctions',
-    'DynBoundaryConditions',
-    'DynGlobalSum',
+    'LFRicFuncDescriptor',
+    'LFRicFunctionSpaces',
+    'LFRicProxies',
+    'LFRicLMAOperators',
+    'LFRicCMAOperators',
+    'LFRicMeshes',
+    'LFRicInterGrid',
+    'LFRicBasisFunctions',
+    'LFRicBoundaryConditions',
+    'LFRicGlobalSum',
     'LFRicHaloExchange',
     'LFRicHaloExchangeStart',
     'LFRicHaloExchangeEnd',
@@ -6283,6 +6548,6 @@ __all__ = [
     'FSDescriptor',
     'FSDescriptors',
     'LFRicArgStencil',
-    'DynKernelArguments',
-    'DynKernelArgument',
-    'DynACCEnterDataDirective']
+    'LFRicKernelArguments',
+    'LFRicKernelArgument',
+    'LFRicACCEnterDataDirective']

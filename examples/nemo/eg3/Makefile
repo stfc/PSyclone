@@ -51,8 +51,8 @@ include ../../common.mk
 GENERATED_FILES += psy.f90 psy.o traadv.exe output.dat psyclone.log \
   traldf_iso.F90
 
-F90FLAGS ?= -fopenmp
-LDFLAGS ?= -fopenmp
+F90FLAGS ?= -fopenacc
+LDFLAGS ?= ${F90FLAGS}
 
 .PHONY: allclean
 

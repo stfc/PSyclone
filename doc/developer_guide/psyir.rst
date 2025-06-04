@@ -935,10 +935,10 @@ PSy-layer concepts
   sub-classed in all of the domains supported by PSyclone. This then allows
   the class to be configured with a list of valid loop 'types'. For instance,
   the GOcean sub-class, `GOLoop`, has "inner" and "outer" while the LFRic
-  sub-class, `LFRicLoop`, has "dofs", "colours", "colour", ""
-  and "null". The default loop type (iterating over cells) is here
-  indicated by the empty string. The concept of a "null" loop type is
-  currently required because the dependency analysis that determines the
+  sub-class, `LFRicLoop`, has "", "null", "dofs", "colours", "cells_in_colour",
+  "tiles_in_colour" and "cells_in_tile". The default loop type (iterating over
+  cells) is here indicated by the empty string. The concept of a "null" loop
+  type is currently required because the dependency analysis that determines the
   placement of halo exchanges is handled within the `Loop` class. As a
   result, every `Kernel` call must be associated with a `Loop` node.
   However, the LFRic domain has support for kernels which operate on the

@@ -41,7 +41,7 @@ designed to be directly run from python.
 '''
 from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (
-    ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans)
+    ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, LFRicColourTrans)
 from psyclone.domain.lfric.function_space import FunctionSpace
 
 

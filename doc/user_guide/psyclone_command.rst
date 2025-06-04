@@ -51,33 +51,33 @@ by the command:
 .. parsed-literal::
 
   > psyclone -h
-   usage: psyclone [-h] [--version] [--config CONFIG] [-s SCRIPT] [-I INCLUDE]
-                   [-l {off,all,output}] [--profile {invokes,routines,kernels}]
-				   [--backend {enable-validation,disable-validation}] [-o OUTPUT_FILE]
-				   [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE]
-                   [-okern OUTPUT_KERNEL_PATH] [-d DIRECTORY] [-dm] [-nodm]
-                   [--kernel-renaming {multiple,single}]
-                   filename
+    usage: psyclone [-h] [-v] [-c CONFIG] [-s SCRIPT] [-I INCLUDE] [-l {off,all,output}] [-p {invokes,routines,kernels}]
+                    [--backend {enable-validation,disable-validation}]
+                    [-o OUTPUT_FILE] [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE] [-okern OUTPUT_KERNEL_PATH] [-d DIRECTORY] [-dm] [-nodm]
+                    [--kernel-renaming {multiple,single}] [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--log-file LOG_FILE]
+                    filename
 
-   Transform a file using the PSyclone source-to-source Fortran compiler
-
-   positional arguments:
-     filename              input source code
-
-   options:
+    Transform a file using the PSyclone source-to-source Fortran compiler
+    
+    positional arguments:
+      filename              input source code
+    
+    options:
      -h, --help            show this help message and exit
-     --version, -v         display version information
-     --config CONFIG, -c CONFIG
+     -v, --version         display version information
+     -c CONFIG, --config CONFIG
                            config file with PSyclone specific options
      -s SCRIPT, --script SCRIPT
                            filename of a PSyclone optimisation recipe
      -I INCLUDE, --include INCLUDE
                            path to Fortran INCLUDE or module files
+     --enable-cache        whether to enable caching of imported module dependencies (if
+                           enabled, it will generate a .psycache file of each imported
+                           module in the same location as the imported source file).
      -l {off,all,output}, --limit {off,all,output}
                            limit the Fortran line length to 132 characters (default 'off').
                            Use 'all' to apply limit to both input and output Fortran. Use
-                           'output' to apply line-length limit to output Fortran only.
-     --profile {invokes,routines,kernels}, -p {invokes,routines,kernels}
+     -p {invokes,routines,kernels}, --profile {invokes,routines,kernels}
                            add profiling hooks for 'kernels', 'invokes' or 'routines'
      --backend {enable-validation,disable-validation}
                            options to control the PSyIR backend used for code generation.
@@ -91,8 +91,7 @@ by the command:
      -opsy OUTPUT_PSY_FILE
                            (psykal mode) filename of generated PSy-layer code
      -okern OUTPUT_KERNEL_PATH
-                           (psykal mode) directory in which to put transformed kernels, default
-                           is the current working directory.
+                           (psykal mode) directory in which to put transformed kernels, default is the current working directory
      -d DIRECTORY, --directory DIRECTORY
                            (psykal mode) path to a root directory structure containing kernel
                            source code. Multiple roots can be specified by using multiple -d
@@ -101,7 +100,9 @@ by the command:
      -nodm, --no_dist_mem  (psykal mode) do not generate distributed memory code
      --kernel-renaming {multiple,single}
                            (psykal mode) naming scheme to use when re-naming transformed kernels
-
+     --log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}
+                           sets the level of the logging (defaults to OFF).
+     --log-file LOG_FILE   sets the output file to use for logging (defaults to stderr).
 
 Basic Use
 ---------
@@ -141,12 +142,11 @@ section. With a transformation recipe the command looks like:
 Fortran INCLUDE Files and Modules
 ---------------------------------
 
-If the source code to be processed by PSyclone
-contains INCLUDE statements then the location of any INCLUDE'd files
-*must* be supplied to PSyclone via the ``-I`` or ``--include``
-option. (This is necessary because INCLUDE lines are a part of the
-Fortran language and must therefore be parsed - they are not handled
-by any pre-processing step.) Multiple locations may be specified by
+If the source code to be processed by PSyclone contains INCLUDE statements
+then the location of any INCLUDE'd files *must* be supplied to PSyclone via
+the ``-I`` or ``--include`` option. (This is necessary because INCLUDE lines
+are a part of the Fortran language and must therefore be parsed - they are not
+handled by any pre-processing step.) Multiple locations may be specified by
 using multiple ``-I`` flags, e.g.:
 
 .. code-block:: console
@@ -163,6 +163,15 @@ an appropriate error. For example:
 
     psyclone -I nonexisting test.f90
     PSyclone configuration error: Include path 'nonexisting' does not exist
+
+The `-I` locations will also be used when a script requests to follow module
+dependencies in order to obtain more information about the code symbols (see
+:ref:`sec_script_globals`). But note that if the whole program has many
+dependencies and the imports happen from multiple files, it can increase the
+psyclone processing time considerably. In this case it is recommended to use
+the `--enable-cache` flag. This will creates a `filename.psycache` file in the
+same location as the original file for every import followed. The next time
+the same import is requested, if the hashes match, the cached file will be used.
 
 Currently, the PSyKAl-based APIs (LFRic and GOcean - see below) will ignore
 (but preserve) INCLUDE statements in algorithm-layer code. However, INCLUDE
@@ -377,7 +386,7 @@ specified directory:
     > cd <PSYCLONEHOME>/src/psyclone
     > psyclone -d . use.f90 
     More than one match for kernel file 'testkern.[fF]90' found!
-    > psyclone -d tests/test_files/dynamo0p3 -api lfric use.f90 
+    > psyclone -d tests/test_files/lfric -api lfric use.f90 
     [code output]
 
 .. note:: The ``-d`` option can be repeated to add as many search
@@ -412,3 +421,20 @@ PSyclone will check the kernel output directory and if a transformed
 version of that kernel is already present then that will be
 used. Note, if the kernel file on disk does not match with what would
 be generated then PSyclone will raise an exception.
+
+Enabling the Logging Infrastructure
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+PSyclone supports logging which can provide additional information
+on what is happening inside PSyclone. This logging will also
+control the behaviour of any logging calls inside a user script.
+
+Logging output can be controlled through the ``--log-level`` option.
+By default, logging is set to ``OFF``, which means
+no logging output will be produced. There are 5 other levels as
+detailed in the ``psyclone -h`` information.
+
+By default the output from the logging goes into stderr.
+To control the logging output, PSyclone provides the
+``--log-file`` option. If this is set, the logging output will instead
+be directed to the provided file.

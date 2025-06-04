@@ -70,6 +70,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     directives such as "omp do/for", "omp parallel do/for", "omp teams
     distribute parallel do/for" or "omp loop" depending on the provided
     parameters.
+
     The OpenMP schedule to use can also be specified, but this will be ignored
     in case of the "omp loop" (as the 'schedule' clause is not valid for this
     specific directive). The configuration-defined 'reprod' parameter
@@ -79,7 +80,10 @@ class OMPLoopTrans(ParallelLoopTrans):
 
     :param str omp_schedule: the OpenMP schedule to use. Defaults to 'auto'.
     :param str omp_directive: choose which OpenMP loop directive to use.
-        Defaults to "omp do"
+        Defaults to "do". The available options are "do" for "omp do";
+        "paralleldo" for "omp parallel do"; "teamsdistributeparalleldo"
+        for "omp teams distribute parallel do"; "teamsloop" for
+        "omp teams loop"; and "loop" for "omp loop".
 
     For example:
 

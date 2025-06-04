@@ -442,7 +442,7 @@ def test_no_return_in_profiling(fortran_reader):
         "  real :: my_array(3,3)\n"
         "  my_array(:,:) = 0.0\n"
         "  my_test = 1\n"
-        "  return\n"
+        "  if (my_test .eq. 1) return\n"
         "end subroutine my_test\n")
     schedule = psyir.children[0]
     with pytest.raises(TransformationError) as err:

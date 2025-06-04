@@ -87,7 +87,8 @@ class LFRicLoopBounds(LFRicCollection):
                 first = False
 
             # Set the upper bound
-            if loop.loop_type != "colour":
+            if loop.loop_type not in ("cells_in_colour", "tiles_in_colour",
+                                      "cells_in_tile"):
                 root_name = f"loop{idx}_stop"
                 ubound = self.symtab.new_symbol(
                     root_name, symbol_type=DataSymbol,

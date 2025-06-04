@@ -303,8 +303,8 @@ def test_profile_named_gocean1p0(fortran_writer):
 
 
 # -----------------------------------------------------------------------------
-def test_profile_invokes_dynamo0p3(fortran_writer):
-    '''Check that a Dynamo 0.3 invoke is instrumented correctly
+def test_profile_invokes_lfric(fortran_writer):
+    '''Check that an LFRic invoke is instrumented correctly
     '''
     Profiler.set_options([Profiler.INVOKES], "lfric")
 
@@ -367,9 +367,9 @@ def test_profile_invokes_dynamo0p3(fortran_writer):
 
 
 # -----------------------------------------------------------------------------
-def test_profile_kernels_dynamo0p3(fortran_writer):
+def test_profile_kernels_lfric(fortran_writer):
     '''Check that all kernels are instrumented correctly in a
-    Dynamo 0.3 invoke.
+    LFRic invoke.
     '''
     Profiler.set_options([Profiler.KERNELS], "lfric")
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
@@ -411,9 +411,9 @@ def test_profile_kernels_dynamo0p3(fortran_writer):
 
 
 # -----------------------------------------------------------------------------
-def test_profile_fused_kernels_dynamo0p3():
+def test_profile_fused_kernels_lfric():
     '''Check that kernels are instrumented correctly in an LFRic
-    (Dynamo 0.3) invoke which has had them fused (i.e. there is more than
+    invoke which has had them fused (i.e. there is more than
     one Kernel inside a loop).
     '''
     Profiler.set_options([Profiler.KERNELS], "lfric")
@@ -441,9 +441,9 @@ undf_w3, map_w3(:,cell))
 
 
 # -----------------------------------------------------------------------------
-def test_profile_kernels_without_loop_dynamo0p3():
+def test_profile_kernels_without_loop_lfric():
     '''Check that kernels are instrumented correctly in an LFRic
-    (Dynamo 0.3) invoke when there is no parent loop. This is currently
+    invoke when there is no parent loop. This is currently
     impossible so we construct an artificial Schedule to test.
 
     '''
@@ -463,7 +463,7 @@ def test_profile_kernels_without_loop_dynamo0p3():
 
 
 # -----------------------------------------------------------------------------
-def test_profile_kernels_in_directive_dynamo0p3():
+def test_profile_kernels_in_directive_lfric():
     '''
     Check that a kernel is instrumented correctly if it is within a directive.
     '''
@@ -485,8 +485,8 @@ def test_profile_kernels_in_directive_dynamo0p3():
 
 
 # -----------------------------------------------------------------------------
-def test_profile_named_dynamo0p3(fortran_writer):
-    '''Check that the Dynamo 0.3 API is instrumented correctly when the
+def test_profile_named_lfric(fortran_writer):
+    '''Check that the LFRic API is instrumented correctly when the
     profile name is supplied by the user.
 
     '''

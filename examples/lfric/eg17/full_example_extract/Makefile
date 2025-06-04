@@ -83,7 +83,7 @@ endif
 EXEC = extract.$(TYPE)
 EXTRACT_NAME ?= _extract
 EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
-LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/lfric/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
@@ -98,7 +98,14 @@ transform: main_psy.f90 main_alg.f90
 compile: transform $(EXEC)
 
 run: compile
+	# Run application and extract data into files
 	./$(EXEC)
+	# Compile drivers
+	make driver-main-init
+	make driver-main-update
+	# Run drivers with extracted data
+	./driver-main-init
+	./driver-main-update
 
 $(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(EXTRACT_DIR) -l$(EXTRACT_NAME) \

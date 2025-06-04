@@ -105,32 +105,6 @@ def test_apply_empty_routine(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
-def test_apply_single_return(fortran_reader, fortran_writer, tmpdir):
-    '''Check that a call to a routine containing only a return statement
-    is removed. '''
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "    integer :: i\n"
-        "    i = 10\n"
-        "    call sub(i)\n"
-        "  end subroutine run_it\n"
-        "  subroutine sub(idx)\n"
-        "    integer :: idx\n"
-        "    return\n"
-        "  end subroutine sub\n"
-        "end module test_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Call)[0]
-    inline_trans = InlineTrans()
-    inline_trans.apply(routine)
-    output = fortran_writer(psyir)
-    assert ("    i = 10\n\n"
-            "  end subroutine run_it\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
-
-
 def test_apply_return_then_cb(fortran_reader, fortran_writer, tmpdir):
     '''Check that a call to a routine containing a return statement followed
     by a CodeBlock is removed.'''

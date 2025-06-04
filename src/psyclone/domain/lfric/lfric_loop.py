@@ -78,39 +78,44 @@ class LFRicLoop(PSyLoop):
         super().__init__(valid_loop_types=const.VALID_LOOP_TYPES, **kwargs)
         self.loop_type = loop_type
 
+        ischedule = self.ancestor(InvokeSchedule)
+        if not ischedule:
+            raise InternalError(
+                "LFRic loops must be inside an InvokeSchedule, a parent "
+                "argument is mandatory when they are created.")
+
         # Set our variable at initialisation as it might be required
         # by other classes before code generation. A 'null' loop does not
         # have an associated variable.
         if self.loop_type != "null":
-
             if self.loop_type == "colours":
                 tag = "colours_loop_idx"
                 suggested_name = "colour"
-            elif self.loop_type == "colour":
+            elif self.loop_type == "cells_in_colour":
                 tag = "cell_loop_idx"
                 suggested_name = "cell"
             elif self.loop_type == "dof":
                 tag = "dof_loop_idx"
                 suggested_name = "df"
+            elif self.loop_type == "tiles_in_colour":
+                tag = "tile_loop_idx"
+                suggested_name = "tile"
+            elif self.loop_type == "cells_in_tile":
+                tag = "cell_loop_idx"
+                suggested_name = "cell"
             elif self.loop_type == "":
                 tag = "cell_loop_idx"
                 suggested_name = "cell"
             else:
                 raise InternalError(
                     f"Unsupported loop type '{self.loop_type}' found when "
-                    f"creating loop variable. Supported values are 'colours', "
-                    f"'colour', 'dof' or '' (for cell-columns).")
+                    f"creating loop variable. Supported values are: "
+                    f"{const.VALID_LOOP_TYPES}")
 
-            self.variable = self.scope.symbol_table.find_or_create_tag(
+            self.variable = ischedule.symbol_table.find_or_create_tag(
                 tag, root_name=suggested_name, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
-        # Initialise loop bounds
-        ischedule = self.ancestor(InvokeSchedule)
-        if not ischedule:
-            raise InternalError(
-                "LFRic loops must be inside an InvokeSchedule, a parent "
-                "argument is mandatory when they are created.")
         # The loop bounds names are given by the number of previous LFRic loops
         # already present in the Schedule. Since this are inserted in order it
         # will produce sequentially ascending loop bound names. Currently they
@@ -135,7 +140,7 @@ class LFRicLoop(PSyLoop):
 
     def lower_to_language_level(self):
         '''In-place replacement of DSL or high-level concepts into generic
-        PSyIR constructs. This function replaces a LFRicLoop with a PSyLoop
+        PSyIR constructs. This function replaces an LFRicLoop with a PSyLoop
         and inserts the loop boundaries into the new PSyLoop, or removes
         the loop node in case of a domain kernel. Once TODO #1731 is done
         (which should fix the loop boundaries, which atm rely on index of
@@ -161,7 +166,7 @@ class LFRicLoop(PSyLoop):
 
         # Set halo clean/dirty for all fields that are modified
         if Config.get().distributed_memory:
-            if self._loop_type != "colour":
+            if self._loop_type != "cells_in_colour":
                 if self.unique_modified_args("gh_field"):
                     self.gen_mark_halos_clean_dirty()
 
@@ -475,7 +480,7 @@ class LFRicLoop(PSyLoop):
             # space. _field_name holds the name of the argument that
             # determines the iteration space of this kernel and that
             # is set-up to be the one on the coarse mesh (in
-            # DynKernelArguments.iteration_space_arg()).
+            # LFRicKernelArguments.iteration_space_arg()).
             tag_name = "mesh_" + self._field_name
         else:
             # It's not an inter-grid kernel so there's only one mesh
@@ -491,7 +496,7 @@ class LFRicLoop(PSyLoop):
         :returns: the PSyIR for this loop upper bound.
 
         '''
-        sym_tab = self.ancestor(Routine).symbol_table
+        sym_tab = self.scope.symbol_table
 
         # Precompute halo_index as we use it in more than one of the if clauses
         halo_index = None
@@ -512,6 +517,20 @@ class LFRicLoop(PSyLoop):
                         f"All kernels within a loop over colours must have "
                         f"been coloured but kernel '{kern.name}' has not")
             return Reference(sym_tab.lookup(kernels[0].ncolours_var))
+        if self._upper_bound_name == "ntilecolours":
+            # Loop over colours
+            kernels = self.walk(LFRicKern)
+            if not kernels:
+                raise InternalError(
+                    "Failed to find a kernel within a loop over tile-colours.")
+            # Check that all kernels have been coloured. We can't check the
+            # number of colours since that is only known at runtime.
+            for kern in kernels:
+                if not kern.ntilecolours_var:
+                    raise InternalError(
+                        f"All kernels within a loop over colours must have "
+                        f"been coloured but kernel '{kern.name}' has not")
+            return Reference(sym_tab.lookup(kernels[0].ntilecolours_var))
 
         if self._upper_bound_name == "ncolour":
             # Loop over cells of a particular colour when DM is disabled.
@@ -608,6 +627,66 @@ class LFRicLoop(PSyLoop):
             raise GenerationError(
                 "'inner' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
+        if self._upper_bound_name == "ntiles_per_colour":
+            tag = "last_edge_tile_per_colour"
+            if self._kern.is_intergrid:
+                tag += "_" + self._field_name
+            result = ArrayReference.create(
+                sym_tab.lookup_with_tag(tag),
+                [Reference(sym_tab.lookup_with_tag("colours_loop_idx"))]
+            )
+            return result
+        if self._upper_bound_name == "ncells_per_colour_and_tile":
+            tag = "last_edge_cell_per_colour_and_tile"
+            if self._kern.is_intergrid:
+                tag += "_" + self._field_name
+            result = ArrayReference.create(
+                sym_tab.lookup_with_tag(tag),
+                [Reference(sym_tab.lookup_with_tag("colours_loop_idx")),
+                 Reference(sym_tab.lookup_with_tag("tile_loop_idx"))]
+            )
+            return result
+        if self._upper_bound_name == "ntiles_per_colour_halo":
+            if halo_index:
+                depth = halo_index.copy()
+            else:
+                # If no depth is specified then we go to the full halo depth
+                depth = Reference(sym_tab.find_or_create_tag(
+                    f"max_halo_depth_{self._mesh_name}"))
+            if Config.get().distributed_memory:
+                tag = "last_halo_tile_per_colour"
+                if self._kern.is_intergrid:
+                    tag += "_" + self._field_name
+                result = ArrayReference.create(
+                    sym_tab.lookup_with_tag(tag),
+                    [Reference(sym_tab.lookup_with_tag("colours_loop_idx")),
+                     depth]
+                )
+                return result
+            raise GenerationError(
+                "'last_halo_tile_per_colour' is not a valid loop upper bound "
+                "for non-distributed-memory code")
+        if self._upper_bound_name == "ncells_per_colour_and_tile_halo":
+            if halo_index:
+                depth = halo_index.copy()
+            else:
+                # If no depth is specified then we go to the full halo depth
+                depth = Reference(sym_tab.find_or_create_tag(
+                    f"max_halo_depth_{self._mesh_name}"))
+            if Config.get().distributed_memory:
+                tag = "last_halo_cell_per_colour_and_tile"
+                if self._kern.is_intergrid:
+                    tag += "_" + self._field_name
+                result = ArrayReference.create(
+                    sym_tab.lookup_with_tag(tag),
+                    [Reference(sym_tab.lookup_with_tag("colours_loop_idx")),
+                     Reference(sym_tab.lookup_with_tag("tile_loop_idx")),
+                     depth]
+                )
+                return result
+            raise GenerationError(
+                "'last_halo_cell_per_colour_and_tile' is not a valid loop "
+                "upper bound for non-distributed-memory code")
         raise GenerationError(
             f"Unsupported upper bound name '{self._upper_bound_name}' found "
             f"in lfricloop.upper_bound_fortran()")
@@ -619,7 +698,7 @@ class LFRicLoop(PSyLoop):
         it might and False if it definitely does not.
 
         :param arg: an argument contained within this loop.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicArgument`
 
         :returns: True if the argument reads, or might read from the \
             halo and False otherwise.
@@ -660,7 +739,12 @@ class LFRicLoop(PSyLoop):
                     # An upper bound that is part of the halo means
                     # that the halo might be accessed.
                     return True
+                # If a kernel updates fields on both continuous and
+                # discontinuous spaces then the iteration space is taken to be
+                # the continuous one.
+                iter_arg = self.kernel.arguments.iteration_space_arg()
                 if (not arg.discontinuous and
+                        not iter_arg.discontinuous and
                         self.kernel.iterates_over == "cell_column" and
                         self.kernel.all_updates_are_writes and
                         self._upper_bound_name == "ncells"):
@@ -698,7 +782,7 @@ class LFRicLoop(PSyLoop):
         exchange class so it is simplest to do it this way
 
         :param halo_field: the argument requiring a halo exchange
-        :type halo_field: :py:class:`psyclone.dynamo0p3.DynArgument`
+        :type halo_field: :py:class:`psyclone.lfric.LFRicArgument`
         :param index: optional argument providing the vector index.
         :type index: Optional[int]
 
@@ -709,7 +793,7 @@ class LFRicLoop(PSyLoop):
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import LFRicHaloExchange
+        from psyclone.lfric import LFRicHaloExchange
         exchange = LFRicHaloExchange(halo_field,
                                      parent=self.parent,
                                      vector_index=idx)
@@ -756,7 +840,7 @@ class LFRicLoop(PSyLoop):
         add the appropriate number of halo exchange calls.
 
         :param halo_field: the argument requiring a halo exchange
-        :type halo_field: :py:class:`psyclone.dynamo0p3.DynArgument`
+        :type halo_field: :py:class:`psyclone.lfric.LFRicArgument`
 
         '''
         if halo_field.vector_size > 1:
@@ -783,7 +867,7 @@ class LFRicLoop(PSyLoop):
         # pylint: disable=too-many-nested-blocks
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import LFRicHaloExchange
+        from psyclone.lfric import LFRicHaloExchange
         for call in self.kernels():
             for arg in call.arguments.args:
                 if arg.access in AccessType.all_write_accesses():
@@ -841,7 +925,7 @@ class LFRicLoop(PSyLoop):
                     for arg in prev_arg_list:
                         # Avoid circular import
                         # pylint: disable=import-outside-toplevel
-                        from psyclone.dynamo0p3 import LFRicHaloExchange
+                        from psyclone.lfric import LFRicHaloExchange
                         if not isinstance(arg.call, LFRicHaloExchange):
                             raise GenerationError(
                                 "Error in create_halo_exchanges. Expecting "
@@ -849,7 +933,7 @@ class LFRicLoop(PSyLoop):
                 prev_node = prev_arg_list[0].call
                 # Avoid circular import
                 # pylint: disable=import-outside-toplevel
-                from psyclone.dynamo0p3 import LFRicHaloExchange
+                from psyclone.lfric import LFRicHaloExchange
                 if not isinstance(prev_node, LFRicHaloExchange):
                     # previous dependence is not a halo exchange so
                     # call the add halo exchange logic which
@@ -867,8 +951,8 @@ class LFRicLoop(PSyLoop):
 
         sym_table = self.ancestor(Routine).symbol_table
         insert_loc = self
-        # If it has ancestor directive keep going up
-        while isinstance(insert_loc.parent.parent, Directive):
+        # If it has ancestor directive or loop keep going up
+        while isinstance(insert_loc.parent.parent, (Directive, Loop)):
             insert_loc = insert_loc.parent.parent
         cursor = insert_loc.position
         insert_loc = insert_loc.parent
@@ -884,7 +968,7 @@ class LFRicLoop(PSyLoop):
                                 interface=UnresolvedInterface())
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
-            from psyclone.dynamo0p3 import HaloWriteAccess
+            from psyclone.lfric import HaloWriteAccess
             # The HaloWriteAccess class provides information about how the
             # supplied field is accessed within its parent loop
             hwa = HaloWriteAccess(field, self)
@@ -974,8 +1058,8 @@ class LFRicLoop(PSyLoop):
         if self.loop_type in ["null", "colours"]:
             # We know we can't parallelise these loops. ("null" means there
             # is no actual loop and "colours" is the *outer* loop over the
-            # different colours used - it is the inner, "colour" loop over
-            # cells of a single colour which can be parallelised.)
+            # different colours used - it is the inner, "cells_in_colour" loop
+            # over cells of a single colour which can be parallelised.)
             return False
 
         try:
@@ -995,8 +1079,8 @@ class LFRicLoop(PSyLoop):
 
         # The generic DA says that this loop cannot be parallelised. However,
         # we use domain-specific information to qualify this.
-        if self.loop_type == "colour":
-            # This loop is either over cells of a single colour.
+        if self.loop_type == "cells_in_colour":
+            # This loop is over cells of a single colour.
             # According to LFRic rules this is safe to parallelise.
             return True
 

@@ -39,7 +39,7 @@ PSyclone transformation that it is safe to fuse. Add `same_space=True`
 as an argument when the transformation is created:
 
 ```python
-    ftrans = DynamoLoopFuseTrans(same_space=True)
+    ftrans = LFRicLoopFuseTrans(same_space=True)
 ```
 
 Rerun PSyclone. You should now see that all the loops have been fused

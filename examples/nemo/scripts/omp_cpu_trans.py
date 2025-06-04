@@ -40,16 +40,19 @@ directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT,
-    PRIVATISATION_ISSUES)
+    enhance_tree_information, PARALLELISATION_ISSUES, PRIVATISATION_ISSUES,
+    NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
 # Enable the insertion of profiling hooks during the transformation script
 PROFILING_ENABLED = False
 
-# List of all module names that PSyclone will chase during the creation of the
-# PSyIR tree in order to use the symbol information from those modules
+# Whether to chase the imported modules to improve symbol information (it can
+# also be a list of module filenames to limit the chasing to only specific
+# modules). This has to be used in combination with '-I' command flag in order
+# to point to the module location directory. We also strongly recommend using
+# the '--enable-cache' flag to reduce the performance overhead.
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # A environment variable can inform if this is targeting NEMOv4, in which case

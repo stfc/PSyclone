@@ -35,7 +35,7 @@
 # Modified I. Kavcic and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-''' This module tests the LFRic (Dynamo 0.3) kernel-stub generator using
+''' This module tests the LFRic kernel-stub generator using
     pytest. '''
 
 import os
@@ -51,7 +51,7 @@ from psyclone.gen_kernel_stub import generate
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
+                         "test_files", "lfric")
 TEST_API = "lfric"
 
 

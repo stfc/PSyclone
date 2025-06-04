@@ -44,7 +44,7 @@ F90FLAGS ?= -g
 # Path to the LFRic infrastructure library. It defaults to the pared-down
 # version of the LFRic infrastructure distributed with PSyclone.
 # Overwrite for a different infrastructure version.
-LFRIC_INF_DIR ?= ./../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_INF_DIR ?= ./../../../src/psyclone/tests/test_files/lfric/infrastructure
 # -----------------------------------------------------------------------------
 
 INF_INC = $(LFRIC_INF_DIR)

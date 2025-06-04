@@ -1554,8 +1554,10 @@ def test_fw_return(fortran_reader, fortran_writer, tmpdir):
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp()\n"
+        "subroutine tmp(a)\n"
+        "  integer, intent(inout) :: a\n"
         "  return\n"
+        "  a = 3\n"  # Stmt after return to avoid droping it
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)

@@ -55,7 +55,7 @@ class ExtractTrans(PSyDataTrans):
     write the input and output parameters to a file. The node might
     also create a stand-alone driver program that can read the created
     file and then execute the instrumented region.
-    Examples are given in the derived classes DynamoExtractTrans and
+    Examples are given in the derived classes LFRicExtractTrans and
     GOceanExtractTrans.
 
     After applying the transformation the Nodes marked for extraction are

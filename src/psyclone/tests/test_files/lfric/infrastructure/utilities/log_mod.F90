@@ -1,5 +1,3 @@
-
-
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -15,7 +13,7 @@
 !> to the terminal. For parallel execution, the logging information will
 !> be sent to files - one for each MPI task.
 !>
-!> @todo  At some point the serial version of Dynamo should also log to a file,
+!> @todo  At some point the serial version of LFRic should also log to a file,
 !>        but for now it is easier for developers if the code logs to stdout.
 
 

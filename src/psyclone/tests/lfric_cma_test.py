@@ -36,7 +36,7 @@
 # Modified: J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for Column-Matrix-Assembly operators in
-the LFRic (Dynamo 0.3) API using pytest. '''
+the LFRic API using pytest. '''
 
 import os
 import pytest
@@ -56,7 +56,7 @@ from psyclone.psyGen import PSyFactory
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
+                         "test_files", "lfric")
 
 TEST_API = "lfric"
 
@@ -390,7 +390,7 @@ def test_invoke_uniq_declns_valid_access_cma_op():
 def test_cma_operator_arg_lfricconst_properties(monkeypatch):
     ''' Tests that properties of supported CMA operator arguments
     ('real'-valued 'columnwise_operator_type') defined in LFRicConstants
-    are correctly set up in the DynKernelArgument class.
+    are correctly set up in the LFRicKernelArgument class.
 
     '''
     _, invoke_info = parse(
