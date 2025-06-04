@@ -375,3 +375,28 @@ def test_apply_mixed(fortran_reader):
     check_args(args, [(Reference, "field1"), (Literal, "1.0")])
     args = subroutine[0].arguments[3].children
     check_args(args, [(Reference, "field1"), (Reference, "value")])
+
+def test_apply_keeps_comments(fortran_reader):
+    '''Test the the comments are kept when applying the transformation.'''
+    code = (
+        "subroutine alg()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : field\n"
+        "  type(field) :: field1\n"
+        "  integer :: value\n"
+        "  call invoke(kern(field1), setval_c(field1, 1.0), name='test', "
+        "setval_c(field1, 1.0), setval_c(field1, value))\n"
+        "end subroutine alg\n")
+
+    psyir = fortran_reader.psyir_from_source(code)
+    subroutine = psyir.children[0]
+    lfric_invoke_trans = RaisePSyIR2LFRicAlgTrans()
+    subroutine[0].preceding_comment = "My comment"
+    subroutine[0].inline_comment = "Inline comment"
+
+    lfric_invoke_trans.apply(subroutine[0], 5)
+    
+    assert isinstance(subroutine[0], LFRicAlgorithmInvokeCall)
+    assert subroutine[0].preceding_comment == "My comment"
+    assert subroutine[0].inline_comment == "Inline comment"
+
