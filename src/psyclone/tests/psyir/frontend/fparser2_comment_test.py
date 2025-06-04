@@ -587,3 +587,17 @@ def test_inline_comment():
     assert "a = i + 1" in assignment.debug_string()
     assert assignment.preceding_comment == ""
     assert assignment.inline_comment == "Third line of inline comment"
+
+
+def test_lost_program_comments():
+    """Test that the FortranReader doesn't lose comments after the
+    declarations when reading a Program."""
+    reader = FortranReader(ignore_comments=False)
+    code = """program a
+    integer :: i ! inline here
+    ! Comment here
+    i = 1
+    end program"""
+    psyir = reader.psyir_from_source(code)
+    assignment = psyir.walk(Assignment)[0]
+    assert assignment.preceding_comment == "Comment here"
