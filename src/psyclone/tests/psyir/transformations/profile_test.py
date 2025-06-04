@@ -827,6 +827,7 @@ def test_profiling_exit_statement(fortran_reader):
         do i = 1, 100
           EXIT
         end do
+        i = 1
     end subroutine a
     """
     psyir = fortran_reader.psyir_from_source(code)
@@ -835,7 +836,7 @@ def test_profiling_exit_statement(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         ptrans.validate(psyir.children[0].children[0])
     assert ("Cannot apply the ProfileTrans to a code region containing a "
-            "potential control flow jump. Found '! PSyclone CodeBlock "
+            "potential control flow jump. Found:\n'! PSyclone CodeBlock "
             "(unsupported code) reason:\n!  - Unsupported statement: "
             "Exit_Stmt\nEXIT\n'"
             in str(excinfo.value))
@@ -852,6 +853,7 @@ def test_profiling_goto_statement(fortran_reader):
           a = a + i
           GOTO 123
         end do
+123        i = 1
     end subroutine a
     """
     psyir = fortran_reader.psyir_from_source(code)
@@ -859,7 +861,7 @@ def test_profiling_goto_statement(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         ptrans.validate(psyir.children[0].children[0])
     assert ("Cannot apply the ProfileTrans to a code region containing a "
-            "potential control flow jump. Found '\n! PSyclone CodeBlock "
+            "potential control flow jump. Found:\n'\n! PSyclone CodeBlock "
             "(unsupported code) reason:\n!  - Unsupported statement: "
             "Goto_Stmt\nGO TO 123\n'"
             in str(excinfo.value))
@@ -875,6 +877,7 @@ def test_profiling_labelled_statement(fortran_reader):
         do i = 1, 100
 123          a = a + 1
         end do
+        i = 1
     end subroutine a
     """
     psyir = fortran_reader.psyir_from_source(code)
@@ -882,7 +885,7 @@ def test_profiling_labelled_statement(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         ptrans.validate(psyir.children[0].children[0])
     assert ("Transformation Error: Cannot apply the ProfileTrans to a code "
-            "region containing a potential control flow jump. Found "
+            "region containing a potential control flow jump. Found:\n"
             "'! PSyclone CodeBlock (unsupported code) reason:\n!  - "
             "Unsupported labelled statement\n123 a = a + 1\n"
             in str(excinfo.value))
@@ -894,6 +897,7 @@ def test_profiling_labelled_statement(fortran_reader):
 123          do a= 1, 100
              end do
         end do
+        i = 1
     end subroutine a
     """
     psyir = fortran_reader.psyir_from_source(code)
@@ -901,7 +905,41 @@ def test_profiling_labelled_statement(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         ptrans.validate(psyir.children[0].children[0])
     assert ("Transformation Error: Cannot apply the ProfileTrans to a code "
-            "region containing a potential control flow jump. Found "
+            "region containing a potential control flow jump. Found:\n"
             "'! PSyclone CodeBlock (unsupported code) reason:\n!  - "
             "Unsupported labelled statement\n123 DO a = 1, 100\nEND DO\n"
             in str(excinfo.value))
+
+
+def test_profiling_force(fortran_reader):
+    ''' Check the profiling transformation validation doesn't fail if we
+    enable the force option.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          a = a + 1
+        end do
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    ptrans.validate(psyir.children[0].children[0], {"force": True})
+
+
+def test_profiling_full_routine(fortran_reader):
+    ''' Check the profiling transformation validation doesn't fail if we
+    give the full routine as an input.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          a = a + 1
+        end do
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    ptrans.validate(psyir.children[0])

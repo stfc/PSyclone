@@ -40,7 +40,7 @@
 '''
 
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import CodeBlock, Return, ProfileNode
+from psyclone.psyir.nodes import CodeBlock, ProfileNode, Return, Routine
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 
 
@@ -79,7 +79,7 @@ class ProfileTrans(PSyDataTrans):
         super().__init__(ProfileNode)
 
     def validate(self, nodes, options=None):
-        """
+        '''
         Checks that the supplied list of nodes is valid for profiling
         callipers.
 
@@ -87,21 +87,44 @@ class ProfileTrans(PSyDataTrans):
                       profiling.
         :type nodes: :py:class:`psyclone.psyir.nodes.Node` or
                      list[:py:class:`psyclone.psyir.nodes.Node`]
+        :param bool options["force"]: whether to ignore potential control
+                                      flow jumps when applying this
+                                      transformation. Default is False.
 
         :raises TransformationError: if the supplied region contains a
                                      potential control flow jump, e.g.
                                      EXIT or GOTO.
-        """
+        '''
+        if not options:
+            options = {}
+        forced = options.get("force", False)
+        if forced:
+            super().validate(nodes, options)
+            return
         # Find all the codeblocks and check if they contain a control
         # flow jump.
         node_list = self.get_node_list(nodes)
+        # If the node_list is the same as a whole routine then we allow
+        # this transformation.
+        parent = node_list[0].parent
+        if (isinstance(parent, Routine) and
+                len(parent.children) == len(node_list)):
+            for i, child in enumerate(parent.children):
+                if child is not node_list[i]:
+                    break
+            else:
+                # If the node_list is the same then we call super validate
+                # and return
+                super().validate(nodes, options)
+                return
+
         for node in node_list:
             codeblocks = node.walk(CodeBlock)
             for block in codeblocks:
-                if block.is_potential_control_flow_jump():
+                if block.has_potential_control_flow_jump():
                     raise TransformationError(
                         f"Cannot apply the ProfileTrans to a code region "
                         f"containing a potential control flow jump. "
-                        f"Found '{block.debug_string()}'")
+                        f"Found:\n'{block.debug_string()}'")
 
         super().validate(nodes, options)

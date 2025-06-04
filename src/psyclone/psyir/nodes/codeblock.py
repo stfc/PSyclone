@@ -42,8 +42,6 @@ from enum import Enum
 from typing import List
 
 from fparser.two import Fortran2003
-from fparser.two.Fortran2003 import (BlockBase, Comment, Exit_Stmt,
-                                     Goto_Stmt, StmtBase)
 from fparser.two.utils import walk
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.psyir.nodes.statement import Statement
@@ -241,30 +239,35 @@ class CodeBlock(Statement, DataNode):
     def __str__(self):
         return f"CodeBlock[{len(self._fp2_nodes)} nodes]"
 
-    def is_potential_control_flow_jump(self) -> bool:
-        """
+    def has_potential_control_flow_jump(self) -> bool:
+        '''
         :returns: whether this CodeBlock contains a potential control flow
                   jump, e.g. GOTO, EXIT or a labeled statement.
-        """
+        '''
         # Loop over the fp2_nodes and check if any are GOTO, EXIT or
         # labelled statements
-        for child in self._fp2_nodes:
-            if isinstance(child,
-                          (Goto_Stmt, Exit_Stmt)):
-                return True
-            # Also can't support Labelled statements.
-            if isinstance(child, BlockBase):
-                # An instance of BlockBase describes a block of code
-                # so we have to examine the first statement within it.
-                # We must allow for the case where the block is empty
-                # though.
-                if (child.content and child.content[0] and
-                    (not isinstance(child.content[0],
-                                    Comment)) and
-                    child.content[0].item and
-                        child.content[0].item.label):
+        for node in self._fp2_nodes:
+            for child in walk(node, (Fortran2003.Goto_Stmt,
+                                     Fortran2003.Exit_Stmt,
+                                     Fortran2003.BlockBase,
+                                     Fortran2003.StmtBase)):
+                if isinstance(child,
+                              (Fortran2003.Goto_Stmt,
+                               Fortran2003.Exit_Stmt)):
                     return True
-            elif isinstance(child, StmtBase):
-                if child.item and child.item.label:
-                    return True
+                # Also can't support Labelled statements.
+                if isinstance(child, Fortran2003.BlockBase):
+                    # An instance of BlockBase describes a block of code
+                    # so we have to examine the first statement within it.
+                    # We must allow for the case where the block is empty
+                    # though.
+                    if (child.content and child.content[0] and
+                        (not isinstance(child.content[0],
+                                        Fortran2003.Comment)) and
+                        child.content[0].item and
+                            child.content[0].item.label):
+                        return True
+                elif isinstance(child, Fortran2003.StmtBase):
+                    if child.item and child.item.label:
+                        return True
         return False
