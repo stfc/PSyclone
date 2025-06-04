@@ -115,7 +115,7 @@ jobs:
         # -------------------------------------------------
         # This allows us to keep the extraction script working,
         # even if we are using new features/names.
-        export EXTRACT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/extract
+        export EXTRACT_DIR=${LFRIC_APPS}/gungho_model/optimisation/extract
         # Note that this directory exists after the BAF installation
         cp ${PSYCLONE_LFRIC_DIR}/extract_script.py ${EXTRACT_DIR}/global.py
 
