@@ -106,7 +106,6 @@ class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
             call.routine.symbol, calls, index, name=call_name)
 
         # Copy across any comments.
-        # FIXME Unit test.
         invoke_call.preceding_comment = call.preceding_comment
         invoke_call.inline_comment = call.inline_comment
 
