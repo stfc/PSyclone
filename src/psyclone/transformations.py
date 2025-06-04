@@ -1769,12 +1769,6 @@ class ACCParallelTrans(ParallelRegionTrans):
                     f"The provided 'default_present' option must be a "
                     f"boolean, but found '{options['default_present']}'."
                 )
-        if options is not None and "device_string" in options:
-            if not isinstance(options["device_string"], str):
-                raise TransformationError(
-                    f"The provided 'device_string' option must be a "
-                    f"boolean, but found '{options['device_string']}'."
-                )
         device_string = options.get("device_string", "") if options else ""
         for node in node_list:
             for call in node.walk(Call):
