@@ -2666,6 +2666,7 @@ class Fparser2Reader():
                     f"Could not process '{stmtfn}'. Statement Function "
                     f"declarations are not supported.") from err
 
+
     @staticmethod
     def _process_data_statements(nodes, psyir_parent):
         '''Limited support for data statements: they will be converted
@@ -2892,6 +2893,24 @@ class Fparser2Reader():
                     # Add the comments to nodes that support it and reset the
                     # list of comments
                     if isinstance(psy_child, CommentableMixin):
+                        for comment in preceding_comments[:]:
+                            # If the comment is a directive and we
+                            # keep_directives then create a CodeBlock for
+                            # the directive.
+                            if (not self._ignore_directives and
+                                    comment.tostr().startswith("!$")):
+                                block = self.nodes_to_code_block(parent,
+                                                                 [comment])
+                                # Precede this with any comments as relevant.
+                                if comment is not preceding_comments[0]:
+                                    index = preceding_comments.index(comment)
+                                    block.preceding_comment += \
+                                        self._comments_list_to_string(
+                                            preceding_comments[0:index])
+                                    preceding_comments = preceding_comments[
+                                            index:]
+
+                                preceding_comments.remove(comment)
                         psy_child.preceding_comment\
                             += self._comments_list_to_string(
                                 preceding_comments)
@@ -2918,6 +2937,14 @@ class Fparser2Reader():
 
         # Complete any unfinished code-block
         self.nodes_to_code_block(parent, code_block_nodes, message)
+
+        # If there are any directives at the end we create code blocks for
+        # them.
+        if not self._ignore_directives and len(preceding_comments) != 0:
+            for comment in preceding_comments[:]:
+                if comment.tostr().startswith("!$"):
+                    self.nodes_to_code_block(parent, [comment])
+                    preceding_comments.remove(comment)
 
         if self._last_comments_as_codeblocks and len(preceding_comments) != 0:
             self.nodes_to_code_block(parent, preceding_comments)
