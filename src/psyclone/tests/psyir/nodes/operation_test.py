@@ -242,8 +242,7 @@ def test_binaryop_operands():
     oper = BinaryOperation.Operator.ADD
     binaryoperation = BinaryOperation.create(oper, ref1, ref2)
     operands = binaryoperation.operands
-    assert operands[0] is ref1
-    assert operands[1] is ref2
+    assert operands == (ref1, ref2)
 
 
 def test_binaryop_get_result_precision(monkeypatch):

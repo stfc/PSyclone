@@ -222,6 +222,12 @@ The semantic navigation methods are:
 - Nodes representing accesses of data within a structure (e.g. ``StructureReference``, ``StructureMember``):
    .. automethod:: psyclone.psyir.nodes.StructureReference.member()
        :no-index:
+- ``BinaryOperation``:
+  .. automethod:: psyclone.psyir.nodes.BinaryOperation.operands()
+       :no-index:
+- ``UnaryOperation``:
+  .. automethod:: psyclone.psyir.nodes.UnaryOperation.operand()
+       :no-index:
 
 
 DataTypes

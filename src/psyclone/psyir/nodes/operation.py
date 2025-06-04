@@ -499,7 +499,7 @@ class BinaryOperation(Operation):
     @property
     def operands(self) -> Tuple[DataNode, DataNode]:
         '''
-        :returns: the operand of this UnaryOperation.
+        :returns: the operands of this BinaryOperation.
         '''
         return self.children[0], self.children[1]
 

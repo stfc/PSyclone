@@ -77,8 +77,7 @@ def test_call_init():
     call.addchild(Literal('3', INTEGER_TYPE))
     assert call.routine.symbol is routine
     assert call.parent is parent
-    assert isinstance(call.arguments, tuple)
-    assert call.arguments[0] == Literal('3', INTEGER_TYPE)
+    assert call.arguments == (Literal('3', INTEGER_TYPE),)
 
 
 def test_call_is_elemental():
@@ -288,7 +287,7 @@ def test_call_appendnamedarg():
     # ok
     call.append_named_arg("name2", op2)
     call.append_named_arg(None, op3)
-    assert list(call.arguments) == [op1, op2, op3]
+    assert call.arguments == (op1, op2, op3)
     assert call.argument_names == ["name1", "name2", None]
 
 
@@ -324,13 +323,13 @@ def test_call_insertnamedarg():
     assert ("The 'index' argument in 'insert_named_arg' in the 'Call' node "
             "should be an int but found str." in str(info.value))
     # ok
-    assert list(call.arguments) == [op1]
+    assert call.arguments == (op1,)
     assert call.argument_names == ["name1"]
     call.insert_named_arg("name2", op2, 0)
-    assert list(call.arguments) == [op2, op1]
+    assert call.arguments == (op2, op1)
     assert call.argument_names == ["name2", "name1"]
     call.insert_named_arg(None, op3, 0)
-    assert list(call.arguments) == [op3, op2, op1]
+    assert call.arguments == (op3, op2, op1)
     assert call.argument_names == [None, "name2", "name1"]
 
 
@@ -358,12 +357,12 @@ def test_call_replacenamedarg():
             "'replace_named_arg' in the 'Call' node was not found in the "
             "existing arguments." in str(info.value))
     # ok
-    assert list(call.arguments) == [op1, op2]
+    assert call.arguments == (op1, op2)
     assert call.argument_names == ["name1", "name2"]
     assert call._argument_names[0][0] == id(op1)
     assert call._argument_names[1][0] == id(op2)
     call.replace_named_arg("name1", op3)
-    assert list(call.arguments) == [op3, op2]
+    assert call.arguments == (op3, op2)
     assert call.argument_names == ["name1", "name2"]
     assert call._argument_names[0][0] == id(op3)
     assert call._argument_names[1][0] == id(op2)
