@@ -511,9 +511,8 @@ def test_directives():
     loop = psyir.walk(Loop)[0]
     directive = loop.preceding(reverse=True)[0]
     assert isinstance(directive, CodeBlock)
-    assert (directive.debug_string() == 
-            "! Comment on loop 'do i = 1, 10'\n!$omp parallel do\n"
-    )
+    assert (directive.debug_string() ==
+            "! Comment on loop 'do i = 1, 10'\n!$omp parallel do\n")
 
 
 EXPECTED_WITH_DIRECTIVES = """subroutine test_sub()

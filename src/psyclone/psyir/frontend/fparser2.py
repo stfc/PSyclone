@@ -2663,7 +2663,6 @@ class Fparser2Reader():
                     f"Could not process '{stmtfn}'. Statement Function "
                     f"declarations are not supported.") from err
 
-
     @staticmethod
     def _process_data_statements(nodes, psyir_parent):
         '''Limited support for data statements: they will be converted
@@ -2906,7 +2905,6 @@ class Fparser2Reader():
                                             preceding_comments[0:index])
                                     preceding_comments = preceding_comments[
                                             index:]
-
                                 preceding_comments.remove(comment)
                         psy_child.preceding_comment\
                             += self._comments_list_to_string(
