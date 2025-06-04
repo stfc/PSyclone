@@ -2528,7 +2528,9 @@ class Fparser2Reader():
                                      visibility=vis,
                                      initial_value=init)
                             new_symbol.preceding_comment \
-                                = '\n'.join(preceding_comments)
+                                = self._comments_list_to_string(
+                                        preceding_comments)
+                            preceding_comments = []
                             self._last_psyir_parsed_and_span\
                                 = (new_symbol,
                                    node.item.span)
@@ -2569,6 +2571,11 @@ class Fparser2Reader():
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
                     f"'{type(node).__name__}' not supported")
+
+        # Any comments remaining in preceding_comments at this point are
+        # not added to the code.
+        lost_comments = []
+        lost_comments.extend(preceding_comments)
 
         # Process the nodes again, looking for PARAMETER statements. This is
         # done after the main declarations loop because they modify existing
@@ -2929,7 +2936,6 @@ class Fparser2Reader():
                     parent.addchild(psy_child)
                 # If psy_child is not initialised but it didn't produce a
                 # NotImplementedError, it means it is safe to ignore it.
-
         # Complete any unfinished code-block
         self.nodes_to_code_block(parent, code_block_nodes, message)
 
@@ -5624,6 +5630,25 @@ class Fparser2Reader():
             decl_list = []
         self.process_declarations(routine, decl_list, [])
 
+        # fparser puts comments at the end of the declarations
+        # whereas as preceding comments they belong in the execution part
+        # except if it's an inline comment on the last declaration.
+        lost_comments = []
+        if len(decl_list) != 0 and isinstance(decl_list[-1],
+                                              Fortran2003.Implicit_Part):
+            for comment in walk(decl_list[-1], Fortran2003.Comment):
+                if len(comment.tostr()) == 0:
+                    continue
+                if self._last_psyir_parsed_and_span is not None:
+                    last_symbol, last_span \
+                        = self._last_psyir_parsed_and_span
+                    if (last_span is not None
+                            and last_span[1] == comment.item.span[0]):
+                        last_symbol.inline_comment\
+                            = self._comment_to_string(comment)
+                        continue
+                lost_comments.append(comment)
+
         try:
             prog_exec = _first_type_match(node.content,
                                           Fortran2003.Execution_Part)
@@ -5632,7 +5657,7 @@ class Fparser2Reader():
             # valid.
             pass
         else:
-            self.process_nodes(routine, prog_exec.content)
+            self.process_nodes(routine, lost_comments + prog_exec.content)
 
         return routine
 
