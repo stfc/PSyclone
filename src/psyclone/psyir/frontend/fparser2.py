@@ -5060,6 +5060,12 @@ class Fparser2Reader():
 
         '''
         reference_name = node.items[0].string.lower()
+        # Even if refining symbols is already done at the top of the routine,
+        # before any occurrence of this symbol, the psyclone frontend has entry
+        # points parsing single statements/expressions), so we have to do
+        # it again here
+        _refine_symbols_with_usage_location(parent.scope.symbol_table,
+                                            node)
         symbol = _find_or_create_unresolved_symbol(parent, reference_name)
 
         if isinstance(symbol, DataSymbol):
