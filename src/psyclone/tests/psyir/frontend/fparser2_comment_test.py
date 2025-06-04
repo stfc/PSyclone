@@ -509,9 +509,10 @@ def test_directives():
     psyir = reader.psyir_from_source(CODE_WITH_DIRECTIVE)
 
     loop = psyir.walk(Loop)[0]
-    assert (
-        loop.preceding_comment
-        == "Comment on loop 'do i = 1, 10'\n$omp parallel do"
+    directive = loop.preceding(reverse=True)[0]
+    assert isinstance(directive, CodeBlock)
+    assert (directive.debug_string() == 
+            "! Comment on loop 'do i = 1, 10'\n!$omp parallel do\n"
     )
 
 
@@ -529,10 +530,6 @@ end subroutine test_sub
 """
 
 
-@pytest.mark.xfail(
-    reason="Directive is written back as '! $omp parallel do'"
-    "instead of '!$omp parallel do'"
-)
 def test_write_directives():
     """Test that the directives are written back to the code"""
     reader = FortranReader(ignore_comments=False, ignore_directives=False)
