@@ -1279,7 +1279,7 @@ def test_omp_taskloop_strings():
 def test_omp_taskloop_clauses():
     ''' Test the clauses property of the OMPTaskloop directive. '''
     omp_taskloop = OMPTaskloopDirective()
-    assert omp_taskloop.clauses == []
+    assert omp_taskloop.clauses == ()
 
 
 def test_omp_taskloop_init():
