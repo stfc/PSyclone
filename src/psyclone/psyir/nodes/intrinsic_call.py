@@ -778,8 +778,7 @@ class IntrinsicCall(Call):
 
         '''
         if not device_string:
-            device_string = "nvfortran-all"
-
+            return self.intrinsic in DEFAULT_DEVICE_INTRINISCS
         if device_string == "nvfortran-all":
             return self.intrinsic in NVFORTRAN_ALL
         if device_string == "nvfortran-repr":
@@ -978,6 +977,9 @@ NVFORTRAN_REPRODUCIBLE = (
 # All nvfortran intrinsics available on GPUs
 NVFORTRAN_ALL = NVFORTRAN_REPRODUCIBLE + (
     IntrinsicCall.Intrinsic.LOG10, IntrinsicCall.Intrinsic.REAL)
+
+# For now the default intrinsics availabe on GPU are the same as nvfortran-all
+DEFAULT_DEVICE_INTRINISCS = NVFORTRAN_ALL
 
 # TODO #658 this can be removed once we have support for determining the
 # type of a PSyIR expression.

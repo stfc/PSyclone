@@ -280,6 +280,7 @@ jobs:
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export REPRODUCIBLE=1
 
         # Clean up and compile
         rm -rf cfgs/${TEST_DIR}
@@ -320,6 +321,7 @@ jobs:
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export REPRODUCIBLE=1
 
         # Clean up and compile
         rm -rf cfgs/${TEST_DIR}
