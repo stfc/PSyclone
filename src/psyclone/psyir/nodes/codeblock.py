@@ -249,11 +249,12 @@ class CodeBlock(Statement, DataNode):
         for node in self._fp2_nodes:
             for child in walk(node, (Fortran2003.Goto_Stmt,
                                      Fortran2003.Exit_Stmt,
-                                     Fortran2003.BlockBase,
+                                     Fortran2003.Cycle_Stmt,
                                      Fortran2003.StmtBase)):
                 if isinstance(child,
                               (Fortran2003.Goto_Stmt,
-                               Fortran2003.Exit_Stmt)):
+                               Fortran2003.Exit_Stmt,
+                               Fortran2003.Cycle_Stmt)):
                     return True
                 # Also can't support Labelled statements.
                 if isinstance(child, Fortran2003.StmtBase):

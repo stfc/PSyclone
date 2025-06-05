@@ -869,6 +869,32 @@ def test_profiling_goto_statement(fortran_reader):
             in str(excinfo.value))
 
 
+def test_profiling_cycle_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    CYCLE block in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+          a = a + i
+          CYCLE
+        end do
+        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Cannot apply the ProfileTrans to a code region containing a "
+            "potential control flow jump, as these could skip the end of "
+            "profiling caliper. Found:\n'\n! PSyclone CodeBlock "
+            "(unsupported code) reason:\n!  - Unsupported statement: "
+            "Cycle_Stmt\nCYCLE\n'"
+            in str(excinfo.value))
+
+
 def test_profiling_labelled_statement(fortran_reader):
     ''' Check the profiling transformation validation fails if there is an
     labelled statement in the region.'''
