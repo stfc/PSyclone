@@ -48,7 +48,8 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
 
     :param str datatype: the datatype of this scalar array (GH_INTEGER, ...).
     :param str access: the way the kernel accesses this scalar array (GH_READ).
-    :param str array_ndims: the rank (number of dimensions) of this scalar array
+    :param str array_ndims: the rank (number of dimensions) of this scalar
+                            array.
 
     '''
     # The name used to specify an array argument in LFRic metadata.

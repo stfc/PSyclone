@@ -658,7 +658,8 @@ class LFRicArgDescriptor(Descriptor):
         :raises InternalError: if argument type other than a ScalarArray is
                                passed in.
         :raises ParseError: if there are not exactly 4 metadata arguments.
-        :raises InternalError: if the ScalarArray argument has an invalid data type.
+        :raises InternalError: if the ScalarArray argument has an invalid data
+                               type.
         :raises ParseError: if ScalarArray argument has an invalid access type.
 
         '''
@@ -678,8 +679,8 @@ class LFRicArgDescriptor(Descriptor):
                 f"{const.VALID_ARRAY_NAMES} type, but found {self._nargs} in "
                 f"'{arg_type}'.")
 
-        # Check whether an invalid data type for a ScalarArray argument is passed
-        # in.
+        # Check whether an invalid data type for a ScalarArray argument is
+        # passed in.
         if self._data_type not in const.VALID_ARRAY_DATA_TYPES:
             raise InternalError(
                 f"Expected one of {const.VALID_ARRAY_DATA_TYPES} as the "
