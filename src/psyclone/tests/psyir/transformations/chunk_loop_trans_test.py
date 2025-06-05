@@ -312,7 +312,8 @@ def test_chunkloop_trans_validation_options(fortran_reader):
     with pytest.raises(TransformationError) as err:
         ChunkLoopTrans().validate(outer_loop, {'unsupported': None})
     assert ("The ChunkLoopTrans does not support the transformation option"
-            " 'unsupported', the supported options are: ['chunksize']."
+            " 'unsupported', the supported options are: ['chunksize',"
+            " 'hoist_loop_bounds']."
             in str(err.value))
 
     with pytest.raises(TransformationError) as err:
@@ -324,6 +325,11 @@ def test_chunkloop_trans_validation_options(fortran_reader):
         ChunkLoopTrans().validate(outer_loop, {'chunksize': -64})
     assert ("The ChunkLoopTrans chunksize option must be a positive integer "
             "but found '-64'." in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        ChunkLoopTrans().validate(outer_loop, {'hoist_loop_bounds': 1})
+    assert ("The ChunkLoopTrans hoist_loop_bounds option must be a "
+            "bool but found a 'int'." in str(err.value))
 
     # Positive integers are accepted
     ChunkLoopTrans().validate(outer_loop, {'chunksize': 64})
@@ -378,7 +384,7 @@ def test_chunkloop_trans_apply_neg():
     assert correct in code
 
 
-def test_chunkloop_trans_apply_with_options():
+def test_chunkloop_trans_apply_with_options1():
     ''' Check that a non-default chunksize option is used correctly. '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean")
@@ -392,6 +398,23 @@ def test_chunkloop_trans_apply_with_options():
         '''do j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 4
       j_el_inner = MIN(j_out_var + (4 - 1), cu_fld%internal%ystop)
       do j = j_out_var, j_el_inner, 1
+    '''
+    assert correct in code
+
+def test_chunkloop_trans_apply_with_options2():
+    ''' Check that a non-default hoist_loop_bounds option is used correctly. '''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    chunktrans = ChunkLoopTrans()
+    chunktrans.apply(schedule.children[0], {'hoist_loop_bounds': False})
+    code = str(psy.gen)
+    print(code)
+    correct = \
+        '''do j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
+      do j = j_out_var, MIN(j_out_var + (32 - 1), cu_fld%internal%ystop), 1
     '''
     assert correct in code
 
