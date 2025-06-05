@@ -57,6 +57,7 @@ Tested with the NVIDIA HPC SDK version 23.7.
 """
 
 import logging
+from psyclone.psyir.nodes.acc_directives import ACCKernelsDirective
 from utils import (
     add_profiling,
     enhance_tree_information,
@@ -74,6 +75,7 @@ from psyclone.psyir.nodes import (
     Routine,
     Literal,
     ACCLoopDirective,
+    ACCDirective,
     IntrinsicCall,
 )
 from psyclone.psyir.transformations import (
@@ -81,6 +83,7 @@ from psyclone.psyir.transformations import (
     ACCUpdateTrans,
     TransformationError,
     ProfileTrans,
+    DebugChecksumTrans,
 )
 from psyclone.transformations import ACCEnterDataTrans
 
@@ -111,6 +114,7 @@ ACC_ROUTINE_TRANS = TransInfo().get_trans_name("ACCRoutineTrans")
 ACC_EDATA_TRANS = ACCEnterDataTrans()
 ACC_UPDATE_TRANS = ACCUpdateTrans()
 PROFILE_TRANS = ProfileTrans()
+CHECKSUM_TRANS = DebugChecksumTrans()
 
 # Whether or not to add profiling calls around unaccelerated regions
 # N.B. this can inhibit PSyclone's ability to inline!
@@ -446,9 +450,14 @@ def trans(psyir):
             enhance_tree_information(subroutine)
             # inline_calls(subroutine)
             have_kernels = add_kernels(subroutine.children)
-            if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
-                print(f"Transforming {subroutine.name} with acc enter data")
-                ACC_EDATA_TRANS.apply(subroutine)
+            if have_kernels: 
+            #if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
+                directives = subroutine.walk(ACCKernelsDirective)
+                for directive in directives:
+                    #ACC_DATA_TRANS.apply([directive])
+                    CHECKSUM_TRANS.apply([directive])
+                print(f"Transforming {subroutine.name} with acc checksum")
+                #ACC_EDATA_TRANS.apply(subroutine)
         else:
             print(
                     f"Addition of OpenACC to routine {subroutine.name} "

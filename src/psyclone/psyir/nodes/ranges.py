@@ -150,6 +150,7 @@ class Range(Node):
                            INTEGER type.
         '''
         if not isinstance(value, Node):
+            import pdb; pdb.set_trace()
             raise TypeError(
                 f"The {name} value of a Range must be a sub-class of "
                 f"Node but got: {type(value).__name__}")

@@ -256,7 +256,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # We have the full type information and the bound is known.
             if bound == "lower":
                 return cursor_type.shape[pos].lower.copy()
-            return cursor_type.shape[pos].upper.copy()
+            if not isinstance(cursor_type.shape[pos].upper, ArrayType.Extent):
+                return cursor_type.shape[pos].upper.copy()
 
         # We've either failed to resolve the type or we don't know the extent
         # of the array dimension so construct a call to the BOUND intrinsic.
