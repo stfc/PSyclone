@@ -836,7 +836,8 @@ def test_profiling_exit_statement(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         ptrans.validate(psyir.children[0].children[0])
     assert ("Cannot apply the ProfileTrans to a code region containing a "
-            "potential control flow jump. Found:\n'! PSyclone CodeBlock "
+            "potential control flow jump, as these could skip the end of "
+            "profiling caliper. Found:\n'! PSyclone CodeBlock "
             "(unsupported code) reason:\n!  - Unsupported statement: "
             "Exit_Stmt\nEXIT\n'"
             in str(excinfo.value))
@@ -861,7 +862,8 @@ def test_profiling_goto_statement(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         ptrans.validate(psyir.children[0].children[0])
     assert ("Cannot apply the ProfileTrans to a code region containing a "
-            "potential control flow jump. Found:\n'\n! PSyclone CodeBlock "
+            "potential control flow jump, as these could skip the end of "
+            "profiling caliper. Found:\n'\n! PSyclone CodeBlock "
             "(unsupported code) reason:\n!  - Unsupported statement: "
             "Goto_Stmt\nGO TO 123\n'"
             in str(excinfo.value))
@@ -885,7 +887,8 @@ def test_profiling_labelled_statement(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         ptrans.validate(psyir.children[0].children[0])
     assert ("Transformation Error: Cannot apply the ProfileTrans to a code "
-            "region containing a potential control flow jump. Found:\n"
+            "region containing a potential control flow jump, as these could "
+            "skip the end of profiling caliper. Found:\n"
             "'! PSyclone CodeBlock (unsupported code) reason:\n!  - "
             "Unsupported labelled statement\n123 a = a + 1\n"
             in str(excinfo.value))
@@ -905,7 +908,8 @@ def test_profiling_labelled_statement(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         ptrans.validate(psyir.children[0].children[0])
     assert ("Transformation Error: Cannot apply the ProfileTrans to a code "
-            "region containing a potential control flow jump. Found:\n"
+            "region containing a potential control flow jump, as these could "
+            "skip the end of profiling caliper. Found:\n"
             "'! PSyclone CodeBlock (unsupported code) reason:\n!  - "
             "Unsupported labelled statement\n123 DO a = 1, 100\nEND DO\n"
             in str(excinfo.value))

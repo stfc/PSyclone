@@ -92,39 +92,35 @@ class ProfileTrans(PSyDataTrans):
                                       transformation. Default is False.
 
         :raises TransformationError: if the supplied region contains a
-                                     potential control flow jump, e.g.
-                                     EXIT or GOTO.
+                                     potential control flow jump that could
+                                     result in skipping the end of profiling
+                                     caliper, e.g. EXIT or GOTO.
         '''
         if not options:
             options = {}
         forced = options.get("force", False)
+        super().validate(nodes, options)
         if forced:
-            super().validate(nodes, options)
             return
-        # Find all the codeblocks and check if they contain a control
-        # flow jump.
         node_list = self.get_node_list(nodes)
-        # If the node_list is the same as a whole routine then we allow
-        # this transformation.
+        # If the node_list is the same as a whole routine then we skip the
+        # checks for internal control flow jumps.
         parent = node_list[0].parent
         if (isinstance(parent, Routine) and
                 len(parent.children) == len(node_list)):
-            for i, child in enumerate(parent.children):
-                if child is not node_list[i]:
-                    break
-            else:
-                # If the node_list is the same then we call super validate
-                # and return
-                super().validate(nodes, options)
-                return
+            # If the node_list is the same size and the parent of the first
+            # is the routine then this is the full Routine (see
+            # RegionDirective.validate for the validation).
+            return
 
+        # Find all the codeblocks and check if they contain a control
+        # flow jump.
         for node in node_list:
             codeblocks = node.walk(CodeBlock)
             for block in codeblocks:
                 if block.has_potential_control_flow_jump():
                     raise TransformationError(
                         f"Cannot apply the ProfileTrans to a code region "
-                        f"containing a potential control flow jump. "
+                        f"containing a potential control flow jump, as these "
+                        f"could skip the end of profiling caliper. "
                         f"Found:\n'{block.debug_string()}'")
-
-        super().validate(nodes, options)

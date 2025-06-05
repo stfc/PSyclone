@@ -256,18 +256,7 @@ class CodeBlock(Statement, DataNode):
                                Fortran2003.Exit_Stmt)):
                     return True
                 # Also can't support Labelled statements.
-                if isinstance(child, Fortran2003.BlockBase):
-                    # An instance of BlockBase describes a block of code
-                    # so we have to examine the first statement within it.
-                    # We must allow for the case where the block is empty
-                    # though.
-                    if (child.content and child.content[0] and
-                        (not isinstance(child.content[0],
-                                        Fortran2003.Comment)) and
-                        child.content[0].item and
-                            child.content[0].item.label):
-                        return True
-                elif isinstance(child, Fortran2003.StmtBase):
+                if isinstance(child, Fortran2003.StmtBase):
                     if child.item and child.item.label:
                         return True
         return False
