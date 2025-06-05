@@ -1,3 +1,6 @@
+   32) PR #3011 for #2968. Add semantic navigation methods to Operations and
+   update indices/arguments/clauses methods to return tuples.
+
    31) PR #2998 for #2620. Refactor reference_accesses method.
 
    30) PR #2959. Update spack and enable NEMO multi-gpu.
