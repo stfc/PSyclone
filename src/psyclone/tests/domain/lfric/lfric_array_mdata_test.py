@@ -78,23 +78,23 @@ end module testkern_mod
 
 
 def test_ad_array_init_wrong_argument_type():
-    ''' Test that an error is raised if something other than an array
+    ''' Test that an error is raised if something other than a ScalarArray
     is passed to the LFRicArgDescriptor._init_array() method. '''
     ast = fpapi.parse(ARRAY_CODE, ignore_comments=False)
     name = "testkern_array_type"
     metadata = LFRicKernMetadata(ast, name=name)
-    # Get an argument which is not an array
+    # Get an argument which is not a ScalarArray
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
             wrong_arg, metadata.iterates_over, 0)._init_array(wrong_arg)
-    assert ("Expected an array argument but got an argument of type "
+    assert ("Expected a ScalarArray argument but got an argument of type "
             "'gh_operator'." in str(excinfo.value))
 
 
 def test_ad_array_type_wrong_num_of_args():
-    ''' Tests that an error is raised when the array argument descriptor
-    metadata for an array has fewer than 3 args. '''
+    ''' Tests that an error is raised when the ScalarArray argument
+    descriptor metadata for a ScalarArray has fewer than 3 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = ARRAY_CODE.replace(
         "arg_type(gh_scalar_array,   gh_real,    gh_read, 1)",
@@ -156,7 +156,7 @@ def test_ad_array_init_wrong_data_type(monkeypatch):
     ast = fpapi.parse(ARRAY_CODE, ignore_comments=False)
     name = "testkern_array_type"
     metadata = LFRicKernMetadata(ast, name=name)
-    # Get an array argument descriptor and set a wrong data type
+    # Get a ScalarArray argument descriptor and set a wrong data type
     scalar_arg = metadata._inits[0]
     scalar_arg.args[1].name = "gh_double"
     const = LFRicConstants()
@@ -168,7 +168,7 @@ def test_ad_array_init_wrong_data_type(monkeypatch):
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
             scalar_arg, metadata.iterates_over, 0)._init_scalar(scalar_arg)
-    assert (f"Expected one of {const.VALID_ARRAY_DATA_TYPES} as the array "
+    assert (f"Expected one of {const.VALID_ARRAY_DATA_TYPES} as the ScalarArray "
             f"data type but got 'gh_double'." in str(excinfo.value))
 
 
@@ -183,7 +183,7 @@ def test_ad_array_type_no_write():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert ("array arguments must have read-only ('gh_read') "
+    assert ("ScalarArray arguments must have read-only ('gh_read') "
             "access but found 'gh_write'" in str(excinfo.value))
 
 
@@ -198,7 +198,7 @@ def test_ad_array_type_no_inc():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert ("array arguments must have read-only ('gh_read') "
+    assert ("ScalarArray arguments must have read-only ('gh_read') "
             "access but found 'gh_inc'" in str(excinfo.value))
 
 
@@ -213,7 +213,7 @@ def test_ad_array_type_no_readwrite():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert ("array arguments must have read-only ('gh_read') "
+    assert ("ScalarArray arguments must have read-only ('gh_read') "
             "access but found 'gh_readwrite'" in str(excinfo.value))
 
 
@@ -228,7 +228,7 @@ def test_ad_array_type_no_sum():
     name = "testkern_array_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert ("array arguments must have read-only ('gh_read') "
+    assert ("ScalarArray arguments must have read-only ('gh_read') "
             "access but found 'gh_sum'" in str(excinfo.value))
 
 
@@ -251,7 +251,7 @@ def test_no_vector_array():
     (0, "gh_real", 1), (1, "gh_integer", 2), (2, "gh_logical", 4)])
 def test_arg_descriptor_array(array_ind, array_type, array_ndims):
     ''' Test that the LFRicArgDescriptor argument representation works
-    as expected for all three types of valid array argument:
+    as expected for all three types of valid ScalarArray argument:
     'real', 'integer' and 'logical'.
 
     '''
