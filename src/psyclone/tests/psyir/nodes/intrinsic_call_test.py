@@ -154,7 +154,9 @@ def test_intrinsiccall_is_inquiry():
 def test_intrinsiccall_is_available_on_device(intrinsic, result):
     '''Tests that the is_available_on_device() method works as expected.'''
     intrinsic_call = IntrinsicCall(intrinsic)
+    # For now default and nvfortran-all are the same
     assert intrinsic_call.is_available_on_device() is result
+    assert intrinsic_call.is_available_on_device('nvfortran-all') is result
 
 
 def test_intrinsiccall_is_available_on_device_with_device_string():
