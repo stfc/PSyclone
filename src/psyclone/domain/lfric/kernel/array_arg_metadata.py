@@ -34,8 +34,8 @@
 # Author L. Turner, Met Office
 
 '''Module containing the ScalarArrayArgMetadata class which captures the
-metadata associated with an array argument. Supports the creation, modification
-and Fortran output of an Array argument.
+metadata associated with a ScalarArray argument. Supports the creation,
+modification and Fortran output of a ScalarArray argument.
 
 '''
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
@@ -43,12 +43,12 @@ from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 
 
 class ScalarArrayArgMetadata(ScalarArgMetadata):
-    '''Class to capture LFRic kernel metadata information for an array
+    '''Class to capture LFRic kernel metadata information for a scalar array
     argument.
 
-    :param str datatype: the datatype of this array (GH_INTEGER, ...).
-    :param str access: the way the kernel accesses this array (GH_READ).
-    :param str array_ndims: the rank (number of dimensions) of this array
+    :param str datatype: the datatype of this scalar array (GH_INTEGER, ...).
+    :param str access: the way the kernel accesses this scalar array (GH_READ).
+    :param str array_ndims: the rank (number of dimensions) of this scalar array
 
     '''
     # The name used to specify an array argument in LFRic metadata.
