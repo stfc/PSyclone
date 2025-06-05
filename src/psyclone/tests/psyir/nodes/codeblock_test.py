@@ -199,8 +199,8 @@ def test_codeblock_equality(parser):
     assert block != block4
 
 
-def test_codeblock_is_potential_control_flow_jump(fortran_reader):
-    """Test the is_potential_control_flow_jump function of the CodeBlock
+def test_codeblock_has_potential_control_flow_jump(fortran_reader):
+    """Test the has_potential_control_flow_jump function of the CodeBlock
     class."""
 
     code = """subroutine test()
@@ -217,10 +217,10 @@ def test_codeblock_is_potential_control_flow_jump(fortran_reader):
     codeblocks = psyir.walk(CodeBlock)
 
     # GOTO statement
-    assert codeblocks[0].is_potential_control_flow_jump()
+    assert codeblocks[0].has_potential_control_flow_jump()
     # Write statement
-    assert not codeblocks[1].is_potential_control_flow_jump()
+    assert not codeblocks[1].has_potential_control_flow_jump()
     # Exit statement
-    assert codeblocks[2].is_potential_control_flow_jump()
+    assert codeblocks[2].has_potential_control_flow_jump()
     # labelled statement
-    assert codeblocks[3].is_potential_control_flow_jump()
+    assert codeblocks[3].has_potential_control_flow_jump()
