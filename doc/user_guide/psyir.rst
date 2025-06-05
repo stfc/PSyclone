@@ -223,10 +223,10 @@ The semantic navigation methods are:
    .. automethod:: psyclone.psyir.nodes.StructureReference.member()
        :no-index:
 - ``BinaryOperation``:
-  .. automethod:: psyclone.psyir.nodes.BinaryOperation.operands()
+   .. automethod:: psyclone.psyir.nodes.BinaryOperation.operands()
        :no-index:
 - ``UnaryOperation``:
-  .. automethod:: psyclone.psyir.nodes.UnaryOperation.operand()
+   .. automethod:: psyclone.psyir.nodes.UnaryOperation.operand()
        :no-index:
 
 
