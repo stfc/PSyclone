@@ -819,11 +819,11 @@ class LFRicArgDescriptor(Descriptor):
     @property
     def array_ndims(self):
         '''
-        Returns the array size of the argument. This will be 1 if ``*n``
+        Returns the array rank of the argument. This will be 1 if ``*n``
         has not been specified for all argument types except scalars
-        (their array size is set to 0).
+        (their array rank is set to 0).
 
-        :returns: array size of the argument.
+        :returns: array rank of the argument.
         :rtype: int
 
         '''
