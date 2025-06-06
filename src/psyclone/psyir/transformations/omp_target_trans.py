@@ -158,11 +158,12 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         :raises TransformationError: if its a function and the target region
             attempts to enclose the assingment setting the return value.
         '''
+        device_string = options.get("device_string", "") if options else ""
         node_list = self.get_node_list(node)
         super().validate(node, options)
         for node in node_list:
             for call in node.walk(Call):
-                if not call.is_available_on_device():
+                if not call.is_available_on_device(device_string):
                     raise TransformationError(
                         f"'{call.routine.name}' is not available on the "
                         f"accelerator device, and therefore it cannot "

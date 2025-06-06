@@ -378,6 +378,8 @@ class MarkRoutineForGPUMixin:
         :type options: Optional[Dict[str, Any]]
         :param bool options["force"]: whether to allow routines with
             CodeBlocks to run on the GPU.
+        :param bool options["device_string"]: provide a compiler-platform
+            identifier strign.
 
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
@@ -393,6 +395,7 @@ class MarkRoutineForGPUMixin:
                                      routines.
         '''
         force = options.get("force", False) if options else False
+        device_string = options.get("device_string", "") if options else ""
 
         if not isinstance(node, (Kern, Routine)):
             raise TransformationError(
@@ -488,7 +491,7 @@ class MarkRoutineForGPUMixin:
 
         calls = kernel_schedule.walk(Call)
         for call in calls:
-            if not call.is_available_on_device():
+            if not call.is_available_on_device(device_string):
                 call_str = call.debug_string().rstrip("\n")
                 raise TransformationError(
                     f"{k_or_r} '{node.name}' calls another routine "
@@ -1766,9 +1769,10 @@ class ACCParallelTrans(ParallelRegionTrans):
                     f"The provided 'default_present' option must be a "
                     f"boolean, but found '{options['default_present']}'."
                 )
+        device_string = options.get("device_string", "") if options else ""
         for node in node_list:
             for call in node.walk(Call):
-                if not call.is_available_on_device():
+                if not call.is_available_on_device(device_string):
                     raise TransformationError(
                         f"'{call.routine.name}' is not available on the "
                         f"accelerator device, and therefore it cannot "

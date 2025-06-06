@@ -454,6 +454,39 @@ def test_kernel_gpu_annotation_trans(rtrans, expected_directive,
     assert expected_directive in code
 
 
+@pytest.mark.parametrize(
+    "rtrans",
+    [ACCRoutineTrans(), OMPDeclareTargetTrans()])
+def test_kernel_gpu_annotation_device_id(rtrans, fortran_reader):
+    ''' Check that the GPU annotation transformations validations
+    check the intrinsics using the provided device id. '''
+
+    code = '''
+    function myfunc(a)
+        integer :: a
+        real :: myfunc
+        myfunc = REAL(a)
+    end function
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    # The routine is valid
+    rtrans.validate(routine)
+    # But not if we are targeting "nvidia-repr" or an invalid device
+    with pytest.raises(TransformationError) as err:
+        rtrans.validate(routine, options={'device_string':
+                                          'nvfortran-repr'})
+    assert ("routine 'myfunc' calls another routine 'REAL(a)' which is not "
+            "available on the accelerator device"
+            in str(err.value))
+    with pytest.raises(ValueError) as err:
+        rtrans.validate(routine, options={'device_string':
+                                          'unknown-device'})
+    assert ("Unsupported device_string value 'unknown-device', the supported "
+            "values are '' (default), 'nvfortran-all', 'nvfortran-repr'"
+            in str(err.value))
+
+
 def test_1kern_trans(kernel_outputdir):
     ''' Check that we generate the correct code when an invoke contains
     the same kernel more than once but only one of them is transformed. '''
