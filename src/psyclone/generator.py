@@ -175,7 +175,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
              line_length=False,
              distributed_memory=None,
              kern_out_path="",
-             kern_naming="multiple"):
+             kern_naming="multiple",
+             keep_comments: bool = False,
+             keep_directives: bool = False):
     # pylint: disable=too-many-arguments, too-many-statements
     # pylint: disable=too-many-branches, too-many-locals
     '''Takes a PSyclone algorithm specification as input and outputs the
@@ -209,6 +211,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     :rtype: Tuple[:py:class:`fparser.one.block_statements.BeginSource`,
         :py:class:`fparser.one.block_statements.Module`] |
         Tuple[:py:class:`fparser.one.block_statements.BeginSource`, str]
+    :param keep_comments: whether to keep comments from the original source.
+    :param keep_directives: whether to keep directives from the original
 
     :raises GenerationError: if an invalid API is specified.
     :raises GenerationError: if an invalid kernel-renaming scheme is specified.
@@ -274,17 +278,19 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
     elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
         # Create language-level PSyIR from the Algorithm file
-        reader = FortranReader()
+        reader = FortranReader(ignore_comments=not keep_comments,
+                               ignore_directives=not keep_directives)
         if api in LFRIC_API_NAMES:
             # avoid undeclared builtin errors in PSyIR by adding a
             # wildcard use statement.
-            fp2_tree = parse_fp2(filename)
+            fp2_tree = parse_fp2(filename, ignore_comments=not keep_comments)
             # Choose a module name that is invalid Fortran so that it
             # does not clash with any existing names in the algorithm
             # layer.
             builtins_module_name = "_psyclone_builtins"
             add_builtins_use(fp2_tree, builtins_module_name)
-            psyir = Fparser2Reader().generate_psyir(fp2_tree)
+            psyir = Fparser2Reader(ignore_directives=not keep_directives).\
+                generate_psyir(fp2_tree)
             # Check that there is only one module/program per file.
             check_psyir(psyir, filename)
         else:
@@ -512,6 +518,14 @@ def main(arguments):
         "--log-file", default=None,
         help="sets the output file to use for logging (defaults to stderr)."
     )
+    parser.add_argument(
+        "--keep-comments", default=False, action="store_true",
+        help="keeps comments from the original code (defaults to False)."
+    )
+    parser.add_argument(
+        "--keep-directives", default=False, action="store_true",
+        help="keeps directives from the original code (defaults to False)."
+    )
 
     args = parser.parse_args(arguments)
 
@@ -588,10 +602,17 @@ def main(arguments):
         print(str(err), file=sys.stderr)
         sys.exit(1)
 
+    if args.keep_directives and not args.keep_comments:
+        logger.warning("keep_directives requires keep_comments so "
+                       "PSyclone enabled keep_comments.")
+        args.keep_comments = True
+
     if not args.psykal_dsl:
         code_transformation_mode(input_file=args.filename,
                                  recipe_file=args.script,
                                  output_file=args.o,
+                                 keep_comments=args.keep_comments,
+                                 keep_directives=args.keep_directives,
                                  line_length=args.limit)
     else:
         # PSyKAl-DSL mode
@@ -619,7 +640,9 @@ def main(arguments):
                                 line_length=(args.limit == 'all'),
                                 distributed_memory=args.dist_mem,
                                 kern_out_path=kern_out_path,
-                                kern_naming=args.kernel_renaming)
+                                kern_naming=args.kernel_renaming,
+                                keep_comments=args.keep_comments,
+                                keep_directives=args.keep_directives)
         except NoInvokesError:
             _, exc_value, _ = sys.exc_info()
             print(f"Warning: {exc_value}")
@@ -729,6 +752,7 @@ def add_builtins_use(fp2_tree, name):
 
 
 def code_transformation_mode(input_file, recipe_file, output_file,
+                             keep_comments: bool, keep_directives: bool,
                              line_length="off"):
     ''' Process the input_file with the recipe_file instructions and
     store it in the output_file.
@@ -743,6 +767,9 @@ def code_transformation_mode(input_file, recipe_file, output_file,
     :type input_file: Optional[str | os.PathLike]
     :param output_file: the output file where to store the resulting code.
     :type output_file: Optional[str | os.PathLike]
+    :param keep_comments: whether to keep comments from the original source.
+    :param keep_directives: whether to keep directives from the original
+                            source.
     :param str line_length: set to "output" to break the output into lines
         of 123 chars, and to "all", to additionally check the input code.
 
@@ -768,7 +795,9 @@ def code_transformation_mode(input_file, recipe_file, output_file,
                     sys.exit(1)
 
         # Parse file
-        psyir = FortranReader(resolve_modules=resolve_mods)\
+        psyir = FortranReader(resolve_modules=resolve_mods,
+                              ignore_comments=not keep_comments,
+                              ignore_directives=not keep_directives)\
             .psyir_from_file(input_file)
 
         # Modify file
