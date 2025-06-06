@@ -168,8 +168,9 @@ def test_ad_array_init_wrong_data_type(monkeypatch):
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
             scalar_arg, metadata.iterates_over, 0)._init_scalar(scalar_arg)
-    assert (f"Expected one of {const.VALID_ARRAY_DATA_TYPES} as the ScalarArray "
-            f"data type but got 'gh_double'." in str(excinfo.value))
+    assert (f"Expected one of {const.VALID_ARRAY_DATA_TYPES} as the "
+            f"ScalarArray data type but got "
+            f"'gh_double'." in str(excinfo.value))
 
 
 def test_ad_array_type_no_write():
