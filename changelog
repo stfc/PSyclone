@@ -1,3 +1,8 @@
+   34) pr #3016 for #3015. Apply doxygen -u to update doxygen config file.
+
+   33) PR #3019. Adds deprecated classes for old-style Dynamo0p3 transformation
+   names.
+
    32) PR #3011 for #2968. Add semantic navigation methods to Operations and
    update indices/arguments/clauses methods to return tuples.
 
