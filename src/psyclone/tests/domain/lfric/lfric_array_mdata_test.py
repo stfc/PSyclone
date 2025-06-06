@@ -291,7 +291,7 @@ def test_n_not_integer():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert ("the array notation must be in the format 'n' "
+    assert ("the ScalarArray notation must be in the format 'n' "
             "where 'n' is an integer, but '0.5' was found in "
             "'arg_type(gh_scalar_array, gh_real, gh_read, 0.5)'."
             in str(excinfo.value))
@@ -307,7 +307,7 @@ def test_n_less_than_one():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert ("the array notation must be in the format 'n' "
+    assert ("the ScalarArray notation must be in the format 'n' "
             "where 'n' is an integer >= 1. However, found n = '0' in "
             "'arg_type(gh_scalar_array, gh_real, gh_read, 0)'."
             in str(excinfo.value))
