@@ -614,12 +614,34 @@ class ArrayType(DataType):
 
         :param lower: the lower bound of the array dimension.
         :type lower: :py:class:`psyclone.psyir.nodes.DataNode`
-        :param upper: the upper bound of the array dimension.
-        :type upper: :py:class:`psyclone.psyir.nodes.DataNode`
+        :param upper: the upper bound of the array dimension or None if
+                      unspecified.
+        :type upper: Union[:py:class:`psyclone.psyir.nodes.DataNode` | None]
         '''
         # Have to use Any here as using DataNode causes a circular dependence.
         lower: Any
         upper: Any
+
+        def __post_init__(self):
+            '''
+            Adds validation of the values provided to the constructor.
+
+            :raises TypeError: if either bound is not a DataNode (or None for
+                               the upper bound).
+            '''
+            # pylint: disable-next=import-outside-toplevel
+            from psyclone.psyir.nodes import DataNode
+            for bnd in [self.lower, self.upper]:
+            if not isinstance(self.lower, DataNode):
+                raise TypeError(
+                    f"The lower bound provided when constructing an "
+                    f"ArrayBounds must be an instance of DataNode but got "
+                    f"'{type(self.lower).__name__}'")
+            if self.upper is not None and not isinstance(self.upper, DataNode):
+                raise TypeError(
+                    f"The upper bound provided when constructing an "
+                    f"ArrayBounds must be an instance of DataNode or None but "
+                    f"got '{type(self.upper).__name__}'")
 
     def __init__(self, datatype, shape):
 
