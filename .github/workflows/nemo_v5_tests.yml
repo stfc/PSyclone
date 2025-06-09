@@ -71,6 +71,8 @@ jobs:
         # than the latest release from pypi.
         # pip install external/fparser
         pip install .
+        git clone https://forge.nemo-ocean.eu/nemo/nemo.git nemo_5.0 --branch 5.0 --single-branch
+        git clone https://forge.nemo-ocean.eu/nemo/nemo.git nemo_main --branch main --single-branch
 
     # PSyclone passthrough for 5.0-beta of NEMO.
     - name: NEMO 5.0 gfortran passthrough
@@ -174,18 +176,20 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=${HOME}/${NEMODIR_NAME}
+        export NEMO_DIR=${PWD}/nemo_5.0
         export TEST_DIR=BENCH_OMP_THREADING_GCC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-fdefault-real-8 -O2 -fcray-pointer -ffree-line-length-none -g -fopenmp"
+        export PSYCLONE_COMPILER=$MPIF90
+        export MPIF90=psyclonefc
+        export PSYCLONE_OPTS="-l output -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py"
 
         # Clean up and compile
         rm -rf tests/${TEST_DIR}
-        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py \
-          add_key "key_nosignedzero" -j 4 -v 1
+        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} add_key "key_nosignedzero" -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
@@ -211,7 +215,7 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=${HOME}/${NEMODIR_NAME}
+        export NEMO_DIR=${PWD}/nemo_5.0
         export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
@@ -219,11 +223,13 @@ jobs:
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export PSYCLONE_COMPILER=$MPIF90
+        export MPIF90=psyclonefc
+        export PSYCLONE_OPTS="-l output -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py"
 
         # Clean up and compile
         rm -rf tests/${TEST_DIR}
-        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
-          -j 4 -v 1
+        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
@@ -239,6 +245,17 @@ jobs:
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "NEMOv5 OpenMP for GPU (BENCH)", nemo_version: "NEMOv5", system: "GlaDos",
           compiler:"nvhpc-24.11" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
+
+        # Repeat it with nemo-upstream (we can not compare the results because things may change
+        # in upstream, but it is good to have early warnings if things break with new code)
+        export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC
+        export NEMO_DIR=${PWD}/nemo_upstream
+        cd $NEMO_DIR
+        rm -rf tests/${TEST_DIR}
+        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -j 4 -v 1
+        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
 
     - name: NEMO 5.0 nvidia OpenMP for GPUs (UKMO ORCA1 - managed memory)
       run: |

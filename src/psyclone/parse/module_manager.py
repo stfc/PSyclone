@@ -232,8 +232,11 @@ class ModuleManager:
             finfo: FileInfo
             # We only proceed to read a file to check for a module if its
             # name is sufficiently similar to that of the module.
-            score = SequenceMatcher(None,
-                                    finfo.basename, name).ratio()
+            filename = finfo.basename
+            # We don't want to reduce the similarity score for 'psycloned'
+            # substrings so we delete it from the comparison
+            filename.replace('psycloned', '')
+            score = SequenceMatcher(None, filename, name).ratio()
             if score > self._threshold_similarity:
                 mod_names = self.get_modules_in_file(finfo)
                 if name in mod_names:

@@ -81,16 +81,24 @@ def compiler_wrapper(arguments):
     '''
     fortran_compiler = os.getenv("PSYCLONE_COMPILER", default=None)
     psyclone_options = os.getenv("PSYCLONE_OPTS", default="").split(' ')
-    psyclone_options.remove("")
+
+    # Validate mandatory PSYCLONE_COMPILER
     if fortran_compiler is None:
         sys.exit(
             'psyclonefc error: PSYCLONE_COMPILER environment variable not '
             'found!')
     new_compiler_command = [fortran_compiler]
 
-    # Capture the dirctory where the .mod files are written to because this is
-    # also where we place the output psyclone file (so following invokations
-    # with -I finds them).
+    # Allow PSYCLONE_OPTS to be an empty string, and remove any other empty
+    # strings cause by multi-spaces gaps.
+    try:
+        psyclone_options.remove("")
+    except ValueError:
+        pass
+
+    # Capture the dirctory where the .mod files are written because this is
+    # also where we want to place the output psyclone file (so following
+    # -I search_path finds them).
     output_dir = Path.cwd()
     for idx, argument in enumerate(arguments):
         if argument.endswith("-J"):
@@ -98,13 +106,16 @@ def compiler_wrapper(arguments):
             if not mod_path:
                 mod_path = arguments[idx + 1]
             output_dir = Path(output_dir, mod_path)
+    # TODO: output_dir is currently ignored, this is not a problem for NEMO
+    # because it all goes to the same directory (BLD/tmp), following psyclone
+    # command will find the modules due to the implied "-I ."
 
     for argument in arguments:
         if argument.endswith(FORTRAN_EXTENSIONS):
-            # For each intercepted Fortran file:
-            print(f"PSycloning {argument}")
-
             # 1) Run the preprocessor
+            # TODO: preprocessing is currently ignored, this is not a problem
+            # for NEMO because the build system already splits the step and the
+            # compiler command already gets preprocessed files
             # result = subprocess.run(new_compiler_command, check=False)
             # sys.exit(result.returncode)
 
@@ -113,7 +124,7 @@ def compiler_wrapper(arguments):
             suffix = Path(argument).suffix
             output = f"{stem}.psycloned{suffix}"
             psyclone_args = psyclone_options + ['-o', output, argument]
-            print(psyclone_args)
+            print("psyclone " + ' '.join(psyclone_args))
             main(psyclone_options + ['-o', output, argument])
 
             # 3) Replace the fortran file in the compiler command with the
@@ -123,5 +134,6 @@ def compiler_wrapper(arguments):
             new_compiler_command.append(argument)
 
     # Run the compiler and propagate error code
+    print(' '.join(new_compiler_command))
     result = subprocess.run(new_compiler_command, check=False)
     sys.exit(result.returncode)
