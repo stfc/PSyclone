@@ -610,13 +610,14 @@ class ArrayType(DataType):
     @dataclass(frozen=True)
     class ArrayBounds:
         '''
-        Class to store lower and upper limits of an array dimension.
+        Class to store lower and upper limits of a declared array dimension.
 
         :param lower: the lower bound of the array dimension.
         :type lower: :py:class:`psyclone.psyir.nodes.DataNode`
-        :param upper: the upper bound of the array dimension or None if
-                      unspecified.
-        :type upper: Union[:py:class:`psyclone.psyir.nodes.DataNode` | None]
+        :param upper: the upper bound of the array dimension or
+             ArrayType.Extent.ATTRIBUTE if unspecified.
+        :type upper: Union[:py:class:`psyclone.psyir.nodes.DataNode`,
+            `psyclone.psyir.symbols.datatypes.ArrayType.Extent.ATTRIBUTE]
         '''
         # Have to use Any here as using DataNode causes a circular dependence.
         lower: Any
@@ -626,8 +627,8 @@ class ArrayType(DataType):
             '''
             Adds validation of the values provided to the constructor.
 
-            :raises TypeError: if either bound is not a DataNode (or None for
-                               the upper bound).
+            :raises TypeError: if either bound is not a DataNode (or
+                               ArrayType.Extent.ATTRIBUTE for the upper bound).
             '''
             # pylint: disable-next=import-outside-toplevel
             from psyclone.psyir.nodes import DataNode
@@ -636,7 +637,8 @@ class ArrayType(DataType):
                     f"The lower bound provided when constructing an "
                     f"ArrayBounds must be an instance of DataNode but got "
                     f"'{type(self.lower).__name__}'")
-            if self.upper is not None and not isinstance(self.upper, DataNode):
+            if (self.upper != ArrayType.Extent.ATTRIBUTE and
+                    not isinstance(self.upper, DataNode)):
                 raise TypeError(
                     f"The upper bound provided when constructing an "
                     f"ArrayBounds must be an instance of DataNode or None but "
