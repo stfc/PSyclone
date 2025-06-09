@@ -776,17 +776,20 @@ class IntrinsicCall(Call):
             device (or its compiler-platform family).
         :returns: whether this intrinsic is available on an accelerated device.
 
+        :raises ValueError: if the provided 'device_string' is not one of the
+            supported values.
+
         '''
         if not device_string:
             return self.intrinsic in DEFAULT_DEVICE_INTRINISCS
         if device_string == "nvfortran-all":
             return self.intrinsic in NVFORTRAN_ALL
-        if device_string == "nvfortran-repr":
-            return self.intrinsic in NVFORTRAN_REPRODUCIBLE
+        if device_string == "nvfortran-uniform":
+            return self.intrinsic in NVFORTRAN_UNIFORM
 
         raise ValueError(
             f"Unsupported device_string value '{device_string}', the supported"
-            " values are '' (default), 'nvfortran-all', 'nvfortran-repr'")
+            " values are '' (default), 'nvfortran-all', 'nvfortran-uniform'")
 
     @classmethod
     def create(cls, intrinsic, arguments=()):
@@ -950,9 +953,9 @@ class IntrinsicCall(Call):
         return self.intrinsic.is_inquiry
 
 
-# Intrinsics available on nvidia gpus with reproducible results when
+# Intrinsics available on nvidia gpus with uniform (CPU and GPU) results when
 # compiled with the nvfortran "-gpu=uniform_math" flag
-NVFORTRAN_REPRODUCIBLE = (
+NVFORTRAN_UNIFORM = (
     IntrinsicCall.Intrinsic.ABS,  IntrinsicCall.Intrinsic.ACOS,
     IntrinsicCall.Intrinsic.AINT, IntrinsicCall.Intrinsic.ANINT,
     IntrinsicCall.Intrinsic.ASIN, IntrinsicCall.Intrinsic.ATAN,
@@ -975,7 +978,7 @@ NVFORTRAN_REPRODUCIBLE = (
 )
 
 # All nvfortran intrinsics available on GPUs
-NVFORTRAN_ALL = NVFORTRAN_REPRODUCIBLE + (
+NVFORTRAN_ALL = NVFORTRAN_UNIFORM + (
     IntrinsicCall.Intrinsic.LOG10, IntrinsicCall.Intrinsic.REAL)
 
 # For now the default intrinsics availabe on GPU are the same as nvfortran-all

@@ -161,17 +161,17 @@ def test_intrinsiccall_is_available_on_device(intrinsic, result):
 
 def test_intrinsiccall_is_available_on_device_with_device_string():
     '''Tests that the is_available_on_device() method with a device_string
-    argument provides different results with the 'nvfortran-reprod'
+    argument provides different results with the 'nvfortran-uniformod'
     '''
     intrinsic_call = IntrinsicCall(IntrinsicCall.Intrinsic.LOG10)
-    assert not intrinsic_call.is_available_on_device("nvfortran-repr")
+    assert not intrinsic_call.is_available_on_device("nvfortran-uniform")
     intrinsic_call = IntrinsicCall(IntrinsicCall.Intrinsic.REAL)
-    assert not intrinsic_call.is_available_on_device("nvfortran-repr")
+    assert not intrinsic_call.is_available_on_device("nvfortran-uniform")
 
     with pytest.raises(ValueError) as err:
         assert not intrinsic_call.is_available_on_device("invalid")
     assert ("Unsupported device_string value 'invalid', the supported values"
-            " are '' (default), 'nvfortran-all', 'nvfortran-repr'"
+            " are '' (default), 'nvfortran-all', 'nvfortran-uniform'"
             in str(err.value))
 
 

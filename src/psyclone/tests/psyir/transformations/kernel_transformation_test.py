@@ -429,10 +429,9 @@ def test_gpumixin_validate_no_call():
         IntrinsicCall.create(IntrinsicCall.Intrinsic.GET_COMMAND))
     with pytest.raises(TransformationError) as err:
         rtrans.validate(kernel)
-    assert ("Kernel 'testkern_with_call_code' calls another routine "
-            "'GET_COMMAND()' which is not available on the accelerator device "
-            "and therefore cannot have ACCRoutineTrans applied to it "
-            "(TODO #342)."
+    assert ("Kernel 'testkern_with_call_code' calls intrinsic 'GET_COMMAND' "
+            "which is not available by default. Use the 'device_string' "
+            "option to specify a different device."
             in str(err.value))
 
 
@@ -475,15 +474,15 @@ def test_kernel_gpu_annotation_device_id(rtrans, fortran_reader):
     # But not if we are targeting "nvidia-repr" or an invalid device
     with pytest.raises(TransformationError) as err:
         rtrans.validate(routine, options={'device_string':
-                                          'nvfortran-repr'})
-    assert ("routine 'myfunc' calls another routine 'REAL(a)' which is not "
-            "available on the accelerator device"
-            in str(err.value))
+                                          'nvfortran-uniform'})
+    assert ("routine 'myfunc' calls intrinsic 'REAL' which is not available in"
+            " 'nvfortran-uniform'. Use the 'device_string' option to specify a"
+            " different device." in str(err.value))
     with pytest.raises(ValueError) as err:
         rtrans.validate(routine, options={'device_string':
                                           'unknown-device'})
     assert ("Unsupported device_string value 'unknown-device', the supported "
-            "values are '' (default), 'nvfortran-all', 'nvfortran-repr'"
+            "values are '' (default), 'nvfortran-all', 'nvfortran-uniform'"
             in str(err.value))
 
 

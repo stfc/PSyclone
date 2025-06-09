@@ -152,6 +152,8 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         :type node: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param str options["device_string"]: provide a compiler-platform
+            identifier.
 
         :raises TransformationError: if it contains calls to routines that
             are not available in the accelerator device.
@@ -190,6 +192,8 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         :type options: Optional[Dict[str,Any]]
         :param bool options["nowait"]: whether to add a nowait clause and a
             corresponding barrier to enable asynchronous execution.
+        :param str options["device_string"]: provide a compiler-platform
+            identifier.
 
         '''
         if not options:

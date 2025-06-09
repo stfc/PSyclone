@@ -161,7 +161,7 @@ def test_omptargettrans_validate(fortran_reader):
     # But not if we are targeting "nvidia-repr" or an invalid device
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[3], options={'device_string':
-                                                   'nvfortran-repr'})
+                                                   'nvfortran-uniform'})
     assert ("'LOG10' is not available on the accelerator device, and therefore"
             " it cannot be called from within an OMP Target region"
             in str(err.value))
@@ -169,7 +169,7 @@ def test_omptargettrans_validate(fortran_reader):
         omptargettrans.validate(loops[3], options={'device_string':
                                                    'unknown-device'})
     assert ("Unsupported device_string value 'unknown-device', the supported "
-            "values are '' (default), 'nvfortran-all', 'nvfortran-repr'"
+            "values are '' (default), 'nvfortran-all', 'nvfortran-uniform'"
             in str(err.value))
 
 
