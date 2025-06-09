@@ -540,7 +540,7 @@ def main(arguments):
                   "specify the output destination of each psykal layer.")
             sys.exit(1)
 
-    # This has be be before the Config.get, because otherwise that creates a
+    # This has to be before the Config.get, because otherwise that creates a
     # ModuleManager Singleton without caching
     _ = ModuleManager.get(cache_active=args.enable_cache)
 
