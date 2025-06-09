@@ -37,7 +37,7 @@
 '''Module for Kernels in the LFRic domain.'''
 
 
-from psyclone.domain.lfric.kernel.array_arg_metadata import \
+from psyclone.domain.lfric.kernel.scalar_array_arg_metadata import \
     ScalarArrayArgMetadata
 from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
     ColumnwiseOperatorArgMetadata
