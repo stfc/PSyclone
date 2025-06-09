@@ -74,6 +74,7 @@ from psyclone.psyir.transformations import DebugChecksumTrans
 ACC_DATA_TRANS = TransInfo().get_trans_name('ACCDataTrans')
 DEBUG_CHECKSUM_TRANS = DebugChecksumTrans()
 
+
 def trans(psyir):
     ''' Applies OpenACC 'kernels' and 'data' directives to NEMO code.
 
@@ -96,6 +97,5 @@ def trans(psyir):
         # a data region. In reality we would want to try and make the data
         # regions bigger but this is only an example.
         for directive in directives:
-            #ACC_DATA_TRANS.apply([directive])
+            # ACC_DATA_TRANS.apply([directive])
             DEBUG_CHECKSUM_TRANS.apply([directive])
-        

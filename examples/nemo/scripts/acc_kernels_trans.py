@@ -75,7 +75,6 @@ from psyclone.psyir.nodes import (
     Routine,
     Literal,
     ACCLoopDirective,
-    ACCDirective,
     IntrinsicCall,
 )
 from psyclone.psyir.transformations import (
@@ -296,7 +295,7 @@ def valid_acc_kernel(node):
             if (
                     enode.loop_type == "levels"
                     and len(enode.loop_body.children) > 1
-                    ):
+            ):
                 # The body of the loop contains more than one statement.
                 # How many distinct loop nests are there?
                 loop_count = 0
@@ -430,9 +429,9 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
     logging.basicConfig(
-            filename="psyclone.log",
-            filemode="w", level=logging.INFO
-            )
+        filename="psyclone.log",
+        filemode="w", level=logging.INFO
+    )
 
     for subroutine in psyir.walk(Routine):
         print(f"Transforming subroutine: {subroutine.name}")
@@ -450,19 +449,19 @@ def trans(psyir):
             enhance_tree_information(subroutine)
             # inline_calls(subroutine)
             have_kernels = add_kernels(subroutine.children)
-            if have_kernels: 
-            #if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
+            if have_kernels:
+                # if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
                 directives = subroutine.walk(ACCKernelsDirective)
                 for directive in directives:
-                    #ACC_DATA_TRANS.apply([directive])
+                    # ACC_DATA_TRANS.apply([directive])
                     CHECKSUM_TRANS.apply([directive])
                 print(f"Transforming {subroutine.name} with acc checksum")
-                #ACC_EDATA_TRANS.apply(subroutine)
+                # ACC_EDATA_TRANS.apply(subroutine)
         else:
             print(
-                    f"Addition of OpenACC to routine {subroutine.name} "
-                    f"disabled!"
-                    )
+                f"Addition of OpenACC to routine {subroutine.name} "
+                f"disabled!"
+            )
 
         # Add required OpenACC update directives to every routine, including to
         # those with no device code and that execute exclusively on the host
@@ -473,7 +472,7 @@ def trans(psyir):
         # Add profiling instrumentation
         if PROFILE_NONACC:
             print(
-                    f"Adding profiling to non-OpenACC regions in "
-                    f"{subroutine.name}"
-                    )
+                f"Adding profiling to non-OpenACC regions in "
+                f"{subroutine.name}"
+            )
             add_profiling(subroutine.children)

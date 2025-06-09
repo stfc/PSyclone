@@ -45,8 +45,12 @@ from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin
 )
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, PreprocessorInterface, ScalarType, UnsupportedType, UnresolvedType
-)
+    DataSymbol,
+    INTEGER_TYPE,
+    PreprocessorInterface,
+    ScalarType,
+    UnsupportedType,
+    UnresolvedType)
 from psyclone.psyir.transformations.region_trans import RegionTrans
 
 
@@ -101,6 +105,7 @@ PSYCLONE_INTERNAL_line_ + 1
     <BLANKLINE>
 
     '''
+
     def apply(self, node: Union[Node, List[Node]], options=None) -> None:
         '''
         Applies the checksum transformation to the provided node(s).
@@ -146,16 +151,27 @@ PSYCLONE_INTERNAL_line_ + 1
                         multiple_arrays = True
                     member = member.member
                 datatype = assign.lhs.datatype
-                while not isinstance(datatype, (ScalarType, UnsupportedType, UnresolvedType)):
+                while not isinstance(
+                        datatype, (ScalarType, UnsupportedType,
+                                   UnresolvedType)):
                     datatype = datatype.datatype
                 # If the final member is the only array, and its a supported
                 # datatype then we add it to the writes.
-                if (member.is_array and  (not isinstance(datatype, (UnsupportedType, UnresolvedType))) and datatype.intrinsic in
-                        [ScalarType.Intrinsic.REAL,
-                         ScalarType.Intrinsic.INTEGER] and
-                        not multiple_arrays):
+                if (
+                    member.is_array and (
+                        not isinstance(
+                            datatype,
+                            (UnsupportedType,
+                             UnresolvedType))) and datatype.intrinsic in [
+                        ScalarType.Intrinsic.REAL,
+                        ScalarType.Intrinsic.INTEGER]
+                        and not multiple_arrays):
                     writes.append(assign.lhs)
-            elif (assign.lhs.is_array and (not isinstance(assign.lhs.datatype, (UnsupportedType, UnresolvedType))) and assign.lhs.datatype.intrinsic in [ScalarType.Intrinsic.REAL, ScalarType.Intrinsic.INTEGER]):
+            elif (assign.lhs.is_array and
+                  (not isinstance(assign.lhs.datatype,
+                                  (UnsupportedType, UnresolvedType)))
+                  and assign.lhs.datatype.intrinsic in
+                  [ScalarType.Intrinsic.REAL, ScalarType.Intrinsic.INTEGER]):
                 writes.append(assign.lhs)
 
         # For each write, add a checksum after.
@@ -175,17 +191,17 @@ PSYCLONE_INTERNAL_line_ + 1
             else:
                 array_bit = copy
             # Need to convert the lhs to a full range variant.
-            if hasattr( array_bit, "indices"):
-                #import pdb; pdb.set_trace()
+            if hasattr(array_bit, "indices"):
+                # import pdb; pdb.set_trace()
                 for i in range(len(array_bit.indices)):
-                    if isinstance (array_bit.indices[i], Node):
+                    if isinstance(array_bit.indices[i], Node):
                         new_index = array_bit.get_full_range(i)
                         array_bit.indices[i].replace_with(new_index)
             array = fwriter(copy)
 
             checksum = freader.psyir_from_statement(
-                    f'print *, "{name} checksum", SUM({array})',
-                    node_list[0].ancestor(Routine).symbol_table)
+                f'print *, "{name} checksum", SUM({array})',
+                node_list[0].ancestor(Routine).symbol_table)
             # Remove the comment about this being a code block.
             checksum.preceding_comment = ""
             checksum_nodes.append(checksum)
@@ -201,29 +217,29 @@ PSYCLONE_INTERNAL_line_ + 1
 
         parent = node_list[-1].parent
         for node in checksum_nodes:
-            parent.addchild(node, position+1)
+            parent.addchild(node, position + 1)
 
         # Add a symbol to store the line number in PSyclone. This is needed as
         # fparser can't process __LINE__, so we can't use that in the print
         # statement. Instead we create an assignment with this symbol and
         # __LINE__, and use the internal symbol to create the print statement.
         internal_line = routine_table.find_or_create(
-                "PSYCLONE_INTERNAL_line_", symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE,
-                )
+            "PSYCLONE_INTERNAL_line_", symbol_type=DataSymbol,
+            datatype=INTEGER_TYPE,
+        )
         line = routine_table.find_or_create(
-                "__LINE__", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-                interface=PreprocessorInterface())
+            "__LINE__", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            interface=PreprocessorInterface())
         # Tell us where we are to output the checksums.
         explanation_statement = freader.psyir_from_statement(
-                f'print *, "PSyclone checksums from '
-                f'{node_list[0].ancestor(Routine).name} at line:"'
-                f', PSYCLONE_INTERNAL_line_ + 1',
-                routine_table
-                )
+            f'print *, "PSyclone checksums from '
+            f'{node_list[0].ancestor(Routine).name} at line:"'
+            f', PSYCLONE_INTERNAL_line_ + 1',
+            routine_table
+        )
         # Remove the comment about this being a code block.
         explanation_statement.preceding_comment = \
             "PSyclone DebugChecksumTrans-generated checksums"
         assign = Assignment.create(Reference(internal_line), Reference(line))
-        parent.addchild(explanation_statement, position+1)
-        parent.addchild(assign, position+1)
+        parent.addchild(explanation_statement, position + 1)
+        parent.addchild(assign, position + 1)
