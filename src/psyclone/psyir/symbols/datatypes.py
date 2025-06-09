@@ -631,7 +631,6 @@ class ArrayType(DataType):
             '''
             # pylint: disable-next=import-outside-toplevel
             from psyclone.psyir.nodes import DataNode
-            for bnd in [self.lower, self.upper]:
             if not isinstance(self.lower, DataNode):
                 raise TypeError(
                     f"The lower bound provided when constructing an "
