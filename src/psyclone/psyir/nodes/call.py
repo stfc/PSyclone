@@ -37,7 +37,7 @@
 ''' This module contains the Call node implementation.'''
 
 from collections.abc import Iterable
-from typing import List
+from typing import List, Tuple
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap
@@ -355,14 +355,14 @@ class Call(Statement, DataNode):
         return None
 
     @property
-    def arguments(self) -> List[DataNode]:
+    def arguments(self) -> Tuple[DataNode]:
         '''
         :returns: the children of this node that represent its arguments.
         :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
         '''
         if len(self._children) >= 2:
-            return self.children[1:]
-        return []
+            return tuple(self.children[1:])
+        return ()
 
     @property
     def is_elemental(self):

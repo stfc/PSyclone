@@ -7991,3 +7991,29 @@ def test_colour_trans_tiled_continuous_writer_intergrid(dist_mem):
     # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
     # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_deprecated_names(capsys):
+    '''
+    Check that the old Dynamo0p3-based transformation names are still
+    accepted, but will print a deprecation message when they are
+    instantiated.
+    '''
+
+    # Since these names are deprecated, they are imported in this one test
+    # only, to make it easier to remove them later all at once
+    # pylint: disable=no-name-in-module, import-outside-toplevel
+    from psyclone.transformations import (
+        Dynamo0p3OMPParallelLoopTrans, Dynamo0p3OMPLoopTrans,
+        Dynamo0p3ColourTrans, Dynamo0p3RedundantComputationTrans,
+        Dynamo0p3AsyncHaloExchangeTrans)
+    for trans_cls in [Dynamo0p3OMPParallelLoopTrans, Dynamo0p3OMPLoopTrans,
+                      Dynamo0p3ColourTrans, Dynamo0p3RedundantComputationTrans,
+                      Dynamo0p3AsyncHaloExchangeTrans]:
+        old_name = trans_cls.__name__
+        new_name = old_name.replace("Dynamo0p3", "LFRic")
+        _ = trans_cls()
+        out, _ = capsys.readouterr()
+        assert (f"Deprecation warning: the script uses the legacy name "
+                f"'{old_name}', please use new name "
+                f"'{new_name}' instead.") in out
