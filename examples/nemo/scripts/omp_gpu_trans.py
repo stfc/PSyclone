@@ -164,7 +164,8 @@ def trans(psyir):
                 subroutine,
                 hoist_local_arrays=False,
                 convert_array_notation=True,
-                loopify_array_intrinsics=True,
+                # See issue #3022
+                loopify_array_intrinsics=psyir.name != "getincom.f90",
                 convert_range_loops=True,
                 hoist_expressions=True
         )
