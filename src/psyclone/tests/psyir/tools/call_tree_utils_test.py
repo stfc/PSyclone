@@ -575,7 +575,7 @@ def test_call_tree_utils_inout_parameters_generic(fortran_reader):
     read_write_info = ReadWriteInfo()
     ctu.get_input_parameters(read_write_info, loops,
                              include_non_data_accesses=True)
-    input_set = set(sig for _, sig in read_write_info.set_of_all_used_vars)
+    input_set = set(sig for _, sig in read_write_info.all_used_vars_list)
     assert input_set == set([Signature("b"), Signature("c"),
                              Signature("jpj"), Signature("dummy")])
 
