@@ -258,7 +258,6 @@ def test_lfric_driver_dm_test():
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
     code = psy.gen
-    print(code)
     filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
@@ -520,7 +519,6 @@ def test_lfric_driver_field_array_inc():
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
     code = psy.gen
-    print(code)
     for idx in range(1, 4):
         assert f'ProvideVariable("chi_{idx}_data", chi_{idx}_data)' in code
     assert 'ProvideVariable("f1_data", f1_data)' in code
