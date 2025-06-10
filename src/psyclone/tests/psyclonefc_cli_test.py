@@ -1,8 +1,8 @@
-#!/usr/bin/env python
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council
+# Copyright (c) 2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,25 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+# Author: S. Siso, STFC Daresbury Lab
 
-''' Entry point for the psyclone command. '''
+''' Test for the psyclonefc command '''
 
-import sys
-from psyclone.generator import main
+import pytest
+import os
+from psyclone.psyclonefc_cli import compiler_wrapper
 
-if __name__ == "__main__":
-    main(sys.argv[1:])
+
+def test_psyclonefc_errors(monkeypatch):
+    ''' '''
+    with pytest.raises(SystemExit) as err:
+        compiler_wrapper([])
+    assert ("psyclonefc error: PSYCLONE_COMPILER environment variable not "
+            "found!" in str(err.value))
+
+    # This will work, 'true' always returns a successful errcode 0
+    monkeypatch.setattr(os, 'environ', {'PSYCLONE_COMPILER': 'true'})
+    with pytest.raises(SystemExit) as err:
+        compiler_wrapper([])
+    # This is a successful exit
+    assert err.value.code == 0

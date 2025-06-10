@@ -164,7 +164,8 @@ def trans(psyir):
                 subroutine,
                 hoist_local_arrays=False,
                 convert_array_notation=True,
-                loopify_array_intrinsics=True,
+                # See issue #3022
+                loopify_array_intrinsics=psyir.name != "getincom.f90",
                 convert_range_loops=True,
                 hoist_expressions=True
         )
@@ -176,7 +177,7 @@ def trans(psyir):
         # annotate them with 'omp declare target'
         if (
             subroutine.name.lower().startswith("sign_")
-            or subroutine.name.lower() == "solfrac"
+            # or subroutine.name.lower() == "solfrac"
             # Important for performance but causes SIGNAL 11 in some cases
             # or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
         ):
