@@ -83,8 +83,6 @@ SKIP_FOR_PERFORMANCE = [
 ]
 
 OFFLOADING_ISSUES = [
-    # Compilation issues with module arrays
-    "solfrac.f90",
     # Produces different output results
     "zdftke.f90",
     # The following issues only affect BENCH (because ice is enabled?)
@@ -179,7 +177,7 @@ def trans(psyir):
         # annotate them with 'omp declare target'
         if (
             subroutine.name.lower().startswith("sign_")
-            or subroutine.name.lower() == "solfrac"
+            # or subroutine.name.lower() == "solfrac"
             # Important for performance but causes SIGNAL 11 in some cases
             # or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
         ):
