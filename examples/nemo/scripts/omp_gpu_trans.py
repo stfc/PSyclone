@@ -83,6 +83,8 @@ SKIP_FOR_PERFORMANCE = [
 ]
 
 OFFLOADING_ISSUES = [
+    # Compilation issues with module arrays
+    "solfrac.f90",
     # Produces different output results
     "zdftke.f90",
     # The following issues only affect BENCH (because ice is enabled?)
