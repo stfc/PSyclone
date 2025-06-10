@@ -577,11 +577,12 @@ class ArrayType(DataType):
     class Extent(Enum):
         '''
         Enumeration of array shape extents that are unspecified at compile
-        time. An 'ATTRIBUTE' extent means that the lower bound is 1 with an
-        unknown extent (which can be retrieved with appropriate run-time
-        intrinsics). A 'DEFERRED' extent means that we don't know anything
-        about the bounds, and run-time intrinsics may or may not be able
-        to retrieve them (e.g. the array may need to be allocated/malloc'd).
+        time. An 'ATTRIBUTE' extent means that the lower bound is known
+        (defaults to 1 if not specified) with an unknown extent (which can be
+        retrieved at run-time with the UBOUND intrinsic). A 'DEFERRED' extent
+        means that we don't know anything about the bounds, and run-time
+        intrinsics may or may not be able to retrieve them (e.g. the array may
+        need to be allocated/malloc'd).
 
         '''
         DEFERRED = 1
@@ -617,7 +618,7 @@ class ArrayType(DataType):
         :param upper: the upper bound of the array dimension or
              ArrayType.Extent.ATTRIBUTE if unspecified.
         :type upper: Union[:py:class:`psyclone.psyir.nodes.DataNode`,
-            `psyclone.psyir.symbols.datatypes.ArrayType.Extent.ATTRIBUTE]
+            `psyclone.psyir.symbols.datatypes.ArrayType.Extent.ATTRIBUTE`]
         '''
         # Have to use Any here as using DataNode causes a circular dependence.
         lower: Any
@@ -641,8 +642,9 @@ class ArrayType(DataType):
                     not isinstance(self.upper, DataNode)):
                 raise TypeError(
                     f"The upper bound provided when constructing an "
-                    f"ArrayBounds must be an instance of DataNode or None but "
-                    f"got '{type(self.upper).__name__}'")
+                    f"ArrayBounds must be either ArrayType.Extent.ATTRIBUTE or"
+                    f" an instance of DataNode but got "
+                    f"'{type(self.upper).__name__}'")
 
     def __init__(self, datatype, shape):
 
