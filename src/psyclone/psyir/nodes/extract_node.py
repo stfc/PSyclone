@@ -55,7 +55,6 @@ from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.call import Call
-from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
