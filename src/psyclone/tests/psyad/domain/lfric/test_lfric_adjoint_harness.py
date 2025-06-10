@@ -269,14 +269,14 @@ def test_init_fields_random_vector(type_map):
         assert isinstance(kernels[kidx], LFRicBuiltinFunctor)
         assert kernels[kidx].symbol.name == "setval_random"
         assert kernels[kidx].children[0].symbol.name == "field1"
-        assert kernels[kidx].children[0].indices == [lit]
+        assert kernels[kidx].children[0].indices == (lit,)
         kidx += 1
         assert isinstance(kernels[kidx], LFRicBuiltinFunctor)
         assert kernels[kidx].symbol.name == "setval_x"
         assert kernels[kidx].children[1].symbol.name == "field1"
-        assert kernels[kidx].children[1].indices == [lit]
+        assert kernels[kidx].children[1].indices == (lit,)
         assert kernels[kidx].children[0].symbol.name == "field1_input"
-        assert kernels[kidx].children[0].indices == [lit]
+        assert kernels[kidx].children[0].indices == (lit,)
 
 
 def test_init_fields_random_error():
