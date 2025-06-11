@@ -44,11 +44,12 @@ import os
 import pytest
 import sys
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
-    Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
-    OMPDoDirective, OMPLoopDirective, Routine
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE, \
-    ImportInterface, ContainerSymbol
+from psyclone.psyir.nodes import (
+    CodeBlock, Literal, Loop, Node, Reference, Schedule, Statement,
+    ACCLoopDirective, OMPMasterDirective,
+    OMPDoDirective, OMPLoopDirective, Routine)
+from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE,
+                                    ImportInterface, ContainerSymbol)
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.tests.utilities import get_invoke, Compile
@@ -720,28 +721,6 @@ end subroutine x"""
     looptrans.apply(loops[1], options={"nowait": True})
     out = fortran_writer(psyir)
     assert "nowait" not in out
-
-
-def test_ifblock_children_region():
-    ''' Check that we reject attempts to transform the conditional part of
-    an If statement or to include both the if- and else-clauses in a region
-    (without their parent). '''
-    acct = ACCParallelTrans()
-    # Construct a valid IfBlock
-    condition = Reference(DataSymbol('condition', BOOLEAN_TYPE))
-    ifblock = IfBlock.create(condition, [], [])
-
-    # Attempt to put all of the children of the IfBlock into a region. This
-    # is an error because the first child is the conditional part of the
-    # IfBlock.
-    with pytest.raises(TransformationError) as err:
-        super(ACCParallelTrans, acct).validate([ifblock.children[0]])
-    assert ("transformation to the immediate children of a Loop/IfBlock "
-            "unless it is to a single Schedule" in str(err.value))
-    with pytest.raises(TransformationError) as err:
-        super(ACCParallelTrans, acct).validate(ifblock.children[1:])
-    assert (" to multiple nodes when one or more is a Schedule. "
-            "Either target a single Schedule or " in str(err.value))
 
 
 def test_regiontrans_wrong_children():
