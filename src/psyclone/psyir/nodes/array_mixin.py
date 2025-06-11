@@ -40,6 +40,7 @@
 ''' This module contains the implementation of the abstract ArrayMixin. '''
 
 import abc
+from typing import Tuple
 
 from psyclone.core import SymbolicMaths
 from psyclone.errors import InternalError
@@ -49,6 +50,7 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.member import Member
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
@@ -122,7 +124,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             lists of indices)
         '''
         sig, _ = super().get_signature_and_indices()
-        return (sig, [self.indices[:]])
+        # self.indices now returns a tuple, but we need to return a list here.
+        return (sig, [list(self.indices)])
 
     def _validate_index(self, index):
         '''Utility function that checks that the supplied index is an integer
@@ -131,8 +134,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :param int index: the array index to check.
 
         :raises TypeError: if the index argument is not an integer.
-        :raises ValueError: if the index value is greater than the \
-            number of dimensions in the array (-1).
+        :raises ValueError: if the index value is greater than the
+                            number of dimensions in the array (-1).
 
         '''
         if not isinstance(index, int):
@@ -200,19 +203,19 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         '''
         return self._is_bound(index, "lower")
 
-    def _get_bound_expression(self, pos, bound):
+    def _get_bound_expression(self, pos: int, bound: str):
         '''
         Lookup the upper or lower bound of this ArrayMixin.
 
-        :param int pos: the dimension of the array for which to lookup the
-                        lower bound.
-        :param str bound: "upper" or "lower" - the bound which to lookup.
+        :param pos: the dimension of the array for which to lookup the bound.
+        :param bound: "upper" or "lower" - the bound which to lookup.
 
         :returns: the declared bound for the specified dimension of this array
                   or a call to the {U/L}BOUND intrinsic if it is unknown.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises InternalError: if bound is neither upper or lower.
+        :raises InternalError: if bound is neither "upper" or "lower".
+
         '''
         if bound not in ("upper", "lower"):
             raise InternalError(f"'bound' argument must be 'lower' or 'upper. "
@@ -256,6 +259,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # We have the full type information and the bound is known.
             if bound == "lower":
                 return cursor_type.shape[pos].lower.copy()
+            # If the upper bound is required and is of ArrayType.Extent type
+            # then we'll have to proceed to construct a call to the UBOUND
+            # intrinsic.
             if not isinstance(cursor_type.shape[pos].upper, ArrayType.Extent):
                 return cursor_type.shape[pos].upper.copy()
 
@@ -450,7 +456,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         sym_maths = SymbolicMaths.get()
         return sym_maths.equal(declaration_bound, access_bound)
 
-    def is_same_array(self, node):
+    def is_same_array(self, node) -> bool:
         '''
         Checks that the provided array is the same as this node (including the
         chain of parent accessor expressions if the array is part of a
@@ -458,13 +464,12 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         the innermost member access are ignored, e.g.
         A(3)%B%C(1) will match with A(3)%B%C but not with A(2)%B%C(1)
 
-        :param node: the node representing the access that is to be compared \
+        :param node: the node representing the access that is to be compared
                      with this node.
-        :type node: :py:class:`psyclone.psyir.nodes.Reference` or \
-                    :py:class:`psyclone.psyir.nodes.Member`
+        :type node: Union[:py:class:`psyclone.psyir.nodes.Reference`,
+                          :py:class:`psyclone.psyir.nodes.Member`]
 
         :returns: True if the array accesses match, False otherwise.
-        :rtype: bool
 
         '''
         if not isinstance(node, (Member, Reference)):
@@ -527,13 +532,12 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         return False
 
     @property
-    def indices(self):
+    def indices(self) -> Tuple[Node]:
         '''
         Supports semantic-navigation by returning the list of nodes
         representing the index expressions for this array reference.
 
         :returns: the PSyIR nodes representing the array-index expressions.
-        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
         :raises InternalError: if this node has no children or if they are \
                                not valid array-index expressions.
@@ -551,7 +555,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                     f"{idx} of array '{self.name}' must be a psyir.nodes."
                     f"DataNode or Range representing an array-index "
                     f"expression but found '{type(child).__name__}'")
-        return self.children
+        return tuple(self.children)
 
     def _extent(self, idx):
         '''

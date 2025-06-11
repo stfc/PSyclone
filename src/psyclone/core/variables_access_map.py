@@ -48,80 +48,18 @@ from psyclone.core.single_variable_access_info import SingleVariableAccessInfo
 from psyclone.errors import InternalError
 
 
-class VariablesAccessInfo(dict):
-    '''This class stores all `SingleVariableAccessInfo` instances for all
-    variables in the corresponding code section. It maintains 'location'
-    information, which is an integer number that is increased for each new
-    statement. It can be used to easily determine if one access is before
-    another.
-
-    :param nodes: optional, a single PSyIR node or list of nodes from
-        which to initialise this object.
-    :type nodes: Optional[:py:class:`psyclone.psyir.nodes.Node` |
-        List[:py:class:`psyclone.psyir.nodes.Node`]]
-    :param options: a dictionary with options to influence which variable
-        accesses are to be collected.
-    :type options: Dict[str, Any]
-    :param Any options["USE-ORIGINAL-NAMES"]: if this option is set to a
-        True value, an imported symbol that is renamed (``use mod, a=>b``)
-        will be reported using the original name (``b`` in the example).
-        Otherwise these symbols will be reported using the renamed name
-        (``a``).
-
-    :raises InternalError: if the optional options parameter is not a
-        dictionary.
-    :raises InternalError: if the nodes parameter either is a list and
-        contains an element that is not a
-        :py:class:`psyclone.psyir.nodes.Node`, of if nodes is not a list and
-        is not of type :py:class:`psyclone.psyir.nodes.Node`
+class VariablesAccessMap(dict):
+    ''' This dictionary stores `SingleVariableAccessInfo` instances indexed by
+    their signature. It also maintains 'location' information, which is an
+    integer number that is increased for each new statement. It can be used to
+    easily determine if one access is syntactically before another.
 
     '''
-    # List of valid options and their default values. Note that only the
-    # options method checks this, since it is convenient to pass in options
-    # from the DependencyTools that might contain options for these tools.
-    # USE-ORIGINAL-NAMES: if set this will report the original names of any
-    #     symbol that is being renamed (``use mod, renamed_a=>a``). Defaults
-    #     to False.
-    _DEFAULT_OPTIONS = {"USE-ORIGINAL-NAMES": False}
 
-    def __init__(self, nodes=None, options=None):
-        # This dictionary stores the mapping of signatures to the
-        # corresponding SingleVariableAccessInfo instance.
-        dict.__init__(self)
-
-        self._options = VariablesAccessInfo._DEFAULT_OPTIONS.copy()
-        if options:
-            if not isinstance(options, dict):
-                raise InternalError(f"The options argument for "
-                                    f"VariablesAccessInfo must be a "
-                                    f"dictionary or None, but got "
-                                    f"'{type(options).__name__}'.")
-            self._options.update(options)
-
+    def __init__(self):
+        super().__init__()
         # Stores the current location information
         self._location = 0
-        if nodes:
-            # Import here to avoid circular dependency
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.nodes import Node
-            if isinstance(nodes, list):
-                for node in nodes:
-                    if not isinstance(node, Node):
-                        raise InternalError(f"Error in VariablesAccessInfo. "
-                                            f"One element in the node list is "
-                                            f"not a Node, but of type "
-                                            f"{type(node)}")
-
-                    node.reference_accesses(self)
-            elif isinstance(nodes, Node):
-                nodes.reference_accesses(self)
-            else:
-                arg_type = str(type(nodes))
-                raise InternalError(f"Error in VariablesAccessInfo. "
-                                    f"Argument must be a single Node in a "
-                                    f"schedule or a list of Nodes in a "
-                                    f"schedule but have been passed an "
-                                    f"object of type: {arg_type}")
 
     def __str__(self):
         '''Gives a shortened visual representation of all variables
@@ -158,33 +96,6 @@ class VariablesAccessInfo(dict):
                     mode = "NO_DATA_ACCESS"
             output_list.append(f"{signature}: {mode}")
         return ", ".join(output_list)
-
-    def options(self, key=None):
-        '''Returns the value of the options for a specified key,
-        or None if the key is not specified in the options. If no
-        key is specified, the whole option dictionary is returned.
-
-        :param key: the option to query, or None if all options should
-                    be returned.
-        :type key: Optional[str]
-
-        :returns: the value of the option associated with the provided key
-                  or the whole option dictionary if it is not supplied.
-        :rtype: Union[None, Any, dict]
-
-        :raises InternalError: if an invalid key is specified.
-
-        '''
-        if key:
-            if key not in VariablesAccessInfo._DEFAULT_OPTIONS:
-                valids = list(VariablesAccessInfo._DEFAULT_OPTIONS.keys())
-                # This makes sure the message always contains the valid
-                # keys in the same order, important for testing.
-                valids.sort()
-                raise InternalError(f"Option key '{key}' is invalid, it "
-                                    f"must be one of {valids}.")
-            return self._options.get(key, None)
-        return self._options
 
     @property
     def location(self):
@@ -292,26 +203,20 @@ class VariablesAccessInfo(dict):
                 result.append(sig)
         return result
 
-    def merge(self, other_access_info):
-        '''Merges data from a VariablesAccessInfo instance to the
-        information in this instance.
+    def update(self, other_access_info):
+        ''' Updates this dictionary with the entries in the provided
+        VariablesAccessMap. If there are repeated signatures, the provided
+        values are appeneded to the existing sequence of accesses. The
+        'location' property of the provided accesses (values in the dictionary)
+        will be updated to be after the existing entries.
 
-        :param other_access_info: the other VariablesAccessInfo instance.
-        :type other_access_info: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :param other_access_info: the other VariablesAccessMap instance.
+        :type other_access_info: :py:class:`psyclone.core.VariablesAccessMap`
+
         '''
-
-        # For each variable add all accesses. After merging the new data,
-        # we need to increase the location so that all further added data
-        # will have a location number that is larger.
-        max_new_location = 0
         for signature in other_access_info.all_signatures:
             var_info = other_access_info[signature]
             for access_info in var_info.all_accesses:
-                # Keep track of how much we need to update the next location
-                # in this object:
-                if access_info.location > max_new_location:
-                    max_new_location = access_info.location
                 new_location = access_info.location + self._location
                 if signature in self:
                     var_info = self[signature]
@@ -326,7 +231,8 @@ class VariablesAccessInfo(dict):
                                                   component_indices)
         # Increase the current location of this instance by the amount of
         # locations just merged in
-        self._location = self._location + max_new_location
+        # pylint: disable=protected-access
+        self._location = self._location + other_access_info._location
 
     def is_called(self, signature: Signature) -> bool:
         '''
@@ -387,4 +293,4 @@ class VariablesAccessInfo(dict):
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
 # documentation for.
-__all__ = ["VariablesAccessInfo"]
+__all__ = ["VariablesAccessMap"]

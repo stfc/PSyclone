@@ -39,7 +39,7 @@
 from collections.abc import Iterable
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
+from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.container import Container
@@ -55,7 +55,7 @@ from psyclone.psyir.symbols import (
     UnsupportedFortranType,
     DataSymbol,
 )
-from typing import List
+from typing import List, Tuple
 from psyclone.errors import PSycloneError
 
 
@@ -294,21 +294,21 @@ class Call(Statement, DataNode):
             return isinstance(child, Reference)
         return isinstance(child, DataNode)
 
-    def reference_accesses(self, var_accesses):
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
-        Updates the supplied var_accesses object with information on the
-        arguments passed to this call.
-
         TODO #446 - all arguments that are passed by reference are currently
         marked as having READWRITE access (unless we know that the routine is
         PURE). We could do better than this if we have the PSyIR of the called
         Routine.
 
-        :param var_accesses: VariablesAccessInfo instance that stores the
-            information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
+        var_accesses = VariablesAccessMap()
+
         if self.is_pure:
             # If the called routine is pure then any arguments are only
             # read.
@@ -323,7 +323,7 @@ class Call(Statement, DataNode):
         # Continue processing references in any index expressions.
         for indices in indices_list:
             for idx in indices:
-                idx.reference_accesses(var_accesses)
+                var_accesses.update(idx.reference_accesses())
 
         for arg in self.arguments:
             if isinstance(arg, Reference):
@@ -333,15 +333,16 @@ class Call(Statement, DataNode):
                 # Continue processing references in any index expressions.
                 for indices in indices_list:
                     for idx in indices:
-                        idx.reference_accesses(var_accesses)
+                        var_accesses.update(idx.reference_accesses())
             else:
                 # This argument is not a Reference so continue to walk down the
                 # tree. (e.g. it could be/contain a Call to
                 # an impure routine in which case any arguments to that Call
                 # will have READWRITE access.)
-                arg.reference_accesses(var_accesses)
+                var_accesses.update(arg.reference_accesses())
         # Make sure that the next statement will be on the next location
         var_accesses.next_location()
+        return var_accesses
 
     @property
     def routine(self):
@@ -354,14 +355,14 @@ class Call(Statement, DataNode):
         return None
 
     @property
-    def arguments(self) -> List[DataNode]:
+    def arguments(self) -> Tuple[DataNode]:
         '''
         :returns: the children of this node that represent its arguments.
         :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
         '''
         if len(self._children) >= 2:
-            return self.children[1:]
-        return []
+            return tuple(self.children[1:])
+        return ()
 
     @property
     def is_elemental(self):

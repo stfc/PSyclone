@@ -39,12 +39,14 @@
 ''' This module contains the implementation of the abstract
     ArrayOfStructuresMixin. '''
 
+from typing import Tuple
 import abc
 
 from psyclone.core import Signature
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
@@ -99,7 +101,7 @@ class ArrayOfStructuresMixin(ArrayMixin,  StructureAccessorMixin,
         raise ValueError(f"'{node}' is not a child of '{self}'")
 
     @property
-    def indices(self):
+    def indices(self) -> Tuple[Node]:
         '''
         Supports semantic-navigation by returning the list of nodes
         representing the index expressions for this array reference.
@@ -123,7 +125,7 @@ class ArrayOfStructuresMixin(ArrayMixin,  StructureAccessorMixin,
                     f"{idx} must represent an array-index expression but "
                     f"found '{type(child).__name__}' instead of "
                     f"psyir.nodes.DataNode or Range")
-        return self._children[1:]
+        return tuple(self._children[1:])
 
     def get_signature_and_indices(self):
         ''':returns: the Signature of this array of structure reference, \
@@ -134,7 +136,7 @@ class ArrayOfStructuresMixin(ArrayMixin,  StructureAccessorMixin,
         '''
         sub_sig, indices = self.children[0].get_signature_and_indices()
         sig = Signature(self.name)
-        return (Signature(sig, sub_sig), [self.indices]+indices)
+        return (Signature(sig, sub_sig), [list(self.indices)]+indices)
 
 
 # For AutoAPI documentation generation

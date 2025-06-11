@@ -41,8 +41,8 @@ import os
 from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
     normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
-    PRIVATISATION_ISSUES, NEMO_MODULES_TO_IMPORT)
-from psyclone.psyir.nodes import Loop, Routine
+    NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
+from psyclone.psyir.nodes import Routine
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import (
     OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
@@ -67,9 +67,7 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = []
-
-NEMOV5_EXCLUSIONS = [
-]
+NEMOV5_EXCLUSIONS = []
 
 NEMOV4_EXCLUSIONS = [
     "dynspg_ts.f90",
@@ -84,9 +82,20 @@ SKIP_FOR_PERFORMANCE = [
 ]
 
 OFFLOADING_ISSUES = [
-    # Runtime Error on BENCH: Illegal address during kernel execution
+    # Produces different output results
+    "zdftke.f90",
+    # The following issues only affect BENCH (because ice is enabled?)
+    # Runtime Error: Illegal address during kernel execution
     "trcrad.f90",
-    # terminated by signal 11
+    # Signal 11 issues
+    "trcbbl.f90",
+    "bdyice.f90",
+    "sedfunc.f90",
+    "stpmlf.f90",
+    "trddyn.f90",
+    "trczdf.f90",
+    "trcice_pisces.f90",
+    "dtatsd.f90",
     "zdfswm.f90",
 ]
 
@@ -153,7 +162,7 @@ def trans(psyir):
         enhance_tree_information(subroutine)
         normalise_loops(
                 subroutine,
-                hoist_local_arrays=True,
+                hoist_local_arrays=False,
                 convert_array_notation=True,
                 loopify_array_intrinsics=True,
                 convert_range_loops=(psyir.name not in ["fldread.f90"]),
@@ -166,9 +175,10 @@ def trans(psyir):
         # These are functions that are called from inside parallel regions,
         # annotate them with 'omp declare target'
         if (
-            subroutine.name.lower().startswith("sign_") or
-            subroutine.name.lower() == "solfrac" or
-            (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
+            subroutine.name.lower().startswith("sign_")
+            or subroutine.name.lower() == "solfrac"
+            # Important for performance but causes SIGNAL 11 in some cases
+            # or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
         ):
             try:
                 OMPDeclareTargetTrans().apply(subroutine)

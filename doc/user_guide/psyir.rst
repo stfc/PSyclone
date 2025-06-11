@@ -222,6 +222,12 @@ The semantic navigation methods are:
 - Nodes representing accesses of data within a structure (e.g. ``StructureReference``, ``StructureMember``):
    .. automethod:: psyclone.psyir.nodes.StructureReference.member()
        :no-index:
+- ``BinaryOperation``:
+   .. automethod:: psyclone.psyir.nodes.BinaryOperation.operands()
+       :no-index:
+- ``UnaryOperation``:
+   .. automethod:: psyclone.psyir.nodes.UnaryOperation.operand()
+       :no-index:
 
 
 DataTypes
@@ -294,12 +300,15 @@ about its extent. It is necessary to distinguish between four cases:
 |                                            | values                         |
 +--------------------------------------------+--------------------------------+
 |An array has an extent defined by another   | ``ArrayType.ArrayBounds``      |
-|symbol or (constant) PSyIR expression.      | containing ``Reference`` or    |
-|                                            | ``Operation`` nodes            |
+|symbol or (constant) PSyIR expression.      | containing ``DataNode``\s (i.e.|
+|                                            | ``Reference`` or ``Operation``)|
 +--------------------------------------------+--------------------------------+
 |An array has a definite extent which is not | ``ArrayType.Extent.ATTRIBUTE`` |
-|known at compile time but can be queried    |                                |
-|at runtime.                                 |                                |
+|known at compile time but can be queried    | or ``ArrayType.ArrayBounds``   |
+|at runtime.                                 | with the lower bound given by a|
+|                                            | ``DataNode`` and the upper     |
+|                                            | bound  by                      |
+|                                            | ``ArrayType.Extent.ATTRIBUTE`` |
 +--------------------------------------------+--------------------------------+
 |It is not known whether an array has memory | ``ArrayType.Extent.DEFERRED``  |
 |allocated to it in the current scoping unit.|                                |
@@ -307,14 +316,15 @@ about its extent. It is necessary to distinguish between four cases:
 
 where ``ArrayType.ArrayBounds`` is a ``namedtuple`` with ``lower`` and
 ``upper`` members holding the lower- and upper-bounds of the extent of a
-given array dimension.
+given array dimension. Sometimes, the lower bound of an array will be
+known while its extent is unknown. This is represented by having the
+``upper`` member set to ``ArrayType.Extent.ATTRIBUTE``.
 
 The distinction between the last two cases is that in the former the
 extents are known but are kept internally with the array (for example
-an assumed shape array in Fortran) and in the latter the array has not
+an assumed shape array in Fortran) while in the latter, the array has not
 yet been allocated any memory (for example the declaration of an
-allocatable array in Fortran) so the extents may have not been defined
-yet.
+allocatable array in Fortran) so the extents may have not yet been defined.
 
 For example:
 
