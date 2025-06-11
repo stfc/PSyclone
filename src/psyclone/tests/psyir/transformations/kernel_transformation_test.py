@@ -430,8 +430,8 @@ def test_gpumixin_validate_no_call():
     with pytest.raises(TransformationError) as err:
         rtrans.validate(kernel)
     assert ("Kernel 'testkern_with_call_code' calls intrinsic 'GET_COMMAND' "
-            "which is not available by default. Use the 'device_string' "
-            "option to specify a different device."
+            "which is not available on the default accelerator device. Use "
+            "the 'device_string' option to specify a different device."
             in str(err.value))
 
 
@@ -475,9 +475,9 @@ def test_kernel_gpu_annotation_device_id(rtrans, fortran_reader):
     with pytest.raises(TransformationError) as err:
         rtrans.validate(routine, options={'device_string':
                                           'nvfortran-uniform'})
-    assert ("routine 'myfunc' calls intrinsic 'REAL' which is not available in"
-            " 'nvfortran-uniform'. Use the 'device_string' option to specify a"
-            " different device." in str(err.value))
+    assert ("routine 'myfunc' calls intrinsic 'REAL' which is not available on"
+            " the 'nvfortran-uniform' device. Use the 'device_string' option "
+            "to specify a different device." in str(err.value))
     with pytest.raises(ValueError) as err:
         rtrans.validate(routine, options={'device_string':
                                           'unknown-device'})

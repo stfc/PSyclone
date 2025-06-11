@@ -493,8 +493,10 @@ class MarkRoutineForGPUMixin:
         for call in calls:
             if not call.is_available_on_device(device_string):
                 if isinstance(call, IntrinsicCall):
-                    device_str = (f"in '{device_string}'" if device_string else
-                                  "by default")
+                    if device_string:
+                        device_str = f"on the '{device_string}' device"
+                    else:
+                        device_str = "on the default accelerator device"
                     raise TransformationError(
                         f"{k_or_r} '{node.name}' calls intrinsic "
                         f"'{call.intrinsic.name}' which is not available "
@@ -1787,11 +1789,13 @@ class ACCParallelTrans(ParallelRegionTrans):
             for call in node.walk(Call):
                 if not call.is_available_on_device(device_string):
                     if isinstance(call, IntrinsicCall):
-                        dstr = (f"in '{device_string}'" if device_string else
-                                "by default")
+                        if device_string:
+                            device_str = f"on the '{device_string}' device"
+                        else:
+                            device_str = "on the default accelerator device"
                         raise TransformationError(
-                            f"{call.intrinsic.name} is not available "
-                            f"{dstr}. Use the 'device_string' option to "
+                            f"'{call.intrinsic.name}' is not available "
+                            f"{device_str}. Use the 'device_string' option to "
                             f"specify a different device."
                         )
                     raise TransformationError(

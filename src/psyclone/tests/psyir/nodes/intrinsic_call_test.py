@@ -161,7 +161,7 @@ def test_intrinsiccall_is_available_on_device(intrinsic, result):
 
 def test_intrinsiccall_is_available_on_device_with_device_string():
     '''Tests that the is_available_on_device() method with a device_string
-    argument provides different results with the 'nvfortran-uniformod'
+    argument provides different results with the 'nvfortran-uniform'
     '''
     intrinsic_call = IntrinsicCall(IntrinsicCall.Intrinsic.LOG10)
     assert not intrinsic_call.is_available_on_device("nvfortran-uniform")
