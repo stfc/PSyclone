@@ -46,7 +46,8 @@ from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import ExtractNode, Node, Schedule, Routine
-from psyclone.psyir.symbols import SymbolTable, ArrayType
+from psyclone.psyir.symbols import (
+    SymbolTable, ArrayType, UnsupportedFortranType)
 from psyclone.psyir.tools import ReadWriteInfo
 from psyclone.tests.utilities import get_invoke
 
@@ -399,12 +400,12 @@ def test_psylayer_flatten_same_symbols():
     out_fld_internal_ystop = out_fld%internal%ystop
     out_fld_internal_xstart = out_fld%internal%xstart
     out_fld_internal_xstop = out_fld%internal%xstop
-    out_fld_data = out_fld%data
-    in_out_fld_data = in_out_fld%data
-    in_fld_data = in_fld%data
-    dx_data = dx%data
+    out_fld_data => out_fld%data
+    in_out_fld_data => in_out_fld%data
+    in_fld_data => in_fld%data
+    dx_data => dx%data
     in_fld_grid_dx = in_fld%grid%dx
-    in_fld_grid_gphiu = in_fld%grid%gphiu
+    in_fld_grid_gphiu => in_fld%grid%gphiu
     CALL extract_psy_data % PreStart("psy_extract_example_with_various_\
 variable_access_patterns", "invoke_3-compute_kernel_code-r0", 12, 8)
     """ in code
@@ -413,12 +414,7 @@ variable_access_patterns", "invoke_3-compute_kernel_code-r0", 12, 8)
     # and then flatten it again to prepare for the second region
     assert """
     CALL extract_psy_data % PostEnd
-    in_fld%grid%gphiu = in_fld_grid_gphiu
     in_fld%grid%dx = in_fld_grid_dx
-    dx%data = dx_data
-    in_fld%data = in_fld_data
-    in_out_fld%data = in_out_fld_data
-    out_fld%data = out_fld_data
     out_fld%internal%xstop = out_fld_internal_xstop
     out_fld%internal%xstart = out_fld_internal_xstart
     out_fld%internal%ystop = out_fld_internal_ystop
@@ -427,12 +423,12 @@ variable_access_patterns", "invoke_3-compute_kernel_code-r0", 12, 8)
     out_fld_internal_ystop_1 = out_fld%internal%ystop
     out_fld_internal_xstart_1 = out_fld%internal%xstart
     out_fld_internal_xstop_1 = out_fld%internal%xstop
-    out_fld_data_1 = out_fld%data
-    in_out_fld_data_1 = in_out_fld%data
-    in_fld_data_1 = in_fld%data
-    dx_data_1 = dx%data
+    out_fld_data_1 => out_fld%data
+    in_out_fld_data_1 => in_out_fld%data
+    in_fld_data_1 => in_fld%data
+    dx_data_1 => dx%data
     in_fld_grid_dx_1 = in_fld%grid%dx
-    in_fld_grid_gphiu_1 = in_fld%grid%gphiu
+    in_fld_grid_gphiu_1 => in_fld%grid%gphiu
     CALL extract_psy_data_1 % PreStart("psy_extract_example_with_\
 various_variable_access_patterns", "invoke_3-compute_kernel_code-r1", 12, 8)
     """ in code
@@ -440,12 +436,7 @@ various_variable_access_patterns", "invoke_3-compute_kernel_code-r1", 12, 8)
     # Bring data back and flatten agian a thrid time
     assert """
     CALL extract_psy_data_1 % PostEnd
-    in_fld%grid%gphiu = in_fld_grid_gphiu_1
     in_fld%grid%dx = in_fld_grid_dx_1
-    dx%data = dx_data_1
-    in_fld%data = in_fld_data_1
-    in_out_fld%data = in_out_fld_data_1
-    out_fld%data = out_fld_data_1
     out_fld%internal%xstop = out_fld_internal_xstop_1
     out_fld%internal%xstart = out_fld_internal_xstart_1
     out_fld%internal%ystop = out_fld_internal_ystop_1
@@ -454,12 +445,12 @@ various_variable_access_patterns", "invoke_3-compute_kernel_code-r1", 12, 8)
     out_fld_internal_ystop_2 = out_fld%internal%ystop
     out_fld_internal_xstart_2 = out_fld%internal%xstart
     out_fld_internal_xstop_2 = out_fld%internal%xstop
-    out_fld_data_2 = out_fld%data
-    in_out_fld_data_2 = in_out_fld%data
-    in_fld_data_2 = in_fld%data
-    dx_data_2 = dx%data
+    out_fld_data_2 => out_fld%data
+    in_out_fld_data_2 => in_out_fld%data
+    in_fld_data_2 => in_fld%data
+    dx_data_2 => dx%data
     in_fld_grid_dx_2 = in_fld%grid%dx
-    in_fld_grid_gphiu_2 = in_fld%grid%gphiu
+    in_fld_grid_gphiu_2 => in_fld%grid%gphiu
     CALL extract_psy_data_2 % PreStart("psy_extract_example_with_various_\
 variable_access_patterns", "invoke_3-compute_kernel_code-r2", 12, 8)
     """ in code
@@ -482,8 +473,9 @@ def test_extraction_flatten_datatype(monkeypatch):
     assert ref.children[0].children[0].name == "gphiu"
     dtype = en._flatten_datatype(ref)
     # Gphiu is a 2D array
-    assert isinstance(dtype, ArrayType)
-    assert len(dtype.shape) == 2
+    assert isinstance(dtype, UnsupportedFortranType)
+    assert isinstance(dtype.partial_datatype, ArrayType)
+    assert len(dtype.partial_datatype.shape) == 2
 
     # Monkey patch the grid property dictionary to remove the
     # go_grid_lat_u entry, triggering an earlier error:
