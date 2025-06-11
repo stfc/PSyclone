@@ -131,12 +131,12 @@ def test_omp_remove_barrier_find_dependencies(fortran_reader):
     deps = OMPMinimiseSyncTrans()._find_dependencies(do_dirs)
 
     assert len(deps) == 4
-    # Next dependency for the first directive is the lhs of the assignment
+    # Next dependency for the first directive is the assignment
     # in the last loop
-    assert deps[0] is routine.children[5].dir_body[0].loop_body[0].lhs
-    # Next dependency for the second directive is the lhs of the assignment
+    assert deps[0] is routine.children[5].dir_body[0].loop_body[0]
+    # Next dependency for the second directive is the assignment
     # in the 3rd loop
-    assert deps[1] is routine.children[3].dir_body[0].loop_body[0].lhs
+    assert deps[1] is routine.children[3].dir_body[0].loop_body[0]
     # The final two directives have no dependency in this scope.
     assert deps[2] is True
     assert deps[3] is True

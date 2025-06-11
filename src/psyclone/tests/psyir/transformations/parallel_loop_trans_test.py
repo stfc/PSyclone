@@ -38,7 +38,9 @@
 
 import pytest
 
-from psyclone.psyir.nodes import Loop, OMPParallelDoDirective
+from psyclone.psyir.nodes import (
+        Loop, OMPParallelDoDirective, Routine, WhileLoop
+)
 from psyclone.psyir.transformations import (
     ParallelLoopTrans, TransformationError)
 from psyclone.psyir.tools import DependencyTools, DTCode
@@ -690,7 +692,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop.detach()
     direc.children[0].addchild(loop)
     psyir.children[0].addchild(direc, 0)
-    result = psyir.walk(Loop)[1].loop_body.children[0].lhs
+    result = psyir.walk(Loop)[1].loop_body.children[0]
     assert paratrans._find_next_dependency(loop, direc) is result
 
     # Test when we have a loop in a loop and the next access is prior.
@@ -712,7 +714,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop.detach()
     direc.children[0].addchild(loop)
     psyir.walk(Loop)[0].loop_body.addchild(direc)
-    result = psyir.walk(Loop)[0].loop_body.children[0].lhs
+    result = psyir.walk(Loop)[0].loop_body.children[0]
     assert paratrans._find_next_dependency(loop, direc) is result
 
     # Test when we have a loop in a loop and an access after outside all of
@@ -736,7 +738,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop.detach()
     direc.children[0].addchild(loop)
     psyir.walk(Loop)[0].loop_body.addchild(direc)
-    result = psyir.walk(Loop)[0].loop_body.children[0].lhs
+    result = psyir.walk(Loop)[0].loop_body.children[0]
     assert paratrans._find_next_dependency(loop, direc) is result
 
     # Test that an access after inside the same ancestor loop is the
@@ -760,7 +762,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop.detach()
     direc.children[0].addchild(loop)
     psyir.walk(Loop)[0].loop_body.addchild(direc, 1)
-    result = psyir.walk(Loop)[0].loop_body.children[2].lhs
+    result = psyir.walk(Loop)[0].loop_body.children[2]
     assert paratrans._find_next_dependency(loop, direc) is result
 
     # Test that if the loop is in a loop and the next access is outside
@@ -830,7 +832,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop.detach()
     direc.children[0].addchild(loop)
     psyir.walk(Loop)[0].loop_body.addchild(direc, 1)
-    result = psyir.walk(Loop)[3].loop_body.children[0].lhs
+    result = psyir.walk(Loop)[3].loop_body.children[0]
     assert paratrans._find_next_dependency(loop, direc) is result
 
     # Test when there are multiple ancestor loops with accesses.
@@ -854,7 +856,42 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop.detach()
     direc.children[0].addchild(loop)
     psyir.walk(Loop)[1].loop_body.addchild(direc)
-    result = psyir.walk(Loop)[1].loop_body.children[0].lhs
+    result = psyir.walk(Loop)[1].loop_body.children[0]
+    assert paratrans._find_next_dependency(loop, direc) is result
+
+    # Test we find the while loop when we have a condition with an
+    # IntrinsicCall inside
+    code = """
+    subroutine test
+    integer, dimension(100) :: a
+    integer :: i
+    do i = 1, 100
+        a(i) = 1
+    end do
+    do while( ALL(a(:)) )
+       do i = 1, 100
+         a(i) = 0
+       end do
+    end do
+    end subroutine test
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Routine)[0].children.insert(0, direc)
+    result = psyir.walk(WhileLoop)[0]
+    assert paratrans._find_next_dependency(loop, direc) is result
+    # Test we find no satisfiable dependency when the next access is an
+    # ancestor while loop's condition.
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[1]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(WhileLoop)[0].loop_body.addchild(direc)
+    result = False
     assert paratrans._find_next_dependency(loop, direc) is result
 
 

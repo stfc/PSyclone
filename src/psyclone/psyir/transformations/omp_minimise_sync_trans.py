@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import (
     IfBlock, Loop, Node,
     OMPDoDirective,
     OMPBarrierDirective, OMPTaskwaitDirective,
-    OMPTargetDirective, Routine
+    OMPTargetDirective, Routine,
 )
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
@@ -292,6 +292,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
             if next_dependencies[i] is True:
                 depending_barriers.append(found_barriers)
                 continue
+
             # Loop through the barriers.
             for j, barrier in enumerate(all_barriers):
                 # If the dependency is after the nowait directive then

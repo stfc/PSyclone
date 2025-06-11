@@ -40,7 +40,7 @@ from typing import List, Union
 
 from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes import (
-        Directive, Loop, Node,
+        Directive, Loop, Node, Schedule, Statement
 )
 
 
@@ -62,7 +62,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         # doesn't support it.
 
     def _find_next_dependency(self, nodes: Union[Loop, List[Node]],
-                              directive: Directive) -> Union[Node, bool]:
+                              directive: Directive) -> Union[Statement, bool]:
         '''
         Finds the closest dependency to the loop or set of nodes supplied.
         If the supplied input is contained inside a Loop, then this dependency
@@ -71,7 +71,10 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         If there is no dependency, this function will return True.
         If the next dependency is itself, the function will return False.
 
-        Otherwise the next dependency node will be returned.
+        Otherwise the next dependency node will be returned. The returned
+        value will always be the statement containing the dependency, as
+        directives will occur the dependency, and this avoids needing special
+        cases to handle while and if conditions.
 
         :param nodes: The Loop or list of nodes to find the next dependency
                       for.
@@ -205,4 +208,18 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                 return False
         if not closest:
             return True
+        closest = closest.ancestor(Statement, include_self=True)
+
+        # Closest can still be an IntrinsicCall or function call inside a
+        # condition, e.g. while loop condition or loop bound etc.
+        # We need to find this and return the statement. The easiest way
+        # to do this is check that closest.parent is a Schedule.
+        while not isinstance(closest.parent, Schedule):
+            closest = closest.ancestor(Statement)
+        # Now we need to check that closest isn't an ancestor of the
+        # directive, since this means that the next dependency is the
+        # condition of a while loop, which means we can't satisfy the
+        # dependency
+        if directive.is_descendent_of(closest):
+            return False
         return closest
