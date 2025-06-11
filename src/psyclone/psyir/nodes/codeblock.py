@@ -207,6 +207,13 @@ class CodeBlock(Statement, DataNode):
             for part in node.items:
                 if part.items[1]:
                     result.append(part.items[1])
+        # For directives, we need to analyse all alphanumeric* parts of the
+        # comment string and return any names that match a symbol in the
+        # symbol table.
+        for node in walk(parse_tree, Fortran2003.Comment):
+            # FIXME Check if this comment is a directive.
+            assert False
+
         return result
 
     def reference_accesses(self) -> VariablesAccessMap:
