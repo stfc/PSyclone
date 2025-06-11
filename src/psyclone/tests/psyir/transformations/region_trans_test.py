@@ -38,7 +38,9 @@
 import pytest
 
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import CodeBlock, Node, Schedule
+from psyclone.psyir.nodes import (CodeBlock, IntrinsicCall, Node,
+                                  Reference, Schedule)
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import RegionTrans
 from psyclone.tests.utilities import get_invoke
 from psyclone.gocean1p0 import GOLoop
@@ -107,6 +109,15 @@ def test_get_node_list():
     node_list2 = my_rt.get_node_list(node_list)
     assert node_list2 == node_list
     assert node_list2 is not node_list
+
+    # Provide a list containing a single Schedule
+    #--------------------------------------------
+    sym = DataSymbol("x", REAL_TYPE)
+    sched.children = [IntrinsicCall.create(IntrinsicCall.Intrinsic.SIN,
+                                           [Reference(sym)])]
+    node_list3 = my_rt.get_node_list([sched])
+    # Result should be the children of the Schedule.
+    assert node_list3 == [node]
 
 
 # -----------------------------------------------------------------------------
