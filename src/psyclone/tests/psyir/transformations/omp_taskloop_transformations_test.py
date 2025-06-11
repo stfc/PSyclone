@@ -138,7 +138,7 @@ def test_omptaskloop_apply(monkeypatch):
 
     clauses = " nogroup"
     assert (
-        "  !$omp parallel default(shared), private(i,j)\n" +
+        "  !$omp parallel default(shared) private(i,j)\n" +
         "    !$omp master\n" +
         f"    !$omp taskloop{clauses}\n" +
         "    do" in code)
