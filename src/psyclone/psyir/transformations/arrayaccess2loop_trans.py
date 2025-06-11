@@ -121,7 +121,8 @@ class ArrayAccess2LoopTrans(Transformation):
         for array in assignment.walk(ArrayReference):
             if not array.ancestor(ArrayReference):
                 # This is not a nested access e.g. a(b(n)).
-                array.indices[array_index] = Reference(loop_variable_symbol)
+                array.indices[array_index].replace_with(
+                        Reference(loop_variable_symbol))
 
         loop_body = assignment
         loc_parent = loop_body.parent
