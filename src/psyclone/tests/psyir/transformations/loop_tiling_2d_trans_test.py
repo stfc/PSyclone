@@ -149,8 +149,7 @@ def test_loop_tiling_2d_trans_validation_options(fortran_reader):
     with pytest.raises(TransformationError) as err:
         LoopTiling2DTrans().apply(outer_loop, {'unsupported': None})
     assert ("The LoopTiling2DTrans does not support the transformation option"
-            " 'unsupported', the supported options are: ['tilesize',"
-            " 'hoist_loop_bounds']."
+            " 'unsupported', the supported options are: ['tilesize']."
             in str(err.value))
 
     with pytest.raises(TransformationError) as err:
@@ -162,11 +161,6 @@ def test_loop_tiling_2d_trans_validation_options(fortran_reader):
         LoopTiling2DTrans().apply(outer_loop, {'tilesize': -32})
     assert ("The LoopTiling2DTrans tilesize option must be a positive integer "
             "but found '-32'." in str(err.value))
-
-    with pytest.raises(TransformationError) as err:
-        LoopTiling2DTrans().apply(outer_loop, {'hoist_loop_bounds': 1})
-    assert ("The LoopTiling2DTrans hoist_loop_bounds option must be a bool "
-            "but found a 'int'." in str(err.value))
 
 
 def test_loop_tiling_2d_trans_apply(fortran_reader, fortran_writer):
@@ -190,11 +184,9 @@ def test_loop_tiling_2d_trans_apply(fortran_reader, fortran_writer):
     result = fortran_writer(outer_loop)
     expected = '''\
 do i_out_var = 1, 100, 32
-  i_el_inner = MIN(i_out_var + (32 - 1), 100)
   do j_out_var = 1, 100, 32
-    do i = i_out_var, i_el_inner, 1
-      j_el_inner = MIN(j_out_var + (32 - 1), 100)
-      do j = j_out_var, j_el_inner, 1
+    do i = i_out_var, MIN(i_out_var + (32 - 1), 100), 1
+      do j = j_out_var, MIN(j_out_var + (32 - 1), 100), 1
         tmp(i,j) = 2 * tmp(i,j)
       enddo
     enddo
@@ -224,42 +216,9 @@ def test_loop_tiling_2d_trans_apply_options1(fortran_reader, fortran_writer):
     result = fortran_writer(outer_loop)
     expected = '''\
 do i_out_var = 1, 100, 64
-  i_el_inner = MIN(i_out_var + (64 - 1), 100)
   do j_out_var = 1, 100, 64
-    do i = i_out_var, i_el_inner, 1
-      j_el_inner = MIN(j_out_var + (64 - 1), 100)
-      do j = j_out_var, j_el_inner, 1
-        tmp(i,j) = 2 * tmp(i,j)
-      enddo
-    enddo
-  enddo
-enddo'''
-    assert expected in result
-
-def test_loop_tiling_2d_trans_apply_options2(fortran_reader, fortran_writer):
-    ''' Check that a non-default hoist_loop_bounds option is used correctly. '''
-    psyir = fortran_reader.psyir_from_source('''
-        subroutine test(tmp)
-            integer:: i, j
-            integer, intent(inout), dimension(100,100) :: tmp
-
-            do i=1, 100
-              do j=1, 100
-                tmp(i,j) = 2 * tmp(i,j)
-              enddo
-            enddo
-        end subroutine test
-     ''')
-    outer_loop = psyir.walk(Loop)[0]
-    LoopTiling2DTrans().apply(outer_loop, {"hoist_loop_bounds": False})
-
-    outer_loop = psyir.walk(Loop)[0]
-    result = fortran_writer(outer_loop)
-    expected = '''\
-do i_out_var = 1, 100, 32
-  do j_out_var = 1, 100, 32
-    do i = i_out_var, MIN(i_out_var + (32 - 1), 100), 1
-      do j = j_out_var, MIN(j_out_var + (32 - 1), 100), 1
+    do i = i_out_var, MIN(i_out_var + (64 - 1), 100), 1
+      do j = j_out_var, MIN(j_out_var + (64 - 1), 100), 1
         tmp(i,j) = 2 * tmp(i,j)
       enddo
     enddo

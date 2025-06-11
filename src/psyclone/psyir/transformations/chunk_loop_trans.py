@@ -97,9 +97,6 @@ class ChunkLoopTrans(LoopTrans):
         :type options: Optional[Dict[str, Any]]
         :param int options["chunksize"]: The size to chunk over for this \
                 transformation. If not specified, the value 32 is used.
-        :param int options["hoist_loop_bounds"]: Whether to hoist complex \
-                loop bounds introduced by chunking. If not specified, \
-                the value True is used.
 
         :raises TransformationError: if the supplied Loop has a step size \
                 which is not a constant value.
@@ -127,7 +124,7 @@ class ChunkLoopTrans(LoopTrans):
         # TODO #613: Hardcoding the valid_options does not allow for
         # subclassing this transformation and adding new options, this
         # should be fixed.
-        valid_options = ['chunksize', 'hoist_loop_bounds']
+        valid_options = ['chunksize']
         for key, value in options.items():
             if key in valid_options:
                 if key == "chunksize" and not isinstance(value, int):
@@ -139,12 +136,6 @@ class ChunkLoopTrans(LoopTrans):
                     raise TransformationError(
                         f"The ChunkLoopTrans chunksize option must be a "
                         f"positive integer but found '{value}'.")
-                if key == "hoist_loop_bounds" and \
-                   not isinstance(value, bool):
-                    raise TransformationError(
-                        f"The ChunkLoopTrans hoist_loop_bounds option "
-                        f"must be a bool but found a "
-                        f"'{type(value).__name__}'.")
             else:
                 raise TransformationError(
                     f"The ChunkLoopTrans does not support the "
@@ -224,9 +215,6 @@ class ChunkLoopTrans(LoopTrans):
         :type options: Optional[Dict[str, Any]]
         :param int options["chunksize"]: The size to chunk over for this \
                 transformation. If not specified, the value 32 is used.
-        :param int options["hoist_loop_bounds"]: Whether to hoist complex \
-                loop bounds introduced by chunking. If not specified, \
-                the value True is used.
 
         '''
 
@@ -234,14 +222,8 @@ class ChunkLoopTrans(LoopTrans):
         if options is None:
             options = {}
         chunk_size = options.get("chunksize", 32)
-        hoist_loop_bounds = options.get("hoist_loop_bounds", True)
         # Create (or find) the symbols we need for the chunking transformation
         routine = node.ancestor(nodes.Routine)
-        if (hoist_loop_bounds):
-            end_inner_loop_var = routine.symbol_table.find_or_create_tag(
-                    f"{node.variable.name}_el_inner",
-                    symbol_type=DataSymbol,
-                    datatype=node.variable.datatype)
         outer_loop_variable = routine.symbol_table.find_or_create_tag(
                 f"{node.variable.name}_out_var",
                 symbol_type=DataSymbol,
@@ -286,14 +268,7 @@ class ChunkLoopTrans(LoopTrans):
 
         # Replace the inner loop start and end with the chunking ones
         start.replace_with(Reference(outer_loop_variable))
-        if (hoist_loop_bounds):
-            hoisted_assignment = [
-              Assignment.create(Reference(end_inner_loop_var),
-                                inner_loop_end)]
-            stop.replace_with(Reference(end_inner_loop_var))
-        else:
-          hoisted_assignment = []
-          stop.replace_with(inner_loop_end)
+        stop.replace_with(inner_loop_end)
 
         # Create the outerloop as a bare Loop construct
         outerloop = Loop(variable=outer_loop_variable)
@@ -301,7 +276,7 @@ class ChunkLoopTrans(LoopTrans):
                               Literal(f"{chunk_size}",
                                       outer_loop_variable.datatype),
                               Schedule(parent=outerloop,
-                                       children=hoisted_assignment)]
+                                       children=[])]
         # Add the chunked annotation
         outerloop.annotations.append('chunked')
         node.annotations.append('chunked')

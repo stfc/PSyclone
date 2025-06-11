@@ -102,9 +102,6 @@ class LoopTiling2DTrans(LoopTrans):
         :param int options["tilesize"]: The size of the resulting tile, \
             currently square tiles are always used. If not specified, the \
             value 32 is used.
-        :param int options["hoist_loop_bounds"]: Whether to hoist complex \
-                loop bounds introduced by tiling. If not specified, the \
-                value True is used.
 
         :raises TransformationError: if an unsupported option has been \
             provided.
@@ -119,7 +116,7 @@ class LoopTiling2DTrans(LoopTrans):
         # TODO #613: Hardcoding the valid_options does not allow for
         # subclassing this transformation and adding new options, this
         # should be fixed.
-        valid_options = ['tilesize', 'hoist_loop_bounds']
+        valid_options = ['tilesize']
         for key, value in options.items():
             if key in valid_options:
                 if key == "tilesize" and not isinstance(value, int):
@@ -131,11 +128,6 @@ class LoopTiling2DTrans(LoopTrans):
                     raise TransformationError(
                         f"The LoopTiling2DTrans tilesize option must be a "
                         f"positive integer but found '{value}'.")
-                if key == "hoist_loop_bounds" and not isinstance(value, bool):
-                    raise TransformationError(
-                        f"The LoopTiling2DTrans hoist_loop_bounds option "
-                        f"must be a bool but found a "
-                        f"'{type(value).__name__}'.")
             else:
                 raise TransformationError(
                     f"The LoopTiling2DTrans does not support the "
@@ -143,7 +135,6 @@ class LoopTiling2DTrans(LoopTrans):
                     f"are: {valid_options}.")
 
         tilesize = options.get("tilesize", 32)
-        hoist_loop_bounds = options.get("hoist_loop_bounds", True)
 
         # Even though the loops that ultimately will be swapped are the ones
         # resulting from the ChunkLoopTrans, these have the same validation
@@ -155,8 +146,7 @@ class LoopTiling2DTrans(LoopTrans):
         # Check that we can chunk both loops
         outer_loop = node
         inner_loop = node.loop_body.children[0]
-        chunk_opts = {'chunksize': tilesize,
-                      'hoist_loop_bounds': hoist_loop_bounds}
+        chunk_opts = {'chunksize': tilesize}
         ChunkLoopTrans().validate(outer_loop, options=chunk_opts)
         ChunkLoopTrans().validate(inner_loop, options=chunk_opts)
 
@@ -178,14 +168,12 @@ class LoopTiling2DTrans(LoopTrans):
         if options is None:
             options = {}
         tilesize = options.get("tilesize", 32)
-        hoist_loop_bounds = options.get("hoist_loop_bounds", True)
         parent = node.parent
         position = node.position
         outer_loop = node
         inner_loop = node.loop_body.children[0]
 
-        chunk_opts = {'chunksize': tilesize,
-                      'hoist_loop_bounds': hoist_loop_bounds}
+        chunk_opts = {'chunksize': tilesize}
         ChunkLoopTrans().apply(outer_loop, options=chunk_opts)
         ChunkLoopTrans().apply(inner_loop, options=chunk_opts)
 
