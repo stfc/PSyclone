@@ -97,6 +97,9 @@ OFFLOADING_ISSUES = [
     "trczdf.f90",
     "trcice_pisces.f90",
     "dtatsd.f90",
+    # Runtime Error: Illegal address during kernel execution with
+    # asynchronicity.
+    "fldread.f90",
 ]
 
 
