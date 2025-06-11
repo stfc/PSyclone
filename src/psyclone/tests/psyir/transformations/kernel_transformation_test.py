@@ -335,12 +335,12 @@ def test_gpumixin_validate_no_schedule(monkeypatch):
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kern = kernels[0]
-    # We monkeypatch the 'get_kernel_schedule' method of LFRicKern so that it
+    # We monkeypatch the 'get_callees' method of LFRicKern so that it
     # just raises an exception.
 
     def broken(_1_):
         raise GenerationError("this is just a test")
-    monkeypatch.setattr(kern, "get_kernel_schedule", broken)
+    monkeypatch.setattr(kern, "get_callees", broken)
 
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
@@ -442,7 +442,7 @@ def test_gpumixin_validate_no_call():
             in str(err.value))
 
     # The same error happens for unsupported GPU intrinsics
-    kschedules = kernel.get_kernel_schedule()
+    kschedules = kernel.get_callees()
     call = kschedules[0].walk(Call)[0]
     call.replace_with(
         IntrinsicCall.create(IntrinsicCall.Intrinsic.GET_COMMAND))
@@ -468,7 +468,7 @@ def test_kernel_gpu_annotation_trans(rtrans, expected_directive,
     rtrans.apply(kern)
 
     # Check that the directive has been added to the kernel code
-    kschedules = kern.get_kernel_schedule()
+    kschedules = kern.get_callees()
     code = fortran_writer(kschedules[0])
     assert expected_directive in code
 

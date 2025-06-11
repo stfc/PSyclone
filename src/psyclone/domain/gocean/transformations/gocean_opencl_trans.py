@@ -195,7 +195,7 @@ class GOOpenCLTrans(Transformation):
         for kern in node.kernels():
             KernelModuleInlineTrans().validate(kern)
 
-            for ksched in kern.get_kernel_schedule():
+            for ksched in kern.get_callees():
 
                 global_variables = set(ksched.symbol_table.imported_symbols)
                 prec_symbols = set(ksched.symbol_table.precision_datasymbols)
@@ -757,7 +757,7 @@ class GOOpenCLTrans(Transformation):
         # Create a copy of the kernel and remove precision symbols since they
         # are not supported in the OpenCL backend.
         # validate() has checked that the kernel is not polymorphic.
-        schedule = kernel.get_kernel_schedule()[0]
+        schedule = kernel.get_kernel_callees()[0]
         kernel_copy = schedule.copy()
         symtab = kernel_copy.symbol_table
 

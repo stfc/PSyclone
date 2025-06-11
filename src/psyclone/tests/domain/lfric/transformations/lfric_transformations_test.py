@@ -7651,7 +7651,7 @@ def test_kern_const_invalid_kern(monkeypatch):
     def dummy():
         '''A dummy function that always raises an exception.'''
         raise NotImplementedError("Monkeypatch error")
-    monkeypatch.setattr(kernel, "get_kernel_schedule", dummy)
+    monkeypatch.setattr(kernel, "get_callees", dummy)
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert (
@@ -7686,7 +7686,7 @@ def test_kern_const_invalid_make_constant1():
     '''
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
 
-    kernel_schedule = kernel.get_kernel_schedule()[0]
+    kernel_schedule = kernel.get_callees()[0]
     symbol_table = kernel_schedule.symbol_table
     # Make the symbol table's argument list empty. We have to make sure that
     # the interface of any existing argument Symbols is set to
@@ -7713,7 +7713,7 @@ def test_kern_const_invalid_make_constant2():
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
 
     kctrans = LFRicKernelConstTrans()
-    kernel_schedule = kernel.get_kernel_schedule()[0]
+    kernel_schedule = kernel.get_callees()[0]
     symbol_table = kernel_schedule.symbol_table
     symbol = symbol_table._argument_list[7]
     # Expecting scalar integer. Set to array.

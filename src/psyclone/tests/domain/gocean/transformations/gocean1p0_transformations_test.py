@@ -1494,7 +1494,7 @@ def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     assert rtrans.name == "ACCRoutineTrans"
     rtrans.apply(kern)
     # Check that there is a acc routine directive in the kernel
-    schedules = kern.get_kernel_schedule()
+    schedules = kern.get_callees()
     code = fortran_writer(schedules[0])
     assert "!$acc routine seq\n" in code
 
@@ -1502,7 +1502,7 @@ def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     def raise_gen_error():
         '''Simple function that raises GenerationError.'''
         raise GenerationError("error")
-    monkeypatch.setattr(kern, "get_kernel_schedule", raise_gen_error)
+    monkeypatch.setattr(kern, "get_callees", raise_gen_error)
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kern)
     assert ("Failed to create PSyIR for kernel 'continuity_code'. Cannot "
@@ -1518,7 +1518,7 @@ def test_accroutinetrans_with_routine(fortran_writer):
     assert isinstance(kern, GOKern)
     rtrans = ACCRoutineTrans()
     assert rtrans.name == "ACCRoutineTrans"
-    routines = kern.get_kernel_schedule()
+    routines = kern.get_callees()
     rtrans.apply(routines[0])
     # Check that there is a acc routine directive in the routine
     code = fortran_writer(routines[0])

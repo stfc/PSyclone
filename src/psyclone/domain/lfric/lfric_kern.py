@@ -786,13 +786,13 @@ class LFRicKern(CodedKern):
         :returns: the interface symbol for this kernel if it is polymorphic,
                   None otherwise.
         '''
-        kscheds = self.get_kernel_schedule()
+        kscheds = self.get_callees()
         if len(kscheds) == 1:
             return None
         cntr = kscheds[0].ancestor(Container)
         return cntr.symbol_table.lookup(self.name)
 
-    def get_kernel_schedule(self):
+    def get_callees(self) -> List[KernelSchedule]:
         '''Returns the PSyIR Schedule(s) representing the kernel code. The base
         class creates the PSyIR schedule(s) on first invocation which is then
         checked for consistency with the kernel metadata here. The Schedule is
@@ -803,7 +803,6 @@ class LFRicKern(CodedKern):
         PSyIR Schedule using LFRic-specific PSyIR where possible.
 
         :returns: the Schedule(s) representing the kernel implementation.
-        :rtype: list[:py:class:`psyclone.psyGen.KernelSchedule`]
 
         :raises InternalError: if no subroutines matching this kernel
             can be found in the parse tree of the associated source code.

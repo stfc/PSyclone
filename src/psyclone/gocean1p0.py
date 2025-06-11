@@ -1075,13 +1075,12 @@ class GOKern(CodedKern):
         ''' The grid index-offset convention that this kernel expects '''
         return self._index_offset
 
-    def get_kernel_schedule(self):
+    def get_callees(self):
         '''
         Obtains and returns the PSyIR Schedule representing the kernel code.
 
         For consistency with LFRic kernels (which may be polymorphic), this
-        method actually returns a tuple with the second element containing a
-        list comprising just one Schedule.
+        method actually returns a list comprising just one Schedule.
 
         :returns: a schedule representing the GOcean kernel code.
         :rtype: list[:py:class:`psyclone.gocean1p0.GOKernelSchedule`]

@@ -112,7 +112,7 @@ class OMPTaskTrans(ParallelLoopTrans):
 
         for kern in kerns:
             kintrans.validate(kern)
-            routines = kern.get_kernel_schedule()
+            routines = kern.get_callees()
             for routine in routines:
                 cond_trans.validate(routine)
             # We need to apply these transformations to ensure we can
@@ -175,7 +175,7 @@ class OMPTaskTrans(ParallelLoopTrans):
         intrans = InlineTrans()
         for kern in kerns:
             kintrans.apply(kern)
-            schedules = kern.get_kernel_schedule()
+            schedules = kern.get_callees()
             for sched in schedules:
                 cond_trans.apply(sched)
             kern.lower_to_language_level()

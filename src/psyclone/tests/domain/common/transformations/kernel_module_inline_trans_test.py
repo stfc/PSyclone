@@ -103,7 +103,7 @@ def test_validate_with_imported_subroutine_call():
     schedule = invoke.schedule
     kern_call = schedule.walk(CodedKern)[0]
     # Create a call to made up subroutine and module symbols
-    kern_schedules = kern_call.get_kernel_schedule()
+    kern_schedules = kern_call.get_callees()
     kern_schedule = kern_schedules[0]
     mymod = kern_schedule.symbol_table.new_symbol(
             "mymod",
@@ -119,7 +119,7 @@ def test_validate_with_imported_subroutine_call():
     inline_trans.validate(kern_call)
 
 
-def test_validate_invalid_get_kernel_schedule(monkeypatch):
+def test_validate_invalid_get_callees(monkeypatch):
     '''Check that the validate method in the class KernelTrans raises an
     exception if the kernel code can not be retrieved.
 
@@ -134,7 +134,7 @@ def test_validate_invalid_get_kernel_schedule(monkeypatch):
     def raise_symbol_error():
         '''Simple function that raises SymbolError.'''
         raise SymbolError("error")
-    monkeypatch.setattr(kernel, "get_kernel_schedule", raise_symbol_error)
+    monkeypatch.setattr(kernel, "get_callees", raise_symbol_error)
     with pytest.raises(TransformationError) as err:
         kernel_trans.apply(kernel)
     assert ("KernelModuleInlineTrans failed to retrieve PSyIR for Kernel "
@@ -162,7 +162,7 @@ def test_validate_no_inline_global_var(parser):
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
     block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
-    kschedules = kernels[0].get_kernel_schedule()
+    kschedules = kernels[0].get_callees()
     ksched = kschedules[0]
     ksched.pop_all_children()
     ksched.addchild(block)
@@ -179,7 +179,7 @@ def test_validate_no_inline_global_var(parser):
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
     block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
-    kschedules = kernels[0].get_kernel_schedule()
+    kschedules = kernels[0].get_callees()
     ksched = kschedules[0]
     ksched.pop_all_children()
     ksched.addchild(block)
@@ -196,7 +196,7 @@ def test_validate_no_inline_global_var(parser):
 
     # But make sure that an IntrinsicCall routine name is not considered
     # a global symbol, as they are implicitly declared everywhere
-    kschedules = kernels[0].get_kernel_schedule()
+    kschedules = kernels[0].get_callees()
     ksched = kschedules[0]
     ksched.pop_all_children()
     ksched.addchild(

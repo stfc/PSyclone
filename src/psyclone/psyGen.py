@@ -1357,7 +1357,7 @@ class CodedKern(Kern):
         '''
         return None
 
-    def get_kernel_schedule(self):
+    def get_callees(self):
         '''
         Returns the PSyIR Schedule(s) representing the kernel code. The
         Schedules are just generated on first invocation, this allows us to
@@ -1371,8 +1371,7 @@ class CodedKern(Kern):
 
         '''
         raise NotImplementedError(
-            f"get_kernel_schedule() must be overridden in class "
-            f"{self.__class__}")
+            f"get_callees() must be overridden in class {self.__class__}")
 
     @property
     def opencl_options(self):
@@ -1671,7 +1670,7 @@ class CodedKern(Kern):
         # Start from the root of the schedule as we want to output
         # any module information surrounding the kernel subroutine
         # as well as the subroutine itself.
-        schedules = self.get_kernel_schedule()
+        schedules = self.get_callees()
         new_kern_code = fortran_writer(schedules[0].root)
         fll = FortLineLength()
         new_kern_code = fll.process(new_kern_code)
@@ -1711,7 +1710,7 @@ class CodedKern(Kern):
 
         '''
         # We need to get the kernel schedule before modifying self.name.
-        kern_schedules = self.get_kernel_schedule()
+        kern_schedules = self.get_callees()
         container = kern_schedules[0].ancestor(Container)
 
         # Use the suffix to create a new kernel name.  This will

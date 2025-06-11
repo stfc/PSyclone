@@ -139,8 +139,8 @@ def test_kern_getter_errors():
             in str(err.value))
 
 
-def test_get_kernel_schedule(monkeypatch):
-    '''Test that a PSyIR kernel schedule is created by get_kernel_schedule
+def test_kern_get_callees(monkeypatch):
+    '''Test that a PSyIR kernel schedule is created by get_callees
     if one does not exist and that the same kernel schedule is
     returned if one has already been created.
 
@@ -154,14 +154,14 @@ def test_get_kernel_schedule(monkeypatch):
 
     assert kernel._schedules is None
 
-    kernel_schedules = kernel.get_kernel_schedule()
+    kernel_schedules = kernel.get_callees()
     assert len(kernel_schedules) == 1
     assert isinstance(kernel_schedules[0], KernelSchedule)
     assert kernel._schedules[0] is kernel_schedules[0]
     # Not a polymorphic kernel so has no interface symbol
     assert kernel.get_interface_symbol() is None
 
-    kernel_schedules_2 = kernel.get_kernel_schedule()
+    kernel_schedules_2 = kernel.get_callees()
     assert kernel_schedules[0] is kernel_schedules_2[0]
     # Check the internal error for the case where we fail to get any
     # implementation for the kernel.
@@ -170,14 +170,14 @@ def test_get_kernel_schedule(monkeypatch):
     monkeypatch.setattr(Fparser2Reader, "generate_psyir",
                         lambda _1, _2: Container("dummy_mod"))
     with pytest.raises(InternalError) as err:
-        kernel.get_kernel_schedule()
+        kernel.get_callees()
     assert ("Failed to find any routines for Kernel 'matrix_vector_code'"
             in str(err.value))
 
 
-def test_get_kernel_schedule_same_container(monkeypatch):
+def test_get_callees_same_container(monkeypatch):
     '''
-    Check that get_kernel_schedule() first examines all routines in the same
+    Check that get_callees() first examines all routines in the same
     Container.
 
     '''
@@ -188,16 +188,16 @@ def test_get_kernel_schedule_same_container(monkeypatch):
     mod_inline_trans = KernelModuleInlineTrans()
     for kern in sched.walk(LFRicKern):
         mod_inline_trans.apply(kern)
-        # Remove the cached schedule to force get_kernel_schedule() to search.
+        # Remove the cached schedule to force get_callees() to search.
         monkeypatch.setattr(kern, "_schedules", None)
-        schedules = kern.get_kernel_schedule()
+        schedules = kern.get_callees()
         # The returned schedule should be the one in the local Container.
         assert schedules[0] in sched.ancestor(Container).walk(Routine)
 
 
-def test_get_kernel_schedule_mixed_precision():
+def test_get_callees_mixed_precision():
     '''
-    Test that get_kernel_schedule() and get_interface_symbol() work for a
+    Test that get_callees() and get_interface_symbol() work for a
     mixed-precision kernel.
 
     '''
@@ -205,17 +205,17 @@ def test_get_kernel_schedule_mixed_precision():
                            name="invoke_0", dist_mem=False)
     sched = invoke.schedule
     for kern in sched.walk(LFRicKern, stop_type=LFRicKern):
-        assert len(kern.get_kernel_schedule()) == 2
+        assert len(kern.get_callees()) == 2
         isym = kern.get_interface_symbol()
         assert isinstance(isym, GenericInterfaceSymbol)
         assert isym.name == "mixed_code"
 
 
-@pytest.mark.xfail(reason="get_kernel_schedule has been extended to return all"
+@pytest.mark.xfail(reason="get_callees has been extended to return all"
                    " implementations of a polymorphic kernel. We need to "
                    "put back (and fix) the ability to resolve which "
                    "implementation is being called.")
-def test_get_kernel_schedule_mixed_precision_match():
+def test_get_callees_mixed_precision_match():
     '''
     Test that we can get the correct schedule for a mixed-precision kernel.
 
@@ -234,16 +234,16 @@ def test_get_kernel_schedule_mixed_precision_match():
     # Check that the correct kernel implementation is obtained for each
     # one in the invoke.
     for precision, kern in zip(precisions, kernels):
-        sched = kern.get_kernel_schedule()
+        sched = kern.get_callees()
         assert isinstance(sched, KernelSchedule)
         assert sched.name == f"mixed_code_{8*precision}"
 
 
-@pytest.mark.xfail(reason="get_kernel_schedule has been extended to return all"
+@pytest.mark.xfail(reason="get_callees() has been extended to return all"
                    " implementations of a polymorphic kernel. We need to "
                    "put back (and fix) the ability to resolve which "
                    "implementation is being called.")
-def test_get_kernel_sched_mixed_precision_no_match(monkeypatch):
+def test_get_callees_mixed_precision_no_match(monkeypatch):
     '''
     Test that we get the expected error if there's no matching implementation
     for a mixed-precision kernel.
@@ -262,7 +262,7 @@ def test_get_kernel_sched_mixed_precision_no_match(monkeypatch):
     monkeypatch.setattr(LFRicKern, "validate_kernel_code_args",
                         fake_validate)
     with pytest.raises(GenerationError) as err:
-        _ = kernels[0].get_kernel_schedule()
+        _ = kernels[0].get_callees()
     assert ("Failed to find a kernel implementation with an interface that "
             "matches the invoke of 'mixed_code'. (Tried routines "
             "['mixed_code_32', 'mixed_code_64'].)" in str(err.value))
@@ -282,7 +282,7 @@ def test_validate_kernel_code_args(monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
     # matrix vector kernel
     kernel = schedule[2].loop_body[0]
-    schedules = kernel.get_kernel_schedule()
+    schedules = kernel.get_callees()
     sched = schedules[0]
     kernel.validate_kernel_code_args(sched.symbol_table)
 

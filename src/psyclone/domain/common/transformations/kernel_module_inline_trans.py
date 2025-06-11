@@ -120,7 +120,7 @@ class KernelModuleInlineTrans(Transformation):
 
         # Check that the PSyIR of the routine/kernel can be retrieved.
         try:
-            kernels = KernelModuleInlineTrans._get_psyir_to_inline(node)
+            kernels = node.get_callees()
         except Exception as error:
             raise TransformationError(
                 f"{self.name} failed to retrieve PSyIR for {kern_or_call} "
@@ -290,33 +290,6 @@ class KernelModuleInlineTrans(Transformation):
         return copied_routines
 
     @staticmethod
-    def _get_psyir_to_inline(node) -> List[Routine]:
-        '''
-        Wrapper that gets the PSyIR of the routine or kernel
-        corresponding to the call described by `node`. This supports calls to
-        routines or kernels which are polymorphic by returning a list of
-        Routine objects, as well as the associated interface symbol.
-
-        :param node: the Call or CodedKern to resolve.
-        :type node: :py:class:`psyclone.psyir.nodes.Call` |
-                    :py:class:`psyclone.psyGen.CodedKern`
-
-        :returns: the PSyIR of the routine implementation(s)
-
-        '''
-        # TODO #2054 - once CodedKern has been migrated so that it subclasses
-        # Call then this if/else (and thus this whole routine) can be removed.
-        if isinstance(node, CodedKern):
-            # We have a call to a Kernel in a PSyKAl API.
-            # Where mixed-precision kernels are supported (e.g. in LFRic) the
-            # call to get_kernel_schedule() will return the one which has an
-            # interface matching the arguments in the call.
-            return node.get_kernel_schedule()
-
-        # We have a generic routine call.
-        return node.get_callees()
-
-    @staticmethod
     def _rm_imported_routine_symbol(symbol: Symbol,
                                     schedule: Routine,
                                     table: SymbolTable):
@@ -447,7 +420,7 @@ class KernelModuleInlineTrans(Transformation):
         # may already be in use, but the equality check below guarantees
         # that if it exists it is only valid when it references the exact same
         # implementation.
-        codes_to_inline = KernelModuleInlineTrans._get_psyir_to_inline(node)
+        codes_to_inline = node.get_callees()
         interface_sym = codes_to_inline[0].symbol_table.lookup(
             caller_name) if len(codes_to_inline) > 1 else None
 
