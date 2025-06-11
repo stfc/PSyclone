@@ -1,0 +1,31 @@
+# This fcm file is intended to be used with the psyclone-spack nemo-build-environment recipe
+# which will populate all environment variables but PSYCLONE_HOME and FCFLAGS, which should
+# be populated manually for the desired target. For example, using:
+#   $ spack load nemo-build-environment%nvhpc
+#   $ export PSYCLONE_HOME=${PWD}/.venv
+#   $ export FCFLAGS="-i4 -Mr8 -O3 -Minline -Mcray=pointer -Mpre -mp"
+
+%PSYCLONE_HOME       ${PSYCLONE_HOME}
+%NCDF_INC            -I${NCDF_F_HOME}/include -I${NCDF_C_HOME}/include -I${HDF5_HOME}/include
+%NCDF_LIB            -L${NCDF_F_HOME}/lib -lnetcdff -L${NCDF_C_HOME}/lib -lnetcdf
+
+%PROFILE_INC         -I${PROFILING_DIR}
+%PROFILE_LIB         -L${PROFILING_DIR} -lnvtx_prof -L${CUDA_HOME}/lib64 -cuda -lnvToolsExt
+
+
+
+%CPP	             cpp -Dkey_nosignedzero
+%FC	                 ${MPIF90} -c
+%FCFLAGS             ${FCFLAGS}
+%FFLAGS              %FCFLAGS
+%LD                  ${MPIF90}
+%LDFLAGS             ${FCFLAGS}
+%FPPFLAGS            -P -traditional
+%AR                  ar
+%ARFLAGS             rs
+%MK                  make
+%USER_INC            %NCDF_INC %PROFILE_INC
+%USER_LIB            %NCDF_LIB %PROFILE_LIB
+
+%CC                  ${CC}
+%CFLAGS              -O2
