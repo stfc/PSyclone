@@ -117,7 +117,8 @@ def test_get_node_list():
                                            [Reference(sym)])]
     node_list3 = my_rt.get_node_list([sched])
     # Result should be the children of the Schedule.
-    assert node_list3 == [node]
+    assert len(node_list3) == 1
+    assert node_list3[0] is sched.children[0]
 
 
 # -----------------------------------------------------------------------------

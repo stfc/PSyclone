@@ -40,11 +40,12 @@
 '''
 
 import abc
+from typing import List
 
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 from psyclone.psyir.nodes import Schedule, Node
 
 
@@ -66,38 +67,42 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
     # populated by sub-class.
     excluded_node_types = ()
 
-    def get_node_list(self, nodes):
+    def get_node_list(self, nodes) -> List[Node]:
         '''This is a helper function for region based transformations.
         The parameter for any of those transformations is either a single
-        node, a schedule, or a list of nodes. This function converts this
+        Node, a Schedule, or a list of nodes. This function converts this
         into a list of nodes according to the parameter type. This function
         will always return a copy, to avoid issues e.g. if a child list
         of a node should be provided, and a transformation changes the order
         in this list (which would then also change the order of the
         nodes in the tree).
 
+        If `nodes` happens to be a list containing a single Schedule node then,
+        the behaviour is the same as if it had been a single Schedule node,
+        i.e. we return a list of that Schedule's children.
+
         :param nodes: can be a single node, a schedule or a list of nodes.
         :type nodes: Union[:py:obj:`psyclone.psyir.nodes.Node`,
                            :py:obj:`psyclone.psyir.nodes.Schedule`,
                            List[:py:obj:`psyclone.psyir.nodes.Node`]
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str,Any]]
 
         :returns: a list of nodes.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
 
-        :raises TransformationError: if the supplied parameter is neither a \
+        :raises TransformationError: if the supplied parameter is neither a
             single Node, nor a Schedule, nor a list of Nodes.
 
         '''
-        if isinstance(nodes, list) and \
-                all(isinstance(node, Node) for node in nodes):
-            # We still need to return a copy, since the user might have
-            # provided Node.children as parameter.
-            return nodes[:]
+        if isinstance(nodes, list):
+            if len(nodes) == 1 and isinstance(nodes[0], Schedule):
+                # We've been passed a list containing a single schedule so
+                # return a list of its children.
+                return nodes[0].children[:]
+            if all(isinstance(node, Node) for node in nodes):
+                # We still need to return a copy, since the user might have
+                # provided Node.children as parameter.
+                return nodes[:]
         if isinstance(nodes, Schedule):
-            # We've been passed a Schedule so default to enclosing its
-            # children.
+            # We've been passed a Schedule so return a list of its children.
             return nodes.children[:]
         if isinstance(nodes, Node):
             # Single node that's not a Schedule
