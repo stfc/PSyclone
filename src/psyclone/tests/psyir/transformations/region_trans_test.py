@@ -111,7 +111,7 @@ def test_get_node_list():
     assert node_list2 is not node_list
 
     # Provide a list containing a single Schedule
-    #--------------------------------------------
+    # -------------------------------------------
     sym = DataSymbol("x", REAL_TYPE)
     sched.children = [IntrinsicCall.create(IntrinsicCall.Intrinsic.SIN,
                                            [Reference(sym)])]
