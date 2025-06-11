@@ -40,7 +40,7 @@ chunked implementation of the Loop'''
 
 from psyclone.core import Signature, AccessType
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import Assignment, BinaryOperation, Reference, \
+from psyclone.psyir.nodes import BinaryOperation, Reference, \
         Literal, Loop, Schedule, CodeBlock, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations.loop_trans import LoopTrans

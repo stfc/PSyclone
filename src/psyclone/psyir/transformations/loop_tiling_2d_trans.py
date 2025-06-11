@@ -146,9 +146,8 @@ class LoopTiling2DTrans(LoopTrans):
         # Check that we can chunk both loops
         outer_loop = node
         inner_loop = node.loop_body.children[0]
-        chunk_opts = {'chunksize': tilesize}
-        ChunkLoopTrans().validate(outer_loop, options=chunk_opts)
-        ChunkLoopTrans().validate(inner_loop, options=chunk_opts)
+        ChunkLoopTrans().validate(outer_loop, options={'chunksize': tilesize})
+        ChunkLoopTrans().validate(inner_loop, options={'chunksize': tilesize})
 
     def apply(self, node, options=None):
         '''
@@ -173,9 +172,8 @@ class LoopTiling2DTrans(LoopTrans):
         outer_loop = node
         inner_loop = node.loop_body.children[0]
 
-        chunk_opts = {'chunksize': tilesize}
-        ChunkLoopTrans().apply(outer_loop, options=chunk_opts)
-        ChunkLoopTrans().apply(inner_loop, options=chunk_opts)
+        ChunkLoopTrans().apply(outer_loop, options={'chunksize': tilesize})
+        ChunkLoopTrans().apply(inner_loop, options={'chunksize': tilesize})
 
         loops = parent[position].walk(Loop)[1]
         LoopSwapTrans().apply(loops)
