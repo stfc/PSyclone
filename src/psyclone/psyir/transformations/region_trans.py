@@ -123,20 +123,26 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
               options: Dict = None,
               **kwargs):
         '''
+        Apply the RegionTrans transformation.
+
         :param nodes: can be a single node, a schedule or a list of nodes.
-        :type nodes: Union[:py:obj:`psyclone.psyir.nodes.Node`,
-                           :py:obj:`psyclone.psyir.nodes.Schedule`,
-                           List[:py:obj:`psyclone.psyir.nodes.Node`]
-        :param node_type_check: this flag controls whether the type of the
+        :param node_type_check: whether or not the type of the
             nodes enclosed in the region should be tested to avoid using
             unsupported nodes inside a region.
 
         '''
+        # This method is only here to expose the `node_type_check` option
+        # for sub-classes.
         super().apply(nodes, node_type_check=node_type_check)
 
-    def validate(self, nodes, options=None, **kwargs):
-        '''Checks that the nodes in node_list are valid for a region
+    def validate(self,
+                 nodes: Union[Node, Schedule, List[Node]],
+                 options: Dict = None,
+                 **kwargs):
+        '''Checks that the nodes in `nodes` are valid for a region
         transformation.
+
+        :param nodes: can be a single node, a schedule or a list of nodes.
 
         :raises TransformationError: if the nodes in the list are not
                 in the original order in which they are in the AST,
@@ -156,7 +162,8 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
         node_list = self.get_node_list(nodes)
 
         if not options:
-            self.validate_options(node_type_check=node_type_check, **kwargs)
+            self.validate_options(**kwargs)
+            node_type_check = self.get_option("node_type_check", **kwargs)
         else:
             # TODO #2668 - deprecate options dictionary.
             if not isinstance(options, dict):
@@ -214,8 +221,8 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
         # Sanity check that we've not been passed the condition part of
         # an If statement or the bounds of a Loop. If the parent node is
         # a Loop or IfBlock then we can only accept a single Schedule.
-        if not isinstance(node_parent, Schedule) and
-                not isinstance(node_list[0], Schedule):
+        if (not isinstance(node_parent, Schedule) and
+                not isinstance(node_list[0], Schedule)):
             # We've already checked for lists with len > 1 that contain a
             # Schedule above so if the first item is a Schedule then that's
             # all the list contains.
