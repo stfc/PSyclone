@@ -78,7 +78,7 @@ def test_nemo_omp_parallel(fortran_reader):
 
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
-    correct = '''!$omp parallel default(shared), private(a,i)
+    correct = '''!$omp parallel default(shared) private(a,i)
   do i = 1, 20, 2
     a = 2 * i
     b(i) = b(i) + a
