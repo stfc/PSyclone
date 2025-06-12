@@ -145,13 +145,13 @@ def test_array_ndims_setter_getter():
         test_value = "1.5"
         array_arg.array_ndims(test_value)
     assert ("The number of dimensions of a scalar array should be a string "
-            "containing an integer, but found '"1.5"'." in str(info.value))
+            "containing an integer, but found '1.5'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         test_value = "-1"
         array_arg.array_ndims(test_value)
     assert ("The number of dimensions of a scalar array should be an "
-            "integer greater than or equal to 1 but found '"-1"'."
+            "integer greater than or equal to 1 but found '-1'."
             in str(info.value))
 
     # array_arg.array_ndims = "3"
