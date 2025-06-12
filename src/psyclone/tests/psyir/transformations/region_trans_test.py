@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Bureau of Meteorology
+#          A. R. Porter, STFC Daresbury Laboratory
 
 ''' Module containing tests for testing RegionTrans'''
 
