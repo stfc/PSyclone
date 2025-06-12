@@ -246,7 +246,7 @@ def test_omptaskloop_apply(monkeypatch):
 
     clauses = " nogroup"
     assert (
-        f"  !$omp parallel default(shared), private(i,j)\n"
+        f"  !$omp parallel default(shared) private(i,j)\n"
         f"    !$omp master\n"
         f"    !$omp taskloop{clauses}\n"
         f"    do" in code)
@@ -428,8 +428,8 @@ def test_omplooptrans_apply_firstprivate(fortran_reader, fortran_writer,
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop)
     expected = '''\
-    !$omp parallel do default(shared), private(ji,jj,jk,scalar2), \
-firstprivate(scalar1), schedule(auto)
+    !$omp parallel do default(shared) private(ji,jj,jk,scalar2) \
+firstprivate(scalar1) schedule(auto)
     do jk = 2, jpkm1, 1
       do jj = 2, jpjm1, 1
         do ji = 2, jpim1, 1
@@ -517,7 +517,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
 
     # Check that the full resulting code looks like this
     expected = '''
-  !$omp parallel default(shared), private(i,j)
+  !$omp parallel default(shared) private(i,j)
   !$omp do schedule(dynamic,2)
   do i = 1, 10, 1
     do j = 1, 10, 1
@@ -526,7 +526,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
   enddo
   !$omp end do
   !$omp end parallel
-  !$omp parallel default(shared), private(i,j)
+  !$omp parallel default(shared) private(i,j)
   !$omp loop collapse(2)
   do i = 1, 10, 1
     do j = 1, 10, 1
@@ -614,7 +614,7 @@ def test_omplooptrans_apply_nowait(fortran_reader, fortran_writer):
   integer :: i
   integer, dimension(100) :: arr
 
-  !$omp parallel default(shared), private(i)
+  !$omp parallel default(shared) private(i)
   !$omp do schedule(auto)
   do i = 1, 100, 1
     arr(i) = i
@@ -660,7 +660,7 @@ end subroutine x"""
   integer, dimension(100) :: arr
   integer, dimension(100) :: arr2
 
-  !$omp parallel default(shared), private(i,j)
+  !$omp parallel default(shared) private(i,j)
   !$omp do schedule(auto)
   do i = 1, 100, 1
     j = i + i
