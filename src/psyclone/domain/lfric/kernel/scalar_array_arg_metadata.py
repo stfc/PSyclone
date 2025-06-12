@@ -114,7 +114,27 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
         '''
         :param str value: set the number of dimensions to the specified value.
 
+        :raises TypeError: if value is not a string.
+        :raises ValueError: if value is not an integer.
+        :raises ValueError: if value is less than 1.
+
         '''
+        if not value.isinstance(str):
+            raise TypeError(f"The type of value must be a string, but "
+                            f"found input of type {type(value)}.")
+
+        try:
+            int_value = int(value)
+        except ValueError as info:
+            raise ValueError(f"The number of dimensions of a scalar array "
+                             f"should be a string containing an integer, "
+                             f"but found '{value}'.") from info
+
+        if int_value < 1:
+            raise ValueError(f"The number of dimensions of a scalar array "
+                             f"should be an integer greater than or "
+                             f"equal to 1 but found '{value}'.")
+
         self._array_ndims = value
 
     @classmethod
