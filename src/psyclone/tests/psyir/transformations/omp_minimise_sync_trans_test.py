@@ -358,6 +358,75 @@ def test_dependency_before_directive(fortran_reader, fortran_writer):
     assert correct in out
 
 
+def test_dependency_before_directive_while(fortran_reader, fortran_writer):
+    ''' Test what happens if a directives dependency appears before it in the
+    PSyIR tree - i.e. its inside a while loop with multiple directives
+    contained.'''
+    code = """
+    subroutine test
+    integer, dimension(100) :: a, b
+    integer :: i, j
+
+    do while( .TRUE. )
+        do j = 1, 100
+            b(j) = j
+        end do
+        do j = 1, 100
+            b(j) = b(j) + 1
+        end do
+        do j = 1, 100
+            a(j) = j
+        end do
+        do j = 1, 100
+            a(j) = a(j) + i
+        end do
+    end do
+    end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    targettrans = OMPTargetTrans()
+    for loop in psyir.walk(Loop)[0:]:
+        targettrans.apply(loop, options={"nowait": True})
+
+    # We have if we imagine we have loops BCDA b->c,c->b, d->a and a->d
+    # depdendencies. The a->d barrier is covered by b->c, and the c->b barrier
+    # is covered by the d->a barrier.
+    assert len(psyir.walk(OMPTaskwaitDirective)) == 5
+
+    rtrans = OMPMinimiseSyncTrans()
+
+    rtrans.apply(routine)
+    assert len(psyir.walk(OMPTaskwaitDirective)) == 3
+    correct = """  do while (.true.)
+    !$omp target nowait
+    do j = 1, 100, 1
+      b(j) = j
+    enddo
+    !$omp end target
+    !$omp taskwait
+    !$omp target nowait
+    do j = 1, 100, 1
+      b(j) = b(j) + 1
+    enddo
+    !$omp end target
+    !$omp target nowait
+    do j = 1, 100, 1
+      a(j) = j
+    enddo
+    !$omp end target
+    !$omp taskwait
+    !$omp target nowait
+    do j = 1, 100, 1
+      a(j) = a(j) + i
+    enddo
+    !$omp end target
+  end do
+  !$omp taskwait"""
+    out = fortran_writer(psyir)
+    assert correct in out
+
+
 def test_barrier_in_if_statement_is_ignored(fortran_reader):
     '''Test to check that a barrier inside an if statement doesn't get
     counted as satisfying a dependency for statements that are outside the

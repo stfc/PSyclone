@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import (
     IfBlock, Loop, Node,
     OMPDoDirective,
     OMPBarrierDirective, OMPTaskwaitDirective,
-    OMPTargetDirective, Routine,
+    OMPTargetDirective, Routine, WhileLoop
 )
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
@@ -316,13 +316,14 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
                         continue
                     # If the barrier is not contained in any of the ancestor
                     # loops of both then we can ignore it.
-                    loop_ancestor = directive.ancestor(Loop)
+                    loop_ancestor = directive.ancestor((Loop, WhileLoop))
                     barrier_in_ancestor_loop = False
                     while loop_ancestor:
                         if barrier.is_descendent_of(loop_ancestor):
                             barrier_in_ancestor_loop = True
                             break
-                        loop_ancestor = loop_ancestor.ancestor(Loop)
+                        loop_ancestor = loop_ancestor.ancestor((Loop,
+                                                                WhileLoop))
                     if not barrier_in_ancestor_loop:
                         continue
 
@@ -361,7 +362,6 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
                     barrier_ancestor_if = barrier_ancestor_if.ancestor(
                             IfBlock
                     )
-
                 # If we make it to barrier_ancestor_if is None then all of its
                 # ifblock ancestors have either the directive or the
                 # dependency in the same conditional, meaning this is a

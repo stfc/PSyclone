@@ -40,7 +40,7 @@ from typing import List, Union
 
 from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes import (
-        Directive, Loop, Node, Schedule, Statement
+        Directive, Loop, Node, Schedule, Statement, WhileLoop
 )
 
 
@@ -86,7 +86,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                   dependency is found, or True if there is no dependency.
 
         '''
-        if isinstance(nodes, Loop):
+        if isinstance(nodes, (Loop, WhileLoop)):
             var_accesses = nodes.loop_body.reference_accesses()
         else:
             var_accesses = VariablesAccessMap()
@@ -97,7 +97,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             if var_accesses.is_written(signature):
                 writes.append(signature)
 
-        if isinstance(nodes, Loop):
+        if isinstance(nodes, (Loop, WhileLoop)):
             loop_position = nodes.abs_position
         else:
             loop_position = directive.abs_position
@@ -163,11 +163,12 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                         # order so we don't need to consider cases where
                         # abs_position < closest_position since it cannot
                         # happen.
-                        anc_loop = access.ancestor(Loop, shared_with=directive)
+                        anc_loop = access.ancestor((Loop, WhileLoop),
+                                                   shared_with=directive)
                         # Find the loop ancestor of closest that is an ancestor
                         # of the directive.
                         close_loop = closest.ancestor(
-                            Loop, shared_with=directive
+                            (Loop, WhileLoop), shared_with=directive
                         )
                         # If access and closest are in the same ancestor loop
                         # of directive, then the later node in the tree is
@@ -195,7 +196,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         # If this directive is contained inside a loop the closest foward
         # dependency might be itself. So if closest is not within the ancestor
         # loop of node then we can't do nowait, so return False.
-        node_ancestor = directive.ancestor(Loop)
+        node_ancestor = directive.ancestor((Loop, WhileLoop))
         if node_ancestor:
             # If we didn't find a closest and we have an ancestor Loop, then
             # the loop's next dependency is itself.
