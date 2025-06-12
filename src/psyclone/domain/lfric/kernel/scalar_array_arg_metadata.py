@@ -119,7 +119,7 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
         :raises ValueError: if value is less than 1.
 
         '''
-        if not isinstance(value,str):
+        if not isinstance(value, str):
             raise TypeError(f"The type of value must be a string, but "
                             f"found input of type {type(value)}.")
 
