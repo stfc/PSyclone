@@ -951,6 +951,38 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     result = psyir.walk(Loop)[3].loop_body.children[0]
     assert paratrans._find_next_dependency(loop, direc) == [result]
 
+    # Test we do find a previous dependency if they're not in the same IfBlock
+    code = """
+    subroutine test
+    integer, dimension(100) :: a
+    integer :: i, j
+    do i = 1, 100
+        if( i < 100) then
+            do j = 1, 100
+                a(j) = i
+            end do
+        end if
+            do j = 1, 100
+                a(j) = a(j) + i
+            end do
+        if (i < 50) then
+            do j = 1, 100
+                a(j) = a(j) + j
+            end do
+        end if
+    end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[2]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(IfBlock)[0].if_body.children.insert(1, direc)
+    result1 = psyir.walk(Loop)[1].loop_body.children[0]
+    result2 = psyir.walk(Loop)[3].loop_body.children[0]
+    assert paratrans._find_next_dependency(loop, direc) == [result1, result2]
+
 
 def test_parallel_loop_trans_add_asynchronicity():
     '''Test the _add_asynchronicity function of the parallel loop trans.'''
