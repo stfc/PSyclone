@@ -35,9 +35,11 @@
 
 ''' Utilities file to parallelise Nemo code. '''
 
+from typing import List, Union
+
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Assignment, Loop, Directive, Reference, CodeBlock, ArrayReference,
+    Assignment, Loop, Directive, Node, Reference, CodeBlock, ArrayReference,
     Call, Return, IfBlock, Routine, Schedule, IntrinsicCall,
     StructureReference)
 from psyclone.psyir.symbols import (
@@ -496,17 +498,17 @@ def insert_explicit_loop_parallelism(
             continue
 
 
-def add_profiling(children):
+def add_profiling(children: Union[List[Node], Schedule]):
     '''
-    Walks down the PSyIR and inserts the largest possible profiling regions.
-    Code that contains directives is excluded.
+    Walks down the PSyIR and inserts the largest possible profiling regions
+    in place. Code that contains directives is excluded.
 
-    :param children: sibling nodes in the PSyIR to which to attempt to add \
-                     profiling regions.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+    :param children: a Schedule or sibling nodes in the PSyIR to which to
+        attempt to add profiling regions.
 
     '''
     if children and isinstance(children, Schedule):
+        # If we are given a Schedule, we look at its children.
         children = children.children
 
     if not children:
