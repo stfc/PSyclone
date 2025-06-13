@@ -38,7 +38,8 @@
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Reference, CodeBlock, ArrayReference,
-    Call, Return, IfBlock, Routine, IntrinsicCall, StructureReference)
+    Call, Return, IfBlock, Routine, Schedule, IntrinsicCall,
+    StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
 from psyclone.psyir.transformations import (
@@ -505,7 +506,17 @@ def add_profiling(children):
     :type children: list of :py:class:`psyclone.psyir.nodes.Node`
 
     '''
+    if children and isinstance(children, Schedule):
+        children = children.children
+
     if not children:
+        return
+
+    # We do not want profiling calipers inside the PSyclone-generated
+    # comparison functions
+    parent_routine = children[0].ancestor(Routine)
+    if (parent_routine and
+            "_psyclone_internal_cmp" in parent_routine.name.lower()):
         return
 
     node_list = []
