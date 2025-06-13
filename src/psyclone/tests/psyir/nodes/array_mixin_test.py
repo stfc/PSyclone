@@ -197,6 +197,11 @@ def test_is_bound_validate_index(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     assigns = psyir.walk(Assignment)
     array_ref = assigns[0].lhs
+    with pytest.raises(TypeError) as info:
+        array_ref._is_bound("2", "upper")
+    assert ("index argument should be an integer but found 'str'"
+            in str(info.value))
+
     with pytest.raises(ValueError) as info:
         array_ref._is_bound(2, "upper")
     assert ("In 'ArrayReference' 'a' the specified index '2' must be less "
@@ -430,6 +435,14 @@ def test_get_bound_expression():
     # Returned lower bound should be a *copy* of the original.
     assert ub2 is not ubnd_ref
     assert ub2 == ubnd_ref
+
+    # An ArrayType where the upper bound is unknown.
+    symbol2 = DataSymbol("other", ArrayType(INTEGER_TYPE,
+                                            [(1, ArrayType.Extent.ATTRIBUTE)]))
+    aref2 = ArrayReference.create(symbol2, [_ONE.copy()])
+    ubnd2 = aref2._get_bound_expression(0, "upper")
+    assert isinstance(ubnd2, IntrinsicCall)
+    assert ubnd2.intrinsic == IntrinsicCall.Intrinsic.UBOUND
 
     # Symbol is of UnresolvedType so the result should be an instance of the
     # UBOUND intrinsic.
