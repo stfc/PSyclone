@@ -126,7 +126,6 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         for depend in next_depend:
             # Find the deepest schedule in the tree containing both.
             sched = depend.ancestor(Schedule, shared_with=instance)
-            routine = instance.ancestor(Routine)
             # Get the path from sched to depend
             path = depend.path_from(sched)
             # The first element of path is the position of the ancestor
