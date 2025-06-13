@@ -33,12 +33,14 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module provides the Profile transformation.
 '''
 
-from psyclone.psyir.nodes import Return, ProfileNode
+from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.nodes import CodeBlock, ProfileNode, Return, Routine
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 
 
@@ -75,3 +77,50 @@ class ProfileTrans(PSyDataTrans):
 
     def __init__(self):
         super().__init__(ProfileNode)
+
+    def validate(self, nodes, options=None):
+        '''
+        Checks that the supplied list of nodes is valid for profiling
+        callipers.
+
+        :param nodes: a node or list of nodes to be instrumented with
+                      profiling.
+        :type nodes: :py:class:`psyclone.psyir.nodes.Node` or
+                     list[:py:class:`psyclone.psyir.nodes.Node`]
+        :param bool options["force"]: whether to ignore potential control
+                                      flow jumps when applying this
+                                      transformation. Default is False.
+
+        :raises TransformationError: if the supplied region contains a
+                                     potential control flow jump that could
+                                     result in skipping the end of profiling
+                                     caliper, e.g. EXIT or GOTO.
+        '''
+        if not options:
+            options = {}
+        forced = options.get("force", False)
+        super().validate(nodes, options)
+        if forced:
+            return
+        node_list = self.get_node_list(nodes)
+        # If the node_list is the same as a whole routine then we skip the
+        # checks for internal control flow jumps.
+        parent = node_list[0].parent
+        if (isinstance(parent, Routine) and
+                len(parent.children) == len(node_list)):
+            # If the node_list is the same size and the parent of the first
+            # is the routine then this is the full Routine (see
+            # RegionDirective.validate for the validation).
+            return
+
+        # Find all the codeblocks and check if they contain a control
+        # flow jump.
+        for node in node_list:
+            codeblocks = node.walk(CodeBlock)
+            for block in codeblocks:
+                if block.has_potential_control_flow_jump():
+                    raise TransformationError(
+                        f"Cannot apply the ProfileTrans to a code region "
+                        f"containing a potential control flow jump, as these "
+                        f"could skip the end of profiling caliper. "
+                        f"Found:\n'{block.debug_string()}'")
