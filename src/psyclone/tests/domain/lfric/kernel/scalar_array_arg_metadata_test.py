@@ -64,11 +64,11 @@ def test_get_metadata(metadata):
     '''Test that the _get_metadata class method works as expected '''
     fparser2_tree = ScalarArrayArgMetadata.create_fparser2(
         metadata, Fortran2003.Part_Ref)
-    datatype, access, array_ndims = ScalarArrayArgMetadata._get_metadata(
+    datatype, access, array_ndims_val = ScalarArrayArgMetadata._get_metadata(
         fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
-    assert array_ndims == "2"
+    assert array_ndims_val == "2"
 
 
 @pytest.mark.parametrize("fortran_string", [
