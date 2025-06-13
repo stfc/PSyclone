@@ -135,9 +135,9 @@ def test_array_ndims_setter_getter():
 
     '''
     array_arg = ScalarArrayArgMetadata("GH_REAL", "GH_READ", "1")
+    test_value = int(2)
     array_arg.array_ndims(test_value)
     with pytest.raises(TypeError) as info:
-        test_value = int(2)
         array_arg.array_ndims(test_value)
     print(info)
     print(info.value)
