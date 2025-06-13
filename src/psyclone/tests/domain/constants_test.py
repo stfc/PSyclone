@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 # Modified: R. W. Ford, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
 
@@ -55,7 +55,7 @@ def test_lfric_const():
     # Don't test intrinsic_types, which comes from the config file
     assert lfric_const.VALID_ARG_TYPE_NAMES == ["gh_field", "gh_operator",
                                                 "gh_columnwise_operator",
-                                                "gh_scalar"]
+                                                "gh_scalar_array", "gh_scalar"]
 
     assert lfric_const.VALID_SCALAR_NAMES == ["gh_scalar"]
 
@@ -67,7 +67,7 @@ def test_lfric_const():
     assert lfric_const.VALID_INTRINSIC_TYPES == "INVALID"
     assert lfric_const.VALID_ARG_TYPE_NAMES == ["gh_field", "gh_operator",
                                                 "gh_columnwise_operator",
-                                                "gh_scalar"]
+                                                "gh_scalar_array", "gh_scalar"]
     assert lfric_const.VALID_SCALAR_NAMES == ["gh_scalar"]
     assert lfric_const.VALID_ARG_DATA_TYPES == ["gh_real", "gh_integer",
                                                 "gh_logical"]
