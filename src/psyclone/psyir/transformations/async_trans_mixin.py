@@ -178,7 +178,9 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             # dependencies from before the directive that are contained in the
             # same Loop/WhileLoop AND IfBlock (if there is one) as the
             # dependency after the directive.
-            for i, depend in enumerate(reversed(dependencies[:])):
+            # We loop over in reverse as we are removing elements from the
+            # dependencies array.
+            for i, depend in reversed(list(enumerate(dependencies[:]))):
                 # Check that they are contained within the same body of
                 # the same IfBlock if the dependency after the directive is.
                 if_anc = closest.ancestor(IfBlock)
