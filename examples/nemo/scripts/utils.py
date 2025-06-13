@@ -501,7 +501,7 @@ def insert_explicit_loop_parallelism(
 def add_profiling(children: Union[List[Node], Schedule]):
     '''
     Walks down the PSyIR and inserts the largest possible profiling regions
-    in place. Code that contains directives is excluded.
+    in place. Code inside functions or that contains directives is excluded.
 
     :param children: a Schedule or sibling nodes in the PSyIR to which to
         attempt to add profiling regions.
@@ -514,11 +514,10 @@ def add_profiling(children: Union[List[Node], Schedule]):
     if not children:
         return
 
-    # We do not want profiling calipers inside the PSyclone-generated
-    # comparison functions
+    # We do not want profiling calipers inside functions (such as the
+    # PSyclone-generated comparison functions).
     parent_routine = children[0].ancestor(Routine)
-    if (parent_routine and
-            "_psyclone_internal_cmp" in parent_routine.name.lower()):
+    if parent_routine and parent_routine.return_symbol:
         return
 
     node_list = []
