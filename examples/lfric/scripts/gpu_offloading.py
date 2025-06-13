@@ -45,9 +45,8 @@ import os
 import sys
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.psyGen import CodedKern
 from psyclone.psyir.nodes import (
-    Call, Directive, IntrinsicCall, Loop, Routine, Schedule)
+    Call, Directive, IntrinsicCall, Loop, Routine)
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, InlineTrans, Matmul2CodeTrans, OMPTargetTrans,
     TransformationError)
@@ -69,59 +68,53 @@ INLINE_EXCLUSIONS = ["abort", "logging"]
 OFFLOAD_DIRECTIVES = os.getenv('LFRIC_OFFLOAD_DIRECTIVES', "none")
 
 
-def _inline_calls(kern):
+def _inline_calls(sched):
     '''
     Recursively inline all calls within the supplied Kernel or Routine.
 
     Currently only attempts to replace MATMUL intrinsic calls with inline
     code.
-`
-    :param kern: the Kernel or Routine to inline any Calls into.
+
+    :param sched: Routine to inline any Calls into.
 
     '''
     mod_inline_trans = KernelModuleInlineTrans()
     intrans = InlineTrans()
     matrans = Matmul2CodeTrans()
 
-    if isinstance(kern, CodedKern):
-        scheds = kern.get_kernel_schedule()
-    else:
-        scheds = [kern]
-    for sched in scheds:
-        sched: Schedule
-        for call in sched.walk(Call):
-            call: Call
-            # The NVIDIA compiler (as at 25.3) will sometimes fail to compile
-            # code with calls to MATMUL with a claim that they are not
-            # available on the device, e.g.:
-            # Call to NVHPC runtime function not supported -
-            #   pgf90_matmul_real4_i8
-            # Therefore, if we are unable to replace a MATMUL by generic code,
-            # the resulting TransformationError will signal (to the calling
-            # routine) that we are not to mark this kernel for offload.
-            if (isinstance(call, IntrinsicCall) and
-                    call.intrinsic == IntrinsicCall.Intrinsic.MATMUL):
-                matrans.apply(call)
-                continue
-
-            # For now we only look at MATMUL calls. In future we may want to
-            # remove this `continue` and attempt to inline more calls.
+    for call in sched.walk(Call):
+        call: Call
+        # The NVIDIA compiler (as at 25.3) will sometimes fail to compile
+        # code with calls to MATMUL with a claim that they are not
+        # available on the device, e.g.:
+        # Call to NVHPC runtime function not supported -
+        #   pgf90_matmul_real4_i8
+        # Therefore, if we are unable to replace a MATMUL by generic code,
+        # the resulting TransformationError will signal (to the calling
+        # routine) that we are not to mark this kernel for offload.
+        if (isinstance(call, IntrinsicCall) and
+                call.intrinsic == IntrinsicCall.Intrinsic.MATMUL):
+            matrans.apply(call)
             continue
 
-            if any(name in call.routine.name for name in INLINE_EXCLUSIONS):
-                continue
+        # For now we only look at MATMUL calls. In future we may want to
+        # remove this `continue` and attempt to inline more calls.
+        continue
+
+        if any(name in call.routine.name for name in INLINE_EXCLUSIONS):
+            continue
+        try:
+            for inner_call in call.get_callees():
+                _inline_calls(inner_call)
+            mod_inline_trans.apply(call)
             try:
-                for inner_call in call.get_callees():
-                    _inline_calls(inner_call)
-                mod_inline_trans.apply(call)
-                try:
-                    intrans.apply(call)
-                except TransformationError as err:
-                    print(f"Failed to inline call {call.debug_string()}:\n"
-                          f"{err}")
-            except (TransformationError, NotImplementedError) as err:
-                print(f"Failed to module-inline routine {call.routine.name}:\n"
+                intrans.apply(call)
+            except TransformationError as err:
+                print(f"Failed to inline call {call.debug_string()}:\n"
                       f"{err}")
+        except (TransformationError, NotImplementedError) as err:
+            print(f"Failed to module-inline routine {call.routine.name}:\n"
+                  f"{err}")
 
 
 def trans(psyir):
@@ -168,7 +161,7 @@ def trans(psyir):
 
     for subroutine in psyir.walk(Routine):
 
-        print("Transforming invoke '{0}' ...".format(subroutine.name))
+        print(f"Transforming invoke '{subroutine.name}' ...")
 
         # Make setval_* compute redundantly to the level 1 halo if it
         # is in its own loop
@@ -210,7 +203,8 @@ def trans(psyir):
                             print(f"Failed to module-inline kernel "
                                   f"'{kern.name}' due to:\n{err.value}")
                         try:
-                            _inline_calls(kern)
+                            for routine in kern.get_callees():
+                                _inline_calls(routine)
                             gpu_annotation_trans.apply(kern)
                             print(f"Annotated kernel '{kern.name}'")
                         except TransformationError as err:
