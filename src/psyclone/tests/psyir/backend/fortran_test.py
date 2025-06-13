@@ -1954,9 +1954,9 @@ def test_fw_directive_with_clause(fortran_reader, fortran_writer):
     master = OMPMasterDirective(children=[directive])
     parallel = OMPParallelDirective.create(children=[master])
     schedule.addchild(parallel, 0)
-    assert '''!$omp parallel default(shared), private(i)
+    assert '''!$omp parallel default(shared) private(i)
   !$omp master
-  !$omp taskloop num_tasks(32), nogroup
+  !$omp taskloop num_tasks(32) nogroup
   do i = 1, n, 1
     a(i) = 0.0
   enddo
