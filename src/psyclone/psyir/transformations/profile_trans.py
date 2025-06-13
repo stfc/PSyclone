@@ -38,9 +38,7 @@
 '''This module provides the Profile transformation.
 '''
 
-from typing import Dict, List, Union
-
-from psyclone.psyir.nodes import Node, Return, ProfileNode, Routine
+from psyclone.psyir.nodes import Return, ProfileNode
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 
 
@@ -77,38 +75,3 @@ class ProfileTrans(PSyDataTrans):
 
     def __init__(self):
         super().__init__(ProfileNode)
-
-    def validate(self,
-                 nodes: Union[Node, List[Node]],
-                 options: Dict =None):
-        '''
-        :param nodes: a node or list of nodes to be instrumented with
-            profiling calls.
-
-        :raises TransformationError: if the target nodes are within an
-                                     ELEMENTAL routine.
-        '''
-        node_list = self.get_node_list(nodes)
-        super().validate(node_list, options=options)
-
-        parent_routine = node_list[0].ancestor(Routine)
-        if parent_routine and parent_routine.symbol.is_elemental:
-            raise TransformationError(
-                f"Cannot add profiling calipers inside ELEMENTAL routine "
-                f"'{parent_routine.symbol.name}' because it would change its "
-                f"semantics.")
-
-    def apply(self,
-              nodes: Union[Node, List[Node]],
-              options: Dict =None):
-        '''
-        '''
-        node_list = self.get_node_list(nodes)
-        self.validate(node_list, options=options)
-        super().apply(node_list, options=options)
-
-        # If we've added profiling calipers to a pure routine then it is
-        # no longer pure.
-        parent_routine = node_list[0].ancestor(Routine)
-        if parent_routine and parent_routine.symbol.is_pure:
-            parent_routine.symbol.is_pure = False
