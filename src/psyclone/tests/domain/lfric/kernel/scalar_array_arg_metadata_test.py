@@ -64,11 +64,11 @@ def test_get_metadata(metadata):
     '''Test that the _get_metadata class method works as expected '''
     fparser2_tree = ScalarArrayArgMetadata.create_fparser2(
         metadata, Fortran2003.Part_Ref)
-    datatype, access, array_ndims_val = ScalarArrayArgMetadata._get_metadata(
+    datatype, access, array_ndims = ScalarArrayArgMetadata._get_metadata(
         fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
-    assert array_ndims_val == "2"
+    assert array_ndims == "2"
 
 
 @pytest.mark.parametrize("fortran_string", [
@@ -134,15 +134,16 @@ def test_array_ndims_setter_getter():
     including raising an exception if the value is invalid.
 
     '''
-    array_arg = ScalarArrayArgMetadata("GH_REAL", "GH_READ", "2")
-    # with pytest.raises(TypeError) as info:
-    #     test_value = int(2)
-    #     array_arg.array_ndims(test_value)
-    # print(info)
-    # print(info.value)
-    # print(str(info.value))
-    # assert ("The type of value must be a string, but found input of type "
-    #         "'int'." in info.value)
+    array_arg = ScalarArrayArgMetadata("GH_REAL", "GH_READ", "1")
+    array_arg.array_ndims(test_value)
+    with pytest.raises(TypeError) as info:
+        test_value = int(2)
+        array_arg.array_ndims(test_value)
+    print(info)
+    print(info.value)
+    print(str(info.value))
+    assert ("The type of value must be a string, but found input of type "
+            "'int'." in info.value)
 
     with pytest.raises(ValueError) as info:
         test_value = "1.5"
