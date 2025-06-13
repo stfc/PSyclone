@@ -264,8 +264,9 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
         next_dependencies = self._find_dependencies(directives)
         # If dep is True then there is no real next_dependency, so
         # 0 is used a substitute.
-        dependency_pos = [0 if dep is True else dep.abs_position
-                          for dep in next_dependencies]
+        dependency_pos = [[dep.abs_position for dep in next_depends]
+                          if isinstance(next_depends, list) else
+                          [-1] for next_depends in next_dependencies]
 
         # Get the abs_positions and depths of each of the directives.
         abs_positions = [node.abs_position for node in directives]
@@ -293,90 +294,96 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
                 depending_barriers.append(found_barriers)
                 continue
 
-            # Loop through the barriers.
-            for j, barrier in enumerate(all_barriers):
-                # If the dependency is after the nowait directive then
-                # we have the easy strategy.
-                if dependency_pos[i] > abs_positions[i]:
-                    # If the barrier appears before the directive then skip
-                    # it.
-                    if barrier_positions[j] < abs_positions[i]:
-                        continue
-                    # If the barrier appears after the dependency then we are
-                    # done with this directive.
-                    if barrier_positions[j] > dependency_pos[i]:
-                        break
-                else:
-                    # Otherwise the dependency is before the directive, so
-                    # they're contained in a loop.
-                    # If the barrier is after the dependency but before the
-                    # directive we can skip it.
-                    if (barrier_positions[j] > dependency_pos[i] and
-                            barrier_positions[j] < abs_positions[i]):
-                        continue
-                    # If the barrier is not contained in any of the ancestor
-                    # loops of both then we can ignore it.
-                    loop_ancestor = directive.ancestor((Loop, WhileLoop))
-                    barrier_in_ancestor_loop = False
-                    while loop_ancestor:
-                        if barrier.is_descendent_of(loop_ancestor):
-                            barrier_in_ancestor_loop = True
-                            break
-                        loop_ancestor = loop_ancestor.ancestor((Loop,
-                                                                WhileLoop))
-                    if not barrier_in_ancestor_loop:
-                        continue
+            # For each of the dependencies of the directive.
+            for k, next_depend in enumerate(next_dependencies[i]):
 
-                # The barrier appears between the node and its dependency.
-                # Recurse up from the barrier and find all the if statement
-                # ancestors.
-                barrier_ancestor_if = barrier.ancestor(IfBlock)
-                while barrier_ancestor_if is not None:
-                    # Check if there's an elseblock, and if the barrier
-                    # is inside the else body if so.
-                    if (barrier_ancestor_if.else_body and
-                            barrier.is_descendent_of(
-                                barrier_ancestor_if.else_body)):
-                        # Check that either the dependency or the directive
-                        # are in the same else body
-                        if (not (directive.is_descendent_of(
-                                    barrier_ancestor_if.else_body) or
-                                 next_dependencies[i].is_descendent_of(
-                                     barrier_ancestor_if.else_body)
-                                 )):
-                            # Neither are in the same else block so exit early
+                # Loop through the barriers.
+                for j, barrier in enumerate(all_barriers):
+                    # If the dependency is after the nowait directive then
+                    # we have the easy strategy.
+                    if dependency_pos[i][k] > abs_positions[i]:
+                        # If the barrier appears before the directive then skip
+                        # it.
+                        if barrier_positions[j] < abs_positions[i]:
+                            continue
+                        # If the barrier appears after the dependency then we
+                        # are done with this directive.
+                        if barrier_positions[j] > dependency_pos[i][k]:
                             break
-                    elif (barrier.is_descendent_of(
-                            barrier_ancestor_if.if_body)):
-                        # Check that either the dependency or the directive
-                        # are in the same else body
-                        if (not (directive.is_descendent_of(
-                                    barrier_ancestor_if.if_body) or
-                                 next_dependencies[i].is_descendent_of(
-                                     barrier_ancestor_if.if_body)
-                                 )):
-                            # Neither are in the same else block so exit early
-                            break
-                    # This if statement contains both the barrier and either
-                    # the directive or the dependency so we recurse upwards.
-                    barrier_ancestor_if = barrier_ancestor_if.ancestor(
-                            IfBlock
+                    else:
+                        # Otherwise the dependency is before the directive, so
+                        # they're contained in a loop.
+                        # If the barrier is after the dependency but before the
+                        # directive we can skip it.
+                        if (barrier_positions[j] > dependency_pos[i][k] and
+                                barrier_positions[j] < abs_positions[i]):
+                            continue
+                        # If the barrier is not contained in any of the
+                        # ancestor loops of both then we can ignore it.
+                        loop_ancestor = directive.ancestor((Loop, WhileLoop))
+                        barrier_in_ancestor_loop = False
+                        while loop_ancestor:
+                            if barrier.is_descendent_of(loop_ancestor):
+                                barrier_in_ancestor_loop = True
+                                break
+                            loop_ancestor = loop_ancestor.ancestor((Loop,
+                                                                    WhileLoop))
+                        if not barrier_in_ancestor_loop:
+                            continue
+
+                    # The barrier appears between the node and its dependency.
+                    # Recurse up from the barrier and find all the if statement
+                    # ancestors.
+                    barrier_ancestor_if = barrier.ancestor(IfBlock)
+                    while barrier_ancestor_if is not None:
+                        # Check if there's an elseblock, and if the barrier
+                        # is inside the else body if so.
+                        if (barrier_ancestor_if.else_body and
+                                barrier.is_descendent_of(
+                                    barrier_ancestor_if.else_body)):
+                            # Check that either the dependency or the directive
+                            # are in the same else body
+                            if (not (directive.is_descendent_of(
+                                        barrier_ancestor_if.else_body) or
+                                     next_depend.is_descendent_of(
+                                         barrier_ancestor_if.else_body)
+                                     )):
+                                # Neither are in the same else block so exit
+                                # early
+                                break
+                        elif (barrier.is_descendent_of(
+                                barrier_ancestor_if.if_body)):
+                            # Check that either the dependency or the directive
+                            # are in the same else body
+                            if (not (directive.is_descendent_of(
+                                        barrier_ancestor_if.if_body) or
+                                     next_depend.is_descendent_of(
+                                         barrier_ancestor_if.if_body)
+                                     )):
+                                # Neither are in the same else block so exit
+                                # early
+                                break
+                        # This if statement contains both the barrier and
+                        # either the directive or the dependency so we recurse
+                        # upwards.
+                        barrier_ancestor_if = barrier_ancestor_if.ancestor(
+                                IfBlock
+                        )
+                    # If we make it to barrier_ancestor_if is None then all of
+                    # its IfBlock ancestors have either the directive or the
+                    # dependency in the same conditional, meaning this is a
+                    # dependency satisfying barrier.
+                    if barrier_ancestor_if is None:
+                        found_barriers.append(barrier)
+                # We found all the barriers that satisfy this directives
+                # dependency so we can store them.
+                if len(found_barriers) == 0:
+                    raise TransformationError(
+                        "Found a nowait with no barrier satisfying its "
+                        "dependency which is unsupported behaviour for "
+                        "OMPMinimiseSyncTrans."
                     )
-                # If we make it to barrier_ancestor_if is None then all of its
-                # ifblock ancestors have either the directive or the
-                # dependency in the same conditional, meaning this is a
-                # dependency satisfying barrier.
-                if barrier_ancestor_if is None:
-                    found_barriers.append(barrier)
-            # We found all the barriers that satisfy this directives
-            # dependency so we can store them.
-            if len(found_barriers) == 0:
-                raise TransformationError(
-                    "Found a nowait with no barrier satisfying its "
-                    "dependency which is unsupported behaviour for "
-                    "OMPMinimiseSyncTrans."
-                )
-            depending_barriers.append(found_barriers)
+                depending_barriers.append(found_barriers)
 
         # We now have a list of every barrier that satisfies the dependency
         # of each of the nowait directives in this Routine.

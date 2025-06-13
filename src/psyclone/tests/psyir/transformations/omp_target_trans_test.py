@@ -36,7 +36,9 @@
 ''' Tests for the OMPTargetTrans transformation. '''
 
 import pytest
-from psyclone.psyir.nodes import Loop, Schedule, OMPTargetDirective, Routine
+from psyclone.psyir.nodes import (
+        Loop, Schedule, OMPTargetDirective, OMPTaskwaitDirective, Routine,
+)
 from psyclone.psyir.transformations import OMPTargetTrans, TransformationError
 
 
@@ -335,3 +337,64 @@ end subroutine X
 end subroutine x
 """
     assert out == correct
+
+
+def test_omptarget_nowait_multiple_dependencies(fortran_reader,
+                                                fortran_writer):
+    '''Test that we get the expected barriers when there is a dependency
+    both before (in a parent loop) and after (outside the parent loop)'''
+    code = """subroutine x
+    integer :: i,j
+    integer, dimension(100,100) :: arr
+do i = 1, 100
+   do j = 1, 100
+     arr(i,j) = 3
+    end do
+    do j = 1, 100
+       arr(i,j) = arr(i,j) * i
+    end do
+end do
+
+do i = 1, 100
+  do j = 1, 100
+    arr(i,j) = 1
+  enddo
+enddo
+end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    targettrans = OMPTargetTrans()
+    targettrans.apply(loops[1])
+    # All of the dependencies come from loops[2], the second loop
+    # in the outer i loop
+    targettrans.apply(loops[2], options={"nowait": True})
+    targettrans.apply(loops[3])
+    barriers = psyir.walk(OMPTaskwaitDirective)
+    assert len(barriers) == 3
+    out = fortran_writer(psyir)
+    correct = """do i = 1, 100, 1
+    !$omp taskwait
+    !$omp target
+    do j = 1, 100, 1
+      arr(i,j) = 3
+    enddo
+    !$omp end target
+    !$omp target nowait
+    do j = 1, 100, 1
+      arr(i,j) = arr(i,j) * i
+    enddo
+    !$omp end target
+  enddo
+  !$omp taskwait
+  !$omp target
+  do i = 1, 100, 1
+    do j = 1, 100, 1
+      arr(i,j) = 1
+    enddo
+  enddo
+  !$omp end target
+  !$omp taskwait
+
+end subroutine x
+"""
+    assert correct in out

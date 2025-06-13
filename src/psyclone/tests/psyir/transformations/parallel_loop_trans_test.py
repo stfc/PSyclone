@@ -39,7 +39,7 @@
 import pytest
 
 from psyclone.psyir.nodes import (
-        Loop, OMPParallelDoDirective, Routine, WhileLoop
+        Assignment, IfBlock, Loop, OMPParallelDoDirective, Routine, WhileLoop
 )
 from psyclone.psyir.transformations import (
     ParallelLoopTrans, TransformationError)
@@ -693,7 +693,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     direc.children[0].addchild(loop)
     psyir.children[0].addchild(direc, 0)
     result = psyir.walk(Loop)[1].loop_body.children[0]
-    assert paratrans._find_next_dependency(loop, direc) is result
+    assert paratrans._find_next_dependency(loop, direc) == [result]
 
     # Test when we have a loop in a loop and the next access is prior.
     code = """
@@ -715,7 +715,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     direc.children[0].addchild(loop)
     psyir.walk(Loop)[0].loop_body.addchild(direc)
     result = psyir.walk(Loop)[0].loop_body.children[0]
-    assert paratrans._find_next_dependency(loop, direc) is result
+    assert paratrans._find_next_dependency(loop, direc) == [result]
 
     # Test when we have a loop in a loop and an access after outside all of
     # the loops that the next access found it the prior one
@@ -739,7 +739,8 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     direc.children[0].addchild(loop)
     psyir.walk(Loop)[0].loop_body.addchild(direc)
     result = psyir.walk(Loop)[0].loop_body.children[0]
-    assert paratrans._find_next_dependency(loop, direc) is result
+    result2 = psyir.walk(Assignment)[2]
+    assert paratrans._find_next_dependency(loop, direc) == [result, result2]
 
     # Test that an access after inside the same ancestor loop is the
     # next access.
@@ -762,7 +763,31 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop.detach()
     direc.children[0].addchild(loop)
     psyir.walk(Loop)[0].loop_body.addchild(direc, 1)
-    result = psyir.walk(Loop)[0].loop_body.children[2]
+    result = psyir.walk(Assignment)[2]
+    assert paratrans._find_next_dependency(loop, direc) == [result]
+
+    # Test that if the access is in a loop and there is a next access before
+    # but in a higher-level loop we get False.
+    code = """subroutine test
+    integer, dimension(100) :: a
+    integer :: i, j, k
+    do k = 1, 100
+    a(1) = 1
+      do j = 1, 100
+          do i = 1, 100
+             a(i) = a(i) + a(1)
+          end do
+      end do
+    end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    direc = paratrans._directive(None)
+    loop = psyir.walk(Loop)[2]
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Loop)[1].loop_body.addchild(direc)
+    result = False
     assert paratrans._find_next_dependency(loop, direc) is result
 
     # Test that if the loop is in a loop and the next access is outside
@@ -833,7 +858,7 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     direc.children[0].addchild(loop)
     psyir.walk(Loop)[0].loop_body.addchild(direc, 1)
     result = psyir.walk(Loop)[3].loop_body.children[0]
-    assert paratrans._find_next_dependency(loop, direc) is result
+    assert paratrans._find_next_dependency(loop, direc) == [result]
 
     # Test when there are multiple ancestor loops with accesses.
     code = """
@@ -856,8 +881,9 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop.detach()
     direc.children[0].addchild(loop)
     psyir.walk(Loop)[1].loop_body.addchild(direc)
-    result = psyir.walk(Loop)[1].loop_body.children[0]
-    assert paratrans._find_next_dependency(loop, direc) is result
+    result1 = psyir.walk(Loop)[0].loop_body.children[0]
+    result2 = psyir.walk(Loop)[1].loop_body.children[0]
+    assert paratrans._find_next_dependency(loop, direc) == [result1, result2]
 
     # Test we find the while loop when we have a condition with an
     # IntrinsicCall inside
@@ -882,7 +908,8 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     direc.children[0].addchild(loop)
     psyir.walk(Routine)[0].children.insert(0, direc)
     result = psyir.walk(WhileLoop)[0]
-    assert paratrans._find_next_dependency(loop, direc) is result
+    assert paratrans._find_next_dependency(loop, direc) == [result]
+
     # Test we find no satisfiable dependency when the next access is an
     # ancestor while loop's condition.
     psyir = fortran_reader.psyir_from_source(code)
@@ -893,6 +920,36 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     psyir.walk(WhileLoop)[0].loop_body.addchild(direc)
     result = False
     assert paratrans._find_next_dependency(loop, direc) is result
+
+    # Test that we don't find a previous dependency if the after dependency
+    # is in the same if block.
+    code = """
+    subroutine test
+    integer, dimension(100) :: a
+    integer :: i, j
+    do i = 1, 100
+        if( i < 100) then
+            do j = 1, 100
+                a(j) = i
+            end do
+            do j = 1, 100
+                a(j) = a(j) + i
+            end do
+            do j = 1, 100
+                a(j) = a(j) + j
+            end do
+        end if
+    end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[2]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(IfBlock)[0].if_body.children.insert(1, direc)
+    result = psyir.walk(Loop)[3].loop_body.children[0]
+    assert paratrans._find_next_dependency(loop, direc) == [result]
 
 
 def test_parallel_loop_trans_add_asynchronicity():

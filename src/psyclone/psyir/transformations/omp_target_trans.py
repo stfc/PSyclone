@@ -38,6 +38,8 @@
 
 ''' This module provides the OMPTargetTrans PSyIR transformation '''
 
+import logging
+
 from psyclone.psyir.nodes import (
     CodeBlock, OMPTargetDirective, Call, Routine, Reference,
     OMPTaskwaitDirective, Directive, Schedule)
@@ -45,6 +47,8 @@ from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
 from psyclone.psyir.transformations import TransformationError
+
+logger = logging.getLogger(__name__)
 
 
 class OMPTargetTrans(RegionTrans, AsyncTransMixin):
@@ -120,24 +124,31 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
             instance.nowait = True
             return
 
-        # Otherwise we have the next dependency and we need to find where the
-        # correct place for the preceding barrier is. Need to find a
+        # Otherwise we have the next dependencies and we need to find where
+        # the correct place for the preceding barrier is. Need to find a
         # guaranteed control flow path to place it.
-
-        # Find the deepest schedule in the tree containing both.
-        sched = next_depend.ancestor(Schedule, shared_with=instance)
-        routine = instance.ancestor(Routine)
-        if sched and sched.is_descendent_of(routine):
-            # Get the path from sched to next_depend
-            path = next_depend.path_from(sched)
-            # The first element of path is the position of the ancestor
-            # of next_depend that is in sched, so we add the barrier there.
-            sched.addchild(OMPTaskwaitDirective(), path[0])
+        for depend in next_depend:
+            # Find the deepest schedule in the tree containing both.
+            sched = depend.ancestor(Schedule, shared_with=instance)
+            routine = instance.ancestor(Routine)
+            if sched and sched.is_descendent_of(routine):
+                # Get the path from sched to depend
+                path = depend.path_from(sched)
+                # The first element of path is the position of the ancestor
+                # of next_depend that is in sched, so we add the barrier there.
+                sched.addchild(OMPTaskwaitDirective(), path[0])
+            else:
+                # If we didn't find anywhere to put the barrier then we just
+                # don't add the nowait.
+                # If we fail to have nowait added then log it.
+                logger.debug(f"Failed to find a place to put a barrier for "
+                             f"an asynchronous directive. The dependency "
+                             f"that couldn't have the barrier added is: \n"
+                             f"'{depend.debug_string()}'")
+                break
+        # If all the barriers were added then we set nowait to True
+        else:
             instance.nowait = True
-
-        # If we didn't find anywhere to put the barrier then we just don't
-        # add the nowait.
-        # TODO #11: If we fail to have nowait added then log it
 
     def validate(self, node, options=None):
         # pylint: disable=signature-differs

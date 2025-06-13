@@ -35,12 +35,13 @@
 # -----------------------------------------------------------------------------
 ''' This module contains the AsyncTransMixin.'''
 
+
 import abc
 from typing import List, Union
 
 from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes import (
-        Directive, Loop, Node, Schedule, Statement, WhileLoop
+        Directive, IfBlock, Loop, Node, Schedule, Statement, WhileLoop
 )
 
 
@@ -62,7 +63,8 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         # doesn't support it.
 
     def _find_next_dependency(self, nodes: Union[Loop, List[Node]],
-                              directive: Directive) -> Union[Statement, bool]:
+                              directive: Directive) -> Union[List[Statement],
+                                                             bool]:
         '''
         Finds the closest dependency to the loop or set of nodes supplied.
         If the supplied input is contained inside a Loop, then this dependency
@@ -81,9 +83,10 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         :param directive: The directive containing nodes that may become
                           asynchronous.
 
-        :returns: The next dependency of nodes. This will either be a Node if
-                  a valid dependency is found, False if a unsatisfiable
-                  dependency is found, or True if there is no dependency.
+        :returns: The next dependency of nodes. This will either be a List of
+                  Nodes if a valid dependency is found, False if a
+                  unsatisfiable dependency is found, or True if there is no
+                  dependency.
 
         '''
         if isinstance(nodes, (Loop, WhileLoop)):
@@ -97,10 +100,6 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             if var_accesses.is_written(signature):
                 writes.append(signature)
 
-        if isinstance(nodes, (Loop, WhileLoop)):
-            loop_position = nodes.abs_position
-        else:
-            loop_position = directive.abs_position
         closest = None
         closest_position = None
         private, firstprivate, need_sync = \
@@ -121,6 +120,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             # and not necessarily to the member of interest which limits
             # the behaviour of this.
             next_accesses = last_access.next_accesses()
+            dependencies = []
             # next_accesses always appear in the order of
             # nodes before loop followed by nodes after loop.
             for access in next_accesses:
@@ -129,69 +129,20 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                     continue
                 # Otherwise find the abs_position
                 abs_position = access.abs_position
+                # If the access occurs before, then there will be a dependency
+                # between them and this doesn't prevent any dependency after
+                # them.
+                if access.abs_position < directive.abs_position:
+                    dependencies.append(access)
+                    continue
                 if not closest:
                     closest = access
                     closest_position = abs_position
-                else:
-                    # If it's closer then it's the closest.
-                    # Closest here is complex since if we have a parent loop
-                    # we need to consider that.
-                    if closest_position < loop_position:
-                        # If the closest is before the loop we're inside an
-                        # ancestor loop. In this case another node is only
-                        # closer if it's :
-                        # 1. after the input nodes but also inside the same
-                        # ancestor, e.g.:
-                        #  do i = 1, n
-                        #    arr(x) = i <--- initial closest
-                        #    nodes <--- the node or nodes input.
-                        #    arr(x) = arr(x) * i <-- new closest, inside same
-                        #    ancestor node as the current closest but after
-                        #    the input nodes.
-                        # 2. inside a loop with lower depth than the previous
-                        # closest that is also an ancestor of node and before
-                        # loop and after closest, e.g.:
-                        #  do i = 1, n
-                        #    arr(x) = i <-- initial closest
-                        #    do j = 1, k
-                        #      arr(j) = arr(j) + j <-- new closest, lower
-                        #      depth ancestor of input node(s).
-                        #      nodes <-- the node or nodes input
-                        # Find the loop ancestor of access that is an ancestor
-                        # of the input nodes
-                        # N.B. accesses will always appear in abs_position
-                        # order so we don't need to consider cases where
-                        # abs_position < closest_position since it cannot
-                        # happen.
-                        anc_loop = access.ancestor((Loop, WhileLoop),
-                                                   shared_with=directive)
-                        # Find the loop ancestor of closest that is an ancestor
-                        # of the directive.
-                        close_loop = closest.ancestor(
-                            (Loop, WhileLoop), shared_with=directive
-                        )
-                        # If access and closest are in the same ancestor loop
-                        # of directive, then the later node in the tree is
-                        # closest.
-                        if (abs_position > loop_position and
-                                anc_loop is close_loop):
-                            closest = access
-                            closest_position = abs_position
-                            continue
-                        # Otherwise if the ancestor loop of the access is
-                        # deeper in the tree, and the current closest is
-                        # before nodes, then the deeper access is the closest.
-                        if (abs_position < loop_position and
-                                abs_position > closest_position and anc_loop
-                                and anc_loop.depth > close_loop.depth):
-                            closest = access
-                            closest_position = abs_position
-                    # Otherwise if the closest is after the input nodes, then
-                    # whichever access is closer is the closest dependency.
-                    elif (abs_position < closest_position and
-                          abs_position > loop_position):
-                        closest = access
-                        closest_position = abs_position
+                # Otherwise if the closest is after the input nodes, then
+                # whichever access is closer is the closest dependency.
+                elif (abs_position < closest_position):
+                    closest = access
+                    closest_position = abs_position
 
         # If this directive is contained inside a loop the closest foward
         # dependency might be itself. So if closest is not within the ancestor
@@ -199,28 +150,76 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         node_ancestor = directive.ancestor((Loop, WhileLoop))
         if node_ancestor:
             # If we didn't find a closest and we have an ancestor Loop, then
-            # the loop's next dependency is itself.
+            # the loop's next dependency may be itself.
             if not closest:
-                return False
-            # If we have an ancestor loop and the found dependency is not
-            # contained within the ancestor loop, then the next dependency
-            # is itself.
-            if not closest.is_descendent_of(node_ancestor):
-                return False
-        if not closest:
+                # If none of the accesses in dependencies are a child of
+                # the ancestor loop then the dependencies is itself
+                for access in dependencies:
+                    if access.is_descendent_of(node_ancestor):
+                        break
+                else:
+                    return False
+            else:
+                # If we have an ancestor loop and the found dependency is not
+                # contained within the ancestor loop, then the next dependency
+                # is itself unless we have a prior dependency inside the
+                # ancestor loop.
+                if not closest.is_descendent_of(node_ancestor):
+                    for access in dependencies:
+                        if access.is_descendent_of(node_ancestor):
+                            break
+                    else:
+                        return False
+        if not closest and len(dependencies) == 0:
             return True
-        closest = closest.ancestor(Statement, include_self=True)
 
-        # Closest can still be an IntrinsicCall or function call inside a
-        # condition, e.g. while loop condition or loop bound etc.
-        # We need to find this and return the statement. The easiest way
-        # to do this is check that closest.parent is a Schedule.
-        while not isinstance(closest.parent, Schedule):
-            closest = closest.ancestor(Statement)
-        # Now we need to check that closest isn't an ancestor of the
-        # directive, since this means that the next dependency is the
-        # condition of a while loop, which means we can't satisfy the
-        # dependency
-        if directive.is_descendent_of(closest):
-            return False
-        return closest
+        if closest:
+            # If there is a dependency after the directive, we can remove any
+            # dependencies from before the directive that are contained in the
+            # same Loop/WhileLoop AND IfBlock (if there is one) as the
+            # dependency after the directive.
+            for i, depend in enumerate(reversed(dependencies[:])):
+                # Check that they are contained within the same body of
+                # the same IfBlock if the dependency after the directive is.
+                if_anc = closest.ancestor(IfBlock)
+                if if_anc:
+                    # If they're not both in the same part of the IfBlock
+                    # ancestor, then we need to keep both.
+                    if not ((closest.is_descendent_of(if_anc.if_body) and
+                             depend.is_descendent_of(if_anc.if_body)) or
+                            (if_anc.else_body and
+                             closest.is_descendent_of(if_anc.else_body) and
+                             depend.is_descendent_of(if_anc.else_body))):
+                        continue
+                # Check that they share the Loop ancestor of closest that is
+                # the first loop ancestor of the directive.
+                remove = False
+                loop_anc = closest.ancestor((Loop, WhileLoop))
+                while loop_anc:
+                    if directive.is_descendent_of(loop_anc):
+                        if depend.is_descendent_of(loop_anc):
+                            remove = True
+                            break
+                    loop_anc = loop_anc.ancestor((Loop, WhileLoop))
+                if remove:
+                    del dependencies[i]
+            dependencies.append(closest)
+
+        final_dependencies = []
+        # Find the statement ancestor of all the dependencies.
+        for closest in dependencies:
+            closest = closest.ancestor(Statement, include_self=True)
+            # Closest can still be an IntrinsicCall or function call inside a
+            # condition, e.g. while loop condition or loop bound etc.
+            # We need to find this and return the statement. The easiest way
+            # to do this is check that closest.parent is a Schedule.
+            while not isinstance(closest.parent, Schedule):
+                closest = closest.ancestor(Statement)
+            # Now we need to check that closest isn't an ancestor of the
+            # directive, since this means that the next dependency is the
+            # condition of a while loop, which means we can't satisfy the
+            # dependency
+            if directive.is_descendent_of(closest):
+                return False
+            final_dependencies.append(closest)
+        return final_dependencies
