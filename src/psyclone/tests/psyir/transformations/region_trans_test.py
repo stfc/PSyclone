@@ -39,8 +39,8 @@
 import pytest
 
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import (CodeBlock, IfBlock, IntrinsicCall,
-                                  Node, Reference, Schedule)
+from psyclone.psyir.nodes import (
+    CodeBlock, IfBlock, IntrinsicCall, Node, Reference, Schedule)
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import RegionTrans
 from psyclone.tests.utilities import get_invoke
@@ -54,12 +54,30 @@ class MyRegionTrans(RegionTrans):
     '''
     excluded_node_types = ()
 
-    def apply(self, node, options=None):
-        '''Dummy only to make this not abstract.'''
-
     @property
     def name(self):
         '''Dummy only to make this not abstract.'''
+
+
+def test_rt_apply(fortran_reader, monkeypatch):
+    '''Test the apply method of RegionTrans.'''
+    my_rt = MyRegionTrans()
+    # We test that options get passed to validate correctly be making the
+    # transformation reject CodeBlocks by default.
+    monkeypatch.setattr(my_rt, "excluded_node_types", (CodeBlock,))
+    psyir = fortran_reader.psyir_from_source('''\
+    subroutine doit()
+      integer :: i
+      write (*,*) i
+    end subroutine doit''')
+    sched = psyir.walk(Schedule)[0]
+    with pytest.raises(TransformationError) as err:
+        my_rt.apply(sched.children)
+    assert "Nodes of type 'CodeBlock' cannot be enclosed" in str(err.value)
+    # Check that both the deprecated and new way of passing an option work.
+    # TODO #2668: Deprecate options dictionary.
+    my_rt.apply(sched.children, options={"node-type-check": False})
+    my_rt.apply(sched.children, node_type_check=False)
 
 
 # -----------------------------------------------------------------------------

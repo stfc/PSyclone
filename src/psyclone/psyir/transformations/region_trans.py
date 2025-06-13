@@ -133,6 +133,12 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
         '''
         # This method is only here to expose the `node_type_check` option
         # for sub-classes.
+        self.validate(nodes, node_type_check=node_type_check, options=options,
+                      **kwargs)
+        if options:
+            # TODO #2668 - deprecate options dictionary.
+            node_type_check = options.get("node-type-check", True)
+
         super().apply(nodes, node_type_check=node_type_check)
 
     def validate(self,
