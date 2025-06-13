@@ -97,6 +97,9 @@ OFFLOADING_ISSUES = [
     "trczdf.f90",
     "trcice_pisces.f90",
     "dtatsd.f90",
+    # Runtime Error: Illegal address during kernel execution with
+    # asynchronicity.
+    "fldread.f90",
 ]
 
 
@@ -198,7 +201,8 @@ def trans(psyir):
                     region_directive_trans=omp_target_trans,
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
-                    privatise_arrays=False
+                    privatise_arrays=False,
+                    asynchronous_parallelism=True
             )
         elif psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES:
             print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
@@ -207,7 +211,8 @@ def trans(psyir):
                     region_directive_trans=omp_target_trans,
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
+                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
+                    asynchronous_parallelism=True
             )
         elif psyir.name not in PARALLELISATION_ISSUES:
             # This have issues offloading, but we can still do OpenMP threading
@@ -215,7 +220,8 @@ def trans(psyir):
             insert_explicit_loop_parallelism(
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
+                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
+                    asynchronous_parallelism=True
             )
 
     # Iterate again and add profiling hooks when needed
