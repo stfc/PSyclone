@@ -807,6 +807,7 @@ class IntrinsicCall(Call):
             IntrinsicCall.Intrinsic.PRODUCT, IntrinsicCall.Intrinsic.SIZE,
             IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
             IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.MINVAL,
+            IntrinsicCall.Intrinsic.MATMUL,
             IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE)
 
     @classmethod

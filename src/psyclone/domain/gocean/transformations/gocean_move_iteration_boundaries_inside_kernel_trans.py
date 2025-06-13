@@ -179,63 +179,64 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         inner_loop.iteration_space = "go_all_pts"
         outer_loop.iteration_space = "go_all_pts"
 
-        # Update Kernel
-        kschedule = node.get_kernel_schedule()
-        kernel_st = kschedule.symbol_table
-        iteration_indices = kernel_st.iteration_indices
-        data_arguments = kernel_st.data_arguments
+        # Update Kernel implementation(s).
+        for kschedule in node.get_callees():
 
-        # Create new symbols and insert them as kernel arguments at the end of
-        # the kernel argument list
-        xstart_symbol = kernel_st.new_symbol(
-            "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        xstop_symbol = kernel_st.new_symbol(
-            "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        ystart_symbol = kernel_st.new_symbol(
-            "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        ystop_symbol = kernel_st.new_symbol(
-            "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        kernel_st.specify_argument_list(
-            iteration_indices + data_arguments +
-            [xstart_symbol, xstop_symbol, ystart_symbol, ystop_symbol])
+            kernel_st = kschedule.symbol_table
+            iteration_indices = kernel_st.iteration_indices
+            data_arguments = kernel_st.data_arguments
 
-        # Create boundary masking conditions
-        condition1 = BinaryOperation.create(
-            BinaryOperation.Operator.LT,
-            Reference(iteration_indices[0]),
-            Reference(xstart_symbol))
-        condition2 = BinaryOperation.create(
-            BinaryOperation.Operator.GT,
-            Reference(iteration_indices[0]),
-            Reference(xstop_symbol))
-        condition3 = BinaryOperation.create(
-            BinaryOperation.Operator.LT,
-            Reference(iteration_indices[1]),
-            Reference(ystart_symbol))
-        condition4 = BinaryOperation.create(
-            BinaryOperation.Operator.GT,
-            Reference(iteration_indices[1]),
-            Reference(ystop_symbol))
+            # Create new symbols and insert them as kernel arguments at the
+            # end of the kernel argument list
+            xstart_symbol = kernel_st.new_symbol(
+                "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            xstop_symbol = kernel_st.new_symbol(
+                "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            ystart_symbol = kernel_st.new_symbol(
+                "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            ystop_symbol = kernel_st.new_symbol(
+                "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            kernel_st.specify_argument_list(
+                iteration_indices + data_arguments +
+                [xstart_symbol, xstop_symbol, ystart_symbol, ystop_symbol])
 
-        condition = BinaryOperation.create(
-            BinaryOperation.Operator.OR,
-            BinaryOperation.create(
+            # Create boundary masking conditions
+            condition1 = BinaryOperation.create(
+                BinaryOperation.Operator.LT,
+                Reference(iteration_indices[0]),
+                Reference(xstart_symbol))
+            condition2 = BinaryOperation.create(
+                BinaryOperation.Operator.GT,
+                Reference(iteration_indices[0]),
+                Reference(xstop_symbol))
+            condition3 = BinaryOperation.create(
+                BinaryOperation.Operator.LT,
+                Reference(iteration_indices[1]),
+                Reference(ystart_symbol))
+            condition4 = BinaryOperation.create(
+                BinaryOperation.Operator.GT,
+                Reference(iteration_indices[1]),
+                Reference(ystop_symbol))
+
+            condition = BinaryOperation.create(
                 BinaryOperation.Operator.OR,
-                condition1,
-                condition2),
-            BinaryOperation.create(
-                BinaryOperation.Operator.OR,
-                condition3,
-                condition4)
-            )
+                BinaryOperation.create(
+                    BinaryOperation.Operator.OR,
+                    condition1,
+                    condition2),
+                BinaryOperation.create(
+                    BinaryOperation.Operator.OR,
+                    condition3,
+                    condition4)
+                )
 
-        # Insert the conditional mask as the first statement of the kernel
-        if_statement = IfBlock.create(condition, [Return()])
-        kschedule.children.insert(0, if_statement)
+            # Insert the conditional mask as the first statement of the kernel
+            if_statement = IfBlock.create(condition, [Return()])
+            kschedule.children.insert(0, if_statement)
 
 
 # For Sphinx AutoAPI documentation generation

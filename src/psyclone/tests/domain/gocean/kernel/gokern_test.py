@@ -38,7 +38,7 @@
 pytest tests for the GOKern class.
 
 TODO #1938 - expand the tests to fully cover the class. Currently only the
-constructor and the get_kernel_schedule() method are tested.
+constructor and the get_callees() method are tested.
 
 '''
 
@@ -89,9 +89,9 @@ def test_gok_construction():
     assert kern._index_offset == "go_offset_sw"
 
 
-def test_gok_get_kernel_schedule():
+def test_gok_get_callees():
     '''
-    Test the get_kernel_schedule() method of GOKern.
+    Test the get_callees() method of GOKern.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "single_invoke.f90"),
@@ -99,15 +99,18 @@ def test_gok_get_kernel_schedule():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.walk(GOKern)[0]
-    assert kern._kern_schedule is None
-    sched = kern.get_kernel_schedule()
+    assert kern._schedules is None
+    scheds = kern.get_callees()
+    assert isinstance(scheds, list)
+    assert len(scheds) == 1
+    sched = scheds[0]
     assert isinstance(sched, GOKernelSchedule)
     # A second call should just return the previously-obtained schedule.
-    sched2 = kern.get_kernel_schedule()
-    assert sched2 is sched
+    scheds2 = kern.get_callees()
+    assert scheds2[0] is sched
     # Check that the expected error is raised if the subroutine that
     # implements the kernel cannot be found.
-    kern._kern_schedule = None
+    kern._schedules = None
     # Remove the subroutine that implements the kernel from the Fortran
     # parse tree.
     subs = walk(kern.ast, Fortran2003.Subroutine_Subprogram)
@@ -116,7 +119,7 @@ def test_gok_get_kernel_schedule():
             sub.parent.content.remove(sub)
             break
     with pytest.raises(GenerationError) as err:
-        kern.get_kernel_schedule()
+        kern.get_callees()
     err_text = str(err.value)
     assert ("Failed to raise the PSyIR for kernel 'compute_cu_code' to GOcean "
             "PSyIR" in err_text)
