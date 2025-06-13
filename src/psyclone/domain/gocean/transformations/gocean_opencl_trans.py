@@ -757,7 +757,7 @@ class GOOpenCLTrans(Transformation):
         # Create a copy of the kernel and remove precision symbols since they
         # are not supported in the OpenCL backend.
         # validate() has checked that the kernel is not polymorphic.
-        schedule = kernel.get_kernel_callees()[0]
+        schedule = kernel.get_callees()[0]
         kernel_copy = schedule.copy()
         symtab = kernel_copy.symbol_table
 
