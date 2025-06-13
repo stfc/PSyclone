@@ -139,7 +139,7 @@ def test_array_ndims_setter_getter():
         test_value = int(2)
         array_arg.array_ndims = test_value
     assert ("The type of value must be a string, but found input of type "
-            "'int'." in info.value)
+            "'int'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         test_value = "1.5"
