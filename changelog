@@ -1,3 +1,6 @@
+   37) PR #3029 for #3026. Fixes a bug with RegionTrans.get_node_list if a
+   list containing a single Schedule was provided.
+
    35) PR #3025 for #2928. Removes commas between clauses on directives.
 
    34) pr #3016 for #3015. Apply doxygen -u to update doxygen config file.
