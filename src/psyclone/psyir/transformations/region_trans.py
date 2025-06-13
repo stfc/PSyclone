@@ -69,7 +69,8 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
     # populated by sub-class.
     excluded_node_types = ()
 
-    def get_node_list(self, nodes) -> List[Node]:
+    def get_node_list(self,
+                      nodes: Union[Node, Schedule, List[Node]]) -> List[Node]:
         '''This is a helper function for region based transformations.
         The parameter for any of those transformations is either a single
         Node, a Schedule, or a list of nodes. This function converts this
@@ -79,14 +80,11 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
         in this list (which would then also change the order of the
         nodes in the tree).
 
-        If `nodes` happens to be a list containing a single Schedule node then,
+        If `nodes` happens to be a list containing a single Schedule node then
         the behaviour is the same as if it had been a single Schedule node,
         i.e. we return a list of that Schedule's children.
 
         :param nodes: can be a single node, a schedule or a list of nodes.
-        :type nodes: Union[:py:obj:`psyclone.psyir.nodes.Node`,
-                           :py:obj:`psyclone.psyir.nodes.Schedule`,
-                           List[:py:obj:`psyclone.psyir.nodes.Node`]
 
         :returns: a list of nodes.
 
