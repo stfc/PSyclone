@@ -139,6 +139,11 @@ def test_accparalleltrans_validate(fortran_reader):
                 char = 'a' // 'b'
             end do
         end do
+        do i = 1, 10
+            do j = 1, 10
+                A(i,j) = GET_COMMAND(2)
+            end do
+        end do
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
@@ -154,6 +159,19 @@ def test_accparalleltrans_validate(fortran_reader):
         omptargettrans.validate(loops[1])
     assert ("Nodes of type 'CodeBlock' cannot be enclosed by a ACCParallel"
             "Trans transformation" in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[2])
+    assert ("'GET_COMMAND' is not available on the default accelerator "
+            "device. Use the 'device_string' option to specify a different "
+            "device." in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[2], options={'device_string':
+                                                   'nvfortran-all'})
+    assert ("'GET_COMMAND' is not available on the 'nvfortran-all' accelerator"
+            " device. Use the 'device_string' option to specify a different "
+            "device." in str(err.value))
 
 
 def test_accenterdata():

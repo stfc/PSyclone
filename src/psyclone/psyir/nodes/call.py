@@ -390,12 +390,14 @@ class Call(Statement, DataNode):
             return self.routine.symbol.is_pure
         return None
 
-    def is_available_on_device(self):
+    def is_available_on_device(self, device_string: str = "") -> bool:
         '''
+        :param device_string: optional string to identify the offloading
+            device (or its compiler-platform family).
         :returns: whether this call is available on an accelerated device.
-        :rtype: bool
 
         '''
+        # pylint: disable=unused-argument
         return False
 
     @property
