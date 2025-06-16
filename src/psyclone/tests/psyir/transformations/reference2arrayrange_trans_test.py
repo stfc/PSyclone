@@ -41,7 +41,7 @@ import pytest
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    IfBlock, IntrinsicCall, Literal, Reference, Assignment)
+    IfBlock, IntrinsicCall, Reference, Assignment)
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, IntrinsicSymbol
 from psyclone.psyir.transformations import (Reference2ArrayRangeTrans,
                                             TransformationError)
@@ -77,54 +77,6 @@ def apply_trans(fortran_reader, fortran_writer, code):
         except TransformationError:
             pass
     return fortran_writer(psyir)
-
-
-def test_get_array_bound(fortran_reader):
-    ''' Test that the get_array_bound utility works as expected '''
-    # known bounds
-    psyir = fortran_reader.psyir_from_source(CODE)
-    node = psyir.walk(Reference)[0]
-    symbol = node.symbol
-    lower_bound, upper_bound, step = \
-        Reference2ArrayRangeTrans._get_array_bound(symbol, 0)
-    assert isinstance(lower_bound, Literal)
-    assert lower_bound.value == "1"
-    assert isinstance(upper_bound, Literal)
-    assert upper_bound.value == "10"
-    assert isinstance(step, Literal)
-    assert step.value == "1"
-
-    # unknown bounds
-    psyir = fortran_reader.psyir_from_source(
-        CODE.replace("dimension(10)", "dimension(:)"))
-    node = psyir.walk(Reference)[0]
-    symbol = node.symbol
-    lower_bound, upper_bound, step = \
-        Reference2ArrayRangeTrans._get_array_bound(symbol, 0)
-    assert isinstance(lower_bound, IntrinsicCall)
-    assert lower_bound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
-    assert isinstance(upper_bound, IntrinsicCall)
-    assert upper_bound.intrinsic == IntrinsicCall.Intrinsic.UBOUND
-    assert isinstance(step, Literal)
-    assert step.value == "1"
-    reference = lower_bound.arguments[0]
-    assert symbol is reference.symbol
-    reference = upper_bound.arguments[0]
-    assert symbol is reference.symbol
-
-    # non-zero array index
-    psyir = fortran_reader.psyir_from_source(
-        CODE.replace("dimension(10)", "dimension(10,20)"))
-    node = psyir.walk(Reference)[0]
-    symbol = node.symbol
-    lower_bound, upper_bound, step = \
-        Reference2ArrayRangeTrans._get_array_bound(symbol, 1)
-    assert isinstance(lower_bound, Literal)
-    assert lower_bound.value == "1"
-    assert isinstance(upper_bound, Literal)
-    assert upper_bound.value == "20"
-    assert isinstance(step, Literal)
-    assert step.value == "1"
 
 
 def test_transform():

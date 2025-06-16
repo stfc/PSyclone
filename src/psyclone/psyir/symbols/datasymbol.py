@@ -392,3 +392,36 @@ class DataSymbol(TypedSymbol):
         if self.initial_value:
             access_info.update(self.initial_value.reference_accesses())
         return access_info
+
+    def get_bounds(self, idx: int):
+        '''
+        :rtype: Tuple[:py:class:`psyclone.psyir.nodes.IntrinsicCall`,
+                      :py:class:`psyclone.psyir.nodes.IntrinsicCall`]
+        '''
+        from psyclone.psyir.nodes import IntrinsicCall, Literal, Reference
+        from psyclone.psyir.symbols.datatypes import (ArrayType, INTEGER_TYPE,
+                                                      UnsupportedFortranType)
+        shape = None
+        if isinstance(self.datatype, ArrayType):
+            shape = self.datatype.shape
+        elif (isinstance(self.datatype, UnsupportedFortranType) and
+              self.datatype.partial_datatype):
+            shape = self.datatype.partial_datatype.shape
+        if not shape or shape[idx] in [ArrayType.Extent.DEFERRED,
+                                       ArrayType.Extent.ATTRIBUTE]:
+            bounds = []
+            for intrinsic in [IntrinsicCall.Intrinsic.LBOUND,
+                              IntrinsicCall.Intrinsic.UBOUND]:
+                bounds.append(IntrinsicCall.create(
+                    intrinsic, [Reference(self),
+                                ("dim", Literal(str(idx+1), INTEGER_TYPE))]))
+            return tuple(bounds)
+
+        lower = self.shape[idx].lower.copy()
+        if not isinstance(self.shape[idx].upper, ArrayType.Extent):
+            return lower, self.shape[idx].upper.copy()
+
+        upper = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(self), ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+        return lower, upper
