@@ -303,7 +303,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
                 name = call.routine.symbol.name
             if call.is_elemental is None:
                 message = (f"{self.name} does not accept calls to symbols"
-                           f" not guaranteed to be arrays or elemental "
+                           f" not guaranteed to be arrays or elemental"
                            f" functions, but found: {name}")
                 if verbose:
                     node.append_preceding_comment(message)
