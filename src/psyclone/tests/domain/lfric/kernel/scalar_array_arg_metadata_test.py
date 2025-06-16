@@ -113,14 +113,14 @@ def test_get_array_ndims():
       Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = ScalarArrayArgMetadata.get_array_ndims(fparser_tree)
-    assert ("The number of dimensions of a scalar array should be a string "
+    assert ("The number of dimensions of a ScalarArray should be a string "
             "containing an integer, but found 'invalid'." in str(info.value))
 
     fparser_tree = ScalarArrayArgMetadata.create_fparser2(
       "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 0)", Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = ScalarArrayArgMetadata.get_array_ndims(fparser_tree)
-    assert ("The number of dimensions of a scalar array should be an integer "
+    assert ("The number of dimensions of a ScalarArray should be an integer "
             "greater than or equal to 1 but found 0." in str(info.value))
 
     fparser_tree = ScalarArrayArgMetadata.create_fparser2(
@@ -144,15 +144,12 @@ def test_array_ndims_setter_getter():
     with pytest.raises(ValueError) as info:
         test_value = "1.5"
         array_arg.array_ndims = test_value
-    assert ("The number of dimensions of a scalar array should be a string "
+    assert ("The number of dimensions of a ScalarArray should be a string "
             "containing an integer, but found '1.5'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         test_value = "-1"
         array_arg.array_ndims = test_value
-    assert ("The number of dimensions of a scalar array should be an "
+    assert ("The number of dimensions of a ScalarArray should be an "
             "integer greater than or equal to 1 but found '-1'."
             in str(info.value))
-
-    # array_arg.array_ndims = "3"
-    # assert array_arg.array_ndims == "3"

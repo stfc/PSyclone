@@ -43,18 +43,17 @@ from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 
 
 class ScalarArrayArgMetadata(ScalarArgMetadata):
-    '''Class to capture LFRic kernel metadata information for a scalar array
+    '''Class to capture LFRic kernel metadata information for a ScalarArray
     argument.
 
-    :param str datatype: the datatype of this scalar array (GH_INTEGER, ...).
-    :param str access: the way the kernel accesses this scalar array (GH_READ).
-    :param str array_ndims: the rank (number of dimensions) of this scalar
-                            array.
+    :param str datatype: the datatype of this ScalarArray (GH_INTEGER, ...).
+    :param str access: the way the kernel accesses this Scalar Array (GH_READ).
+    :param str array_ndims: the rank (number of dimensions) of this ScalaArrray.
 
     '''
-    # The name used to specify an array argument in LFRic metadata.
+    # The name used to specify a ScalarArray argument in LFRic metadata.
     form = "gh_scalar_array"
-    # The relative positions of LFRic metadata. Metadata for an array
+    # The relative positions of LFRic metadata. Metadata for a ScalarAarray
     # argument is provided in the following format 'arg_type(form,
     # datatype, access, function_space)'. Therefore, for example, the
     # index of the form argument (form_arg_index) is 0.
@@ -104,7 +103,7 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
     @property
     def array_ndims(self):
         '''
-        :returns: the number of dimensions for this scalar array argument.
+        :returns: the number of dimensions for this ScalarArray argument.
         :rtype: str
         '''
         return self._array_ndims
@@ -114,7 +113,7 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
         '''
         :param str value: set the number of dimensions to the specified value.
 
-        :raises TypeError: if value is not a string.
+        :raises TypeError: if value is not a string type.
         :raises ValueError: if value is not an integer.
         :raises ValueError: if value is less than 1.
 
@@ -126,12 +125,12 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
         try:
             int_value = int(value)
         except ValueError as info:
-            raise ValueError(f"The number of dimensions of a scalar array "
+            raise ValueError(f"The number of dimensions of a ScalarArray "
                              f"should be a string containing an integer, "
                              f"but found '{value}'.") from info
 
         if int_value < 1:
-            raise ValueError(f"The number of dimensions of a scalar array "
+            raise ValueError(f"The number of dimensions of a ScalarArray "
                              f"should be an integer greater than or "
                              f"equal to 1 but found '{value}'.")
 
@@ -148,7 +147,6 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
         :returns: the array ndims value extracted from the fparser2 tree.
         :rtype: str
 
-        :raises TypeError: if the array ndims is not a string.
         :raises ValueError: if the array ndims is not an integer.
         :raises ValueError: if the array ndims is less than 1.
 
@@ -159,12 +157,12 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
         try:
             int_value = int(array_ndims)
         except ValueError as info:
-            raise ValueError(f"The number of dimensions of a scalar array "
+            raise ValueError(f"The number of dimensions of a ScalarArray "
                              f"should be a string containing an integer, "
                              f"but found '{array_ndims}'.") from info
 
         if int_value < 1:
-            raise ValueError(f"The number of dimensions of a scalar array "
+            raise ValueError(f"The number of dimensions of a ScalarArray "
                              f"should be an integer greater than or "
                              f"equal to 1 but found {array_ndims}.")
         return array_ndims
