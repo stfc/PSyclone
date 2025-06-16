@@ -36,6 +36,7 @@
 # Modified by A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
 # Modified by S. Siso, STFC Daresbury Lab
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Module containing tests for generating monitoring hooks'''
 
@@ -815,3 +816,160 @@ def test_auto_invoke_empty_schedule(capsys):
     _, err = capsys.readouterr()
     assert ("Not adding profiling to routine 'work1' because it does not "
             "contain any statements." in err)
+
+
+def test_profiling_exit_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    EXIT block in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+        do i = 1, 100
+          EXIT
+        end do
+        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Cannot apply the ProfileTrans to a code region containing a "
+            "potential control flow jump, as these could skip the end of "
+            "profiling caliper. Found:\n'! PSyclone CodeBlock "
+            "(unsupported code) reason:\n!  - Unsupported statement: "
+            "Exit_Stmt\nEXIT\n'"
+            in str(excinfo.value))
+
+
+def test_profiling_goto_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    GOTO block in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+          a = a + i
+          GOTO 123
+        end do
+123        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Cannot apply the ProfileTrans to a code region containing a "
+            "potential control flow jump, as these could skip the end of "
+            "profiling caliper. Found:\n'\n! PSyclone CodeBlock "
+            "(unsupported code) reason:\n!  - Unsupported statement: "
+            "Goto_Stmt\nGO TO 123\n'"
+            in str(excinfo.value))
+
+
+def test_profiling_cycle_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    CYCLE block in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+          a = a + i
+          CYCLE
+        end do
+        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Cannot apply the ProfileTrans to a code region containing a "
+            "potential control flow jump, as these could skip the end of "
+            "profiling caliper. Found:\n'\n! PSyclone CodeBlock "
+            "(unsupported code) reason:\n!  - Unsupported statement: "
+            "Cycle_Stmt\nCYCLE\n'"
+            in str(excinfo.value))
+
+
+def test_profiling_labelled_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    labelled statement in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          a = a + 1
+        end do
+        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Transformation Error: Cannot apply the ProfileTrans to a code "
+            "region containing a potential control flow jump, as these could "
+            "skip the end of profiling caliper. Found:\n"
+            "'! PSyclone CodeBlock (unsupported code) reason:\n!  - "
+            "Unsupported labelled statement\n123 a = a + 1\n"
+            in str(excinfo.value))
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          do a= 1, 100
+             end do
+        end do
+        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Transformation Error: Cannot apply the ProfileTrans to a code "
+            "region containing a potential control flow jump, as these could "
+            "skip the end of profiling caliper. Found:\n"
+            "'! PSyclone CodeBlock (unsupported code) reason:\n!  - "
+            "Unsupported labelled statement\n123 DO a = 1, 100\nEND DO\n"
+            in str(excinfo.value))
+
+
+def test_profiling_force(fortran_reader):
+    ''' Check the profiling transformation validation doesn't fail if we
+    enable the force option.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          a = a + 1
+        end do
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    ptrans.validate(psyir.children[0].children[0], {"force": True})
+
+
+def test_profiling_full_routine(fortran_reader):
+    ''' Check the profiling transformation validation doesn't fail if we
+    give the full routine as an input.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          a = a + 1
+        end do
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    ptrans.validate(psyir.children[0])
