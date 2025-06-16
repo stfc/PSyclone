@@ -132,7 +132,7 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
         if int_value < 1:
             raise ValueError(f"The number of dimensions of a ScalarArray "
                              f"should be an integer greater than or "
-                             f"equal to 1 but found '{value}'.")
+                             f"equal to 1 but found '{int_value}'.")
 
         self._array_ndims = value
 
