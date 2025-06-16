@@ -1,3 +1,6 @@
+   38) PR #3009 for #2981. Prevent ProfilingTrans to add callipers in regions
+   with potential control flow jumps.
+
    37) PR #3029 for #3026. Fixes a bug with RegionTrans.get_node_list if a
    list containing a single Schedule was provided.
 
