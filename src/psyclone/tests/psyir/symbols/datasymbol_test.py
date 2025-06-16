@@ -582,3 +582,25 @@ def test_datasymbol_reference_accesses():
                       initial_value=Literal("1", int_kind_type))
     vai3 = sym3.reference_accesses()
     assert vai3.all_signatures == [Signature("i_def")]
+
+
+def test_datasymbol_get_bounds():
+    '''
+    '''
+    istart = DataSymbol("start", INTEGER_SINGLE_TYPE)
+    istop = DataSymbol("stop", INTEGER_SINGLE_TYPE)
+    atype = ArrayType(INTEGER_SINGLE_TYPE,
+                      [(Reference(istart), Reference(istop)),
+                       (Reference(istart), Reference(istop))])
+    sym3 = DataSymbol("c", atype,
+                      initial_value=Literal("1", INTEGER_SINGLE_TYPE))
+    for idx in range(2):
+        lbnd, ubnd = sym3.get_bounds(idx)
+        assert isinstance(lbnd, Reference)
+        assert isinstance(ubnd, Reference)
+        assert lbnd.symbol is istart
+        assert ubnd.symbol is istop
+    with pytest.raises(IndexError) as err:
+        sym3.get_bounds(2)
+    assert ("DataSymbol 'c' has 2 dimensions but bounds for (0-indexed) "
+            "dimension 2 requested" in str(err.value))

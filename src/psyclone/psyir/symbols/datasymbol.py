@@ -395,9 +395,15 @@ class DataSymbol(TypedSymbol):
 
     def get_bounds(self, idx: int):
         '''
-        :rtype: Tuple[:py:class:`psyclone.psyir.nodes.IntrinsicCall`,
-                      :py:class:`psyclone.psyir.nodes.IntrinsicCall`]
+        :returns: the lower and upper bounds of the specified (0-indexed)
+                  array dimension.
+        :rtype: Tuple[:py:class:`psyclone.psyir.nodes.DataNode`,
+                      :py:class:`psyclone.psyir.nodes.DataNode`]
+
+        :raises IndexError: if the requested array dimension is invalid.
+
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import IntrinsicCall, Literal, Reference
         from psyclone.psyir.symbols.datatypes import (ArrayType, INTEGER_TYPE,
                                                       UnsupportedFortranType)
@@ -407,6 +413,12 @@ class DataSymbol(TypedSymbol):
         elif (isinstance(self.datatype, UnsupportedFortranType) and
               self.datatype.partial_datatype):
             shape = self.datatype.partial_datatype.shape
+
+        if shape and idx >= len(shape):
+            raise IndexError(
+                f"DataSymbol '{self.name}' has {len(shape)} dimensions but "
+                f"bounds for (0-indexed) dimension {idx} requested.")
+
         if not shape or shape[idx] in [ArrayType.Extent.DEFERRED,
                                        ArrayType.Extent.ATTRIBUTE]:
             bounds = []
