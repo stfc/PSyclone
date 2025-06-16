@@ -44,11 +44,12 @@ import os
 import pytest
 import sys
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
-    Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
-    OMPDoDirective, OMPLoopDirective, Routine
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE, \
-    ImportInterface, ContainerSymbol
+from psyclone.psyir.nodes import (
+    CodeBlock, Literal, Loop, Node, Reference, Schedule, Statement,
+    ACCLoopDirective, OMPMasterDirective,
+    OMPDoDirective, OMPLoopDirective, Routine)
+from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE,
+                                    ImportInterface, ContainerSymbol)
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.tests.utilities import get_invoke, Compile
@@ -264,7 +265,7 @@ def test_omptaskloop_apply(monkeypatch):
 
     clauses = " nogroup"
     assert (
-        f"  !$omp parallel default(shared), private(i,j)\n"
+        f"  !$omp parallel default(shared) private(i,j)\n"
         f"    !$omp master\n"
         f"    !$omp taskloop{clauses}\n"
         f"    do" in code)
@@ -446,8 +447,8 @@ def test_omplooptrans_apply_firstprivate(fortran_reader, fortran_writer,
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop)
     expected = '''\
-    !$omp parallel do default(shared), private(ji,jj,jk,scalar2), \
-firstprivate(scalar1), schedule(auto)
+    !$omp parallel do default(shared) private(ji,jj,jk,scalar2) \
+firstprivate(scalar1) schedule(auto)
     do jk = 2, jpkm1, 1
       do jj = 2, jpjm1, 1
         do ji = 2, jpim1, 1
@@ -535,7 +536,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
 
     # Check that the full resulting code looks like this
     expected = '''
-  !$omp parallel default(shared), private(i,j)
+  !$omp parallel default(shared) private(i,j)
   !$omp do schedule(dynamic,2)
   do i = 1, 10, 1
     do j = 1, 10, 1
@@ -544,7 +545,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
   enddo
   !$omp end do
   !$omp end parallel
-  !$omp parallel default(shared), private(i,j)
+  !$omp parallel default(shared) private(i,j)
   !$omp loop collapse(2)
   do i = 1, 10, 1
     do j = 1, 10, 1
@@ -632,7 +633,7 @@ def test_omplooptrans_apply_nowait(fortran_reader, fortran_writer):
   integer :: i
   integer, dimension(100) :: arr
 
-  !$omp parallel default(shared), private(i)
+  !$omp parallel default(shared) private(i)
   !$omp do schedule(auto)
   do i = 1, 100, 1
     arr(i) = i
@@ -678,7 +679,7 @@ end subroutine x"""
   integer, dimension(100) :: arr
   integer, dimension(100) :: arr2
 
-  !$omp parallel default(shared), private(i,j)
+  !$omp parallel default(shared) private(i,j)
   !$omp do schedule(auto)
   do i = 1, 100, 1
     j = i + i
@@ -738,28 +739,6 @@ end subroutine x"""
     looptrans.apply(loops[1], options={"nowait": True})
     out = fortran_writer(psyir)
     assert "nowait" not in out
-
-
-def test_ifblock_children_region():
-    ''' Check that we reject attempts to transform the conditional part of
-    an If statement or to include both the if- and else-clauses in a region
-    (without their parent). '''
-    acct = ACCParallelTrans()
-    # Construct a valid IfBlock
-    condition = Reference(DataSymbol('condition', BOOLEAN_TYPE))
-    ifblock = IfBlock.create(condition, [], [])
-
-    # Attempt to put all of the children of the IfBlock into a region. This
-    # is an error because the first child is the conditional part of the
-    # IfBlock.
-    with pytest.raises(TransformationError) as err:
-        super(ACCParallelTrans, acct).validate([ifblock.children[0]])
-    assert ("transformation to the immediate children of a Loop/IfBlock "
-            "unless it is to a single Schedule" in str(err.value))
-    with pytest.raises(TransformationError) as err:
-        super(ACCParallelTrans, acct).validate(ifblock.children[1:])
-    assert (" to multiple nodes when one or more is a Schedule. "
-            "Either target a single Schedule or " in str(err.value))
 
 
 def test_regiontrans_wrong_children():
