@@ -405,8 +405,7 @@ def test_driver_creation_same_symbol():
     out_fld%internal%xstop = out_fld_internal_xstop
     out_fld%internal%xstart = out_fld_internal_xstart
     out_fld%internal%ystop = out_fld_internal_ystop
-    out_fld%internal%ystart = out_fld_internal_ystart
-    """
+    out_fld%internal%ystart = out_fld_internal_ystart""" in code
     driver = Path("driver-module_name-local_name.f90")
     assert driver.is_file()
 

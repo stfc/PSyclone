@@ -373,7 +373,7 @@ def test_lfric_driver_operator():
                            "region_name": ("operator", "test")})
     out = psy.gen
     # Check the structure members that are added for operators:
-    assert ("mm_w3_proxy_ncell_3d = mm_w3_proxy%ncell_3d" in out)
+    assert "mm_w3_proxy_ncell_3d = mm_w3_proxy%ncell_3d" in out
     assert ("ProvideVariable(\"mm_w3_local_stencil\", "
             "mm_w3_local_stencil)" in out)
     assert ("ProvideVariable(\"mm_w3_proxy_ncell_3d\", "
@@ -648,7 +648,7 @@ def test_lfric_driver_external_symbols_name_clash():
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
-def test_lfric_driver_external_symbols_error(capsys):
+def test_lfric_driver_external_symbols_error():
     '''Test the handling of symbols imported from other modules, or calls to
     external functions that use module variables. In this example, the
     external module cannot be parsed by fparser (it contains syntax errors),

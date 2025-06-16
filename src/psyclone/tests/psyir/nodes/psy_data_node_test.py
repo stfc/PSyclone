@@ -480,7 +480,7 @@ def test_psy_data_node_lower_to_language_level_with_options():
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
-def test_psy_data_node_name_clash(fortran_writer):
+def test_psy_data_node_name_clash():
     '''Test the handling of symbols imported from other modules, or calls to
     external functions that use module variables. In this example the external
     module uses a variable with the same name as the user code, which causes
