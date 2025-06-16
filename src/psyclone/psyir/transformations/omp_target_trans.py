@@ -166,12 +166,13 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         for node in node_list:
             for call in node.walk(Call):
                 if not call.is_available_on_device(device_string):
+                    device_str = device_string if device_string else "default"
                     raise TransformationError(
-                        f"'{call.routine.name}' is not available on the "
-                        f"default accelerator device, and therefore it cannot "
-                        f"be called from within an OMP Target region. Use "
-                        f"the 'device_string' option to specify a different "
-                        f"device.")
+                        f"'{call.routine.name}' is not available on the"
+                        f" '{device_str}' accelerator device, and therefore "
+                        f"it cannot be called from within an OMP Target "
+                        f"region. Use the 'device_string' option to specify a "
+                        f"different device.")
         routine = node.ancestor(Routine)
         if routine and routine.return_symbol:
             # if it is a function, the target must not include its return sym

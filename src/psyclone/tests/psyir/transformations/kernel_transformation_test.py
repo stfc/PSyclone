@@ -476,8 +476,9 @@ def test_kernel_gpu_annotation_device_id(rtrans, fortran_reader):
         rtrans.validate(routine, options={'device_string':
                                           'nvfortran-uniform'})
     assert ("routine 'myfunc' calls intrinsic 'REAL' which is not available on"
-            " the 'nvfortran-uniform' device. Use the 'device_string' option "
-            "to specify a different device." in str(err.value))
+            " the 'nvfortran-uniform' accelerator device. Use the "
+            "'device_string' option to specify a different device."
+            in str(err.value))
     with pytest.raises(ValueError) as err:
         rtrans.validate(routine, options={'device_string':
                                           'unknown-device'})

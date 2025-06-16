@@ -494,7 +494,8 @@ class MarkRoutineForGPUMixin:
             if not call.is_available_on_device(device_string):
                 if isinstance(call, IntrinsicCall):
                     if device_string:
-                        device_str = f"on the '{device_string}' device"
+                        device_str = (f"on the '{device_string}' accelerator "
+                                      f"device")
                     else:
                         device_str = "on the default accelerator device"
                     raise TransformationError(
@@ -1790,7 +1791,8 @@ class ACCParallelTrans(ParallelRegionTrans):
                 if not call.is_available_on_device(device_string):
                     if isinstance(call, IntrinsicCall):
                         if device_string:
-                            device_str = f"on the '{device_string}' device"
+                            device_str = (f"on the '{device_string}' "
+                                          f"accelerator device")
                         else:
                             device_str = "on the default accelerator device"
                         raise TransformationError(

@@ -168,9 +168,9 @@ def test_accparalleltrans_validate(fortran_reader):
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[2], options={'device_string':
                                                    'nvfortran-all'})
-    assert ("'GET_COMMAND' is not available on the 'nvfortran-all' device. "
-            "Use the 'device_string' option to specify a different device."
-            in str(err.value))
+    assert ("'GET_COMMAND' is not available on the 'nvfortran-all' accelerator"
+            " device. Use the 'device_string' option to specify a different "
+            "device." in str(err.value))
 
 
 def test_accenterdata():
