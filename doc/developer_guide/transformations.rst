@@ -516,6 +516,8 @@ an if condition or a loop condition, and that intrinsic contains an array sectio
 then PSyclone may generate extra dependencies, which may hurt code performance. If
 this causes issues, please open an issue.
 
+.. _updating_transformation_options:
+
 Moving to the new transformations options
 =========================================
 PSyclone is currently moving from a dictionary of options to keyword arguments
