@@ -262,7 +262,7 @@ def test_single_node_ompparalleldo_gocean1p0():
     CALL extract_psy_data % ProvideVariable("p_fld_data", p_fld_data)
     CALL extract_psy_data % ProvideVariable("v_fld_data", v_fld_data)
     CALL extract_psy_data % PreEnd
-    !$omp parallel do default(shared), private(i,j), schedule(static)
+    !$omp parallel do default(shared) private(i,j) schedule(static)
     do j = cv_fld_internal_ystart, cv_fld_internal_ystop, 1
       do i = cv_fld_internal_xstart, cv_fld_internal_xstop, 1
         call compute_cv_code(i, j, cv_fld_data, p_fld_data, v_fld_data)
@@ -341,7 +341,7 @@ def test_single_node_ompparalleldo_gocean1p0_const_loop():
     CALL extract_psy_data % ProvideVariable("p_fld_data", p_fld_data)
     CALL extract_psy_data % ProvideVariable("v_fld_data", v_fld_data)
     CALL extract_psy_data % PreEnd
-    !$omp parallel do default(shared), private(i,j), schedule(static)
+    !$omp parallel do default(shared) private(i,j) schedule(static)
     do j = 2, jstop + 1, 1
       do i = 2, istop, 1
         call compute_cv_code(i, j, cv_fld_data, p_fld_data, v_fld_data)
@@ -429,7 +429,7 @@ def test_node_list_ompparallel_gocean1p0():
     CALL extract_psy_data % ProvideVariable("u_fld_data", u_fld_data)
     CALL extract_psy_data % ProvideVariable("v_fld_data", v_fld_data)
     CALL extract_psy_data % PreEnd
-    !$omp parallel default(shared), private(i,j)
+    !$omp parallel default(shared) private(i,j)
     !$omp do schedule(static)
     do j = 2, jstop, 1
       do i = 2, istop + 1, 1

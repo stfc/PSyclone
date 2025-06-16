@@ -304,7 +304,7 @@ def test_paralooptrans_collapse_options(fortran_reader, fortran_writer):
     test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
     trans.apply(test_loop, {"collapse": True, "verbose": True})
     assert '''\
-!$omp parallel do collapse(1) default(shared), private(i,j,k)
+!$omp parallel do collapse(1) default(shared) private(i,j,k)
 do i = 1, 10, 1
   ! Error: The write access to 'var(i,j,k)' and the read access to 'var(i,\
 map(j),k)' are dependent and cannot be parallelised. Variable: 'var'. \
@@ -324,7 +324,7 @@ enddo
     trans.apply(test_loop, {"collapse": True, "verbose": True,
                             "ignore_dependencies_for": ["var"]})
     assert '''\
-!$omp parallel do collapse(2) default(shared), private(i,j,k)
+!$omp parallel do collapse(2) default(shared) private(i,j,k)
 do i = 1, 10, 1
   do j = 1, 10, 1
     ! Loop cannot be collapsed because one of the bounds depends on the \
@@ -342,7 +342,7 @@ enddo
     trans.apply(test_loop, collapse=True, verbose=True,
                 ignore_dependencies_for=["var"])
     assert '''\
-!$omp parallel do collapse(2) default(shared), private(i,j,k)
+!$omp parallel do collapse(2) default(shared) private(i,j,k)
 do i = 1, 10, 1
   do j = 1, 10, 1
     ! Loop cannot be collapsed because one of the bounds depends on the \
@@ -357,7 +357,7 @@ enddo
     test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
     trans.apply(test_loop, {"collapse": True, "verbose": True, "force": True})
     assert '''\
-!$omp parallel do collapse(2) default(shared), private(i,j,k)
+!$omp parallel do collapse(2) default(shared) private(i,j,k)
 do i = 1, 10, 1
   do j = 1, 10, 1
     ! Loop cannot be collapsed because one of the bounds depends on the \
@@ -391,7 +391,7 @@ enddo
     test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
     trans.apply(test_loop, {"collapse": True, "verbose": True, "force": True})
     assert '''\
-!$omp parallel do collapse(2) default(shared), private(i,j,k)
+!$omp parallel do collapse(2) default(shared) private(i,j,k)
 do i = 1, 10, 1
   do j = 1, 10, 1
     ! Loop cannot be collapsed because it has siblings
@@ -611,7 +611,7 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
 
     # Now enable array privatisation
     trans.apply(loop, {"privatise_arrays": True})
-    assert ("!$omp parallel do default(shared), private(ji,jj,ztmp), "
+    assert ("!$omp parallel do default(shared) private(ji,jj,ztmp) "
             "firstprivate(ztmp2)" in fortran_writer(psyir))
 
     # If the array is accessed after the loop, or is a not an automatic
