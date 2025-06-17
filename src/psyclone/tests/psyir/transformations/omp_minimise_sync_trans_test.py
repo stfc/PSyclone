@@ -37,7 +37,7 @@
 
 import pytest
 from psyclone.psyir.nodes import (
-        Loop, Routine, OMPBarrierDirective,
+        Loop, Routine, Node, OMPBarrierDirective,
         OMPTaskwaitDirective, OMPDoDirective,
         OMPTargetDirective)
 from psyclone.psyir.transformations import (
@@ -618,6 +618,51 @@ def test_loop_process(fortran_reader):
     # We keep the expected one and the barrier at the end of the routine.
     assert len(final_bars) == 2
     assert final_bars[0] is correct_to_keep
+
+
+def test_multi_dependency_barriers(fortran_reader):
+    '''Test that if a directive has multiple dependencies we keep
+    barriers to satisfy all of them.'''
+    code = """subroutine x
+    integer :: i, j, k
+    integer, dimension(100) :: arr
+    do k = 1, 100
+        do i = 1, 100
+            arr(i) = arr(i) + k
+        end do
+        do j = 1, 100
+            do i = 1, 100
+                arr(i) = arr(i) + i
+            end do
+            do i = 1, 100
+                arr(i) = arr(i) * j
+            end do
+        end do
+    end do
+
+    end subroutine x
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    targettrans = OMPTargetTrans()
+    loops = psyir.walk(Loop)
+    # Only apply transformation to the last loop
+    targettrans.apply(loops[-1], options={"nowait": True})
+    # Check we have at least barriers as expected.
+    assert isinstance(loops[1].parent.children[loops[1].position-1],
+                      OMPTaskwaitDirective)
+    assert isinstance(loops[3].parent.children[loops[3].position-1],
+                      OMPTaskwaitDirective)
+
+    rtrans = OMPMinimiseSyncTrans()
+    rtrans.apply(routine)
+
+    final_bars = routine.walk(OMPTaskwaitDirective)
+    # Check we now only have 3, and they are in the right places.
+    assert loops[1].parent.children[loops[1].position-1] is final_bars[0]
+    assert loops[3].parent.children[loops[3].position-1] is final_bars[1]
+    assert len(final_bars) == 3
+    assert routine.walk(Node)[-1] is final_bars[2]
 
 
 # Cover the "no barrier found" failure.

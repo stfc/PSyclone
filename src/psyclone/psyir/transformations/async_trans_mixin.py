@@ -233,5 +233,10 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             # dependency
             if directive.is_descendent_of(closest):
                 return False
-            final_dependencies.append(closest)
+            # Don't add repeats
+            for dep in final_dependencies:
+                if dep is closest:
+                    break
+            else:
+                final_dependencies.append(closest)
         return final_dependencies

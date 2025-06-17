@@ -318,6 +318,16 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
                         if (barrier_positions[j] > dependency_pos[i][k] and
                                 barrier_positions[j] < abs_positions[i]):
                             continue
+                        # If the directive and the dependency share an
+                        # ancestor Loop, then the barrier must also
+                        # be a child of that loop.
+                        loop_ancestor = directive.ancestor(
+                                (Loop, WhileLoop), shared_with=next_depend
+                        )
+                        if (loop_ancestor and
+                                not barrier.is_descendent_of(loop_ancestor)):
+                            continue
+
                         # If the barrier is not contained in any of the
                         # ancestor loops of both then we can ignore it.
                         loop_ancestor = directive.ancestor((Loop, WhileLoop))
