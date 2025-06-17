@@ -575,20 +575,3 @@ class Symbol(CommentableMixin):
         # pylint: disable=import-outside-toplevel
         from psyclone.core import VariablesAccessMap
         return VariablesAccessMap()
-
-    def get_bounds(self, idx: int):
-        '''
-        :rtype: Tuple[:py:class:`psyclone.psyir.nodes.IntrinsicCall`,
-                      :py:class:`psyclone.psyir.nodes.IntrinsicCall`]
-        '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
-        from psyclone.psyir.nodes import Literal, Reference
-        from psyclone.psyir.symbols import INTEGER_TYPE
-        bounds = []
-        for intrinsic in [IntrinsicCall.Intrinsic.LBOUND,
-                          IntrinsicCall.Intrinsic.UBOUND]:
-            bounds.append(IntrinsicCall.create(
-                intrinsic,
-                [Reference(self), ("dim", Literal(str(idx+1), INTEGER_TYPE))]))
-        return tuple(bounds)
