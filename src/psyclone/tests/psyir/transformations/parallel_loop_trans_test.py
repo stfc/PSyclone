@@ -983,6 +983,29 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     result2 = psyir.walk(Loop)[3].loop_body.children[0]
     assert paratrans._find_next_dependency(loop, direc) == [result1, result2]
 
+    # Check we find WaR dependencies.
+    code = """ subroutine x
+    integer :: i
+    integer, dimension(100) :: a, b
+
+do i = 1, 100
+  b(i) = a(i)
+end do
+do i = 1, 100
+   a(i) = i
+end do
+
+end subroutine x
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.children[0].children.insert(0, direc)
+    result = psyir.walk(Loop)[1].loop_body.children[0]
+    assert paratrans._find_next_dependency(loop, direc) == [result]
+
 
 def test_parallel_loop_trans_add_asynchronicity():
     '''Test the _add_asynchronicity function of the parallel loop trans.'''

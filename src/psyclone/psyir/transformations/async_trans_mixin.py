@@ -96,17 +96,21 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             for node in nodes:
                 var_accesses.update(node.reference_accesses())
         writes = []
+        reads = []
         for signature in var_accesses.all_signatures:
             if var_accesses.is_written(signature):
                 writes.append(signature)
+            elif var_accesses.is_read(signature):
+                reads.append(signature)
 
         closest = None
         closest_position = None
         private, firstprivate, need_sync = \
             directive.infer_sharing_attributes()
-        # Now we have all the writes we want to find the closest
+
+        # For each of the reads and writes we want to find the closest
         # forward dependency.
-        for signature in writes:
+        for signature in reads+writes:
             accesses = var_accesses[signature].all_accesses
             sym_name = signature.var_name
             last_access = accesses[-1].node
@@ -115,6 +119,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             # ignore it.
             if sym in private or sym in firstprivate:
                 continue
+
             # TODO: #2982 next_accesses ability to look at Structures is
             # limited, and returns the next access(es) to any structure member
             # and not necessarily to the member of interest which limits
@@ -124,6 +129,9 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             # next_accesses always appear in the order of
             # nodes before loop followed by nodes after loop.
             for access in next_accesses:
+                # If they're both reads then we should skip it.
+                if signature in reads and access.is_read:
+                    continue
                 # If it's inside the directive then we should skip it.
                 if access.is_descendent_of(directive):
                     continue
