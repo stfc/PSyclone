@@ -156,6 +156,32 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
             raise TypeError(f"OMPMinimiseSyncTrans expects a Routine input "
                             f"but found '{type(node).__name__}'.")
 
+    def _eliminate_adjacent_barriers(self, routine: Routine,
+                                         bar_type: type) -> None:
+        '''
+        Removes excess adjacent bar_type barriers from the input routine, i.e:
+
+        >>> !$omp taskwait
+        >>> !$omp taskwait
+
+        will be simplified to just:
+
+        >>> !$omp taskwait
+
+        :param routine: the routine to remove duplicate barriers from.
+        :param bar_type: the barrier type to remove.
+        '''
+
+        # Find all the barriers in the routine.
+        barriers = routine.walk(bar_type)
+
+        # Loop through all the barriers other than the first.
+        # We loop backwards as we're removing things from the tree as we go
+        # through the list, so i-1 wouldn't work if we loop forwards.
+        for i, barrier in enumerate(barriers[:1:-1]):
+            if barrier.immediately_follows(barriers[i-1]):
+                barrier.detach()
+
     def _find_dependencies(self, directives: List[Directive]) \
             -> List[Union[Node, bool]]:
         '''
@@ -502,8 +528,10 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
 
         # Eliminate OMPBarrierDirectives for the cpu_directives
         if len(cpu_directives) > 0:
+            self._eliminate_adjacent_barriers(node, OMPBarrierDirective)
             self._eliminate_barriers(node, cpu_directives, OMPBarrierDirective)
         # Eliminate OMPTaskwaitDirectives for the gpu_directives
         if len(gpu_directives) > 0:
+            self._eliminate_adjacent_barriers(node, OMPTaskwaitDirective)
             self._eliminate_barriers(node, gpu_directives,
                                      OMPTaskwaitDirective)
