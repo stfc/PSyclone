@@ -230,12 +230,11 @@ class ModuleManager:
         mod_info = None
         for finfo in file_list:
             finfo: FileInfo
+            # We remove .psycloned extensions, as we consider them identical
+            # to the original file when searching for modules
+            filename = finfo.basename.replace('.psycloned', '')
             # We only proceed to read a file to check for a module if its
             # name is sufficiently similar to that of the module.
-            filename = finfo.basename
-            # We don't want to reduce the similarity score for 'psycloned'
-            # substrings so we delete it from the comparison
-            filename.replace('psycloned', '')
             score = SequenceMatcher(None, filename, name).ratio()
             if score > self._threshold_similarity:
                 mod_names = self.get_modules_in_file(finfo)

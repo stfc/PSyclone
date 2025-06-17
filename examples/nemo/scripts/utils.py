@@ -141,7 +141,7 @@ NEMO_FUNCTIONS = [
     'visc_air', 'visc_air_sclr', 'visc_air_vctr', 'w1', 'w2', 'z0_from_Cd',
     'z0tq_LKB', 'zdf_gls_alloc', 'zdf_iwm_alloc', 'zdf_mfc_alloc',
     'zdf_mxl_alloc', 'zdf_oce_alloc', 'zdf_osm_alloc', 'zdf_phy_alloc',
-    'zdf_tke_alloc', 'zdf_tmx_alloc',
+    'zdf_tke_alloc', 'zdf_tmx_alloc', 'itau2date',
     # grep -rh "INTERFACE" src | grep -v "END" | awk '{print $2}' | uniq | sort
     'alpha_sw', 'bulk_formula', 'cp_air', 'debug', 'DECAL_FEEDBACK',
     'DECAL_FEEDBACK_2D', 'depth_to_e3', 'de_sat_dt_ice', 'dia_ar5_hst',
@@ -411,6 +411,7 @@ def insert_explicit_loop_parallelism(
         loop_directive_trans=None,
         collapse: bool = True,
         privatise_arrays: bool = False,
+        uniform_intrinsics_only: bool = False,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
@@ -429,6 +430,8 @@ def insert_explicit_loop_parallelism(
         many nested loops as possible.
     :param privatise_arrays: whether to attempt to privatise arrays that cause
         write-write race conditions.
+    :param uniform_intrinsics_only: if True it prevent offloading loops
+        with non-reproducible device intrinsics.
 
     '''
     if schedule.name == "ts_wgt":
@@ -439,7 +442,10 @@ def insert_explicit_loop_parallelism(
             continue  # Skip if an outer loop is already parallelised
 
         opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
-                "verbose": True, "nowait": True}
+                "verbose": True, "nowait": False}
+
+        if uniform_intrinsics_only:
+            opts["device_string"] = "nvfortran-uniform"
 
         routine_name = loop.ancestor(Routine).name
 
@@ -487,7 +493,7 @@ def insert_explicit_loop_parallelism(
 
             # And if successful, the region directive on top.
             if region_directive_trans:
-                region_directive_trans.apply(loop.parent.parent)
+                region_directive_trans.apply(loop.parent.parent, options=opts)
         except TransformationError:
             # This loop cannot be transformed, proceed to next loop.
             # The parallelisation restrictions will be explained with a comment

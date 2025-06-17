@@ -1896,13 +1896,15 @@ class SymbolTable():
                     local_node=self.node)
             # pylint: disable-next=broad-except
             except Exception:
+                external_container = None
                 # Ignore this container if the associated module file has not
                 # been found in the given include_path or any issue has arisen
                 # during parsing.
                 # TODO #11: It would be useful to log this.
-                continue
+                # continue
 
             if not external_container:
+                raise ValueError(f"Module '{c_symbol.name}' not found")
                 # Failed to get a Container (possibly due to parsing or raising
                 # errors).
                 continue
