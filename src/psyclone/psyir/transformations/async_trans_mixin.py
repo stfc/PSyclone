@@ -41,7 +41,8 @@ from typing import List, Union
 
 from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes import (
-        Directive, IfBlock, Loop, Node, Schedule, Statement, WhileLoop
+        Directive, IfBlock, Loop, Node, Reference, Schedule, Statement,
+        WhileLoop,
 )
 
 
