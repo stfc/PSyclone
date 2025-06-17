@@ -421,6 +421,7 @@ class DataSymbol(TypedSymbol):
 
         if not shape or shape[idx] in [ArrayType.Extent.DEFERRED,
                                        ArrayType.Extent.ATTRIBUTE]:
+            # We have no information on the bounds of this dimension.
             bounds = []
             for intrinsic in [IntrinsicCall.Intrinsic.LBOUND,
                               IntrinsicCall.Intrinsic.UBOUND]:
