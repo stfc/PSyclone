@@ -145,6 +145,19 @@ def test_multid(fortran_reader, fortran_writer):
     assert "a(:,:,:) = b(:,:,:) * c(:,:,:)\n" in result
 
 
+def test_assumed_shape(fortran_reader, fortran_writer):
+    '''Test when the underlying array is of assumed shape.'''
+    code = ('''\
+    subroutine sub(var, istart)
+      integer, intent(in) :: istart
+      integer, dimension(istart:) :: var
+      var = 1
+    end subroutine sub
+    ''')
+    result = apply_trans(fortran_reader, fortran_writer, code)
+    assert "var(:) = 1" in result
+
+
 def test_intrinsics(fortran_reader, fortran_writer):
     '''Test that references to arrays within intrinsics are transformed to
     array slice notation, using dotproduct as the example.
