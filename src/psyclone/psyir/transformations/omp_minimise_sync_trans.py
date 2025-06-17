@@ -157,7 +157,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
                             f"but found '{type(node).__name__}'.")
 
     def _eliminate_adjacent_barriers(self, routine: Routine,
-                                         bar_type: type) -> None:
+                                     bar_type: type) -> None:
         '''
         Removes excess adjacent bar_type barriers from the input routine, i.e:
 
