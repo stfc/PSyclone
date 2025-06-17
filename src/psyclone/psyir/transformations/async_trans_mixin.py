@@ -130,7 +130,8 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             # nodes before loop followed by nodes after loop.
             for access in next_accesses:
                 # If they're both reads then we should skip it.
-                if signature in reads and access.is_read:
+                if (signature in reads and isinstance(access, Reference)
+                        and access.is_read):
                     continue
                 # If it's inside the directive then we should skip it.
                 if access.is_descendent_of(directive):
