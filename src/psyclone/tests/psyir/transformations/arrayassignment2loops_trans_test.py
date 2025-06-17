@@ -147,8 +147,16 @@ def test_str():
           "  do idx = 2, 8, 4\n"
           "    x(idx) = 0\n"),
 
-         # Explicitly declared dimension values (L/UBOUND are correct)
+         # Explicitly declared dimension values (but generated code still
+         # uses L/UBOUND which si correct).
          ("integer, dimension(2:4) :: x, y, z, t\n"
+          "x(:) = 0",
+          "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+          "    x(idx) = 0\n"),
+
+         # Explicit lower bound value (assumed-shape array) - still just
+         # uses LBOUND.
+         ("integer, dimension(2:) :: x, y, z, t\n"
           "x(:) = 0",
           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = 0\n"),
