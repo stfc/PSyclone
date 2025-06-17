@@ -287,15 +287,15 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
         #    schedule.
         depending_barriers = []
         for i, directive in enumerate(directives):
-            found_barriers = []
             # If next_dependencies[i] is True, there is no dependency so we
             # don't need to do anything
             if next_dependencies[i] is True:
-                depending_barriers.append(found_barriers)
+                depending_barriers.append([])
                 continue
 
             # For each of the dependencies of the directive.
             for k, next_depend in enumerate(next_dependencies[i]):
+                found_barriers = []
 
                 # Loop through the barriers.
                 for j, barrier in enumerate(all_barriers):
