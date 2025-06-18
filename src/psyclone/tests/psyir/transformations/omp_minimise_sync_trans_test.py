@@ -582,9 +582,11 @@ def test_multiple_nowaits_covered_by_same_barrier_initially(fortran_reader):
     assert len(routine.walk(OMPTaskwaitDirective)) == 2
 
 
-def test_loop_process(fortran_reader):
+def test_eliminate_barrier_loop_process(fortran_reader):
     '''Test that the while get_max_barrier_dependency > 1 loop
-    is called and works as expected.'''
+    is called and works as expected. The loop may never be needed,
+    however I can't prove/be confident enough to remove it, so a test
+    # is here that it works'''
     code = """
     subroutine test
         integer, dimension(100) :: a,b,c
@@ -630,7 +632,12 @@ def test_loop_process(fortran_reader):
     correct_to_keep = routine.walk(OMPTaskwaitDirective)[2]
 
     rtrans = OMPMinimiseSyncTrans()
-    rtrans.apply(routine)
+    # Call eliminiate barriers explicitly because otherwise this case is
+    # eliminated by the remove repeated barriers case.
+    rtrans._eliminate_barriers(
+        routine, [x for x in routine.walk(OMPTargetDirective) if x.nowait],
+        OMPTaskwaitDirective
+    )
 
     final_bars = routine.walk(OMPTaskwaitDirective)
     # We keep the expected one and the barrier at the end of the routine.
