@@ -178,7 +178,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
         # Loop through all the barriers other than the first.
         # We loop backwards as we're removing things from the tree as we go
         # through the list, so i-1 wouldn't work if we loop forwards.
-        for i, barrier in enumerate(barriers[:1:-1]):
+        for i, barrier in reversed(list(enumerate(barriers))):
             if barrier.immediately_follows(barriers[i-1]):
                 barrier.detach()
 

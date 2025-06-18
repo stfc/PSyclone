@@ -64,6 +64,24 @@ def test_omp_remove_barrier_validate():
            in str(excinfo.value))
 
 
+def test_omp_eliminate_adjacent_barriers(fortran_reader):
+    '''Test the _eliminate_adjacent_barriers routine of the
+    OMPMinimiseSyncTrans.'''
+    code = """subroutine test
+
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    routine.addchild(OMPTaskwaitDirective())
+    routine.addchild(OMPTaskwaitDirective())
+    assert len(routine.walk(OMPTaskwaitDirective)) == 2
+
+    OMPMinimiseSyncTrans()._eliminate_adjacent_barriers(routine,
+                                                        OMPTaskwaitDirective)
+    assert len(routine.walk(OMPTaskwaitDirective)) == 1
+
+
 def test_omp_remove_barrier_find_dependencies(fortran_reader):
     '''Test the _find_dependencies routine of the OMPMinimiseSyncTrans.'''
 
