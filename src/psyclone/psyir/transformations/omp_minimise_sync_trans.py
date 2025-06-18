@@ -354,19 +354,6 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
                                 not barrier.is_descendent_of(loop_ancestor)):
                             continue
 
-                        # If the barrier is not contained in any of the
-                        # ancestor loops of both then we can ignore it.
-                        loop_ancestor = directive.ancestor((Loop, WhileLoop))
-                        barrier_in_ancestor_loop = False
-                        while loop_ancestor:
-                            if barrier.is_descendent_of(loop_ancestor):
-                                barrier_in_ancestor_loop = True
-                                break
-                            loop_ancestor = loop_ancestor.ancestor((Loop,
-                                                                    WhileLoop))
-                        if not barrier_in_ancestor_loop:
-                            continue
-
                     # The barrier appears between the node and its dependency.
                     # Recurse up from the barrier and find all the if statement
                     # ancestors.
