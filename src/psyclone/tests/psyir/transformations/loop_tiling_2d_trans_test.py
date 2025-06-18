@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: S. Siso, STFC Daresbury Lab
+# Modified: M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 '''This module contains the unit tests for the LoopTiling2DTrans module'''
@@ -195,7 +196,7 @@ enddo'''
     assert expected in result
 
 
-def test_loop_tiling_2d_trans_apply_options1(fortran_reader, fortran_writer):
+def test_loop_tiling_2d_trans_apply_options(fortran_reader, fortran_writer):
     ''' Check that a non-default tilesize option is used correctly. '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine test(tmp)

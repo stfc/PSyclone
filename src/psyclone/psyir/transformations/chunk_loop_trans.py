@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk, STFC Daresbury Lab
 # Modified S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 '''This module provides the ChunkLoopTrans, which transforms a Loop into a

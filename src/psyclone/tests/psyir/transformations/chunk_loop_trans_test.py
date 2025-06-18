@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk, STFC Daresbury Lab
 # Modified S. Siso, STFC Daresbury Lab
+# Modified M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 '''This module contains the unit tests for the ChunkLoopTrans module'''
