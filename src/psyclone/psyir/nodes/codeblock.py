@@ -38,10 +38,11 @@
 
 ''' This module contains the CodeBlock node implementation.'''
 
+import re
 from enum import Enum
 from typing import List
 
-from fparser.two import Fortran2003
+from fparser.two import Fortran2003, pattern_tools
 from fparser.two.utils import walk
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.psyir.nodes.statement import Statement
@@ -211,8 +212,18 @@ class CodeBlock(Statement, DataNode):
         # comment string and return any names that match a symbol in the
         # symbol table.
         for node in walk(parse_tree, Fortran2003.Comment):
-            # FIXME Check if this comment is a directive.
-            assert False
+            string_rep = node.tostr()
+            # Directives start with a $
+            if string_rep.lstrip()[0:2] != "!$":
+                continue
+            string_rep = string_rep[2:]
+            pattern = pattern_tools.name.get_compiled()
+            matches = re.findall(pattern, string_rep)
+            scope = self.scope
+            for match in matches:
+                sym = scope.symbol_table.lookup(match, otherwise=None)
+                if sym:
+                    result.append(sym.name)
 
         return result
 
