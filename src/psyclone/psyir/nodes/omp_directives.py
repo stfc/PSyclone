@@ -1921,7 +1921,7 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         if self._collapse:
             string += f" collapse({self._collapse})"
         if self._lowered_reduction_string:
-            string += f", {self._lowered_reduction_string}"
+            string += f" {self._lowered_reduction_string}"
         return string
 
     def end_string(self):

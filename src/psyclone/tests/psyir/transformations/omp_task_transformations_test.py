@@ -127,11 +127,11 @@ def test_omptask_apply(fortran_reader, fortran_writer):
   integer, dimension(10,10) :: t
   integer, dimension(10,10) :: s
 
-  !$omp parallel default(shared), private(ji,jj)
+  !$omp parallel default(shared) private(ji,jj)
   !$omp single
   do jj = 1, 10, 1
-    !$omp task private(ji), firstprivate(jj), shared(t,s), \
-depend(in: s(:,jj)), depend(out: t(:,jj))
+    !$omp task private(ji) firstprivate(jj) shared(t,s) \
+depend(in: s(:,jj)) depend(out: t(:,jj))
     do ji = 1, SIZE(ji, 2), 1
       t(ji,jj) = INT(s(ji,jj))
     enddo
