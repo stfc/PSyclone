@@ -46,7 +46,7 @@ import sys
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.nodes import (
-    Call, Directive, IntrinsicCall, Loop, Routine)
+    Call, Directive, IntrinsicCall, Loop, Routine, Schedule)
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, InlineTrans, Matmul2CodeTrans, OMPTargetTrans,
     TransformationError)
@@ -68,18 +68,14 @@ INLINE_EXCLUSIONS = ["abort", "logging"]
 OFFLOAD_DIRECTIVES = os.getenv('LFRIC_OFFLOAD_DIRECTIVES', "none")
 
 
-def _inline_calls(sched):
+def _replace_matmuls(sched: Schedule):
     '''
-    Recursively inline all calls within the supplied Kernel or Routine.
-
-    Currently only attempts to replace MATMUL intrinsic calls with inline
+    Attempts to replace all MATMUL intrinsic calls with inline
     code.
 
-    :param sched: Routine to inline any Calls into.
+    :param sched: schedule to transform.
 
     '''
-    mod_inline_trans = KernelModuleInlineTrans()
-    intrans = InlineTrans()
     matrans = Matmul2CodeTrans()
 
     for call in sched.walk(Call):
@@ -95,26 +91,6 @@ def _inline_calls(sched):
         if (isinstance(call, IntrinsicCall) and
                 call.intrinsic == IntrinsicCall.Intrinsic.MATMUL):
             matrans.apply(call)
-            continue
-
-        # For now we only look at MATMUL calls. In future we may want to
-        # remove this `continue` and attempt to inline more calls.
-        continue
-
-        if any(name in call.routine.name for name in INLINE_EXCLUSIONS):
-            continue
-        try:
-            for inner_call in call.get_callees():
-                _inline_calls(inner_call)
-            mod_inline_trans.apply(call)
-            try:
-                intrans.apply(call)
-            except TransformationError as err:
-                print(f"Failed to inline call {call.debug_string()}:\n"
-                      f"{err}")
-        except (TransformationError, NotImplementedError) as err:
-            print(f"Failed to module-inline routine {call.routine.name}:\n"
-                  f"{err}")
 
 
 def trans(psyir):
@@ -127,6 +103,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    intrans = InlineTrans()
     rtrans = LFRicRedundantComputationTrans()
     ctrans = LFRicColourTrans()
     otrans = LFRicOMPLoopTrans()
@@ -189,12 +166,14 @@ def trans(psyir):
                         const.VALID_DISCONTINUOUS_NAMES):
                     ctrans.apply(loop)
 
-        # Mark Kernels inside the loops over cells as GPU-enabled
-        # (alternatively we could inline them)
+        # Module-inline the Kernels inside the loops over cells and then mark
+        # them as GPU-enabled.
+        # (The latter step won't be necessary if/when we fully inline them.)
         for loop in subroutine.loops():
             if loop.iteration_space.endswith("cell_column"):
                 if offload:
                     for kern in loop.kernels():
+                        # Attempt to module-inline the kernel.
                         try:
                             mod_inline_trans.apply(kern)
                             print(f"Module-inlined kernel '{kern.name}'")
@@ -203,8 +182,10 @@ def trans(psyir):
                             print(f"Failed to module-inline kernel "
                                   f"'{kern.name}' due to:\n{err.value}")
                         try:
+                            # Ensure any MATMULs within the kernel are replaced.
                             for routine in kern.get_callees():
-                                _inline_calls(routine)
+                                _replace_matmuls(routine)
+                            # Finally, annotate the kernel routine for GPU.
                             gpu_annotation_trans.apply(kern)
                             print(f"Annotated kernel '{kern.name}'")
                         except TransformationError as err:
@@ -214,8 +195,7 @@ def trans(psyir):
                                   f"{err.value}")
                         # For annotated or inlined kernels we could attempt to
                         # provide compile-time dimensions for the temporary
-                        # arrays and convert to code unsupported intrinsics.
-
+                        # arrays and convert to code any unsupported intrinsics.
         # Add GPU offloading to loops unless they are over colours or are null.
         for loop in subroutine.walk(Loop):
             kernel_names = [k.name.lower() for k in loop.kernels()]
