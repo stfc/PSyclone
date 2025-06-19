@@ -45,62 +45,12 @@ better than the intrinsic.
 
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Loop, Literal, ArrayReference, Range, Routine, IntrinsicCall
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    ArrayType, ScalarType
+from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE, REAL_TYPE,
+                                    ScalarType)
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
     Intrinsic2CodeTrans
-
-
-def _get_array_bound(vector1, vector2):
-    '''A utility function that returns the appropriate loop bounds (lower,
-    upper and step) for a vector.
-    If either of the vectors are declared with known bounds (an integer or a
-    symbol) then these bound values are used. If the size is unknown
-    (a deferred or attribute type) then the LBOUND and UBOUND PSyIR
-    nodes are used.
-
-    The validate() method in DotProduct2CodeTrans will ensure that the
-    arguments to _get_array_bound() are valid (as it is always called
-    beforehand). The validate() method also ensures that array slices
-    are for the first dimension of the array and that they are for the
-    full size of that dimension (they are limited to ":"). This
-    function makes use of these constraint, e.g. it always returns 1
-    for the stride.
-
-    :param array: the reference that we are interested in.
-    :type array: :py:class:`psyir.nodes.Reference`
-    :param int index: the (array) reference index that we are \
-        interested in.
-
-    :returns: the loop bounds for this array index.
-    :rtype: (Literal, Literal, Literal) or \
-        (BinaryOperation, BinaryOperation, Literal)
-
-    '''
-    # Look for explicit bounds in one of the array declarations
-    for vector in [vector1, vector2]:
-        symbol = vector.symbol
-        my_dim = symbol.shape[0]
-        if isinstance(my_dim, ArrayType.ArrayBounds):
-            lower_bound = my_dim.lower
-            upper_bound = my_dim.upper
-            step = Literal("1", INTEGER_TYPE)
-            return (lower_bound, upper_bound, step)
-
-    # No explicit array bound information could be found for either
-    # array so use the LBOUND and UBOUND intrinsics.
-    symbol = vector1.symbol
-    my_dim = symbol.shape[0]
-    lower_bound = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.LBOUND,
-        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
-    upper_bound = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.UBOUND,
-        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
-    step = Literal("1", INTEGER_TYPE)
-    return (lower_bound, upper_bound, step)
 
 
 class DotProduct2CodeTrans(Intrinsic2CodeTrans):
@@ -311,11 +261,20 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
             BinaryOperation.Operator.ADD, result_ref.copy(), multiply)
         # Create "result = result + vector1(i) * vector2(i)"
         assign = Assignment.create(result_ref.copy(), rhs)
-        # Work out the loop bounds
-        lower_bound, upper_bound, step = _get_array_bound(vector1, vector2)
+        # Work out the loop bounds. We use the declaration that has the most
+        # information (i.e. explicit bounds).
+        bounds1 = vector1.symbol.get_bounds(0)
+        bounds2 = vector2.symbol.get_bounds(0)
+        score1 = sum(1 for bnd in bounds1 if isinstance(bnd, IntrinsicCall))
+        score2 = sum(1 for bnd in bounds2 if isinstance(bnd, IntrinsicCall))
+        if score1 <= score2:
+            lower_bound, upper_bound = bounds1[0], bounds1[1]
+        else:
+            lower_bound, upper_bound = bounds2[0], bounds2[1]
         # Create i loop and add the above code as a child
         iloop = Loop.create(i_loop_symbol, lower_bound.copy(),
-                            upper_bound.copy(), step.copy(), [assign])
+                            upper_bound.copy(), Literal("1", INTEGER_TYPE),
+                            [assign])
         # Create "result = 0.0"
         assign = Assignment.create(result_ref.copy(),
                                    Literal("0.0", REAL_TYPE))

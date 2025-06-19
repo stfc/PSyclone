@@ -134,8 +134,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :param int index: the array index to check.
 
         :raises TypeError: if the index argument is not an integer.
-        :raises ValueError: if the index value is greater than the \
-            number of dimensions in the array (-1).
+        :raises ValueError: if the index value is greater than the
+                            number of dimensions in the array (-1).
 
         '''
         if not isinstance(index, int):
@@ -203,19 +203,19 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         '''
         return self._is_bound(index, "lower")
 
-    def _get_bound_expression(self, pos, bound):
+    def _get_bound_expression(self, pos: int, bound: str):
         '''
         Lookup the upper or lower bound of this ArrayMixin.
 
-        :param int pos: the dimension of the array for which to lookup the
-                        lower bound.
-        :param str bound: "upper" or "lower" - the bound which to lookup.
+        :param pos: the dimension of the array for which to lookup the bound.
+        :param bound: "upper" or "lower" - the bound which to lookup.
 
         :returns: the declared bound for the specified dimension of this array
                   or a call to the {U/L}BOUND intrinsic if it is unknown.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises InternalError: if bound is neither upper or lower.
+        :raises InternalError: if bound is neither "upper" or "lower".
+
         '''
         if bound not in ("upper", "lower"):
             raise InternalError(f"'bound' argument must be 'lower' or 'upper. "
@@ -259,7 +259,11 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # We have the full type information and the bound is known.
             if bound == "lower":
                 return cursor_type.shape[pos].lower.copy()
-            return cursor_type.shape[pos].upper.copy()
+            # If the upper bound is required and is of ArrayType.Extent type
+            # then we'll have to proceed to construct a call to the UBOUND
+            # intrinsic.
+            if not isinstance(cursor_type.shape[pos].upper, ArrayType.Extent):
+                return cursor_type.shape[pos].upper.copy()
 
         # We've either failed to resolve the type or we don't know the extent
         # of the array dimension so construct a call to the BOUND intrinsic.
@@ -452,7 +456,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         sym_maths = SymbolicMaths.get()
         return sym_maths.equal(declaration_bound, access_bound)
 
-    def is_same_array(self, node):
+    def is_same_array(self, node) -> bool:
         '''
         Checks that the provided array is the same as this node (including the
         chain of parent accessor expressions if the array is part of a
@@ -460,13 +464,12 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         the innermost member access are ignored, e.g.
         A(3)%B%C(1) will match with A(3)%B%C but not with A(2)%B%C(1)
 
-        :param node: the node representing the access that is to be compared \
+        :param node: the node representing the access that is to be compared
                      with this node.
-        :type node: :py:class:`psyclone.psyir.nodes.Reference` or \
-                    :py:class:`psyclone.psyir.nodes.Member`
+        :type node: Union[:py:class:`psyclone.psyir.nodes.Reference`,
+                          :py:class:`psyclone.psyir.nodes.Member`]
 
         :returns: True if the array accesses match, False otherwise.
-        :rtype: bool
 
         '''
         if not isinstance(node, (Member, Reference)):

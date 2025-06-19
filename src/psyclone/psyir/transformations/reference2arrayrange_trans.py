@@ -43,9 +43,9 @@
 '''
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import (Range, Reference, ArrayReference, Literal,
-                                  IntrinsicCall, Assignment)
-from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType
+from psyclone.psyir.nodes import (Range, Reference, ArrayReference,
+                                  IntrinsicCall, Literal, Assignment)
+from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -82,48 +82,6 @@ class Reference2ArrayRangeTrans(Transformation):
     structures, see issue #1858.
 
     '''
-    @staticmethod
-    def _get_array_bound(symbol, index):
-        '''A utility function that returns the appropriate loop bounds (lower,
-        upper and step) for an array dimension.  If the array
-        dimension is declared with known bounds (an integer or a
-        symbol) then these bound values are used. If the size is
-        unknown (a deferred or attribute type) then the LBOUND and
-        UBOUND PSyIR nodes are used.
-
-        :param symbol: the symbol that we are interested in.
-        :type symbol: :py:class:`psyir.symbols.DataSymbol`
-        :param int index: the (array) reference index that we are \
-            interested in.
-
-        :returns: the loop bounds for this array index.
-        :rtype: Tuple(:py:class:`psyclone.psyir.nodes.Literal`, \
-                      :py:class:`psyclone.psyir.nodes.Literal`, \
-                      :py:class:`psyclone.psyir.nodes.Literal`) or \
-                Tuple(:py:class:`psyclone.psyir.nodes.BinaryOperation`, \
-                      :py:class:`psyclone.psyir.nodes.BinaryOperation`, \
-                      :py:class:`psyclone.psyir.nodes.Literal`)
-
-        '''
-        # Look for explicit bounds in the array declaration.
-        my_dim = symbol.shape[index]
-        if isinstance(my_dim, ArrayType.ArrayBounds):
-            lower_bound = my_dim.lower.copy()
-            upper_bound = my_dim.upper.copy()
-            step = Literal("1", INTEGER_TYPE)
-            return (lower_bound, upper_bound, step)
-
-        # No explicit array bound information could be found so use the
-        # LBOUND and UBOUND intrinsics.
-        lower_bound = IntrinsicCall.create(
-            IntrinsicCall.Intrinsic.LBOUND,
-            [Reference(symbol), ("dim", Literal(str(index+1), INTEGER_TYPE))])
-        upper_bound = IntrinsicCall.create(
-            IntrinsicCall.Intrinsic.UBOUND,
-            [Reference(symbol), ("dim", Literal(str(index+1), INTEGER_TYPE))])
-        step = Literal("1", INTEGER_TYPE)
-        return (lower_bound, upper_bound, step)
-
     def validate(self, node, options=None):
         '''Check that the node is a Reference node and that the symbol it
         references is an array.
@@ -185,8 +143,8 @@ class Reference2ArrayRangeTrans(Transformation):
         symbol = node.symbol
         indices = []
         for idx, _ in enumerate(symbol.shape):
-            lbound, ubound, step = \
-                Reference2ArrayRangeTrans._get_array_bound(symbol, idx)
-            indices.append(Range.create(lbound, ubound, step))
+            lbound, ubound = symbol.get_bounds(idx)
+            indices.append(Range.create(lbound, ubound,
+                                        Literal("1", INTEGER_TYPE)))
         array_ref = ArrayReference.create(symbol, indices)
         node.replace_with(array_ref)

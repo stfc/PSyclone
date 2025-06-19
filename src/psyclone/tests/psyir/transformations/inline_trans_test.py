@@ -743,6 +743,33 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
+def test_apply_array_slice_assumed_size_arg(fortran_reader, fortran_writer,
+                                            tmpdir):
+    '''
+    Check that the apply() method works correctly when an array slice is
+    passed to a routine where it is declared as assumed size.
+
+    '''
+    code = ('''\
+        module test_mod
+        contains
+          subroutine run_it()
+            real :: a(10)
+            call sub1(a(3:8))
+          end subroutine run_it
+          subroutine sub1(var)
+            real, dimension(4:) :: var
+            var(5:6) = 1.0
+          end subroutine sub1
+        end module test_mod''')
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    output = fortran_writer(psyir)
+    assert "a(5 - 4 + 3:6 - 4 + 3) = 1.0" in output
+
+
 def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
     '''Check that apply works correctly when the actual argument is an
     array element within a structure.'''
