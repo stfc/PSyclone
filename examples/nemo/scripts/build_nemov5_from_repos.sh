@@ -20,12 +20,27 @@ export ARCH_FILE=$PSYCLONE_NEMO_EXAMPLES_DIR/KGOs/arch-linux_spack.fcm
 export MPIF90=mpif90
 
 # Chose the flags between:
-# - reproducible build flags (same results as a non-optimised CPU build expected)
-export FCFLAGS="-fdefault-real-8 -O2 -ffree-line-length-none -g"
-# export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g" # -mp=gpu -gpu=mem:managed,math_uniform"
+# - Do the serial transformations but do not parallelise
+# export PARALLEL_DIRECTIVES=""
+# export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g"
+
+# - OpenMP CPU threading parallelism
+# export PARALLEL_DIRECTIVES="omp_threading"
+# export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp"
+
+# - OpenMP GPU offloading with reproducible build flags
+# export PARALLEL_DIRECTIVES="omp_offloading"
+# export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+# export REPRODUCIBLE=1
+
+# - OpenACC GPU offloading with reproducible build flags
+export PARALLEL_DIRECTIVES="acc_offloading"
+export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -acc -gpu=mem:managed,math_uniform"
 export REPRODUCIBLE=1
-# - fast build flags 
+
+# - Fast GPU build flags 
 # unset REPRODUCIBLE
+# export PARALLEL_DIRECTIVES="omp_offloading+omp_threading"
 # export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
 
 # === END OF SET UP section ===
@@ -46,19 +61,22 @@ fi
 # Clean up previous build
 cd $NEMO_V5_DIR
 cp $ARCH_FILE arch/arch-linux_test.fcm
-rm -rf cfgs/ORCA2_ICE_PISCES_psycloned
+# rm -rf cfgs/ORCA2_ICE_PISCES_psycloned
 
 # Use psyclonefc to intercept the MPIF90 compiler
-# export PSYCLONE_COMPILER=$MPIF90
-# export MPIF90=psyclonefc
-# export PSYCLONE_OPTS="-l output -s ${PSYCLONE_NEMO_EXAMPLES_DIR}/insert_loop_parallelism.py"
+export PSYCLONE_COMPILER=$MPIF90
+export MPIF90=psyclonefc
+export PSYCLONE_OPTS="-l output -s ${PSYCLONE_NEMO_EXAMPLES_DIR}/insert_loop_parallelism.py"
 
-./makenemo -r ORCA2_ICE_PISCES -m linux_test -n ORCA2_ICE_PISCES_psycloned del_key "key_xios" -j 6 -v 1
+./makenemo -r ORCA2_ICE_PISCES -m linux_test -n ORCA2_ICE_PISCES_psycloned del_key "key_xios key_top" -j 6 -v 1
 
 ln -sf ${ORCA2_INPUTS}/ORCA2_ICE_v5.0.0/* cfgs/ORCA2_ICE_PISCES_psycloned/EXP00/.
+# Reduce num of iterations and add timing/runstat
 sed -i "s/nn_itend.*/nn_itend = 10/" cfgs/ORCA2_ICE_PISCES_psycloned/EXP00/namelist_cfg
+sed -i "s/ln_icebergs.*/ln_icebergs = .false./" cfgs/ORCA2_ICE_PISCES_psycloned/EXP00/namelist_cfg
+sed -i "s/\&namctl.*/\&namctl\n ln_timing   = .true. \n sn_cfctl%l_runstat = .true.\n/" cfgs/ORCA2_ICE_PISCES_psycloned/EXP00/namelist_cfg
 cd cfgs/ORCA2_ICE_PISCES_psycloned/EXP00
-OMP_NUM_THREADS=1 mpirun -n 1 ./nemo
-
-
+OMP_NUM_THREADS=4 mpirun -n 1 ./nemo
+diff ${PSYCLONE_NEMO_EXAMPLES_DIR}/KGOs/run.stat.orca_ice_pisces.nvhpc.10steps run.stat
+grep -r "Elapsed" -A 3 timing.output
 
