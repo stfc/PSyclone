@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk, STFC Daresbury Lab
 # Modified S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 '''This module provides the ChunkLoopTrans, which transforms a Loop into a
@@ -40,7 +41,7 @@ chunked implementation of the Loop'''
 
 from psyclone.core import Signature, AccessType
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import Assignment, BinaryOperation, Reference, \
+from psyclone.psyir.nodes import BinaryOperation, Reference, \
         Literal, Loop, Schedule, CodeBlock, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -224,10 +225,6 @@ class ChunkLoopTrans(LoopTrans):
         chunk_size = options.get("chunksize", 32)
         # Create (or find) the symbols we need for the chunking transformation
         routine = node.ancestor(nodes.Routine)
-        end_inner_loop = routine.symbol_table.find_or_create_tag(
-                f"{node.variable.name}_el_inner",
-                symbol_type=DataSymbol,
-                datatype=node.variable.datatype)
         outer_loop_variable = routine.symbol_table.find_or_create_tag(
                 f"{node.variable.name}_out_var",
                 symbol_type=DataSymbol,
@@ -252,8 +249,7 @@ class ChunkLoopTrans(LoopTrans):
                         Literal("1", node.variable.datatype)))
             minop = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
                                          [add, stop.copy()])
-            inner_loop_end = Assignment.create(Reference(end_inner_loop),
-                                               minop)
+            inner_loop_end = minop
         # For negative steps we do:
         #     el_inner = max(out_var-chunk_size+1, el_outer)
         elif int(node.step_expr.value) < 0:
@@ -266,15 +262,14 @@ class ChunkLoopTrans(LoopTrans):
                         Literal("1", node.variable.datatype)))
             maxop = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
                                          [sub, stop.copy()])
-            inner_loop_end = Assignment.create(Reference(end_inner_loop),
-                                               maxop)
+            inner_loop_end = maxop
             # chunk_size needs to be negative if we're reducing
             chunk_size = -chunk_size
         # step size of 0 is caught by the validate call
 
         # Replace the inner loop start and end with the chunking ones
         start.replace_with(Reference(outer_loop_variable))
-        stop.replace_with(Reference(end_inner_loop))
+        stop.replace_with(inner_loop_end)
 
         # Create the outerloop as a bare Loop construct
         outerloop = Loop(variable=outer_loop_variable)
@@ -282,7 +277,7 @@ class ChunkLoopTrans(LoopTrans):
                               Literal(f"{chunk_size}",
                                       outer_loop_variable.datatype),
                               Schedule(parent=outerloop,
-                                       children=[inner_loop_end])]
+                                       children=[])]
         # Add the chunked annotation
         outerloop.annotations.append('chunked')
         node.annotations.append('chunked')
