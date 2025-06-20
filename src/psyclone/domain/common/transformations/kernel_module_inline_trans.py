@@ -595,6 +595,14 @@ class KernelModuleInlineTrans(Transformation):
             container.symbol_table.add(new_sym)
             interface_sym.visibility = Symbol.Visibility.PRIVATE
             interface_sym.replace_symbols_using(container.symbol_table)
+        else:
+            # No interface but was the original routine symbol renamed
+            # on import?
+            if caller_name != external_callee_name:
+                # It was so we need to rename the inlined routine.
+                sym = node.scope.symbol_table.lookup(external_callee_name)
+                table = sym.find_symbol_table(node)
+                table.rename_symbol(sym, caller_name)
 
         # Update the Kernel to point to the updated PSyIR and set
         # the module-inline flag to avoid generating the kernel imports

@@ -850,8 +850,42 @@ def test_module_inline_with_interfaces(tmpdir):
 def test_module_inline_with_renamed_import(monkeypatch,
                                            fortran_reader,
                                            fortran_writer):
-    '''Test module-inlining when the target routine is use-associated to
-    a different name in the caller scope.
+    '''Test module-inlining when the target routine is
+    use-associated to a different name in the caller scope.
+
+    '''
+    # Create the module containing the subroutine definition, write it to
+    # file and set the search path so that PSyclone can find it.
+    make_external_module(monkeypatch, fortran_reader, "my_mod",
+                         '''\
+    module my_mod
+    contains
+      subroutine my_sub(arg)
+        real*8, dimension(10), intent(inout) :: arg
+        arg(1:10) = 1.0
+      end subroutine my_sub
+    end module my_mod
+    ''')
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    program my_prog
+      implicit none
+      use my_mod, only: local_name=>my_sub
+      real*4, dimension(10) :: var
+      call local_name(var)
+    end program my_prog'''
+    psyir = fortran_reader.psyir_from_source(code)
+    intrans.apply(psyir.walk(Call)[0])
+    result = fortran_writer(psyir)
+    assert "call local_name(var)" in result
+    assert "subroutine local_name(arg)" in result
+
+
+def test_module_inline_interface_with_renamed_import(monkeypatch,
+                                                     fortran_reader,
+                                                     fortran_writer):
+    '''Test module-inlining when the target routine is an interface that is
+    use-associated to a different name in the caller scope.
 
     '''
     # Create the module containing the subroutine definition, write it to
