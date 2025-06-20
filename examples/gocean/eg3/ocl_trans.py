@@ -37,10 +37,10 @@
     the first Invoke to use OpenCL. '''
 
 from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.transformations import \
-    FoldConditionalReturnExpressionsTrans
-from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
-    GOMoveIterationBoundariesInsideKernelTrans
+from psyclone.psyir.transformations import (
+    FoldConditionalReturnExpressionsTrans)
+from psyclone.domain.gocean.transformations import (
+    GOOpenCLTrans, GOMoveIterationBoundariesInsideKernelTrans)
 
 
 def trans(psyir):
@@ -62,7 +62,10 @@ def trans(psyir):
         move_boundaries_trans.apply(kern)
         # Change the syntax to remove the return statements introduced by the
         # previous transformation
-        fold_trans.apply(kern.get_kernel_schedule())
+        kschedules = kern.get_callees()
+        # NOTE: we assume the kernel is not polymorphic and thus there is
+        # only one schedule associated with it.
+        fold_trans.apply(kschedules[0])
         # Specify the OpenCL queue and workgroup size of the kernel
         # In this case we dispatch each kernel in a different queue to check
         # that the output code has the necessary barriers to guarantee the

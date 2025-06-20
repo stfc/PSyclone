@@ -51,13 +51,13 @@ Kernel Transformations
 PSyclone is able to perform kernel transformations by obtaining the PSyIR
 representation of the kernel with:
 
-.. automethod:: psyclone.psyGen.CodedKern.get_kernel_schedule
+.. automethod:: psyclone.psyGen.CodedKern.get_callees
     :no-index:
 
-The result of `psyclone.psyGen.Kern.get_kernel_schedule` is a
-`psyclone.psyir.nodes.KernelSchedule` which is a specialisation of the
-`Routine` class with the `is_program` and `return_type` properties set to
-`False` and `None`, respectively.
+The result of `psyclone.psyGen.Kern.get_callees` is a list of
+`psyclone.psyir.nodes.KernelSchedule` objects. `KernelSchedule` is a
+specialisation of the `Routine` class with the `is_program` and `return_type`
+properties set to False` and `None`, respectively.
 
 In addition to modifying the kernel PSyIR with the desired transformations,
 the `modified` flag of the `CodedKern` node has to be set. This will let
