@@ -557,6 +557,10 @@ class Call(Statement, DataNode):
             can_be_private = False
             while cursor.is_import:
                 csym = cursor.interface.container_symbol
+                if cursor.interface.orig_name:
+                    target_name = cursor.interface.orig_name
+                else:
+                    target_name = cursor.name
                 try:
                     container = csym.find_container_psyir(local_node=self)
                 except SymbolError:
@@ -570,7 +574,7 @@ class Call(Statement, DataNode):
                         f"RoutineSymbol '{rsym.name}' is imported from "
                         f"Container '{csym.name}' but the PSyIR for that "
                         f"container could not be generated.")
-                imported_sym = container.symbol_table.lookup(cursor.name)
+                imported_sym = container.symbol_table.lookup(target_name)
                 if imported_sym.visibility != Symbol.Visibility.PUBLIC:
                     # The required Symbol must be shadowed with a PRIVATE
                     # Symbol in this Container. This means that the one we
@@ -578,7 +582,7 @@ class Call(Statement, DataNode):
                     # import.
                     # TODO #924 - Use ModuleManager to search?
                     raise NotImplementedError(
-                        f"RoutineSymbol '{rsym.name}' is imported from "
+                        f"RoutineSymbol '{target_name}' is imported from "
                         f"Container '{csym.name}' but that Container defines "
                         f"a private Symbol of the same name. Searching for the"
                         f" Container that defines a public Routine with that "

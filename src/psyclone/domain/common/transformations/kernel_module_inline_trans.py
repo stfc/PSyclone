@@ -47,8 +47,8 @@ from typing import List
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, DataTypeSymbol,
-    ImportInterface, RoutineSymbol, Symbol, SymbolError, SymbolTable)
+    ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface,
+    GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError, SymbolTable)
 from psyclone.psyir.nodes import (
     Call, Container, FileContainer, Routine, ScopingNode, IntrinsicCall)
 
@@ -97,6 +97,9 @@ class KernelModuleInlineTrans(Transformation):
         :raises TransformationError: if there is no explicit import of the
             called Routine and there is already a Routine of that name in the
             parent Container.
+        :raises TransformationError: if the call is to a polymorphic routine
+            and there's no Container at the call site to which to add the
+            interface definition.
         :raises TransformationError: if the kernel cannot be safely inlined.
 
         '''
@@ -126,6 +129,20 @@ class KernelModuleInlineTrans(Transformation):
                 f"{self.name} failed to retrieve PSyIR for {kern_or_call} "
                 f"'{kname}' due to: {error}"
             ) from error
+
+        if len(kernels) > 1:
+            # We can't 'module' inline a call to an interface if there's no
+            # ancestor Container in which to put the interface.
+            cntr = node
+            while cntr:
+                cntr = cntr.ancestor(Container)
+                if cntr and not isinstance(cntr, FileContainer):
+                    break
+            else:
+                raise TransformationError(
+                    f"Cannot module-inline the call to '{kname}' since it is "
+                    f"a polymorphic routine (i.e. an interface) and the call-"
+                    f"site is not within a module.")
 
         # Validate the PSyIR of each routine/kernel.
         for kernel_schedule in kernels:
@@ -407,10 +424,16 @@ class KernelModuleInlineTrans(Transformation):
 
         self.validate(node, options)
 
+        external_callee_name = None
         if isinstance(node, CodedKern):
             caller_name = node.name
         else:
             caller_name = node.routine.symbol.name
+            if (node.routine.symbol.is_import and
+                    node.routine.symbol.interface.orig_name):
+                external_callee_name = node.routine.symbol.interface.orig_name
+        if not external_callee_name:
+            external_callee_name = caller_name
 
         # Get the PSyIR of the routine to module inline as well as the name
         # with which it is being called.
@@ -421,8 +444,10 @@ class KernelModuleInlineTrans(Transformation):
         # that if it exists it is only valid when it references the exact same
         # implementation.
         codes_to_inline = node.get_callees()
-        interface_sym = codes_to_inline[0].symbol_table.lookup(
-            caller_name) if len(codes_to_inline) > 1 else None
+        interface_sym = None
+        if len(codes_to_inline) > 1:
+            interface_sym = codes_to_inline[0].symbol_table.lookup(
+                external_callee_name)
 
         callsite_table = node.scope.symbol_table
 
@@ -558,7 +583,16 @@ class KernelModuleInlineTrans(Transformation):
                 self._rm_imported_routine_symbol(shadowed_sym,
                                                  codes_to_inline[0],
                                                  caller_cntr_table)
-            container.symbol_table.add(interface_sym)
+            if caller_name != interface_sym.name:
+                # If the interface was originally renamed on import, then we
+                # must create a new symbol with the local name.
+                new_sym = GenericInterfaceSymbol(
+                    caller_name, routines=[(RoutineSymbol("dummy"), True)])
+                new_sym.copy_properties(interface_sym)
+            else:
+                # Otherwise we can use the existing symbol.
+                new_sym = interface_sym
+            container.symbol_table.add(new_sym)
             interface_sym.visibility = Symbol.Visibility.PRIVATE
             interface_sym.replace_symbols_using(container.symbol_table)
 
