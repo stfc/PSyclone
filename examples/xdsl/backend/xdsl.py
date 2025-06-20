@@ -439,7 +439,7 @@ class xDSLWriter(LanguageWriter):
 
     def nemokern_node(self, node):
         exec_statements = []
-        schedules = node.get_kernel_schedule()
+        schedules = node.get_callees()
         # IGNORE polymorphic routines.
         schedule = schedules[0]
         for child in schedule.children:

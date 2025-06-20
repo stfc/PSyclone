@@ -91,7 +91,7 @@ def trans(psyir):
 
     for kernel in psyir.coded_kernels():
         if kernel.name.lower() == "matrix_vector_kernel_code":
-            kernel_schedules = kernel.get_kernel_schedule()
+            kernel_schedules = kernel.get_callees()
             # For simplicity, ASSUME that the kernel is not polymorphic and
             # thus only has one schedule.
             kernel_schedule = kernel_schedules[0]
