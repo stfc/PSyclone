@@ -374,8 +374,6 @@ def test_call_reference_accesses():
     # A call with an argument passed by value.
     call1 = Call.create(rsym, [Literal("1", INTEGER_TYPE)])
     var_info = call1.reference_accesses()
-    # Check that the current location number is increased after the call:
-    assert var_info._location == 1
     # The Routine symbol is not considered 'read'.
     assert not var_info.is_read(Signature("trillian"))
     assert var_info.is_called(Signature("trillian"))

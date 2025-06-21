@@ -150,9 +150,6 @@ class LFRicKern(CodedKern):
         create_arg_list.generate(var_accesses)
 
         var_accesses.update(super().reference_accesses())
-        # Set the current location index to the next location, since after
-        # this kernel a new statement starts.
-        var_accesses.next_location()
         return var_accesses
 
     def load(self, call, parent=None):
