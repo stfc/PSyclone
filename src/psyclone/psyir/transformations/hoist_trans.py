@@ -233,8 +233,7 @@ class HoistTrans(Transformation):
             written_node = accesses_in_statement[0].node
             accesses_in_loop = all_loop_vars[written_sig]
             chains = DefinitionUseChain(
-                written_node, parent_loop.loop_body.children
-                # TODO: It should be loop, including variable and bounds
+                written_node, parent_loop.children[:]
             )
             if chains.find_backward_accesses():
                 code = statement.debug_string().strip()

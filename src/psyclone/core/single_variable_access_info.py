@@ -184,7 +184,6 @@ class SingleVariableAccessInfo():
     def __init__(self, signature):
         self._signature = signature
         # This is the list of AccessInfo instances for this variable.
-
         self._accesses = []
 
     def __str__(self):
