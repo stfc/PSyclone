@@ -46,22 +46,12 @@ from psyclone.errors import InternalError
 
 
 class AccessInfo():
-    '''This class stores information about a single access
-    pattern of one variable (e.g. variable is read at a certain location).
-    A location is a number which can be used to compare different accesses
-    (i.e. if one access happens before another). Each consecutive
-    location will have an increasing location number, but read and write
-    accesses in the same statement will have the same location number.
-    If the variable accessed is an array, this class will also store
-    the indices used in the access.
-    Note that the name of the variable is not stored in this class.
-    It is a helper class used in the `SingleVariableAccessInfo` class,
-    which stores all `AccessInfo` objects for a variable, and it stores
-    the name of the variable.
+    ''' This class stores information about an access to a variable (the node
+    where it happens and the type of access, and the index accessed if
+    available).
 
     :param access: the access type.
     :type access_type: :py:class:`psyclone.core.access_type.AccessType`
-    :param int location: a number used in ordering the accesses.
     :param node: Node in PSyIR in which the access happens.
     :type node: :py:class:`psyclone.psyir.nodes.Node`
     :param component_indices: indices used in the access, defaults to None.
@@ -70,8 +60,7 @@ class AccessInfo():
         :py:class:`psyclone.core.component_indices.ComponentIndices`
 
     '''
-    def __init__(self, access_type, location, node, component_indices=None):
-        self._location = location
+    def __init__(self, access_type, node, component_indices=None):
         self._access_type = access_type
         self._node = node
         if not isinstance(component_indices, ComponentIndices):
@@ -80,9 +69,7 @@ class AccessInfo():
             self.component_indices = component_indices
 
     def __str__(self):
-        '''Returns a string representation showing the access mode
-        and location, e.g.: WRITE(5).'''
-        return f"{self._access_type}({self._location})"
+        return f"{self._access_type}"
 
     def change_read_to_write(self):
         '''This changes the access mode from READ to WRITE.
@@ -161,14 +148,6 @@ class AccessInfo():
         return self._access_type not in AccessType.non_data_accesses()
 
     @property
-    def location(self):
-        ''':returns: the location information for this access.\
-        Please see the Developers' Guide for more information.
-        :rtype: int
-        '''
-        return self._location
-
-    @property
     def node(self):
         ''':returns: the PSyIR node at which this access happens.
         :rtype: :py:class:`psyclone.psyir.nodes.Node` '''
@@ -210,16 +189,11 @@ class SingleVariableAccessInfo():
 
     def __str__(self):
         '''Returns a string representation of this object with the format:
-        var_name:WRITE(2),WRITE(3),READ(5) where the numbers indicate
-        the 'location' of the corresponding access. The location is an
-        integer number that enumerates each statement in a program unit,
-        and can be used to compare if an access is earlier, later or in
-        the same statement as another access.
-
+        var_name:[WRITE,WRITE,READ]
         '''
         all_accesses = ",".join([str(access) for access in self._accesses])
 
-        return f"{self._signature}:{all_accesses}"
+        return f"{self._signature}:[{all_accesses}]"
 
     def __repr__(self):
         return ",".join([str(access) for access in self._accesses])
@@ -337,15 +311,12 @@ class SingleVariableAccessInfo():
         return [access for access in self._accesses
                 if access.access_type in AccessType.all_write_accesses()]
 
-    def add_access_with_location(self, access_type, location, node,
-                                 component_indices):
+    def add_access(self, access_type, node, component_indices):
         '''Adds access information to this variable.
 
         :param access_type: the type of access (READ, WRITE, ....)
         :type access_type: \
             :py:class:`psyclone.core.access_type.AccessType`
-        :param location: location information
-        :type location: int
         :param node: Node in PSyIR in which the access happens.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param component_indices: indices used for each component of the \
@@ -353,8 +324,7 @@ class SingleVariableAccessInfo():
         :type component_indices:  \
             :py:class:`psyclone.core.component_indices.ComponentIndices`
         '''
-        self._accesses.append(AccessInfo(access_type, location, node,
-                                         component_indices))
+        self._accesses.append(AccessInfo(access_type, node, component_indices))
 
     def change_read_to_write(self):
         '''This function is only used when analysing an assignment statement.
