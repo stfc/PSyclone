@@ -37,6 +37,8 @@
 This module contains the InlineTrans transformation.
 
 '''
+from typing import Union
+
 from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.nodes import (
@@ -142,7 +144,8 @@ class InlineTrans(Transformation):
         self.validate(node, options)
         # The table associated with the scoping region holding the Call.
         table = node.ancestor(Routine).symbol_table
-        # Find the routine to be inlined.
+        # Find the routine to be inlined. validate() has checked that we can
+        # do this.
         orig_routine = node.get_callees()[0]
 
         if not orig_routine.children or isinstance(orig_routine.children[0],
@@ -609,12 +612,11 @@ class InlineTrans(Transformation):
         # Just an array reference.
         return ArrayReference.create(actual_arg.symbol, members[0][1])
 
-    def validate(self, node, options=None):
+    def validate(self, node: Union[Call, Kern], options=None):
         '''
         Checks that the supplied node is a valid target for inlining.
 
         :param node: target PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param bool options["force"]: whether or not to ignore any CodeBlocks
@@ -659,16 +661,20 @@ class InlineTrans(Transformation):
         options = {} if options is None else options
         forced = options.get("force", False)
 
-        # The node should be a Call.
-        if not isinstance(node, Call):
+        # The node should be a Kernel or a Call.
+        if not isinstance(node, (Call, Kern)):
             raise TransformationError(
                 f"The target of the InlineTrans transformation "
-                f"should be a Call but found '{type(node).__name__}'.")
+                f"should be a Call or Kern but found '{type(node).__name__}'.")
 
         if isinstance(node, IntrinsicCall):
             raise TransformationError(
                 f"Cannot inline an IntrinsicCall ('{node.routine.name}')")
-        name = node.routine.name
+
+        if isinstance(node, Kern):
+            name = node.name
+        else:
+            name = node.routine.name
 
         # The call site must be within a Routine (i.e. not detached)
         parent_routine = node.ancestor(Routine)
@@ -678,13 +684,18 @@ class InlineTrans(Transformation):
                 f"('{node.debug_string().strip()}') is not inside a Routine.")
 
         # Check that we can find the source of the routine being inlined.
-        # TODO #924 allow for multiple routines (interfaces).
         try:
-            routine = node.get_callees()[0]
+            routines = node.get_callees()
         except (NotImplementedError, FileNotFoundError, SymbolError) as err:
             raise TransformationError(
                 f"Cannot inline routine '{name}' because its source cannot be "
                 f"found: {err}") from err
+
+        if len(routines) > 1:
+            raise TransformationError(
+                f"Cannot yet inline {node.debug_string().strip()} because the "
+                f"target routine is polymorphic.")
+        routine = routines[0]
 
         if not routine.children or isinstance(routine.children[0], Return):
             # An empty routine is fine.

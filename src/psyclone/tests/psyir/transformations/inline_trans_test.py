@@ -50,7 +50,8 @@ from psyclone.psyir.symbols import (
     AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType)
 from psyclone.psyir.transformations import (
     InlineTrans, TransformationError)
-from psyclone.tests.utilities import Compile
+from psyclone.psyGen import Kern
+from psyclone.tests.utilities import Compile, get_invoke
 
 MY_TYPE = ("  integer, parameter :: ngrids = 10\n"
            "  type other_type\n"
@@ -198,6 +199,22 @@ def test_apply_array_access(fortran_reader, fortran_writer, tmpdir):
             "        a(i_1) = 2.0 * i\n"
             "      enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_lfric_kern():
+    '''
+    Test that we can inline an LFRic kernel call.
+
+    '''
+    modinline_trans = KernelModuleInlineTrans()
+    inline_trans = InlineTrans()
+    psy, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
+    sched = invoke.schedule
+    kern = sched.walk(Kern)[0]
+    modinline_trans.apply(kern)
+    inline_trans.apply(kern)
+    result = psy.gen
+    assert " call " not in result
 
 
 def test_apply_gocean_kern(fortran_reader, fortran_writer, monkeypatch):
