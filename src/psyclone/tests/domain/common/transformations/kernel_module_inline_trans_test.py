@@ -1165,9 +1165,12 @@ subroutine my_sub(arg)''' in output)
     # the same RoutineSymbol
     new_calls = prog_psyir.walk(Call)
     assert new_calls[0].routine.symbol is new_calls[1].routine.symbol
-    # Apply the transformation to the second call. This should silently
-    # pass as there's nothing to do.
-    intrans.apply(calls[1])
+    # Apply the transformation to the second call. This should fail to validate
+    # as there's nothing to do.
+    with pytest.raises(TransformationError) as err:
+        intrans.validate(calls[1])
+    assert ("The target of 'call my_sub(b)' is already module inlined."
+            in str(err.value))
     # We can't compile this because of the use statement.
 
 

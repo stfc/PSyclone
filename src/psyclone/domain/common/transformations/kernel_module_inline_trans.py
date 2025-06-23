@@ -101,6 +101,8 @@ class KernelModuleInlineTrans(Transformation):
             and there's no Container at the call site to which to add the
             interface definition.
         :raises TransformationError: if the kernel cannot be safely inlined.
+        :raises TransformationError: if the target of the supplied call is
+            already module inlined.
 
         '''
         if isinstance(node, CodedKern):
@@ -130,6 +132,8 @@ class KernelModuleInlineTrans(Transformation):
                 f"'{kname}' due to: {error}"
             ) from error
 
+        needs_inline = False
+
         if len(kernels) > 1:
             # We can't 'module' inline a call to an interface if there's no
             # ancestor Container in which to put the interface.
@@ -143,10 +147,24 @@ class KernelModuleInlineTrans(Transformation):
                     f"Cannot module-inline the call to '{kname}' since it is "
                     f"a polymorphic routine (i.e. an interface) and the call-"
                     f"site is not within a module.")
+            iface_sym = node.scope.symbol_table.lookup(kname, otherwise=None)
+            if (not iface_sym or (iface_sym.is_import or
+                                  iface_sym.is_unresolved)):
+                needs_inline = True
 
         # Validate the PSyIR of each routine/kernel.
         for kernel_schedule in kernels:
             self._validate_schedule(node, kname, kern_or_call, kernel_schedule)
+            rt_sym = node.scope.symbol_table.lookup(kernel_schedule.name,
+                                                    otherwise=None)
+            if (not rt_sym or (rt_sym is not kernel_schedule.symbol) or
+                    (rt_sym.is_import or rt_sym.is_unresolved)):
+                needs_inline = True
+
+        if not needs_inline:
+            raise TransformationError(
+                f"The target of '{node.debug_string().strip()}' is already "
+                f"module inlined.")
 
     def _validate_schedule(self, node, kname, kern_or_call, kernel_schedule):
         '''
@@ -455,7 +473,7 @@ class KernelModuleInlineTrans(Transformation):
             called_sym = callsite_table.lookup(caller_name, otherwise=None)
         else:
             for routine in codes_to_inline:
-                # N.B.in a PSyKAl DSL, we won't have a RoutineSymbol for the
+                # N.B. in a PSyKAl DSL, we won't have a RoutineSymbol for the
                 # Kernel that is being called, so we look it up instead of
                 # using node.symbol.
                 called_sym = callsite_table.lookup(caller_name,
@@ -464,10 +482,6 @@ class KernelModuleInlineTrans(Transformation):
                         (called_sym.is_import or called_sym.is_unresolved)):
                     # This routine is not module-inlined.
                     break
-            else:
-                # All routines are module-inlined so there's nothing to do.
-                # TODO #11 - log this.
-                return
 
         # Deal with the RoutineSymbol that is in scope at the call site.
         sym_in_ctr = None
