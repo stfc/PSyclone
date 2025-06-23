@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council
+# Copyright (c) 2019-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@ variable access information.
 
 from psyclone.core.single_variable_access_info import (
     AccessInfo, SingleVariableAccessInfo)
-from psyclone.core.variables_access_info import VariablesAccessInfo
+from psyclone.core.variables_access_map import VariablesAccessMap
 from psyclone.core.access_type import AccessType
 from psyclone.core.component_indices import ComponentIndices
 from psyclone.core.signature import Signature
@@ -55,4 +55,4 @@ __all__ = [
         'Signature',
         'SingleVariableAccessInfo',
         'SymbolicMaths',
-        'VariablesAccessInfo']
+        'VariablesAccessMap']

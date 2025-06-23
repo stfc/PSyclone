@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council
+# Copyright (c) 2021-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,9 @@ invoke. This script can be applied via the -s option in the psyclone
 command.
 
 '''
-from psyclone.transformations import DynamoOMPParallelLoopTrans, \
-    TransformationError, Dynamo0p3ColourTrans, OMPParallelTrans, \
-    Dynamo0p3OMPLoopTrans
+from psyclone.transformations import LFRicOMPParallelLoopTrans, \
+    TransformationError, LFRicColourTrans, OMPParallelTrans, \
+    LFRicOMPLoopTrans
 from psyclone.psyGen import Loop
 from psyclone.domain.lfric import LFRicConstants
 
@@ -56,10 +56,10 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    otrans = DynamoOMPParallelLoopTrans()
-    ctrans = Dynamo0p3ColourTrans()
+    otrans = LFRicOMPParallelLoopTrans()
+    ctrans = LFRicColourTrans()
     ptrans = OMPParallelTrans()
-    ltrans = Dynamo0p3OMPLoopTrans()
+    ltrans = LFRicOMPLoopTrans()
     const = LFRicConstants()
 
     # Colour any loops that need colouring

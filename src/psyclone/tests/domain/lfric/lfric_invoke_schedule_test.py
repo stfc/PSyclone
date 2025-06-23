@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,12 +45,12 @@ from psyclone.psyGen import PSyFactory
 
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+        os.path.abspath(__file__)))), "test_files", "lfric")
 TEST_API = "lfric"
 
 
 def test_lfricinvsched_parent():
-    ''' Check the setting of the parent of a LFRicInvokeSchedule. '''
+    ''' Check the setting of the parent of an LFRicInvokeSchedule. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.0.1_single_named_invoke.f90"),
                            api=TEST_API)

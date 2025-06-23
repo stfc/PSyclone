@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
 
 import pytest
 from psyclone.errors import InternalError, GenerationError
-from psyclone.f2pygen import ModuleGen
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     Assignment, Reference, Literal, ArrayReference, Range, StructureReference,
@@ -321,26 +320,6 @@ def test_is_not_array_assignment():
     assignment = Assignment.create(StructureReference.create(grid_sym, ["dx"]),
                                    one.copy())
     assert assignment.is_array_assignment is False
-
-
-def test_assignment_gen_code():
-    '''Test that the gen_code method in the Assignment class produces the
-    expected Fortran code.
-
-    TODO #1648: This is just needed for coverage of the gen_code, that in turn
-    is needed because another test (profiling_node tests) uses it. But gen_code
-    is deprecated and this test should be removed when the gen_code is not used
-    in any other test.
-
-    '''
-    lhs = Reference(DataSymbol("tmp", REAL_SINGLE_TYPE))
-    rhs = Literal("0.0", REAL_SINGLE_TYPE)
-    assignment = Assignment.create(lhs, rhs)
-    check_links(assignment, [lhs, rhs])
-    module = ModuleGen("test")
-    assignment.gen_code(module)
-    code = str(module.root)
-    assert "tmp = 0.0\n" in code
 
 
 def test_pointer_assignment():

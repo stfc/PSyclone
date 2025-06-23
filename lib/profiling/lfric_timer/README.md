@@ -3,8 +3,8 @@
 This is a wrapper library that maps PSyclone's [PSyData](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) [profiling API](
 https://psyclone.readthedocs.io/en/stable/profiling.html#profiling) to the
-timer functionality provided in LFRic (see the [LFRic (Dynamo 0.3) API](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html) documentation
+timer functionality provided in LFRic (see the [LFRic API](
+https://psyclone.readthedocs.io/en/latest/lfric.html) documentation
 on how to access and use the LFRic code).
 
 ## Dependencies
@@ -48,7 +48,7 @@ infrastructure code is specified using the environment variable
 ``LFRIC_INF_DIR``. For demonstration purposes, it defaults to the relative
 path to location of the pared-down LFRic infrastructure located in a clone
 of PSyclone repository,
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
+``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
 This is not available in the PSyclone [installation](
 ./../../README.md#installation) so the exact path
 **must be specified** during the compilation process.
@@ -65,7 +65,7 @@ repository and specify the exact path during the compilation process.
 For instance,
 
 ```shell
-LFRIC_INF_DIR=<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure make \
+LFRIC_INF_DIR=<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure make \
 	libpsy_lfric_timer_standalone.a
 ```
 
@@ -111,7 +111,7 @@ $ less timer.txt
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2024, Science and Technology Facilities Council.
+Copyright (c) 2020-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

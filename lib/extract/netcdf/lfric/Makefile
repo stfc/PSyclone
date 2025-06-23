@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # BSD 2-Clause License
 # 
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ endif
 # Path to the LFRic infrastructure library. It defaults to the pared-down
 # version of the LFRic infrastructure distributed with PSyclone.
 # Overwrite for a different infrastructure version.
-LFRIC_PATH ?= ./../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH ?= ./../../../../src/psyclone/tests/test_files/lfric/infrastructure
 
 # Paths to the PSyclone wrapper libraries and required templates. They default
 # to the relative paths to the top-level 'lib' and 'lib/extract/netcdf'
@@ -118,8 +118,8 @@ compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinj
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_netcdf_base.f90 \
-	   compare_variables_mod.f90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_netcdf_base.F90 \
+	   compare_variables_mod.F90 kernel_data_netcdf.f90 read_kernel_data_mod.f90
 
 allclean: clean
 	$(MAKE) -C $(LFRIC_PATH) allclean

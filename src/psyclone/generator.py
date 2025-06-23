@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified A. J. Voysey, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified A. R. Pirrie, Met Office
 
 '''
     This module provides the PSyclone 'main' routine which is intended
@@ -50,6 +51,8 @@ import sys
 import traceback
 import importlib
 import shutil
+from typing import Union, Callable, List, Tuple
+import logging
 
 from fparser.api import get_reader
 from fparser.two import Fortran2003
@@ -91,20 +94,31 @@ from psyclone.version import __VERSION__
 # code) whilst keeping the original implementation as default
 # until it is working.
 LFRIC_TESTING = False
+# off "level" choice is sys.maxsize to disable all
+# log messages.
+LOG_LEVELS = {"OFF": sys.maxsize,
+              logging.getLevelName(logging.DEBUG): logging.DEBUG,
+              logging.getLevelName(logging.INFO): logging.INFO,
+              logging.getLevelName(logging.WARNING): logging.WARNING,
+              logging.getLevelName(logging.ERROR): logging.ERROR,
+              logging.getLevelName(logging.CRITICAL): logging.CRITICAL}
 
 
-def load_script(script_name, function_name="trans", is_optional=False):
+def load_script(
+        script_name: str, function_name: str = "trans",
+        is_optional: bool = False
+) -> Tuple[Callable, List[str], Union[bool, List[str]]]:
     ''' Loads the specified script containing a psyclone recipe. We also
     prepend the script path to the sys.path, so that the script itself and
     any imports that it has from the same directory can be found.
 
-    :param str script_name: name of the script to load.
-    :param str function_name: the name of the function to call in the script.
-    :param bool is_optional: whether the function is optional or
-        not. Defaults to False.
+    :param script_name: name of the script to load.
+    :param function_name: the name of the function to call in the script.
+    :param is_optional: whether the function is optional or not. Defaults to
+        False.
 
-    :returns: callable recipe and list of files to skip.
-    :rtype: Tuple[Callable, List[str]]
+    :returns: callable recipe, list of files to skip, whether to resolve
+        modules (or which ones).
 
     :raises IOError: if the file is not found.
     :raises GenerationError: if the file does not have .py extension.
@@ -139,13 +153,18 @@ def load_script(script_name, function_name="trans", is_optional=False):
     else:
         files_to_skip = []
 
+    if hasattr(recipe_module, "RESOLVE_IMPORTS"):
+        imports_to_resolve = recipe_module.RESOLVE_IMPORTS
+    else:
+        imports_to_resolve = []
+
     if hasattr(recipe_module, function_name):
         transformation_recipe = getattr(recipe_module, function_name)
         if callable(transformation_recipe):
             # Everything is good, return recipe and files_to_skip
-            return transformation_recipe, files_to_skip
+            return transformation_recipe, files_to_skip, imports_to_resolve
     elif is_optional:
-        return None, files_to_skip
+        return None, files_to_skip, imports_to_resolve
     raise GenerationError(
         f"generator: attempted to use specified PSyclone "
         f"transformation module '{module_name}' but it does not "
@@ -249,7 +268,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             .create(invoke_info)
         if script_name is not None:
             # Apply provided recipe to PSyIR
-            recipe, _ = load_script(script_name)
+            recipe, _, _ = load_script(script_name)
             recipe(psy.container.root)
         alg_gen = None
 
@@ -289,7 +308,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
-            recipe, _ = load_script(script_name, "trans_alg", is_optional=True)
+            recipe, _, _ = load_script(script_name, "trans_alg",
+                                       is_optional=True)
             if recipe:
                 recipe(psyir)
 
@@ -377,7 +397,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
         if script_name is not None:
             # Call the optimisation script for psy-layer optimisations
-            recipe, _ = load_script(script_name)
+            recipe, _, _ = load_script(script_name)
             recipe(psy.container.root)
 
     # TODO issue #1618 remove Alg class and tests from PSyclone
@@ -416,25 +436,31 @@ def main(arguments):
     # Common options
     parser.add_argument('filename', help='input source code')
     parser.add_argument(
-        '--version', '-v', action='version',
+        '-v', '--version', action='version',
         version=f'PSyclone version: {__VERSION__}',
         help='display version information')
-    parser.add_argument("--config", "-c", help="config file with "
-                        "PSyclone specific options")
+    parser.add_argument('-c', '--config', help='config file with '
+                        'PSyclone specific options')
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation recipe')
     parser.add_argument(
         '-I', '--include', default=[], action="append",
         help='path to Fortran INCLUDE or module files')
     parser.add_argument(
+        '--enable-cache', action="store_true", default=False,
+        help='whether to enable caching of imported module dependencies (if '
+             'enabled, it will generate a .psycache file of each imported '
+             'module in the same location as the imported source file).'
+    )
+    parser.add_argument(
         '-l', '--limit', dest='limit', default='off',
         choices=['off', 'all', 'output'],
-        help='limit the Fortran line length to 132 characters (default '
-        '\'%(default)s\'). Use \'all\' to apply limit to both input and '
-        'output Fortran. Use \'output\' to apply line-length limit to output '
-        'Fortran only.')
+        help="limit the Fortran line length to 132 characters (default "
+        "'%(default)s'). Use 'all' to apply limit to both input and "
+        "output Fortran. Use 'output' to apply line-length limit to output "
+        "Fortran only.")
     parser.add_argument(
-        '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
+        '-p', '--profile', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="add profiling hooks for 'kernels', 'invokes' or 'routines'")
     parser.add_argument(
         '--backend', dest='backend',
@@ -477,8 +503,28 @@ def main(arguments):
         help='(psykal mode) naming scheme to use when re-naming transformed'
              ' kernels')
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
+    parser.add_argument(
+        "--log-level", default="OFF",
+        choices=LOG_LEVELS.keys(),
+        help="sets the level of the logging (defaults to OFF)."
+    )
+    parser.add_argument(
+        "--log-file", default=None,
+        help="sets the output file to use for logging (defaults to stderr)."
+    )
 
     args = parser.parse_args(arguments)
+
+    # Set the logging system up.
+    loglevel = LOG_LEVELS[args.log_level]
+    if args.log_file:
+        logname = args.log_file
+        logging.basicConfig(filename=logname,
+                            level=loglevel)
+    else:
+        logging.basicConfig(level=loglevel)
+    logger = logging.getLogger(__name__)
+    logger.debug("Logging system initialised.")
 
     # Validate that the given arguments are for the right operation mode
     if not args.psykal_dsl:
@@ -493,6 +539,10 @@ def main(arguments):
                   "(-api/--psykal-dsl flag), use the -oalg, -opsy, -okern to "
                   "specify the output destination of each psykal layer.")
             sys.exit(1)
+
+    # This has to be before the Config.get, because otherwise that creates a
+    # ModuleManager Singleton without caching
+    _ = ModuleManager.get(cache_active=args.enable_cache)
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
@@ -699,9 +749,9 @@ def code_transformation_mode(input_file, recipe_file, output_file,
     '''
     # Load recipe file
     if recipe_file:
-        transformation_recipe, files_to_skip = load_script(recipe_file)
+        trans_recipe, files_to_skip, resolve_mods = load_script(recipe_file)
     else:
-        transformation_recipe, files_to_skip = (None, [])
+        trans_recipe, files_to_skip, resolve_mods = (None, [], False)
 
     _, filename = os.path.split(input_file)
     if filename not in files_to_skip:
@@ -718,11 +768,12 @@ def code_transformation_mode(input_file, recipe_file, output_file,
                     sys.exit(1)
 
         # Parse file
-        psyir = FortranReader().psyir_from_file(input_file)
+        psyir = FortranReader(resolve_modules=resolve_mods)\
+            .psyir_from_file(input_file)
 
         # Modify file
-        if transformation_recipe:
-            transformation_recipe(psyir)
+        if trans_recipe:
+            trans_recipe(psyir)
 
         # Add profiling if automatic profiling has been requested
         for routine in psyir.walk(Routine):

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,10 +37,13 @@
 
 ''' This module contains pytest tests for the DataTypeSymbol class. '''
 
-from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import DataTypeSymbol, UnresolvedType, Symbol, \
-    UnresolvedInterface, ArrayType, REAL_SINGLE_TYPE
+
+from psyclone.core import Signature
+from psyclone.psyir.nodes import Reference
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, DataTypeSymbol, INTEGER_TYPE, Symbol,
+    UnresolvedInterface, UnresolvedType, REAL_SINGLE_TYPE)
 
 
 def test_create_datatypesymbol():
@@ -93,3 +96,12 @@ def test_data_type_symbol_copy_properties():
         new_sym.copy_properties(REAL_SINGLE_TYPE)
     assert ("Argument should be of type 'DataTypeSymbol' but found "
             "'ScalarType'" in str(err.value))
+
+
+def test_dts_reference_accesses():
+    '''Test the reference_accesses() method.'''
+    ndim = DataSymbol("ndim", INTEGER_TYPE)
+    symbol = DataTypeSymbol("origin", ArrayType(REAL_SINGLE_TYPE,
+                                                [1, Reference(ndim)]))
+    vam = symbol.reference_accesses()
+    assert vam.all_signatures == [Signature("ndim")]

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council
+# Copyright (c) 2021-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -217,7 +217,7 @@ def test_arg_declaration_error(fortran_reader):
     code = (
         "subroutine setval_c()\n"
         "  use builtins\n"
-        "  use constants_mod, only: r_def\n"
+        "  use constants_mod\n"
         "  use field_mod, only : field_type\n"
         "  type(field_type) :: field\n"
         "  real(kind=r_def) :: value\n"

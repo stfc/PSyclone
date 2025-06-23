@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,45 +55,16 @@ from psyclone.tests.utilities import get_invoke
 API = "gocean"
 
 
-def test_goloop_no_parent():
-    ''' Attempt to generate code for a loop that has no GOInvokeSchedule
-    as a parent '''
-    # Attempt to create a GOLoop within a generic Schedule
-    schedule = Schedule()
-    with pytest.raises(GenerationError) as err:
-        goloop = GOLoop(loop_type="inner", parent=schedule)
-    assert ("GOLoops must always be constructed with a parent which is inside "
-            "(directly or indirectly) of a GOInvokeSchedule" in str(err.value))
-
-    # Now create it in a GOInvokeSchedule but then detach it
-    schedule = GOInvokeSchedule.create('name')
-    goloop = GOLoop(loop_type="inner", parent=schedule)
-    schedule.children = [goloop]
-    # Now remove parent and children
-    goloop.detach()
-
-    # Try and generate the code for this loop even though it
-    # has no parent schedule and no children
-    with pytest.raises(GenerationError):
-        goloop.gen_code(None)
-
-
-def test_goloop_no_children():
-    ''' Attempt to generate code for a loop that has no child
-    kernel calls '''
-    gosched = GOInvokeSchedule.create('name')
-    goloop = GOLoop(parent=gosched, loop_type="outer")
-    # Try and generate the code for this loop even though it
-    # has no children
-    with pytest.raises(GenerationError) as err:
-        goloop.gen_code(None)
-    assert "Cannot find the GOcean Kernel enclosed by this loop" \
-        in str(err.value)
-
-
 def test_goloop_create(monkeypatch):
     ''' Test that the GOLoop create method populates the relevant attributes
     and creates the loop children. '''
+
+    # The parent must be a GOInvokeSchedule
+    with pytest.raises(GenerationError) as err:
+        goloop = GOLoop(loop_type="inner", parent=Schedule())
+    assert ("GOLoops must always be constructed with a parent which is inside"
+            " (directly or indirectly) of a GOInvokeSchedule"
+            in str(err.value))
 
     # Monkeypatch the called GOLoops methods as this will be tested separately
     monkeypatch.setattr(GOLoop, "lower_bound",

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 '''Module providing a transformation that removes induction variables from
 a loop. '''
 
-from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.core import AccessType
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
                                   Call, CodeBlock, Loop, Reference)
@@ -142,7 +142,7 @@ class ReplaceInductionVariablesTrans(Transformation):
         :param accesses_in_loop_body: the access information for all \
             variables in the loop body.
         :type accesses_in_loop_body: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         :returns: whether the assignment is an induction statement that \
             can be replaced.
@@ -160,7 +160,7 @@ class ReplaceInductionVariablesTrans(Transformation):
             return False
 
         # Collect all variables used on the rhs of assignment:
-        rhs_accesses = VariablesAccessInfo(assignment.rhs)
+        rhs_accesses = assignment.rhs.reference_accesses()
         # If the rhs uses any variable that is written in the loop body, this
         # is not a (simple) induction variable and cannot be replaced.
         # Note that the write to the loop variable is part of the Loop
@@ -212,7 +212,7 @@ class ReplaceInductionVariablesTrans(Transformation):
 
         # Find assignments that are directly part of the loop (this
         # prevents issues with assignment inside if statements):
-        all_accesses = VariablesAccessInfo(node.loop_body)
+        all_accesses = node.loop_body.reference_accesses()
         indx = 0
         while indx < len(node.loop_body.children):
             assignment = node.loop_body.children[indx]
@@ -256,7 +256,7 @@ class ReplaceInductionVariablesTrans(Transformation):
             node.parent.children.insert(node.position+1, assignment)
 
             # Recompute the accesses in the body, which was modified
-            all_accesses = VariablesAccessInfo(node.loop_body)
+            all_accesses = node.loop_body.reference_accesses()
 
             # Since the assignment is removed now, we do not need to
             # increment 'indx' here, which will now point to the next

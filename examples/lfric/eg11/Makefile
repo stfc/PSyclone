@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ F90FLAGS ?= -g -O0
 OBJ = helmholtz_solver_alg_psy.o helmholtz_solver_alg_mod.o scaled_matrix_vector_kernel_mod.o driver.o
 
 EXEC = will_not_run.exe
-LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH = ../../../src/psyclone/tests/test_files/lfric/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 

@@ -1,7 +1,7 @@
 <!--
 BSD 3-Clause License
 
-Copyright (c) 2018-2024, Science and Technology Facilities Council.
+Copyright (c) 2018-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -140,3 +140,9 @@ benchmark.
 
 Extraction of kernel data. Using the tra_adv benchmark, this example
 shows the extraction of kernel input- and output-data.
+
+## Example 6
+
+A simple stand-alone example that shows verification that read-only data
+is not modified, e.g. by out-of-bounds accesses to other variables.
+This uses the PSyData interface to instrument generic Fortran code.

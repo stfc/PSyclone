@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ This script can be applied via the -s option to the psyclone command,
 it is not designed to be directly run from python.
 
 '''
-from psyclone.transformations import DynamoLoopFuseTrans, TransformationError
+from psyclone.transformations import LFRicLoopFuseTrans, TransformationError
 
 
 def trans(psyir):
@@ -52,7 +52,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    ftrans = DynamoLoopFuseTrans()
+    ftrans = LFRicLoopFuseTrans()
 
     for subroutine in psyir.children[0].children:
 

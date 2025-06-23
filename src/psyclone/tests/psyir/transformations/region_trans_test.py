@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,14 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Bureau of Meteorology
+#          A. R. Porter, STFC Daresbury Laboratory
 
 ''' Module containing tests for testing RegionTrans'''
 
 import pytest
 
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import CodeBlock, Node, Schedule
+from psyclone.psyir.nodes import (
+    CodeBlock, IfBlock, IntrinsicCall, Node, Reference, Schedule)
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import RegionTrans
 from psyclone.tests.utilities import get_invoke
 from psyclone.gocean1p0 import GOLoop
@@ -51,12 +54,30 @@ class MyRegionTrans(RegionTrans):
     '''
     excluded_node_types = ()
 
-    def apply(self, node, options=None):
-        '''Dummy only to make this not abstract.'''
-
     @property
     def name(self):
         '''Dummy only to make this not abstract.'''
+
+
+def test_rt_apply(fortran_reader, monkeypatch):
+    '''Test the apply method of RegionTrans.'''
+    my_rt = MyRegionTrans()
+    # We test that options get passed to validate correctly be making the
+    # transformation reject CodeBlocks by default.
+    monkeypatch.setattr(my_rt, "excluded_node_types", (CodeBlock,))
+    psyir = fortran_reader.psyir_from_source('''\
+    subroutine doit()
+      integer :: i
+      write (*,*) i
+    end subroutine doit''')
+    sched = psyir.walk(Schedule)[0]
+    with pytest.raises(TransformationError) as err:
+        my_rt.apply(sched.children)
+    assert "Nodes of type 'CodeBlock' cannot be enclosed" in str(err.value)
+    # Check that both the deprecated and new way of passing an option work.
+    # TODO #2668: Deprecate options dictionary.
+    my_rt.apply(sched.children, options={"node-type-check": False})
+    my_rt.apply(sched.children, node_type_check=False)
 
 
 # -----------------------------------------------------------------------------
@@ -108,6 +129,16 @@ def test_get_node_list():
     assert node_list2 == node_list
     assert node_list2 is not node_list
 
+    # Provide a list containing a single Schedule
+    # -------------------------------------------
+    sym = DataSymbol("x", REAL_TYPE)
+    sched.children = [IntrinsicCall.create(IntrinsicCall.Intrinsic.SIN,
+                                           [Reference(sym)])]
+    node_list3 = my_rt.get_node_list([sched])
+    # Result should be the children of the Schedule.
+    assert len(node_list3) == 1
+    assert node_list3[0] is sched.children[0]
+
 
 # -----------------------------------------------------------------------------
 def test_validate_errors(fortran_reader):
@@ -153,6 +184,31 @@ def test_validate_errors(fortran_reader):
         my_rt.validate(node_list)
     assert "Children are not consecutive children of one parent:" \
            in str(err.value)
+
+    # Check when list of nodes contains >1 Schdule. Have to use an IfBlock to
+    # exercise this case.
+    psyir = fortran_reader.psyir_from_source('''
+    program my_prog
+      integer :: ji
+      if(ji == 0)then
+        write(*,*) ji
+      else
+        write(*,*) "no"
+      end if
+      do ji = 1, 10
+        ji = ji + 1
+      end do
+    end program my_prog''')
+    ifblck = psyir.walk(IfBlock)[0]
+    with pytest.raises(TransformationError) as err:
+        my_rt.validate(ifblck.children)
+    assert ("Cannot apply a transformation to multiple nodes when one or more "
+            "is a Schedule" in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        my_rt.validate(ifblck.children[0])
+    assert ("Cannot apply transformation to the immediate children of a "
+            "Loop/IfBlock unless it is to a single Schedule representing the "
+            "Loop/If/Else body" in str(err.value))
 
     # Supply incorrect type to options parameter:
     with pytest.raises(TransformationError) as err:

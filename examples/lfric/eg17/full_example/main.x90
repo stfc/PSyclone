@@ -1,6 +1,6 @@
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020-2024, Science and Technology Facilities Council
+! Copyright (c) 2020-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,7 @@
 ! -----------------------------------------------------------------------------
 ! Author: J. Henrichs, Bureau of Meteorology
 ! Modifications: A. R. Porter, STFC Daresbury Laboratory
+!                J. Dendy, Met Office
 
 program main
 
@@ -57,7 +58,8 @@ program main
     procedure (partitioner_interface), pointer :: partitioner_ptr
     type(field_type)                           :: field1, field2
     integer(kind=i_def)                        :: lfric_fs = W0   ! W0
-    integer(kind=i_def)                        :: element_order = 1
+    integer(kind=i_def)                        :: element_order_h = 1
+    integer(kind=i_def)                        :: element_order_v = 1
     integer(kind=i_def)                        :: ndata_sz
 
     ! Use the unit-testing constructor:
@@ -81,9 +83,10 @@ program main
     mesh = mesh_type(global_mesh_ptr, partition, extrusion_ptr)
     write (*,*) "Mesh has", mesh%get_nlayers(), "layers."
     ndata_sz = 1
-    vector_space = function_space_type( mesh,          &
-                                        element_order, &
-                                        lfric_fs,      &
+    vector_space = function_space_type( mesh,            &
+                                        element_order_h, &
+                                        element_order_v, &
+                                        lfric_fs,        &
                                         ndata_sz)
     vector_space_ptr => vector_space
     call field1%initialise( vector_space = vector_space_ptr, name="field1" )

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
 
 ''' This module contains the IfBlock node implementation.'''
 
+from psyclone.core import VariablesAccessMap
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.schedule import Schedule
@@ -180,24 +181,20 @@ class IfBlock(Statement):
         result += "End " + name
         return result
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. It combines the data from
-        the condition, if-body and (if available) else-body. This could
-        later be extended to handle cases where a variable is only written
-        in one of the two branches.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
-        # The first child is the if condition - all variables are read-only
-        self.condition.reference_accesses(var_accesses)
+        '''
+        var_accesses = self.condition.reference_accesses()
         var_accesses.next_location()
-        self.if_body.reference_accesses(var_accesses)
+        var_accesses.update(self.if_body.reference_accesses())
         var_accesses.next_location()
 
         if self.else_body:
-            self.else_body.reference_accesses(var_accesses)
+            var_accesses.update(self.else_body.reference_accesses())
             var_accesses.next_location()
+        return var_accesses

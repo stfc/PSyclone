@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ F90FLAGS ?=
 # Path to the LFRic infrastructure library. It defaults to the pared-down
 # version of the LFRic infrastructure distributed with PSyclone.
 # Overwrite for a different infrastructure version.
-LFRIC_INF_DIR ?= ./../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_INF_DIR ?= ./../../../src/psyclone/tests/test_files/lfric/infrastructure
 # Paths to the PSyclone wrapper libraries and required templates. They default
 # to the relative paths to the top-level 'lib' and 'lib/read_only'
 # directories. Overwrite for a custom location.

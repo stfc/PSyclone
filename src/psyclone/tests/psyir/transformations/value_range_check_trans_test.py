@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -94,7 +94,7 @@ def test_value_range_check_basic():
 
 
 # -----------------------------------------------------------------------------
-def test_value_range_check_options():
+def test_value_range_check_options(fortran_writer):
     '''Check that options are passed to the ValueRangeCheckNode and trigger
     the use of the newly defined names.
     '''
@@ -103,7 +103,7 @@ def test_value_range_check_options():
     value_range_check = ValueRangeCheckTrans()
     value_range_check.apply(invoke.schedule[0].loop_body[0],
                             options={"region_name": ("a", "b")})
-    code = str(invoke.gen())
+    code = fortran_writer(invoke.schedule)
     assert 'CALL value_range_check_psy_data % PreStart("a", "b", 4, 2)' in code
 
 
@@ -175,10 +175,7 @@ def test_value_range_check_psyir_visitor(fortran_writer):
 
 # -----------------------------------------------------------------------------
 def test_value_range_check_lfric():
-    '''Check that the value range check transformation works in LFRic.
-    Use the old-style gen_code based implementation.
-
-    '''
+    '''Check that the value range check transformation works in LFRic.'''
     psy, invoke = get_invoke("1.2_multi_invoke.f90", api="lfric",
                              idx=0, dist_mem=False)
 
@@ -191,11 +188,13 @@ def test_value_range_check_lfric():
     # (first line), and some declaration and provide variable before and
     # after the kernel:
     expected = [
-        'CALL value_range_check_psy_data%PreStart("multi_invoke_psy", '
+        'CALL value_range_check_psy_data % PreStart("multi_invoke_psy", '
         '"invoke_0-r0", 20, 2)',
-        'CALL value_range_check_psy_data%PreDeclareVariable("a", a)',
-        'CALL value_range_check_psy_data%ProvideVariable("m1_data", m1_data)',
-        'CALL value_range_check_psy_data%ProvideVariable("f1_data", f1_data)']
+        'CALL value_range_check_psy_data % PreDeclareVariable("a", a)',
+        'CALL value_range_check_psy_data % ProvideVariable("m1_data", '
+        'm1_data)',
+        'CALL value_range_check_psy_data % ProvideVariable("f1_data", '
+        'f1_data)']
 
     for line in expected:
         assert line in code

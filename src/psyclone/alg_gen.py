@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2014-2024, Science and Technology Facilities Council.
+# Copyright (c) 2014-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -226,10 +226,6 @@ def _adduse(location, name, only=None, funcnames=None):
     '''Add a Fortran 'use' statement to an existing fparser2 parse
     tree. This will be added at the first valid location before the
     current location.
-
-    This function should be part of the fparser2 replacement for
-    f2pygen (which uses fparser1) but is kept here until this is
-    developed, see issue #240.
 
     :param location: the current location (node) in the parse tree to which \
                      to add a USE.

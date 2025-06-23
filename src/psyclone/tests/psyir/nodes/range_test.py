@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,6 @@
 
 ''' pytest tests for the Range class. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import ScalarType, DataSymbol, \
     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE

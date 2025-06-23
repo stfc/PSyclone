@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -87,7 +87,7 @@ def test_acc_data_region(fortran_reader, fortran_writer):
     dtrans = ACCDataTrans()
     dtrans.apply(sched)
     result = fortran_writer(sched)
-    assert ("  !$acc data copyin(d), copyout(c), copy(b)\n"
+    assert ("  !$acc data copyin(d) copyout(c) copy(b)\n"
             "  do i = 1, 20, 2\n" in result)
     assert ("  enddo\n"
             "  !$acc end data\n" in result)
@@ -95,7 +95,7 @@ def test_acc_data_region(fortran_reader, fortran_writer):
     # Remove the read from array 'd'
     assigns[0].detach()
     result = fortran_writer(sched)
-    assert ("  !$acc data copyout(c), copy(b)\n"
+    assert ("  !$acc data copyout(c) copy(b)\n"
             "  do i = 1, 20, 2\n" in result)
     # Remove the readwrite of array 'b'
     assigns[2].detach()
@@ -130,8 +130,8 @@ end module test''')
     dtrans = ACCDataTrans()
     dtrans.apply(sched)
     gen = fortran_writer(sched)
-    assert ("  !$acc data copyin(grid,grid%flag), "
-            "copyout(grid,grid%data,grid%weights), "
+    assert ("  !$acc data copyin(grid,grid%flag) "
+            "copyout(grid,grid%data,grid%weights) "
             "copy(b)\n"
             "  do i = 1, 20, 2\n"
             "    b(i) = b(i) + i + grid%flag\n"

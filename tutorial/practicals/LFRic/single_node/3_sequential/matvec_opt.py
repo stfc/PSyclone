@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ from psyclone.psyir.transformations import Matmul2CodeTrans
 
 
 def trans(psyir):
-    '''PSyclone transformation script for the Dynamo0.3 API to optimise
+    '''PSyclone transformation script for the LFRic API to optimise
     the matvec kernel for many-core CPUs. This is currently limited to
     running on the scaled_matrix_vector_code kernel but should work
     more generally. Any matmul calls are replaced with inline matrix

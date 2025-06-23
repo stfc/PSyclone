@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020-2024, Science and Technology Facilities Council.
+! Copyright (c) 2020-2025, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,12 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: I. Kavcic, Met Office
+! Modified by: J. Dendy, Met Office
 !
 !------------------------------------------------------------------------------
 ! Drives the execution of the algorithms and kernels in Example 1.
 ! Based on the pared-down version of LFRic infrastructure stored in
-! $PSYCLONE_DIR/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+! $PSYCLONE_DIR/src/psyclone/tests/test_files/lfric/infrastructure
 !------------------------------------------------------------------------------
 program simple_kernels_driver
 
@@ -78,16 +79,20 @@ program simple_kernels_driver
   ! Vertical extrusion parameters
   integer(kind=i_def) :: number_of_layers
   real(kind=r_def)    :: domain_top
-  ! Finite element method (FEM) order
-  integer(kind=i_def) :: element_order
+  ! Finite-element method (FEM) order in the horizontal direction
+  integer(kind=i_def) :: element_order_h
+  ! Finite-element method (FEM) order in the vertical direction
+  integer(kind=i_def) :: element_order_v
 
   !-----------------------------------------------------------------------------
   ! Set model parameters
   !-----------------------------------------------------------------------------
   call log_event( "Setting 'simple_kernels_driver' model parameters", &
                   LOG_LEVEL_INFO )
-  ! Finite-element method (FEM) order
-  element_order = 0
+  ! Finite-element method (FEM) order in horizontal
+  element_order_h = 0
+  ! Finite-element method (FEM) order in vertical
+  element_order_v = 0
   ! Height of atmosphere in meters
   domain_top = 10000.0_r_def
   ! Number of layers in the vertical
@@ -99,7 +104,7 @@ program simple_kernels_driver
   xproc = 1
   yproc = 1
   max_stencil_depth = 0
-  local_rank = 0 
+  local_rank = 0
   total_ranks = 1
 
   !-----------------------------------------------------------------------------
@@ -131,7 +136,7 @@ program simple_kernels_driver
   ! Call algorithms
   !-----------------------------------------------------------------------------
   call log_event( "Calling 'simple_kernels_alg'", LOG_LEVEL_INFO )
-  call simple_kernels_alg(mesh, element_order)
+  call simple_kernels_alg(mesh, element_order_h, element_order_v)
 
   !-----------------------------------------------------------------------------
   ! Tidy up after a run

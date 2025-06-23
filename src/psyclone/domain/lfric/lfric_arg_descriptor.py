@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -753,6 +753,6 @@ class LFRicArgDescriptor(Descriptor):
 
 
 # Documentation utils: The list of module members that we wish AutoAPI to
-# generate documentation for (see https://psyclone-ref.readthedocs.io).
+# generate documentation for.
 __all__ = [
     'LFRicArgDescriptor']

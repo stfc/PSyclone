@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -273,6 +273,7 @@ def test_function_result_suffix(fortran_reader, fortran_writer,
     assert len(routines) == 1
     assert (routines[0].return_symbol is
             routines[0].symbol_table.lookup("my_val"))
+    assert "kind_params" not in routines[0].symbol_table
     result = fortran_writer(psyir)
     assert expected in result
 

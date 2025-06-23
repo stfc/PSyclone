@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council
+# Copyright (c) 2021-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -83,7 +83,7 @@ class SymPyWriter(FortranWriter):
 
     It additionally supports accesses to structure types. A full description
     can be found in the manual:
-    https://psyclone-dev.readthedocs.io/en/latest/sympy.html#sympy
+    https://psyclone.readthedocs.io/en/latest/developer_guide/sympy.html#sympy
 
     '''
     # This option will disable the lowering of abstract nodes into language
@@ -446,7 +446,7 @@ class SymPyWriter(FortranWriter):
         It takes care of all Fortran specific conversion required (e.g.
         constants with kind specification, ...), including the renaming of
         member accesses, as described in
-        https://psyclone-dev.readthedocs.io/en/latest/sympy.html#sympy
+        https://psyclone.readthedocs.io/en/latest/developer_guide/sympy.html
         The optional identical_variables dictionary can contain information
         about variables which are known to be the same. For example, if
         `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be

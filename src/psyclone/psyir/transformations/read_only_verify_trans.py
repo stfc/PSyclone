@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,6 @@
    a region of code."
 '''
 
-from __future__ import absolute_import
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import (Literal, Loop, ReadOnlyVerifyNode, Directive,
                                   Reference, Schedule, OMPParallelDirective,
@@ -72,21 +71,6 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
 
     def __init__(self, node_class=ReadOnlyVerifyNode):
         super().__init__(node_class=node_class)
-
-    # -------------------------------------------------------------------------
-    def get_default_options(self):
-        '''Returns a new dictionary with additional options, specific to the
-        transformation, that will be added to the user option. Any values
-        specified by the user will take precedence. For the read-only verify
-        transformation, by default we want VariablesAccessInformation to
-        report array arguments to lbound, ubound and size as read accesses,
-        since these arguments should also not be overwritten.
-
-        :returns: a dictionary with additional options.
-        :rtype: Dict[str, Any]
-        '''
-
-        return {"COLLECT-ARRAY-SHAPE-READS": True}
 
     # -------------------------------------------------------------------------
     def validate(self, node_list, options=None):

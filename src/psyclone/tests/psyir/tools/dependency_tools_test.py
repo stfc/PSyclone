@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,9 +39,9 @@
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Assignment, Loop
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.tests.utilities import get_invoke
 
@@ -101,8 +101,7 @@ def test_dep_tool_constructor_errors():
     with pytest.raises(TypeError) as err:
         _ = DependencyTools(loop_types_to_parallelise=["invalid"])
     assert ("Invalid loop type 'invalid' specified in DependencyTools. Valid "
-            "values for API 'lfric' are ['dof', 'colours', 'colour', '', "
-            "'null']." in str(err.value))
+            "values for API 'lfric' are [" in str(err.value))
 
 
 # -----------------------------------------------------------------------------
@@ -236,8 +235,8 @@ def test_partition(lhs, rhs, partition, fortran_reader):
     assign = psyir.children[0].children[0]
 
     # Get all access info for the expression
-    access_info_lhs = VariablesAccessInfo(assign.lhs)
-    access_info_rhs = VariablesAccessInfo(assign.rhs)
+    access_info_lhs = assign.lhs.reference_accesses()
+    access_info_rhs = assign.rhs.reference_accesses()
 
     # Find the access that is an array (and therefore not a loop variable)
     #  --> this must be the 'main' array variable we need to check for:
@@ -295,8 +294,8 @@ def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, fortran_reader):
 
     sig = Signature("a1")
     # Get all access info for the expression to 'a1'
-    access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
-    access_info_rhs = VariablesAccessInfo(assign.rhs)[sig][0]
+    access_info_lhs = assign.lhs.reference_accesses()[sig][0]
+    access_info_rhs = assign.rhs.reference_accesses()[sig][0]
     index = (0, 0)
     lhs_index0 = access_info_lhs.component_indices[index]
     rhs_index0 = access_info_rhs.component_indices[index]
@@ -356,9 +355,18 @@ def test_array_access_pairs_1_var(lhs, rhs, distance, fortran_reader):
     assign = psyir.children[0].children[0]
 
     sig = Signature("a1")
-    # Get all access info for the expression to 'a1'
-    access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
-    access_info_rhs = VariablesAccessInfo(assign.rhs)[sig][0]
+    # Get the READ access to 'a1' for expression (this is complicated by the
+    # presence of 'inquiry' accesses for the array bounds in some cases).
+    a1vinfo = assign.lhs.reference_accesses()[sig]
+    for access in a1vinfo.all_accesses:
+        if access.access_type == AccessType.READ:
+            access_info_lhs = access
+            break
+    a1vinfo_rh = assign.rhs.reference_accesses()[sig]
+    for access in a1vinfo_rh.all_accesses:
+        if access.access_type == AccessType.READ:
+            access_info_rhs = access
+            break
     subscript_lhs = access_info_lhs.component_indices[(0, 0)]
     subscript_rhs = access_info_rhs.component_indices[(0, 0)]
 
@@ -390,8 +398,8 @@ def test_array_access_pairs_multi_var(lhs, rhs, independent, fortran_reader):
     psyir = fortran_reader.psyir_from_source(source)
     assign = psyir.children[0].children[0]
 
-    access_info_lhs = VariablesAccessInfo(assign.lhs)
-    access_info_rhs = VariablesAccessInfo(assign.rhs)
+    access_info_lhs = assign.lhs.reference_accesses()
+    access_info_rhs = assign.rhs.reference_accesses()
 
     # Find the access that is not to i,j, or k --> this must be
     # the 'main' array variable we need to check for:
@@ -410,8 +418,8 @@ def test_array_access_pairs_multi_var(lhs, rhs, independent, fortran_reader):
                                    ["i", "j", "k", "l"])
 
     # Get all access info for the expression to 'a1'
-    access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
-    access_info_rhs = VariablesAccessInfo(assign.rhs)[sig][0]
+    access_info_lhs = assign.lhs.reference_accesses()[sig][0]
+    access_info_rhs = assign.rhs.reference_accesses()[sig][0]
     # The variable partition contains a list, each element being a pair of
     # a variable set (element 0) and subscripts indices (element 1).
     # So partition[0][1] takes the subscript indices ([1]) of the first
@@ -1098,3 +1106,67 @@ def test_fuse_dimension_change(fortran_reader):
             "in different index locations: s%comp1(jj)%comp2(ji) and "
             "s%comp1(ji)%comp2(jj)."
             in str(msg))
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.parametrize("range1, range2, overlap",
+                         [("1:3", "4:6", False),
+                          ("3:9", "-1:-3", False),
+                          ("1:3", "4", False),
+                          ("5", "-1:-3", False),
+                          ("i:i+3", "i+5:i+7", False),
+                          ("i:i+3", "i+2", True),
+                          ("i:i+3", "i+5", False),
+                          ("i:i+3", "i-1", False),
+                          (":", "1", True),
+                          (":", "i", True),
+                          ("::", "1", True),
+                          ("::", "i", True),
+                          ("1", ":", True),
+                          ("i", ":", True),
+                          ])
+def test_ranges_overlap(range1, range2, overlap, fortran_reader):
+    '''Test the detection of overlapping ranges.
+    '''
+    source = f'''program test
+                 integer i, ji, inbj
+                 integer, parameter :: jpi=5, jpj=10
+                 real, dimension(jpi,jpi) :: ldisoce
+
+                 ldisoce({range1},{range2}) = 1.0
+                 end program test'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    dep_tools = DependencyTools()
+    assign = psyir.walk(Assignment)[0]
+    r1 = assign.lhs.children[0]
+    r2 = assign.lhs.children[1]
+    assert dep_tools._ranges_overlap(r1, r2) == overlap
+    # Also make sure that _independent_0_var handles this correctly:
+    assert dep_tools._independent_0_var(r1, r2) is not overlap
+
+
+# ----------------------------------------------------------------------------
+def test_nemo_example_ranges(fortran_reader):
+    '''Tests an actual NEMO example
+    '''
+    source = '''program test
+                integer ji, inbj
+                integer, parameter :: jpi=5, jpj=10
+                real, dimension(jpi,jpi) :: ldisoce
+                do jj = 1, inbj, 1
+                  if (COUNT(ldisoce(:,jj)) == 0) then
+                    ldisoce(1,jj) = .true.
+                  end if
+                enddo
+                end program test'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    loops = psyir.children[0].children[0]
+    dep_tools = DependencyTools()
+
+    # This loop can be parallelised because all instances of ldisoce use
+    # the index jj in position 2 (the overlap between ":" and "1"
+    # is tested in test_ranges_overlap above, here we check that this
+    # overlap is indeed ignored because of the jj index).
+    assert dep_tools.can_loop_be_parallelised(loops)

@@ -86,6 +86,32 @@ Example output:
     =============================================================================
 ```
 
+### [Vernier](./vernier)
+
+This wrapper library interfaces with UK Met Office's [Vernier library](
+https://github.com/MetOffice/Vernier). Detailed building and linking
+instructions are in [``vernier/README.md``](
+./vernier/README.md).
+
+Note that Vernier writes the output to one file per MPI rank, called
+e.g. `vernier-output-0`. Example profiling output:
+
+```
+$ less vernier-output-0
+Profiling on 8 thread(s).
+
+    #  % Time         Cumul         Self        Total     # of calls        Self   Total    Routine@
+                                                                             (Size; Size/sec; Size/call; MinSize; MaxSize)
+        (self)        (sec)        (sec)        (sec)                    ms/call   ms/call
+
+    1  100.000        1.496        1.496        1.496              1    1496.066    1496.066    skeleton_constants_mod_psy:invoke_create_de_rham_matrices-compute_derham_matrices_code-r0@0
+    2    0.425        1.502        0.006        0.006              5       1.271       1.271    lfric_xios_setup_mod_psy:invoke_1_nodal_coordinates_kernel_type-nodal_coordinates_code-r1@0
+    3    0.368        1.508        0.006        0.006             10       0.550       0.550    skeleton_alg_mod_psy:invoke_compute_divergence-matrix_vector_code-r2@0
+    4    0.318        1.513        0.005        0.005              1       4.754       4.754    lfric_xios_setup_mod_psy:invoke_0_nodal_xyz_coordinates_kernel_type-nodal_xyz_coordinates_code-r0@0
+...
+
+```
+
 ### [Dr Hook](./drhook)
 
 This wrapper library interfaces with the ECMWF Dr Hook library. This
@@ -224,7 +250,7 @@ source.
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2024, Science and Technology Facilities Council.
+Copyright (c) 2020-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

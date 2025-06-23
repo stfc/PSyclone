@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 ''' This module contains the implementation of the ArrayOfStructuresMember
     node.'''
 
-from __future__ import absolute_import
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin

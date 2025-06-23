@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,6 @@
 
 
 '''Tests for class storing API-specific constants.'''
-
-from __future__ import absolute_import, print_function
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants

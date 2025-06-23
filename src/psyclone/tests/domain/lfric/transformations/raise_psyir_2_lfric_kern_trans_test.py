@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -318,7 +318,7 @@ def test_apply_ok(fortran_reader):
     # The symbol should be removed
     with pytest.raises(KeyError):
         _ = container.symbol_table.lookup("testkern_type")
-    # The container should now be a LFRicKernelContainer
+    # The container should now be an LFRicKernelContainer
     assert isinstance(container, LFRicKernelContainer)
     # and should contain the metadata
     expected = (
@@ -350,7 +350,7 @@ def test_apply_multi_ok(fortran_reader):
     # The symbol should be removed
     with pytest.raises(KeyError):
         _ = container.symbol_table.lookup("testkern_type")
-    # The container should now be a LFRicKernelContainer
+    # The container should now be an LFRicKernelContainer
     assert isinstance(container, LFRicKernelContainer)
     # and should contain the metadata
     expected = (

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,6 @@
 '''Module containing pytest tests for the handling of CodeBlocks containing
 Fortran Format statements in the backend.'''
 
-from __future__ import absolute_import
 from psyclone.psyir.nodes import Routine
 
 

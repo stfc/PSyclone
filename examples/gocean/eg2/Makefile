@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council.
+# Copyright (c) 2018-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,7 @@ PROFILE_LIB = ${PROFILE_DIR}/libnvtx_prof.a
 
 # Location of the NVTX library
 NVTX_DIR ?= /usr/local/lib64/cuda10.0
-NVTX_LINK = -L${NVTX_DIR} -lnvToolsExt
+NVTX_LINK = -L${NVTX_DIR} -lnvtx3interop -cuda
 
 .PHONY: kernels profile
 
@@ -105,12 +105,12 @@ single_prof.exe: ${INF_LIB} ${PROFILE_LIB} psy_prof.f90 kernels psy_prof.o alg_p
 ${PROFILE_LIB} ${NVTX_LINK} -o single.exe
 
 psy.f90 alg_gen.f90: alg.f90
-	${PSYCLONE} -api "gocean" -s ./acc_transform.py -opsy psy.f90 \
--oalg alg_gen.f90 alg.f90
+	${PSYCLONE} -api "gocean" -I${INF_INC} -s ./acc_transform.py -opsy \
+psy.f90 -oalg alg_gen.f90 alg.f90
 
 psy_prof.f90 alg_prof.f90: alg.f90
-	${PSYCLONE} -l all -api "gocean" -s ./acc_prof_transform.py -opsy psy_prof.f90 \
--oalg alg_prof.f90 alg.f90
+	${PSYCLONE} -l all -api "gocean" -I${INF_INC} \
+-s ./acc_prof_transform.py -opsy psy_prof.f90 -oalg alg_prof.f90 alg.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -I${INF_INC} -I${PROFILE_DIR} -c $<

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -139,9 +139,9 @@ def test_array_create_invalid2():
                 Literal("1", INTEGER_SINGLE_TYPE)]
     with pytest.raises(GenerationError) as excinfo:
         _ = ArrayReference.create(symbol_temp, children)
-    assert ("the symbol 'temp' should have the same number of dimensions as "
-            "indices (provided in the 'indices' argument). Expecting '3' but "
-            "found '1'." in str(excinfo.value))
+    assert ("the indices argument has '3' elements, but it must have a number "
+            "of dimensions less or equal to the shape of 'temp', which has "
+            "'1'." in str(excinfo.value))
 
 
 def test_array_create_invalid3():
@@ -467,7 +467,7 @@ def test_array_indices():
     array = ArrayReference.create(DataSymbol("test",
                                              ArrayType(REAL_TYPE, [10])),
                                   [one])
-    assert array.indices == [one]
+    assert array.indices == (one,)
     # Add an invalid child
     array._children = [one.copy(), "hello"]
     with pytest.raises(InternalError) as err:

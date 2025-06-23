@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -222,6 +222,22 @@ def test_fw_add_accessibility():
                       "  integer, private :: id\n"
                       "  integer, public :: flag\n"
                       "end type var")
+
+
+def test_fw_preceding_and_inline_comment(fortran_writer):
+    '''Test that comments are correctly added to the generated code'''
+    symbol = DataSymbol("var", UnsupportedFortranType("integer :: var"))
+    symbol.preceding_comment = "This is a preceding comment"
+    symbol.inline_comment = "This is an inline comment"
+    expected = ("! This is a preceding comment\n"
+                "integer :: var ! This is an inline comment")
+    assert expected in fortran_writer.gen_vardecl(symbol)
+
+    # include_visibility=True case
+    expected = ("! This is a preceding comment\n"
+                "integer, public :: var ! This is an inline comment")
+    assert expected in fortran_writer.gen_vardecl(symbol,
+                                                  include_visibility=True)
 
 
 def test_generating_unsupportedtype_routine_imports(

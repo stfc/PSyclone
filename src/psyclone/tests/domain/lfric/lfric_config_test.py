@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,8 @@
 # Modified: O. Brunt, Met Office
 
 '''
-Module containing tests for LFRic (Dynamo0.3) API configuration handling.
+Module containing tests for LFRic API configuration handling.
 '''
-
-from __future__ import absolute_import
 
 import re
 import pytest
@@ -130,8 +128,8 @@ def config(config_file, content):
                "NUM_ANY_SPACE", "NUM_ANY_DISCONTINUOUS_SPACE"])
 def test_no_mandatory_option(tmpdir, option):
     ''' Check that we raise an error if we do not provide mandatory
-    configuration options for LFRic (Dynamo0.3) API '''
-    config_file = tmpdir.join("config_dyn")
+    configuration options for LFRic API '''
+    config_file = tmpdir.join("config_lfric")
 
     content = re.sub(f"^{option} = .*$", "",
                      _CONFIG_CONTENT, flags=re.MULTILINE)
@@ -151,7 +149,7 @@ def test_no_mandatory_option(tmpdir, option):
 def test_entry_not_bool(tmpdir, option):
     ''' Check that we raise an error if the value of any options expecting
     a boolean value are not Boolean '''
-    config_file = tmpdir.join("config_dyn")
+    config_file = tmpdir.join("config_lfric")
     content = re.sub(f"^{option} = .*$", f"{option} = tree",
                      _CONFIG_CONTENT, flags=re.MULTILINE)
 
@@ -167,7 +165,7 @@ def test_entry_not_bool(tmpdir, option):
 def test_entry_not_int(tmpdir, option):
     ''' Check that we raise an error if the value of any options expecting
     an integer value is not int() with base 10. '''
-    config_file = tmpdir.join("config_dyn")
+    config_file = tmpdir.join("config_lfric")
     content = re.sub(f"^{option} = .*$", f"{option} = false",
                      _CONFIG_CONTENT, flags=re.MULTILINE)
 
@@ -185,7 +183,7 @@ def test_invalid_default_kind(tmpdir):
     the configuration file.
 
     '''
-    config_file = tmpdir.join("config_dyn")
+    config_file = tmpdir.join("config_lfric")
 
     # Test invalid datatype
     content = re.sub(r"real:", "reality:",
@@ -220,7 +218,7 @@ def test_invalid_precision_map(tmpdir):
     integer.
 
     '''
-    config_file = tmpdir.join("config_dyn")
+    config_file = tmpdir.join("config_lfric")
 
     # Test invalid datatype: special character
     content = re.sub(r"r_double: 8,", "r_double: -8,",
@@ -273,7 +271,7 @@ def test_invalid_num_any_anyd_spaces(tmpdir):
     function spaces in the configuration file.
 
     '''
-    config_file = tmpdir.join("config_dyn")
+    config_file = tmpdir.join("config_lfric")
 
     # Test invalid NUM_ANY_SPACE
     content = re.sub(r"NUM_ANY_SPACE = 10", "NUM_ANY_SPACE = 0",

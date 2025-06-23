@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,10 +49,10 @@ def test_colour_trans_str():
     assert str(ctrans) == "Split a loop into colours"
 
 
-def test_colour_trans_create_loop():
+def test_colour_trans_create_loop_not_implemented():
     '''
-    Test that the '_create_colours_loop()' method raises an
-    InternalError.
+    Test that the '_create_colours_loop()' and _create_tiled_colours_loops
+    methods raises an InternalError in the base class.
 
     '''
     ctrans = ColourTrans()
@@ -60,6 +60,10 @@ def test_colour_trans_create_loop():
         ctrans._create_colours_loop(None)
     assert ("_create_colours_loop() must be overridden in an API-specific "
             "sub-class" in str(err.value))
+    with pytest.raises(InternalError) as err:
+        ctrans._create_tiled_colours_loops(None)
+    assert ("_create_tiled_colours_loops() must be overridden in an "
+            "API-specific sub-class" in str(err.value))
     # Check that apply() also calls _create_colours_loop().
     with pytest.raises(InternalError) as err:
         ctrans.apply(Loop.create(DataSymbol("ji", INTEGER_TYPE),

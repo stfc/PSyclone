@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,8 @@ dm_fd_lib:
 
 ompt_psy.f90 ompt_alg.f90: shallow_alg.f90
 	${PSYCLONE} -nodm -s ./openmp_taskloop_trans.py -api gocean \
-		-opsy ompt_psy.f90 -oalg ompt_alg.f90 shallow_alg.f90
+		-I${INF_INC} -opsy ompt_psy.f90 -oalg ompt_alg.f90 \
+                shallow_alg.f90
 
 openmp_taskloop: ompt_psy.f90 ompt_alg.f90
 
@@ -97,7 +98,7 @@ openmp:
 
 
 mpi:
-	${PSYCLONE} -api gocean shallow_alg.f90
+	${PSYCLONE} -api gocean -I${INF_INC} shallow_alg.f90
 
 loop_fuse:
 	$(ENV) ${PYTHON} ./runme_loop_fuse.py
@@ -112,4 +113,4 @@ openacc:
 # versions of OpenCL kernels called multiple times.
 opencl:
 	${PSYCLONE} -nodm -s ./opencl_transformation.py --kernel-renaming single \
-		-api gocean shallow_alg.f90
+		-api gocean  -I${INF_INC} shallow_alg.f90

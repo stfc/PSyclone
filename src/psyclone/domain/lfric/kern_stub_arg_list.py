@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@ for a kernel subroutine.
 
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.errors import InternalError
 
 
@@ -61,19 +60,15 @@ class KernStubArgList(ArgOrdering):
     '''
     def __init__(self, kern):
         ArgOrdering.__init__(self, kern)
-        # TODO 719 The stub_symtab is not connected to other parts of the
-        # Stub generation. Also the symboltable already has an
-        # argument_list that may be able to replace the argument list below.
-        self._stub_symtab = LFRicSymbolTable()
 
     def cell_position(self, var_accesses=None):
         '''Adds a cell argument to the argument list and if supplied stores
         this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         self.append("cell", var_accesses)
@@ -82,10 +77,10 @@ class KernStubArgList(ArgOrdering):
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         self.append("nlayers", var_accesses)
@@ -94,10 +89,10 @@ class KernStubArgList(ArgOrdering):
         '''Add the number of columns in the mesh to the argument list and if
         supplied stores this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         self.append("ncell_2d", var_accesses)
@@ -108,11 +103,11 @@ class KernStubArgList(ArgOrdering):
         information.
 
         :param arg: the CMA operator argument.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # The CMA operator itself
@@ -141,11 +136,11 @@ class KernStubArgList(ArgOrdering):
         var_access object.
 
         :param argvect: the field vector to add.
-        :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type argvect: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # the range function below returns values from
@@ -162,11 +157,11 @@ class KernStubArgList(ArgOrdering):
         argument list. If supplied it also stores this access in var_accesses.
 
         :param arg: the field to be added.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         text = arg.name + "_" + arg.function_space.mangled_name
@@ -178,17 +173,17 @@ class KernStubArgList(ArgOrdering):
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        name = LFRicStencils.dofmap_size_symbol(self._stub_symtab, arg).name
+        name = LFRicStencils.dofmap_size_symbol(self._symtab, arg).name
         self.append(name, var_accesses)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
@@ -197,17 +192,17 @@ class KernStubArgList(ArgOrdering):
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        name = LFRicStencils.direction_name(self._stub_symtab, arg)
+        name = LFRicStencils.direction_name(self._symtab, arg).name
         self.append(name, var_accesses)
 
     def stencil(self, arg, var_accesses=None):
@@ -217,17 +212,17 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        var_name = LFRicStencils.dofmap_symbol(self._stub_symtab, arg).name
+        var_name = LFRicStencils.dofmap_symbol(self._symtab, arg).name
         self.append(var_name, var_accesses)
 
     def stencil_2d_max_extent(self, arg, var_accesses=None):
@@ -236,7 +231,7 @@ class KernStubArgList(ArgOrdering):
         in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional `SingleVariableAccessInfo` \
             instance to store the information about variable accesses.
         :type var_accesses: \
@@ -248,7 +243,7 @@ class KernStubArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        name = LFRicStencils.max_branch_length_name(self._stub_symtab, arg)
+        name = LFRicStencils.max_branch_length(self._symtab, arg).name
         self.append(name, var_accesses)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
@@ -257,17 +252,17 @@ class KernStubArgList(ArgOrdering):
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional `VariablesAccessInfo` instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional `VariablesAccessMap` instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        name = LFRicStencils.dofmap_size_symbol(self._stub_symtab, arg).name
+        name = LFRicStencils.dofmap_size_symbol(self._symtab, arg).name
         self.append(name, var_accesses)
 
     def stencil_2d(self, arg, var_accesses=None):
@@ -277,11 +272,11 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional `VariablesAccessInfo` instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional `VariablesAccessMap` instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # The stencil_2D differs from the stencil in that the direction
@@ -294,7 +289,7 @@ class KernStubArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        var_name = LFRicStencils.dofmap_symbol(self._stub_symtab, arg).name
+        var_name = LFRicStencils.dofmap_symbol(self._symtab, arg).name
         self.append(var_name, var_accesses)
 
     def operator(self, arg, var_accesses=None):
@@ -302,11 +297,11 @@ class KernStubArgList(ArgOrdering):
         also stores this access in var_accesses.
 
         :param arg: the meta-data description of the operator.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         size = arg.name + "_ncell_3d"
@@ -321,10 +316,10 @@ class KernStubArgList(ArgOrdering):
         :param function_space: the function space for which the compulsory \
             arguments are added.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         self.append(function_space.undf_name, var_accesses)
@@ -340,10 +335,10 @@ class KernStubArgList(ArgOrdering):
         :param function_space: the function space for which to provide \
                                the basis functions
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises InternalError: if the evaluator shape is not recognised.
 
@@ -379,10 +374,10 @@ class KernStubArgList(ArgOrdering):
         :param function_space: the function space for which the differential \
             basis functions are required.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises InternalError: if the evaluator shape is not recognised.
 
@@ -419,10 +414,10 @@ class KernStubArgList(ArgOrdering):
         :param function_space: the function space for which boundary dofs \
             are required.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         arg = self._kern.arguments.get_arg_on_space(function_space)
@@ -435,11 +430,11 @@ class KernStubArgList(ArgOrdering):
         also stores this access in var_accesses.
 
         :param function_space: the 'to' function space of the operator.
-        :type function_space: :py:class:`psyclone.dynamo3.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type function_space: :py:class:`psyclone.lfric.FunctionSpace`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         self.field_bcs_kernel(function_space, var_accesses=var_accesses)
@@ -449,16 +444,16 @@ class KernStubArgList(ArgOrdering):
         specified in the kernel metadata. If supplied it also stores this
         access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         if self._kern.mesh.properties:
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
-            from psyclone.dynamo0p3 import LFRicMeshProperties
+            from psyclone.lfric import LFRicMeshProperties
             self.extend(LFRicMeshProperties(self._kern).
                         kern_args(stub=True, var_accesses=var_accesses))
 
@@ -467,10 +462,10 @@ class KernStubArgList(ArgOrdering):
         Adds the necessary arguments to the argument list, and optionally
         adds variable access information to the var_accesses object.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         for rule in self._kern.qr_rules.values():
@@ -485,11 +480,11 @@ class KernStubArgList(ArgOrdering):
             dofmap is required.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param operator: the CMA operator.
-        :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type operator: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises InternalError: if no kernel argument is supplied.
         :raises InternalError: if the supplied kernel argument is not a \

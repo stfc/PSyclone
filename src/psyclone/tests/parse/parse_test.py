@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ from psyclone.parse.kernel import KernelType, KernelTypeFactory, \
 from psyclone.errors import InternalError
 
 TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
-                         "test_files", "dynamo0p3")
+                         "test_files", "lfric")
 
 
 def test_continuators_kernel():

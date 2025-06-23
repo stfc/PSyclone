@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ This PSyclone transformation script is designed to be passed to
 PSyclone, it is not designed to be run directly from python.
 
 '''
-from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, MoveTrans
+from psyclone.transformations import LFRicAsyncHaloExchangeTrans, MoveTrans
 
 
 def trans(psyir):
@@ -68,7 +68,7 @@ def trans(psyir):
 
     '''
     # Create the required transformations
-    async_hex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    async_hex_trans = LFRicAsyncHaloExchangeTrans()
     move_trans = MoveTrans()
 
     # Get the first subroutine in the first module

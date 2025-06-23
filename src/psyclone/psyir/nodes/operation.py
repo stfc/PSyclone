@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@ sub-classes.'''
 
 from abc import ABCMeta
 from enum import Enum
+from typing import Tuple
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
@@ -54,13 +55,13 @@ class Operation(DataNode, metaclass=ABCMeta):
     Abstract base class for PSyIR nodes representing operators.
 
     :param operator: the operator used in the operation.
-    :type operator: :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator` \
-        or :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator` or \
-        :py:class:`psyclone.psyir.nodes.NaryOperation.Operator`
+    :type operator: Union[
+        :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`,
+        :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator`]
     :param parent: the parent node of this Operation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
-    :raises TypeError: if the supplied operator is not an instance of \
+    :raises TypeError: if the supplied operator is not an instance of
                        self.Operator.
 
     '''
@@ -101,9 +102,9 @@ class Operation(DataNode, metaclass=ABCMeta):
         Return the operator.
 
         :returns: Enumerated type capturing the operator.
-        :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator` or \
-                :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator` or \
-                :py:class:`psyclone.psyir.nodes.NaryOperation.Operator`
+        :rtype: Union[
+            :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
+            :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator`]
 
         '''
         return self._operator
@@ -173,7 +174,7 @@ class UnaryOperation(Operation):
             :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
         :param operand: the PSyIR node that oper operates on, or a tuple
             containing the name of the argument and the PSyIR node.
-        :type operand: Union[:py:class:`psyclone.psyir.nodes.Node` |
+        :type operand: Union[:py:class:`psyclone.psyir.nodes.Node`,
             Tuple[str, :py:class:`psyclone.psyir.nodes.Node`]]
 
         :returns: a UnaryOperation instance.
@@ -203,11 +204,26 @@ class UnaryOperation(Operation):
         '''
         return self.children[0].datatype
 
+    @property
+    def operand(self) -> DataNode:
+        '''
+        :returns: the operand of this UnaryOperation.
+        '''
+        return self.children[0]
+
 
 class BinaryOperation(Operation):
     '''
     Node representing a BinaryOperation expression. As such it has two operands
     as children 0 and 1, and an attribute with the operator type.
+
+    :param operator: the operator used in the operation.
+    :type operator: :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator`
+    :param bool has_explicit_grouping: Whether this operation should be
+        surrounded by explicit grouping syntax (e.g. parenthesis) regardless of
+        not breaking any other precedence rules. Defaults to False.
+    :param parent: the parent node of this Operation in the PSyIR.
+    :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
     '''
     #: The Operators that a BinaryOperation can represent.
@@ -225,6 +241,10 @@ class BinaryOperation(Operation):
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode"
 
+    def __init__(self, operator, has_explicit_grouping=False, parent=None):
+        super().__init__(operator, parent=parent)
+        self.has_explicit_grouping = has_explicit_grouping
+
     @staticmethod
     def _validate_child(position, child):
         '''
@@ -239,7 +259,7 @@ class BinaryOperation(Operation):
         return position in (0, 1) and isinstance(child, DataNode)
 
     @staticmethod
-    def create(operator, lhs, rhs):
+    def create(operator, lhs, rhs, has_explicit_grouping=False):
         '''Create a BinaryOperator instance given an operator and lhs and rhs
         child instances with optional names.
 
@@ -256,6 +276,10 @@ class BinaryOperation(Operation):
             argument and the PSyIR node.
         :type rhs: Union[:py:class:`psyclone.psyir.nodes.Node`,
             Tuple[str, :py:class:`psyclone.psyir.nodes.Node`]]
+        :param bool has_explicit_grouping: Whether this operation should be
+            surrounded by explicit grouping syntax (e.g. parenthesis)
+            regardless of not breaking any other precedence rules. Defaults to
+            False.
 
         :returns: a BinaryOperator instance.
         :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
@@ -270,10 +294,34 @@ class BinaryOperation(Operation):
                 f"operator argument in create method of BinaryOperation class "
                 f"should be a PSyIR BinaryOperation Operator but found "
                 f"'{type(operator).__name__}'.")
-        binary_op = BinaryOperation(operator)
+        binary_op = BinaryOperation(operator, has_explicit_grouping)
         binary_op.addchild(lhs)
         binary_op.addchild(rhs)
         return binary_op
+
+    @property
+    def has_explicit_grouping(self) -> bool:
+        '''
+        :returns: Whether this operation should be surrounded by explicit
+            grouping syntax (e.g. parenthesis) regardless of not breaking any
+            other precedence rules.
+        '''
+        return self._has_explicit_grouping
+
+    @has_explicit_grouping.setter
+    def has_explicit_grouping(self, value: bool):
+        '''
+        :param value: Whether this operation should be surrounded by explicit
+            grouping syntax (e.g. parenthesis) regardless of not breaking any
+            other precedence rules.
+
+        :raises TypeError: if the provided value is not a boolean.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(f"BinaryOperation.has_explicit_grouping must be "
+                            f"boolean, but found '{type(value).__name__}'.")
+        self._has_explicit_grouping = value
 
     def _get_result_precision(self, precisions):
         '''
@@ -447,6 +495,13 @@ class BinaryOperation(Operation):
         shape = (argtypes[0].shape if isinstance(argtypes[0], ArrayType) else
                  argtypes[1].shape)
         return ArrayType(base_type, shape=shape)
+
+    @property
+    def operands(self) -> Tuple[DataNode, DataNode]:
+        '''
+        :returns: the operands of this BinaryOperation.
+        '''
+        return self.children[0], self.children[1]
 
 
 # For automatic API documentation generation

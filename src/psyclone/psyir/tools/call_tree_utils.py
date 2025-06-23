@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 ''' This module provides tools to analyse the sequence of calls
 across different subroutines and modules.'''
 
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature, VariablesAccessMap
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import Container, Reference
@@ -160,7 +160,8 @@ class CallTreeUtils():
 
     # -------------------------------------------------------------------------
     def get_input_parameters(self, read_write_info, node_list,
-                             variables_info=None, options=None):
+                             variables_info=None,
+                             include_non_data_accesses=False):
         '''Adds all variables that are input parameters (i.e. are read before
         potentially being written) to the read_write_info object.
 
@@ -172,32 +173,32 @@ class CallTreeUtils():
         :param variables_info: optional variable usage information,
             can be used to avoid repeatedly collecting this information.
         :type variables_info:
-            :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
-        :param options: a dictionary with options for the CallTreeUtils
-            which will also be used when creating the VariablesAccessInfo
-            instance if required.
-        :type param: Optional[dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is
-            set to a True value, arrays used as first parameter to the
-            PSyIR operators lbound, ubound, or size will be reported as
-            'read'. Otherwise, these accesses will be ignored.
+            :py:class:`psyclone.core.variables_info.VariablesAccessMap`
 
         '''
         # Collect the information about all variables used:
         if not variables_info:
-            variables_info = VariablesAccessInfo(node_list, options=options)
+            variables_info = VariablesAccessMap()
+            for node in node_list:
+                variables_info.update(node.reference_accesses())
 
-        for signature in variables_info.all_signatures:
+        if include_non_data_accesses:
+            all_accesses = variables_info.all_signatures
+        else:
+            all_accesses = variables_info.all_data_accesses
+
+        for signature in all_accesses:
             # If the first access is a write, the variable is not an input
             # parameter and does not need to be saved. Note that loop variables
             # have a WRITE before a READ access, so they will be ignored
             # automatically.
-            if not variables_info[signature].is_written_first():
+            if (variables_info[signature].is_read_only() or
+                    not variables_info[signature].is_written_first()):
                 read_write_info.add_read(signature)
 
     # -------------------------------------------------------------------------
     def get_output_parameters(self, read_write_info, node_list,
-                              variables_info=None, options=None):
+                              variables_info=None):
         '''Adds all variables that are output parameters (i.e. are written)
         to the read_write_info object.
 
@@ -209,20 +210,14 @@ class CallTreeUtils():
         :param variables_info: optional variable usage information,
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
-        Optional[:py:class:`psyclone.core.variables_info.VariablesAccessInfo`]
-        :param options: a dictionary with options for the CallTreeUtils
-            which will also be used when creating the VariablesAccessInfo
-            instance if required.
-        :type param: Optional[dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is
-            set to a True value, arrays used as first parameter to the
-            PSyIR operators lbound, ubound, or size will be reported as
-            'read'. Otherwise, these accesses will be ignored.
+        Optional[:py:class:`psyclone.core.variables_info.VariablesAccessMap`]
 
         '''
         # Collect the information about all variables used:
         if not variables_info:
-            variables_info = VariablesAccessInfo(node_list, options=options)
+            variables_info = VariablesAccessMap()
+            for node in node_list:
+                variables_info.update(node.reference_accesses())
 
         for signature in variables_info.all_signatures:
             if variables_info.is_written(signature):
@@ -230,7 +225,7 @@ class CallTreeUtils():
 
     # -------------------------------------------------------------------------
     def get_in_out_parameters(self, node_list, collect_non_local_symbols=False,
-                              options=None):
+                              include_non_data_accesses=False):
         '''Returns a ReadWriteInfo object that contains all variables that are
         input and output parameters to the specified node list. This function
         calls `get_input_parameter` and `get_output_parameter`, but avoids the
@@ -246,27 +241,25 @@ class CallTreeUtils():
         search paths are specified for the module manager.
 
         :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`]
+        :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`] |
+            :py:class:`psyclone.psyir.nodes.Node`
         :param bool collect_non_local_symbols: whether non-local symbols
             (i.e. symbols used in other modules either directly or
             indirectly) should be included in the in/out information.
-        :param options: a dictionary with options for the CallTreeUtils
-            which will also be used when creating the VariablesAccessInfo
-            instance if required.
-        :type options: Optional[dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is
-            set to a True value, arrays used as first parameter to the
-            PSyIR operators lbound, ubound, or size will be reported as
-            'read'. Otherwise, these accesses will be ignored.
 
         :returns: a ReadWriteInfo object with the information about input-
             and output parameters.
         :rtype: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
-        variables_info = VariablesAccessInfo(node_list, options=options)
+        node_list = node_list if isinstance(node_list, list) else [node_list]
+        variables_info = VariablesAccessMap()
+        for node in node_list:
+            variables_info.update(node.reference_accesses())
         read_write_info = ReadWriteInfo()
-        self.get_input_parameters(read_write_info, node_list, variables_info)
+        self.get_input_parameters(
+            read_write_info, node_list, variables_info,
+            include_non_data_accesses=include_non_data_accesses)
         self.get_output_parameters(read_write_info, node_list, variables_info)
         if collect_non_local_symbols:
             self.get_non_local_read_write_info(node_list, read_write_info)
@@ -528,8 +521,18 @@ class CallTreeUtils():
         '''
         non_locals = self._compute_all_non_locals(routine)
 
-        var_accesses = \
-            VariablesAccessInfo(routine, options={"USE-ORIGINAL-NAMES": True})
+        var_accesses = routine.reference_accesses()
+
+        # Lookup the external names instead of the reference name which could
+        # be renamed
+        name_accesses = {}
+        for sig, access in var_accesses.items():
+            sym = routine.symbol_table.lookup(sig.var_name, otherwise=None)
+            if sym and sym.is_import and sym.interface.orig_name:
+                name = sym.interface.orig_name
+            else:
+                name = sig.var_name
+            name_accesses[name] = access
 
         result = []
         for (symbol_type, module, signature) in non_locals:
@@ -537,6 +540,6 @@ class CallTreeUtils():
                 result.append((symbol_type, module, signature, None))
                 continue
             result.append((symbol_type, module, signature,
-                           var_accesses[signature]))
+                           name_accesses[signature.var_name]))
 
         return result

@@ -9,7 +9,7 @@ steps are required for this (using simplified code examples):
     ```fortran
     global_mesh = global_mesh_type("mesh_BiP128x16-400x100.nc", "dynamics")
     ```
-   
+
 2) A 1x1 planar partition for one process is created:
     ```fortran
     partitioner_ptr => partitioner_planar
@@ -34,9 +34,10 @@ steps are required for this (using simplified code examples):
 
 5) Create a function/vector space:
     ```fortran
-    vector_space = function_space_type( mesh,          &
-                                        element_order, &
-                                        lfric_fs,      &
+    vector_space = function_space_type( mesh,            &
+                                        element_order_h, &
+                                        element_order_v, &
+                                        lfric_fs,        &
                                         ndata_sz)
     ```
 
@@ -61,11 +62,11 @@ steps are required for this (using simplified code examples):
 
 ## Compilation
 
-A simple makefile is provided to compile the example. It needs 
+A simple makefile is provided to compile the example. It needs
 a full installation of NetCDF, since it is using ``nf-config`` to
 query the required compiler and linker flags, and the
 infrastructure library ``liblfric_netcdf.a`` provided in
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
+``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
 If the latter is not available, it will be automatically compiled.
 
 The following environment variables can be set to define the compiler

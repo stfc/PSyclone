@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2024, Science and Technology Facilities Council.
+# Copyright (c) 2023-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,6 @@ from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003, C99Preprocessor
 from fparser.two.utils import walk
 
-from psyclone.configuration import Config
 from psyclone.errors import GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
@@ -51,12 +50,13 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 @pytest.mark.parametrize("unit", ["program", "module"])
 @pytest.mark.parametrize("incl_files", [['some_header.fzz'],
                                         ['some_header.fzz', 'header2.fzz']])
-def test_include_declns_abort(incl_files, parser, monkeypatch, unit):
+def test_include_declns_abort(incl_files, parser, unit, config_instance):
     '''
     Check that we abort if one or more INCLUDEs are found in the specification
     part of a parse tree.
 
     '''
+    config_instance.include_paths = []
     processor = Fparser2Reader()
     code = f"{unit} my_prog\n"
     for incl_file in incl_files:
@@ -77,7 +77,7 @@ def test_include_declns_abort(incl_files, parser, monkeypatch, unit):
             f"with a -I flag. (The list of directories to search is currently"
             f" set to: [].)" in str(err.value))
     # Check that any include path is correctly reported in the error message
-    monkeypatch.setattr(Config.get(), "_include_paths", ["/road/to/nowhere"])
+    config_instance._include_paths = ["/road/to/nowhere"]
     with pytest.raises(GenerationError) as err:
         processor.generate_psyir(prog)
     assert ("with a -I flag. (The list of directories to search is currently"
@@ -85,12 +85,13 @@ def test_include_declns_abort(incl_files, parser, monkeypatch, unit):
 
 
 @pytest.mark.parametrize("routine_type", ["subroutine", "program"])
-def test_include_exec_part_abort(parser, monkeypatch, routine_type):
+def test_include_exec_part_abort(parser, routine_type, config_instance):
     '''
     Check that we abort if we encounter an INCLUDE statement in the execution
     part of the parse tree.
 
     '''
+    config_instance.include_paths = []
     processor = Fparser2Reader()
     code = (f"{routine_type} my_prog\n"
             f"  integer :: i\n"
@@ -111,9 +112,10 @@ def test_include_exec_part_abort(parser, monkeypatch, routine_type):
             f"by specifying its location with a -I flag. (The list of "
             f"directories to search is currently set to: [].)"
             in str(err.value))
-    # Check that any include path is correctly reported in the error message
-    monkeypatch.setattr(Config.get(), "_include_paths", ["/road/to",
-                                                         "/nowhere"])
+    # Check that any include path is correctly reported in the error message.
+    # Cannot use the setter for include_paths here as that checks the paths
+    # for validity.
+    config_instance._include_paths = ["/road/to", "/nowhere"]
     with pytest.raises(GenerationError) as err:
         processor.generate_psyir(prog)
     assert ("This file must be made available by specifying its location with "

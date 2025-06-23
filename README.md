@@ -1,8 +1,10 @@
-<p align="left">
-  <img width="460" src="doc/logo/psyclone_v1.0.png">
-</p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="doc/logo/psyclone_logo_dark_theme.png">
+  <source media="(prefers-color-scheme: light)" srcset="doc/logo/psyclone_logo_light_theme.png">
+  <img alt="PSyclone logo" width="460" src="doc/logo/psyclone_logo_light_theme.png">
+</picture>
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11190458.svg)](https://doi.org/10.5281/zenodo.11190458)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11190457.svg)](https://doi.org/10.5281/zenodo.11190457)
 ![Build Status](https://github.com/stfc/PSyclone/workflows/PSyclone%20tests%20and%20examples/badge.svg)
 [![codecov](https://codecov.io/gh/stfc/PSyclone/branch/master/graph/badge.svg)](https://codecov.io/gh/stfc/PSyclone)
 
@@ -18,7 +20,7 @@ DSLs following the PSyKAl model developed in the
 [GungHo project](https://www.metoffice.gov.uk/research/foundation/dynamics/next-generation).
 
 PSyclone is currently used to support the [LFRic mixed finite-element PSyKAl
-DSL](https://psyclone.readthedocs.io/en/latest/dynamo0p3.html)
+DSL](https://psyclone.readthedocs.io/en/latest/lfric.html)
 for the [UK MetOffice's next generation modelling
 system](https://www.metoffice.gov.uk/research/modelling-systems/lfric/) and
 the [GOcean finite-difference PSyKAl
@@ -29,8 +31,7 @@ directives](https://psyclone.readthedocs.io/en/latest/nemo.html) into existing
 directly-addressed MPI applications such as the
 [NEMO ocean model](https://www.nemo-ocean.eu/).
 
-For more detailed information see the [psyclone.pdf](psyclone.pdf) in this
-directory or the [PSyclone User Guide](http://psyclone.readthedocs.io).
+For more detailed information see the [PSyclone Documentation](http://psyclone.readthedocs.io).
 
 # Installation #
 
@@ -53,6 +54,11 @@ cloning this repository and using:
 or in developer (editable) mode using
 
     $ pip install -e .
+
+PSyclone is also available in the
+[Conda](https://anaconda.org/conda-forge/psyclone) and
+[Spack](https://packages.spack.io/package.html?name=py-psyclone) package
+managers.
 
 For more information about the installation process see
 [this section of the User Guide](https://psyclone.readthedocs.io/en/latest/system_specific_setup.html).
@@ -81,11 +87,7 @@ bin/                | Top-level driver scripts for PSyclone and the PSyclone ker
 changelog      	    | Information on changes between releases
 doc/           	    | Documentation source using Sphinx
 examples/      	    | Simple examples
-psyclone.pdf   	    | Generated documentation
 README.md      	    | This file
-README.gource  	    | Information on how to generate a gource video from the repository
-README.uml     	    | Information on how to create UML class diagrams from the source using pyreverse
 src/psyclone   	    | The Python source code
 src/psyclone/tests/ | Unit and functional tests using pytest
-tutorial/notebooks  | Tutorial using Jupyter notebooks
 tutorial/practicals | Hands-on exercises using a local installation of PSyclone

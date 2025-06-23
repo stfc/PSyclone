@@ -11,11 +11,11 @@ not do any actual measurements.
 ## Dependencies
 
 This test library is based on the [PSyData base class](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-base-class),
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#psydata-base-class),
 which is included in PSyclone as a Jinja template, ``psy_data_base.jinja``.
 Full documentation on using this template is provided in the PSyclone
 [Developer Guide](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja). The
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#jinja). The
 script [``process.py``](./../../README.md#psydata-base-class) is used to
 process this template.
 
@@ -75,7 +75,7 @@ PostEnd called for module 'psy_test' region 'invoke_1_update_field:update_field_
 
 BSD 3-Clause License
 
-Copyright (c) 2019-2024, Science and Technology Facilities Council.
+Copyright (c) 2019-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

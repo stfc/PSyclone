@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@ in the class Fparser2Reader. This handler deals with the translation
 of the fparser2 Main_Program construct to PSyIR.
 
 '''
-from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader

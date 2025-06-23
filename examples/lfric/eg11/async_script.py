@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council
+# Copyright (c) 2018-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,8 +51,8 @@ def trans(psyir):
 
     '''
     from psyclone.transformations import \
-        Dynamo0p3RedundantComputationTrans, \
-        Dynamo0p3AsyncHaloExchangeTrans, \
+        LFRicRedundantComputationTrans, \
+        LFRicAsyncHaloExchangeTrans, \
         MoveTrans
 
     # Get first subroutine of the first module
@@ -63,14 +63,14 @@ def trans(psyir):
     # the grad_p field. This transformation is unnecessary if
     # annexed_dofs is set to True in the config file (although the
     # transformation still works).
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     rc_trans.apply(schedule.children[0], {"depth": 1})
     print(schedule.view())
 
     # This transformation splits the three synchronous halo exchanges
     # (for fields p, hb_inv and u_normalisation) into asynchronous
     # (halo_exchange_start and halo_exchange_end) ones.
-    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    ahex_trans = LFRicAsyncHaloExchangeTrans()
     for kern in schedule.children[3:0:-1]:
         ahex_trans.apply(kern)
     print(schedule.view())

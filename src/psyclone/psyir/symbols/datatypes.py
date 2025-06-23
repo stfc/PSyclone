@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the datatype definitions.'''
@@ -44,7 +45,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Union
 
+from psyclone.configuration import Config
 from psyclone.errors import InternalError
+from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.symbol import Symbol
@@ -77,16 +80,40 @@ class DataType(metaclass=abc.ABCMeta):
         '''
         return copy.copy(self)
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
+
+    def reference_accesses(self):
+        '''
+        :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
+
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.core import VariablesAccessMap
+        return VariablesAccessMap()
+
+    @property
+    def is_allocatable(self) -> Union[bool, None]:
+        '''
+        :returns: whether this DataType is allocatable. In the base class
+            set this to be always False.'''
+        return False
 
 
 class UnresolvedType(DataType):
@@ -95,6 +122,13 @@ class UnresolvedType(DataType):
 
     def __str__(self):
         return "UnresolvedType"
+
+    @property
+    def is_allocatable(self) -> Union[bool, None]:
+        '''
+        :returns: whether this DataType is allocatable. In case of an
+            UnresolvedType we don't know.'''
+        return None
 
 
 class NoType(DataType):
@@ -218,7 +252,7 @@ class UnsupportedFortranType(UnsupportedType):
         string_reader = FortranStringReader(self._declaration)
         # Set reader to free format.
         string_reader.set_format(FortranFormat(True, False))
-        ParserFactory().create(std="f2008")
+        ParserFactory().create(std=Config.get().fortran_standard)
         try:
             ptree = Fortran2003.Specification_Part(
                 string_reader)
@@ -265,18 +299,23 @@ class UnsupportedFortranType(UnsupportedType):
             new._partial_datatype = self._partial_datatype.copy()
         return new
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        This base implementation simply propagates the call to any child Nodes.
+
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         if self.partial_datatype:
-            self.partial_datatype.replace_symbols_using(table)
+            self.partial_datatype.replace_symbols_using(table_or_symbol)
 
     @property
     def intrinsic(self):
@@ -287,6 +326,47 @@ class UnsupportedFortranType(UnsupportedType):
         '''
         if self.partial_datatype:
             return self.partial_datatype.intrinsic
+        return None
+
+    def reference_accesses(self):
+        '''
+        :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
+
+        '''
+        access_info = super().reference_accesses()
+
+        if self.partial_datatype:
+            if isinstance(self.partial_datatype, DataTypeSymbol):
+                # Avoid circular import
+                # pylint: disable=import-outside-toplevel
+                from psyclone.core.signature import Signature
+                from psyclone.core.access_type import AccessType
+                access_info.add_access(
+                    Signature(self.partial_datatype.name),
+                    AccessType.TYPE_INFO, self)
+            else:
+                access_info.update(
+                    self.partial_datatype.reference_accesses())
+        return access_info
+
+    @property
+    def is_allocatable(self) -> Union[bool, None]:
+        '''If we have enough information in the partial_datatype,
+        determines whether this data type is allocatable or not.
+        If it is unknown, it will return None. Note that atm PSyclone
+        only supports the allocatable attribute for **arrays**.
+        # TODO #2898 If we support non-array allocatable types, the
+        test for arrays can be removed
+
+        :returns: whether this UnsupportedFortranType is known to be
+            allocatable.'''
+        if (self.partial_datatype and
+                isinstance(self.partial_datatype, ArrayType)):
+            return self.partial_datatype.is_allocatable
         return None
 
 
@@ -417,23 +497,53 @@ class ScalarType(DataType):
             precision_match = self.precision == other.precision
         return precision_match and self.intrinsic == other.intrinsic
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it is
+        left unchanged.
 
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         # Only the 'precision' of a ScalarType can refer to a Symbol.
         if isinstance(self.precision, Symbol):
             # Update any 'precision' information.
-            try:
-                self._precision = table.lookup(self.precision.name)
-            except KeyError:
-                pass
+            new_sym = None
+            if isinstance(table_or_symbol, Symbol):
+                if table_or_symbol.name.lower() == self.precision.name.lower():
+                    new_sym = table_or_symbol
+            else:
+                new_sym = table_or_symbol.lookup(self.precision.name,
+                                                 otherwise=None)
+            if new_sym:
+                self._precision = new_sym
+
+    def reference_accesses(self):
+        '''
+        :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
+
+        '''
+        access_info = super().reference_accesses()
+
+        if isinstance(self.precision, Symbol):
+            # Avoid circular import
+            # pylint: disable=import-outside-toplevel
+            from psyclone.core.signature import Signature
+            from psyclone.core.access_type import AccessType
+
+            access_info.add_access(
+                Signature(self.precision.name),
+                AccessType.TYPE_INFO, self)
+        return access_info
 
 
 class ArrayType(DataType):
@@ -483,6 +593,19 @@ class ArrayType(DataType):
             :rtype: :py:class:`psyclone.psyir.symbols.ArrayType.Extent`
             '''
             return copy.copy(self)
+
+        def reference_accesses(self):
+            '''
+            :returns: a map of all the symbol accessed inside this object, the
+                keys are Signatures (unique identifiers to a symbol and its
+                structure acccessors) and the values are
+                SingleVariableAccessInfo (a sequence of AccessTypes).
+            :rtype: :py:class:`psyclone.core.VariablesAccessMap`
+
+            '''
+            # pylint: disable=import-outside-toplevel
+            from psyclone.core import VariablesAccessMap
+            return VariablesAccessMap()
 
     @dataclass(frozen=True)
     class ArrayBounds:
@@ -611,6 +734,14 @@ class ArrayType(DataType):
         return self._precision
 
     @property
+    def is_allocatable(self) -> bool:
+        '''
+        :returns: whether this array is allocatable or not.
+        '''
+        # A 'deferred' array extent means this is an allocatable array
+        return ArrayType.Extent.DEFERRED in self.shape
+
+    @property
     def shape(self):
         '''
         :returns: the (validated) shape of the symbol in column-major order
@@ -640,8 +771,8 @@ class ArrayType(DataType):
         :type extents: List[
             :py:class:`psyclone.psyir.symbols.ArrayType.Extent` | int
             | :py:class:`psyclone.psyir.nodes.DataNode` |
-            Tuple[int | :py:class:`psyclone.psyir.nodes.DataNode |
-                  :py:class:`psyclone.psyir.symbols.ArrayType.Extent]]
+            Tuple[int | :py:class:`psyclone.psyir.nodes.DataNode` |
+                  :py:class:`psyclone.psyir.symbols.ArrayType.Extent`]]
 
         :raises TypeError: if extents is not a list.
         :raises TypeError: if one or more of the supplied extents is a
@@ -851,36 +982,55 @@ class ArrayType(DataType):
                 new_shape.append(dim)
         return ArrayType(self.datatype, new_shape)
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it is
+        left unchanged.
 
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         if isinstance(self.datatype, DataTypeSymbol):
-            try:
-                self._datatype = table.lookup(self.datatype.name)
-            except KeyError:
-                pass
+            if isinstance(table_or_symbol, Symbol):
+                if table_or_symbol.name.lower() == self._datatype.name.lower():
+                    self._datatype = table_or_symbol
+            else:
+                try:
+                    self._datatype = table_or_symbol.lookup(self.datatype.name)
+                except KeyError:
+                    pass
         else:
-            self.datatype.replace_symbols_using(table)
+            self.datatype.replace_symbols_using(table_or_symbol)
 
         # TODO #1857: we will probably remove '_precision' and have
         # 'intrinsic' be 'datatype'.
         if self._precision and isinstance(self._precision, Symbol):
-            try:
-                self._precision = table.lookup(self._precision.name)
-            except KeyError:
-                pass
+            if isinstance(table_or_symbol, Symbol):
+                if (table_or_symbol.name.lower() ==
+                        self._precision.name.lower()):
+                    self._precision = table_or_symbol
+            else:
+                try:
+                    self._precision = table_or_symbol.lookup(
+                        self._precision.name)
+                except KeyError:
+                    pass
         if self._intrinsic and isinstance(self._intrinsic, Symbol):
-            try:
-                self._intrinsic = table.lookup(self._intrinsic.name)
-            except KeyError:
-                pass
+            if isinstance(table_or_symbol, Symbol):
+                if (table_or_symbol.name.lower() ==
+                        self._intrinsic.name.lower()):
+                    self._intrinsic = table_or_symbol
+            else:
+                try:
+                    self._intrinsic = table_or_symbol.lookup(
+                        self._intrinsic.name)
+                except KeyError:
+                    pass
 
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Node
@@ -893,7 +1043,38 @@ class ArrayType(DataType):
                 exprns = [dim]
             for bnd in exprns:
                 if isinstance(bnd, Node):
-                    bnd.replace_symbols_using(table)
+                    bnd.replace_symbols_using(table_or_symbol)
+
+    def reference_accesses(self):
+        '''
+        :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
+
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.core.signature import Signature
+        from psyclone.core.access_type import AccessType
+
+        access_info = super().reference_accesses()
+
+        if isinstance(self.intrinsic, Symbol):
+            access_info.add_access(
+                Signature(self.intrinsic.name),
+                AccessType.TYPE_INFO, self)
+
+        if isinstance(self.precision, Symbol):
+            access_info.add_access(
+                Signature(self.precision.name),
+                AccessType.TYPE_INFO, self)
+
+        for dim in self.shape:
+            if isinstance(dim, ArrayType.ArrayBounds):
+                access_info.update(dim.lower.reference_accesses())
+                access_info.update(dim.upper.reference_accesses())
+        return access_info
 
 
 class StructureType(DataType):
@@ -909,7 +1090,7 @@ class StructureType(DataType):
 
     '''
     @dataclass(frozen=True)
-    class ComponentType:
+    class ComponentType(CommentableMixin):
         '''
         Represents a member of a StructureType.
 
@@ -931,19 +1112,35 @@ class StructureType(DataType):
     def __str__(self):
         return "StructureType<>"
 
+    def __copy__(self):
+        '''
+        :returns: a copy of this StructureType.
+        :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
+        '''
+        new = StructureType()
+
+        for name, component in self.components.items():
+            new.add(name, component.datatype, component.visibility,
+                    component.initial_value, component.preceding_comment,
+                    component.inline_comment)
+        return new
+
     @staticmethod
     def create(components):
         '''
         Creates a StructureType from the supplied list of properties.
 
         :param components: the name, type, visibility (whether public or
-            private) and initial value (if any) of each component.
+            private), initial value (if any), preceding comment (if any)
+            and inline comment (if any) of each component.
         :type components: List[tuple[
             str,
             :py:class:`psyclone.psyir.symbols.DataType` |
             :py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility`,
-            Optional[:py:class:`psyclone.psyir.symbols.DataNode`]
+            Optional[:py:class:`psyclone.psyir.symbols.DataNode`],
+            Optional[str],
+            Optional[str]
             ]]
 
         :returns: the new type object.
@@ -952,10 +1149,11 @@ class StructureType(DataType):
         '''
         stype = StructureType()
         for component in components:
-            if len(component) != 4:
+            if len(component) not in (3, 4, 5, 6):
                 raise TypeError(
-                    f"Each component must be specified using a 4-tuple of "
-                    f"(name, type, visibility, initial_value) but found a "
+                    f"Each component must be specified using a 3 to 6-tuple "
+                    f"of (name, type, visibility, initial_value, "
+                    f"preceding_comment, inline_comment) but found a "
                     f"tuple with {len(component)} members: {component}")
             stype.add(*component)
         return stype
@@ -968,12 +1166,13 @@ class StructureType(DataType):
         '''
         return self._components
 
-    def add(self, name, datatype, visibility, initial_value):
+    def add(self, name: str, datatype, visibility, initial_value=None,
+            preceding_comment: str = "", inline_comment: str = ""):
         '''
         Create a component with the supplied attributes and add it to
         this StructureType.
 
-        :param str name: the name of the new component.
+        :param name: the name of the new component.
         :param datatype: the type of the new component.
         :type datatype: :py:class:`psyclone.psyir.symbols.DataType` |
             :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
@@ -982,6 +1181,9 @@ class StructureType(DataType):
         :param initial_value: the initial value of the new component.
         :type initial_value: Optional[
             :py:class:`psyclone.psyir.nodes.DataNode`]
+        :param preceding_comment: a comment that precedes this component.
+        :param inline_comment: a comment that follows this component on the
+                               same line.
 
         :raises TypeError: if any of the supplied values are of the wrong type.
 
@@ -1016,17 +1218,36 @@ class StructureType(DataType):
                 f"The initial value of a component of a StructureType must "
                 f"be None or an instance of 'DataNode', but got "
                 f"'{type(initial_value).__name__}'.")
+        if not isinstance(preceding_comment, str):
+            raise TypeError(
+                f"The preceding_comment of a component of a StructureType "
+                f"must be a 'str' but got "
+                f"'{type(preceding_comment).__name__}'")
+        if not isinstance(inline_comment, str):
+            raise TypeError(
+                f"The inline_comment of a component of a StructureType must "
+                f"be a 'str' but got "
+                f"'{type(inline_comment).__name__}'")
 
-        self._components[name] = self.ComponentType(
-            name, datatype, visibility, initial_value)
+        key_name = name.lower()
+        self._components[key_name] = self.ComponentType(name, datatype,
+                                                        visibility,
+                                                        initial_value)
+        # Use object.__setattr__ due to the frozen nature of ComponentType
+        object.__setattr__(self._components[key_name],
+                           "_preceding_comment",
+                           preceding_comment)
+        object.__setattr__(self._components[key_name],
+                           "_inline_comment",
+                           inline_comment)
 
     def lookup(self, name):
         '''
-        :returns: the ComponentType tuple describing the named member of this \
+        :returns: the ComponentType tuple describing the named member of this
                   StructureType.
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
         '''
-        return self._components[name]
+        return self._components[name.lower()]
 
     def __eq__(self, other):
         '''
@@ -1046,35 +1267,73 @@ class StructureType(DataType):
 
         return True
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        This base implementation simply propagates the call to any child Nodes.
+
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        # Since ComponentType is a namedtuple it is immutable therefore we
-        # must construct new ones.
-        new_components = OrderedDict()
+        # Since ComponentType is a frozen dataclass it is immutable, therefore
+        # we must construct new ones.
         for component in self.components.values():
             if isinstance(component.datatype, DataTypeSymbol):
-                try:
-                    new_type = table.lookup(component.datatype.name)
-                except KeyError:
-                    new_type = component.datatype
+                if isinstance(table_or_symbol, Symbol):
+                    if (table_or_symbol.name.lower() ==
+                            component.datatype.name.lower()):
+                        new_type = table_or_symbol
+                    else:
+                        new_type = component.datatype
+                else:
+                    new_type = table_or_symbol.lookup(
+                        component.datatype.name, otherwise=component.datatype)
+
             else:
-                component.datatype.replace_symbols_using(table)
+                component.datatype.replace_symbols_using(table_or_symbol)
                 new_type = component.datatype
+
             if component.initial_value:
-                component.initial_value.replace_symbols_using(table)
+                component.initial_value.replace_symbols_using(table_or_symbol)
+
             # Construct the new ComponentType
-            new_components[component.name] = StructureType.ComponentType(
-                component.name, new_type, component.visibility,
-                component.initial_value)
-        self._components = new_components
+            key_name = component.name.lower()
+            self.add(key_name, new_type, component.visibility,
+                     component.initial_value,
+                     preceding_comment=component.preceding_comment,
+                     inline_comment=component.inline_comment)
+
+    def reference_accesses(self):
+        '''
+        :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
+
+        '''
+        access_info = super().reference_accesses()
+        for cmpt in self.components.values():
+            if isinstance(cmpt.datatype, DataTypeSymbol):
+                # Avoid circular import
+                # pylint: disable=import-outside-toplevel
+                from psyclone.core.signature import Signature
+                from psyclone.core.access_type import AccessType
+                access_info.add_access(
+                    Signature(cmpt.datatype.name),
+                    AccessType.TYPE_INFO, self)
+            else:
+                access_info.update(cmpt.datatype.reference_accesses())
+            if cmpt.initial_value:
+                access_info.update(cmpt.initial_value.reference_accesses())
+        return access_info
 
 
 # Create common scalar datatypes

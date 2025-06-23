@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,7 +58,7 @@ from fparser.one import parsefortran
 
 import psyclone.expression as expr
 from psyclone.errors import InternalError
-from psyclone.configuration import LFRIC_API_NAMES, GOCEAN_API_NAMES
+from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.parse.utils import check_api, check_line_length, ParseError
 
 
@@ -827,7 +827,7 @@ class KernelType():
         operates_on = self.get_integer_variable("operates_on")
         # The GOcean API still uses the 'iterates_over' metadata entry
         # although this is deprecated in the LFRic API.
-        # Validation is left to the API-specific code in either dynamo0p3.py
+        # Validation is left to the API-specific code in either lfric.py
         # or gocean1p0.py.
         iterates_over = self.get_integer_variable("iterates_over")
         if operates_on:
@@ -912,8 +912,8 @@ class KernelType():
         :raises ParseError: if the RHS of the assignment is not a Name.
 
         '''
-        # Ensure the Fortran2008 parser is initialised
-        _ = ParserFactory().create(std="f2008")
+        # Ensure the Fortran parser is initialised
+        _ = ParserFactory().create(std=Config.get().fortran_standard)
         # Fortran is not case sensitive so nor is our matching
         lower_name = name.lower()
 
@@ -955,8 +955,8 @@ class KernelType():
                             does not match the extent of the array.
 
         '''
-        # Ensure the classes are setup for the Fortran2008 parser
-        _ = ParserFactory().create(std="f2008")
+        # Ensure the classes are setup for the Fortran parser
+        _ = ParserFactory().create(std=Config.get().fortran_standard)
         # Fortran is not case sensitive so nor is our matching
         lower_name = name.lower()
 

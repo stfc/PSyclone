@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -121,7 +121,8 @@ class ArrayAccess2LoopTrans(Transformation):
         for array in assignment.walk(ArrayReference):
             if not array.ancestor(ArrayReference):
                 # This is not a nested access e.g. a(b(n)).
-                array.indices[array_index] = Reference(loop_variable_symbol)
+                array.indices[array_index].replace_with(
+                        Reference(loop_variable_symbol))
 
         loop_body = assignment
         loc_parent = loop_body.parent

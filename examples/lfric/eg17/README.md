@@ -5,7 +5,7 @@
 This directory contains some standalone, runnable examples of LFRic code.
 They are based on a subset of the LFRic infrastructure library
 included in
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
+``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
 Significant refactoring was required in order to only include a
 small number of infrastructure files from the original LFRic source files.
 In many case unnecessary dependencies were just removed. Some examples:
@@ -42,7 +42,7 @@ subdirectories.
 
 BSD 3-Clause License
 
-Copyright (c) 2021-2024, Science and Technology Facilities Council.
+Copyright (c) 2021-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

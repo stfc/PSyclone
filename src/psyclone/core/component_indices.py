@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,8 +35,6 @@
 # -----------------------------------------------------------------------------
 
 '''This module provides a class to manage indices in variable accesses.'''
-
-from __future__ import print_function, absolute_import
 
 
 from psyclone.errors import InternalError
@@ -177,14 +175,10 @@ class ComponentIndices():
         :rtype: List[Set[str]]
 
         '''
-        # Circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core import VariablesAccessInfo
-
         indices = []
         for i in self.iterate():
             indx = self[i]
-            index_vars = VariablesAccessInfo(indx)
+            index_vars = indx.reference_accesses()
             unique_vars = set(str(sig) for sig in index_vars.keys())
             unique_vars = unique_vars.intersection(set_of_vars)
             indices.append(unique_vars)
@@ -193,5 +187,5 @@ class ComponentIndices():
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for.
 __all__ = ["ComponentIndices"]

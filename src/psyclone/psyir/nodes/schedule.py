@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -83,17 +83,6 @@ class Schedule(ScopingNode):
             result += str(entity) + "\n"
         result += "End " + self.coloured_name(False)
         return result
-
-    def gen_code(self, parent):
-        '''
-        A Schedule does not have any direct Fortran representation. We just
-        call gen_code() for all of its children.
-
-        :param parent: node in the f2pygen AST to which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        '''
-        for child in self.children:
-            child.gen_code(parent)
 
 
 # For AutoAPI documentation generation

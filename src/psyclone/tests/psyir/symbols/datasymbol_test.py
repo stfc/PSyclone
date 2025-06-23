@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,12 +43,14 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
+from psyclone.core import Signature
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, Symbol, DataTypeSymbol, AutomaticInterface,
     ImportInterface, ArgumentInterface, StaticInterface, UnresolvedInterface,
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE,
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE,
-    BOOLEAN_TYPE, CHARACTER_TYPE, UnresolvedType, UnsupportedFortranType)
+    BOOLEAN_TYPE, CHARACTER_TYPE, SymbolTable, UnresolvedType,
+    UnsupportedFortranType)
 from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation, Return,
                                   CodeBlock)
 
@@ -528,3 +530,55 @@ def test_datasymbol_str():
     assert (data_symbol.__str__() ==
             "a: DataSymbol<Scalar<INTEGER, 4>, Automatic, initial_value="
             "Literal[value:'3', Scalar<INTEGER, 4>]>")
+
+
+def test_datasymbol_replace_symbols_using():
+    '''
+    Test that replace_symbols_using() updates symbols within the definition
+    of a DataSymbol.
+
+    '''
+    kind = DataSymbol("i_def", INTEGER_SINGLE_TYPE)
+    rkind = DataSymbol("r_def", INTEGER_SINGLE_TYPE)
+    int_kind_type = ScalarType(ScalarType.Intrinsic.INTEGER, kind)
+    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, rkind)
+    istart = DataSymbol("start", INTEGER_SINGLE_TYPE)
+    istop = DataSymbol("stop", INTEGER_SINGLE_TYPE)
+    atype = ArrayType(real_kind_type, [(Reference(istart), Reference(istop)),
+                                       (Reference(istart), Reference(istop))])
+    sym3 = DataSymbol("c", atype,
+                      initial_value=Literal("1", int_kind_type))
+    table = SymbolTable()
+    new_kind = kind.copy()
+    table.add(new_kind)
+    new_rkind = rkind.copy()
+    table.add(new_rkind)
+    new_start = istart.copy()
+    table.add(new_start)
+    new_stop = istop.copy()
+    table.add(new_stop)
+    sym3.replace_symbols_using(table)
+    assert sym3.datatype.precision is new_rkind
+    assert sym3.initial_value.datatype.precision is new_kind
+    for dim in sym3.datatype.shape:
+        assert dim.lower.symbol is new_start
+        assert dim.upper.symbol is new_stop
+    # Check when the array shape is an Extent rather than a Node.
+    atype2 = ArrayType(int_kind_type, [ArrayType.Extent.ATTRIBUTE])
+    sym4 = DataSymbol("d", atype2)
+    sym4.replace_symbols_using(table)
+    assert sym4.datatype.precision is new_kind
+
+
+def test_datasymbol_reference_accesses():
+    '''
+    Test that the reference_accesses() specialisation for this class checks
+    the initialisation expression.
+
+    '''
+    kind = DataSymbol("i_def", INTEGER_SINGLE_TYPE)
+    int_kind_type = ScalarType(ScalarType.Intrinsic.INTEGER, kind)
+    sym3 = DataSymbol("c", REAL_SINGLE_TYPE,
+                      initial_value=Literal("1", int_kind_type))
+    vai3 = sym3.reference_accesses()
+    assert vai3.all_signatures == [Signature("i_def")]

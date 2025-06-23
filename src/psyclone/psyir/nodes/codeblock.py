@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,11 @@
 ''' This module contains the CodeBlock node implementation.'''
 
 from enum import Enum
+from typing import List
+
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 
@@ -150,10 +153,25 @@ class CodeBlock(Statement, DataNode):
         return (f"{self.coloured_name(colour)}["
                 f"{list(map(type, self._fp2_nodes))}]")
 
-    def get_symbol_names(self):
+    def get_symbol_names(self) -> List[str]:
         '''
-        :returns: the list of symbol names used inside the CodeBock.
-        :rtype: list[str]
+        Analyses the fparser2 parse tree associated with this CodeBlock and
+        returns the names of all symbols accessed within it. Since, by
+        definition, we do not understand the contents of a CodeBlock, we do not
+        attempt to analyse how these symbols are accessed - they are all marked
+        as being READWRITE (this includes the names of any routines that might
+        be called).
+
+        Note that the names of any Fortran intrinsics are *not* included in the
+        result. If the original code has unwisely overridden a Fortran
+        intrinsic then fparser *may* incorrectly identify the use of such a
+        variable/routine as still being an intrinsic call and, as such, it will
+        be omitted from the names returned by this method.
+
+        TODO #2863 - these limitations (blanket use of READWRITE and the
+        ignoring of Fortran intrinsics) need to be re-visited.
+
+        :returns: the symbol names used inside the CodeBock.
         '''
         parse_tree = self.get_ast_nodes
         result = []
@@ -174,8 +192,72 @@ class CodeBlock(Statement, DataNode):
                                  Fortran2003.End_If_Stmt)):
                 # We don't want labels associated with loop or branch control.
                 result.append(node.string)
-
+        # Precision on literals requires special attention since they are just
+        # stored in the tree as str (fparser/#456).
+        for node in walk(parse_tree, (Fortran2003.Int_Literal_Constant,
+                                      Fortran2003.Real_Literal_Constant,
+                                      Fortran2003.Logical_Literal_Constant,
+                                      Fortran2003.Char_Literal_Constant)):
+            if node.items[1]:
+                result.append(node.items[1])
+        # Complex literals require even more special attention.
+        for node in walk(parse_tree, Fortran2003.Complex_Literal_Constant):
+            # A complex literal constant has a real part and an imaginary part.
+            # Each of these can have a kind.
+            for part in node.items:
+                if part.items[1]:
+                    result.append(part.items[1])
         return result
+
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        Get the symbol access map. Since this is a CodeBlock we
+        only know the names of symbols accessed within it but not how they
+        are accessed. Therefore we err on the side of caution and mark
+        them all as READWRITE, unfortunately, this will include the names of
+        any routines that are called.
+
+        TODO #2863 - it would be better to use AccessType.UNKNOWN here but
+        currently VariablesAccessMap does not consider that type of access.
+
+        This method makes use of
+        :py:meth:`~psyclone.psyir.nodes.CodeBlock.get_symbol_names` and is
+        therefore subject to the same limitations as that method.
+
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+
+        '''
+        var_accesses = VariablesAccessMap()
+        for name in self.get_symbol_names():
+            var_accesses.add_access(Signature(name), AccessType.READWRITE,
+                                    self)
+        return var_accesses
 
     def __str__(self):
         return f"CodeBlock[{len(self._fp2_nodes)} nodes]"
+
+    def has_potential_control_flow_jump(self) -> bool:
+        '''
+        :returns: whether this CodeBlock contains a potential control flow
+                  jump, e.g. GOTO, EXIT or a labeled statement.
+        '''
+        # Loop over the fp2_nodes and check if any are GOTO, EXIT or
+        # labelled statements
+        for node in self._fp2_nodes:
+            for child in walk(node, (Fortran2003.Goto_Stmt,
+                                     Fortran2003.Exit_Stmt,
+                                     Fortran2003.Cycle_Stmt,
+                                     Fortran2003.StmtBase)):
+                if isinstance(child,
+                              (Fortran2003.Goto_Stmt,
+                               Fortran2003.Exit_Stmt,
+                               Fortran2003.Cycle_Stmt)):
+                    return True
+                # Also can't support Labelled statements.
+                if isinstance(child, Fortran2003.StmtBase):
+                    if child.item and child.item.label:
+                        return True
+        return False

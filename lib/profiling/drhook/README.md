@@ -13,11 +13,11 @@ to contact ECMWF to obtain a copy of Dr Hook.
 This profiling library uses the [PSyData API](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
 the application. The library is based on the [PSyData base class](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-base-class),
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#psydata-base-class),
 which is included in PSyclone as a Jinja template, ``psy_data_base.jinja``.
 Full documentation on using this template is provided in the PSyclone
 [Developer Guide](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja).
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#jinja).
 
 The library uses the ``ProfileData`` type to store Dr Hook's handle for each
 region.
@@ -63,10 +63,6 @@ DRHOOK_ROOT=<path_to_drhook> make
 The compilation process will create the wrapper library ``libdrhook_psy.a``.
 
 ### Linking the wrapper library
-
-In order to use the wrapper with your application, you must provide the
-location of the wrapper as an ``include`` path (so that the module file is found),
-and link first with the wrapper library, then the DrHook library:
 
 In order to use the wrapper with your application, the location of this
 library must be provided as an ``include`` path (so that the module file
@@ -120,7 +116,7 @@ Profiling information for program='./profile_test.drhook', proc#1:
 
 BSD 3-Clause License
 
-Copyright (c) 2019-2024, Science and Technology Facilities Council.
+Copyright (c) 2019-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

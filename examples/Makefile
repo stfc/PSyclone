@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@ transform compile run notebook clean allclean:
 	${MAKE} -C gocean $@
 	${MAKE} -C nemo $@
 	${MAKE} -C lfric $@
-	${MAKE} -C line_length $@
 	${MAKE} -C psyir $@
 	${MAKE} -C psyad $@
 	${MAKE} -C stub_generation $@

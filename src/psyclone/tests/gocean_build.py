@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council
+# Copyright (c) 2019-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,6 @@
 
 ''' Module containing configuration required to build code generated
 for the GOcean1.0 API '''
-
-from __future__ import absolute_import, print_function
 
 import os
 import subprocess
@@ -155,19 +153,20 @@ class GOceanOpenCLBuild(GOceanBuild):
     '''
 
     def code_compiles(self, psy_ast, dependencies=None):
-        '''Attempts to build the OpenCL Fortran code supplied as an AST of
-        f2pygen objects. Returns True for success, False otherwise.
+        '''
+        Use the given GOcean PSy class to generate the necessary PSyKAl
+        components to compile the OpenCL version of the psy-layer. Returns True
+        for success, False otherwise.
         If no Fortran compiler is available then returns True. All files
         produced are deleted.
 
         :param psy_ast: the AST of the generated PSy layer.
         :type psy_ast: instance of :py:class:`psyclone.psyGen.PSy`
 
-        :param dependencies: optional module- or file-names on which \
-                    one or more of the kernels/PSy-layer depend (and \
-                    that are not part of the GOcean infrastructure, \
-                    dl_esm_inf).  These dependencies will be built in \
-                    the order they occur in this list.
+        :param dependencies: optional module- or file-names on which one or
+            more of the kernels/PSy-layer depend (and that are not part of the
+            GOcean infrastructure, dl_esm_inf).  These dependencies will be
+            built in the order they occur in this list.
         :type dependencies: list of str or NoneType
 
         :return: True if generated code compiles, False otherwise.

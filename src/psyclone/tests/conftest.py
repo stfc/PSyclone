@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -154,7 +154,7 @@ def infra_compile(tmpdir_factory, request):
     '''A per-session initialisation function that sets the compilation flags
     in the Compile class based on command line options for --compile,
     --compileopencl, --f90, --f90flags. Then makes sure that the
-    infrastructure files for the dynamo0p3 and gocean APIs are compiled
+    infrastructure files for the LFRic and gocean APIs are compiled
     (if compilation was enabled).
     '''
     Compile.store_compilation_flags(request.config)
@@ -164,7 +164,7 @@ def infra_compile(tmpdir_factory, request):
     # parallel, i.e. each process has its own copy of the
     # compiled infrastructure file, which avoids the problem
     # of synchronisation between the processes.
-    tmpdir = tmpdir_factory.mktemp('dynamo_wrapper')
+    tmpdir = tmpdir_factory.mktemp('lfric_wrapper')
     # This is the first instance created. This will trigger
     # compilation of the infrastructure files.
     LFRicBuild(tmpdir)

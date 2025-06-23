@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,18 +35,18 @@
 '''
 API-agnostic tests for OpenMP task transformation class.
 '''
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
 from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import Kern, PSyFactory
-from psyclone.psyir.nodes import Call, CodeBlock, Container, Loop
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.nodes import Call, CodeBlock, Loop
+from psyclone.psyir.transformations import InlineTrans, TransformationError
 from psyclone.transformations import OMPParallelTrans, \
     OMPSingleTrans
 from psyclone.psyir.transformations import OMPTaskTrans
+from psyclone.tests.utilities import get_invoke
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
@@ -127,11 +127,11 @@ def test_omptask_apply(fortran_reader, fortran_writer):
   integer, dimension(10,10) :: t
   integer, dimension(10,10) :: s
 
-  !$omp parallel default(shared), private(ji,jj)
+  !$omp parallel default(shared) private(ji,jj)
   !$omp single
   do jj = 1, 10, 1
-    !$omp task private(ji), firstprivate(jj), shared(t,s), \
-depend(in: s(:,jj)), depend(out: t(:,jj))
+    !$omp task private(ji) firstprivate(jj) shared(t,s) \
+depend(in: s(:,jj)) depend(out: t(:,jj))
     do ji = 1, SIZE(ji, 2), 1
       t(ji,jj) = INT(s(ji,jj))
     enddo
@@ -146,42 +146,41 @@ end subroutine sub
 
 
 def test_omptask_apply_kern(fortran_reader, fortran_writer):
+    '''
+    Check that the OMPTaskTrans apply method correctly kernel module inlines
+    and inlines a called routine.
+    '''
     code = '''
     module test_kernel_mod
     contains
-      subroutine test_kernel(i, j, array)
+      pure subroutine test_kernel(i, j, array)
         integer :: i, j
         integer, dimension(:,:), intent(out) :: array
 
         array(i, j) = 1
       end subroutine test_kernel
-    end module test_kernel_mod
 
-    subroutine my_test()
-    use test_kernel_mod, only: test_kernel
-    integer :: i, j
-    integer, dimension(100, 100) :: array
+      subroutine my_test()
+      use test_kernel_mod, only: test_kernel
+      integer :: i, j
+      integer, dimension(100, 100) :: array
 
-    do i = 1, 100
-      do j = 1, 100
-        call test_kernel(i, j, array)
+      do i = 1, 100
+        do j = 1, 100
+          call test_kernel(i, j, array)
+        end do
       end do
-    end do
-
-    end subroutine my_test
+      end subroutine my_test
+    end module test_kernel_mod
     '''
     psyir = fortran_reader.psyir_from_source(code)
-    new_container = Container("test_container")
-    test_kernel_mod = psyir.children[0].detach()
-    my_test = psyir.children[0].detach()
-    new_container.addchild(test_kernel_mod)
-    new_container.addchild(my_test)
-    sym = my_test.symbol_table.lookup("test_kernel")
-    sym.interface.container_symbol._reference = test_kernel_mod
+    my_test = psyir.children[0].children[1]
     trans = OMPTaskTrans()
     master = OMPSingleTrans()
     parallel = OMPParallelTrans()
-    calls = my_test.walk(Call)
+    calls = psyir.walk(Call)
+    # TODO #2916 - this setting of `is_pure` shouldn't be necessary as the
+    # frontend should have done it.
     calls[0].routine.symbol.is_pure = True
     loops = my_test.walk(Loop)
     trans.apply(loops[1])
@@ -190,18 +189,18 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     assert len(my_test.walk(Call, Kern)) == 0
 
 
-# This test relies on inline functionality not yet supported
-@pytest.mark.xfail()
-def test_omptask_inline_kernels():
+def test_omptask_inline_kernels(monkeypatch):
     '''Test the _inline_kernels functionality up to inlining of Call nodes.'''
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean")
+    _, invoke = get_invoke("single_invoke.f90", "gocean",
+                           dist_mem=False, idx=0)
     taskt = OMPTaskTrans()
-    psy = PSyFactory("gocean", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    # Cover the _inline_kernels code
+    schedule = invoke.schedule
+    # Currently the InlineTrans validation will reject the GOcean kernel call
+    # because it can't determine the type of `fld%data` being passed in. We
+    # therefore monkeypatch the validate() method to get round this.
+    monkeypatch.setattr(InlineTrans, "validate", lambda _1, _2, _3: None)
     taskt._inline_kernels(schedule.children[0])
+    assert not schedule.walk(Kern)
 
 
 # This test relies on inline functionality not yet supported

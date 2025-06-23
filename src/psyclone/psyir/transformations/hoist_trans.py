@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ is a name that is often used to describe this type of transformation.
 
 '''
 
-from psyclone.core import AccessType, VariablesAccessInfo
+from psyclone.core import AccessType
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Loop, Assignment, Schedule, Call, CodeBlock)
@@ -201,16 +201,16 @@ class HoistTrans(Transformation):
         '''
         # pylint: disable=too-many-locals
         # Collect all variable usages in the loop
-        all_loop_vars = VariablesAccessInfo(parent_loop)
+        all_loop_vars = parent_loop.reference_accesses()
 
         # Collect all variables used in the statement that will be hoisted.
-        all_statement_vars = VariablesAccessInfo(statement)
+        all_statement_vars = statement.reference_accesses()
 
         # Determine the variables which are written (and potentially read)
         # and which are read-only:
         read_only_sigs = []
         write_sigs = []
-        for sig in all_statement_vars.all_signatures:
+        for sig in all_statement_vars.all_data_accesses:
             if all_statement_vars[sig].is_written():
                 write_sigs.append(sig)
             else:

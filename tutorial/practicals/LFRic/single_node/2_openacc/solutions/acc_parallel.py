@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ command, it is not designed to be directly run from python.
 from psyclone.psyir.nodes import Routine
 from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (
-    ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans)
+    ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, LFRicColourTrans)
 from psyclone.domain.lfric import LFRicConstants
 
 
@@ -56,7 +56,7 @@ def trans(psyir):
     '''
     kernels_trans = ACCKernelsTrans()
     routine_trans = ACCRoutineTrans()
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     loop_trans = ACCLoopTrans()
     enter_trans = ACCEnterDataTrans()
     const = LFRicConstants()

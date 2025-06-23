@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ class for all API-specific loop fusion transformations.
 
 from psyclone.core import SymbolicMaths
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.psyir.nodes import Reference
+from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -197,6 +197,30 @@ class LoopFuseTrans(LoopTrans):
 
         # Add loop contents of node2 to node1
         node1.loop_body.children.extend(node2.loop_body.pop_all_children())
+
+        # We need to remove all leftover references because lfric is compiled
+        # with '-Werror=unused-variable'. Since we have fused loops, we only
+        # need to look at the symbols appearing in the loop control of the
+        # second loop, as these are the ones that have been detached.
+        routine = node1.ancestor(Routine)
+        if routine:
+            remaining_names = {sig.var_name for sig in
+                               routine.reference_accesses().all_signatures}
+            del_names = {sig.var_name for sig in
+                         node2.start_expr.reference_accesses().all_signatures +
+                         node2.stop_expr.reference_accesses().all_signatures +
+                         node2.step_expr.reference_accesses().all_signatures}
+            for name in del_names:
+                if name not in remaining_names:
+                    try:
+                        rsym = node1.scope.symbol_table.lookup(name)
+                        if rsym.is_automatic:
+                            symtab = rsym.find_symbol_table(node1)
+                            # TODO #898: Implement symbol removal
+                            # pylint: disable=protected-access
+                            symtab._symbols.pop(rsym.name)
+                    except KeyError:
+                        pass
 
 
 # For automatic documentation generation

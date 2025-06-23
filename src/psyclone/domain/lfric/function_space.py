@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ class FunctionSpace():
                      mangled name for.
     :param kernel_args: object encapsulating all arguments to the kernel, \
                         one or more of which are on this function space.
-    :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
+    :type kernel_args: :py:class:`psyclone.lfric.LFRicKernelArguments`
 
     :raises InternalError: if an unrecognised function space is encountered.
 
@@ -262,7 +262,7 @@ class FunctionSpace():
             name += "_on_" + on_space.mangled_name
         return name
 
-    def get_diff_basis_name(self, qr_var=None, on_space=None):
+    def get_diff_basis_name(self, qr_var=None, on_space=None) -> str:
         '''
         Returns a name for the differential basis function on this
         FunctionSpace.  If the name of an associated quadrature object is
@@ -270,15 +270,14 @@ class FunctionSpace():
         function space at which the basis is to be evaluated is supplied then
         this is also appended to the name.
 
-        :param str qr_var: the name of the Quadrature Object for which the \
+        :param str qr_var: the name of the Quadrature Object for which the
                            differential basis functions are required.
-        :param on_space: the function space at which the differential basis \
+        :param on_space: the function space at which the differential basis
                          functions will be evaluated
-        :type on_space: :py:class:`psyclone.dynamo0p3.domain.lfric.\
-                        FunctionSpace`
-        :returns: name for the Fortran array holding the differential basis \
+        :type on_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
+
+        :returns: name for the Fortran array holding the differential basis
                   function
-        :rtype: str
 
         '''
         name = "diff_basis_" + self.mangled_name
@@ -320,11 +319,11 @@ class FunctionSpace():
         function returns None.
 
         :param arguments: list of arguments to be tested.
-        :type arguments: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
+        :type arguments: :py:class:`psyclone.lfric.LFRicKernelArguments`
 
         :returns: the argument from the supplied list of arguments that \
                   contains a field that exists on this space or None.
-        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument` or None
+        :rtype: :py:class:`psyclone.lfric.LFRicKernelArgument` or None
 
         '''
         if self.mangled_name in arguments.unique_fs_names:
@@ -342,11 +341,11 @@ class FunctionSpace():
         Otherwise this function returns None.
 
         :param arguments: list of arguments to be tested.
-        :type arguments: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
+        :type arguments: :py:class:`psyclone.lfric.LFRicKernelArguments`
 
         :returns: the argument from the supplied list of arguments that \
                   contains a field that exists on this space or None.
-        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument` or None
+        :rtype: :py:class:`psyclone.lfric.LFRicKernelArgument` or None
 
         '''
         if self.mangled_name in arguments.unique_fs_names:

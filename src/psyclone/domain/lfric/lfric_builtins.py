@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@
 # pylint: disable=too-many-lines
 import abc
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
@@ -55,6 +55,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
                                   Reference, IntrinsicCall)
+from psyclone.psyir.symbols import UnsupportedFortranType
 from psyclone.utils import a_or_an
 
 # The name of the file containing the meta-data describing the
@@ -214,22 +215,21 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         return (f"Built-in: {self._case_name} ("
                 f"{self._datatype}-valued field{plural})")
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information from this node. The assigned-to
-        variable will be set to 'WRITE'.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         :raises InternalError: if an unsupported argument type is encountered.
 
         '''
+        var_accesses = VariablesAccessMap()
         table = self.scope.symbol_table
         # Collect all write access in a separate object, so they can be added
         # after all read access (which must happen before something is written)
-        written = VariablesAccessInfo()
+        written = VariablesAccessMap()
         suffix_map = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
 
         for arg in self.args:
@@ -250,10 +250,11 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 else:
                     var_accesses.add_access(Signature(name), arg.access, self)
         # Now merge the write access to the end of all other accesses:
-        var_accesses.merge(written)
+        var_accesses.update(written)
         # Forward location pointer to next index, since this built-in kernel
         # finishes a statement
         var_accesses.next_location()
+        return var_accesses
 
     def load(self, call, parent=None):
         '''
@@ -269,8 +270,8 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import FSDescriptors, DynKernelArguments
-        BuiltIn.load(self, call, DynKernelArguments, parent)
+        from psyclone.lfric import FSDescriptors, LFRicKernelArguments
+        BuiltIn.load(self, call, LFRicKernelArguments, parent)
         self.arg_descriptors = call.ktype.arg_descriptors
         self._func_descriptors = call.ktype.func_descriptors
         self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
@@ -433,7 +434,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         :returns: a list of function space descriptor objects which \
                   contain information about the function spaces.
-        :rtype: list of :py:class:`psyclone.dynamo0p3.FSDescriptor`
+        :rtype: list of :py:class:`psyclone.lfric.FSDescriptor`
 
         '''
         return self._fs_descriptors
@@ -2735,10 +2736,13 @@ class LFRicRealToIntXKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = INT(proxy1%data, kind=i_<prec>)
         lhs = arg_refs[0]
-        i_precision = arg_refs[0].datatype.precision
+        datatype = arg_refs[0].symbol.datatype
+        if isinstance(datatype, UnsupportedFortranType):
+            datatype = datatype.partial_datatype
+
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.INT,
-            [arg_refs[1], ("kind", Reference(i_precision))])
+            [arg_refs[1], ("kind", Reference(datatype.precision))])
 
         # Create assignment and replace node
         return self._replace_with_assignment(lhs, rhs)
@@ -2790,10 +2794,13 @@ class LFRicRealToRealXKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = REAL(proxy1%data, kind=r_<prec>)
         lhs = arg_refs[0]
-        r_precision = arg_refs[0].datatype.precision
+        datatype = arg_refs[0].symbol.datatype
+        if isinstance(datatype, UnsupportedFortranType):
+            datatype = datatype.partial_datatype
+
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.REAL,
-            [arg_refs[1], ("kind", Reference(r_precision))])
+            [arg_refs[1], ("kind", Reference(datatype.precision))])
 
         # Create assignment and replace node
         return self._replace_with_assignment(lhs, rhs)

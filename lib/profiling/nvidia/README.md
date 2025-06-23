@@ -41,7 +41,7 @@ Finally, at the link stage the location of the wrapper *and* NVTX
 libraries must be provided, e.g.:
 
 ```shell
-nvfortran <my object files> -cuda -L<PATH-TO-PSYCLONE>/lib/profiling/nvidia -lnvtx_prof -L<CUDA_LIB_DIR> -lnvToolsExt
+nvfortran <my object files> -cuda -L<PATH-TO-PSYCLONE>/lib/profiling/nvidia -lnvtx_prof -L<CUDA_LIB_DIR> -lnvtx3interop
 ```
 
 where ``<CUDA_LIB_DIR>`` will depend upon your system but is likely to be
@@ -75,7 +75,7 @@ back to the first entry in the list.
 
 BSD 3-Clause License
 
-Copyright (c) 2019-2024, Science and Technology Facilities Council.
+Copyright (c) 2019-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

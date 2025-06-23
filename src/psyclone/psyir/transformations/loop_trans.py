@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,19 +62,33 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
     # populated by sub-class.
     excluded_node_types = ()
 
-    def validate(self, node, options=None):
-        '''Checks that the supplied node is a valid target for a loop
-        transformation.
+    def apply(self, node, options=None, node_type_check: bool = True,
+              verbose: bool = False, **kwargs):
+        '''
+        Applies the transformation to the provided node.
+
+        This function only calls the superclass method, but is required for
+        option specification.
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["node-type-check"]: this flag controls if the \
-            type of the nodes enclosed in the loop should be tested to \
-            avoid including unsupported nodes in a transformation.
-        :param bool options["verbose"]: log the reason the validation failed,
-            at the moment with a comment in the provided PSyIR node.
+        :param node_type_check: If the type of nodes enclosed in the loop
+                                should be tested to avoid including
+                                unsupported nodes in the transformation.
+        :param verbose: whether to log the reason the validation failed, at
+                        the moment with a comment in the provided PSyIR node.
+        '''
+        super().apply(node, options=options, node_type_check=node_type_check,
+                      verbose=verbose, **kwargs)
+
+    def validate(self, node, options=None, **kwargs):
+        '''Checks that the supplied node is a valid target for a loop
+        transformation.
+
+        :param node: target PSyIR node.
+        :type node: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
         :raises TransformationError: if the supplied node is not a (fully- \
                 formed) Loop.
@@ -85,6 +99,7 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
                 dictionary.
 
         '''
+        super().validate(node, options=options, **kwargs)
         # pylint: disable=too-many-branches
         if not isinstance(node, Loop):
             raise TransformationError(
@@ -98,17 +113,21 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
                 f"must have four children but found: "
                 f"{[type(child).__name__ for child in node.children]}.")
 
+        # TODO 2668: options are now deprecated.
         if not options:
-            options = {}
-        if not isinstance(options, dict):
-            raise TransformationError(
-                f"Transformation validate method 'options' argument must be a "
-                f"dictionary but found '{type(options).__name__}'.")
-
-        verbose = options.get("verbose", False)
+            self.validate_options(**kwargs)
+            verbose = self.get_option("verbose", **kwargs)
+            node_type_check = self.get_option("node_type_check", **kwargs)
+        else:
+            if not isinstance(options, dict):
+                raise TransformationError(
+                    f"Transformation validate method 'options' argument must "
+                    f"be a dictionary but found '{type(options).__name__}'.")
+            verbose = options.get("verbose", False)
+            node_type_check = options.get("node-type-check", True)
 
         # Check that the proposed region contains only supported node types
-        if options.get("node-type-check", True):
+        if node_type_check:
             # Stop at any instance of Kern to avoid going into the
             # actual kernels, e.g. in Nemo inlined kernels
             # pylint: disable=cell-var-from-loop

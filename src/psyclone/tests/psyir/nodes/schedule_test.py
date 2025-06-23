@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 
 ''' Performs py.test tests on the Schedule PSyIR node. '''
 
-from __future__ import absolute_import
 import os
 import pytest
 from psyclone.psyir.nodes import Schedule, Assignment, Range, Statement
@@ -50,7 +49,7 @@ from psyclone.errors import GenerationError
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+    os.path.abspath(__file__)))), "test_files", "lfric")
 
 
 def test_sched_init():

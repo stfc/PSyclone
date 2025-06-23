@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,21 +39,23 @@
 from collections.abc import Iterable
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
+from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
+    DefaultModuleInterface,
     RoutineSymbol,
     Symbol,
     SymbolError,
     UnsupportedFortranType,
     DataSymbol,
 )
-from typing import List
+from typing import List, Tuple
 from psyclone.errors import PSycloneError
 
 
@@ -245,18 +247,16 @@ class Call(Statement, DataNode):
         # because the 1st child is the routine reference
         self.children.insert(index + 1, arg)
 
-    def replace_named_arg(self, existing_name, arg):
+    def replace_named_arg(self, existing_name: str, arg: DataNode):
         '''Replace one named argument node with another node keeping the
         same name.
 
-           :param str existing_name: the argument name.
-           :param arg: the argument expression.
-           :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
+        :param existing_name: the argument name.
+        :param arg: the argument expression.
 
-           :raises TypeError: if the name argument is the wrong type.
-           :raises ValueError: if the name argument is already used \
-               for an existing argument.
-           :raises TypeError: if the index argument is the wrong type.
+        :raises TypeError: if the name argument is the wrong type.
+        :raises ValueError: if the name argument is already used
+            for an existing argument.
 
         '''
         if not isinstance(existing_name, str):
@@ -294,21 +294,21 @@ class Call(Statement, DataNode):
             return isinstance(child, Reference)
         return isinstance(child, DataNode)
 
-    def reference_accesses(self, var_accesses):
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
-        Updates the supplied var_accesses object with information on the
-        arguments passed to this call.
-
         TODO #446 - all arguments that are passed by reference are currently
         marked as having READWRITE access (unless we know that the routine is
         PURE). We could do better than this if we have the PSyIR of the called
         Routine.
 
-        :param var_accesses: VariablesAccessInfo instance that stores the
-            information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
+        var_accesses = VariablesAccessMap()
+
         if self.is_pure:
             # If the called routine is pure then any arguments are only
             # read.
@@ -317,27 +317,32 @@ class Call(Statement, DataNode):
             # We conservatively default to READWRITE otherwise (TODO #446).
             default_access = AccessType.READWRITE
 
-        # TODO #2271: This may skip references in inner expressions of
-        # structure calls, but to implement properly we new a new kind of
-        # AccessType that represents being called (USED but not READ, maybe
-        # the same that we need for INQUIRY type attributes?)
+        # The RoutineSymbol has a CALL access.
+        sig, indices_list = self.routine.get_signature_and_indices()
+        var_accesses.add_access(sig, AccessType.CALL, self.routine)
+        # Continue processing references in any index expressions.
+        for indices in indices_list:
+            for idx in indices:
+                var_accesses.update(idx.reference_accesses())
+
         for arg in self.arguments:
             if isinstance(arg, Reference):
                 # This argument is pass-by-reference.
                 sig, indices_list = arg.get_signature_and_indices()
                 var_accesses.add_access(sig, default_access, arg)
-                # Any symbols referenced in any index expressions are READ.
+                # Continue processing references in any index expressions.
                 for indices in indices_list:
                     for idx in indices:
-                        idx.reference_accesses(var_accesses)
+                        var_accesses.update(idx.reference_accesses())
             else:
                 # This argument is not a Reference so continue to walk down the
                 # tree. (e.g. it could be/contain a Call to
                 # an impure routine in which case any arguments to that Call
                 # will have READWRITE access.)
-                arg.reference_accesses(var_accesses)
+                var_accesses.update(arg.reference_accesses())
         # Make sure that the next statement will be on the next location
         var_accesses.next_location()
+        return var_accesses
 
     @property
     def routine(self):
@@ -350,14 +355,14 @@ class Call(Statement, DataNode):
         return None
 
     @property
-    def arguments(self) -> List[DataNode]:
+    def arguments(self) -> Tuple[DataNode]:
         '''
         :returns: the children of this node that represent its arguments.
         :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
         '''
         if len(self._children) >= 2:
-            return self.children[1:]
-        return []
+            return tuple(self.children[1:])
+        return ()
 
     @property
     def is_elemental(self):
@@ -375,12 +380,13 @@ class Call(Statement, DataNode):
     @property
     def is_pure(self):
         '''
-        :returns: whether the routine being called is pure (guaranteed to \
-            return the same result when provided with the same argument \
+        :returns: whether the routine being called is pure (guaranteed to
+            return the same result when provided with the same argument
             values).  If this information is not known then it returns None.
         :rtype: NoneType | bool
         '''
-        if self.routine and self.routine.symbol:
+        if (self.routine and self.routine.symbol and
+                isinstance(self.routine.symbol, RoutineSymbol)):
             return self.routine.symbol.is_pure
         return None
 
@@ -440,7 +446,7 @@ class Call(Statement, DataNode):
         consistent before and after copying.
 
         :returns: a copy of this node and its children.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
+        :rtype: :py:class:`psyclone.psyir.node.Call`
 
         '''
         # ensure _argument_names is consistent with actual arguments
@@ -461,13 +467,14 @@ class Call(Statement, DataNode):
     def get_callees(self):
         '''
         Searches for the implementation(s) of all potential target routines
-        for this Call without any arguments check.
+        for this Call without resolving static polymorphism by checking the
+        argument types.
 
         :returns: the Routine(s) that this call targets.
         :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
 
-        :raises NotImplementedError: if the routine is not local and not found
-            in any containers in scope at the call site.
+        :raises NotImplementedError: if the routine is not found or a
+            limitation prevents definite determination of the target routine.
 
         '''
         def _location_txt(node):
@@ -491,59 +498,61 @@ class Call(Statement, DataNode):
 
         rsym = self.routine.symbol
         if rsym.is_unresolved:
+            # Search for the Routine in the current file. This search is
+            # stopped if we encouter a wildcard import that could be
+            # responsible for shadowing the routine name with an external
+            # implementation.
+            table = rsym.find_symbol_table(self)
+            cursor = table.node
+            have_codeblock = False
+            while cursor:
+                if isinstance(cursor, Container):
+                    psyir = cursor.find_routine_psyir(rsym.name,
+                                                      allow_private=True)
+                    if psyir:
+                        rsym.interface = DefaultModuleInterface()
+                        return [psyir]
+                    if not have_codeblock:
+                        have_codeblock = any(isinstance(child, CodeBlock) for
+                                             child in cursor.children)
+                wildcard_names = [csym.name for csym in
+                                  cursor.symbol_table.wildcard_imports(
+                                      scope_limit=cursor)]
+                if wildcard_names:
+                    # We haven't yet found an implementation of the Routine
+                    # but we have found a wildcard import and that could be
+                    # bringing it into scope so we stop searching (the
+                    # alternative is to resolve every wildcard import we
+                    # encounter and that is very costly).
+                    msg = (f"Failed to find the source code of the unresolved "
+                           f"routine '{rsym.name}'. It may be being brought "
+                           f"into scope from one of {wildcard_names}")
+                    if have_codeblock:
+                        msg += (" or it may be within a CodeBlock. If it isn't"
+                                ", you ")
+                    else:
+                        msg += ". You "
+                    msg += ("may wish to add the appropriate module name to "
+                            "the `RESOLVE_IMPORTS` variable in the "
+                            "transformation script.")
+                    raise NotImplementedError(msg)
+                parent = cursor.parent
+                cursor = parent.scope if parent else None
 
-            # Check for any "raw" Routines, i.e. ones that are not
-            # in a Container.  Such Routines would exist in the PSyIR
-            # as a child of a FileContainer (if the PSyIR contains a
-            # FileContainer). Note, if the PSyIR does contain a
-            # FileContainer, it will be the root node of the PSyIR.
-            for routine in self.root.children:
-                if (isinstance(routine, Routine) and
-                        routine.name.lower() == rsym.name.lower()):
-                    return [routine]
-
-            # Now check for any wildcard imports and see if they can
-            # be used to resolve the symbol.
-            wildcard_names = []
-            containers_not_found = []
-            current_table = self.scope.symbol_table
-            while current_table:
-                for container_symbol in current_table.containersymbols:
-                    if container_symbol.wildcard_import:
-                        wildcard_names.append(container_symbol.name)
-                        try:
-                            container = container_symbol.find_container_psyir(
-                                local_node=self)
-                        except SymbolError:
-                            container = None
-                        if not container:
-                            # Failed to find/process this Container.
-                            containers_not_found.append(container_symbol.name)
-                            continue
-                        routines = []
-                        for name in container.resolve_routine(rsym.name):
-                            psyir = container.find_routine_psyir(name)
-                            if psyir:
-                                routines.append(psyir)
-                        if routines:
-                            return routines
-                current_table = current_table.parent_symbol_table()
-            if not wildcard_names:
-                wc_text = "there are no wildcard imports"
+            # We haven't found a Routine and nor have we encountered any
+            # wildcard imports.
+            msg = (f"Failed to find the source code of the unresolved routine "
+                   f"'{rsym.name}'. There are no wildcard imports that could "
+                   f"be bringing it into scope")
+            if have_codeblock:
+                msg += (" but it might be within a CodeBlock. If it isn't "
+                        "then it ")
             else:
-                if containers_not_found:
-                    wc_text = (
-                        f"attempted to resolve the wildcard imports from"
-                        f" {wildcard_names}. However, failed to find the "
-                        f"source for {containers_not_found}. The module search"
-                        f" path is set to {Config.get().include_paths}")
-                else:
-                    wc_text = (f"wildcard imports from {wildcard_names}")
-            raise NotImplementedError(
-                f"Failed to find the source code of the unresolved routine "
-                f"'{rsym.name}' - looked at any routines in the same source "
-                f"file and {wc_text}. Searching for external routines "
-                f"that are only resolved at link time is not supported.")
+                msg += ". It "
+            msg += ("must be an external routine that is only resolved at "
+                    "link time and searching for such routines is not "
+                    "supported.")
+            raise NotImplementedError(msg)
 
         root_node = self.ancestor(Container)
         if not root_node:
@@ -596,15 +605,20 @@ class Call(Statement, DataNode):
                 f"UnsupportedFortranType:\n{rsym.datatype.declaration}\n"
                 f"Cannot get the PSyIR of such a routine.")
 
-        if isinstance(container, Container):
+        # At this point, we should have found the PSyIR tree containing the
+        # routine - we just need to locate it. It may be in a Container or
+        # it may be in the parent FileContainer.
+        cursor = container
+        while cursor and isinstance(cursor, Container):
             routines = []
-            for name in container.resolve_routine(rsym.name):
-                psyir = container.find_routine_psyir(
+            for name in cursor.resolve_routine(rsym.name):
+                psyir = cursor.find_routine_psyir(
                     name, allow_private=can_be_private)
                 if psyir:
                     routines.append(psyir)
             if routines:
                 return routines
+            cursor = cursor.parent
 
         raise SymbolError(
             f"Failed to find a Routine named '{rsym.name}' in "
@@ -768,7 +782,6 @@ class Call(Statement, DataNode):
         '''
 
         routine_list = self.get_callees()
-        assert len(routine_list) != 0
 
         err_info_list = []
 

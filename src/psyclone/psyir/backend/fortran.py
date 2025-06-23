@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ from a PSyIR tree. '''
 
 # pylint: disable=too-many-lines
 from psyclone.core import Signature
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import (
@@ -54,7 +54,7 @@ from psyclone.psyir.symbols import (
     GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
     RoutineSymbol, ScalarType, StructureType, Symbol, SymbolTable,
     UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
-    UnsupportedType, )
+    UnsupportedType, TypedSymbol)
 
 
 # Mapping from PSyIR types to Fortran data types. Simply reverse the
@@ -337,14 +337,13 @@ class FortranWriter(LanguageWriter):
         mapping. Any key that does already exist in `reverse_dict`
         is not overwritten, only new keys are added.
 
-        :param reverse_dict: the dictionary to which the new mapping of \
+        :param reverse_dict: the dictionary to which the new mapping of
             operator to string is added.
-        :type reverse_dict: dict from \
-            :py:class:`psyclone.psyir.nodes.BinaryOperation`, \
-            :py:class:`psyclone.psyir.nodes.NaryOperation` or \
-            :py:class:`psyclone.psyir.nodes.UnaryOperation` to str
+        :type reverse_dict: dict[
+                :py:class:`psyclone.psyir.nodes.Operation`, str
+            ]
 
-        :param op_map: mapping from string representation of operator to \
+        :param op_map: mapping from string representation of operator to
                        enumerated type.
         :type op_map: :py:class:`collections.OrderedDict`
 
@@ -463,11 +462,13 @@ class FortranWriter(LanguageWriter):
 
         # Construct the list of symbol names for the ONLY clause
         only_list = []
+        rename_list = []
         for dsym in symbol_table.symbols_imported_from(symbol):
             if dsym.interface.orig_name:
                 # This variable is renamed on import. Use Fortran's
                 # 'new_name=>orig_name' syntax to reflect this.
                 only_list.append(f"{dsym.name}=>{dsym.interface.orig_name}")
+                rename_list.append(only_list[-1])
             else:
                 # This variable is not renamed.
                 only_list.append(dsym.name)
@@ -486,6 +487,12 @@ class FortranWriter(LanguageWriter):
                     f"only : " +
                     ", ".join(sorted(only_list)) + "\n")
 
+        # We have a wildcard import, however, we still need to list any
+        # symbols that are renamed.
+        if rename_list:
+            renames = ", ".join(sorted(rename_list))
+            return (f"{self._nindent}use{intrinsic_str}{symbol.name}, "
+                    f"{renames}\n")
         return f"{self._nindent}use{intrinsic_str}{symbol.name}\n"
 
     def gen_vardecl(self, symbol, include_visibility=False):
@@ -501,6 +508,7 @@ class FortranWriter(LanguageWriter):
         :returns: the Fortran variable declaration as a string.
         :rtype: str
 
+        :raises VisitorError: if the symbol is not typed.
         :raises VisitorError: if the symbol is of UnresolvedType.
         :raises VisitorError: if the symbol is of UnsupportedType other than
             UnsupportedFortranType.
@@ -517,6 +525,9 @@ class FortranWriter(LanguageWriter):
 
         '''
         # pylint: disable=too-many-branches
+        if not isinstance(symbol, (TypedSymbol, StructureType.ComponentType)):
+            raise VisitorError(f"Symbol '{symbol.name}' must be a symbol with"
+                               f" a datatype in order to use 'gen_vardecl'.")
         if isinstance(symbol.datatype, UnresolvedType):
             raise VisitorError(f"Symbol '{symbol.name}' has a UnresolvedType "
                                f"and we can not generate a declaration for "
@@ -536,6 +547,11 @@ class FortranWriter(LanguageWriter):
                                 f"and should not be provided to 'gen_vardecl'."
                                 )
 
+        result = ""
+        if len(symbol.preceding_comment) > 0:
+            for line in symbol.preceding_comment.splitlines():
+                result += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+
         # Whether we're dealing with an array declaration and, if so, the
         # shape of that array.
         if isinstance(symbol.datatype, ArrayType):
@@ -554,10 +570,14 @@ class FortranWriter(LanguageWriter):
                     # blocks appearing in SAVE statements.
                     decln = add_accessibility_to_unsupported_declaration(
                                 symbol)
-                    return f"{self._nindent}{decln}\n"
-
-                decln = symbol.datatype.declaration
-                return f"{self._nindent}{decln}\n"
+                else:
+                    decln = symbol.datatype.declaration
+                result += f"{self._nindent}{decln}"
+                if symbol.inline_comment != "":
+                    result += (f" {self._COMMENT_PREFIX}"
+                               f"{symbol.inline_comment}")
+                result += "\n"
+                return result
             # The Fortran backend only handles UnsupportedFortranType
             # declarations.
             raise VisitorError(
@@ -566,10 +586,9 @@ class FortranWriter(LanguageWriter):
                 f"supported by the Fortran backend.")
 
         datatype = gen_datatype(symbol.datatype, symbol.name)
-        result = f"{self._nindent}{datatype}"
+        result += f"{self._nindent}{datatype}"
 
-        if ArrayType.Extent.DEFERRED in array_shape:
-            # A 'deferred' array extent means this is an allocatable array
+        if array_shape and symbol.datatype.is_allocatable:
             result += ", allocatable"
 
         # Specify Fortran attributes
@@ -615,6 +634,9 @@ class FortranWriter(LanguageWriter):
                     f"therefore (in Fortran) must have a StaticInterface. "
                     f"However it has an interface of '{symbol.interface}'.")
             result += " = " + self._visit(symbol.initial_value)
+
+        if symbol.inline_comment != "":
+            result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
 
         return result + "\n"
 
@@ -696,7 +718,12 @@ class FortranWriter(LanguageWriter):
                 f"Fortran backend cannot generate code for symbol "
                 f"'{symbol.name}' of type '{type(symbol.datatype).__name__}'")
 
-        result = f"{self._nindent}type"
+        result = ""
+        if symbol.preceding_comment != "":
+            for line in symbol.preceding_comment.splitlines():
+                result += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+
+        result += f"{self._nindent}type"
 
         if include_visibility:
             if symbol.visibility == Symbol.Visibility.PRIVATE:
@@ -726,7 +753,13 @@ class FortranWriter(LanguageWriter):
                                        include_visibility=include_visibility)
         self._depth -= 1
 
-        result += f"{self._nindent}end type {symbol.name}\n"
+        result += f"{self._nindent}end type {symbol.name}"
+
+        if symbol.inline_comment != "":
+            result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
+
+        result += "\n"
+
         return result
 
     def gen_default_access_stmt(self, symbol_table):
@@ -847,7 +880,7 @@ class FortranWriter(LanguageWriter):
             decln_inputs[symbol.name] = set()
             read_write_info = ReadWriteInfo()
             self._call_tree_utils.get_input_parameters(read_write_info,
-                                                       symbol.initial_value)
+                                                       [symbol.initial_value])
             # The dependence analysis tools do not include symbols used to
             # define precision so check for those here.
             for lit in symbol.initial_value.walk(Literal):
@@ -1259,14 +1292,16 @@ class FortranWriter(LanguageWriter):
                     return f"({lhs} {fort_oper} {rhs})"
                 if precedence(fort_oper) == precedence(parent_fort_oper):
                     # We still may need to enforce precedence
-                    if (isinstance(parent, UnaryOperation) or
-                            (isinstance(parent, BinaryOperation) and
-                             parent.children[1] == node)):
-                        # We need brackets to enforce precedence
-                        # as a) a unary operator is performed
-                        # before a binary operator and b) floating
-                        # point operations are not actually
-                        # associative due to rounding errors.
+                    if (
+                        # If parent is a UnaryOperation
+                        isinstance(parent, UnaryOperation) or
+                        # Or it is a BinaryOperation ...
+                        (isinstance(parent, BinaryOperation) and
+                            # ... with right-to-left precedence
+                            (parent.children[1] == node) or
+                            # ... or originally had explicit parenthesis
+                            node.has_explicit_grouping)
+                    ):
                         return f"({lhs} {fort_oper} {rhs})"
             return f"{lhs} {fort_oper} {rhs}"
         except KeyError as error:
@@ -1469,15 +1504,7 @@ class FortranWriter(LanguageWriter):
             body += self._visit(child)
         self._depth -= 1
 
-        # A generation error is raised if variable is not defined. This
-        # happens in LFRic kernel that iterate over a domain.
-        try:
-            variable_name = node.variable.name
-        except GenerationError:
-            # If a kernel iterates over a domain - there is
-            # no loop. But the loop node is maintained since it handles halo
-            # exchanges. So just return the body in this case
-            return body
+        variable_name = node.variable.name
 
         return (
             f"{self._nindent}do {variable_name} = {start}, {stop}, {step}\n"
@@ -1626,7 +1653,7 @@ class FortranWriter(LanguageWriter):
         # Add a space only if there are clauses
         if len(clause_list) > 0:
             result = result + " "
-        result = result + ", ".join(clause_list)
+        result = result + " ".join(clause_list)
         result = result + "\n"
 
         for child in node.dir_body:
@@ -1651,15 +1678,12 @@ class FortranWriter(LanguageWriter):
         result = f"{self._nindent}!${node.begin_string()}"
 
         clause_list = []
-        # Currently no standalone directives have clauses associated
-        # so this code is left commented out. If a standalone directive
-        # is added with clauses, this should be added in.
-        # for clause in node.clauses:
-        #     clause_list.append(self._visit(clause))
+        for clause in node.clauses:
+            clause_list.append(self._visit(clause))
         # Add a space only if there are clauses
-        # if len(clause_list) > 0:
-        #     result = result + " "
-        result = result + ", ".join(clause_list)
+        if len(clause_list) > 0:
+            result = result + " "
+        result = result + " ".join(clause_list)
         result = result + "\n"
 
         return result

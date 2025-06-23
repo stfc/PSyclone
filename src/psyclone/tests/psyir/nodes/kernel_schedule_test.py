@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 
 ''' Performs py.test tests on the KernelSchedule class. '''
 
-from __future__ import absolute_import
 from psyclone.psyir.nodes import Assignment, Reference, Literal, \
     KernelSchedule, Container
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE, \

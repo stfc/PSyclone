@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council
+# Copyright (c) 2017-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ generator.py script.'''
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.transformations import DynamoOMPParallelLoopTrans
+from psyclone.transformations import LFRicOMPParallelLoopTrans
 
 
 def trans(psyir):
@@ -53,7 +53,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     ftrans = LFRicLoopFuseTrans()
 
     # Get first invoke subroutine

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019-2024, Science and Technology Facilities Council
+! Copyright (c) 2019-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -64,6 +64,8 @@ contains
   subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask)
     ! rdt is a parameter but magic is not.
     use model_mod, only: rdt, magic
+    ! go_wp is a kind parameter.
+    use kind_params_mod, only: go_wp
     implicit none
     integer, intent(in)  :: ji, jj
     integer, dimension(:,:),  intent(in)    :: tmask

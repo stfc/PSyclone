@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council
+# Copyright (c) 2018-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ def test_config_loaded_before_constants_created():
     has been loaded, before an instance of LFRicConstants is created. '''
 
     kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "dynamo0p3", "testkern_w0_mod.f90")
+                             "test_files", "lfric", "testkern_w0_mod.f90")
     Config._HAS_CONFIG_BEEN_INITIALISED = False
     kernel_tools.run([str(kern_file), "-api", "lfric"])
     assert Config.has_config_been_initialised() is True
@@ -62,24 +62,24 @@ def test_config_loaded_before_constants_created():
 def test_run_default_mode(capsys):
     ''' Test that the default behaviour is to create a kernel stub. '''
     kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "dynamo0p3", "testkern_w0_mod.f90")
+                             "test_files", "lfric", "testkern_w0_mod.f90")
     kernel_tools.run([str(kern_file), "-api", "lfric"])
     out, err = capsys.readouterr()
-    assert "Kernel-stub code:\n   MODULE testkern_w0_mod\n" in out
+    assert "Kernel-stub code:\n module testkern_w0_mod\n" in out
     assert not err
 
 
 def test_run(capsys, tmpdir):
     ''' Basic test for the run() routine. '''
-    # Use a dynamo 0.3 kernel so that we check that the default API
-    # (dynamo 0.3) is picked up correctly
+    # Use an LFRic kernel so that we check that the default API
+    # (lfric) is picked up correctly
     kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "dynamo0p3", "testkern_w0_mod.f90")
+                             "test_files", "lfric", "testkern_w0_mod.f90")
     kernel_tools.run([str(kern_file), "-api", "lfric", "--limit", "output",
                       "-gen", "stub"])
     result, _ = capsys.readouterr()
     assert "Kernel-stub code:" in result
-    assert "MODULE testkern_w0_mod" in result
+    assert "module testkern_w0_mod" in result
 
     # Test without --limit, but with -o:
     psy_file = tmpdir.join("psy.f90")
@@ -90,7 +90,7 @@ def test_run(capsys, tmpdir):
     # Now read output file into a string and check:
     with psy_file.open("r") as psy:
         output = psy.read()
-    assert "MODULE testkern_w0_mod" in str(output)
+    assert "module testkern_w0_mod" in str(output)
 
 
 def test_run_version(capsys):
@@ -135,7 +135,7 @@ def test_run_alg_gen(capsys):
     ''' Check that the kernel_tools run method attempts to generate an
     algorithm layer if requested. '''
     kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "dynamo0p3", "testkern_w0_mod.f90")
+                             "test_files", "lfric", "testkern_w0_mod.f90")
     kernel_tools.run(["-api", "lfric", "-gen", "alg", str(kern_file)])
     out, err = capsys.readouterr()
     assert not err

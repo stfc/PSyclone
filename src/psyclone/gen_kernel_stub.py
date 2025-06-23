@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council
+# Copyright (c) 2017-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,6 +49,7 @@ from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config, LFRIC_API_NAMES
+from psyclone.psyir.backend.fortran import FortranWriter
 
 
 def generate(filename, api=""):
@@ -60,13 +61,13 @@ def generate(filename, api=""):
     Kernel Metadata must be presented in the standard Kernel
     format.
 
-    :param str filename: the name of the file for which to create a \
-                         kernel stub for.
-    :param str api: the name of the API for which to create a kernel \
-                    stub. Must be one of the supported stub APIs.
+    :param str filename: the name of the file for which to create a
+        kernel stub for.
+    :param str api: the name of the API for which to create a kernel
+        stub. Must be one of the supported stub APIs.
 
-    :returns: root of fparser1 parse tree for the stub routine.
-    :rtype: :py:class:`fparser.one.block_statements.Module`
+    :returns: the kernel stub of the metadata in the given kernel file.
+    :rtype: str
 
     :raises GenerationError: if an invalid stub API is specified.
     :raises IOError: if filename does not specify a file.
@@ -97,4 +98,4 @@ def generate(filename, api=""):
     kernel = LFRicKern()
     kernel.load_meta(metadata)
 
-    return kernel.gen_stub
+    return FortranWriter()(kernel.gen_stub)

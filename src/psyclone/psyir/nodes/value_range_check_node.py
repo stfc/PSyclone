@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -85,23 +85,6 @@ class ValueRangeCheckNode(PSyDataNode):
         read_write_info = ctu.get_in_out_parameters(self)
         return {'pre_var_list': read_write_info.read_list,
                 'post_var_list': read_write_info.write_list}
-
-    def gen_code(self, parent, options=None):
-        '''Old style code creation function.
-
-        :param parent: f2pygen node to which to add AST nodes.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-        :param options: a dictionary with options for transformations
-            and validation.
-        :type options: Optional[Dict[str, Any]]
-
-        '''
-        local_options = options.copy() if options else {}
-
-        var_lists_options = self._get_var_lists()
-        local_options.update(var_lists_options)
-
-        super().gen_code(parent, local_options)
 
     def lower_to_language_level(self):
         # pylint: disable=arguments-differ

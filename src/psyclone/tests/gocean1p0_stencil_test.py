@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council
+# Copyright (c) 2018-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 '''Stencil tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
 
-from __future__ import absolute_import
 import os
 import pytest
 

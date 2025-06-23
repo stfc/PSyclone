@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@ include ../../common.mk
 
 GENERATED_FILES = test_alg_mod_psy.f90 testkern_mod.F90 test_alg_mod.[fx]90
 
-LFRIC_PATH = ${PSYCLONE_DIR}/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH = ${PSYCLONE_DIR}/src/psyclone/tests/test_files/lfric/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 

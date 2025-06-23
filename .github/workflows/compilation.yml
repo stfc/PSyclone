@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,14 +51,14 @@ on:
   push
 
 env:
-  CUDA_VERSION: 12.6.3
-  GFORTRAN_VERSION: 14.2.0
+  CUDA_VERSION: 12.9.0
+  GFORTRAN_VERSION: 15.1.0
   HDF5_VERSION: 1.14.5
   NETCDF_C_VERSION: 4.9.2
   NETCDF_FORTRAN_VERSION: 4.6.1
-  NVFORTRAN_VERSION: 24.11
-  OPENMPI_VERSION: 5.0.6
-  PYTHON_VERSION: 3.13.0
+  NVFORTRAN_VERSION: 25.5
+  OPENMPI_VERSION: 5.0.7
+  PYTHON_VERSION: 3.13.3
 
 jobs:
   run_if_on_mirror:
@@ -87,7 +87,7 @@ jobs:
         # Uncomment the below to use the submodule version of fparser rather
         # than the latest release from pypi.
         # pip install external/fparser
-        pip install .[test,psydata]
+        pip install .[test,psydata,doc]
     - name: Unit tests with compilation - gfortran
       run: |
         . .runner_venv/bin/activate
@@ -132,3 +132,9 @@ jobs:
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/LFRic compile
         F90=nvfortran F90FLAGS="-acc -Minfo=all -Mnofma -O2" make -C tutorial/practicals/generic run
         make -C tutorial/practicals/generic/4_openacc acc_test
+    - name: Test logfile creation.
+      run: |
+        . .runner_venv/bin/activate
+        cd examples/nemo/eg1
+        psyclone -s ./openmp_cpu_levels_trans.py --log-level DEBUG --log-file log.out ../code/tra_adv.F90
+        test -f log.out

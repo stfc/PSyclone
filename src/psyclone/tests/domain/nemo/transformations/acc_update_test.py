@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -320,7 +320,7 @@ def test_codeblock(fortran_reader, fortran_writer):
     acc_update.apply(schedule)
     assert isinstance(schedule[1], CodeBlock)
     code = fortran_writer(schedule)
-    assert ('''  !$acc update if_present host(jpi,jpj,jpk,tmask)\n'''
+    assert ('''  !$acc update if_present host(jpi,jpj,jpk,tmask)\n\n'''
             '''  ! PSyclone CodeBlock (unsupported code) reason:\n'''
             '''  !  - Unsupported statement: Open_Stmt\n'''
             '''  !  - Unsupported statement: Read_Stmt\n'''

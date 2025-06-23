@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,7 @@ F90FLAGS += -I $(PSYDATA_PATH)
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../..
-LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/lfric/infrastructure
 LFRIC_NAME = lfric_netcdf
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 

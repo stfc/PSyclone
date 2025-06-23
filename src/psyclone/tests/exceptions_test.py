@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,8 +34,6 @@
 # Author: A. J. Voysey, Met Office
 
 ''' Test exception classes to ensure consistent __repr__ & __str__ methods. '''
-
-from __future__ import absolute_import
 
 import pkgutil
 import inspect

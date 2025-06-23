@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2023-2024, Science and Technology Facilities Council.
+! Copyright (c) 2023-2025, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -34,8 +34,8 @@
 ! Author J. Henrichs, Bureau of Meteorology
 
 !> This module implements a simple binary-file writer using the PSyData
-!! interface. It is specific to the generic NEMO API, i.e. it does 
-!! actually not provide any API-specific types like fields, only standard
+!! interface. It is for handling generic Fortran code, i.e. it does 
+!! not actually provide any API-specific types like fields, only standard
 !! Fortran data types. Therefore, it is just an empty wrapper to around
 !! the ExtractNetcdfBaseType, which provides the standard module name
 !! and class name expected by the extraction scripts.

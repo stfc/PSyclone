@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ import os
 import re
 import pytest
 
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature, VariablesAccessMap
 from psyclone.domain.lfric import (KernCallArgList, LFRicSymbolTable,
                                    LFRicTypes, LFRicKern)
 from psyclone.errors import GenerationError, InternalError
@@ -51,7 +51,7 @@ from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
 from psyclone.psyir.symbols import (
     ArrayType, ScalarType, UnsupportedFortranType)
 from psyclone.tests.utilities import get_base_path, get_invoke
-from psyclone.transformations import Dynamo0p3ColourTrans
+from psyclone.transformations import LFRicColourTrans
 
 TEST_API = "lfric"
 
@@ -102,15 +102,15 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
     kernel = schedule.kernels()[0]
 
     create_arg_list = KernCallArgList(kernel)
-    vai = VariablesAccessInfo()
-    create_arg_list.generate(vai)
+    vam = VariablesAccessMap()
+    create_arg_list.generate(vam)
 
     # Verify that no array expression turns up in the access information
-    assert "cell_map_field2(:,:,cell)" not in str(vai)
-    assert Signature("cell_map_field2") in vai
+    assert "cell_map_field2(:,:,cell)" not in str(vam)
+    assert Signature("cell_map_field2") in vam
 
     assert create_arg_list._arglist == [
-        'nlayers_field2', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
+        'nlayers_field1', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
         'ncpc_field1_field2_y', 'ncell_field1', 'field1_data',
         'field2_data', 'ndf_w1', 'undf_w1', 'map_w1', 'undf_w2',
         'map_w2(:,cell)']
@@ -201,7 +201,7 @@ def test_kerncallarglist_colouring(dist_mem, fortran_writer):
                         TEST_API, dist_mem=dist_mem, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     loops = schedule.walk(Loop)
     ctrans.apply(loops[0])
 
@@ -224,11 +224,11 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
                         TEST_API, dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(schedule.children[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    var_info = VariablesAccessInfo()
+    var_info = VariablesAccessMap()
     create_arg_list.generate(var_accesses=var_info)
     assert str(var_info) == ("a: READ, adjacent_face: READ, cell: READ, "
                              "cmap: READ, colour: READ, f1_data: READ+WRITE, "
@@ -256,7 +256,7 @@ def test_kerncallarglist_evaluator(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(schedule.children[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
@@ -296,7 +296,7 @@ def test_kerncallarglist_stencil(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     ctrans.apply(schedule.children[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
@@ -386,7 +386,7 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
 
     schedule = psy.invokes.invoke_list[0].schedule
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    access_info = VariablesAccessInfo()
+    access_info = VariablesAccessMap()
     create_arg_list.generate(access_info)
     assert create_arg_list._arglist == [
         'cell', 'nlayers_op_a', 'op_a_proxy%ncell_3d', 'op_a_local_stencil',
@@ -496,12 +496,12 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    vai = VariablesAccessInfo()
+    vam = VariablesAccessMap()
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    create_arg_list.generate(vai)
+    create_arg_list.generate(vam)
 
     # Verify that a constant is not returned in the access info list
-    assert "1.0" not in str(vai)
+    assert "1.0" not in str(vam)
 
     assert create_arg_list._arglist == [
         'nlayers_f1', 'f1_data', 'f2_data', 'm1_data',
@@ -561,6 +561,7 @@ def test_indirect_dofmap(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
+    psy.invokes.invoke_list[0].setup_psy_layer_symbols()
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert (create_arg_list._arglist == [
@@ -584,9 +585,6 @@ def test_indirect_dofmap(fortran_writer):
         assert (psyir_args[i].symbol.datatype ==
                 LFRicTypes("LFRicIntegerScalarDataType")())
 
-    # Create a dummy LFRic symbol table to simplify creating
-    # standard LFRic types:
-    dummy_sym_tab = LFRicSymbolTable()
     # Test all 1D real arrays:
     for i in [2, 3]:
         # The datatype of a field reference is of UnsupportedFortranType
@@ -606,16 +604,12 @@ def test_indirect_dofmap(fortran_writer):
     assert len(psyir_args[4].datatype.partial_datatype.shape) == 3
 
     # Test all 1D integer arrays:
-    int_1d = dummy_sym_tab.find_or_create_array("doesnt_matter1dint", 1,
-                                                ScalarType.Intrinsic.INTEGER)
     for i in [15, 19]:
-        assert psyir_args[i].datatype == int_1d.datatype
+        assert "(:)" in psyir_args[i].datatype.declaration
 
     # Test all 2D integer arrays:
-    int_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
-                                                ScalarType.Intrinsic.INTEGER)
     for i in [14, 18]:
-        assert psyir_args[i].symbol.datatype == int_2d.datatype
+        assert "(:,:)" in psyir_args[i].symbol.datatype.declaration
 
 
 def test_ref_element_handling(fortran_writer):
@@ -626,8 +620,8 @@ def test_ref_element_handling(fortran_writer):
 
     schedule = psy.invokes.invoke_list[0].schedule
     create_arg_list = KernCallArgList(schedule.kernels()[0])
-    vai = VariablesAccessInfo()
-    create_arg_list.generate(vai)
+    vam = VariablesAccessMap()
+    create_arg_list.generate(vam)
 
     assert (create_arg_list._arglist == [
         'nlayers_f1', 'f1_data', 'ndf_w1', 'undf_w1', 'map_w1(:,cell)',
@@ -637,7 +631,7 @@ def test_ref_element_handling(fortran_writer):
     assert ("cell: READ, f1_data: READ+WRITE, map_w1: READ, ndf_w1: READ, "
             "nfaces_re_h: READ, nfaces_re_v: READ, nlayers_f1: READ, "
             "normals_to_horiz_faces: READ, normals_to_vert_faces: READ, "
-            "undf_w1: READ" == str(vai))
+            "undf_w1: READ" == str(vam))
 
     check_psyir_results(create_arg_list, fortran_writer)
 
@@ -669,10 +663,10 @@ def test_ref_element_handling(fortran_writer):
     # standard LFRic types:
     dummy_sym_tab = LFRicSymbolTable()
     # Test all 2D integer arrays:
-    int_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
-                                                ScalarType.Intrinsic.INTEGER)
+    i2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
+                                             ScalarType.Intrinsic.INTEGER)
     for i in [4]:
-        assert psyir_args[i].symbol.datatype == int_2d.datatype
+        assert psyir_args[i].symbol.datatype.partial_datatype == i2d.datatype
 
     int_arr_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dreal", 2,
                                                     ScalarType.Intrinsic.REAL)

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020-2024, Science and Technology Facilities Council.
+! Copyright (c) 2020-2025, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: I. Kavcic, Met Office
+! Modified by: J. Dendy, Met Office
 !
 ! -----------------------------------------------------------------------------
 ! A module that creates fields on W0 and W3 function spaces and calls kernels
@@ -59,14 +60,15 @@ contains
 
   !> @brief Creates and initialises fields on W0 and W3 function spaces
   !> @param[in] mesh Partitioned 3D mesh object
-  !> @param[in] element_order Finite-element method (FEM) order
-  subroutine simple_kernels_alg(mesh, element_order)
+  !> @param[in] element_order_h Finite-element method (FEM) order in horizontal
+  !> @param[in] element_order_v Finite-element method (FEM) order in vertical
+  subroutine simple_kernels_alg(mesh, element_order_, element_order_v)
 
     implicit none
 
     ! Input arguments from the driver: Mesh and FEM order
     type(mesh_type), intent(in)        :: mesh
-    integer(i_def),  intent(in)        :: element_order
+    integer(i_def),  intent(in)        :: element_order_h, element_order_v
     ! Function spaces W0 and W3 and fields on them
     type(function_space_type), target  :: fs_w0
     type(function_space_type), target  :: fs_w3
@@ -81,9 +83,11 @@ contains
     call log_event( "simple_kernels_alg: Running algorithm", LOG_LEVEL_INFO )
 
     ! Create W0 and W3 function spaces with single-valued data points
-    fs_w0 = function_space_type( mesh, element_order, W0, ndata_sz )
+    fs_w0 = function_space_type( mesh, element_order_h, element_order_v, &
+                                 W0, ndata_sz )
     fs_w0_ptr => fs_w0
-    fs_w3 = function_space_type( mesh, element_order, W3, ndata_sz )
+    fs_w3 = function_space_type( mesh, element_order_h, element_order_v, &
+                                 W3, ndata_sz )
     fs_w3_ptr => fs_w3
 
     ! Create fields on W0 and W3 function spaces

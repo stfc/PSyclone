@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,13 +45,13 @@ import re
 import os
 import pytest
 
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.domain.lfric import lfric_builtins, LFRicConstants
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata)
 from psyclone.domain.lfric.lfric_builtins import (
     LFRicBuiltInCallFactory, LFRicBuiltIn)
-from psyclone.dynamo0p3 import DynKernelArgument
+from psyclone.lfric import LFRicKernelArgument
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import BuiltInCall, parse
 from psyclone.parse.utils import ParseError
@@ -71,7 +71,7 @@ from psyclone.tests.utilities import get_invoke
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
-    "test_files", "dynamo0p3")
+    "test_files", "lfric")
 
 # The PSyclone API under test
 API = "lfric"
@@ -343,7 +343,7 @@ def test_builtin_no_field_args(monkeypatch):
     # circumstances as PSyclone will complain that the datatype and
     # the metadata do not match. Therefore monkeypatch.
     monkeypatch.setattr(
-        DynKernelArgument, "_init_data_type_properties",
+        LFRicKernelArgument, "_init_data_type_properties",
         dummy_func)
     old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
@@ -383,7 +383,7 @@ def test_builtin_invalid_argument_type(monkeypatch):
     # circumstances as PSyclone will complain that the datatype and
     # the metadata do not match. Therefore monkeypatch.
     monkeypatch.setattr(
-        DynKernelArgument, "_init_data_type_properties",
+        LFRicKernelArgument, "_init_data_type_properties",
         dummy_func)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
@@ -415,7 +415,7 @@ def test_builtin_invalid_data_type(monkeypatch):
     # circumstances as PSyclone will complain that the datatype and
     # the metadata do not match. Therefore monkeypatch.
     monkeypatch.setattr(
-        DynKernelArgument, "_init_data_type_properties",
+        LFRicKernelArgument, "_init_data_type_properties",
         dummy_func)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
@@ -479,7 +479,7 @@ def test_builtin_fld_args_different_data_type(monkeypatch):
     # circumstances as PSyclone will complain that the datatype and
     # the metadata do not match. Therefore monkeypatch.
     monkeypatch.setattr(
-        DynKernelArgument, "_init_data_type_properties",
+        LFRicKernelArgument, "_init_data_type_properties",
         dummy_func)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory(API,
@@ -648,8 +648,7 @@ def test_reference_accesses(monkeypatch):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     loop = psy.invokes.invoke_list[0].schedule[0]
     kern = loop.loop_body[0]
-    var_info = VariablesAccessInfo()
-    kern.reference_accesses(var_info)
+    var_info = kern.reference_accesses()
     # f2_data(df) = a + f1_data(df)
     assert var_info.is_written(Signature("f2_data"))
     assert var_info.is_read(Signature("f1_data"))
@@ -658,7 +657,7 @@ def test_reference_accesses(monkeypatch):
     # is encountered. Use monkeypatch to break one of the existing args.
     monkeypatch.setattr(kern.args[0], "_argument_type", "gh_wrong")
     with pytest.raises(InternalError) as err:
-        kern.reference_accesses(var_info)
+        var_info = kern.reference_accesses()
     assert ("LFRicBuiltin.reference_accesses only supports field and scalar "
             "arguments but got 'f2' of type 'gh_wrong'" in str(err.value))
 
@@ -1953,13 +1952,13 @@ def test_int_to_real_x_precision(tmpdir, kind_name):
     code = str(psy.gen)
 
     # Test code generation
-    assert f"USE constants_mod, ONLY: {kind_name}, i_def" in code
-    assert (f"USE {kind_name}_field_mod, ONLY: {kind_name}_field_type, "
-            f"{kind_name}_field_proxy_type") in code
-    assert f"TYPE({kind_name}_field_type), intent(in) :: f2" in code
-    assert (f"REAL(KIND={kind_name}), pointer, dimension(:) :: "
+    assert "use constants_mod\n" in code
+    assert (f"use {kind_name}_field_mod, only : {kind_name}_field_proxy_type, "
+            f"{kind_name}_field_type") in code
+    assert f"type({kind_name}_field_type), intent(in) :: f2" in code
+    assert (f"real(kind={kind_name}), pointer, dimension(:) :: "
             "f2_data => null()") in code
-    assert f"TYPE({kind_name}_field_proxy_type) f2_proxy" in code
+    assert f"type({kind_name}_field_proxy_type) :: f2_proxy" in code
     assert f"f2_data(df) = REAL(f1_data(df), kind={kind_name})" in code
 
     # Test compilation of generated code
@@ -2010,15 +2009,14 @@ def test_real_to_int_x_precision(monkeypatch, tmpdir, kind_name):
     arg = first_invoke.schedule.children[0].loop_body[0].args[0]
     # Set 'f2_data' to another 'i_<prec>'
     sym_kern = table.lookup_with_tag(f"{arg.name}:data")
-    monkeypatch.setattr(arg, "_precision", f"{kind_name}")
     monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision,
                         "_name", f"{kind_name}")
 
     # Test limited code generation (no equivalent field type)
     code = str(psy.gen)
-    assert f"USE constants_mod, ONLY: r_def, {kind_name}" in code
-    assert (f"INTEGER(KIND={kind_name}), pointer, dimension(:) :: "
-            "f2_data => null()") in code
+    assert "use constants_mod\n" in code
+    assert ("integer(kind=i_def), pointer, dimension(:) :: f2_data => null()"
+            in code)
     assert f"f2_data(df) = INT(f1_data(df), kind={kind_name})" in code
 
     # Test compilation of generated code
@@ -2081,25 +2079,16 @@ def test_real_to_real_x_lowering(monkeypatch, tmpdir, kind_name):
     arg = first_invoke.schedule.children[0].loop_body[0].args[0]
     # Set 'f2_data' to another 'r_<prec>'
     sym_kern = table.lookup_with_tag(f"{arg.name}:data")
-    monkeypatch.setattr(arg, "_precision", f"{kind_name}")
     monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision,
                         "_name", f"{kind_name}")
 
     # Test limited code generation (no equivalent field type)
     code = str(psy.gen)
 
-    # Due to the reverse alphabetical ordering performed by PSyclone,
-    # different cases will arise depending on the substitution
-    if kind_name < 'r_def':
-        assert f"USE constants_mod, ONLY: r_solver, r_def, {kind_name}" in code
-    elif 'r_solver' > kind_name > 'r_def':
-        assert f"USE constants_mod, ONLY: r_solver, {kind_name}, r_def" in code
-    else:
-        assert f"USE constants_mod, ONLY: {kind_name}, r_solver, r_def" in code
+    # Check that the kind constants are imported
+    assert "use constants_mod\n" in code
 
     # Assert correct type is set
-    assert (f"REAL(KIND={kind_name}), pointer, dimension(:) :: "
-            "f2_data => null()") in code
     assert f"f2_data(df) = REAL(f1_data(df), kind={kind_name})" in code
 
     # Test compilation of generated code
@@ -2137,9 +2126,12 @@ def test_field_access_info_for_arrays_in_builtins():
     _, invoke = get_invoke("15.1.8_a_plus_X_builtin_array_of_fields.f90",
                            api=API, idx=0, dist_mem=False)
     schedule = invoke.schedule
-    vai = VariablesAccessInfo(schedule)
+    vam = schedule.reference_accesses()
 
-    assert Signature("f2_data") in vai
+    assert Signature("f2_data") in vam
 
-    assert ("a: READ, df: READ+WRITE, f1_data: READ, f2_data: WRITE, "
-            "loop0_start: READ, loop0_stop: READ" == str(vai))
+    assert (
+        "a: READ, df: READ+WRITE, f1_data: READ, f2_data: WRITE, "
+        "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, r_def: "
+        "NO_DATA_ACCESS, uninitialised_loop0_start: READ, "
+        "uninitialised_loop0_stop: READ" == str(vam))

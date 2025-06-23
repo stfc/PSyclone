@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ designed to be directly run from python.
 '''
 from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (
-    ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans)
+    ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, LFRicColourTrans)
 from psyclone.domain.lfric.function_space import FunctionSpace
 
 

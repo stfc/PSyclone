@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: S. Siso, STFC Daresbury Lab
+# Modified: M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 '''This module contains the unit tests for the LoopTiling2DTrans module'''
@@ -184,11 +185,9 @@ def test_loop_tiling_2d_trans_apply(fortran_reader, fortran_writer):
     result = fortran_writer(outer_loop)
     expected = '''\
 do i_out_var = 1, 100, 32
-  i_el_inner = MIN(i_out_var + (32 - 1), 100)
   do j_out_var = 1, 100, 32
-    do i = i_out_var, i_el_inner, 1
-      j_el_inner = MIN(j_out_var + (32 - 1), 100)
-      do j = j_out_var, j_el_inner, 1
+    do i = i_out_var, MIN(i_out_var + (32 - 1), 100), 1
+      do j = j_out_var, MIN(j_out_var + (32 - 1), 100), 1
         tmp(i,j) = 2 * tmp(i,j)
       enddo
     enddo
@@ -218,11 +217,9 @@ def test_loop_tiling_2d_trans_apply_options(fortran_reader, fortran_writer):
     result = fortran_writer(outer_loop)
     expected = '''\
 do i_out_var = 1, 100, 64
-  i_el_inner = MIN(i_out_var + (64 - 1), 100)
   do j_out_var = 1, 100, 64
-    do i = i_out_var, i_el_inner, 1
-      j_el_inner = MIN(j_out_var + (64 - 1), 100)
-      do j = j_out_var, j_el_inner, 1
+    do i = i_out_var, MIN(i_out_var + (64 - 1), 100), 1
+      do j = j_out_var, MIN(j_out_var + (64 - 1), 100), 1
         tmp(i,j) = 2 * tmp(i,j)
       enddo
     enddo

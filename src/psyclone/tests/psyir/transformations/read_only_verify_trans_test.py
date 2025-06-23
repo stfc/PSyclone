@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,8 +37,6 @@
 
 ''' Module containing tests for ReadOnlyVerifyTrans and ReadOnlyVerifyNode
 '''
-
-from __future__ import absolute_import
 
 import pytest
 
@@ -100,12 +98,12 @@ def test_read_only_options():
     '''Check that options are passed to the ReadOnly Node and trigger
     the use of the newly defined names.
     '''
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean", idx=0, dist_mem=False)
+    psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                             "gocean", idx=0, dist_mem=False)
     read_only = ReadOnlyVerifyTrans()
     read_only.apply(invoke.schedule[0].loop_body[0],
                     options={"region_name": ("a", "b")})
-    code = str(invoke.gen())
+    code = str(psy.gen)
 
     assert 'CALL read_only_verify_psy_data % PreStart("a", "b", 4, 4)' in code
 

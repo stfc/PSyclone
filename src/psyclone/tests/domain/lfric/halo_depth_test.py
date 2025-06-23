@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,11 +34,11 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 
 '''
-pytest tests for the dynamo0p3.HaloDepth class.
+pytest tests for the lfric.HaloDepth class.
 
 '''
 
-from psyclone.dynamo0p3 import HaloDepth
+from psyclone.lfric import HaloDepth
 from psyclone.psyir import symbols, nodes
 from psyclone.tests.utilities import get_invoke
 

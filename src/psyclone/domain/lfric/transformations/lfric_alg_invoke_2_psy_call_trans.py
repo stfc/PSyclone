@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
     PSy-layer routine.
 
     This transformation would normally be written as a lowering method
-    on a LFRicAlgorithmInvokeCall. However, we don't always want to
+    on an LFRicAlgorithmInvokeCall. However, we don't always want to
     lower the code as we want the flexibility to also be able to
     output algorithm-layer code containing invoke's. We therefore need
     to selectively apply the lowering, which is naturally written as a

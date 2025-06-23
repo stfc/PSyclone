@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -679,17 +679,17 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
         "  enddo\n"
         "  do idx_1 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
         "    x(idx_1) = array(idx_1)\n"
-        "  enddo\n"
+        "  enddo\n\n"
         "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "
         "contains the access 'unresolved' which is not a DataSymbol and "
         "therefore cannot be guaranteed to be ScalarType. Resolving the import"
         " that brings this variable into scope may help.\n"
-        "  x(:) = unresolved\n"
+        "  x(:) = unresolved\n\n"
         "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "
         "contains the access 'unsupported' which is an UnsupportedFortran"
         "Type('INTEGER, DIMENSION(:), OPTIONAL :: unsupported') and therefore "
         "cannot be guaranteed to be ScalarType.\n"
-        "  x(:) = unsupported\n"
+        "  x(:) = unsupported\n\n"
         "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "
         "contains the access 'ishtsi(map,scalar)' which is an UnresolvedType "
         "and therefore cannot be guaranteed to be ScalarType.\n"

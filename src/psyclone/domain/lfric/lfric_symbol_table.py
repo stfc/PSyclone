@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@ from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
 class LFRicSymbolTable(SymbolTable):
     # pylint: disable=abstract-method
     '''
-    Sub-classes SymbolTable to provide a LFRic-specific implementation.
+    Sub-classes SymbolTable to provide an LFRic-specific implementation.
 
     :param node: reference to the Schedule or Container to which this \
         symbol table belongs.

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -131,6 +131,18 @@ class InternalError(PSycloneError):
     def __init__(self, value):
         PSycloneError.__init__(self, value)
         self.value = "PSyclone internal error: "+str(value)
+
+
+class DocParseError(PSycloneError):
+    '''
+    PSyclone-specific exception for use when an error is found in a docstring
+    while parsing in the docstring_parser.
+
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value):
+        PSycloneError.__init__(self, value)
+        self.value = "Docstring parsing error: "+str(value)
 
 
 # For Sphinx AutoAPI documentation generation

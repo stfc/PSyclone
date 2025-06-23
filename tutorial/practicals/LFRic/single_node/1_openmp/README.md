@@ -58,7 +58,7 @@ the loops were not parallelised. This information is output from the
 transformation that is used in the `omp_script.py` script:
 
 ```bash
-Transformation Error: Error in DynamoOMPParallelLoopTrans transformation. The kernel has an argument with INC access. Colouring is required.
+Transformation Error: Error in LFRicOMPParallelLoopTrans transformation. The kernel has an argument with INC access. Colouring is required.
 ```
 
 If you take a look at the PSyclone script `omp_script.py` you will see that we
@@ -122,7 +122,7 @@ Add the following code next to the OpenMP parallel loop transformation
 creation (`otrans`)
 
 ```python
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
 ```
 
 and add the following code within the invoke for loop after the
@@ -181,7 +181,7 @@ messages from the transformation saying that it will not parallelise a
 loop that iterates over colours:
 
 ```bash
-Transformation Error: Error in DynamoOMPParallelLoopTrans transformation. The requested loop is over colours and must be computed serially.
+Transformation Error: Error in LFRicOMPParallelLoopTrans transformation. The requested loop is over colours and must be computed serially.
 ```
 
 ## Generated code ##
@@ -213,7 +213,7 @@ object. Valid values are:
 Try setting the value and see if the generated code changes, e.g.:
 
 ```python
-    otrans = DynamoOMPParallelLoopTrans(omp_schedule="dynamic")
+    otrans = LFRicOMPParallelLoopTrans(omp_schedule="dynamic")
 ```
 
 Feel free to try to provide an invalid value, you should get an
@@ -288,7 +288,7 @@ next to the existing ones:
 
 ```python
     ptrans = OMPParallelTrans()
-    ltrans = Dynamo0p3OMPLoopTrans()
+    ltrans = LFRicOMPLoopTrans()
 ```
 
 Replace the following line in the script:

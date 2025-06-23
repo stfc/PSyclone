@@ -16,7 +16,7 @@ There are two parts of this tutorial and each should be done in turn.
 
 *Note:* For more information on the supported LFRic function spaces in
 PSyclone please refer to this PSyclone [user guide section](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces).
+https://psyclone.readthedocs.io/en/latest/lfric.html#supported-function-spaces).
 
 Each kernel in this tutorial performs one simple mathematical operation
 in order to learn how to work with the basic building blocks of an
@@ -145,7 +145,7 @@ however the specific calls may be different).
 1) Create a `W0` function space object with single-valued field data
    points (`ndata_sz`) and initialise a pointer to it
    ```fortran
-   fs_w0 = function_space_type( mesh, element_order, W0, ndata_sz )
+   fs_w0 = function_space_type( mesh, element_order_h, element_order_v, W0, ndata_sz )
    fs_w0_ptr => fs_w0
    ```
 

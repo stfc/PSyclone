@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,7 @@
 # Modified by: R. W. Ford, STFC Daresbury Laboratory.
 #              L. Turner, Met Office
 #              T. Vockerodt, Met Office
+#              J. Dendy, Met Office
 
 '''This module contains the LFRicAlg class which encapsulates tools for
    creating standalone LFRic algorithm-layer code.
@@ -240,7 +241,7 @@ class LFRicAlg:
         '''
         Adds PSyIR to the supplied Routine that declares and intialises
         the specified function spaces. The order of these spaces is
-        set by the element_order variable which is provided by the
+        set by the element_order_<h,v> variables which are provided by the
         LFRic finite_element_config_mod module.
 
         :param prog: the routine to which to add declarations and \
@@ -260,8 +261,12 @@ class LFRicAlg:
         # The order of the finite-element scheme.
         fe_config_mod = table.new_symbol(
             "finite_element_config_mod", symbol_type=ContainerSymbol)
-        order = table.new_symbol(
-            "element_order", tag="element_order",
+        order_h = table.new_symbol(
+            "element_order_h", tag="element_order_h",
+            symbol_type=DataSymbol, datatype=UnresolvedType(),
+            interface=ImportInterface(fe_config_mod))
+        order_v = table.new_symbol(
+            "element_order_v", tag="element_order_v",
             symbol_type=DataSymbol, datatype=UnresolvedType(),
             interface=ImportInterface(fe_config_mod))
 
@@ -292,7 +297,7 @@ class LFRicAlg:
 
             cblock = reader.psyir_from_statement(
                 f"{vsym_ptr.name} => function_space_collection%get_fs( mesh, "
-                f"{order.name}, {space})", table)
+                f"{order_h.name}, {order_v.name}, {space})", table)
 
             prog.addchild(cblock)
 
@@ -395,9 +400,11 @@ class LFRicAlg:
                                            datatype=qr_gaussian_type)
 
         if shape == "gh_quadrature_xyoz":
-            order = table.lookup_with_tag("element_order")
+            order_h = table.lookup_with_tag("element_order_h")
+            order_v = table.lookup_with_tag("element_order_v")
             expr = reader.psyir_from_expression(
-                f"quadrature_xyoz_type({order.name}+3, {qr_rule_sym.name})",
+                f"quadrature_xyoz_type({order_h.name}+3,{order_h.name}+3,"
+                f"{order_v.name}+3,{qr_rule_sym.name})",
                 table)
             prog.addchild(Assignment.create(Reference(qr_sym), expr))
 
@@ -409,14 +416,14 @@ class LFRicAlg:
     def kernel_from_metadata(parse_tree, kernel_name):
         '''
         Given an fparser1 parse tree for an LFRic kernel, creates and returns
-        a LFRicKern object.
+        an LFRicKern object.
 
         :param parse_tree: the fparser1 parse tree for the LFRic kernel.
         :type parse_tree: :py:class:`fparser.one.block_statements.BeginSource`
         :param str kernel_name: the name of the kernel contained in the \
-            supplied parse tree for which a LFRicKern is to be created.
+            supplied parse tree for which an LFRicKern is to be created.
 
-        :returns: a LFRicKern object describing the LFRic kernel.
+        :returns: an LFRicKern object describing the LFRic kernel.
         :rtype: :py:class:`psyclone.domain.lfric.LFRicKern`
 
         :raises ValueError: if an LFRic kernel with the specified name cannot \
@@ -430,7 +437,7 @@ class LFRicAlg:
                 f"Failed to find kernel '{kernel_name}' in supplied "
                 f"code: '{parse_tree}'. Is it a valid LFRic kernel? Original "
                 f"error was '{err}'.") from err
-        # Construct a LFRicKern using the metadata.
+        # Construct an LFRicKern using the metadata.
         kern = LFRicKern()
         kern.load_meta(ktype)
         return kern

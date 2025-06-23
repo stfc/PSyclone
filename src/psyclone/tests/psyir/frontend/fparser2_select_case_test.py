@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -492,41 +492,43 @@ def has_cmp_interface(code):
     generic interface and its 3 implementations are part of a given code.
     '''
 
-    # Check that the generic interface in in the code
-    assert '''interface psyclone_internal_cmp
-    procedure :: psyclone_cmp_int, psyclone_cmp_logical, psyclone_cmp_char
-  end interface psyclone_internal_cmp
+    # Check that the generic interface is in the code
+    assert '''interface test_psyclone_internal_cmp
+    procedure :: test_psyclone_internal_cmp_int, \
+test_psyclone_internal_cmp_logical, \
+test_psyclone_internal_cmp_char
+  end interface test_psyclone_internal_cmp
 ''' in code
 
     # Check that the integer implementation is in the code
-    assert '''function psyclone_cmp_int(op1, op2)
+    assert '''function test_psyclone_internal_cmp_int(op1, op2)
     integer, intent(in) :: op1
     integer, intent(in) :: op2
-    logical :: psyclone_cmp_int
+    logical :: test_psyclone_internal_cmp_int
 
-    psyclone_cmp_int = op1 == op2
+    test_psyclone_internal_cmp_int = op1 == op2
 
-  end function psyclone_cmp_int''' in code
+  end function test_psyclone_internal_cmp_int''' in code
 
     # Check that the char implementation is in the code
-    assert '''function psyclone_cmp_char(op1, op2)
+    assert '''function test_psyclone_internal_cmp_char(op1, op2)
     CHARACTER(LEN = *), INTENT(IN) :: op1
     CHARACTER(LEN = *), INTENT(IN) :: op2
-    logical :: psyclone_cmp_char
+    logical :: test_psyclone_internal_cmp_char
 
-    psyclone_cmp_char = op1 == op2
+    test_psyclone_internal_cmp_char = op1 == op2
 
-  end function psyclone_cmp_char''' in code
+  end function test_psyclone_internal_cmp_char''' in code
 
     # Check that the logical implementation is in the code
-    assert '''function psyclone_cmp_logical(op1, op2)
+    assert '''function test_psyclone_internal_cmp_logical(op1, op2)
     logical, intent(in) :: op1
     logical, intent(in) :: op2
-    logical :: psyclone_cmp_logical
+    logical :: test_psyclone_internal_cmp_logical
 
-    psyclone_cmp_logical = op1 .EQV. op2
+    test_psyclone_internal_cmp_logical = op1 .EQV. op2
 
-  end function psyclone_cmp_logical''' in code
+  end function test_psyclone_internal_cmp_logical''' in code
 
 
 def test_find_or_create_psyclone_internal_cmp(fortran_writer):
@@ -547,16 +549,16 @@ def test_find_or_create_psyclone_internal_cmp(fortran_writer):
 
     # Check that the interface and 3 additional functions have been added to
     # the container
-    assert "psyclone_internal_cmp" in container.symbol_table
-    assert symbol is container.symbol_table.lookup_with_tag(
-            "psyclone_internal_cmp")
+    symtab = container.symbol_table
+    assert "test_psyclone_internal_cmp" in symtab
+    assert symbol is symtab.lookup_with_tag("psyclone_internal_cmp")
     assert symbol.visibility == Symbol.Visibility.PRIVATE
     assert len(container.children) == 4
-    assert (container.symbol_table.lookup("psyclone_cmp_int").visibility
+    assert (symtab.lookup("test_psyclone_internal_cmp_int").visibility
             == Symbol.Visibility.PRIVATE)
-    assert (container.symbol_table.lookup("psyclone_cmp_logical").visibility
+    assert (symtab.lookup("test_psyclone_internal_cmp_logical").visibility
             == Symbol.Visibility.PRIVATE)
-    assert (container.symbol_table.lookup("psyclone_cmp_char").visibility
+    assert (symtab.lookup("test_psyclone_internal_cmp_char").visibility
             == Symbol.Visibility.PRIVATE)
 
     # Check the generated code matches the expected code
@@ -574,19 +576,20 @@ def test_find_or_create_psyclone_internal_cmp(fortran_writer):
     del container.symbol_table.tags_dict['psyclone_internal_cmp']
     another_symbol = _find_or_create_psyclone_internal_cmp(node_in_subroutine)
     assert another_symbol is not symbol
-    assert another_symbol.name == "psyclone_internal_cmp_1"
+    assert another_symbol.name == "test_psyclone_internal_cmp_1"
     assert len(container.children) == 7  # 3 more functions added
-    assert "psyclone_internal_cmp_1" in container.symbol_table
+    assert "test_psyclone_internal_cmp_1" in container.symbol_table
 
     # Check that the interface new names are internally consistent
-    assert '''interface psyclone_internal_cmp_1
-    procedure :: psyclone_cmp_int_1, psyclone_cmp_logical_1, \
-psyclone_cmp_char_1
-  end interface psyclone_internal_cmp_1''' in fortran_writer(container)
+    assert '''interface test_psyclone_internal_cmp_1
+    procedure :: test_psyclone_internal_cmp_int_1, \
+test_psyclone_internal_cmp_logical_1, \
+test_psyclone_internal_cmp_char_1
+  end interface test_psyclone_internal_cmp_1''' in fortran_writer(container)
 
     # And that from now on the tag refers to the new symbol
     assert container.symbol_table.lookup_with_tag(
-            "psyclone_internal_cmp").name == "psyclone_internal_cmp_1"
+            "psyclone_internal_cmp").name == "test_psyclone_internal_cmp_1"
 
 
 def test_expression_case(fortran_reader, fortran_writer):
@@ -646,8 +649,8 @@ def test_unresolved_types_case(fortran_reader, fortran_writer):
     has_cmp_interface(output)
 
     # Check that the canonicalised comparisons use the interface method
-    assert "if (psyclone_internal_cmp(a, b)) then" in output
-    assert "if (psyclone_internal_cmp(a, c)) then" in output
+    assert "if (test_psyclone_internal_cmp(a, b)) then" in output
+    assert "if (test_psyclone_internal_cmp(a, c)) then" in output
 
 
 def test_unresolved_types_case_without_module(fortran_reader):
@@ -720,5 +723,5 @@ def test_derived_types_case(fortran_reader, fortran_writer):
     has_cmp_interface(output)
 
     # Check that the canonicalised comparisons use the interface method
-    assert "if (psyclone_internal_cmp(a%b(i)%c, b%d)) then" in output
-    assert "if (psyclone_internal_cmp(a%b(i)%c, c%a)) then" in output
+    assert "if (test_psyclone_internal_cmp(a%b(i)%c, b%d)) then" in output
+    assert "if (test_psyclone_internal_cmp(a%b(i)%c, c%a)) then" in output

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,6 @@
 
 '''This module tests the Signature class.'''
 
-from __future__ import absolute_import
 import pytest
 
 from psyclone.core import ComponentIndices, Signature

@@ -13,7 +13,7 @@ This example needs two libraries: the gocean infrastructure library
 dl_esm_inf, and a corresponding extraction library. By default
 it will use the infrastructure library in ``../../../../external/dl_esm_inf``
 and automatically compile this library
-(see https://psyclone-dev.readthedocs.io/en/latest/working_practises.html
+(see https://psyclone.readthedocs.io/en/latest/developer_guide/working_practises.html
 for the correct way of checking out all required software) . You can set
 the environment variable ``INF_DIR`` to point to a different directory.
 
@@ -108,7 +108,7 @@ extraction library, these files will be called ``main-update.nc`` and
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2024, Science and Technology Facilities Council.
+Copyright (c) 2020-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

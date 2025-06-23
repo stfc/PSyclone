@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran and c module'''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Assignment, Reference
@@ -79,7 +78,7 @@ def test_nemo_omp_parallel(fortran_reader):
 
     fvisitor = FortranWriter()
     result = fvisitor(schedule)
-    correct = '''!$omp parallel default(shared), private(a,i)
+    correct = '''!$omp parallel default(shared) private(a,i)
   do i = 1, 20, 2
     a = 2 * i
     b(i) = b(i) + a

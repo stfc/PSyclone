@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,9 @@ import pytest
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.tests.utilities import (change_dir, count_lines, Compile,
-                                      CompileError, get_invoke, line_number,
-                                      print_diffs)
+from psyclone.tests.utilities import (
+    change_dir, count_lines, Compile, CompileError, get_invoke,
+    get_infrastructure_path, line_number, print_diffs)
 
 
 HELLO_CODE = '''
@@ -360,3 +360,14 @@ def test_change_directory():
         assert tmp_dir == "/tmp"
 
     assert os.getcwd() == old_dir
+
+
+def test_get_infrastructure_path():
+    '''Tests the get_infrastructure_path() method.'''
+    result = get_infrastructure_path("gocean")
+    assert "dl_esm_inf" in result
+    result = get_infrastructure_path("lfric")
+    assert "lfric" in result
+    with pytest.raises(RuntimeError) as err:
+        _ = get_infrastructure_path("wrong")
+    assert "API 'wrong' is not supported" in str(err.value)

@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,6 @@
 #
 '''Module to test the psyad adjoint base class transformation.'''
 
-from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -97,7 +97,7 @@ def test_gokernelarguments_append():
 
     # And the generated code looks as expected
     generated_code = str(psy.gen)
-    assert "CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data," \
+    assert "call compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data," \
            " var1, var2)" in generated_code
 
 

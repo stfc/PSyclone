@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@
 ''' This module contains the implementation of the abstract ArrayMixin. '''
 
 import abc
+from typing import Tuple
 
 from psyclone.core import SymbolicMaths
 from psyclone.errors import InternalError
@@ -49,6 +50,7 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.member import Member
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
@@ -122,7 +124,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             lists of indices)
         '''
         sig, _ = super().get_signature_and_indices()
-        return (sig, [self.indices[:]])
+        # self.indices now returns a tuple, but we need to return a list here.
+        return (sig, [list(self.indices)])
 
     def _validate_index(self, index):
         '''Utility function that checks that the supplied index is an integer
@@ -526,13 +529,12 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         return False
 
     @property
-    def indices(self):
+    def indices(self) -> Tuple[Node]:
         '''
         Supports semantic-navigation by returning the list of nodes
         representing the index expressions for this array reference.
 
         :returns: the PSyIR nodes representing the array-index expressions.
-        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
         :raises InternalError: if this node has no children or if they are \
                                not valid array-index expressions.
@@ -550,7 +552,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                     f"{idx} of array '{self.name}' must be a psyir.nodes."
                     f"DataNode or Range representing an array-index "
                     f"expression but found '{type(child).__name__}'")
-        return self.children
+        return tuple(self.children)
 
     def _extent(self, idx):
         '''

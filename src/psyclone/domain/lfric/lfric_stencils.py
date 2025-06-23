@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,13 +39,17 @@
 ''' This module implements the stencil information and code generation
     associated with a PSy-layer routine or Kernel stub in the LFRic API.  '''
 
-from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicTypes
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
-from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen,
-                              IfThenGen, TypeDeclGen, UseGen)
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.nodes import (
+    Assignment, Reference, Call, StructureReference, IfBlock, BinaryOperation,
+    Literal, DataNode)
+from psyclone.psyir.symbols import (
+    DataSymbol, UnsupportedFortranType, INTEGER_TYPE,
+    ArgumentInterface, UnresolvedType, ContainerSymbol,
+    ImportInterface, ArrayType, DataTypeSymbol)
 
 
 class LFRicStencils(LFRicCollection):
@@ -54,7 +58,7 @@ class LFRicStencils(LFRicCollection):
     routine or Kernel stub.
 
     :param node: the Invoke or Kernel stub for which to provide stencil info.
-    :type node: :py:class:`psyclone.dynamo0p3.LFRicInvoke` or
+    :type node: :py:class:`psyclone.lfric.LFRicInvoke` or
                 :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises GenerationError: if a literal has been supplied for a stencil
@@ -71,7 +75,7 @@ class LFRicStencils(LFRicCollection):
         self._unique_extent_args = []
         extent_names = []
         # pylint: disable=too-many-nested-blocks
-        for call in self._calls:
+        for call in self.kernel_calls:
             for arg in call.arguments.args:
                 if arg.stencil:
                     # Check for the existence of arg.extent here as in
@@ -92,7 +96,7 @@ class LFRicStencils(LFRicCollection):
         # argument names are removed.
         self._unique_direction_args = []
         direction_names = []
-        for call in self._calls:
+        for call in self.kernel_calls:
             for idx, arg in enumerate(call.arguments.args):
                 if arg.stencil and arg.stencil.direction_arg:
                     if arg.stencil.direction_arg.is_literal():
@@ -111,29 +115,28 @@ class LFRicStencils(LFRicCollection):
         # List of stencil args with an extent variable passed in. The same
         # field name may occur more than once here from different kernels.
         self._kern_args = []
-        for call in self._calls:
+        for call in self.kernel_calls:
             for arg in call.arguments.args:
                 if arg.stencil:
                     if not arg.stencil.extent:
                         self._kern_args.append(arg)
 
-    @staticmethod
-    def extent_value(arg):
+    def extent_value(self, arg) -> DataNode:
         '''
         Returns the content of the stencil extent which may be a literal
         value (a number) or a variable name. This function simplifies this
         problem by returning a string in either case.
 
         :param arg: the argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: the content of the stencil extent.
-        :rtype: str
 
         '''
-        if arg.stencil.extent_arg.is_literal():
-            return arg.stencil.extent_arg.text
-        return arg.stencil.extent_arg.varname
+        extent_arg = arg.stencil.extent_arg
+        if extent_arg.is_literal():
+            return Literal(extent_arg.text, INTEGER_TYPE)
+        return Reference(self.symtab.lookup(extent_arg.varname))
 
     @staticmethod
     def stencil_unique_str(arg, context):
@@ -144,7 +147,7 @@ class LFRicStencils(LFRicCollection):
         to create a unique string.
 
         :param arg: kernel argument with which stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param str context: a context for this stencil (e.g. "size" or
                             "direction").
 
@@ -173,15 +176,14 @@ class LFRicStencils(LFRicCollection):
         supplied kernel argument.
 
         :param arg: kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a valid unique map name for a stencil in the PSy layer.
         :rtype: str
 
         '''
-        root_name = arg.name + "_stencil_map"
         unique = LFRicStencils.stencil_unique_str(arg, "map")
-        return self._symbol_table.find_or_create_tag(unique, root_name).name
+        return self.symtab.lookup_with_tag(unique).name
 
     @staticmethod
     def dofmap_symbol(symtab, arg):
@@ -193,7 +195,7 @@ class LFRicStencils(LFRicCollection):
                        the symbol with this name.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a dofmap symbol for a stencil in the PSy layer.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -201,13 +203,11 @@ class LFRicStencils(LFRicCollection):
         '''
         root_name = arg.name + "_stencil_dofmap"
         unique = LFRicStencils.stencil_unique_str(arg, "dofmap")
-        if arg.descriptor.stencil['type'] == "cross2d":
-            num_dimensions = 4
-        else:
-            num_dimensions = 3
-        return symtab.find_or_create_array(root_name, num_dimensions,
-                                           ScalarType.Intrinsic.INTEGER,
-                                           tag=unique)
+        # The dofmap symbol type depends if it's in a stub or an invoke, so
+        # don't commit to any type yet.
+        return symtab.find_or_create_tag(
+                unique, root_name=root_name, symbol_type=DataSymbol,
+                datatype=UnresolvedType())
 
     @staticmethod
     def dofmap_size_symbol(symtab, arg):
@@ -219,7 +219,7 @@ class LFRicStencils(LFRicCollection):
                        the symbol with this name.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a symbol for the stencil size.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -227,16 +227,14 @@ class LFRicStencils(LFRicCollection):
         '''
         root_name = arg.name + "_stencil_size"
         unique = LFRicStencils.stencil_unique_str(arg, "size")
-        if arg.descriptor.stencil['type'] == "cross2d":
-            num_dimensions = 2
-        else:
-            num_dimensions = 1
-        return symtab.find_or_create_array(root_name, num_dimensions,
-                                           ScalarType.Intrinsic.INTEGER,
-                                           tag=unique)
+        return symtab.find_or_create_tag(
+                unique, root_name=root_name, symbol_type=DataSymbol,
+                # We don't commit to a type because it is different on
+                # Invokes and Stubs
+                datatype=UnresolvedType())
 
     @staticmethod
-    def max_branch_length_name(symtab, arg):
+    def max_branch_length(symtab, arg) -> DataSymbol:
         '''
         Create a valid unique name for the maximum length of a stencil branch
         (in cells) of a 2D stencil dofmap in the PSy layer. This is required
@@ -247,49 +245,16 @@ class LFRicStencils(LFRicCollection):
                        the symbol with this name.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
-        :returns: a Fortran variable name for the max stencil branch length.
-        :rtype: str
+        :returns: the symbol representing the max stencil branch length.
 
         '''
         root_name = arg.name + "_max_branch_length"
         unique = LFRicStencils.stencil_unique_str(arg, "length")
-        return symtab.find_or_create_integer_symbol(root_name, tag=unique).name
-
-    def _unique_max_branch_length_vars(self):
-        '''
-        :returns: list of all the unique max stencil extent argument names in
-                  this kernel call for CROSS2D stencils.
-        :rtype: list of str
-
-        '''
-        names = []
-        for arg in self._kern_args:
-            if arg.descriptor.stencil['type'] == "cross2d":
-                names.append(arg.name + "_max_branch_length")
-
-        return names
-
-    def _declare_unique_max_branch_length_vars(self, parent):
-        '''
-        Declare all unique max branch length arguments as integers with intent
-        'in' and add the declaration as a child of the parent argument passed
-        in.
-
-        :param parent: the node in the f2pygen AST to which to add the
-                       declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("lfric")
-
-        if self._unique_max_branch_length_vars():
-            parent.add(DeclGen(
-                parent, datatype="integer",
-                kind=api_config.default_kind["integer"],
-                entity_decls=self._unique_max_branch_length_vars(), intent="in"
-            ))
+        return symtab.find_or_create_tag(
+                unique, root_name=root_name, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
     @staticmethod
     def direction_name(symtab, arg):
@@ -301,7 +266,7 @@ class LFRicStencils(LFRicCollection):
                        the symbol with this name.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a Fortran variable name for the stencil direction.
         :rtype: str
@@ -309,7 +274,9 @@ class LFRicStencils(LFRicCollection):
         '''
         root_name = arg.name+"_direction"
         unique = LFRicStencils.stencil_unique_str(arg, "direction")
-        return symtab.find_or_create_integer_symbol(root_name, tag=unique).name
+        return symtab.find_or_create_tag(
+                unique, root_name=root_name, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
     @property
     def _unique_extent_vars(self):
@@ -326,7 +293,7 @@ class LFRicStencils(LFRicCollection):
             names = [arg.stencil.extent_arg.varname for arg in
                      self._unique_extent_args]
         elif self._kernel:
-            names = [self.dofmap_size_symbol(self._symbol_table, arg).name
+            names = [LFRicStencils.dofmap_size_symbol(self.symtab, arg).name
                      for arg in self._unique_extent_args]
         else:
             raise InternalError("LFRicStencils._unique_extent_vars: have "
@@ -334,41 +301,40 @@ class LFRicStencils(LFRicCollection):
                                 "impossible.")
         return names
 
-    def _declare_unique_extent_vars(self, parent):
+    def _declare_unique_extent_vars(self):
         '''
-        Declare all unique extent arguments as integers with intent 'in' and
-        add the declaration as a child of the parent argument passed
-        in.
-
-        :param parent: the node in the f2pygen AST to which to add the
-                       declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        Declare all unique extent arguments as integers with intent 'in'.
 
         '''
-        api_config = Config.get().api_conf("lfric")
-
         if self._unique_extent_vars:
             if self._kernel:
                 for arg in self._kern_args:
                     if arg.descriptor.stencil['type'] == "cross2d":
-                        parent.add(DeclGen(
-                            parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            dimension="4",
-                            entity_decls=self._unique_extent_vars, intent="in"
-                        ))
+                        for var in self._unique_extent_vars:
+                            symbol = self.symtab.lookup(var)
+                            symbol.datatype = ArrayType(
+                                    LFRicTypes(
+                                        "LFRicIntegerScalarDataType")(),
+                                    [Literal("4", INTEGER_TYPE)])
+                            symbol.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+                            self.symtab.append_argument(symbol)
                     else:
-                        parent.add(DeclGen(
-                            parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            entity_decls=self._unique_extent_vars,
-                            intent="in"))
+                        for var in self._unique_extent_vars:
+                            symbol = self.symtab.lookup(var)
+                            symbol.datatype = LFRicTypes(
+                                    "LFRicIntegerScalarDataType")()
+                            symbol.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+                            self.symtab.append_argument(symbol)
             elif self._invoke:
-                parent.add(DeclGen(
-                    parent, datatype="integer",
-                    kind=api_config.default_kind["integer"],
-                    entity_decls=self._unique_extent_vars, intent="in"
-                ))
+                for var in self._unique_extent_vars:
+                    symbol = self.symtab.find_or_create(
+                        var, symbol_type=DataSymbol,
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                    symbol.interface = ArgumentInterface(
+                                ArgumentInterface.Access.READ)
+                    self.symtab.append_argument(symbol)
 
     @property
     def _unique_direction_vars(self):
@@ -383,27 +349,23 @@ class LFRicStencils(LFRicCollection):
             if arg.stencil.direction_arg.varname:
                 names.append(arg.stencil.direction_arg.varname)
             else:
-                names.append(arg.name+"_direction")
+                names.append(self.direction_name(self.symtab, arg).name)
         return names
 
-    def _declare_unique_direction_vars(self, parent):
+    def _declare_unique_direction_vars(self):
         '''
-        Declare all unique direction arguments as integers with intent 'in'
-        and add the declaration as a child of the parent argument
-        passed in.
-
-        :param parent: the node in the f2pygen AST to which to add the
-                       declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        Declare all unique direction arguments as integers with intent 'in'.
 
         '''
-        api_config = Config.get().api_conf("lfric")
+        for var in self._unique_direction_vars:
+            symbol = self.symtab.find_or_create(
+                var, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
-        if self._unique_direction_vars:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=self._unique_direction_vars,
-                               intent="in"))
+            if symbol not in self.symtab.argument_list:
+                symbol.interface = ArgumentInterface(
+                            ArgumentInterface.Access.READ)
+                self.symtab.append_argument(symbol)
 
     @property
     def unique_alg_vars(self):
@@ -415,91 +377,95 @@ class LFRicStencils(LFRicCollection):
         '''
         return self._unique_extent_vars + self._unique_direction_vars
 
-    def _invoke_declarations(self, parent):
+    def invoke_declarations(self):
         '''
         Declares all stencil maps, extent and direction arguments passed into
         the PSy layer.
 
-        :param parent: node in the f2pygen AST to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
         '''
-        self._declare_unique_extent_vars(parent)
-        self._declare_unique_direction_vars(parent)
-        self._declare_maps_invoke(parent)
+        super().invoke_declarations()
+        self._declare_unique_extent_vars()
+        self._declare_unique_direction_vars()
+        self._declare_maps_invoke()
 
-    def _stub_declarations(self, parent):
+    def stub_declarations(self):
         '''
         Declares all stencil-related quanitites for a Kernel stub.
 
-        :param parent: node in the f2pygen AST to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
         '''
-        self._declare_unique_extent_vars(parent)
-        self._declare_unique_direction_vars(parent)
-        self._declare_unique_max_branch_length_vars(parent)
-        self._declare_maps_stub(parent)
+        super().stub_declarations()
+        self._declare_unique_extent_vars()
+        self._declare_unique_direction_vars()
+        self._declare_maps_stub()
 
-    def initialise(self, parent):
+    def initialise(self, cursor: int) -> int:
         '''
         Adds in the code to initialise stencil dofmaps to the PSy layer.
 
-        :param parent: the node in the f2pygen AST to which to add the
-                       initialisations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
 
         :raises GenerationError: if an unsupported stencil type is encountered.
 
         '''
         if not self._kern_args:
-            return
+            return cursor
 
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
-        parent.add(CommentGen(parent, ""))
-        api_config = Config.get().api_conf("lfric")
         stencil_map_names = []
         const = LFRicConstants()
+        init_cursor = cursor
         for arg in self._kern_args:
             map_name = self.map_name(arg)
             if map_name not in stencil_map_names:
                 # Only initialise maps once.
                 stencil_map_names.append(map_name)
                 stencil_type = arg.descriptor.stencil['type']
-                symtab = self._symbol_table
+                symtab = self.symtab
                 if stencil_type == "xory1d":
                     direction_name = arg.stencil.direction_arg.varname
                     for direction in ["x", "y"]:
-                        if_then = IfThenGen(parent, direction_name +
-                                            " .eq. " + direction +
-                                            "_direction")
-                        if_then.add(
-                            AssignGen(
-                                if_then, pointer=True, lhs=map_name,
-                                rhs=arg.proxy_name_indexed +
-                                "%vspace%get_stencil_dofmap("
-                                "STENCIL_1D" + direction.upper() +
-                                ","+self.extent_value(arg)+")"))
-                        parent.add(if_then)
+                        condition = BinaryOperation.create(
+                            BinaryOperation.Operator.EQ,
+                            Reference(symtab.lookup(direction_name)),
+                            Reference(symtab.lookup(direction + "_direction")))
+                        lhs = Reference(symtab.lookup(map_name))
+                        rhs = arg.generate_method_call("get_stencil_dofmap")
+                        rhs.addchild(Reference(
+                            symtab.lookup("STENCIL_1D" + direction.upper())))
+                        rhs.addchild(self.extent_value(arg))
+                        stmt = Assignment.create(lhs=lhs, rhs=rhs,
+                                                 is_pointer=True)
+                        ifblock = IfBlock.create(condition, [stmt])
+                        self._invoke.schedule.addchild(ifblock, cursor)
+                        cursor += 1
+
                 elif stencil_type == "cross2d":
-                    parent.add(
-                        AssignGen(parent, pointer=True, lhs=map_name,
-                                  rhs=arg.proxy_name_indexed +
-                                  "%vspace%get_stencil_2D_dofmap(" +
-                                  "STENCIL_2D_CROSS" + "," +
-                                  self.extent_value(arg) + ")"))
+                    lhs = Reference(symtab.lookup(map_name))
+                    rhs = arg.generate_method_call("get_stencil_2D_dofmap")
+                    rhs.addchild(Reference(
+                        symtab.lookup("STENCIL_2D_CROSS")))
+                    rhs.addchild(self.extent_value(arg))
+                    stmt = Assignment.create(lhs=lhs, rhs=rhs,
+                                             is_pointer=True)
+                    self._invoke.schedule.addchild(stmt, cursor)
+                    cursor += 1
+
                     # Max branch length in the CROSS2D stencil is used when
                     # defining the stencil_dofmap dimensions at declaration of
                     # the dummy argument in the kernel. This value is 1
                     # greater than the stencil extent as the central cell
                     # is included as part of the stencil_dofmap.
-                    parent.add(
-                        AssignGen(parent,
-                                  lhs=self.max_branch_length_name(symtab,
-                                                                  arg),
-                                  rhs=self.extent_value(arg) + " + 1_" +
-                                  api_config.default_kind["integer"]))
+                    stmt = Assignment.create(
+                        lhs=Reference(
+                                self.max_branch_length(symtab, arg)),
+                        rhs=BinaryOperation.create(
+                            BinaryOperation.Operator.ADD,
+                            self.extent_value(arg),
+                            Literal("1", INTEGER_TYPE))
+                        )
+                    self._invoke.schedule.addchild(stmt, cursor)
+                    cursor += 1
                 else:
                     try:
                         stencil_name = const.STENCIL_MAPPING[stencil_type]
@@ -509,90 +475,136 @@ class LFRicStencils(LFRicCollection):
                             f"'{arg.descriptor.stencil['type']}' supplied. "
                             f"Supported mappings are "
                             f"{str(const.STENCIL_MAPPING)}") from err
-                    parent.add(
-                        AssignGen(parent, pointer=True, lhs=map_name,
-                                  rhs=arg.proxy_name_indexed +
-                                  "%vspace%get_stencil_dofmap(" +
-                                  stencil_name + "," +
-                                  self.extent_value(arg) + ")"))
 
-                parent.add(AssignGen(parent, pointer=True,
-                                     lhs=self.dofmap_symbol(symtab, arg).name,
-                                     rhs=map_name + "%get_whole_dofmap()"))
+                    rhs = arg.generate_method_call("get_stencil_dofmap")
+                    rhs.addchild(Reference(symtab.lookup(stencil_name)))
+                    rhs.addchild(self.extent_value(arg))
+                    self._invoke.schedule.addchild(
+                        Assignment.create(
+                            lhs=Reference(symtab.lookup(map_name)),
+                            rhs=rhs,
+                            is_pointer=True),
+                        cursor)
+                    cursor += 1
 
-                # Add declaration and look-up of stencil size
-                dofmap_size_name = self.dofmap_size_symbol(symtab, arg).name
-                parent.add(AssignGen(parent, pointer=True,
-                                     lhs=dofmap_size_name,
-                                     rhs=map_name + "%get_stencil_sizes()"))
+                self._invoke.schedule.addchild(
+                    Assignment.create(
+                        lhs=Reference(self.dofmap_symbol(symtab, arg)),
+                        rhs=Call.create(
+                            StructureReference.create(
+                                symtab.lookup(map_name),
+                                ["get_whole_dofmap"])),
+                        is_pointer=True),
+                    cursor)
+                cursor += 1
 
-    def _declare_maps_invoke(self, parent):
+                # Add look-up of stencil size
+                size_symbol = self.dofmap_size_symbol(self.symtab, arg)
+                if arg.descriptor.stencil['type'] == "cross2d":
+                    num_dimensions = 2
+                else:
+                    num_dimensions = 1
+                dim_string = (":," * num_dimensions)[:-1]
+                size_symbol.datatype = UnsupportedFortranType(
+                    f"integer(kind=i_def), pointer, "
+                    f"dimension({dim_string}) :: {size_symbol.name}"
+                    f" => null()")
+                self._invoke.schedule.addchild(
+                    Assignment.create(
+                        lhs=Reference(size_symbol),
+                        rhs=Call.create(
+                            StructureReference.create(
+                                symtab.lookup(map_name),
+                                ["get_stencil_sizes"])),
+                        is_pointer=True),
+                    cursor)
+                cursor += 1
+        if cursor > init_cursor:
+            self._invoke.schedule[init_cursor].preceding_comment = (
+                "Initialise stencil dofmaps")
+        return cursor
+
+    def _declare_maps_invoke(self):
         '''
         Declare all stencil maps in the PSy layer.
-
-        :param parent: the node in the f2pygen AST to which to add
-                       declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         :raises GenerationError: if an unsupported stencil type is encountered.
 
         '''
-        api_config = Config.get().api_conf("lfric")
-
         if not self._kern_args:
             return
 
-        symtab = self._symbol_table
+        symtab = self.symtab
         stencil_map_names = []
         const = LFRicConstants()
 
         for arg in self._kern_args:
-            map_name = self.map_name(arg)
+            unique_tag = LFRicStencils.stencil_unique_str(arg, "map")
 
-            if map_name in stencil_map_names:
+            if unique_tag in stencil_map_names:
                 continue
+            stencil_map_names.append(unique_tag)
 
-            stencil_map_names.append(map_name)
+            symbol = self.symtab.new_symbol(
+                root_name=f"{arg.name}_stencil_map", tag=unique_tag)
+            name = symbol.name
             stencil_type = arg.descriptor.stencil['type']
             if stencil_type == "cross2d":
-                smap_type = const.STENCIL_TYPE_MAP["stencil_2D_dofmap"]["type"]
-                smap_mod = const.STENCIL_TYPE_MAP[
-                    "stencil_2D_dofmap"]["module"]
-                parent.add(UseGen(parent, name=smap_mod, only=True,
-                                  funcnames=[smap_type, "STENCIL_2D_CROSS"]))
-                parent.add(TypeDeclGen(parent, pointer=True,
-                                       datatype=smap_type,
-                                       entity_decls=[map_name +
-                                                     " => null()"]))
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   pointer=True,
-                                   entity_decls=[self.dofmap_symbol(symtab,
-                                                                    arg).name +
-                                                 "(:,:,:,:) => null()"]))
-                dofmap_size_name = self.dofmap_size_symbol(symtab, arg).name
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   pointer=True,
-                                   entity_decls=[f"{dofmap_size_name}(:,:) "
-                                                 f"=> null()"]))
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   entity_decls=[self.max_branch_length_name(
-                                       symtab, arg)]))
+                smap_mod = self.symtab.find_or_create(
+                        const.STENCIL_TYPE_MAP["stencil_2D_dofmap"]["module"],
+                        symbol_type=ContainerSymbol)
+                smap_type = self.symtab.find_or_create(
+                        const.STENCIL_TYPE_MAP["stencil_2D_dofmap"]["type"],
+                        symbol_type=DataTypeSymbol,
+                        datatype=UnresolvedType(),
+                        interface=ImportInterface(smap_mod))
+                self.symtab.find_or_create(
+                        "STENCIL_2D_CROSS",
+                        symbol_type=DataSymbol,
+                        datatype=UnresolvedType(),
+                        interface=ImportInterface(smap_mod))
+
+                dtype = UnsupportedFortranType(
+                    f"type({smap_type.name}), pointer :: {name} => null()")
+                symbol.specialise(subclass=DataSymbol, datatype=dtype)
+
+                dofmap_symbol = self.dofmap_symbol(symtab, arg)
+                dofmap_symbol.datatype = UnsupportedFortranType(
+                    f"integer(kind=i_def), pointer, dimension(:,:,:,:) "
+                    f":: {dofmap_symbol.name} => null()")
             else:
-                smap_type = const.STENCIL_TYPE_MAP["stencil_dofmap"]["type"]
-                smap_mod = const.STENCIL_TYPE_MAP["stencil_dofmap"]["module"]
-                parent.add(UseGen(parent, name=smap_mod,
-                                  only=True, funcnames=[smap_type]))
+                smap_mod = self.symtab.find_or_create(
+                        const.STENCIL_TYPE_MAP["stencil_dofmap"]["module"],
+                        symbol_type=ContainerSymbol)
+                smap_type = self.symtab.find_or_create(
+                        const.STENCIL_TYPE_MAP["stencil_dofmap"]["type"],
+                        symbol_type=DataTypeSymbol,
+                        datatype=UnresolvedType(),
+                        interface=ImportInterface(smap_mod))
                 if stencil_type == 'xory1d':
-                    drct_mod = const.STENCIL_TYPE_MAP["direction"]["module"]
-                    parent.add(UseGen(parent, name=drct_mod,
-                                      only=True, funcnames=["x_direction",
-                                                            "y_direction"]))
-                    parent.add(UseGen(parent, name=smap_mod,
-                                      only=True, funcnames=["STENCIL_1DX",
-                                                            "STENCIL_1DY"]))
+                    drct_mod = self.symtab.find_or_create(
+                            const.STENCIL_TYPE_MAP["direction"]["module"],
+                            symbol_type=ContainerSymbol)
+                    self.symtab.find_or_create(
+                            "x_direction",
+                            symbol_type=DataSymbol,
+                            datatype=UnresolvedType(),
+                            interface=ImportInterface(drct_mod))
+                    self.symtab.find_or_create(
+                            "y_direction",
+                            symbol_type=DataSymbol,
+                            datatype=UnresolvedType(),
+                            interface=ImportInterface(drct_mod))
+                    self.symtab.find_or_create(
+                            "STENCIL_1DX",
+                            symbol_type=DataSymbol,
+                            datatype=UnresolvedType(),
+                            interface=ImportInterface(smap_mod))
+                    self.symtab.find_or_create(
+                            "STENCIL_1DY",
+                            symbol_type=DataSymbol,
+                            datatype=UnresolvedType(),
+                            interface=ImportInterface(smap_mod))
                 else:
                     try:
                         stencil_name = const.STENCIL_MAPPING[stencil_type]
@@ -602,57 +614,58 @@ class LFRicStencils(LFRicCollection):
                             f"'{arg.descriptor.stencil['type']}' supplied. "
                             f"Supported mappings are "
                             f"{const.STENCIL_MAPPING}") from err
-                    parent.add(UseGen(parent, name=smap_mod,
-                                      only=True, funcnames=[stencil_name]))
+                    self.symtab.find_or_create(
+                            stencil_name,
+                            symbol_type=DataSymbol,
+                            datatype=UnresolvedType(),
+                            interface=ImportInterface(smap_mod))
 
-                parent.add(TypeDeclGen(parent, pointer=True,
-                                       datatype=smap_type,
-                                       entity_decls=[map_name+" => null()"]))
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   pointer=True,
-                                   entity_decls=[self.dofmap_symbol(symtab,
-                                                                    arg).name +
-                                                 "(:,:,:) => null()"]))
-                dofmap_size_name = self.dofmap_size_symbol(symtab, arg).name
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   pointer=True,
-                                   entity_decls=[f"{dofmap_size_name}(:) "
-                                                 f"=> null()"]))
+                dtype = UnsupportedFortranType(
+                    f"type({smap_type.name}), pointer :: {name} => null()")
+                symbol.specialise(subclass=DataSymbol, datatype=dtype)
 
-    def _declare_maps_stub(self, parent):
+                dofmap_symbol = self.dofmap_symbol(symtab, arg)
+                dofmap_symbol.datatype = UnsupportedFortranType(
+                    f"integer(kind=i_def), pointer, dimension(:,:,:) "
+                    f":: {dofmap_symbol.name} => null()")
+
+    def _declare_maps_stub(self):
         '''
-        Add declarations for all stencil maps to a kernel stub.
-
-        :param parent: the node in the f2pygen AST representing the kernel
-                       stub routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        Add declarations for all stencil maps to a kernel stub. (Note that
+        the order of arguments will be redefined later on by ArgOrdering)
 
         '''
-        api_config = Config.get().api_conf("lfric")
-
-        symtab = self._symbol_table
+        symtab = self.symtab
         for arg in self._kern_args:
+            symbol = self.dofmap_symbol(symtab, arg)
             if arg.descriptor.stencil['type'] == "cross2d":
-                parent.add(DeclGen(
-                    parent, datatype="integer",
-                    kind=api_config.default_kind["integer"], intent="in",
-                    dimension=",".join([arg.function_space.ndf_name,
-                                        self.max_branch_length_name(
-                                            symtab, arg), "4"]),
-                    entity_decls=[self.dofmap_symbol(symtab, arg).name]))
+                max_length = self.max_branch_length(symtab, arg)
+                if max_length not in symtab.argument_list:
+                    max_length.interface = ArgumentInterface(
+                                ArgumentInterface.Access.READ)
+                    symtab.append_argument(max_length)
+                symbol.datatype = ArrayType(
+                        LFRicTypes("LFRicIntegerScalarDataType")(),
+                        [Reference(symtab.lookup(arg.function_space.ndf_name)),
+                         Reference(max_length),
+                         Literal("4", INTEGER_TYPE)])
             else:
-                dofmap_size_name = self.dofmap_size_symbol(symtab, arg).name
-                parent.add(DeclGen(
-                    parent, datatype="integer",
-                    kind=api_config.default_kind["integer"], intent="in",
-                    dimension=",".join([arg.function_space.ndf_name,
-                                        dofmap_size_name]),
-                    entity_decls=[self.dofmap_symbol(symtab, arg).name]))
+                size_symbol = self.dofmap_size_symbol(self.symtab, arg)
+                size_symbol.datatype = \
+                    LFRicTypes("LFRicIntegerScalarDataType")()
+                size_symbol.interface = ArgumentInterface(
+                                ArgumentInterface.Access.READ)
+                symtab.append_argument(size_symbol)
+                symbol.datatype = ArrayType(
+                        LFRicTypes("LFRicIntegerScalarDataType")(),
+                        [Reference(symtab.lookup(arg.function_space.ndf_name)),
+                         Reference(size_symbol)])
+            symbol.interface = ArgumentInterface(
+                        ArgumentInterface.Access.READ)
+            symtab.append_argument(symbol)
 
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for (see https://psyclone-ref.readthedocs.io).
+# documentation for.
 __all__ = ['LFRicStencils']

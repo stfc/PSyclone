@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 
 ''' This module contains the DataTypeSymbol. '''
 
-from __future__ import absolute_import
 from psyclone.psyir.symbols.symbol import Symbol
 
 
@@ -73,8 +72,11 @@ class DataTypeSymbol(Symbol):
         :rtype: :py:class:`psyclone.psyir.symbols.TypeSymbol`
 
         '''
-        return type(self)(self.name, self.datatype, visibility=self.visibility,
+        copy = type(self)(self.name, self.datatype, visibility=self.visibility,
                           interface=self.interface.copy())
+        copy.preceding_comment = self.preceding_comment
+        copy.inline_comment = self.inline_comment
+        return copy
 
     def __str__(self):
         return f"{self.name}: {type(self).__name__}"
@@ -123,6 +125,35 @@ class DataTypeSymbol(Symbol):
                             f"found '{type(symbol_in).__name__}'.")
         super(DataTypeSymbol, self).copy_properties(symbol_in)
         self._datatype = symbol_in.datatype
+
+    def reference_accesses(self):
+        '''
+        :returns: a map of all the symbol accessed inside this Symbol, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
+
+        '''
+        access_info = super().reference_accesses()
+        access_info.update(self.datatype.reference_accesses())
+        return access_info
+
+    def replace_symbols_using(self, table_or_symbol):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable  (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
+
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
+
+        '''
+        super().replace_symbols_using(table_or_symbol)
+        self.datatype.replace_symbols_using(table_or_symbol)
 
 
 # For automatic documentation generation

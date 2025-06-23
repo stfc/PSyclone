@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council
+# Copyright (c) 2022-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,7 @@ from psyclone.psyir.symbols import DataTypeSymbol, REAL_TYPE, \
 
 
 def test_init_noargs():
-    '''Test that a LFRicKernelMetadata instance can be created
+    '''Test that an LFRicKernelMetadata instance can be created
     successfully when no arguments are provided.
 
     '''
@@ -74,7 +74,7 @@ def test_init_noargs():
 
 
 def test_init_args():
-    '''Test that a LFRicKernelMetadata instance can be created
+    '''Test that an LFRicKernelMetadata instance can be created
     successfully when valid arguments are provided.
 
     '''
@@ -108,7 +108,7 @@ def test_init_args():
 
 
 def test_init_args_error():
-    '''Test that a LFRicKernelMetadata instance raises the expected
+    '''Test that an LFRicKernelMetadata instance raises the expected
     exceptions when invalid argument values are provided.
 
     '''

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council
+# Copyright (c) 2019-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,6 @@ wrapping up settings for generating driver for the extracted code, will
 be added in Issue #298.
 '''
 
-from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
@@ -145,47 +144,6 @@ class ExtractNode(PSyDataNode):
         '''
         return self._post_name
 
-    def gen_code(self, parent):
-        # pylint: disable=arguments-differ
-        '''
-        Generates the code required for extraction of one or more Nodes.
-        It uses the PSyData API (via the base class PSyDataNode) to create
-        the required callbacks that will allow a library to write the
-        kernel data to a file.
-
-        :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`.
-
-        '''
-        if self._read_write_info is None:
-            # Typically, _read_write_info should be set at the constructor,
-            # but some tests do not provide the required information. To
-            # support these tests, allow creation of the read_write info here.
-            # We cannot do this in the constructor, since at construction
-            # time of this node it is not yet part of the PSyIR tree, so it
-            # does not have children from which we can collect the input/output
-            # parameters.
-
-            # Avoid circular dependency
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
-            # Determine the variables to write:
-            ctu = CallTreeUtils()
-            self._read_write_info = \
-                ctu.get_in_out_parameters(self, options=self.options)
-
-        options = {'pre_var_list': self._read_write_info.read_list,
-                   'post_var_list': self._read_write_info.write_list,
-                   'post_var_postfix': self._post_name}
-
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " ExtractStart"))
-        parent.add(CommentGen(parent, ""))
-        super().gen_code(parent, options)
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " ExtractEnd"))
-        parent.add(CommentGen(parent, ""))
-
     def lower_to_language_level(self):
         # pylint: disable=arguments-differ
         '''
@@ -209,8 +167,8 @@ class ExtractNode(PSyDataNode):
             from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
             # Determine the variables to write:
             ctu = CallTreeUtils()
-            self._read_write_info = \
-                ctu.get_in_out_parameters(self, options=self.options)
+            self._read_write_info = ctu.get_in_out_parameters(
+                self, include_non_data_accesses=True)
 
         options = {'pre_var_list': self._read_write_info.read_list,
                    'post_var_list': self._read_write_info.write_list,

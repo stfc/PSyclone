@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 include ../../common.mk
 
 # This defaults to the infrastructure library included in PSyclone
-LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/lfric/infrastructure
 LFRIC_LIB=$(LFRIC_DIR)/liblfric.a
 F90FLAGS += -I$(LFRIC_DIR)
 

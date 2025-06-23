@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council.
+# Copyright (c) 2018-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,8 +51,8 @@ include ../../common.mk
 GENERATED_FILES += psy.f90 psy.o traadv.exe output.dat psyclone.log \
   traldf_iso.F90
 
-F90FLAGS ?= -fopenmp
-LDFLAGS ?= -fopenmp
+F90FLAGS ?= -fopenacc
+LDFLAGS ?= ${F90FLAGS}
 
 .PHONY: allclean
 

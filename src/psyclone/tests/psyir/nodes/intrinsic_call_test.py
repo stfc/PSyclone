@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,6 @@ TODO #2341 - tests need to be added for all of the supported intrinsics.
 
 import pytest
 
-from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes import (
     ArrayReference, Literal, Reference, Schedule, Assignment)
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall, IAttr
@@ -118,7 +117,7 @@ def test_intrinsiccall_is_inquiry():
                 (IntrinsicCall.Intrinsic.ABS, True),
                 (IntrinsicCall.Intrinsic.MIN, True),
                 (IntrinsicCall.Intrinsic.MAX, True),
-                (IntrinsicCall.Intrinsic.MAXVAL, False),
+                (IntrinsicCall.Intrinsic.MAXVAL, True),
                 (IntrinsicCall.Intrinsic.ALLOCATE, False),
                 (IntrinsicCall.Intrinsic.MATMUL, False),
                 (IntrinsicCall.Intrinsic.ACOS, True),
@@ -137,11 +136,11 @@ def test_intrinsiccall_is_inquiry():
                 (IntrinsicCall.Intrinsic.INT, True),
                 (IntrinsicCall.Intrinsic.IOR, True),
                 (IntrinsicCall.Intrinsic.LOG, True),
-                (IntrinsicCall.Intrinsic.LOG10, True),
+                (IntrinsicCall.Intrinsic.LOG10, False),
                 (IntrinsicCall.Intrinsic.MOD, True),
                 (IntrinsicCall.Intrinsic.NINT, True),
                 (IntrinsicCall.Intrinsic.NOT, True),
-                (IntrinsicCall.Intrinsic.REAL, True),
+                (IntrinsicCall.Intrinsic.REAL, False),
                 (IntrinsicCall.Intrinsic.SIGN, True),
                 (IntrinsicCall.Intrinsic.SIN, True),
                 (IntrinsicCall.Intrinsic.SINH, True),
@@ -418,7 +417,7 @@ def test_reference_accesses_bounds(operator, fortran_reader):
     '''Test that the reference_accesses method behaves as expected when
     the reference is the first argument to either the lbound or ubound
     intrinsic as that is simply looking up the array bounds (therefore
-    var_access_info should be empty) and when the reference is the
+    the access is an enquiry) and when the reference is the
     second argument of either the lbound or ubound intrinsic (in which
     case the access should be a read).
 
@@ -434,15 +433,10 @@ def test_reference_accesses_bounds(operator, fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     schedule = psyir.walk(Assignment)[0]
 
-    # By default, the access to 'a' should not be reported as read,
-    # but the access to b must be reported:
-    vai = VariablesAccessInfo(schedule)
-    assert str(vai) == "b: READ, n: WRITE"
-
-    # When explicitly requested, the access to 'a' should be reported:
-    vai = VariablesAccessInfo(schedule,
-                              options={"COLLECT-ARRAY-SHAPE-READS": True})
-    assert str(vai) == "a: READ, b: READ, n: WRITE"
+    # The access to 'a' should be reported as 'NO_DATA_ACCESS' as its
+    # actual data is not accessed.
+    vam = schedule.reference_accesses()
+    assert str(vam) == "a: NO_DATA_ACCESS, b: READ, n: WRITE"
 
 
 def test_enumerator_name_matches_name_field():

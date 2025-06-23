@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,10 @@
 
 ''' This module contains the ScopingNode implementation.'''
 
+from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import RoutineSymbol, SymbolError, SymbolTable
+from psyclone.psyir.symbols import (
+    RoutineSymbol, SymbolError, SymbolTable)
 
 
 class ScopingNode(Node):
@@ -126,8 +128,7 @@ class ScopingNode(Node):
         '''
         # Reorganise the symbol table construction to occur before we add
         # the children.
-        self._symbol_table = other.symbol_table.deep_copy()
-        self._symbol_table._node = self  # Associate to self
+        self._symbol_table = other.symbol_table.deep_copy(self)
 
         # Remove symbols corresponding to Routines that are contained in this
         # ScopingNode. These symbols will be added automatically by the Routine
@@ -155,10 +156,10 @@ class ScopingNode(Node):
                 pass
 
         super(ScopingNode, self)._refine_copy(other)
-        # pylint: disable=protected-access
 
         # Add any routine tags back
         for tag in removed_tags.keys():
+            # pylint: disable-next=protected-access
             self._symbol_table._tags[tag] = self._symbol_table.lookup(
                     removed_tags[tag].name)
 
@@ -170,26 +171,45 @@ class ScopingNode(Node):
         # call to _refine_copy and only do this call when that depth is zero.
         self.replace_symbols_using(self._symbol_table)
 
-    def replace_symbols_using(self, table):
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+
+        '''
+        var_accesses = VariablesAccessMap()
+        # During the updating process when moving a Routine (and its
+        # associated Symbol), it's possible that we won't have a SymbolTable.
+        if self._symbol_table:
+            var_accesses.update(self._symbol_table.reference_accesses())
+        var_accesses.update(super().reference_accesses())
+        return var_accesses
+
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Update any Symbols referenced by this Node (and its descendants) with
-        those in the supplied table with matching names. If there is no match
-        for a given Symbol then it is left unchanged.
+        those in the supplied table (or just the supplied Symbol instance) if
+        they have matching names. If there is no match for a given Symbol then
+        it is left unchanged.
 
         Since this is a ScopingNode, it is associated with a symbol table.
         Therefore, if the supplied table is the one for the scope containing
         this node (if any), the one passed to the child nodes is updated to be
         the one associated with this node.
 
-        :param table: the symbol table in which to look up replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        next_table = table
-        if self.parent:
+        next_table = table_or_symbol
+        if self.parent and isinstance(table_or_symbol, SymbolTable):
             try:
                 # If this node is not within a scope we get a SymbolError
-                if table is self.parent.scope.symbol_table:
+                if table_or_symbol is self.parent.scope.symbol_table:
                     next_table = self.symbol_table
             except SymbolError:
                 pass

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,9 +62,6 @@ class LFRicInvokeSchedule(InvokeSchedule):
                       algorithm layer.
     :type alg_calls: Optional[list of
                               :py:class:`psyclone.parse.algorithm.KernelCall`]
-    :param reserved_names: optional list of names that are not allowed in the
-                           new InvokeSchedule SymbolTable.
-    :type reserved_names: list[str]
     :param parent: the parent of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -73,12 +70,11 @@ class LFRicInvokeSchedule(InvokeSchedule):
     # symbol table.
     _symbol_table_class = LFRicSymbolTable
 
-    def __init__(self, symbol, alg_calls=None, reserved_names=None,
-                 parent=None, **kwargs):
+    def __init__(self, symbol, alg_calls=None, parent=None, **kwargs):
         if not alg_calls:
             alg_calls = []
         super().__init__(symbol, LFRicKernCallFactory,
-                         LFRicBuiltInCallFactory, alg_calls, reserved_names,
+                         LFRicBuiltInCallFactory, alg_calls,
                          parent=parent, **kwargs)
 
     def node_str(self, colour=True):
@@ -97,5 +93,5 @@ class LFRicInvokeSchedule(InvokeSchedule):
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for.
 __all__ = ['LFRicInvokeSchedule']

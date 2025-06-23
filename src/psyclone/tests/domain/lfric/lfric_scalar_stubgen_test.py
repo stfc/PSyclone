@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,14 +41,12 @@ Module containing pytest tests for kernel stub code generation for the
 LFRic scalar arguments.
 '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
 from fparser import api as fpapi
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
                                    LFRicKernMetadata, LFRicScalarArgs)
-from psyclone.f2pygen import ModuleGen
 from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.utils import ParseError
@@ -57,12 +55,12 @@ from psyclone.parse.utils import ParseError
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
-    "test_files", "dynamo0p3")
+    "test_files", "lfric")
 TEST_API = "lfric"
 
 
 def test_lfricscalars_stub_err():
-    ''' Check that LFRicScalarArgs._stub_declarations() raises the
+    ''' Check that LFRicScalarArgs.stub_declarations() raises the
     expected internal error if it encounters an unrecognised data
     type of a scalar argument when generating a kernel stub.
 
@@ -77,7 +75,7 @@ def test_lfricscalars_stub_err():
     arg = kernel.arguments.args[1]
     arg.descriptor._data_type = "gh_invalid_scalar"
     with pytest.raises(InternalError) as err:
-        LFRicScalarArgs(kernel)._stub_declarations(ModuleGen(name="my_mod"))
+        LFRicScalarArgs(kernel).stub_declarations()
     const = LFRicConstants()
     assert (f"Found an unsupported data type 'gh_invalid_scalar' for the "
             f"scalar argument 'iscalar_2'. Supported types are "
@@ -91,39 +89,40 @@ def test_stub_generate_with_scalars():
         os.path.join(BASE_PATH, "testkern_three_scalars_mod.f90"),
         api=TEST_API)
 
-    expected = (
-        "  MODULE testkern_three_scalars_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE testkern_three_scalars_code(nlayers, rscalar_1, "
-        "field_2_w1, field_3_w2, field_4_w2, field_5_w3, lscalar_6, "
-        "iscalar_7, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
-        "ndf_w3, undf_w3, map_w3)\n"
-        "      USE constants_mod\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_w1, undf_w2, undf_w3\n"
-        "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
-        "      INTEGER(KIND=i_def), intent(in) :: iscalar_7\n"
-        "      LOGICAL(KIND=l_def), intent(in) :: lscalar_6\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
-        "field_2_w1\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-        "field_3_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-        "field_4_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: "
-        "field_5_w3\n"
-        "    END SUBROUTINE testkern_three_scalars_code\n"
-        "  END MODULE testkern_three_scalars_mod")
+    expected = """\
+module testkern_three_scalars_mod
+  implicit none
+  public
 
-    assert expected in str(result)
+  contains
+  subroutine testkern_three_scalars_code(nlayers, rscalar_1, field_2_w1, \
+field_3_w2, field_4_w2, field_5_w3, lscalar_6, iscalar_7, ndf_w1, undf_w1, \
+map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)
+    use constants_mod
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
+    integer(kind=i_def), intent(in) :: ndf_w2
+    integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+    integer(kind=i_def), intent(in) :: ndf_w3
+    integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+    integer(kind=i_def), intent(in) :: undf_w1
+    integer(kind=i_def), intent(in) :: undf_w2
+    integer(kind=i_def), intent(in) :: undf_w3
+    real(kind=r_def), intent(in) :: rscalar_1
+    integer(kind=i_def), intent(in) :: iscalar_7
+    logical(kind=l_def), intent(in) :: lscalar_6
+    real(kind=r_def), dimension(undf_w1), intent(inout) :: field_2_w1
+    real(kind=r_def), dimension(undf_w2), intent(in) :: field_3_w2
+    real(kind=r_def), dimension(undf_w2), intent(in) :: field_4_w2
+    real(kind=r_def), dimension(undf_w3), intent(in) :: field_5_w3
+
+
+  end subroutine testkern_three_scalars_code
+
+end module testkern_three_scalars_mod
+"""
+    assert expected == result
 
 
 def test_stub_generate_with_scalar_sums_err():

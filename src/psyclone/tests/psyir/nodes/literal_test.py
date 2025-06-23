@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -144,7 +144,7 @@ def test_literal_init_invalid_3(value):
     with pytest.raises(ValueError) as err:
         Literal(value, INTEGER_SINGLE_TYPE)
     assert (f"A scalar integer literal value must conform to the "
-            f"supported format ('(([+-]?[0-9]+)|(NOT_INITIALISED))') "
+            f"supported format ('([+-]?[0-9]+)') "
             f"but found '{value}'." in str(err.value))
 
 

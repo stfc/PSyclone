@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,14 +40,17 @@
 '''
 
 import abc
+from typing import Dict, List, Union
 
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 from psyclone.psyir.nodes import Schedule, Node
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class RegionTrans(Transformation, metaclass=abc.ABCMeta):
     # Avoid pylint warning about abstract functions (apply, name) not
     # overwritten:
@@ -66,38 +69,40 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
     # populated by sub-class.
     excluded_node_types = ()
 
-    def get_node_list(self, nodes):
+    def get_node_list(self,
+                      nodes: Union[Node, Schedule, List[Node]]) -> List[Node]:
         '''This is a helper function for region based transformations.
         The parameter for any of those transformations is either a single
-        node, a schedule, or a list of nodes. This function converts this
+        Node, a Schedule, or a list of nodes. This function converts this
         into a list of nodes according to the parameter type. This function
         will always return a copy, to avoid issues e.g. if a child list
         of a node should be provided, and a transformation changes the order
         in this list (which would then also change the order of the
         nodes in the tree).
 
+        If `nodes` happens to be a list containing a single Schedule node then
+        the behaviour is the same as if it had been a single Schedule node,
+        i.e. we return a list of that Schedule's children.
+
         :param nodes: can be a single node, a schedule or a list of nodes.
-        :type nodes: Union[:py:obj:`psyclone.psyir.nodes.Node`,
-                           :py:obj:`psyclone.psyir.nodes.Schedule`,
-                           List[:py:obj:`psyclone.psyir.nodes.Node`]
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str,Any]]
 
         :returns: a list of nodes.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
 
-        :raises TransformationError: if the supplied parameter is neither a \
+        :raises TransformationError: if the supplied parameter is neither a
             single Node, nor a Schedule, nor a list of Nodes.
 
         '''
-        if isinstance(nodes, list) and \
-                all(isinstance(node, Node) for node in nodes):
-            # We still need to return a copy, since the user might have
-            # provided Node.children as parameter.
-            return nodes[:]
+        if isinstance(nodes, list):
+            if len(nodes) == 1 and isinstance(nodes[0], Schedule):
+                # We've been passed a list containing a single schedule so
+                # return a list of its children.
+                return nodes[0].children[:]
+            if all(isinstance(node, Node) for node in nodes):
+                # We still need to return a copy, since the user might have
+                # provided Node.children as parameter.
+                return nodes[:]
         if isinstance(nodes, Schedule):
-            # We've been passed a Schedule so default to enclosing its
-            # children.
+            # We've been passed a Schedule so return a list of its children.
             return nodes.children[:]
         if isinstance(nodes, Node):
             # Single node that's not a Schedule
@@ -110,31 +115,47 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
                                   f"in a Schedule but have been passed an "
                                   f"object of type: {arg_type}")
 
-    def validate(self, nodes, options=None):
-        '''Checks that the nodes in node_list are valid for a region
+    def apply(self,
+              nodes: Union[Node, Schedule, List[Node]],
+              node_type_check: bool = True,
+              options: Dict = None,
+              **kwargs):
+        '''
+        Apply the RegionTrans transformation.
+
+        :param nodes: can be a single node, a schedule or a list of nodes.
+        :param node_type_check: whether or not the type of the
+            nodes enclosed in the region should be tested to avoid using
+            unsupported nodes inside a region.
+
+        '''
+        # This method is only here to expose the `node_type_check` option
+        # for sub-classes.
+        self.validate(nodes, node_type_check=node_type_check, options=options,
+                      **kwargs)
+        if options:
+            # TODO #2668 - deprecate options dictionary.
+            node_type_check = options.get("node-type-check", True)
+
+        super().apply(nodes, node_type_check=node_type_check)
+
+    def validate(self,
+                 nodes: Union[Node, Schedule, List[Node]],
+                 options: Dict = None,
+                 **kwargs):
+        '''Checks that the nodes in `nodes` are valid for a region
         transformation.
 
         :param nodes: can be a single node, a schedule or a list of nodes.
-        :type nodes: Union[:py:obj:`psyclone.psyir.nodes.Node`,
-                           :py:obj:`psyclone.psyir.nodes.Schedule`,
-                           List[:py:obj:`psyclone.psyir.nodes.Node`]
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str,Any]]
-        :param bool options["node-type-check"]: this flag controls if the \
-                type of the nodes enclosed in the region should be tested \
-                to avoid using unsupported nodes inside a region.
 
-        :raises TransformationError: if the nodes in the list are not \
-                in the original order in which they are in the AST, \
+        :raises TransformationError: if the nodes in the list are not
+                in the original order in which they are in the AST,
                 a node is duplicated or the nodes have different parents.
-        :raises TransformationError: if any of the nodes to be enclosed in \
+        :raises TransformationError: if any of the nodes to be enclosed in
                 the region are of an unsupported type.
-        :raises TransformationError: if the parent of the supplied Nodes is \
+        :raises TransformationError: if the parent of the supplied Nodes is
                 not a Schedule or a Directive.
-        :raises TransformationError: if the nodes are in a NEMO \
-                Schedule and the transformation acts on the child of a \
-                single-line If or Where statment.
-        :raises TransformationError: if the supplied options are not a \
+        :raises TransformationError: if the supplied options are not a
                 dictionary.
 
         '''
@@ -145,11 +166,16 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
         node_list = self.get_node_list(nodes)
 
         if not options:
-            options = {}
-        if not isinstance(options, dict):
-            raise TransformationError(
-                f"Transformation apply method options argument must be a "
-                f"dictionary but found '{type(options).__name__}'.")
+            self.validate_options(**kwargs)
+            node_type_check = self.get_option("node_type_check", **kwargs)
+        else:
+            # TODO #2668 - deprecate options dictionary.
+            if not isinstance(options, dict):
+                raise TransformationError(
+                    f"Transformation apply method options argument must be a "
+                    f"dictionary but found '{type(options).__name__}'.")
+            node_type_check = options.get("node-type-check", True)
+
         node_parent = node_list[0].parent
         prev_position = -1
         for child in node_list:
@@ -165,7 +191,7 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
             prev_position = child.position
 
         # Check that the proposed region contains only supported node types
-        if options.get("node-type-check", True):
+        if node_type_check:
             for child in node_list:
                 for bad in child.walk(self.excluded_node_types):
                     # Ideally we'd just use `bad.debug_string()` always
@@ -199,8 +225,8 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
         # Sanity check that we've not been passed the condition part of
         # an If statement or the bounds of a Loop. If the parent node is
         # a Loop or IfBlock then we can only accept a single Schedule.
-        if not isinstance(node_parent, Schedule) and \
-                not isinstance(node_list[0], Schedule):
+        if (not isinstance(node_parent, Schedule) and
+                not isinstance(node_list[0], Schedule)):
             # We've already checked for lists with len > 1 that contain a
             # Schedule above so if the first item is a Schedule then that's
             # all the list contains.

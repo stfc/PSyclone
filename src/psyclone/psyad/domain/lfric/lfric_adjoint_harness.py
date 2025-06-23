@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -266,7 +266,7 @@ def _init_fields_random(fields, input_symbols, table):
 
     '''
     idef_sym = table.add_lfric_precision_symbol("i_def")
-    idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
+    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef_sym)
     # We use the setval_random builtin to initialise all fields.
     kernel_list = []
     builtin_factory = LFRicBuiltinFunctorFactory.get()
@@ -606,7 +606,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
                                    datatype=UnresolvedType(),
                                    interface=ImportInterface(adj_mod))
 
-    # Construct a LFRicKern using the metadata and then use it to construct
+    # Construct an LFRicKern using the metadata and then use it to construct
     # the kernel argument list.
     # TODO #1806 - once we have the new PSyIR-based metadata handling then
     # we can pass PSyIR to this routine rather than an fparser1 parse tree.

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2024, Science and Technology Facilities Council.
+# Copyright (c) 2023-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
 
 from dataclasses import dataclass
 
+from psyclone.psyir.symbols.symbol import Symbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 
 
@@ -46,7 +47,8 @@ class GenericInterfaceSymbol(RoutineSymbol):
     different callable routines.
 
     :param str name: name of the interface.
-    :param routines: the routines that this interface provides access to.
+    :param routines: the routines that this interface provides access
+        to and whether or not each of them is a module procedure.
     :type routines: list[tuple[
                              :py:class:`psyclone.psyir.symbols.RoutineSymbol`,
                              bool]]
@@ -69,9 +71,29 @@ class GenericInterfaceSymbol(RoutineSymbol):
 
     def __init__(self, name, routines, **kwargs):
         super().__init__(name, **kwargs)
-        # Use the setter for 'routines' as it performs checking.
         self._routines = []
-        self.routines = routines
+        self._process_arguments(routines=routines,
+                                **kwargs)
+
+    def _process_arguments(self, **kwargs):
+        ''' Process the arguments for the constructor and the specialise
+        methods. In this case the 'routines' argument.
+
+        :param kwargs: keyword arguments which can be:\n
+            :param routines: the routines that this interface provides access
+                to and whether or not each of them is a module procedure.
+            :type routines: list[tuple[
+                 :py:class:`psyclone.psyir.symbols.RoutineSymbol`,
+                 bool]]
+        '''
+
+        if "routines" in kwargs:
+            # Use the setter for 'routines' as it performs checking.
+            self.routines = kwargs.pop("routines")
+        else:
+            self._routines = []
+
+        super()._process_arguments(**kwargs)
 
     @property
     def routines(self):
@@ -166,25 +188,76 @@ class GenericInterfaceSymbol(RoutineSymbol):
                           visibility=self.visibility,
                           interface=self.interface.copy())
 
-    def replace_symbols_using(self, table):
+    def copy_properties(self, symbol_in: RoutineSymbol):
+        '''
+        Copies the properties of the supplied Symbol into this one.
+
+        :param symbol_in: the Symbol to copy properties from.
+
+        '''
+        super().copy_properties(symbol_in)
+        # We must add information on the routines which this interface
+        # can bind to.
+        new_values = []
+        for info in symbol_in.routines:
+            new_sym = info.symbol.copy()
+            if self.is_import:
+                # If this interface symbol is imported then the Routines it
+                # wraps must also be in scope in that same Container. Note that
+                # they may (and probably will) be private to that Container.
+                new_sym.interface = self.interface
+            new_values.append((new_sym, info.from_container))
+        self.routines = new_values
+
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        Before performing any replacement, the supplied symbol is specialised
+        to a RoutineSymbol, if necessary.
+
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         # Construct a new list of RoutineSymbols.
         new_routines = []
         for routine in self.routines:
-            try:
-                new_rt = table.lookup(routine.symbol.name)
-            except KeyError:
-                new_rt = routine.symbol
+            if isinstance(table_or_symbol, Symbol):
+                if table_or_symbol.name.lower() == routine.symbol.name.lower():
+                    new_rt = table_or_symbol
+                else:
+                    new_rt = routine.symbol
+            else:
+                new_rt = table_or_symbol.lookup(routine.symbol.name,
+                                                otherwise=routine.symbol)
+            if not isinstance(new_rt, RoutineSymbol):
+                new_rt.specialise(RoutineSymbol)
             new_routines.append((new_rt, routine.from_container))
         self.routines = new_routines
+
+    def reference_accesses(self):
+        '''
+        :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
+
+        '''
+        access_info = super().reference_accesses()
+
+        # pylint: disable=import-outside-toplevel
+        from psyclone.core import AccessType, Signature
+        for rt_info in self.routines:
+            access_info.add_access(Signature(rt_info.symbol.name),
+                                   AccessType.TYPE_INFO, self)
+        return access_info
 
 
 # For Sphinx AutoAPI documentation generation

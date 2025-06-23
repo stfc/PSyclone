@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 # Modified by J. Henrichs, Bureau of Meteorology
 
 '''
-Module containing tests for the LFRic (Dynamo0.3) constants class.
+Module containing tests for the LFRic constants class.
 '''
 
 import pytest

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -83,7 +83,7 @@ endif
 EXEC = extract.$(TYPE)
 EXTRACT_NAME ?= _extract
 EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
-LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/lfric/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
@@ -94,7 +94,10 @@ LFRIC_INCLUDE_FLAGS += -I$(EXTRACT_DIR)
 
 transform: main_psy.f90 main_alg.f90
 
-compile: transform $(EXEC)
+	
+# TODO #2950 : Restore compilation and execution
+# compile: transform $(EXEC)
+compile: transform
 
 run: compile
 	./$(EXEC)

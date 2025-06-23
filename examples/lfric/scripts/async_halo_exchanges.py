@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council
+# Copyright (c) 2018-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,9 +41,9 @@ in the generator.py script.
 
 '''
 
-from psyclone.dynamo0p3 import LFRicHaloExchange, LFRicHaloExchangeStart
+from psyclone.lfric import LFRicHaloExchange, LFRicHaloExchangeStart
 from psyclone.psyGen import InvokeSchedule
-from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
+from psyclone.transformations import LFRicAsyncHaloExchangeTrans, \
     MoveTrans, TransformationError
 
 
@@ -57,7 +57,7 @@ def trans(psyir):
     '''
     for subroutine in psyir.walk(InvokeSchedule):
         # This transformation splits the three synchronous halo exchanges
-        ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+        ahex_trans = LFRicAsyncHaloExchangeTrans()
         for h_ex in subroutine.walk(LFRicHaloExchange):
             ahex_trans.apply(h_ex)
 

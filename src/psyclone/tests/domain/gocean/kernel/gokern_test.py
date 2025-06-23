@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
 from psyclone.configuration import Config
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern, GOKernelSchedule
 from psyclone.psyir.nodes import Reference
@@ -136,9 +136,9 @@ def test_gok_reference_accesses(fortran_writer):
 
     # Get the first kernel
     kern1 = schedule.walk(GOKern)[0]
-    vai = VariablesAccessInfo(kern1)
-    assert str(vai) == "cu_fld: WRITE, p_fld: READ, u_fld: READ"
-    p_fld = vai[Signature("p_fld")]
+    vam = kern1.reference_accesses()
+    assert str(vam) == "cu_fld: WRITE, p_fld: READ, u_fld: READ"
+    p_fld = vam[Signature("p_fld")]
     # We can't have lists in a set, so we convert the lists to string
     # for easy comparison. Calling `fortran_writer` also ensures that the
     # component indices are PSyIR nodes (not strings)
@@ -183,16 +183,16 @@ def test_gok_access_info_scalar_and_property():
 
     # Get the first kernel
     kern1 = schedule.walk(GOKern)[0]
-    vai = VariablesAccessInfo(kern1)
+    vam = kern1.reference_accesses()
 
     # Check that we get the grid properties listed:
-    assert (str(vai) == "p_fld: READWRITE, "
+    assert (str(vam) == "p_fld: READWRITE, "
             "p_fld%grid%subdomain%internal%xstop: READ, "
             "p_fld%grid%tmask: READ")
 
     # Check that the derived type using tmask has the corresponding component
     # indices specified. No indices for p_fld and grid:
-    tmask = vai[Signature("p_fld%grid%tmask")]
+    tmask = vam[Signature("p_fld%grid%tmask")]
     comp_ind = tmask[0].component_indices
     assert comp_ind[0] == []
     assert comp_ind[1] == []
@@ -202,17 +202,3 @@ def test_gok_access_info_scalar_and_property():
     assert isinstance(comp_ind[2][1], Reference)
     assert comp_ind[2][0].symbol.name == "i"
     assert comp_ind[2][1].symbol.name == "j"
-
-
-# -----------------------------------------------------------------------------
-def test_gok_local_vars():
-    '''Tests the local_var function
-
-    '''
-    _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
-                           "gocean", idx=0)
-    schedule = invoke.schedule
-
-    # Get the first kernel
-    kern1 = schedule.walk(GOKern)[0]
-    assert kern1.local_vars() == []

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
     PSyIR front-end. Also tests the associated utility used to create arguments
     for the LBOUND and UBOUND array-query operations. '''
 
-from __future__ import absolute_import
 import pytest
 from fparser.two.Fortran2003 import Execution_Part
 from fparser.common.readfortran import FortranStringReader

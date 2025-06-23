@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 #
 # All rights reserved.
 #
@@ -58,7 +58,7 @@ def setup():
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
+                         "test_files", "lfric")
 
 
 def test_single_function_invoke():
@@ -79,7 +79,7 @@ def test_single_function_named_invoke():
     ''' Test that we correctly handle a named invoke call '''
     alg, _ = generate(
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     "test_files", "dynamo0p3",
+                     "test_files", "lfric",
                      "1.0.1_single_named_invoke.f90"),
         api="lfric")
     gen = str(alg).lower()
@@ -96,7 +96,7 @@ def test_invoke_named_invoke():
     naming string already begins with "invoke_" '''
     alg, _ = generate(
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     "test_files", "dynamo0p3",
+                     "test_files", "lfric",
                      "1.0.5_invoke_named_invoke.f90"),
         api="lfric")
     gen = str(alg).lower()
@@ -113,7 +113,7 @@ def test_multi_kernel_named_invoke():
     more than one kernel '''
     alg, _ = generate(
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     "test_files", "dynamo0p3",
+                     "test_files", "lfric",
                      "4.9_named_multikernel_invokes.f90"),
         api="lfric")
     gen = str(alg).lower()
@@ -133,7 +133,7 @@ def test_multi_position_named_invoke():
     points in the Invoke argument list '''
     alg, _ = generate(
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     "test_files", "dynamo0p3",
+                     "test_files", "lfric",
                      "4.10_multi_position_named_invokes.f90"),
         api="lfric")
     gen = str(alg).lower()
@@ -359,7 +359,7 @@ def test_deref_derived_type_args():
     type-bound procedure '''
     alg, _ = generate(
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     "test_files", "dynamo0p3",
+                     "test_files", "lfric",
                      "1.6.2_single_invoke_1_int_from_derived_type.f90"),
         api="lfric")
     gen = str(alg).lower()
@@ -379,7 +379,7 @@ def test_multi_deref_derived_type_args():
     different derived types in the same invoke. '''
     alg, _ = generate(
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     "test_files", "dynamo0p3",
+                     "test_files", "lfric",
                      "1.6.3_single_invoke_multiple_derived_types.f90"),
         api="lfric")
     gen = str(alg).lower()

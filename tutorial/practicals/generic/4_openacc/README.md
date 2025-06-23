@@ -50,7 +50,7 @@ and GPU.
 The simplest way to add OpenACC directives to a code is often to use
 the KERNELS directive - this instructs the compiler to automatically
 parallelise any loop nests within the marked-up region. In PSyclone
-this is achieved by applying the [`ACCKernelsTrans`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1psyir_1_1transformations_1_1acc__kernels__trans_1_1ACCKernelsTrans.html)
+this is achieved by applying the [`ACCKernelsTrans`](https://psyclone.readthedocs.io/en/latest/html/classpsyclone_1_1psyir_1_1transformations_1_1acc__kernels__trans_1_1ACCKernelsTrans.html)
 transformation to suitable regions of the code. The advantage of this
 approach is that it minimises the number of directives that must be
 inserted and makes use of the compiler's own dependency analysis to
@@ -242,7 +242,7 @@ either the CPU or GPU cause the necessary memory
 to be moved automatically to the correct location).
 
 Explicit data movement can be controlled using OpenACC Data Regions and
-PSyclone can create these using the [`ACCDataTrans`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCDataTrans.html)
+PSyclone can create these using the [`ACCDataTrans`](https://psyclone.readthedocs.io/en/latest/html/classpsyclone_1_1transformations_1_1ACCDataTrans.html)
 transformation. A data region can be used to keep data on the GPU
 between various kernel invocations.
 

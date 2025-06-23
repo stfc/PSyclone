@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,10 +37,14 @@
 ''' Performs py.test tests on the ScopingNode PSyIR node. '''
 
 import pytest
-from psyclone.psyir.nodes import (Schedule, Assignment, Reference, Container,
-                                  Loop, Literal, Routine, ArrayReference)
-from psyclone.psyir.symbols import (DataSymbol, ArrayType, INTEGER_TYPE,
-                                    ArgumentInterface, SymbolTable, REAL_TYPE)
+from psyclone.core import Signature
+from psyclone.psyir.nodes import (
+    Schedule, Assignment, Reference, Container, Loop, Literal,
+    Routine, ArrayReference)
+from psyclone.psyir.symbols import (
+    ArrayType, ArgumentInterface, DataSymbol, DataTypeSymbol,
+    INTEGER_TYPE, REAL_TYPE, ScalarType, StructureType, Symbol,
+    SymbolTable, UnsupportedFortranType)
 from psyclone.tests.utilities import Compile
 
 
@@ -275,3 +279,108 @@ def test_scoping_node_equality():
 
     assert sched1 == sched2
     assert sched1 != sched3
+
+
+def test_scoping_node_reference_accesses():
+    '''Test the reference_accesses() method of ScopingNode.'''
+    sched = Schedule()
+    table = sched.symbol_table
+    # First test with an empty symbol table.
+    vam = sched.reference_accesses()
+    assert not vam.all_signatures
+    # Just adding a Symbol to the table does not affect anything.
+    prsym = table.new_symbol("r_def", symbol_type=DataSymbol,
+                             datatype=INTEGER_TYPE)
+    vam = sched.reference_accesses()
+    assert not vam.all_signatures
+    # Add another Symbol that references the first one in its precision.
+    new_type = ScalarType(ScalarType.Intrinsic.REAL, prsym)
+    _ = table.new_symbol("var1", symbol_type=DataSymbol, datatype=new_type)
+    vam = sched.reference_accesses()
+    assert vam.all_signatures == [Signature("r_def")]
+    assert not vam[Signature("r_def")].has_data_access()
+    # Add a Symbol with initialisation.
+    idef = table.new_symbol("i_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
+    _ = table.new_symbol("var2", symbol_type=DataSymbol,
+                         datatype=INTEGER_TYPE,
+                         is_constant=True,
+                         initial_value=Literal("100", int_type))
+    vam = sched.reference_accesses()
+    assert len(vam.all_signatures) == 2
+    assert Signature("i_def") in vam.all_signatures
+    assert not vam[Signature("i_def")].has_data_access()
+
+
+def test_reference_accesses_struct():
+    '''Test reference_accesses() when the associated SymbolTable contains
+    a StructureType.
+
+    '''
+    sched = Schedule()
+    table = sched.symbol_table
+    idef = table.new_symbol("i_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
+    real_type = ScalarType(ScalarType.Intrinsic.INTEGER, rdef)
+    stype = StructureType.create([
+        ("iflag", int_type, Symbol.Visibility.PRIVATE, None),
+        ("rmask", real_type, Symbol.Visibility.PUBLIC,
+         Literal("100", real_type))])
+    ssym = DataTypeSymbol("my_type", stype)
+    table.add(ssym)
+    vai3 = sched.reference_accesses()
+    assert len(vai3.all_signatures) == 2
+    assert Signature("i_def") in vai3.all_signatures
+    assert Signature("r_def") in vai3.all_signatures
+
+
+def test_reference_accesses_array():
+    '''Test reference_accesses() when the associated SymbolTable contains
+    an array with dimensions that make reference to another Symbol.
+
+    '''
+    sched = Schedule()
+    table = sched.symbol_table
+    idef = table.new_symbol("i_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
+    real_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
+    var2 = table.new_symbol("var2", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE, is_constant=True,
+                            initial_value=Literal("100", int_type))
+    atype = ArrayType(real_type, [Reference(var2)])
+    _ = table.new_symbol("var3", symbol_type=DataSymbol, datatype=atype)
+    vam = sched.reference_accesses()
+    assert Signature("i_def") in vam.all_signatures
+    assert Signature("r_def") in vam.all_signatures
+    assert Signature("var2") in vam.all_signatures
+
+
+def test_reference_accesses_unknown_type():
+    '''Test reference_accesses() when the symbol table contains a symbol
+    of UnsupportedFortranType but with partial type information.
+
+    '''
+    sched = Schedule()
+    table = sched.symbol_table
+    # Create partial type information - an array of specified precision
+    # with an extent specified by another symbol.
+    rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    big_sym = table.new_symbol("big", symbol_type=DataSymbol,
+                               datatype=INTEGER_TYPE)
+    real_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
+    ptype = ArrayType(real_type, [Reference(big_sym)])
+    utype = UnsupportedFortranType(
+        "real(r_def), dimension(big), target :: array",
+        partial_datatype=ptype)
+    table.new_symbol("array", symbol_type=DataSymbol, datatype=utype)
+    vam = sched.reference_accesses()
+    assert Signature("r_def") in vam.all_signatures
+    assert Signature("big") in vam.all_signatures

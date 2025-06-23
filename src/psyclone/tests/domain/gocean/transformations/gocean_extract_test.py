@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council
+# Copyright (c) 2019-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -224,46 +224,52 @@ def test_single_node_ompparalleldo_gocean1p0():
 
     code = str(psy.gen)
     output = """
-      CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-      """"invoke_0-compute_cv_code-r0", 6, 3)
-      CALL extract_psy_data % PreDeclareVariable("cv_fld%internal%xstart", """ \
-                                               """cv_fld % internal % xstart)
-      CALL extract_psy_data % PreDeclareVariable("cv_fld%internal%xstop", """ \
-                                               """cv_fld % internal % xstop)
-      CALL extract_psy_data % PreDeclareVariable("cv_fld%internal%ystart", """ \
-                                               """cv_fld % internal % ystart)
-      CALL extract_psy_data % PreDeclareVariable("cv_fld%internal%ystop", """ \
-                                               """cv_fld % internal % ystop)
-      CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
-      CALL extract_psy_data % PreDeclareVariable("v_fld", v_fld)
-      CALL extract_psy_data % PreDeclareVariable("cv_fld_post", cv_fld)
-      CALL extract_psy_data % PreDeclareVariable("i_post", i)
-      CALL extract_psy_data % PreDeclareVariable("j_post", j)
-      CALL extract_psy_data % PreEndDeclaration
-      CALL extract_psy_data % ProvideVariable("cv_fld%internal%xstart", """ \
-                                            """cv_fld % internal % xstart)
-      CALL extract_psy_data % ProvideVariable("cv_fld%internal%xstop", """ \
-                                            """cv_fld % internal % xstop)
-      CALL extract_psy_data % ProvideVariable("cv_fld%internal%ystart", """ \
-                                            """cv_fld % internal % ystart)
-      CALL extract_psy_data % ProvideVariable("cv_fld%internal%ystop", """ \
-                                            """cv_fld % internal % ystop)
-      CALL extract_psy_data % ProvideVariable("p_fld", p_fld)
-      CALL extract_psy_data % ProvideVariable("v_fld", v_fld)
-      CALL extract_psy_data % PreEnd
-      !$omp parallel do default(shared), private(i,j), schedule(static)
-      DO j = cv_fld%internal%ystart, cv_fld%internal%ystop, 1
-        DO i = cv_fld%internal%xstart, cv_fld%internal%xstop, 1
-          CALL compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
-        END DO
-      END DO
-      !$omp end parallel do
-      CALL extract_psy_data % PostStart
-      CALL extract_psy_data % ProvideVariable("cv_fld_post", cv_fld)
-      CALL extract_psy_data % ProvideVariable("i_post", i)
-      CALL extract_psy_data % ProvideVariable("j_post", j)
-      CALL extract_psy_data % PostEnd
-      """
+    CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
+    """"invoke_0-compute_cv_code-r0", 9, 3)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld%internal%xstart", """ \
+                                             """cv_fld % internal % xstart)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld%internal%xstop", """ \
+                                             """cv_fld % internal % xstop)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld%internal%ystart", """ \
+                                             """cv_fld % internal % ystart)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld%internal%ystop", """ \
+                                             """cv_fld % internal % ystop)
+    CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
+    CALL extract_psy_data % PreDeclareVariable("v_fld", v_fld)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld", cv_fld)
+    CALL extract_psy_data % PreDeclareVariable("i", i)
+    CALL extract_psy_data % PreDeclareVariable("j", j)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_post", cv_fld)
+    CALL extract_psy_data % PreDeclareVariable("i_post", i)
+    CALL extract_psy_data % PreDeclareVariable("j_post", j)
+    CALL extract_psy_data % PreEndDeclaration
+    CALL extract_psy_data % ProvideVariable("cv_fld%internal%xstart", """ \
+                                          """cv_fld % internal % xstart)
+    CALL extract_psy_data % ProvideVariable("cv_fld%internal%xstop", """ \
+                                          """cv_fld % internal % xstop)
+    CALL extract_psy_data % ProvideVariable("cv_fld%internal%ystart", """ \
+                                          """cv_fld % internal % ystart)
+    CALL extract_psy_data % ProvideVariable("cv_fld%internal%ystop", """ \
+                                          """cv_fld % internal % ystop)
+    CALL extract_psy_data % ProvideVariable("p_fld", p_fld)
+    CALL extract_psy_data % ProvideVariable("v_fld", v_fld)
+    CALL extract_psy_data % ProvideVariable("cv_fld", cv_fld)
+    CALL extract_psy_data % ProvideVariable("i", i)
+    CALL extract_psy_data % ProvideVariable("j", j)
+    CALL extract_psy_data % PreEnd
+    !$omp parallel do default(shared) private(i,j) schedule(static)
+    do j = cv_fld%internal%ystart, cv_fld%internal%ystop, 1
+      do i = cv_fld%internal%xstart, cv_fld%internal%xstop, 1
+        call compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
+      enddo
+    enddo
+    !$omp end parallel do
+    CALL extract_psy_data % PostStart
+    CALL extract_psy_data % ProvideVariable("cv_fld_post", cv_fld)
+    CALL extract_psy_data % ProvideVariable("i_post", i)
+    CALL extract_psy_data % ProvideVariable("j_post", j)
+    CALL extract_psy_data % PostEnd
+    """
     assert output in code
 
 
@@ -296,34 +302,40 @@ def test_single_node_ompparalleldo_gocean1p0_const_loop():
 
     code = str(psy.gen)
     output = """
-      CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-      """"invoke_0-compute_cv_code-r0", 4, 3)
-      CALL extract_psy_data % PreDeclareVariable("istop", istop)
-      CALL extract_psy_data % PreDeclareVariable("jstop", jstop)
-      CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
-      CALL extract_psy_data % PreDeclareVariable("v_fld", v_fld)
-      CALL extract_psy_data % PreDeclareVariable("cv_fld_post", cv_fld)
-      CALL extract_psy_data % PreDeclareVariable("i_post", i)
-      CALL extract_psy_data % PreDeclareVariable("j_post", j)
-      CALL extract_psy_data % PreEndDeclaration
-      CALL extract_psy_data % ProvideVariable("istop", istop)
-      CALL extract_psy_data % ProvideVariable("jstop", jstop)
-      CALL extract_psy_data % ProvideVariable("p_fld", p_fld)
-      CALL extract_psy_data % ProvideVariable("v_fld", v_fld)
-      CALL extract_psy_data % PreEnd
-      !$omp parallel do default(shared), private(i,j), schedule(static)
-      DO j = 2, jstop + 1, 1
-        DO i = 2, istop, 1
-          CALL compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
-        END DO
-      END DO
-      !$omp end parallel do
-      CALL extract_psy_data % PostStart
-      CALL extract_psy_data % ProvideVariable("cv_fld_post", cv_fld)
-      CALL extract_psy_data % ProvideVariable("i_post", i)
-      CALL extract_psy_data % ProvideVariable("j_post", j)
-      CALL extract_psy_data % PostEnd
-      """
+    CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
+    """"invoke_0-compute_cv_code-r0", 7, 3)
+    CALL extract_psy_data % PreDeclareVariable("istop", istop)
+    CALL extract_psy_data % PreDeclareVariable("jstop", jstop)
+    CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
+    CALL extract_psy_data % PreDeclareVariable("v_fld", v_fld)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld", cv_fld)
+    CALL extract_psy_data % PreDeclareVariable("i", i)
+    CALL extract_psy_data % PreDeclareVariable("j", j)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_post", cv_fld)
+    CALL extract_psy_data % PreDeclareVariable("i_post", i)
+    CALL extract_psy_data % PreDeclareVariable("j_post", j)
+    CALL extract_psy_data % PreEndDeclaration
+    CALL extract_psy_data % ProvideVariable("istop", istop)
+    CALL extract_psy_data % ProvideVariable("jstop", jstop)
+    CALL extract_psy_data % ProvideVariable("p_fld", p_fld)
+    CALL extract_psy_data % ProvideVariable("v_fld", v_fld)
+    CALL extract_psy_data % ProvideVariable("cv_fld", cv_fld)
+    CALL extract_psy_data % ProvideVariable("i", i)
+    CALL extract_psy_data % ProvideVariable("j", j)
+    CALL extract_psy_data % PreEnd
+    !$omp parallel do default(shared) private(i,j) schedule(static)
+    do j = 2, jstop + 1, 1
+      do i = 2, istop, 1
+        call compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
+      enddo
+    enddo
+    !$omp end parallel do
+    CALL extract_psy_data % PostStart
+    CALL extract_psy_data % ProvideVariable("cv_fld_post", cv_fld)
+    CALL extract_psy_data % ProvideVariable("i_post", i)
+    CALL extract_psy_data % ProvideVariable("j_post", j)
+    CALL extract_psy_data % PostEnd
+    """
     assert output in code
 
 
@@ -359,47 +371,55 @@ def test_node_list_ompparallel_gocean1p0():
 
     code = str(psy.gen)
     output = """
-      CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-      """"invoke_0-r0", 5, 4)
-      CALL extract_psy_data % PreDeclareVariable("istop", istop)
-      CALL extract_psy_data % PreDeclareVariable("jstop", jstop)
-      CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
-      CALL extract_psy_data % PreDeclareVariable("u_fld", u_fld)
-      CALL extract_psy_data % PreDeclareVariable("v_fld", v_fld)
-      CALL extract_psy_data % PreDeclareVariable("cu_fld_post", cu_fld)
-      CALL extract_psy_data % PreDeclareVariable("cv_fld_post", cv_fld)
-      CALL extract_psy_data % PreDeclareVariable("i_post", i)
-      CALL extract_psy_data % PreDeclareVariable("j_post", j)
-      CALL extract_psy_data % PreEndDeclaration
-      CALL extract_psy_data % ProvideVariable("istop", istop)
-      CALL extract_psy_data % ProvideVariable("jstop", jstop)
-      CALL extract_psy_data % ProvideVariable("p_fld", p_fld)
-      CALL extract_psy_data % ProvideVariable("u_fld", u_fld)
-      CALL extract_psy_data % ProvideVariable("v_fld", v_fld)
-      CALL extract_psy_data % PreEnd
-      !$omp parallel default(shared), private(i,j)
-      !$omp do schedule(static)
-      DO j = 2, jstop, 1
-        DO i = 2, istop + 1, 1
-          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        END DO
-      END DO
-      !$omp end do
-      !$omp do schedule(static)
-      DO j = 2, jstop + 1, 1
-        DO i = 2, istop, 1
-          CALL compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
-        END DO
-      END DO
-      !$omp end do
-      !$omp end parallel
-      CALL extract_psy_data % PostStart
-      CALL extract_psy_data % ProvideVariable("cu_fld_post", cu_fld)
-      CALL extract_psy_data % ProvideVariable("cv_fld_post", cv_fld)
-      CALL extract_psy_data % ProvideVariable("i_post", i)
-      CALL extract_psy_data % ProvideVariable("j_post", j)
-      CALL extract_psy_data % PostEnd
-      """
+    CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
+    """"invoke_0-r0", 9, 4)
+    CALL extract_psy_data % PreDeclareVariable("istop", istop)
+    CALL extract_psy_data % PreDeclareVariable("jstop", jstop)
+    CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
+    CALL extract_psy_data % PreDeclareVariable("u_fld", u_fld)
+    CALL extract_psy_data % PreDeclareVariable("v_fld", v_fld)
+    CALL extract_psy_data % PreDeclareVariable("cu_fld", cu_fld)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld", cv_fld)
+    CALL extract_psy_data % PreDeclareVariable("i", i)
+    CALL extract_psy_data % PreDeclareVariable("j", j)
+    CALL extract_psy_data % PreDeclareVariable("cu_fld_post", cu_fld)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_post", cv_fld)
+    CALL extract_psy_data % PreDeclareVariable("i_post", i)
+    CALL extract_psy_data % PreDeclareVariable("j_post", j)
+    CALL extract_psy_data % PreEndDeclaration
+    CALL extract_psy_data % ProvideVariable("istop", istop)
+    CALL extract_psy_data % ProvideVariable("jstop", jstop)
+    CALL extract_psy_data % ProvideVariable("p_fld", p_fld)
+    CALL extract_psy_data % ProvideVariable("u_fld", u_fld)
+    CALL extract_psy_data % ProvideVariable("v_fld", v_fld)
+    CALL extract_psy_data % ProvideVariable("cu_fld", cu_fld)
+    CALL extract_psy_data % ProvideVariable("cv_fld", cv_fld)
+    CALL extract_psy_data % ProvideVariable("i", i)
+    CALL extract_psy_data % ProvideVariable("j", j)
+    CALL extract_psy_data % PreEnd
+    !$omp parallel default(shared) private(i,j)
+    !$omp do schedule(static)
+    do j = 2, jstop, 1
+      do i = 2, istop + 1, 1
+        call compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+      enddo
+    enddo
+    !$omp end do
+    !$omp do schedule(static)
+    do j = 2, jstop + 1, 1
+      do i = 2, istop, 1
+        call compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
+      enddo
+    enddo
+    !$omp end do
+    !$omp end parallel
+    CALL extract_psy_data % PostStart
+    CALL extract_psy_data % ProvideVariable("cu_fld_post", cu_fld)
+    CALL extract_psy_data % ProvideVariable("cv_fld_post", cv_fld)
+    CALL extract_psy_data % ProvideVariable("i_post", i)
+    CALL extract_psy_data % ProvideVariable("j_post", j)
+    CALL extract_psy_data % PostEnd
+    """
     assert output in code
 
 
@@ -610,7 +630,7 @@ def test_rename_region():
                   'region_name': ("main", "update")})
 
     # Test that the extraction code contains the right names
-    assert 'CALL extract_psy_data % PreStart("main", "update", 8, 3)' \
+    assert 'CALL extract_psy_data % PreStart("main", "update", 10, 3)' \
         in str(psy.gen)
 
     # Now test if the created driver has the right name, and will open the
@@ -648,7 +668,7 @@ def test_change_prefix(monkeypatch, dist_mem):
 
     # Test that the extraction code contains the new prefix:
     gen = str(psy.gen)
-    assert 'CALL NEW_psy_data % PreStart("main", "update", 8, 3)' \
+    assert 'CALL NEW_psy_data % PreStart("main", "update", 10, 3)' \
         in gen
 
     # Now test if the created driver has the right prefix:
