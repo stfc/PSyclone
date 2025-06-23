@@ -119,7 +119,7 @@ def test_intrinsiccall_is_inquiry():
                 (IntrinsicCall.Intrinsic.MAX, True),
                 (IntrinsicCall.Intrinsic.MAXVAL, True),
                 (IntrinsicCall.Intrinsic.ALLOCATE, False),
-                (IntrinsicCall.Intrinsic.MATMUL, True),
+                (IntrinsicCall.Intrinsic.MATMUL, False),
                 (IntrinsicCall.Intrinsic.ACOS, True),
                 (IntrinsicCall.Intrinsic.AINT, True),
                 (IntrinsicCall.Intrinsic.ANINT, True),
