@@ -803,11 +803,13 @@ class IntrinsicCall(Call):
             # even with the -gpu=uniform_math flag, ideally it should be
             # configurable if these are allowed or not.
             # IntrinsicCall.Intrinsic.LOG10, IntrinsicCall.Intrinsic.REAL,
-            # The one below are not documented on nvidia compiler
+            # The ones below are not documented on nvidia compiler
             IntrinsicCall.Intrinsic.PRODUCT, IntrinsicCall.Intrinsic.SIZE,
             IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
             IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.MINVAL,
-            IntrinsicCall.Intrinsic.MATMUL,
+            # MATMUL can fail at link time depending on the precision of
+            # its arguments.
+            # IntrinsicCall.Intrinsic.MATMUL,
             IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE)
 
     @classmethod
