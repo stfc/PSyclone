@@ -1,3 +1,22 @@
+   39) PR #3021. Remove hoisted reference from chunking/tiling
+   transformations.
+
+   38) PR #3009 for #2981. Prevent ProfilingTrans to add callipers in regions
+   with potential control flow jumps.
+
+   37) PR #3029 for #3026. Fixes a bug with RegionTrans.get_node_list if a
+   list containing a single Schedule was provided.
+
+   35) PR #3025 for #2928. Removes commas between clauses on directives.
+
+   34) pr #3016 for #3015. Apply doxygen -u to update doxygen config file.
+
+   33) PR #3019. Adds deprecated classes for old-style Dynamo0p3 transformation
+   names.
+
+   32) PR #3011 for #2968. Add semantic navigation methods to Operations and
+   update indices/arguments/clauses methods to return tuples.
+
    31) PR #2998 for #2620. Refactor reference_accesses method.
 
    30) PR #2959. Update spack and enable NEMO multi-gpu.

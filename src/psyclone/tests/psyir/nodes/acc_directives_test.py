@@ -701,7 +701,7 @@ def test_accdatadirective_update_data_movement_clauses(fortran_reader,
     dtrans.apply(loop)
     output = fortran_writer(psyir)
     expected = ("!$acc data copyin(sfactor,small_holding,small_holding(3)%grid"
-                ",small_holding(3)%grid(jf)%data), copy(sto_tmp)")
+                ",small_holding(3)%grid(jf)%data) copy(sto_tmp)")
     assert expected in output
     # Check that calling update_signal() explicitly has no effect as the tree
     # has not changed.
@@ -713,7 +713,7 @@ def test_accdatadirective_update_data_movement_clauses(fortran_reader,
     output = fortran_writer(psyir)
     # 'sfactor' should have been removed from the copyin()
     assert ("!$acc data copyin(small_holding,small_holding(3)%grid,"
-            "small_holding(3)%grid(jf)%data), copy(sto_tmp)" in output)
+            "small_holding(3)%grid(jf)%data) copy(sto_tmp)" in output)
 
 
 def test_accparalleldirective():
