@@ -419,7 +419,7 @@ class KernelModuleInlineTrans(Transformation):
                 csym, orig_name=name))
 
     def apply(self, node, options=None):
-        ''' Bring the kernel/subroutine into this Container.
+        ''' Bring the implementation of this kernel/call into this Container.
 
         NOTE: when applying this transformation to a Kernel in a PSyKAl invoke,
         *all* Kernels of that name in that invoke are marked as inlined.

@@ -522,11 +522,11 @@ def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
             artrans.apply(coded_kern, options={"force": True})
     output = str(psy.gen).lower()
     assert "subroutine mixed_code_32" in output
-    assert "!$acc routine seq" in output
+    assert output.count("!$acc routine seq") == 2
     assert "subroutine mixed_code_64" in output
-    # Since we don't currently rename module-inlined kernels, module-inlining
-    # just one instance means that calls to that same Kernel throughout the
-    # whole module uses the newly-inlined version.
+    # Since we don't currently rename module-inlined kernels (TODO #2846),
+    # module-inlining just one instance means that calls to that same Kernel
+    # throughout the whole module use the newly-inlined version.
     assert ("""subroutine invoke_1(scalar_r_phys, field_r_phys, \
 operator_r_def, f1, f2, m1, a, m2, istp, qr)
     use function_space_mod, only : basis, diff_basis

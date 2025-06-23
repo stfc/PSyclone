@@ -781,7 +781,7 @@ class LFRicKern(CodedKern):
 
         return stub_module
 
-    def get_interface_symbol(self) -> Union[GenericInterfaceSymbol, None]:
+    def get_interface_symbol(self) -> Optional[GenericInterfaceSymbol]:
         '''
         :returns: the interface symbol for this kernel if it is polymorphic,
                   None otherwise.
