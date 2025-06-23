@@ -148,11 +148,26 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                 if not closest:
                     closest = access
                     closest_position = abs_position
+                    continue
+                # If the access is in the same IfBlock as closest, but one
+                # is in if_body and the other is in else_body we
+                # add the entire IfBlock to dependencies.
+                # TODO 2551: This is a simple solution that avoids needing
+                # to compute the closest dependency for both sections of
+                # an ifblock, which can get very complex.
+                shared_if_anc = access.ancestor(IfBlock, shared_with=closest)
+                if shared_if_anc and shared_if_anc.else_body:
+                    if ((access.is_descendent_of(shared_if_anc.if_body) and
+                         closest.is_descendent_of(shared_if_anc.else_body)) or
+                        (access.is_descendent_of(shared_if_anc.else_body) and
+                         closest.is_descendent_of(shared_if_anc.if_body))):
+                        dependencies.append(shared_if_anc)
                 # Otherwise if the closest is after the input nodes, then
                 # whichever access is closer is the closest dependency.
-                elif (abs_position < closest_position):
+                if (abs_position < closest_position):
                     closest = access
                     closest_position = abs_position
+                    continue
 
         # If this directive is contained inside a loop the closest foward
         # dependency might be itself. So if closest is not within the ancestor

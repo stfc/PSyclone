@@ -722,3 +722,46 @@ def test_no_barrier_from_nowait(fortran_reader):
     assert ("Found a nowait with no barrier satisfying its dependency which "
             "is unsupported behaviour for OMPMinimiseSyncTrans." in
             str(excinfo.value))
+
+
+def test_if_else_dependencies(fortran_reader, fortran_writer):
+    '''Test that the correct barriers are kept if there are dependencies
+    in an if and else.'''
+    code = """
+    subroutine test
+    integer, dimension(100) :: a
+    integer, dimension(100) :: b
+    integer :: j
+    
+    do j = 1, 100
+        a(j) = j + 1
+    end do
+
+    if (some_cond()) then
+        do j = 1, 100
+            b(j) = j
+        end do
+        do j = 1, 100
+            b(j) = j
+            a(j) = j
+        end do
+    else
+        a(:) = 0
+    end if
+    do j = 1, 100
+        a(j) = j
+    end do
+    end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    targettrans = OMPTargetTrans()
+    loops = psyir.walk(Loop)
+    targettrans.apply(loops[0], options={"nowait": True})
+    targettrans.apply(loops[1], options={"nowait": True})
+    targettrans.apply(loops[2], options={"nowait": True})
+
+    rtrans = OMPMinimiseSyncTrans()
+    rtrans.apply(routine)
+    # We should keep the omp taskwait before the IfBlock.
+    assert isinstance(routine.children[1], OMPTaskwaitDirective)
