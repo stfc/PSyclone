@@ -109,6 +109,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         private, firstprivate, need_sync = \
             directive.infer_sharing_attributes()
 
+        dependencies = []
         # For each of the reads and writes we want to find the closest
         # forward dependency.
         for signature in reads+writes:
@@ -126,7 +127,6 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             # and not necessarily to the member of interest which limits
             # the behaviour of this.
             next_accesses = last_access.next_accesses()
-            dependencies = []
             # next_accesses always appear in the order of
             # nodes before loop followed by nodes after loop.
             for access in next_accesses:
