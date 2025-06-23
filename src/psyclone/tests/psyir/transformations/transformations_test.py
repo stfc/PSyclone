@@ -42,7 +42,6 @@ API-agnostic tests for various transformation classes.
 
 import os
 import pytest
-import sys
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.nodes import (
     CodeBlock, Literal, Loop, Node, Reference, Schedule, Statement,
@@ -569,23 +568,13 @@ def test_omploop_trans_new_options(sample_psyir):
             "Please see the documentation and check the provided types."
             in str(excinfo.value))
 
-    # Check python version, as this tests have different behaviour for
-    # new python versions vs 3.8 or 3.7.
-    # TODO #2837: This can be removed when Python 3.7 and 3.8 are retired.
-    if sys.version_info[1] < 11:
-        with pytest.raises(TypeError) as excinfo:
-            omplooptrans.apply(tree.walk(Loop)[0], collapse="x")
-        assert ("The 'collapse' argument must be an integer or a bool "
-                "but got an object of type <class 'str'>" in
-                str(excinfo.value))
-    else:
-        with pytest.raises(TypeError) as excinfo:
-            omplooptrans.apply(tree.walk(Loop)[0], collapse="x")
-        assert ("'OMPLoopTrans' received options with the wrong types:\n"
-                "'collapse' option expects type 'int | bool' but "
-                "received 'x' of type 'str'.\n"
-                "Please see the documentation and check the provided types."
-                in str(excinfo.value))
+    with pytest.raises(TypeError) as excinfo:
+        omplooptrans.apply(tree.walk(Loop)[0], collapse="x")
+    assert ("'OMPLoopTrans' received options with the wrong types:\n"
+            "'collapse' option expects type 'int | bool' but "
+            "received 'x' of type 'str'.\n"
+            "Please see the documentation and check the provided types."
+            in str(excinfo.value))
 
 
 def test_omplooptrans_apply_nowait(fortran_reader, fortran_writer):
