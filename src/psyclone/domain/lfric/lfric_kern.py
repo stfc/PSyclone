@@ -41,7 +41,7 @@
 
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap
