@@ -94,25 +94,40 @@ SKIP_FOR_PERFORMANCE = [
     "iom_nf90.f90",
     "iom_def.f90",
     "timing.f90",
+    "lbclnk.f90",
+    "histcom.f90",
 ]
 
 OFFLOADING_ISSUES = [
-    # # Produces different output results
-    # "zdftke.f90",
-    # # The following issues only affect BENCH (because ice is enabled?)
-    # # Runtime Error: Illegal address during kernel execution
-    # "trcrad.f90",
-    # # nvhpc > 24.11 - Signal 11 issues
-    # "trcbbl.f90",
-    # "bdyice.f90",
-    # "sedfunc.f90",
-    # "stpmlf.f90",
-    # "trddyn.f90",
-    # "trczdf.f90",
-    # "trcice_pisces.f90",
-    # "dtatsd.f90",
-    # "trcatf.f90",
+    # Produces different output results
+    "zdftke.f90",
+    # The following issues only affect BENCH (because ice is enabled?)
+    # Runtime Error: Illegal address during kernel execution
+    "trcrad.f90",
+    # nvhpc > 24.11 - Signal 11 issues
+    "trcbbl.f90",
+    "bdyice.f90",
+    "sedfunc.f90",
+    "stpmlf.f90",
+    "trddyn.f90",
+    "trczdf.f90",
+    "trcice_pisces.f90",
+    "dtatsd.f90",
+    "trcatf.f90",
 ]
+
+if "acc_offloading" in PARALLEL_DIRECTIVES:
+    OFFLOADING_ISSUES = OFFLOADING_ISSUES + [
+        # Fail in OpenACC ORCA2_ICE_PISCES
+        "dynzdf.f90",
+        "sbcblk.f90",
+        "stp2d.f90",
+        "stprk3_stg.f90",
+        "trabbl.f90",
+        "traqsr.f90",
+        "trazdf.f90",
+        "zdfsh2.f90",
+    ]
 
 
 def select_transformations():

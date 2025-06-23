@@ -13,11 +13,13 @@ export ORCA2_INPUTS=/archive/NEMO_INPUTS/NEMOv5/SETTE_INPUTS/ORCA2_ICE
 export PSYCLONE_NEMO_EXAMPLES_DIR=$( dirname -- "$( readlink -f -- "$0"; )"; )
 export ARCH_FILE=$PSYCLONE_NEMO_EXAMPLES_DIR/KGOs/arch-linux_spack.fcm
 
-# Set up compiler options: these can also be encoded in the arch-file, but in
+# Set up compiler and flags: these can also be encoded in the arch-file, but in
 # our case we want to them explict in the script, our arch-file is parameterised
 # with the following environenment variables:
-# Chose the compiler:
-export MPIF90=mpif90
+# Use psyclonefc to intercept the MPIF90 compiler
+export MPIF90=psyclonefc
+export PSYCLONE_COMPILER=mpif90
+export PSYCLONE_OPTS="-l output -s ${PSYCLONE_NEMO_EXAMPLES_DIR}/insert_loop_parallelism.py"
 
 # Chose the flags between:
 # - Do the serial transformations but do not parallelise
@@ -58,24 +60,21 @@ if [ ! -d ${ORCA2_INPUTS} ] ; then
   tar -xzf ORCA2_ICE_v5.0.0.tar.gz
 fi
 
-# Clean up previous build
+# Clean up previous build and re-compile
 cd $NEMO_V5_DIR
 cp $ARCH_FILE arch/arch-linux_test.fcm
-# rm -rf cfgs/ORCA2_ICE_PISCES_psycloned
-
-# Use psyclonefc to intercept the MPIF90 compiler
-export PSYCLONE_COMPILER=$MPIF90
-export MPIF90=psyclonefc
-export PSYCLONE_OPTS="-l output -s ${PSYCLONE_NEMO_EXAMPLES_DIR}/insert_loop_parallelism.py"
-
+rm -rf cfgs/ORCA2_ICE_PISCES_psycloned
 ./makenemo -r ORCA2_ICE_PISCES -m linux_test -n ORCA2_ICE_PISCES_psycloned del_key "key_xios key_top" -j 6 -v 1
 
+# Prepare problem
 ln -sf ${ORCA2_INPUTS}/ORCA2_ICE_v5.0.0/* cfgs/ORCA2_ICE_PISCES_psycloned/EXP00/.
-# Reduce num of iterations and add timing/runstat
-sed -i "s/nn_itend.*/nn_itend = 10/" cfgs/ORCA2_ICE_PISCES_psycloned/EXP00/namelist_cfg
-sed -i "s/ln_icebergs.*/ln_icebergs = .false./" cfgs/ORCA2_ICE_PISCES_psycloned/EXP00/namelist_cfg
-sed -i "s/\&namctl.*/\&namctl\n ln_timing   = .true. \n sn_cfctl%l_runstat = .true.\n/" cfgs/ORCA2_ICE_PISCES_psycloned/EXP00/namelist_cfg
 cd cfgs/ORCA2_ICE_PISCES_psycloned/EXP00
+# Reduce num of iterations and add timing/runstat
+sed -i "s/nn_itend.*/nn_itend = 10/" namelist_cfg
+sed -i "s/ln_icebergs.*/ln_icebergs = .false./" namelist_cfg
+sed -i "s/\&namctl.*/\&namctl\n ln_timing   = .true. \n sn_cfctl%l_runstat = .true.\n/" namelist_cfg
+
+# Run problem
 OMP_NUM_THREADS=4 mpirun -n 1 ./nemo
 diff ${PSYCLONE_NEMO_EXAMPLES_DIR}/KGOs/run.stat.orca_ice_pisces.nvhpc.10steps run.stat
 grep -r "Elapsed" -A 3 timing.output
