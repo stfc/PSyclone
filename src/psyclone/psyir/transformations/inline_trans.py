@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import (
     StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
-    ArrayType, INTEGER_TYPE, StructureType, Symbol, SymbolError,
+    ArrayType, INTEGER_TYPE, StructureType, SymbolError,
     UnresolvedType, UnsupportedFortranType, UnsupportedType)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
@@ -176,35 +176,6 @@ class InlineTrans(Transformation):
                 f"Error copying routine symbols to call site. This should "
                 f"have been caught by the validate() method. Original error "
                 f"was {err}") from err
-
-        # Check for missed symbols in declarations
-        # TODO #2271 - this is just a cut-n-paste of code from
-        # KernelModuleInlineTrans
-        extra_symbols = set()
-        for sym in routine_table.datasymbols:
-            if hasattr(sym.datatype, 'precision'):
-                if isinstance(sym.datatype.precision, Symbol):
-                    extra_symbols.add(sym.datatype.precision)
-        source_container = orig_routine.ancestor(Container)
-        for sym in extra_symbols:
-            if sym.name not in table:
-                table.add(sym)
-            if sym.is_unresolved:
-                for mod in source_container.symbol_table.containersymbols:
-                    if mod.wildcard_import:
-                        if mod.name not in table:
-                            table.add(mod)
-                        else:
-                            table.lookup(mod.name).wildcard_import = True
-            elif sym.is_import:
-                module_symbol = sym.interface.container_symbol
-                if module_symbol.name not in table:
-                    table.add(module_symbol)
-                else:
-                    # If it already exists, we know it's a container (from
-                    # the validation) so we just need to point to it
-                    sym.interface.container_symbol = \
-                        table.lookup(module_symbol.name)
 
         # When constructing new references to replace references to formal
         # args, we need to know whether any of the actual arguments are array
