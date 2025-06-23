@@ -48,8 +48,7 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.nodes import (
     Call, Directive, IntrinsicCall, Loop, Routine, Schedule)
 from psyclone.psyir.transformations import (
-    ACCKernelsTrans, InlineTrans, Matmul2CodeTrans, OMPTargetTrans,
-    TransformationError)
+    ACCKernelsTrans, Matmul2CodeTrans, OMPTargetTrans, TransformationError)
 from psyclone.transformations import (
     LFRicColourTrans, LFRicOMPLoopTrans,
     LFRicRedundantComputationTrans, OMPParallelTrans,
@@ -103,7 +102,6 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    intrans = InlineTrans()
     rtrans = LFRicRedundantComputationTrans()
     ctrans = LFRicColourTrans()
     otrans = LFRicOMPLoopTrans()
@@ -182,7 +180,8 @@ def trans(psyir):
                             print(f"Failed to module-inline kernel "
                                   f"'{kern.name}' due to:\n{err.value}")
                         try:
-                            # Ensure any MATMULs within the kernel are replaced.
+                            # Ensure any MATMULs within the kernel are
+                            # replaced.
                             for routine in kern.get_callees():
                                 _replace_matmuls(routine)
                             # Finally, annotate the kernel routine for GPU.
@@ -193,9 +192,10 @@ def trans(psyir):
                             print(f"Failed to annotate '{kern.name}' with "
                                   f"GPU-enabled directive due to:\n"
                                   f"{err.value}")
-                        # For annotated or inlined kernels we could attempt to
-                        # provide compile-time dimensions for the temporary
-                        # arrays and convert to code any unsupported intrinsics.
+                        # For annotated/inlined kernels we could attempt to
+                        # provide compile-time dimensions for temporary arrays
+                        # and convert to code any unsupported intrinsics.
+
         # Add GPU offloading to loops unless they are over colours or are null.
         for loop in subroutine.walk(Loop):
             kernel_names = [k.name.lower() for k in loop.kernels()]
