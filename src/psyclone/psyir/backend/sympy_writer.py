@@ -672,6 +672,8 @@ class SymPyWriter(FortranWriter):
         unique_name = self._symbol_table.lookup_with_tag(str(sig)).name
 
         if self.type_map[unique_name].is_Function:
+            # If the SymPy type is a Function then this means the original
+            # expression was either an array access or a function call.
             indices_str = self.gen_indices(all_dims)
             return f"{unique_name}({','.join(indices_str)})"
 
@@ -716,6 +718,10 @@ class SymPyWriter(FortranWriter):
         in the same form as is used for array accesses (since both are mapped
         to a Sympy function).
 
+        Note that a :class:`Call` in the PSyIR can represent a call to either a
+        subroutine or a function. The latter can appear within expressions and
+        either can have zero arguments.
+
         :param node: a PSyIR Call node.
 
         :returns: the SymPy representation for the Call.
@@ -724,8 +730,8 @@ class SymPyWriter(FortranWriter):
         target_name = node.routine.symbol.name
         # Find the unique variable name created in _create_type_map()
         unique_name = self._symbol_table.lookup_with_tag(target_name).name
-        # Encode the arguments to the call in the same way as we do for indices
-        # on an array access.
+        # Encode the arguments to the call (if any) in the same way as we do
+        # for indices on an array access.
         indices_str = self.gen_indices(node.arguments)
         return f"{unique_name}({','.join(indices_str)})"
 
