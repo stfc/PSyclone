@@ -732,7 +732,7 @@ def test_if_else_dependencies(fortran_reader, fortran_writer):
     integer, dimension(100) :: a
     integer, dimension(100) :: b
     integer :: j
-    
+
     do j = 1, 100
         a(j) = j + 1
     end do
