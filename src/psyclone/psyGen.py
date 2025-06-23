@@ -52,13 +52,8 @@ import warnings
 try:
     from sphinx.util.typing import stringify_annotation
 except ImportError:
-    # Fix for Python-3.7 where sphinx didn't yet rename this.
-    # TODO 2837: Can remove this 3.7 sphinx import
-    try:
-        from sphinx.util.typing import stringify as stringify_annotation
-    # Igoring coverage from the no sphinx workaround as too difficult to do
-    except ImportError:
-        from psyclone.utils import stringify_annotation
+    # No Sphinx available so use our own, simpler version.
+    from psyclone.utils import stringify_annotation
 
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.core import AccessType, VariablesAccessMap
