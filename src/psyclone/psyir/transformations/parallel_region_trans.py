@@ -71,7 +71,7 @@ class ParallelRegionTrans(RegionTrans, ABC):
     @abstractmethod
     def __str__(self) -> str:
         '''
-        Return a string explaining what this transformation does.
+        :returns: a string explaining what this transformation does.
 
         '''
 
