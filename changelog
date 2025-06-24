@@ -1,3 +1,6 @@
+   39) PR #3021. Remove hoisted reference from chunking/tiling
+   transformations.
+
    38) PR #3009 for #2981. Prevent ProfilingTrans to add callipers in regions
    with potential control flow jumps.
 
