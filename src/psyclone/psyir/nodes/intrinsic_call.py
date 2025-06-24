@@ -47,13 +47,14 @@ from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import IntrinsicSymbol
+from psyclone.psyir.symbols import IntrinsicSymbol, UnresolvedType
 
 # pylint: disable=too-many-branches
 
 # Named tuple for describing the attributes of each intrinsic
 IAttr = namedtuple(
-    'IAttr', 'name is_pure is_elemental is_inquiry required_args optional_args'
+    'IAttr', ('name is_pure is_elemental is_inquiry required_args '
+              'optional_args data_type')
 )
 # Alternatively we could use an Enum to decrive the intrinsic types
 # IntrinsicType = Enum('IntrinsicType',
@@ -107,324 +108,324 @@ class IntrinsicCall(Call):
             'ALLOCATE', False, False, False,
             ArgDesc(1, None, Reference),
             {"mold": Reference, "source": Reference, "stat": Reference,
-             "errmsg": Reference})
+             "errmsg": Reference}, UnresolvedType())
         DEALLOCATE = IAttr(
             'DEALLOCATE', False, False, False,
-            ArgDesc(1, None, Reference), {"stat": Reference})
+            ArgDesc(1, None, Reference), {"stat": Reference}, UnresolvedType())
         NULLIFY = IAttr(
             'NULLIFY', False, False, False,
-            ArgDesc(1, None, Reference), {})
+            ArgDesc(1, None, Reference), {}, UnresolvedType())
 
         # Fortran Intrinsics (from Fortran 2018 standard table 16.1)
         ABS = IAttr(
             'ABS', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         ACHAR = IAttr(
             'ACHAR', True, True, False,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            ArgDesc(1, 1, DataNode), {"kind": DataNode}, UnresolvedType())
         ACOS = IAttr(
             'ACOS', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         ACOSH = IAttr(
             'ACOSH', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         ADJUSTL = IAttr(
             'ADJUSTL', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         ADJUSTR = IAttr(
             'ADJUSTR', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         AIMAG = IAttr(
             'AIMAG', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         AINT = IAttr(
             'AINT', True, True, False,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            ArgDesc(1, 1, DataNode), {"kind": DataNode}, UnresolvedType())
         ALL = IAttr(
             'ALL', True, False, False,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode})  # ?
+            ArgDesc(1, 1, DataNode), {"dim": DataNode}, UnresolvedType())  # ?
         ALLOCATED = IAttr(
             'ALLOCATED', True, False, True,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         ANINT = IAttr(
             'ANINT', True, True, False,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            ArgDesc(1, 1, DataNode), {"kind": DataNode}, UnresolvedType())
         ANY = IAttr(
             'ANY', True, False, False,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode})  # ?
+            ArgDesc(1, 1, DataNode), {"dim": DataNode}, UnresolvedType())  # ?
         ASIN = IAttr(
             'ASIN', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         ASINH = IAttr(
             'ASINH', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         ASSOCIATED = IAttr(
             'ASSOCIATED', False, False, True,
-            ArgDesc(1, 1, DataNode), {"target": DataNode})
+            ArgDesc(1, 1, DataNode), {"target": DataNode}, UnresolvedType())
         ATAN = IAttr(
             'ATAN', True, True, False,
-            ArgDesc(1, 2, DataNode), {})
+            ArgDesc(1, 2, DataNode), {}, UnresolvedType())
         ATAN2 = IAttr(
             'ATAN2', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            ArgDesc(2, 2, DataNode), {}, UnresolvedType())
         ATANH = IAttr(
             'ATANH', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         ATOMIC_ADD = IAttr(
             'ATOMIC_ADD', True, True, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            ArgDesc(2, 2, DataNode), {"stat": DataNode}, UnresolvedType())
         ATOMIC_AND = IAttr(
             'ATOMIC_AND', True, True, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            ArgDesc(2, 2, DataNode), {"stat": DataNode}, UnresolvedType())
         ATOMIC_CAS = IAttr(
             'ATOMIC_CAS', True, True, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            ArgDesc(2, 2, DataNode), {"stat": DataNode}, UnresolvedType())
         ATOMIC_DEFINE = IAttr(
             'ATOMIC_DEFINE', True, True, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            ArgDesc(2, 2, DataNode), {"stat": DataNode}, UnresolvedType())
         ATOMIC_FETCH_ADD = IAttr(
             'ATOMIC_FETCH_ADD', True, True, False,
-            ArgDesc(3, 3, DataNode), {"stat": DataNode})
+            ArgDesc(3, 3, DataNode), {"stat": DataNode}, UnresolvedType())
         ATOMIC_FETCH_AND = IAttr(
             'ATOMIC_FETCH_AND', True, True, False,
-            ArgDesc(3, 3, DataNode), {"stat": DataNode})
+            ArgDesc(3, 3, DataNode), {"stat": DataNode}, UnresolvedType())
         ATOMIC_FETCH_OR = IAttr(
             'ATOMIC_FETCH_OR', True, True, False,
-            ArgDesc(3, 3, DataNode), {"stat": DataNode})
+            ArgDesc(3, 3, DataNode), {"stat": DataNode}, UnresolvedType())
         ATOMIC_FETCH_XOR = IAttr(
             'ATOMIC_FETCH_XOR', True, True, False,
-            ArgDesc(3, 3, DataNode), {"stat": DataNode})
+            ArgDesc(3, 3, DataNode), {"stat": DataNode}, UnresolvedType())
         ATOMIC_OR = IAttr(
             'ATOMIC_OR', True, True, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            ArgDesc(2, 2, DataNode), {"stat": DataNode}, UnresolvedType())
         ATOMIC_REF = IAttr(
             'ATOMIC_REF', True, True, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            ArgDesc(2, 2, DataNode), {"stat": DataNode}, UnresolvedType())
         ATOMIC_XOR = IAttr(
             'ATOMIC_XOR', True, True, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            ArgDesc(2, 2, DataNode), {"stat": DataNode}, UnresolvedType())
         BESSEL_J0 = IAttr(
             'BESSEL_J0', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         BESSEL_J1 = IAttr(
             'BESSEL_J1', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         BESSEL_JN = IAttr(
             'BESSEL_JN', True, None, False,
-            ArgDesc(2, 3, DataNode), {})
+            ArgDesc(2, 3, DataNode), {}, UnresolvedType())
         BESSEL_Y0 = IAttr(
             'BESSEL_Y0', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         BESSEL_Y1 = IAttr(
             'BESSEL_Y1', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         BESSEL_YN = IAttr(
             'BESSEL_YN', True, None, False,
-            ArgDesc(2, 3, DataNode), {})
+            ArgDesc(2, 3, DataNode), {}, UnresolvedType())
         BGE = IAttr(
             'BGE', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            ArgDesc(2, 2, DataNode), {}, UnresolvedType())
         BGT = IAttr(
             'BGT', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            ArgDesc(2, 2, DataNode), {}, UnresolvedType())
         BIT_SIZE = IAttr(
             'BIT_SIZE', True, False, True,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         BLE = IAttr(
             'BLE', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            ArgDesc(2, 2, DataNode), {}, UnresolvedType())
         BLT = IAttr(
             'BLT', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            ArgDesc(2, 2, DataNode), {}, UnresolvedType())
         BTEST = IAttr(
             'BTEST', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            ArgDesc(2, 2, DataNode), {}, UnresolvedType())
         CEILING = IAttr(
             'CEILING', True, True, False,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            ArgDesc(1, 1, DataNode), {"kind": DataNode}, UnresolvedType())
         CHAR = IAttr(
             'CHAR', True, True, False,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            ArgDesc(1, 1, DataNode), {"kind": DataNode}, UnresolvedType())
         CMPLX = IAttr(
             'CMPLX', True, True, False,
-            ArgDesc(1, 1, DataNode), {"Y": DataNode, "kind": DataNode})
+            ArgDesc(1, 1, DataNode), {"Y": DataNode, "kind": DataNode}, UnresolvedType())
         CO_BROADCAST = IAttr(
             'CO_BROADCAST', True, False, False,
-            ArgDesc(1, 2, DataNode), {"stat": DataNode, "errmsg": DataNode})
+            ArgDesc(1, 2, DataNode), {"stat": DataNode, "errmsg": DataNode}, UnresolvedType())
         CO_MAX = IAttr(
             'CO_MAX', True, False, False,
             ArgDesc(1, 1, DataNode),
-            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
+            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode}, UnresolvedType())
         CO_MIN = IAttr(
             'CO_MIN', True, False, False,
             ArgDesc(1, 1, DataNode),
-            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
+            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode}, UnresolvedType())
         CO_REDUCE = IAttr(
             'CO_REDUCE', True, False, False,
             ArgDesc(1, 2, DataNode),
-            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
+            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode}, UnresolvedType())
         CO_SUM = IAttr(
             'CO_SUM', True, False, False,
             ArgDesc(1, 1, DataNode),
-            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
+            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode}, UnresolvedType())
         COMMAND_ARGUMENT_COUNT = IAttr(
             'COMMAND_ARGUMENT_COUNT', True, False, False,
-            ArgDesc(0, 0, None), {})
+            ArgDesc(0, 0, None), {}, UnresolvedType())
         CONJG = IAttr(
             'CONJG', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         COS = IAttr(
             'COS', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         COSH = IAttr(
             'COSH', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         COSHAPE = IAttr(
             'COSHAPE', True, False, True,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            ArgDesc(1, 1, DataNode), {"kind": DataNode}, UnresolvedType())
         COUNT = IAttr(
             'COUNT', True, False, False,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode})
+            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode}, UnresolvedType())
         CPU_TIME = IAttr(
             'CPU_TIME', False, False, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         CSHIFT = IAttr(
             'CSHIFT', True, False, False,
-            ArgDesc(2, 2, DataNode), {"dim": DataNode})
+            ArgDesc(2, 2, DataNode), {"dim": DataNode}, UnresolvedType())
         DATE_AND_TIME = IAttr(
             'DATE_AND_TIME', False, False, False,
             ArgDesc(0, 0, DataNode),
             {"date": DataNode, "time": DataNode,
-             "zone": DataNode, "values": DataNode})
+             "zone": DataNode, "values": DataNode}, UnresolvedType())
         DBLE = IAttr(
             'DBLE', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         DIGITS = IAttr(
             'DIGITS', True, False, True,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         DIM = IAttr(
             'DIM', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            ArgDesc(2, 2, DataNode), {}, UnresolvedType())
         DOT_PRODUCT = IAttr(
             'DOT_PRODUCT', True, False, False,
-            ArgDesc(2, 2, DataNode), {})
+            ArgDesc(2, 2, DataNode), {}, UnresolvedType())
         DPROD = IAttr(
             'DPROD', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            ArgDesc(2, 2, DataNode), {}, UnresolvedType())
         DSHIFTL = IAttr(
             'DSHIFTL', True, True, False,
-            ArgDesc(3, 3, DataNode), {})
+            ArgDesc(3, 3, DataNode), {}, UnresolvedType())
         DSHIFTR = IAttr(
             'DSHIFTR', True, True, False,
-            ArgDesc(3, 3, DataNode), {})
+            ArgDesc(3, 3, DataNode), {}, UnresolvedType())
         EOSHIFT = IAttr(
             'EOSHIFT', True, False, False,
-            ArgDesc(2, 2, DataNode), {"boundary": DataNode, "dim": DataNode})
+            ArgDesc(2, 2, DataNode), {"boundary": DataNode, "dim": DataNode}, UnresolvedType())
         EPSILON = IAttr(
             'EPSILON', True, False, True,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         ERF = IAttr(
             'ERF', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         ERFC = IAttr(
             'ERFC', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         ERFC_SCALED = IAttr(
             'ERFC_SCALED', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         EVENT_QUERY = IAttr(
             'EVENT_QUERY', False, False, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            ArgDesc(2, 2, DataNode), {"stat": DataNode}, UnresolvedType())
         EXECUTE_COMMAND_LINE = IAttr(
             'EXECUTE_COMMAND_LINE', False, False, False,
             ArgDesc(2, 2, DataNode),
             {"wait": DataNode, "exitstat": DataNode,
-             "cmdstat": DataNode, "cmdmsg": DataNode})
+             "cmdstat": DataNode, "cmdmsg": DataNode}, UnresolvedType())
         EXP = IAttr(
             'EXP', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         EXPONENT = IAttr(
             'EXPONENT', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         EXTENDS_TYPE_OF = IAttr(
             'EXTENDS_TYPE_OF', True, False, True,
-            ArgDesc(2, 2, DataNode), {})
+            ArgDesc(2, 2, DataNode), {}, UnresolvedType())
         FAILED_IMAGES = IAttr(
             'FAILED_IMAGES', False, False, False,
-            ArgDesc(0, 0, DataNode), {"team": DataNode, "kind": DataNode})
+            ArgDesc(0, 0, DataNode), {"team": DataNode, "kind": DataNode}, UnresolvedType())
         FINDLOC = IAttr(
             'FINDLOC', True, False, False,
             ArgDesc(2, 3, DataNode),
-            {"mask": DataNode, "kind": DataNode, "back": DataNode})
+            {"mask": DataNode, "kind": DataNode, "back": DataNode}, UnresolvedType())
         FLOAT = IAttr(
             'FLOAT', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         FLOOR = IAttr(
             'FLOOR', True, True, False,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            ArgDesc(1, 1, DataNode), {"kind": DataNode}, UnresolvedType())
         FRACTION = IAttr(
             'FRACTION', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         GAMMA = IAttr(
             'GAMMA', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {}, UnresolvedType())
         GET_COMMAND = IAttr(
             'GET_COMMAND', False, False, False,
             ArgDesc(0, 0, DataNode),
             {"command": DataNode, "length": DataNode,
-             "status": DataNode, "errmsg": DataNode})
+             "status": DataNode, "errmsg": DataNode}, UnresolvedType())
         GET_COMMAND_ARGUMENT = IAttr(
             'GET_COMMAND_ARGUMENT', False, False, False,
             ArgDesc(1, 1, DataNode),
             {"value": DataNode, "length": DataNode,
-             "status": DataNode, "errmsg": DataNode})
+             "status": DataNode, "errmsg": DataNode}, UnresolvedType())
         GET_ENVIRONMENT_VARIABLE = IAttr(
             'GET_ENVIRONMENT_VARIABLE', False, False, False,
             ArgDesc(1, 1, DataNode),
             {"value": DataNode, "length": DataNode, "status": DataNode,
-             "trim_name": DataNode, "errmsg": DataNode})
+             "trim_name": DataNode, "errmsg": DataNode}, UnresolvedType())
         GET_TEAM = IAttr(
             'GET_TEAM', True, False, False,
-            ArgDesc(0, 0, DataNode), {"level": DataNode})
+            ArgDesc(0, 0, DataNode), {"level": DataNode}, UnresolvedType())
         HUGE = IAttr(
             'HUGE', True, False, True,
-            ArgDesc(1, 1, (Reference, Literal)), {})
+            ArgDesc(1, 1, (Reference, Literal)), {}, UnresolvedType())
         HYPOT = IAttr(
             'HYPOT', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
+            ArgDesc(2, 2, (DataNode)), {}, UnresolvedType())
         IACHAR = IAttr(
             'IACHAR', True, True, False,
-            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+            ArgDesc(1, 1, (DataNode)), {"kind": DataNode}, UnresolvedType())
         IALL = IAttr(
             'IALL', True, False, False,
-            ArgDesc(1, 1, (DataNode)), {"dim": DataNode, "kind": DataNode})
+            ArgDesc(1, 1, (DataNode)), {"dim": DataNode, "kind": DataNode}, UnresolvedType())
         IAND = IAttr(
             'IAND', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
+            ArgDesc(2, 2, (DataNode)), {}, UnresolvedType())
         IANY = IAttr(
             'IANY', True, False, False,
-            ArgDesc(1, 1, (DataNode)), {"dim": DataNode, "kind": DataNode})
+            ArgDesc(1, 1, (DataNode)), {"dim": DataNode, "kind": DataNode}, UnresolvedType())
         IBCLR = IAttr(
             'IBCLR', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
+            ArgDesc(2, 2, (DataNode)), {}, UnresolvedType())
         IBITS = IAttr(
             'IBITS', True, True, False,
-            ArgDesc(3, 3, (DataNode)), {})
+            ArgDesc(3, 3, (DataNode)), {}, UnresolvedType())
         IBSET = IAttr(
             'IBSET', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
+            ArgDesc(2, 2, (DataNode)), {}, UnresolvedType())
         ICHAR = IAttr(
             'ICHAR', True, True, False,
-            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+            ArgDesc(1, 1, (DataNode)), {"kind": DataNode}, UnresolvedType())
         IEOR = IAttr(
             'IEOR', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
+            ArgDesc(2, 2, (DataNode)), {}, UnresolvedType())
         IMAGE_INDEX = IAttr(
             'IMAGE_INDEX', True, False, True,
-            ArgDesc(2, 3, (DataNode)), {})
+            ArgDesc(2, 3, (DataNode)), {}, UnresolvedType())
         IMAGE_STATUS = IAttr(
             'IMAGE_STATUS', True, False, False,
-            ArgDesc(1, 1, (DataNode)), {"team": DataNode})
+            ArgDesc(1, 1, (DataNode)), {"team": DataNode}, UnresolvedType())
         INDEX = IAttr(
             'INDEX', True, True, False,
             ArgDesc(2, 2, (DataNode)), {"back": DataNode, "kind": DataNode})
@@ -969,6 +970,14 @@ class IntrinsicCall(Call):
         :rtype: NoneType | bool
         '''
         return self.intrinsic.is_inquiry
+
+    @property
+    def datatype(self):
+        '''
+        '''
+        if self.intrinsic == IntrinsicCall.Intrinsic.MAXVAL:
+            pass
+        return super().datatype
 
 
 # TODO #658 this can be removed once we have support for determining the

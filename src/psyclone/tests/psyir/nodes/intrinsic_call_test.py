@@ -548,3 +548,18 @@ end program test_prog
             "== 0) then" in result)
     assert ("if (verify(clname(ind1:ind2), '0123456789', kind=kind(1), "
             "back=.true.) == 0) then" in result)
+
+
+def test_intrinsiccall_datatype(fortran_reader):
+    '''
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    program test_prog
+      implicit none
+      use some_mod, only: var, i_def, nx, ny
+      integer(kind=i_def), dimension(nx, ny) :: array
+      var = maxval(array)
+    end program test_prog
+    ''')
+    icall = psyir.walk(IntrinsicCall)[0]
+    assert icall.datatype is None
