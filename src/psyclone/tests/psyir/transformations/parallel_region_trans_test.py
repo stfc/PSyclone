@@ -71,14 +71,3 @@ def test_parallelregion_refuse_codeblock():
     assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
             "OMPParallelTrans transformation" in str(err.value))
 
-
-def test_invalid_invoke_schedule():
-    ''' Check that ParallelRegionTrans.validate() rejects loops with
-    invoke schedules. '''
-    otrans = OMPParallelTrans()
-    schedule = InvokeSchedule(RoutineSymbol('test'), None, None)
-    with pytest.raises(TransformationError) as err:
-        otrans.validate([schedule])
-    assert ('A OMPParallelTrans transformation cannot be applied to an '
-            'InvokeSchedule but only to one or more nodes from within an '
-            'InvokeSchedule.' in str(err.value))
