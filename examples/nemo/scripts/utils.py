@@ -38,7 +38,7 @@
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Reference, CodeBlock, ArrayReference,
-    Call, Return, IfBlock, Routine, IntrinsicCall)
+    Call, Return, IfBlock, Routine, IntrinsicCall, StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
 from psyclone.psyir.transformations import (
@@ -46,7 +46,6 @@ from psyclone.psyir.transformations import (
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
     Reference2ArrayRangeTrans, ScalarisationTrans)
 from psyclone.transformations import TransformationError
-
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
@@ -143,6 +142,25 @@ NEMO_FUNCTIONS = [
     'z0tq_LKB', 'zdf_gls_alloc', 'zdf_iwm_alloc', 'zdf_mfc_alloc',
     'zdf_mxl_alloc', 'zdf_oce_alloc', 'zdf_osm_alloc', 'zdf_phy_alloc',
     'zdf_tke_alloc', 'zdf_tmx_alloc',
+    # grep -rh "INTERFACE" src | grep -v "END" | awk '{print $2}' | uniq | sort
+    'alpha_sw', 'bulk_formula', 'cp_air', 'debug', 'DECAL_FEEDBACK',
+    'DECAL_FEEDBACK_2D', 'depth_to_e3', 'de_sat_dt_ice', 'dia_ar5_hst',
+    'dia_ptr_hst', 'div_hor', 'dom_tile_copyin', 'dom_tile_copyout',
+    'dq_sat_dt_ice', 'dyn_vor', 'e3_to_depth', 'eos', 'eos_fzp',
+    'eos_rab', 'e_sat', 'e_sat_ice', 'f_h_louis', 'f_m_louis',
+    'gamma_moist', 'glob_2Dmax', 'glob_2Dmin', 'glob_2Dsum', 'glob_3Dmax',
+    'glob_3Dmin', 'glob_3Dsum', 'halo_mng_resize', 'icb_utl_bilin_h',
+    'ice_var_itd', 'ice_var_snwblow', 'ice_var_snwfra', 'iom_get',
+    'iom_getatt', 'iom_nf90_get', 'iom_put', 'iom_putatt',
+    'iom_rstput', 'lbc_lnk', 'lbc_lnk_neicoll', 'lbc_lnk_pt2pt',
+    'lbc_nfd', 'lbnd_ij', 'ldf_eiv_trp', 'local_2Dmax', 'local_2Dmin',
+    'local_2Dsum', 'local_3Dmax', 'local_3Dmin', 'local_3Dsum',
+    'L_vap', 'mpp_max', 'mpp_maxloc', 'mpp_min', 'mpp_minloc',
+    'mpp_nfd', 'mpp_sum', 'pres_temp', 'prt_ctl_sum', 'ptr_mpp_sum',
+    'ptr_sj', 'ptr_sum', 'qlw_net', 'q_sat', 'rho_air', 'Ri_bulk',
+    'SIGN', 'sum3x3', 'theta_exner', 'tra_mle_trp', 'trd_vor_zint',
+    'virt_temp', 'visc_air', 'wAimp', 'wzv', 'zdf_osm_iomput',
+    'zdf_osm_velocity_rotation',
 ]
 
 # Currently fparser has no way of distinguishing array accesses from statement
@@ -154,7 +172,6 @@ CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 PARALLELISATION_ISSUES = [
     "ldfc1d_c2d.f90",
     "tramle.f90",
-    "dynspg_ts.f90",
 ]
 
 PRIVATISATION_ISSUES = [
@@ -180,8 +197,8 @@ def _it_should_be(symbol, of_type, instance):
 
 def enhance_tree_information(schedule):
     ''' Manually fix some PSyIR issues produced by not having enough symbol
-    information from external modules. Setting NEMO_MODULES_TO_IMPORT above
-    improve the situation but its not complete (not all symbols are imported)
+    information from external modules. Using RESOLVE_IMPORTS improves the
+    situation but it's not complete (not all symbols are imported)
     and it is not transitive (imports that inside import other symbols).
 
     :param schedule: the PSyIR Schedule to transform.
@@ -349,6 +366,8 @@ def normalise_loops(
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
+            if assignment.walk(StructureReference):
+                continue  # TODO #2951 Fix issues with structure_refs
             try:
                 explicit_loops.apply(assignment)
             except TransformationError:
@@ -412,6 +431,8 @@ def insert_explicit_loop_parallelism(
         write-write race conditions.
 
     '''
+    if schedule.name == "ts_wgt":
+        return  # TODO #2937 WaW dependency incorrectly considered private
     # Add the parallel directives in each loop
     for loop in schedule.walk(Loop):
         if loop.ancestor(Directive):

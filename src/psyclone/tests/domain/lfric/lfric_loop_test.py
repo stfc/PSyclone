@@ -51,18 +51,19 @@ from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
                                    LFRicInvokeSchedule)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, InvokeSchedule, Kern
 from psyclone.psyir.nodes import Call, ScopingNode, Loop
+from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import Message, DTCode
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import Dynamo0p3ColourTrans
+from psyclone.transformations import LFRicColourTrans
 
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
-    "test_files", "dynamo0p3")
+    "test_files", "lfric")
 TEST_API = "lfric"
 
 
@@ -102,15 +103,16 @@ def test_constructor_invalid_loop_type(monkeypatch):
     # Monkeypatch the list of valid loop types so as to reach the code
     # that attempts to set the loop variable.
     monkeypatch.setattr(LFRicConstants, "VALID_LOOP_TYPES", ["wrong"])
+    parent = InvokeSchedule(RoutineSymbol("test"), None, None)
     with pytest.raises(InternalError) as err:
-        LFRicLoop(loop_type="wrong")
+        LFRicLoop(loop_type="wrong", parent=parent)
     assert ("Unsupported loop type 'wrong' found when creating loop variable."
-            " Supported values are 'colours'" in str(err.value))
+            " Supported values are: [" in str(err.value))
 
 
 def test_set_lower_bound_functions(monkeypatch):
     ''' Test that we raise appropriate exceptions when the lower bound of
-    a LFRicLoop is set to invalid values.
+    an LFRicLoop is set to invalid values.
 
     '''
     # Make sure we get an LFRicSymbolTable
@@ -131,7 +133,7 @@ def test_set_lower_bound_functions(monkeypatch):
 
 def test_set_upper_bound_functions(monkeypatch):
     ''' Test that we raise appropriate exceptions when the upper bound of
-    a LFRicLoop is set to invalid values.
+    an LFRicLoop is set to invalid values.
 
     '''
     # Make sure we get an LFRicSymbolTable
@@ -696,6 +698,34 @@ def test_halo_for_discontinuous_2(tmpdir, monkeypatch, annexed):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
+def test_halo_for_annexed_dofs_read(tmpdir, annexed, monkeypatch):
+    '''
+    Test that a halo exchange is inserted before a kernel that reads from
+    both a continuous field and an operator in order to ensure annexed dofs
+    are clean.
+
+    '''
+    api_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    psy, invoke = get_invoke("15.1.11_builtin_and_op_kernel_invoke.f90",
+                             idx=0, api=TEST_API, dist_mem=True)
+    result = str(psy.gen).lower()
+    if annexed:
+        assert "loop0_stop = f2_proxy%vspace%get_last_dof_annexed" in result
+        assert "loop1_stop = mesh%get_last_edge_cell()" in result
+        # Halo dofs are left dirty, even though the annexed dofs are clean
+        assert "call f2_proxy%set_dirty()" in result
+        # No halo exchange required
+        assert "call f2_proxy%halo_exchange" not in result
+    else:
+        assert "loop0_stop = f2_proxy%vspace%get_last_dof_owned()" in result
+        assert "loop1_stop = mesh%get_last_edge_cell()" in result
+        # f2 must be halo-exchanged to clean its annexed dofs.
+        assert "call f2_proxy%set_dirty()" in result
+        assert "call f2_proxy%halo_exchange(depth=1)" in result
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
 def test_lfricloop_halo_read_access_error1(monkeypatch):
     '''Test that the halo_read_access method in class LFRicLoop raises the
     expected exception when an unsupported field access is found.
@@ -792,7 +822,7 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     msgs = dtools.get_all_messages()
     assert msgs[0].code == DTCode.ERROR_WRITE_WRITE_RACE
     # Colour the loop.
-    trans = Dynamo0p3ColourTrans()
+    trans = LFRicColourTrans()
     trans.apply(loop)
     loops = schedule.walk(LFRicLoop)
     assert not loops[0].independent_iterations()
@@ -877,7 +907,7 @@ def test_upper_bound_psyir_invalid_bound():
 
 def test_upper_bound_psyir_invalid_within_colouring(monkeypatch):
     ''' Tests we raise an exception in the LFRicLoop:_upper_bound_psyir()
-    method if an invalid value is provided.
+    method if an invalid state is provided.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -889,6 +919,24 @@ def test_upper_bound_psyir_invalid_within_colouring(monkeypatch):
         _ = my_loop.upper_bound_psyir()
     assert (
         "Unsupported upper bound name 'invalid' found" in str(excinfo.value))
+    # Pretend the loop is over colours and passes the is_coloured check, but
+    # it does not have colouring symbols associated
+    monkeypatch.setattr(my_loop, "_upper_bound_name", value="ncolours")
+    monkeypatch.setattr(Kern, "is_coloured", lambda x: True)
+    with pytest.raises(InternalError) as excinfo:
+        _ = my_loop.upper_bound_psyir()
+    assert ("All kernels within a loop over colours must have been coloured "
+            "but kernel 'testkern_code' has not"
+            in str(excinfo.value))
+    # Pretend the loop is over tiled-colours and passes the is_coloured check,
+    # but it does not have colouring symbols associated
+    monkeypatch.setattr(my_loop, "_upper_bound_name", value="ntilecolours")
+    monkeypatch.setattr(Kern, "is_coloured", lambda x: True)
+    with pytest.raises(InternalError) as excinfo:
+        _ = my_loop.upper_bound_psyir()
+    assert ("All kernels within a loop over colours must have been coloured "
+            "but kernel 'testkern_code' has not"
+            in str(excinfo.value))
     # Pretend the loop is over colours and does not contain a kernel
     monkeypatch.setattr(my_loop, "_upper_bound_name", value="ncolours")
     monkeypatch.setattr(my_loop, "walk", lambda x: [])
@@ -896,6 +944,30 @@ def test_upper_bound_psyir_invalid_within_colouring(monkeypatch):
         _ = my_loop.upper_bound_psyir()
     assert ("Failed to find a kernel within a loop over colours"
             in str(excinfo.value))
+    # Pretend the loop is over tilecolours and does not contain a kernel
+    monkeypatch.setattr(my_loop, "_upper_bound_name", value="ntilecolours")
+    monkeypatch.setattr(my_loop, "walk", lambda x: [])
+    with pytest.raises(InternalError) as excinfo:
+        _ = my_loop.upper_bound_psyir()
+    assert ("Failed to find a kernel within a loop over tile-colours"
+            in str(excinfo.value))
+    # Pretend the loop is over ntiles_per_colour_halo with no dist_mem
+    monkeypatch.setattr(my_loop, "_upper_bound_name",
+                        value="ntiles_per_colour_halo")
+    st = psy.invokes.invoke_list[0].schedule.symbol_table
+    st.new_symbol("mesh", tag="mesh")
+    with pytest.raises(GenerationError) as excinfo:
+        _ = my_loop.upper_bound_psyir()
+    assert ("'last_halo_tile_per_colour' is not a valid loop upper bound for"
+            " non-distributed-memory code" in str(excinfo.value))
+    # Pretend the loop is over ncells_per_colour_and_tile_halo with no dist_mem
+    monkeypatch.setattr(my_loop, "_upper_bound_name",
+                        value="ncells_per_colour_and_tile_halo")
+    st = psy.invokes.invoke_list[0].schedule.symbol_table
+    with pytest.raises(GenerationError) as excinfo:
+        _ = my_loop.upper_bound_psyir()
+    assert ("'last_halo_cell_per_colour_and_tile' is not a valid loop upper "
+            "bound for non-distributed-memory code" in str(excinfo.value))
 
 
 def test_upper_bound_psyir_inner(monkeypatch):

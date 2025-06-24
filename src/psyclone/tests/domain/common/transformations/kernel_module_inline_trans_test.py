@@ -373,7 +373,7 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
     Test that validate() works correctly when two symbols in nested scopes
     have a name clash.
 
-    TODO #2424 - this xfails at the moment because VariablesAccessInfo does not
+    TODO #2424 - this xfails at the moment because VariablesAccessMap does not
     support nested scopes.
 
     '''
@@ -412,7 +412,7 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
     try:
         intrans.validate(kern_call)
     except TransformationError:
-        pytest.xfail(reason="TODO #2424 - VariablesAccessInfo does not support"
+        pytest.xfail(reason="TODO #2424 - VariablesAccessMap does not support"
                      " nested scopes")
 
 
@@ -757,8 +757,8 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("lfric")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric",
                              name="invoke_0", dist_mem=dist_mem)
     kern_call = invoke.schedule.walk(CodedKern)[0]

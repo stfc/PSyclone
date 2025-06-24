@@ -132,7 +132,7 @@ class ArgOrdering:
         :param var_accesses: optional class to store variable access \
             information.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
         :param str var_access_name: optional name of the variable for \
             which access information is stored (used e.g. when the \
             actual argument is field_proxy, but the access is to be \
@@ -170,7 +170,7 @@ class ArgOrdering:
         :param var_accesses: optional class to store variable access \
             information.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
         :param mode: optional access mode (defaults to READ).
         :type mode: Optional[:py:class:`psyclone.core.access_type.AccessType`]
         :param Optional[List[int]] list_metadata_posn: list of metadata \
@@ -366,10 +366,10 @@ class ArgOrdering:
         (i.e. that is not explicitly listed in kernel metadata) that is
         added. These accesses will be marked as read.
 
-        :param var_accesses: optional VariablesAccessInfo instance that \
+        :param var_accesses: optional VariablesAccessMap instance that \
             stores the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises GenerationError: if the kernel arguments break the \
                                  rules for the LFRic API.
@@ -550,10 +550,10 @@ class ArgOrdering:
     def cell_position(self, var_accesses=None):
         '''Add cell position information.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -562,10 +562,10 @@ class ArgOrdering:
         to the argument list. If supplied it also stores these accesses to the
         var_access object.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -573,10 +573,10 @@ class ArgOrdering:
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -584,10 +584,10 @@ class ArgOrdering:
         '''Add the number of columns in the mesh (including halos) to the
         argument list and stores this access in var_accesses (if supplied).
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -595,10 +595,10 @@ class ArgOrdering:
         '''Add the number of columns in the mesh (excluding halos) to the
         argument list and stores this access in var_accesses (if supplied).
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -609,11 +609,11 @@ class ArgOrdering:
         information.
 
         :param arg: the CMA operator argument.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -624,11 +624,11 @@ class ArgOrdering:
         var_access object.
 
         :param argvect: the field vector to add.
-        :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type argvect: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -638,11 +638,11 @@ class ArgOrdering:
         argument list. If supplied it also stores this access in var_accesses.
 
         :param arg: the field to be added.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -653,11 +653,11 @@ class ArgOrdering:
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -668,11 +668,11 @@ class ArgOrdering:
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -684,11 +684,11 @@ class ArgOrdering:
         metadata. If supplied it also stores this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -700,11 +700,11 @@ class ArgOrdering:
         var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -716,11 +716,11 @@ class ArgOrdering:
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -732,11 +732,11 @@ class ArgOrdering:
 
         :param arg: the meta-data description of the kernel \
             argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -746,11 +746,11 @@ class ArgOrdering:
         also stores this access in var_accesses.
 
         :param arg: the meta-data description of the operator.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -760,11 +760,11 @@ class ArgOrdering:
         information.
 
         :param scalar_arg: the kernel argument.
-        :type scalar_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance that \
+        :type scalar_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance that \
             stores information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises InternalError: if the argument is not a recognised scalar type.
 
@@ -795,10 +795,10 @@ class ArgOrdering:
         :param function_space: the function space for which the related \
             arguments common to LMA operators and fields are added.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # There is currently one argument: "ndf"
@@ -812,10 +812,10 @@ class ArgOrdering:
         :param function_space: the function space for which the compulsory \
             arguments are added.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -826,10 +826,10 @@ class ArgOrdering:
 
         :param function_space: the function space for which to add arguments
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -841,10 +841,10 @@ class ArgOrdering:
         :param function_space: the function space for which the basis \
                                function is required.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -857,10 +857,10 @@ class ArgOrdering:
         :param function_space: the function space for which the differential \
             basis functions are required.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -871,10 +871,10 @@ class ArgOrdering:
 
         :param function_space: the function space for which boundary dofs \
             are required.
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -886,10 +886,10 @@ class ArgOrdering:
 
         :param function_space: the function space of the operator.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -899,10 +899,10 @@ class ArgOrdering:
         specified in the kernel metadata. If supplied it also stores this
         access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -912,10 +912,10 @@ class ArgOrdering:
         Adds the necessary arguments to the argument list, and optionally
         adds variable access information to the var_accesses object.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
@@ -925,10 +925,10 @@ class ArgOrdering:
         :param function_space: the function space for which banded dofmap
             is added.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # Note that the necessary ndf values will already have been added
@@ -947,11 +947,11 @@ class ArgOrdering:
             dofmap is required.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param operator: the CMA operator (not used at the moment).
-        :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :type operator: :py:class:`psyclone.lfric.LFRicKernelArgument`
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # pylint: disable=unused-argument
@@ -963,18 +963,18 @@ class ArgOrdering:
         '''Add kernel arguments relating to properties of the reference
         element. If supplied it also stores this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         if self._kern.reference_element.properties:
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
-            from psyclone.dynamo0p3 import DynReferenceElement
+            from psyclone.lfric import LFRicReferenceElement
             refelem_args_symbols = \
-                DynReferenceElement(self._kern).kern_args_symbols()
+                LFRicReferenceElement(self._kern).kern_args_symbols()
             for symbol in refelem_args_symbols:
                 # All kernel arguments are simple references:
                 self.psyir_append(Reference(symbol))
@@ -987,10 +987,10 @@ class ArgOrdering:
         to kernel subroutines (but they are passed down from the Algorithm
         layer to the PSy layer).
 
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessMap instance to store
             information about variable accesses.
         :type var_accesses: Optional[
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 

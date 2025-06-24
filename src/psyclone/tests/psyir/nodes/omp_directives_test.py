@@ -66,12 +66,12 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import ChunkLoopTrans, OMPTaskTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import (
-    Dynamo0p3OMPLoopTrans, OMPParallelTrans,
-    OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans,
+    LFRicOMPLoopTrans, OMPParallelTrans,
+    OMPParallelLoopTrans, LFRicOMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+    os.path.abspath(__file__)))), "test_files", "lfric")
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
                                 "gocean1p0")
@@ -562,7 +562,7 @@ def test_directiveinfer_sharing_attributes_lfric():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # We use Transformations to introduce the necessary directives
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do directive to the loop
     otrans.apply(schedule.children[0], {"reprod": True})
@@ -1047,7 +1047,7 @@ def test_omp_forward_dependence():
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     for child in schedule.children:
         otrans.apply(child)
     read4 = schedule.children[4]
@@ -1279,7 +1279,7 @@ def test_omp_taskloop_strings():
 def test_omp_taskloop_clauses():
     ''' Test the clauses property of the OMPTaskloop directive. '''
     omp_taskloop = OMPTaskloopDirective()
-    assert omp_taskloop.clauses == []
+    assert omp_taskloop.clauses == ()
 
 
 def test_omp_taskloop_init():
