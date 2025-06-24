@@ -2879,9 +2879,8 @@ class Transformation(metaclass=abc.ABCMeta):
                             kwargs[option], valid_options[option].type):
                         wrong_types[option] = type(kwargs[option]).__name__
                 except TypeError:
-                    # For older versions of Python, such as 3.8 they don't yet
-                    # support type checking for Generics, e.g. Union[...] so
-                    # we skip this check and it needs to be done in the
+                    # Type checking for Generics, e.g. Union[...], doesn't
+                    # work so we skip this check - it is done in the
                     # relevant function instead.
                     pass
 
