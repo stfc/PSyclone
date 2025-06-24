@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk, STFC Daresbury Lab
 # Modified S. Siso, STFC Daresbury Lab
+# Modified M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 '''This module contains the unit tests for the ChunkLoopTrans module'''
@@ -341,8 +342,7 @@ def test_chunkloop_trans_apply_pos():
     code = str(psy.gen)
     correct = \
         '''do j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
-      j_el_inner = MIN(j_out_var + (32 - 1), cu_fld%internal%ystop)
-      do j = j_out_var, j_el_inner, 1
+      do j = j_out_var, MIN(j_out_var + (32 - 1), cu_fld%internal%ystop), 1
         do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
     '''
     assert correct in code
@@ -367,8 +367,7 @@ def test_chunkloop_trans_apply_neg():
     code = str(psy.gen)
     correct = \
         '''do j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, -32
-      j_el_inner = MAX(j_out_var - (32 + 1), cu_fld%internal%ystop)
-      do j = j_out_var, j_el_inner, -1
+      do j = j_out_var, MAX(j_out_var - (32 + 1), cu_fld%internal%ystop), -1
         do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
     '''
     assert correct in code
@@ -390,8 +389,7 @@ def test_chunkloop_trans_apply_with_options():
     code = str(psy.gen)
     correct = \
         '''do j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 4
-      j_el_inner = MIN(j_out_var + (4 - 1), cu_fld%internal%ystop)
-      do j = j_out_var, j_el_inner, 1
+      do j = j_out_var, MIN(j_out_var + (4 - 1), cu_fld%internal%ystop), 1
     '''
     assert correct in code
 
@@ -425,30 +423,24 @@ def test_chunkloop_trans_apply_double_chunk(tmpdir):
     writer = FortranWriter()
     result = writer(psyir)
     correct_vars = \
-        '''integer :: i_el_inner
-  integer :: i_out_var
-  integer :: j_el_inner
+        '''integer :: i_out_var
   integer :: j_out_var'''
     assert correct_vars in result
 
     correct = \
         '''do i_out_var = 1, end, 32
-    i_el_inner = MIN(i_out_var + (32 - 1), end)
-    do i = i_out_var, i_el_inner, 1
+    do i = i_out_var, MIN(i_out_var + (32 - 1), end), 1
       do j_out_var = 1, end, 32
-        j_el_inner = MIN(j_out_var + (32 - 1), end)
-        do j = j_out_var, j_el_inner, 1
+        do j = j_out_var, MIN(j_out_var + (32 - 1), end), 1
           ai(i,j) = 1
         enddo
       enddo
     enddo
   enddo
   do i_out_var = 1, end, 32
-    i_el_inner = MIN(i_out_var + (32 - 1), end)
-    do i = i_out_var, i_el_inner, 2
+    do i = i_out_var, MIN(i_out_var + (32 - 1), end), 2
       do j_out_var = 1, end, 32
-        j_el_inner = MIN(j_out_var + (32 - 1), end)
-        do j = j_out_var, j_el_inner, 2
+        do j = j_out_var, MIN(j_out_var + (32 - 1), end), 2
           aj(i,j) = 1
         enddo
       enddo
