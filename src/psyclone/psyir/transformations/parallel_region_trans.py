@@ -45,7 +45,6 @@ This module provides the implementation of ParallelRegionTrans
 '''
 
 from abc import ABC, abstractmethod
-from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone import psyGen
@@ -88,18 +87,11 @@ class ParallelRegionTrans(RegionTrans, ABC):
             or not the type of the nodes enclosed in the region should be \
             tested to avoid using unsupported nodes inside a region.
 
-        :raises TransformationError: if the supplied node is an \
-            InvokeSchedule rather than being within an InvokeSchedule.
         :raises TransformationError: if the supplied nodes are not all \
             children of the same parent (siblings).
 
         '''
         node_list = self.get_node_list(node_list)
-        if isinstance(node_list[0], InvokeSchedule):
-            raise TransformationError(
-                f"A {self.name} transformation cannot be applied to an "
-                f"InvokeSchedule but only to one or more nodes from within an "
-                f"InvokeSchedule.")
 
         node_parent = node_list[0].parent
 
