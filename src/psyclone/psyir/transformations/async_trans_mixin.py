@@ -121,7 +121,21 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             # ignore it.
             if sym in private or sym in firstprivate:
                 continue
-
+            # If the symbol is a loop variable of an ancestor loop then we can
+            # ignore it, as loop variables are only modifiable by the loop
+            # and we already account for loop/self dependencies.
+            if isinstance(nodes, list):
+                anc_loop = nodes[0].ancestor(Loop)
+            else:
+                anc_loop = nodes.ancestor(Loop)
+            ancestor_var = False
+            while anc_loop:
+                if sym_name == anc_loop.variable.name:
+                    ancestor_var = True
+                    break
+                anc_loop = anc_loop.ancestor(Loop)
+            if ancestor_var:
+                continue
             # TODO: #2982 next_accesses ability to look at Structures is
             # limited, and returns the next access(es) to any structure member
             # and not necessarily to the member of interest which limits
@@ -168,7 +182,6 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                     closest = access
                     closest_position = abs_position
                     continue
-
         # If this directive is contained inside a loop the closest foward
         # dependency might be itself. So if closest is not within the ancestor
         # loop of node then we can't do nowait, so return False.
