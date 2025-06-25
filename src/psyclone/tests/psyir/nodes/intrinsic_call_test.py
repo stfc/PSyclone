@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall, IAttr
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, INTEGER_TYPE, IntrinsicSymbol, REAL_TYPE,
-    BOOLEAN_TYPE, CHARACTER_TYPE)
+    BOOLEAN_TYPE, CHARACTER_TYPE, UnresolvedType)
 
 
 def test_intrinsic_enum():
@@ -558,8 +558,12 @@ def test_intrinsiccall_datatype(fortran_reader):
       implicit none
       use some_mod, only: var, i_def, nx, ny
       integer(kind=i_def), dimension(nx, ny) :: array
+      character(len=10) :: clname
+      integer :: ind1, ind2, idom, jpdom_local
+      if( verify( clname(ind1:ind2), '0123456789' ) == 0 ) idom = jpdom_local
       var = maxval(array)
     end program test_prog
     ''')
-    icall = psyir.walk(IntrinsicCall)[0]
-    assert icall.datatype is None
+    icalls = psyir.walk(IntrinsicCall)
+    assert isinstance(icalls[0].datatype, UnresolvedType)
+    assert isinstance(icalls[1].datatype, UnresolvedType)
