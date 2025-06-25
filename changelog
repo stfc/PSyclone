@@ -1,3 +1,6 @@
+   40) PR #2962 for #2935. Errors in use of LBOUND and looping in generated
+   adjoint kernel.
+
    39) PR #3021. Remove hoisted reference from chunking/tiling
    transformations.
 
