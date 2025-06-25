@@ -59,8 +59,11 @@ $(EXEC): $(LFRIC_LIB) $(OBJ)
 
 compile: transform $(EXEC)
 
+# Runs PSyclone to do the code generation. Also demonstrates the use of the
+# example 'kernel_print' transformation which prints the Fortran of each
+# kernel found.
 transform:
-	${PSYCLONE} -api lfric algorithm.x90 -opsy mixed_precision_psy.f90 -oalg alg.f90
+	${PSYCLONE} -api lfric algorithm.x90 -s ../scripts/kernel_print.py -opsy mixed_precision_psy.f90 -oalg alg.f90
 
 alg.f90 mixed_precision_psy.f90: transform
 alg.o: mixed_precision_psy.o
