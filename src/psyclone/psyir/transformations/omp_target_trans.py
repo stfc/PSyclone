@@ -152,21 +152,27 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         :type node: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param str options["device_string"]: provide a compiler-platform
+            identifier.
 
         :raises TransformationError: if it contains calls to routines that
             are not available in the accelerator device.
         :raises TransformationError: if its a function and the target region
             attempts to enclose the assingment setting the return value.
         '''
+        device_string = options.get("device_string", "") if options else ""
         node_list = self.get_node_list(node)
         super().validate(node, options)
         for node in node_list:
             for call in node.walk(Call):
-                if not call.is_available_on_device():
+                if not call.is_available_on_device(device_string):
+                    device_str = device_string if device_string else "default"
                     raise TransformationError(
-                        f"'{call.routine.name}' is not available on the "
-                        f"accelerator device, and therefore it cannot "
-                        f"be called from within an OMP Target region.")
+                        f"'{call.routine.name}' is not available on the"
+                        f" '{device_str}' accelerator device, and therefore "
+                        f"it cannot be called from within an OMP Target "
+                        f"region. Use the 'device_string' option to specify a "
+                        f"different device.")
         routine = node.ancestor(Routine)
         if routine and routine.return_symbol:
             # if it is a function, the target must not include its return sym
@@ -189,6 +195,8 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         :type options: Optional[Dict[str,Any]]
         :param bool options["nowait"]: whether to add a nowait clause and a
             corresponding barrier to enable asynchronous execution.
+        :param str options["device_string"]: provide a compiler-platform
+            identifier.
 
         '''
         if not options:
