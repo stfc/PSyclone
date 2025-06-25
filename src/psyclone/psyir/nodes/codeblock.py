@@ -256,3 +256,26 @@ class CodeBlock(Statement, DataNode):
 
     def __str__(self):
         return f"CodeBlock[{len(self._fp2_nodes)} nodes]"
+
+    def has_potential_control_flow_jump(self) -> bool:
+        '''
+        :returns: whether this CodeBlock contains a potential control flow
+                  jump, e.g. GOTO, EXIT or a labeled statement.
+        '''
+        # Loop over the fp2_nodes and check if any are GOTO, EXIT or
+        # labelled statements
+        for node in self._fp2_nodes:
+            for child in walk(node, (Fortran2003.Goto_Stmt,
+                                     Fortran2003.Exit_Stmt,
+                                     Fortran2003.Cycle_Stmt,
+                                     Fortran2003.StmtBase)):
+                if isinstance(child,
+                              (Fortran2003.Goto_Stmt,
+                               Fortran2003.Exit_Stmt,
+                               Fortran2003.Cycle_Stmt)):
+                    return True
+                # Also can't support Labelled statements.
+                if isinstance(child, Fortran2003.StmtBase):
+                    if child.item and child.item.label:
+                        return True
+        return False

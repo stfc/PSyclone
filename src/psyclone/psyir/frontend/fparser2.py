@@ -4482,10 +4482,12 @@ class Fparser2Reader():
             # TODO 2884: We should be able to handle this imported symbol
             # better. If we can, we need to handle a case where is_elemental
             # can be None.
-            if isinstance(ref.symbol.interface, ImportInterface):
+            if isinstance(ref.symbol.interface, (ImportInterface,
+                                                 UnresolvedInterface)):
                 raise NotImplementedError(
-                        "PSyclone doesn't yet support reference to imported "
-                        "symbols inside WHERE clauses.")
+                        f"PSyclone doesn't yet support references to imported/"
+                        f"unresolved symbols inside WHERE clauses: "
+                        f"'{ref.symbol.name}' is unresolved.")
             if (isinstance(ref.symbol, DataSymbol) and
                     elemental_ancestor):
                 try:
@@ -4503,7 +4505,7 @@ class Fparser2Reader():
             raise NotImplementedError(
                 f"Only WHERE constructs using explicit array notation "
                 f"including ranges (e.g. 'my_array(1,:)') are supported but "
-                f"found '{logical_expr}'")
+                f"found '{logical_expr[0]}'")
 
         array_ref = first_array.ancestor(Reference, include_self=True)
         if not isinstance(array_ref.datatype, ArrayType):
