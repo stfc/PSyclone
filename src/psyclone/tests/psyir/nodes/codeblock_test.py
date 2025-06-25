@@ -140,15 +140,16 @@ def test_codeblock_get_symbol_names_comments_and_directives():
     '''
     code = """
     subroutine mytest
-    integer :: i
+    integer :: i, is
 
-    ! Here is a comment
     !$omp dir private(i)
     i = i + 1
+    ! Here is a comment
     end subroutine"""
 
     reader = FortranReader(ignore_comments=False,
-                           ignore_directives=False)
+                           ignore_directives=False,
+                           last_comments_as_codeblocks=True)
     psyir = reader.psyir_from_source(code)
     block = psyir.walk(CodeBlock)[0]
     sym_names = block.get_symbol_names()
