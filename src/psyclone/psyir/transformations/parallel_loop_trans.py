@@ -148,7 +148,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             collapse as much as possible. If it's an integer, it will attempt
             to collapse until the specified number of loops (if they exist and
             are safe to collapse them). The options 'ignore_dependencies_for'
-            and 'force' also affect the collapse applicabilty analysis.
+            and 'force' also affect the collapse applicability analysis.
         :param bool force: whether to force parallelisation of the
             target loop (i.e. ignore any dependence analysis).
         :param list[str] ignore_dependencies_for: whether to ignore
@@ -339,7 +339,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             collapse as much as possible. If it's an integer, it will attempt
             to collapse until the specified number of loops (if they exist and
             are safe to collapse them). The options 'ignore_dependencies_for'
-            and 'force' also affect the collapse applicabilty analysis.
+            and 'force' also affect the collapse applicability analysis.
         :param bool force: whether to force parallelisation of the
             target loop (i.e. ignore any dependence analysis).
         :param list[str] ignore_dependencies_for: whether to ignore

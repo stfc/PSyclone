@@ -467,7 +467,7 @@ def test_array_indices():
     array = ArrayReference.create(DataSymbol("test",
                                              ArrayType(REAL_TYPE, [10])),
                                   [one])
-    assert array.indices == [one]
+    assert array.indices == (one,)
     # Add an invalid child
     array._children = [one.copy(), "hello"]
     with pytest.raises(InternalError) as err:
