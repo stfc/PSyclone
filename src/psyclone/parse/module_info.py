@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: J. Henrichs, Bureau of Meteorology
-#          A. R. Porter, STFC Daresbury Laboratory
+#          A. R. Porter and S. Siso, STFC Daresbury Laboratory
 # Modified: M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean-Kuntzmann
 
 '''This module contains the ModuleInfo class, which is used to store
@@ -47,7 +47,7 @@ from typing import Dict, List, Union
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
-from psyclone.errors import InternalError, PSycloneError, GenerationError
+from psyclone.errors import InternalError, PSycloneError
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import Symbol
 from psyclone.parse import FileInfo, FileInfoFParserError
@@ -265,7 +265,7 @@ class ModuleInfo:
             try:
                 self._psyir_container_node = self._file_info.get_psyir()
             except (
-                    GenerationError,
+                    PSycloneError,
                     FileInfoFParserError) as err:
                 # TODO #11: Add proper logging
                 print(f"Error trying to create PSyIR for '{self.filename}': "
@@ -316,7 +316,7 @@ class ModuleInfo:
                 # PSyIR could not be obtained so cannot search for Symbol
                 return None
 
-        except (FileNotFoundError, FileInfoFParserError, GenerationError):
+        except (FileNotFoundError, FileInfoFParserError, PSycloneError):
             return None
 
         try:
