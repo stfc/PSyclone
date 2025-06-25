@@ -1,3 +1,6 @@
+   41) PR #3013 for #2856. Makes 'intrinsics available on device'
+   configurable.
+
    40) PR #2962 for #2935. Errors in use of LBOUND and looping in generated
    adjoint kernel.
 
