@@ -187,7 +187,7 @@ class InlineTrans(Transformation):
         for child in node.arguments:
             try:
                 # TODO #1858, this won't yet work for arrays inside structures.
-                ref2arraytrans.apply(child)
+                ref2arraytrans.apply(child, allow_call_arguments=True)
             except (TransformationError, ValueError):
                 pass
 
