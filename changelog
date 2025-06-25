@@ -1,3 +1,6 @@
+   42) PR #3034 for #2837. Updates the supported versions of Python used in
+   the test suite to 3.10 and 3.13.
+
    41) PR #3013 for #2856. Makes 'intrinsics available on device'
    configurable.
 
