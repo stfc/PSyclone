@@ -34,7 +34,7 @@ contains
     !> @param[out] born The output field with 1 iff a cell is newly born.
     !> @param[in]  current The current state.
     !> @param[in]  neighbours The number of live neighbours for each cell.
-    subroutine compute_born_code(i, j, born, current, neighbours)
+    pure subroutine compute_born_code(i, j, born, current, neighbours)
 
         implicit none
         double precision, dimension(:,:), intent (out)  :: born

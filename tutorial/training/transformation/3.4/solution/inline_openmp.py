@@ -101,7 +101,7 @@ def trans(psyir):
             if ref.name in const_mapping:
                 value = const_mapping[ref.name].copy()
                 ref.replace_with(value)
-    return
+
     fuse = LoopFuseTrans()
     fuse.apply(lat_loops[0], lat_loops[1])
     fuse.apply(lat_loops[0].loop_body[0], lat_loops[0].loop_body[1])

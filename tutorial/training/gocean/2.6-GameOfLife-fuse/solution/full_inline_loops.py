@@ -86,12 +86,10 @@ def trans_alg(psyir):
 
     psyir.lower_to_language_level()
     for routine in psyir.walk(Routine):
-        print("XX", routine.view())
         symbol_table = routine.symbol_table
         r2d_field = symbol_table.lookup("r2d_field")
         var_info = VariablesAccessInfo(routine)
         for sig in var_info:
-            print("XX varinfo", sig, var_info[sig])
             sym = symbol_table.lookup(sig[0])
             if not isinstance(sym.interface, AutomaticInterface):
                 # Ignore any non-local variables, we don't know their scope

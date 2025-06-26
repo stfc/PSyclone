@@ -31,6 +31,7 @@ where required. Then apply OpenMP to all loops, but in case that a loop is
 coloured, the OMP directive must be applied to the first child.
 
 The code create should now look like this:
+
     DO colour = loop2_start, loop2_stop, 1
        !$omp parallel do default(shared), private(cell),
                          schedule(static)

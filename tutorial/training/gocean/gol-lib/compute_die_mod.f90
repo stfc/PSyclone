@@ -34,7 +34,7 @@ contains
     !> @param[out] die  The output field with 1 iff the cell dies.
     !> @param[in]  current The current state.
     !> @param[in]  neighbours The number of live neighbours for each cell.
-    subroutine compute_die_code(i, j, die, current, neighbours)
+    pure subroutine compute_die_code(i, j, die, current, neighbours)
         implicit none
         double precision, dimension(:,:), intent(out) :: die
         double precision, dimension(:,:), intent(in)  :: current, neighbours
