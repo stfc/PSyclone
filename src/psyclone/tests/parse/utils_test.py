@@ -78,8 +78,6 @@ def test_line_length_unicode():
     '''Check that a file containing unicode character comments
     parses correctly.
 
-    Note: This test failed with Python >3,<3.7 before explicit codecs
-          were defined in the open(filename, ...) call.
     '''
     kwargs = dict(encoding='utf8')
     with tempfile.NamedTemporaryFile(mode='w', **kwargs) as tmp_file:
