@@ -58,7 +58,7 @@ def test_kernelimportstoargumentstrans_wrongapi():
     ''' Check the KernelImportsToArguments with an API other than GOcean1p0'''
 
     trans = KernelImportsToArguments()
-    path = os.path.join(BASEPATH, "dynamo0p3")
+    path = os.path.join(BASEPATH, "lfric")
     _, invoke_info = parse(os.path.join(path, "1_single_invoke.f90"),
                            api="lfric")
     psy = PSyFactory("lfric").create(invoke_info)
@@ -175,8 +175,8 @@ def test_kernelimportstoargumentstrans(monkeypatch):
     # Check that the PSy-layer generated code now contains the use statement
     # and argument call
     generated_code = str(psy.gen)
-    assert "USE model_mod, ONLY: rdt" in generated_code
-    assert "CALL kernel_with_use_code(i, j, oldu_fld, cu_fld%data, " \
+    assert "use model_mod, only : rdt" in generated_code
+    assert "call kernel_with_use_code(i, j, oldu_fld, cu_fld%data, " \
            "cu_fld%grid%tmask, rdt)" in generated_code
     assert invoke.schedule.symbol_table.lookup("model_mod")
     assert invoke.schedule.symbol_table.lookup("rdt")
@@ -303,19 +303,19 @@ def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
     # The following assert checks that imports from the same module are
     # imported, since the kernels are marked as modified, new suffixes are
     # given in order to differentiate each of them.
-    assert ("USE kernel_with_use_1_mod, ONLY: kernel_with_use_1_code\n"
+    assert ("use kernel_with_use_1_mod, only : kernel_with_use_1_code\n"
             in generated_code)
-    assert ("USE kernel_with_use2_0_mod, ONLY: kernel_with_use2_0_code\n"
+    assert ("use kernel_with_use2_0_mod, only : kernel_with_use2_0_code\n"
             in generated_code)
-    assert ("USE kernel_with_use_0_mod, ONLY: kernel_with_use_0_code\n"
+    assert ("use kernel_with_use_0_mod, only : kernel_with_use_0_code\n"
             in generated_code)
 
     # Check the kernel calls have the imported symbol passed as last argument
-    assert ("CALL kernel_with_use_0_code(i, j, oldu_fld, cu_fld%data, "
+    assert ("call kernel_with_use_0_code(i, j, oldu_fld, cu_fld%data, "
             "cu_fld%grid%tmask, rdt, magic)" in generated_code)
-    assert ("CALL kernel_with_use_1_code(i, j, oldu_fld, cu_fld%data, "
+    assert ("call kernel_with_use_1_code(i, j, oldu_fld, cu_fld%data, "
             "cu_fld%grid%tmask, rdt, magic)" in generated_code)
-    assert ("CALL kernel_with_use2_0_code(i, j, oldu_fld, cu_fld%data, "
+    assert ("call kernel_with_use2_0_code(i, j, oldu_fld, cu_fld%data, "
             "cu_fld%grid%tmask, cbfr, rdt)" in generated_code)
 
 

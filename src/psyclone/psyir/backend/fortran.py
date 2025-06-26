@@ -41,7 +41,7 @@ from a PSyIR tree. '''
 
 # pylint: disable=too-many-lines
 from psyclone.core import Signature
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import (
@@ -54,7 +54,7 @@ from psyclone.psyir.symbols import (
     GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
     RoutineSymbol, ScalarType, StructureType, Symbol, SymbolTable,
     UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
-    UnsupportedType, )
+    UnsupportedType, TypedSymbol)
 
 
 # Mapping from PSyIR types to Fortran data types. Simply reverse the
@@ -508,6 +508,7 @@ class FortranWriter(LanguageWriter):
         :returns: the Fortran variable declaration as a string.
         :rtype: str
 
+        :raises VisitorError: if the symbol is not typed.
         :raises VisitorError: if the symbol is of UnresolvedType.
         :raises VisitorError: if the symbol is of UnsupportedType other than
             UnsupportedFortranType.
@@ -524,6 +525,9 @@ class FortranWriter(LanguageWriter):
 
         '''
         # pylint: disable=too-many-branches
+        if not isinstance(symbol, (TypedSymbol, StructureType.ComponentType)):
+            raise VisitorError(f"Symbol '{symbol.name}' must be a symbol with"
+                               f" a datatype in order to use 'gen_vardecl'.")
         if isinstance(symbol.datatype, UnresolvedType):
             raise VisitorError(f"Symbol '{symbol.name}' has a UnresolvedType "
                                f"and we can not generate a declaration for "
@@ -876,7 +880,7 @@ class FortranWriter(LanguageWriter):
             decln_inputs[symbol.name] = set()
             read_write_info = ReadWriteInfo()
             self._call_tree_utils.get_input_parameters(read_write_info,
-                                                       symbol.initial_value)
+                                                       [symbol.initial_value])
             # The dependence analysis tools do not include symbols used to
             # define precision so check for those here.
             for lit in symbol.initial_value.walk(Literal):
@@ -1500,15 +1504,7 @@ class FortranWriter(LanguageWriter):
             body += self._visit(child)
         self._depth -= 1
 
-        # A generation error is raised if variable is not defined. This
-        # happens in LFRic kernel that iterate over a domain.
-        try:
-            variable_name = node.variable.name
-        except GenerationError:
-            # If a kernel iterates over a domain - there is
-            # no loop. But the loop node is maintained since it handles halo
-            # exchanges. So just return the body in this case
-            return body
+        variable_name = node.variable.name
 
         return (
             f"{self._nindent}do {variable_name} = {start}, {stop}, {step}\n"
@@ -1657,7 +1653,7 @@ class FortranWriter(LanguageWriter):
         # Add a space only if there are clauses
         if len(clause_list) > 0:
             result = result + " "
-        result = result + ", ".join(clause_list)
+        result = result + " ".join(clause_list)
         result = result + "\n"
 
         for child in node.dir_body:
@@ -1687,7 +1683,7 @@ class FortranWriter(LanguageWriter):
         # Add a space only if there are clauses
         if len(clause_list) > 0:
             result = result + " "
-        result = result + ", ".join(clause_list)
+        result = result + " ".join(clause_list)
         result = result + "\n"
 
         return result
@@ -1733,21 +1729,24 @@ class FortranWriter(LanguageWriter):
                 result_list.append(self._visit(child))
         return ", ".join(result_list)
 
-    def call_node(self, node):
+    def call_node(self, node) -> str:
         '''Translate the PSyIR call node to Fortran.
 
         :param node: a Call PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Call`
 
         :returns: the equivalent Fortran code.
-        :rtype: str
 
         '''
         args = self._gen_arguments(node)
-        if isinstance(node, IntrinsicCall) and node.routine.name in [
-                "ALLOCATE", "DEALLOCATE"]:
-            # An allocate/deallocate doesn't have 'call'.
-            return f"{self._nindent}{node.routine.name}({args})\n"
+        if isinstance(node, IntrinsicCall) and node.routine.name not in [
+                "DATE_AND_TIME", "SYSTEM_CLOCK", "MVBITS", "RANDOM_NUMBER",
+                "RANDOM_SEED"]:
+            # Most intrinsics are functions and so don't have 'call'.
+            if not node.parent or isinstance(node.parent, Schedule):
+                return f"{self._nindent}{node.routine.name}({args})\n"
+            return f"{node.routine.name}({args})"
+
         if not node.parent or isinstance(node.parent, Schedule):
             return f"{self._nindent}call {self._visit(node.routine)}({args})\n"
 

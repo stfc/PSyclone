@@ -224,8 +224,8 @@ PSyclone modifies the Schedule of the selected ``invoke_0``:
   Schedule[invoke='invoke_0' dm=False]
       0: Loop[type='dofs',field_space='any_space_1',it_space='dofs',
               upper_bound='ndofs']
-          Literal[value:'NOT_INITIALISED']
-          Literal[value:'NOT_INITIALISED']
+          Reference[name:'loop0_start']
+          Reference[name:'loop0_stop']
           Literal[value:'1']
           Schedule[]
               0: BuiltIn setval_c(f5,0.0)
@@ -312,11 +312,11 @@ example ``15.1.2_builtin_and_normal_kernel_invoke.f90``:
 .. code-block:: python
 
   from psyclone.domain.lfric.transformations import LFRicExtractTrans
-  from psyclone.transformations import DynamoOMPParallelLoopTrans
+  from psyclone.transformations import LFRicOMPParallelLoopTrans
 
   # Get instances of the transformations
   etrans = LFRicExtractTrans()
-  otrans = DynamoOMPParallelLoopTrans()
+  otrans = LFRicOMPParallelLoopTrans()
 
   # Get Invoke and its Schedule
   invoke = psy.invokes.get("invoke_0")

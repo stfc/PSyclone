@@ -41,7 +41,7 @@
 
 import re
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import ScalarType, Symbol, ArrayType
 
@@ -80,7 +80,7 @@ class Literal(DataNode):
     _text_name = "Literal"
     _colour = "yellow"
     _real_value = r'^[+-]?[0-9]+(\.[0-9]*)?([eE][+-]?[0-9]+)?$'
-    _int_value = r'(([+-]?[0-9]+)|(NOT_INITIALISED))'
+    _int_value = r'([+-]?[0-9]+)'
 
     def __init__(self, value, datatype, parent=None):
         super().__init__(parent=parent)
@@ -171,18 +171,19 @@ class Literal(DataNode):
         return (f"{self.coloured_name(colour)}"
                 f"[value:'{self._value}', {self.datatype}]")
 
-    def reference_accesses(self, access_info: VariablesAccessInfo):
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
-        Get all variable access information. Since this is a Literal, the
-        only possible place a symbol might be present is in the precision.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the
-            information about variable accesses.
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
+        access_info = VariablesAccessMap()
         if isinstance(self.datatype.precision, Symbol):
             access_info.add_access(Signature(self.datatype.precision.name),
                                    AccessType.TYPE_INFO, self)
+        return access_info
 
     def replace_symbols_using(self, table_or_symbol):
         '''

@@ -141,27 +141,6 @@ TBD
 .. classname being provided. This allow them to instantiate the
 .. appropriate objects without knowing what they are.
 ..
-.. gen_code()
-.. ++++++++++
-..
-.. All of the above classes (with the exception of PSy which supports a
-.. gen() method) have the gen_code() method. This method passes the
-.. parent of the generation tree and expect the object to add the code
-.. associated with the object as a child of the parent. The object is
-.. then expected to call any children. This approach is powerful as it
-.. lets each object concentrate on the code that it is responsible for.
-..
-.. Adding code in gen_code()
-.. +++++++++++++++++++++++++
-..
-.. The f2pygen classes have been developed to help create appropriate
-.. fortran code in the gen_code() method.
-..
-.. When writing a gen_code() method for a particular object and API it is
-.. natural to add code as a child of the parent provided by the callee of
-.. the method. However, in some cases we do not want code to appear at
-.. the current position in the hierarchy.
-..
 .. The add() method
 .. ++++++++++++++++
 ..
@@ -633,8 +612,7 @@ operator are computed redundantly in the halo up to depth-1 (see the
 requires a check that any loop which includes a kernel that reads from
 an operator is limited to iterating in the halo up to
 depth-1. PSyclone will raise an exception if an optimisation attempts
-to increase the iteration space beyond this (see the ``gen_code()``
-method in the ``LFRicKern`` class).
+to increase the iteration space beyond this point.
 
 To alleviate the above restriction one could add a configurable depth with
 which to compute operators e.g. operators are always computed up to
@@ -823,7 +801,7 @@ in the ``_compute_halo_read_info`` function within the
 Asynchronous Halo Exchanges
 +++++++++++++++++++++++++++
 
-The Dynamo0p3AsynchronousHaloExchange transformation allows the
+The LFRicAsynchronousHaloExchange transformation allows the
 default synchronous halo exchange to be split into a halo exchange
 start and a halo exchange end which are represented separately as nodes
 in the schedule. These can then be moved in the schedule to allow
@@ -886,17 +864,17 @@ the meta-data) is stored in ``LFRicKernMetadata._eval_targets``. This
 information is then used in the ``LFRicKern._setup()`` method which
 populates ``LFRicKern._eval_targets``. This is an ``OrderedDict`` which has
 the (mangled) names of the target function spaces as keys and 2-tuples
-consisting of ``FunctionSpace`` and ``DynKernelArgument`` objects as
-values. The ``DynKernelArgument`` object provides the kernel argument
+consisting of ``FunctionSpace`` and ``LFRicKernelArgument`` objects as
+values. The ``LFRicKernelArgument`` object provides the kernel argument
 from which to extract the function space and the ``FunctionSpace`` object
 holds full information on the target function space.
 
-The ``DynInvokeBasisFunctions`` class is responsible for managing the
+The ``LFRicInvokeBasisFunctions`` class is responsible for managing the
 evaluators required by all of the kernels called from an Invoke.
-``DynInvokeBasisFunctions._eval_targets`` collects all of the unique target
+``LFRicInvokeBasisFunctions._eval_targets`` collects all of the unique target
 function spaces from the ``LFRicKern._eval_targets`` of each kernel.
 
-``DynInvokeBasisFunctions._basis_fns`` is a list holding information on
+``LFRicInvokeBasisFunctions._basis_fns`` is a list holding information on
 each basis/differential basis function required by a kernel within the
 invoke. Each entry in this list is a ``dict`` with keys:
 
@@ -906,9 +884,9 @@ Key           Entry                      	  Type
 shape         Shape of the evaluator              `str`
 type          Whether basis or differential basis `str`
 fspace        Function space             	  `FunctionSpace`
-arg           Associated kernel argument 	  `DynKernelArgument`
+arg           Associated kernel argument 	  `LFRicKernelArgument`
 qr_var        Quadrature argument name   	  `str`
-nodal_fspaces Target function spaces     	  list of `(FunctionSpace, DynKernelArgument)`
+nodal_fspaces Target function spaces     	  list of `(FunctionSpace, LFRicKernelArgument)`
 ============= =================================== ===================
 
 Precision
@@ -929,7 +907,7 @@ Modifying the Schedule
 ----------------------
 
 Transformations modify the schedule. At the moment only one of these
-transformations - the ``Dynamo0p3RedundantComputationTrans`` class in
+transformations - the ``LFRicRedundantComputationTrans`` class in
 ``transformations.py`` - affects halo exchanges. This transformation can
 mean there is a requirement for new halo exchanges, it can mean
 existing halo exchanges are no longer required and it can mean that
@@ -938,7 +916,7 @@ the properties of a halo exchange (e.g. depth) can change.
 The redundant computation transformation is applied to a loop in a
 schedule. When this is done the ``update_halo_exchanges()`` method for
 that loop is called - see the ``apply()`` method in
-``Dynamo0p3RedundantComputationTrans``.
+``LFRicRedundantComputationTrans``.
 
 The first thing that the ``update_halo_exchanges()`` method does is call
 the ``create_halo_exchanges()`` method to add in any new halo exchanges
@@ -1009,9 +987,9 @@ If a loop contains one or more kernels that write to a field on a
 continuous function space then it cannot be safely executed in
 parallel on a shared-memory device. This is because fields on a
 continuous function space share dofs between neighbouring cells. One
-solution to this is to 'colour' the cells in a mesh so that all cells
-of a given colour may be safely updated in parallel
-(:numref:`fig-colouring`).
+solution to this is to add an outer 'colours' loop and a inner 'cells_in_colour'
+loop to iterate over the cells in a mesh so that all cells the same colour can
+be safely updated in parallel (:numref:`fig-colouring`).
 
 .. _fig-colouring:
 
@@ -1023,10 +1001,13 @@ of a given colour may be safely updated in parallel
 	   ensure the thread-safe update of shared dofs (black
 	   circles).  (Courtesy of S. Mullerworth, Met Office.)
 
-The loop over colours must then be performed sequentially but the loop
-over cells of a given colour may be done in parallel. A loop that
-requires colouring may be transformed using the ``Dynamo0p3ColourTrans``
-transformation.
+Alternatively the inner loops can be 'tiles_in_colour' and 'cells_in_tiles' to
+trade granularity for cell locality.
+
+In both cases the outer loop over 'colours' must then be performed sequentially
+but the loop over 'cells/tiles_in_colour' of a given colour may be done in parallel.
+A loop that requires colouring may be transformed using the ``LFRicColourTrans``
+transformation, with the 'tiling' option set to True or False.
 
 Each mesh in the multi-grid hierarchy is coloured separately
 (https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicInfrastructure/MeshColouring)
@@ -1069,7 +1050,7 @@ migration to the use of language-level PSyIR for the LFRic PSy layer
 is at an early stage, in practise this often requires that suitable
 Symbols be constructed and inserted into the symbol table of the PSy
 layer routine. A lot of this work is currently performed in the
-``DynKernelArgument.infer_datatype()`` method but ultimately (see
+``LFRicKernelArgument.infer_datatype()`` method but ultimately (see
 https://github.com/stfc/PSyclone/issues/1258) much of this will be
 removed.
 
@@ -1200,50 +1181,6 @@ metadata values. For example, if a `meta_func` entry is specified for
 the `w0` function space then at least one of the the `meta_arg`
 arguments must be on the `w0` function space. However, this is not
 checked in the current implementation.
-
-GOcean1.0
-=========
-
-TBD
-
-.. OpenMP Support
-.. --------------
-..
-.. Loop directives are treated as first class entities in the psyGen
-.. package. Therefore they can be added to psyGen's high level
-.. representation of the fortran code structure in the same way as calls
-.. and loops. Obviously it is only valid to add a loop directive outside
-.. of a loop.
-..
-.. When adding a call inside a loop the placement of any additional calls
-.. or declarations must be specified correctly to ensure that they are
-.. placed at the correct location in the hierarchy. To avoid accidentally
-.. splitting the loop directive from its loop the start_parent_loop()
-.. method can be used. This is available as a method in all fortran
-.. generation calls. *We could have placed it in psyGen instead of
-.. f2pygen*.  This method returns the location at the top of any loop
-.. hierarchy and before any comments immediately before the top level
-.. loop.
-..
-.. The OpenMPLoopDirective object needs to know which variables are
-.. shared and which are private. In the current implementation default
-.. shared is used and private variables are listed. To determine the
-.. objects private variables the OpenMP implementation uses its internal
-.. xxx_get_private_list() method. This method first finds all loops
-.. contained within the directive and adds each loops variable name as a
-.. private variable. this method then finds all calls contained within
-.. the directive and adds each calls list of private variables, returned
-.. with the local_vars() method. Therefore the OpenMPLoopDirective object
-.. relies on calls specifying which variables they require being local.
-..
-.. Next ...
-..
-.. Update transformation for colours
-..
-.. OpenMPLoop transformation in transformations.py.
-..
-.. Create third transformation which goes over all loops in a schedule and
-.. applies the OpenMP loop transformation.
 
 NEMO
 ====

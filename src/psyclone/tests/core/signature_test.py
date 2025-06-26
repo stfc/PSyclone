@@ -36,7 +36,6 @@
 
 '''This module tests the Signature class.'''
 
-from __future__ import absolute_import
 import pytest
 
 from psyclone.core import ComponentIndices, Signature

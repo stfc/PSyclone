@@ -44,7 +44,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 import os
 import sys
-from typing import Optional, List, Iterable
+from typing import Iterable
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
@@ -380,14 +380,18 @@ def _find_or_create_psyclone_internal_cmp(node):
         if container and not isinstance(container, FileContainer):
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.frontend.fortran import FortranReader
+            # Giving them the same name in different modules causes issues with
+            # the nvidia compiler when offloading, so we use the module name as
+            # prefix
+            root = container.name + "_psyclone_internal_cmp"
             name_interface = node.scope.symbol_table.next_available_name(
-                "psyclone_internal_cmp")
+                root)
             name_f_int = node.scope.symbol_table.next_available_name(
-                "psyclone_cmp_int")
+                root + "_int")
             name_f_logical = node.scope.symbol_table.next_available_name(
-                "psyclone_cmp_logical")
+                root + "_logical")
             name_f_char = node.scope.symbol_table.next_available_name(
-                "psyclone_cmp_char")
+                root + "_char")
             fortran_reader = FortranReader()
             dummymod = fortran_reader.psyir_from_source(f'''
             module dummy
@@ -424,14 +428,17 @@ def _find_or_create_psyclone_internal_cmp(node):
             # manually.
             sym = dummymod.symbol_table.lookup(name_interface)
             routine_symbol1 = container.symbol_table.lookup(name_f_int)
+            routine_symbol1.visibitity = Symbol.Visibility.PRIVATE
             routine_symbol2 = container.symbol_table.lookup(name_f_logical)
+            routine_symbol2.visibitity = Symbol.Visibility.PRIVATE
             routine_symbol3 = container.symbol_table.lookup(name_f_char)
+            routine_symbol3.visibitity = Symbol.Visibility.PRIVATE
             symbol = GenericInterfaceSymbol(
                     sym.name,
                     [(routine_symbol1, sym.routines[0].from_container),
                      (routine_symbol2, sym.routines[1].from_container),
                      (routine_symbol3, sym.routines[2].from_container)],
-                    visibility=sym.visibility
+                    visibility=Symbol.Visibility.PRIVATE
                     )
             container.symbol_table.add(symbol)
             symbol = container.symbol_table.lookup(name_interface)
@@ -967,14 +974,11 @@ class Fparser2Reader():
             'class default' clauses, or -1 if no default clause is found.
 
         """
-        # 'str | None' syntax is only supported in Python >=3.10 so use
-        # 'typing.Optional[]'. Similarly, 'list[str]' is only valid in
-        # Python >=3.9 so use 'typing.List[str]'.
-        guard_type: List[Optional[str]] = field(default_factory=list)
-        guard_type_name: List[Optional[str]] = field(default_factory=list)
-        intrinsic_type_name: List[Optional[str]] = field(default_factory=list)
-        clause_type: List[str] = field(default_factory=list)
-        stmts: List[List[StmtBase]] = field(default_factory=list)
+        guard_type: list[str | None] = field(default_factory=list)
+        guard_type_name: list[str | None] = field(default_factory=list)
+        intrinsic_type_name: list[str | None] = field(default_factory=list)
+        clause_type: list[str] = field(default_factory=list)
+        stmts: list[list[StmtBase]] = field(default_factory=list)
         selector: str = ""
         num_clauses: int = -1
         default_idx: int = -1
@@ -1604,6 +1608,13 @@ class Fparser2Reader():
             if (self._resolve_all_modules or
                     container.name.lower() in self._modules_to_resolve):
                 parent.symbol_table.resolve_imports([container])
+
+            if visibility_map:
+                # Some of the imported symbols could have explicit visibility
+                # statements, so set the visibilities of all existing symbols
+                for symbol in parent.symbol_table.symbols_dict.values():
+                    if symbol.name.lower() in visibility_map:
+                        symbol.visibility = visibility_map[symbol.name.lower()]
 
     def _process_type_spec(self, parent, type_spec):
         '''
@@ -4442,10 +4453,12 @@ class Fparser2Reader():
             # TODO 2884: We should be able to handle this imported symbol
             # better. If we can, we need to handle a case where is_elemental
             # can be None.
-            if isinstance(ref.symbol.interface, ImportInterface):
+            if isinstance(ref.symbol.interface, (ImportInterface,
+                                                 UnresolvedInterface)):
                 raise NotImplementedError(
-                        "PSyclone doesn't yet support reference to imported "
-                        "symbols inside WHERE clauses.")
+                        f"PSyclone doesn't yet support references to imported/"
+                        f"unresolved symbols inside WHERE clauses: "
+                        f"'{ref.symbol.name}' is unresolved.")
             if (isinstance(ref.symbol, DataSymbol) and
                     elemental_ancestor):
                 try:
@@ -4463,7 +4476,7 @@ class Fparser2Reader():
             raise NotImplementedError(
                 f"Only WHERE constructs using explicit array notation "
                 f"including ranges (e.g. 'my_array(1,:)') are supported but "
-                f"found '{logical_expr}'")
+                f"found '{logical_expr[0]}'")
 
         array_ref = first_array.ancestor(Reference, include_self=True)
         if not isinstance(array_ref.datatype, ArrayType):
@@ -4647,7 +4660,18 @@ class Fparser2Reader():
         :return: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Return`
 
+        :raises NotImplementedError: if the parse tree contains an
+            alternate return statement.
         '''
+        # Fortran Alternate Return statements are not supported
+        if node.children != (None, ):
+            raise NotImplementedError(
+                "Fortran alternate returns are not supported.")
+        # Ignore redundant Returns at the end of Execution sections
+        if isinstance(node.parent, Fortran2003.Execution_Part):
+            if node is node.parent.children[-1]:
+                return None
+        # Everything else is a valid PSyIR Return
         rtn = Return(parent=parent)
         rtn.ast = node
         return rtn

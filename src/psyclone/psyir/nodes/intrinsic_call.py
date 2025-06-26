@@ -42,7 +42,7 @@ from collections import namedtuple
 from collections.abc import Iterable
 from enum import Enum
 
-from psyclone.core import AccessType
+from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
@@ -770,44 +770,26 @@ class IntrinsicCall(Call):
         '''
         return self.routine.symbol.intrinsic
 
-    # This is not part of the intrinsic enum, because its ValueError could
-    # change for different devices, and in the future we may want to pass
-    # a device/arch/compiler parameter or look at the configuration file.
-    # Currently it is inspired from: https://docs.nvidia.com/hpc-sdk/
-    # compilers/hpc-compilers-user-guide/#acc-fort-intrin-sum
-    # But that list is incomplete (e.g. SUM is supported and not listed)
-    def is_available_on_device(self):
+    def is_available_on_device(self, device_string: str = "") -> bool:
         '''
+        :param device_string: optional string to identify the offloading
+            device (or its compiler-platform family).
         :returns: whether this intrinsic is available on an accelerated device.
-        :rtype: bool
+
+        :raises ValueError: if the provided 'device_string' is not one of the
+            supported values.
 
         '''
-        return self.intrinsic in (
-            IntrinsicCall.Intrinsic.ABS,  IntrinsicCall.Intrinsic.ACOS,
-            IntrinsicCall.Intrinsic.AINT, IntrinsicCall.Intrinsic.ANINT,
-            IntrinsicCall.Intrinsic.ASIN, IntrinsicCall.Intrinsic.ATAN,
-            IntrinsicCall.Intrinsic.ATAN2, IntrinsicCall.Intrinsic.COS,
-            IntrinsicCall.Intrinsic.COSH, IntrinsicCall.Intrinsic.DBLE,
-            IntrinsicCall.Intrinsic.DPROD, IntrinsicCall.Intrinsic.EXP,
-            IntrinsicCall.Intrinsic.IAND, IntrinsicCall.Intrinsic.IEOR,
-            IntrinsicCall.Intrinsic.INT, IntrinsicCall.Intrinsic.IOR,
-            IntrinsicCall.Intrinsic.LOG,
-            IntrinsicCall.Intrinsic.MAX, IntrinsicCall.Intrinsic.MIN,
-            IntrinsicCall.Intrinsic.MOD, IntrinsicCall.Intrinsic.NINT,
-            IntrinsicCall.Intrinsic.NOT, IntrinsicCall.Intrinsic.REAL,
-            IntrinsicCall.Intrinsic.SIGN, IntrinsicCall.Intrinsic.SIN,
-            IntrinsicCall.Intrinsic.SINH, IntrinsicCall.Intrinsic.SQRT,
-            IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH,
-            IntrinsicCall.Intrinsic.UBOUND, IntrinsicCall.Intrinsic.MERGE,
-            # The ones below can be offloaded but provide numerical differences
-            # even with the -gpu=uniform_math flag, ideally it should be
-            # configurable if these are allowed or not.
-            # IntrinsicCall.Intrinsic.LOG10,
-            # The one below are not documented on nvidia compiler
-            IntrinsicCall.Intrinsic.PRODUCT, IntrinsicCall.Intrinsic.SIZE,
-            IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
-            IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.MINVAL,
-            IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE)
+        if not device_string:
+            return self.intrinsic in DEFAULT_DEVICE_INTRINISCS
+        if device_string == "nvfortran-all":
+            return self.intrinsic in NVFORTRAN_ALL
+        if device_string == "nvfortran-uniform":
+            return self.intrinsic in NVFORTRAN_UNIFORM
+
+        raise ValueError(
+            f"Unsupported device_string value '{device_string}', the supported"
+            " values are '' (default), 'nvfortran-all', 'nvfortran-uniform'")
 
     @classmethod
     def create(cls, intrinsic, arguments=()):
@@ -910,17 +892,15 @@ class IntrinsicCall(Call):
 
         return call
 
-    def reference_accesses(self, var_accesses):
-        '''Get all reference access information from this node.
-
-        Any variables used as the first argument to 'inquiry intrinsics' like
-        `lbound`, `ubound`, or `size` are marked as having INQUIRY accesses.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the
-            information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
+        var_accesses = VariablesAccessMap()
         if self.intrinsic.is_inquiry and isinstance(self.arguments[0],
                                                     Reference):
             # If this is an inquiry access (which doesn't actually access the
@@ -930,12 +910,13 @@ class IntrinsicCall(Call):
             var_accesses.add_access(sig, AccessType.INQUIRY, self.arguments[0])
             for idx_list in indices:
                 for idx in idx_list:
-                    idx.reference_accesses(var_accesses)
+                    var_accesses.update(idx.reference_accesses())
         elif self.arguments:
-            self.arguments[0].reference_accesses(var_accesses)
+            var_accesses.update(self.arguments[0].reference_accesses())
 
         for child in self.arguments[1:]:
-            child.reference_accesses(var_accesses)
+            var_accesses.update(child.reference_accesses())
+        return var_accesses
 
     # TODO #2102: Maybe the three properties below can be removed if intrinsic
     # is a symbol, as they would act as the super() implementation.
@@ -971,6 +952,37 @@ class IntrinsicCall(Call):
         '''
         return self.intrinsic.is_inquiry
 
+
+# Intrinsics available on nvidia gpus with uniform (CPU and GPU) results when
+# compiled with the nvfortran "-gpu=uniform_math" flag
+NVFORTRAN_UNIFORM = (
+    IntrinsicCall.Intrinsic.ABS,  IntrinsicCall.Intrinsic.ACOS,
+    IntrinsicCall.Intrinsic.AINT, IntrinsicCall.Intrinsic.ANINT,
+    IntrinsicCall.Intrinsic.ASIN, IntrinsicCall.Intrinsic.ATAN,
+    IntrinsicCall.Intrinsic.ATAN2, IntrinsicCall.Intrinsic.COS,
+    IntrinsicCall.Intrinsic.COSH, IntrinsicCall.Intrinsic.DBLE,
+    IntrinsicCall.Intrinsic.DPROD, IntrinsicCall.Intrinsic.EXP,
+    IntrinsicCall.Intrinsic.IAND, IntrinsicCall.Intrinsic.IEOR,
+    IntrinsicCall.Intrinsic.INT, IntrinsicCall.Intrinsic.IOR,
+    IntrinsicCall.Intrinsic.LOG, IntrinsicCall.Intrinsic.NOT,
+    IntrinsicCall.Intrinsic.MAX, IntrinsicCall.Intrinsic.MIN,
+    IntrinsicCall.Intrinsic.MOD, IntrinsicCall.Intrinsic.NINT,
+    IntrinsicCall.Intrinsic.SIGN, IntrinsicCall.Intrinsic.SIN,
+    IntrinsicCall.Intrinsic.SINH, IntrinsicCall.Intrinsic.SQRT,
+    IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH,
+    IntrinsicCall.Intrinsic.UBOUND, IntrinsicCall.Intrinsic.MERGE,
+    IntrinsicCall.Intrinsic.PRODUCT, IntrinsicCall.Intrinsic.SIZE,
+    IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
+    IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.MINVAL,
+    IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE
+)
+
+# All nvfortran intrinsics available on GPUs
+NVFORTRAN_ALL = NVFORTRAN_UNIFORM + (
+    IntrinsicCall.Intrinsic.LOG10, IntrinsicCall.Intrinsic.REAL)
+
+# For now the default intrinsics availabe on GPU are the same as nvfortran-all
+DEFAULT_DEVICE_INTRINISCS = NVFORTRAN_ALL
 
 # TODO #658 this can be removed once we have support for determining the
 # type of a PSyIR expression.

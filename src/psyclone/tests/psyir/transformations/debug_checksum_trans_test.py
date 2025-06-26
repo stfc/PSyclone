@@ -68,6 +68,7 @@ def test_checksum(fortran_reader, fortran_writer, tmpdir):
     assert correct in out
     correct = """  enddo
   PSYCLONE_INTERNAL_line_ = __LINE__
+
   ! PSyclone DebugChecksumTrans-generated checksums
   PRINT *, "PSyclone checksums from test at line:", PSYCLONE_INTERNAL_line_ + 1
   PRINT *, "b checksum", SUM(b(:))
@@ -93,6 +94,7 @@ def test_checksum(fortran_reader, fortran_writer, tmpdir):
     assert correct in out
     correct = """  b(:) = 2
   PSYCLONE_INTERNAL_line_ = __LINE__
+
   ! PSyclone DebugChecksumTrans-generated checksums
   PRINT *, "PSyclone checksums from test at line:", PSYCLONE_INTERNAL_line_ + 1
   PRINT *, "b checksum", SUM(b(:))
@@ -138,6 +140,7 @@ end subroutine test
     out = fortran_writer(psyir)
     correct = """char_array(:) = 'b'
     PSYCLONE_INTERNAL_line_ = __LINE__
+
     ! PSyclone DebugChecksumTrans-generated checksums
     PRINT *, "PSyclone checksums from test_sub at line:", \
 PSYCLONE_INTERNAL_line_ + 1
@@ -173,6 +176,7 @@ PSYCLONE_INTERNAL_line_ + 1
     out = fortran_writer(psyir)
     correct = """enddo
   PSYCLONE_INTERNAL_line_ = __LINE__
+
   ! PSyclone DebugChecksumTrans-generated checksums
   PRINT *, "PSyclone checksums from test at line:", PSYCLONE_INTERNAL_line_ + 1
   PRINT *, "a checksum", SUM(a(:))
