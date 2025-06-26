@@ -251,9 +251,6 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                     var_accesses.add_access(Signature(name), arg.access, self)
         # Now merge the write access to the end of all other accesses:
         var_accesses.update(written)
-        # Forward location pointer to next index, since this built-in kernel
-        # finishes a statement
-        var_accesses.next_location()
         return var_accesses
 
     def load(self, call, parent=None):

@@ -509,11 +509,9 @@ class Loop(Statement):
             var_accesses.update(self.start_expr.reference_accesses())
             var_accesses.update(self.stop_expr.reference_accesses())
             var_accesses.update(self.step_expr.reference_accesses())
-            var_accesses.next_location()
 
         for child in self.loop_body.children:
             var_accesses.update(child.reference_accesses())
-            var_accesses.next_location()
         return var_accesses
 
     def independent_iterations(self,
