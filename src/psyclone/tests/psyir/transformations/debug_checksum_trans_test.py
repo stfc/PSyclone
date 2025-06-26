@@ -36,8 +36,11 @@
 
 ''' This module contains the tests for the DebugChecksumTrans.'''
 
+import pytest
+
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.transformations import DebugChecksumTrans
+from psyclone.psyir.transformations import (
+    DebugChecksumTrans, TransformationError)
 from psyclone.tests.utilities import Compile
 
 
@@ -182,3 +185,31 @@ PSYCLONE_INTERNAL_line_ + 1
   PRINT *, "a checksum", SUM(a(:))
   b(:) = 0"""
     assert correct in out
+
+
+def test_validate_no_branch(fortran_reader):
+    '''
+    Check that we refuse to add a checksum when we can't be certain that an
+    array has been written to. (This is an issue because that in turn could
+    mean the array hasn't been allocated or initialised.)
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module test_mod
+      use some_mod, only: do_it, a
+    contains
+    subroutine a_test()
+      if (do_it) then
+        a(:) = 1.0
+      end if
+    end subroutine a_test
+    end module test_mod
+    ''')
+    # We can't apply the transformation to the whole body of the Routine
+    # as we don't know whether or not `a` is written.
+    routine = psyir.walk(Routine)[0]
+    with pytest.raises(TransformationError) as err:
+        DebugChecksumTrans().validate(routine)
+    assert "hohoho" in str(err.value)
+    # But we can apply it inside the if block.
+    DebugChecksumTrans().validate(routine[0].if_body)
