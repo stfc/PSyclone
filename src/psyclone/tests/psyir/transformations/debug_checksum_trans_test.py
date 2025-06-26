@@ -196,9 +196,10 @@ def test_validate_no_branch(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_source('''\
     module test_mod
-      use some_mod, only: do_it, a
+      use some_mod, only: do_it
     contains
     subroutine a_test()
+      real :: a(10)
       if (do_it) then
         a(:) = 1.0
       end if
@@ -210,6 +211,7 @@ def test_validate_no_branch(fortran_reader):
     routine = psyir.walk(Routine)[0]
     with pytest.raises(TransformationError) as err:
         DebugChecksumTrans().validate(routine)
-    assert "hohoho" in str(err.value)
+    assert ("Cannot compute checksum of 'a' because the write to it ("
+            in str(err.value))
     # But we can apply it inside the if block.
     DebugChecksumTrans().validate(routine[0].if_body)

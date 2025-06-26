@@ -39,7 +39,8 @@ from typing import Union, List
 
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Assignment, Node, Reference, Routine
+from psyclone.psyir.nodes import (
+    Assignment, IfBlock, Node, Reference, Routine, Statement)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin
@@ -48,6 +49,8 @@ from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, PreprocessorInterface, ScalarType
 )
 from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 
 
 class DebugChecksumTrans(RegionTrans):
@@ -101,23 +104,9 @@ PSYCLONE_INTERNAL_line_ + 1
     <BLANKLINE>
 
     '''
-    def apply(self, node: Union[Node, List[Node]], options=None) -> None:
+    def _get_all_writes(self, node_list: list[Node]) -> List[Reference]:
         '''
-        Applies the checksum transformation to the provided node(s).
-
-        :param node: The node or list of nodes to apply the
-                      transformation to.
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-
         '''
-        self.validate(node, options={"node-type-check": False})
-
-        node_list = self.get_node_list(node)
-        routine = node_list[0].ancestor(Routine)
-        routine_table = routine.symbol_table
-
-        fwriter = FortranWriter()
         writes = []
         # Loop over the assignments in the region
         assigns = []
@@ -158,12 +147,33 @@ PSYCLONE_INTERNAL_line_ + 1
             elif (assign.lhs.is_array and assign.lhs.datatype.intrinsic in
                   [ScalarType.Intrinsic.REAL, ScalarType.Intrinsic.INTEGER]):
                 writes.append(assign.lhs)
+        return writes
+
+    def apply(self, node: Union[Node, List[Node]], options=None) -> None:
+        '''
+        Applies the checksum transformation to the provided node(s).
+
+        :param node: The node or list of nodes to apply the
+                      transformation to.
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+
+        '''
+        self.validate(node, options={"node-type-check": False})
+
+        node_list = self.get_node_list(node)
+        writes = self._get_all_writes(node_list)
 
         # For each write, add a checksum after.
         checksum_nodes = []
+        routine = node_list[0].ancestor(Routine)
+        routine_table = routine.symbol_table
+        fwriter = FortranWriter()
         freader = FortranReader()
         for lhs in writes:
             copy = lhs.copy()
+            # TODO ensure we don't output duplicate SUM() lines if a given
+            # variable is written to more than once in the supplied block.
             name, _ = copy.get_signature_and_indices()
             # Find the section that is the array we need to checksum.
             if isinstance(lhs, StructureAccessorMixin):
@@ -225,3 +235,32 @@ PSYCLONE_INTERNAL_line_ + 1
         assign = Assignment.create(Reference(internal_line), Reference(line))
         parent.addchild(explanation_statement, position+1)
         parent.addchild(assign, position+1)
+
+    def validate(self, node: Node | list[Node], options: dict = None) -> None:
+        '''
+        Checks that the transformation can be applied to the supplied Node(s).
+
+        :param node: the Node(s) for which checksums are to be generated.
+        :param options: any options for the transformation.
+
+        :raises TransformationError: if any of the variables to be checksummed
+            is not unconditionally written.
+        '''
+        super().validate(node, options=options)
+
+        node_list = self.get_node_list(node)
+        writes = self._get_all_writes(node_list)
+
+        # For each write, check that it is not in a different branch to
+        # the site at which we are going to insert the checksum computation.
+        parent = node_list[-1].parent
+        # TODO need to consider all references to a given Symbol in case just
+        # one of them is unconditional.
+        for ref in writes:
+            ifblock = ref.ancestor(IfBlock, limit=parent)
+            if ifblock and not node_list[-1].is_descendent_of(ifblock):
+                raise TransformationError(
+                    f"Cannot compute checksum of '{ref.symbol.name}' because "
+                    f"the write to it ("
+                    f"{ref.ancestor(Statement).debug_string()}) is in a branch"
+                    f" that may not be executed.")
