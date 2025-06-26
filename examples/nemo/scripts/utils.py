@@ -172,6 +172,7 @@ CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 PARALLELISATION_ISSUES = [
     "ldfc1d_c2d.f90",
     "tramle.f90",
+    "traqsr.f90",
 ]
 
 PRIVATISATION_ISSUES = [

@@ -27,18 +27,18 @@ export PSYCLONE_OPTS="-l output -s ${PSYCLONE_NEMO_EXAMPLES_DIR}/insert_loop_par
 # export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g"
 
 # - OpenMP CPU threading parallelism
-# export PARALLEL_DIRECTIVES="omp_threading"
-# export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp"
+export PARALLEL_DIRECTIVES="omp_threading"
+export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp"
 
 # - OpenMP GPU offloading with reproducible build flags
 # export PARALLEL_DIRECTIVES="omp_offloading"
 # export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
 # export REPRODUCIBLE=1
 
-# - OpenACC GPU offloading with reproducible build flags
-export PARALLEL_DIRECTIVES="acc_offloading"
-export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -acc -gpu=mem:managed,math_uniform"
-export REPRODUCIBLE=1
+# - OpenACC GPU offloading with reproducible build flags (-mp=gpu is needed for reproducibility)
+# export PARALLEL_DIRECTIVES="acc_offloading"
+# export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -acc=gpu -mp=gpu -gpu=mem:managed,math_uniform"
+# export REPRODUCIBLE=1
 
 # - Fast GPU build flags 
 # unset REPRODUCIBLE

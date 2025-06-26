@@ -120,11 +120,7 @@ if "acc_offloading" in PARALLEL_DIRECTIVES:
     OFFLOADING_ISSUES = OFFLOADING_ISSUES + [
         # Fail in OpenACC ORCA2_ICE_PISCES
         "dynzdf.f90",
-        "sbcblk.f90",
-        "stp2d.f90",
-        "stprk3_stg.f90",
         "trabbl.f90",
-        "traqsr.f90",
         "trazdf.f90",
         "zdfsh2.f90",
     ]
@@ -193,7 +189,6 @@ def trans(psyir):
                                            "solfrac_mod.f90"):
         return
 
-
     disable_profiling_for = []
 
     for subroutine in psyir.walk(Routine):
@@ -257,34 +252,28 @@ def trans(psyir):
             # nestable, in that case we could add a 'continue' here
             disable_profiling_for.append(subroutine.name)
 
-        if NEMOV4 and gpu_loop_trans:
-            # For nemo4 always offload but without privatisation
-            print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
+        elif (psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES
+              and gpu_loop_trans):
+            if NEMOV4:
+                privatise_arrays = False
+            else:
+                privatise_arrays = psyir.name not in PRIVATISATION_ISSUES
+            print(
+                f"Adding offload directives to subroutine: {subroutine.name}")
             insert_explicit_loop_parallelism(
                     subroutine,
                     region_directive_trans=offload_region_trans,
                     loop_directive_trans=gpu_loop_trans,
                     collapse=True,
-                    privatise_arrays=False,
-                    uniform_intrinsics_only=REPRODUCIBLE,
-            )
-        elif psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES and gpu_loop_trans:
-            print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
-            insert_explicit_loop_parallelism(
-                    subroutine,
-                    region_directive_trans=offload_region_trans,
-                    loop_directive_trans=gpu_loop_trans,
-                    collapse=True,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
+                    privatise_arrays=privatise_arrays,
                     uniform_intrinsics_only=REPRODUCIBLE,
             )
         elif psyir.name not in PARALLELISATION_ISSUES and cpu_loop_trans:
-            # This have issues offloading, but we can still do OpenMP threading
+            # These have issues offloading, but we can still do threading
             print(f"Adding OpenMP threading to subroutine: {subroutine.name}")
             insert_explicit_loop_parallelism(
                     subroutine,
                     loop_directive_trans=cpu_loop_trans,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
             )
 
     # Iterate again and add profiling hooks when needed
