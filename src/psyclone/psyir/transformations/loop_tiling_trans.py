@@ -35,23 +35,24 @@
 # Modified: M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
-'''This module provides the LoopTiling2DTrans, which transforms a 2D Loop
+'''This module provides LoopTilingTrans, which transforms a nested Loop
 construct into a tiled implementation of the construct.'''
 
-from psyclone.psyir.transformations.loop_tiling_trans import LoopTilingTrans
+from psyclone.psyir.nodes import Loop, Schedule
+from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
+from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
 
-class LoopTiling2DTrans(LoopTrans):
+class LoopTilingTrans(LoopTrans):
     '''
-    Apply a 2D loop tiling transformation to a loop.  This is a special
-    case of LoopTilingTrans for 2D square tiles. For example:
+    Apply a loop tiling transformation to a loop. For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Loop
-    >>> from psyclone.psyir.transformations import LoopTiling2DTrans
+    >>> from psyclone.psyir.transformations import LoopTilingTrans
     >>> psyir = FortranReader().psyir_from_source("""
     ... subroutine sub()
     ...     integer :: i, j, tmp(100)
@@ -62,7 +63,7 @@ class LoopTiling2DTrans(LoopTrans):
     ...     enddo
     ... end subroutine sub""")
     >>> loop = psyir.walk(Loop)[0]
-    >>> LoopTiling2DTrans().apply(loop)
+    >>> LoopTilingTrans().apply(loop)
 
     will generate:
 
@@ -88,20 +89,64 @@ class LoopTiling2DTrans(LoopTrans):
 
     '''
     def __str__(self):
-        return "Tile the loop construct using 2D blocks"
+        return "Tile the loop construct"
+
+    def _sink_validate(self, node, num_levels):
+        '''
+        Check that we can sink the outermost loop of a loop nest
+        downwards by the given number of levels.
+
+        :param node: the Loop that we want to sink.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param num_levels: the number of levels to sink the loop by.
+        :type num_levels: int
+
+        :raises TransformationError: if it is not possible to sink the \
+            loop by the requested number of levels.
+        '''
+
+        # Try to sink a loop by repeated swapping.
+        # Do this on a copy of the loop as we are only validating here.
+        loop = node.copy()
+        # Make sure the copy has a parent, as required by LoopSwapTrans.
+        Schedule().addchild(loop)
+        for i in range(0, num_levels):
+            swap = LoopSwapTrans()
+            swap.validate(loop)
+            swap.apply(loop)
+
+    def _sink_apply(self, node, num_levels):
+        '''
+        Sink the outermost loop of a loop nest downwards by the given \
+        number of levels.
+
+        :param node: the Loop that we want to sink.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param num_levels: the number of levels to sink the loop by.
+        :type num_levels: int
+
+        :raises TransformationError: if it is not possible to sink the \
+            loop by the requested number of levels.
+        '''
+
+        self._sink_validate(node, num_levels)
+
+        # Sink a loop by repeated swapping.
+        for i in range(0, num_levels):
+            LoopSwapTrans().apply(node)
 
     def validate(self, node, options=None):
         '''
-        Validates that the given Loop node can have a LoopTiling2DTrans
+        Validates that the given Loop node can have a LoopTilingTrans
         applied.
 
         :param node: the loop to validate.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformation.
         :type options: Optional[Dict[str, Any]]
-        :param int options["tilesize"]: The size of the resulting tile, \
-            currently square tiles are always used. If not specified, the \
-            value 32 is used.
+        :param list[int] options["tiledims"]: The dimensions of the
+            resulting tile. If not specified, the value [32, 32] is
+            assumed, i.e. a 2D 32x32 tile. \
 
         :raises TransformationError: if an unsupported option has been \
             provided.
@@ -110,49 +155,77 @@ class LoopTiling2DTrans(LoopTrans):
         '''
         if options is None:
             options = {}
-        super(LoopTiling2DTrans, self).validate(node, options=options)
+        super(LoopTilingTrans, self).validate(node, options=options)
 
         # Validate options map
         # TODO #613: Hardcoding the valid_options does not allow for
         # subclassing this transformation and adding new options, this
         # should be fixed.
-        valid_options = ['tilesize']
+        valid_options = ['tiledims']
         for key, value in options.items():
             if key in valid_options:
-                if key == "tilesize" and not isinstance(value, int):
+                if key == "tiledims" and not isinstance(value, list):
                     raise TransformationError(
-                        f"The LoopTiling2DTrans tilesize option must be a "
-                        f"positive integer but found a "
-                        f"'{type(value).__name__}'.")
-                if key == "tilesize" and value <= 0:
+                        f"The LoopTilingTrans tiledims option must be a "
+                        f"list but found a '{type(value).__name__}'.")
+                if (key == "tiledims" and not
+                        all([isinstance(v, int) and v > 0 for v in value])):
                     raise TransformationError(
-                        f"The LoopTiling2DTrans tilesize option must be a "
-                        f"positive integer but found '{value}'.")
+                        f"The LoopTilingTrans tiledims option must be a "
+                        f"list of positive integers but found '{value}'.")
             else:
                 raise TransformationError(
-                    f"The LoopTiling2DTrans does not support the "
+                    f"The LoopTilingTrans does not support the "
                     f"transformation option '{key}', the supported options "
                     f"are: {valid_options}.")
 
-        tilesize = options.get("tilesize", 32)
-        LoopTilingTrans().validate(node, {"tiledims": [tilesize, tilesize]})
+        tiledims = options.get("tiledims", [32, 32])
+        numdims = len(tiledims)
+
+        # Even though the loops that ultimately will be sunk are the ones
+        # resulting from ChunkLoopTrans, sinking these has the same
+        # validation constraints as sinking the original loops. The
+        # following validations also guarantee that we have a nested loop
+        # construct with numdims loops where each loop except the innermost
+        # one contains exactly one child which is also a loop.
+        sink_upto = numdims
+        for loop in node.walk(Loop)[0:numdims]:
+            for i in range(1, sink_upto):
+                self._sink_validate(node, i)
+            sink_upto = sink_upto - 1
+
+        # Check that we can chunk each loop
+        for (dim, loop) in zip(tiledims, node.walk(Loop)):
+            ChunkLoopTrans().validate(loop, options={'chunksize': dim})
 
     def apply(self, node, options=None):
         '''
-        Converts the given 2D Loop construct into a tiled version of the nested
+        Converts the given Loop construct into a tiled version of the nested
         loops.
 
         :param node: the loop to transform.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param int options["tilesize"]: The size of the resulting tile, \
-                currently square tiles are always used. If not \
-                specified, the value 32 is used.
+        :param list[int] options["tiledims"]: The dimensions of the
+            resulting tile. If not specified, the value [32, 32] is
+            assumed, i.e. a 2D 32x32 tile. \
 
         '''
         self.validate(node, options)
         if options is None:
             options = {}
-        tilesize = options.get("tilesize", 32)
-        LoopTilingTrans().apply(node, {"tiledims": [tilesize, tilesize]})
+        tiledims = options.get("tiledims", [32, 32])
+        numdims = len(tiledims)
+
+        parent = node.parent
+        position = node.position
+
+        # Chunk the loops, from innermost to outermost
+        for (dim, loop) in reversed(list(zip(tiledims, node.walk(Loop)))):
+            ChunkLoopTrans().apply(loop, options={'chunksize': dim})
+
+        # Sink the new loops, from innermost to outermost
+        loops = parent[position].walk(Loop)[1:2*numdims:2]
+        for (i, loop) in enumerate(reversed(loops)):
+            self._sink_apply(loop, i)
