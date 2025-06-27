@@ -195,11 +195,12 @@ def test_apply_repeated_writes(fortran_reader, fortran_writer, tmpdir):
     '''
     psyir = fortran_reader.psyir_from_source('''\
     program test_it
-      real, dimension(10) :: a, b
+      real, dimension(10) :: a, b, c
 
       a(:) = 1.0
       b(:) = a(:)
       a(:) = 2.0
+      c = 3.0
 
     end program test_it
     ''')
@@ -208,6 +209,7 @@ def test_apply_repeated_writes(fortran_reader, fortran_writer, tmpdir):
     out = fortran_writer(psyir)
     assert 'PRINT *, "a checksum", SUM(a(:))' in out
     assert 'PRINT *, "b checksum", SUM(b(:))' in out
+    assert 'PRINT *, "c checksum", SUM(c)' in out
     assert out.count('PRINT *, "a checksum", SUM(a(:))') == 1
     assert Compile(tmpdir).string_compiles(out)
 

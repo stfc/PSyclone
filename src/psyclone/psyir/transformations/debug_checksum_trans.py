@@ -44,7 +44,7 @@ from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin
 )
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, PreprocessorInterface, ScalarType,
+    ArrayType, DataSymbol, INTEGER_TYPE, PreprocessorInterface, ScalarType,
     UnsupportedType, UnresolvedType)
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
@@ -123,14 +123,20 @@ PSYCLONE_INTERNAL_line_ + 1
         # Loop through the accesses and find arrays that are written.
         writes = []
         for sig in vam.all_signatures:
-            if not vam[sig].is_written() or not vam[sig].is_array():
+            if not vam[sig].is_written():
                 continue
             first_write = vam[sig].all_write_accesses[0]
+            if not isinstance(first_write.node, Reference):
+                # If the access isn't a Reference this generally means we have
+                # a loop variable.
+                continue
             datatype = first_write.node.datatype
+            if not (vam[sig].is_array() or isinstance(datatype, ArrayType)):
+                continue
+            # We only support checksums for REAL and INTEGER variables.
             while not isinstance(datatype, (ScalarType, UnsupportedType,
                                             UnresolvedType)):
                 datatype = datatype.datatype
-            # We only support checksums for REAL and INTEGER variables.
             if isinstance(datatype, (UnsupportedType, UnresolvedType)):
                 continue
             if datatype.intrinsic not in [ScalarType.Intrinsic.REAL,
@@ -144,7 +150,7 @@ PSYCLONE_INTERNAL_line_ + 1
                     # This is a structure access with indexing on more than
                     # one component.
                     continue
-                if not access.component_indices[-1]:
+                if len(sig) > 1 and not access.component_indices[-1]:
                     # This access does not have array indices on its final
                     # member.
                     continue
