@@ -170,7 +170,12 @@ if __name__ == '__main__':
             'test': ["flake8", "pylint", "pytest-cov", "pytest-xdist"],
         },
         include_package_data=True,
-        scripts=['bin/psyclone', 'bin/psyclone-kern', 'bin/psyad'],
+        scripts=[
+            'bin/psyclone',
+            'bin/psyclone-kern',
+            'bin/psyad',
+            'bin/psyclonefc',
+        ],
         data_files=[
             ('share/psyclone',
              ['config/psyclone.cfg'])]+EXAMPLES+TUTORIAL+LIBS,)
