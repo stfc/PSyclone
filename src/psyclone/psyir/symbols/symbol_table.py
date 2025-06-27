@@ -46,6 +46,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 import inspect
 import copy
+import logging
 from typing import Any, List, Optional, Set, Union
 
 from psyclone.configuration import Config
@@ -1864,8 +1865,9 @@ class SymbolTable():
         :raises TypeError: if the provided container_symbols is not an Iterable
             of ContainerSymbols.
         :raises TypeError: if the provided symbol_target is not a Symbol.
-        :raises KeyError: if a symbol_target has been specified but this has
-            not been found in any of the searched containers.
+        :raises KeyError: if a container_symbol or symbol_target has been
+            specified but this has not been found in any of the searched
+            directories.
 
         '''
         if container_symbols is not None:
@@ -1881,9 +1883,11 @@ class SymbolTable():
                         f"resolve_imports() must be an Iterable containing "
                         f"ContainerSymbols, but found a "
                         f"'{type(item).__name__}' instead.")
+            container_specified = True
         else:
             # If no container_symbol is given, search in all the containers
             container_symbols = self.containersymbols
+            container_specified = False
 
         if symbol_target and not isinstance(symbol_target, Symbol):
             raise TypeError(
@@ -1897,16 +1901,14 @@ class SymbolTable():
             # pylint: disable-next=broad-except
             except Exception:
                 external_container = None
-                # Ignore this container if the associated module file has not
-                # been found in the given include_path or any issue has arisen
-                # during parsing.
-                # TODO #11: It would be useful to log this.
-                # continue
 
             if not external_container:
-                raise ValueError(f"Module '{c_symbol.name}' not found")
-                # Failed to get a Container (possibly due to parsing or raising
-                # errors).
+                message = f"Module '{c_symbol.name}' not found"
+                if container_specified:
+                    raise KeyError(message)
+                # Otherwise just log the message and continue
+                logger = logging.getLogger(__name__)
+                logger.info(message)
                 continue
 
             imported_symbols = self._import_symbols_from(
