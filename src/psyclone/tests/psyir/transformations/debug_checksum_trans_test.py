@@ -38,7 +38,7 @@
 
 import pytest
 
-from psyclone.psyir.nodes import Routine
+from psyclone.psyir.nodes import Assignment, Routine
 from psyclone.psyir.transformations import (
     DebugChecksumTrans, TransformationError)
 from psyclone.tests.utilities import Compile
@@ -147,8 +147,8 @@ end subroutine test
     ! PSyclone DebugChecksumTrans-generated checksums
     PRINT *, "PSyclone checksums from test_sub at line:", \
 PSYCLONE_INTERNAL_line_ + 1
-    PRINT *, "values%s%j checksum", SUM(values % s % j(1 : 100))
     PRINT *, "values%x checksum", SUM(values % x(1 : 100))
+    PRINT *, "values%s%j checksum", SUM(values % s % j(1 : 100))
     PRINT *, "values%i checksum", SUM(values % i(1 : 100))"""
     assert correct in out
 
@@ -187,6 +187,31 @@ PSYCLONE_INTERNAL_line_ + 1
     assert correct in out
 
 
+def test_apply_repeated_writes(fortran_reader, fortran_writer, tmpdir):
+    '''
+    Test that we don't get duplicated output when the target region contains
+    more than one write to the same variable.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    program test_it
+      real, dimension(10) :: a, b
+
+      a(:) = 1.0
+      b(:) = a(:)
+      a(:) = 2.0
+
+    end program test_it
+    ''')
+    routine = psyir.walk(Routine)[0]
+    DebugChecksumTrans().apply(routine)
+    out = fortran_writer(psyir)
+    assert 'PRINT *, "a checksum", SUM(a(:))' in out
+    assert 'PRINT *, "b checksum", SUM(b(:))' in out
+    assert out.count('PRINT *, "a checksum", SUM(a(:))') == 1
+    assert Compile(tmpdir).string_compiles(out)
+
+
 def test_validate_no_branch(fortran_reader):
     '''
     Check that we refuse to add a checksum when we can't be certain that an
@@ -211,7 +236,13 @@ def test_validate_no_branch(fortran_reader):
     routine = psyir.walk(Routine)[0]
     with pytest.raises(TransformationError) as err:
         DebugChecksumTrans().validate(routine)
-    assert ("Cannot compute checksum of 'a' because the write to it ("
+    assert ("Cannot compute checksum of 'a' because all writes to it ("
             in str(err.value))
     # But we can apply it inside the if block.
     DebugChecksumTrans().validate(routine[0].if_body)
+    # Add an unconditional write to the same array.
+    assign = routine.walk(Assignment)[0]
+    routine.addchild(assign.copy())
+    # We should now be able to apply the transformation to the whole body
+    # of the Routine as there is a guaranteed write.
+    DebugChecksumTrans().validate(routine)
