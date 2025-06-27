@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, INTEGER_TYPE,
-    REAL_TYPE, StructureType, Symbol)
+    REAL_TYPE, StructureType, Symbol, SymbolTable)
 
 
 _ONE = Literal("1", INTEGER_TYPE)
@@ -791,8 +791,15 @@ def test_get_outer_range_index_error():
 def test_same_range_error(fortran_reader):
     ''' Test that the same_range method produces the expected errors. '''
 
-    array1 = fortran_reader.psyir_from_statement("a(i) = 0").lhs
-    array2 = fortran_reader.psyir_from_statement("b(j) = 0").lhs
+    symtab = SymbolTable()
+    symtab.new_symbol("a", symbol_type=DataSymbol,
+                      datatype=ArrayType(INTEGER_TYPE, shape=[10]))
+    symtab.new_symbol("b", symbol_type=DataSymbol,
+                      datatype=ArrayType(INTEGER_TYPE, shape=[10]))
+    array1 = fortran_reader.psyir_from_statement(
+                                    "a(i) = 0", symbol_table=symtab).lhs
+    array2 = fortran_reader.psyir_from_statement(
+                                    "b(j) = 0", symbol_table=symtab).lhs
 
     with pytest.raises(TypeError) as info:
         array1.same_range(None, None, None)
@@ -826,7 +833,8 @@ def test_same_range_error(fortran_reader):
     assert ("The child of the first array argument at the specified index '0' "
             "should be a Range node, but found 'Reference'" in str(info.value))
 
-    array1 = fortran_reader.psyir_from_statement("a(:) = 0").lhs
+    array1 = fortran_reader.psyir_from_statement(
+                                "a(:) = 0", symbol_table=symtab).lhs
 
     with pytest.raises(TypeError) as info:
         array1.same_range(0, array2, 0)

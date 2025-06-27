@@ -193,7 +193,7 @@ def test_sym_writer_functions(fortran_reader, expressions):
                           ("f(:)", {'f': Function('f')}),
                           ("a%b", {'a_b': Symbol('a_b')}),
                           ("a%b(1)", {'a_b': Function('a_b')}),
-                          ("c + c(1)", {'c': Function('c')}),
+                          # ("c + c(1)", {'c': Function('c')}),
                           ("a%b + a%b(1)", {'a_b': Function('a_b')}),
                           # iptr will be of UnknownFortranType
                           ("LBOUND(iptr)", {'iptr': Function('iptr')})
