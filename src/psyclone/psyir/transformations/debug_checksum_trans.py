@@ -108,8 +108,12 @@ PSYCLONE_INTERNAL_line_ + 1
             self,
             node_list: list[Node]) -> list[SingleVariableAccessInfo]:
         '''
-        Examines the supplied list of Nodes and returns a list of
-        References that are written to.
+        Examines the supplied list of Nodes and returns information on
+        those variables that are written to.
+
+        :param node_list: the Nodes to examine for write accesses.
+
+        :returns: information on variables that have write accesses.
 
         '''
         # Get all the variables that are accessed in the region.
@@ -126,18 +130,23 @@ PSYCLONE_INTERNAL_line_ + 1
             while not isinstance(datatype, (ScalarType, UnsupportedType,
                                             UnresolvedType)):
                 datatype = datatype.datatype
+            # We only support checksums for REAL and INTEGER variables.
             if isinstance(datatype, (UnsupportedType, UnresolvedType)):
                 continue
             if datatype.intrinsic not in [ScalarType.Intrinsic.REAL,
                                           ScalarType.Intrinsic.INTEGER]:
                 continue
             # If we find a structure, we need to check that the final member
-            # is the only array access and is a supported type.
+            # is the only array access.
             for access in vam[sig].all_write_accesses:
                 if [1 if indices else 0 for indices in
                         access.component_indices].count(1) > 1:
+                    # This is a structure access with indexing on more than
+                    # one component.
                     continue
                 if not access.component_indices[-1]:
+                    # This access does not have array indices on its final
+                    # member.
                     continue
                 writes.append(vam[sig])
                 break
@@ -182,6 +191,9 @@ PSYCLONE_INTERNAL_line_ + 1
                 for i in range(len(array_bit.indices)):
                     new_index = array_bit.get_full_range(i)
                     array_bit.indices[i].replace_with(new_index)
+            # Optimise the use of fwriter by detaching the copied node from
+            # its parent tree.
+            copy.detach()
             array = fwriter(copy)
 
             checksum = freader.psyir_from_statement(
