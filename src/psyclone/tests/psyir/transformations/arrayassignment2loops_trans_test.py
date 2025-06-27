@@ -837,6 +837,7 @@ def test_validate_structure(fortran_reader):
     trans.validate(assignments[1])
 
 
+@pytest.mark.xfail(reason="??")
 def test_shape_intrinsic(fortran_reader):
     '''
     Check the validation of the transformation when it has a call to an inquiry
@@ -851,8 +852,7 @@ def test_shape_intrinsic(fortran_reader):
     ''')
     assignments = psyir.walk(Assignment)
     trans = ArrayAssignment2LoopsTrans()
-    # TODO ??
-    # with pytest.raises(TransformationError) as err:
-    #     trans.validate(assignments[0])
-    # assert ("ArrayAssignment2LoopsTrans does not accept calls which "
-    #         "are not guaranteed to be elemental" in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignments[0])
+    assert ("ArrayAssignment2LoopsTrans does not accept calls which "
+            "are not guaranteed to be elemental" in str(err.value))
