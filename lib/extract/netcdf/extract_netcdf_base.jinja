@@ -222,7 +222,8 @@ contains
         call this%PSyDataBaseType%PreStart(module_name, region_name, &
                                            num_pre_vars, num_post_vars)
         if (this%verbosity >= 1) then
-            write(stderr,*) "Opening ", trim(module_name//"-"//region_name//".nc")
+            write(stderr,*) "Opening ", trim(module_name) // "-" // &
+                            trim(region_name) // ".nc"
         endif
 
 
@@ -275,8 +276,8 @@ contains
 
         call this%PSyDataBaseType%PreEndDeclaration()
         if (this%verbosity >= 1) then
-            write(stderr,*) "Ending definition ", this%module_name // &
-                            "-"//this%region_name//".nc"
+            write(stderr,*) "Ending definition ", trim(this%module_name) // &
+                            "-"//trim(this%region_name)//".nc"
         endif
         retval = CheckError(nf90_enddef(this%ncid))
 
@@ -297,8 +298,8 @@ contains
 
         integer :: retval
         if (this%verbosity >= 1) then
-            write(stderr,*) "Closing ", this%module_name//"-" //&
-                            this%region_name//".nc"
+            write(stderr,*) "Closing ", trim(this%module_name) // "-" // &
+                            trim(this%region_name) // ".nc"
         endif
         retval = CheckError(nf90_close(this%ncid))
         call this%PSyDataBaseType%PostEnd()
