@@ -1075,16 +1075,21 @@ class GOKern(CodedKern):
         ''' The grid index-offset convention that this kernel expects '''
         return self._index_offset
 
-    def get_kernel_schedule(self):
+    def get_callees(self):
         '''
-        :returns: a schedule representing the GOcean kernel code.
-        :rtype: :py:class:`psyclone.gocean1p0.GOKernelSchedule`
+        Obtains and returns the PSyIR Schedule representing the kernel code.
 
-        :raises GenerationError: if there is a problem raising the language- \
+        For consistency with LFRic kernels (which may be polymorphic), this
+        method actually returns a list comprising just one Schedule.
+
+        :returns: a schedule representing the GOcean kernel code.
+        :rtype: list[:py:class:`psyclone.gocean1p0.GOKernelSchedule`]
+
+        :raises GenerationError: if there is a problem raising the language-
                                  level PSyIR of this kernel to GOcean PSyIR.
         '''
-        if self._kern_schedule:
-            return self._kern_schedule
+        if self._schedules:
+            return self._schedules
 
         # Construct the PSyIR of the Fortran parse tree.
         astp = Fparser2Reader()
@@ -1105,9 +1110,9 @@ class GOKern(CodedKern):
         # We know the above loop will find the named routine because the
         # previous raising transformation would have failed otherwise.
         # pylint: disable=undefined-loop-variable
-        self._kern_schedule = routine
+        self._schedules = [routine]
 
-        return self._kern_schedule
+        return self._schedules
 
 
 class GOKernelArguments(Arguments):
