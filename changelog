@@ -1,3 +1,12 @@
+   42) PR #3034 for #2837. Updates the supported versions of Python used in
+   the test suite to 3.10 and 3.13.
+
+   41) PR #3013 for #2856. Makes 'intrinsics available on device'
+   configurable.
+
+   40) PR #2962 for #2935. Errors in use of LBOUND and looping in generated
+   adjoint kernel.
+
    39) PR #3021. Remove hoisted reference from chunking/tiling
    transformations.
 

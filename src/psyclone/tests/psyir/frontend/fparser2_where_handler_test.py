@@ -1177,8 +1177,8 @@ def test_elemental_function_to_loop(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
     correct = '''! PSyclone CodeBlock (unsupported code) reason:
-  !  - PSyclone doesn't yet support reference to imported \
-symbols inside WHERE clauses.
+  !  - PSyclone doesn't yet support references to imported/unresolved \
+symbols inside WHERE clauses: 'somefunc' is unresolved.
   WHERE (somefunc(a) < 2)
     b = a
   END WHERE'''
@@ -1196,8 +1196,8 @@ symbols inside WHERE clauses.
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
     correct = '''! PSyclone CodeBlock (unsupported code) reason:
-  !  - PSyclone doesn't yet support reference to imported \
-symbols inside WHERE clauses.
+  !  - PSyclone doesn't yet support references to imported/unresolved \
+symbols inside WHERE clauses: 'somefunc' is unresolved.
   WHERE (somefunc(a) < 2)
     b = a
   END WHERE'''

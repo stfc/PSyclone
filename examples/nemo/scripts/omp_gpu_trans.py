@@ -54,6 +54,9 @@ PROFILING_ENABLED = os.environ.get('ENABLE_PROFILING', False)
 # By default, we don't do module inlining as it's still under development.
 INLINING_ENABLED = os.environ.get('ENABLE_INLINING', False)
 
+# By default, we allow all device intrinsics (not only the reproducible ones)
+REPRODUCIBLE = os.environ.get('REPRODUCIBLE', False)
+
 # This environment variable informs if this is targeting NEMOv4, in which case
 # array privatisation is disabled and some more files excluded
 NEMOV4 = os.environ.get('NEMOV4', False)
@@ -97,6 +100,7 @@ OFFLOADING_ISSUES = [
     "trczdf.f90",
     "trcice_pisces.f90",
     "dtatsd.f90",
+    "trcatf.f90",
 ]
 
 
@@ -198,7 +202,8 @@ def trans(psyir):
                     region_directive_trans=omp_target_trans,
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
-                    privatise_arrays=False
+                    privatise_arrays=False,
+                    uniform_intrinsics_only=REPRODUCIBLE,
             )
         elif psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES:
             print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
@@ -207,7 +212,8 @@ def trans(psyir):
                     region_directive_trans=omp_target_trans,
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
+                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
+                    uniform_intrinsics_only=REPRODUCIBLE,
             )
         elif psyir.name not in PARALLELISATION_ISSUES:
             # This have issues offloading, but we can still do OpenMP threading

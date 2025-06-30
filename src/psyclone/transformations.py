@@ -66,7 +66,7 @@ from psyclone.psyir.nodes import (
     OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Return,
-    Routine, Schedule)
+    Routine, Schedule, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
@@ -378,6 +378,8 @@ class MarkRoutineForGPUMixin:
         :type options: Optional[Dict[str, Any]]
         :param bool options["force"]: whether to allow routines with
             CodeBlocks to run on the GPU.
+        :param str options["device_string"]: provide a compiler-platform
+            identifier.
 
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
@@ -391,6 +393,7 @@ class MarkRoutineForGPUMixin:
                                      routines.
         '''
         force = options.get("force", False) if options else False
+        device_string = options.get("device_string", "") if options else ""
 
         if not isinstance(node, (Kern, Routine)):
             raise TransformationError(
@@ -473,16 +476,26 @@ class MarkRoutineForGPUMixin:
                         f"one or more CodeBlocks:{cblock_txt}You may use "
                         f"'{option_txt}' to override this check.")
 
-                calls = sched.walk(Call)
-                for call in calls:
-                    if not call.is_available_on_device():
-                        call_str = call.debug_string().rstrip("\n")
+            for call in sched.walk(Call):
+                if not call.is_available_on_device(device_string):
+                    if isinstance(call, IntrinsicCall):
+                        if device_string:
+                            device_str = (f"on the '{device_string}' "
+                                          f"accelerator device")
+                        else:
+                            device_str = "on the default accelerator device"
                         raise TransformationError(
-                            f"{k_or_r} '{node.name}' calls another routine "
-                            f"'{call_str}' which is not available on the "
-                            f"accelerator device and therefore cannot have "
-                            f"{type(self).__name__} applied to it (TODO "
-                            f"#342).")
+                            f"{k_or_r} '{node.name}' calls intrinsic "
+                            f"'{call.intrinsic.name}' which is not available "
+                            f"{device_str}. Use the 'device_string' option to "
+                            f"specify a different device."
+                        )
+                    call_str = call.debug_string().rstrip("\n")
+                    raise TransformationError(
+                        f"{k_or_r} '{node.name}' calls another routine "
+                        f"'{call_str}' which is not available on the "
+                        f"accelerator device and therefore cannot have "
+                        f"{type(self).__name__} applied to it (TODO #342).")
 
 
 class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
@@ -539,6 +552,8 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
         :type options: Optional[Dict[str, Any]]
         :param bool options["force"]: whether to allow routines with
             CodeBlocks to run on the GPU.
+        :param str options["device_string"]: provide a compiler-platform
+            identifier.
 
         '''
         self.validate(node, options)
@@ -568,6 +583,8 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
         :type options: Optional[Dict[str, Any]]
         :param bool options["force"]: whether to allow routines with
             CodeBlocks to run on the GPU.
+        :param str options["device_string"]: provide a compiler-platform
+            identifier.
 
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
@@ -1753,9 +1770,21 @@ class ACCParallelTrans(ParallelRegionTrans):
                     f"The provided 'default_present' option must be a "
                     f"boolean, but found '{options['default_present']}'."
                 )
+        device_string = options.get("device_string", "") if options else ""
         for node in node_list:
             for call in node.walk(Call):
-                if not call.is_available_on_device():
+                if not call.is_available_on_device(device_string):
+                    if isinstance(call, IntrinsicCall):
+                        if device_string:
+                            device_str = (f"on the '{device_string}' "
+                                          f"accelerator device")
+                        else:
+                            device_str = "on the default accelerator device"
+                        raise TransformationError(
+                            f"'{call.intrinsic.name}' is not available "
+                            f"{device_str}. Use the 'device_string' option to "
+                            f"specify a different device."
+                        )
                     raise TransformationError(
                         f"'{call.routine.name}' is not available on the "
                         f"accelerator device, and therefore it cannot "
@@ -2756,6 +2785,8 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         :param str options["parallelism"]: the level of parallelism that the
             target routine (or a callee) exposes. One of "seq" (the default),
             "vector", "worker" or "gang".
+        :param str options["device_string"]: provide a compiler-platform
+            identifier.
 
         '''
         # Check that we can safely apply this transformation
@@ -2792,6 +2823,8 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         :type options: Optional[Dict[str, Any]]
         :param bool options["force"]: whether to allow routines with
             CodeBlocks to run on the GPU.
+        :param str options["device_string"]: provide a compiler-platform
+            identifier.
 
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
