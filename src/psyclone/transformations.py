@@ -80,8 +80,7 @@ from psyclone.psyir.transformations.parallel_loop_trans import (
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
-from psyclone.psyir.transformations.parallel_region_trans import (
-    ParallelRegionTrans)
+from psyclone.psyir.transformations import ParallelRegionTrans
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -3077,5 +3076,4 @@ __all__ = [
    "OMPParallelLoopTrans",
    "OMPParallelTrans",
    "OMPSingleTrans",
-   "ParallelRegionTrans",
 ]
