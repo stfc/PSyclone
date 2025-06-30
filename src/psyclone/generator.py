@@ -35,6 +35,7 @@
 # Modified A. J. Voysey, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. R. Pirrie, Met Office
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 
 '''
     This module provides the PSyclone 'main' routine which is intended
@@ -213,6 +214,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         Tuple[:py:class:`fparser.one.block_statements.BeginSource`, str]
     :param keep_comments: whether to keep comments from the original source.
     :param keep_directives: whether to keep directives from the original
+                            source.
 
     :raises GenerationError: if an invalid API is specified.
     :raises GenerationError: if an invalid kernel-renaming scheme is specified.

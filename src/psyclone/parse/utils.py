@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Utility module containing classes and functions that are used by
 the parser modules.
@@ -119,7 +120,6 @@ def parse_fp2(filename, ignore_comments: bool = True):
     # We get the directories to search for any Fortran include files from
     # our configuration object.
     config = Config.get()
-    # FIXME Unit test.
     try:
         reader = FortranFileReader(filename, include_dirs=config.include_paths,
                                    ignore_comments=ignore_comments)

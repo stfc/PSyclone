@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
+# Modified: A. B. G. Chalk, STFC Daresbury Laboratory.
 
 ''' Module containing pytest unit tests for the AlgInvoke2PSyCallTrans
 transformation.
@@ -592,14 +593,9 @@ def test_ai2psycall_remove_imported_symbols(fortran_reader):
 
 
 def test_ai2psycall_keep_comments():
-    '''Check that the apply() method works as expected when the invoke has
-    a single kernel with multiple fields of the same name. Also check
-    that the apply() method creates the required routine and container
-    symbols if they have not already been created. Also check that the
-    apply() method removes the invoke symbol from the appropriate
-    symbol table. Use GOceanAlgInvoke2PSyCallTrans as
-    AlgInvoke2PSyCallTrans is abstract.
-
+    '''Check that the apply method doesn't strip out the comments when
+    FortranReader had ignore_comments=False, and that the comments appear in
+    the expected place.
     '''
     code = (
         "subroutine alg1()\n"
@@ -615,14 +611,6 @@ def test_ai2psycall_keep_comments():
     psyir = fortran_reader.psyir_from_source(code)
     AlgTrans().apply(psyir)
     invoke = psyir.children[0][0]
-
-    assert isinstance(invoke, AlgorithmInvokeCall)
-    assert len(psyir.walk(AlgorithmInvokeCall)) == 1
-    assert len(psyir.walk(KernelFunctor)) == 1
-    assert "invoke" in invoke.scope.symbol_table._symbols
-
-    # Don't call create_psylayer_symbol_root_names() here. This is to
-    # check that the transformation creates the names if needed.
     trans = GOceanAlgInvoke2PSyCallTrans()
     trans.apply(invoke)
     invoke = psyir.children[0][0]
