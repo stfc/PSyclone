@@ -40,9 +40,12 @@
 '''This module provides management of variable access information.'''
 
 
+from typing import Optional
+
 from psyclone.core.access_type import AccessType
 from psyclone.core.component_indices import ComponentIndices
 from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Node
 
 
 class AccessInfo():
@@ -51,16 +54,14 @@ class AccessInfo():
     available).
 
     :param access: the access type.
-    :type access_type: :py:class:`psyclone.core.access_type.AccessType`
     :param node: Node in PSyIR in which the access happens.
-    :type node: :py:class:`psyclone.psyir.nodes.Node`
     :param component_indices: indices used in the access, defaults to None.
-    :type component_indices: None, [], a list or a list of lists of \
-        :py:class:`psyclone.psyir.nodes.Node` objects, or an object of type \
-        :py:class:`psyclone.core.component_indices.ComponentIndices`
 
     '''
-    def __init__(self, access_type, node, component_indices=None):
+    def __init__(
+        self, access_type: AccessType, node: Node,
+        component_indices: Optional[list[list[Node]] | ComponentIndices] = None
+    ):
         self._access_type = access_type
         self._node = node
         if not isinstance(component_indices, ComponentIndices):
@@ -101,7 +102,7 @@ class AccessInfo():
         return self._component_indices
 
     @component_indices.setter
-    def component_indices(self, component_indices):
+    def component_indices(self, component_indices: ComponentIndices):
         '''Sets the indices for this AccessInfo instance. The component_indices
         contains a list of indices for each component of the signature,
         e.g. for `a(i)%b(j,k)%c` the component_indices will be
@@ -109,8 +110,6 @@ class AccessInfo():
         index expression).
 
         :param component_indices: indices used in the access.
-        :type component_indices: \
-            :py:class:`psyclone.core.component_indices.ComponentIndices`
 
         :raises InternalError: if component_indices is not an instance \
             of :py:class:`psyclone.core.component_indices.ComponentIndices`.
@@ -310,18 +309,16 @@ class SingleVariableAccessInfo():
         return [access for access in self._accesses
                 if access.access_type in AccessType.all_write_accesses()]
 
-    def add_access(self, access_type, node, component_indices):
+    def add_access(
+        self, access_type: AccessType, node: Node,
+        component_indices: Optional[list[list[Node]] | ComponentIndices] = None
+    ):
         '''Adds access information to this variable.
 
         :param access_type: the type of access (READ, WRITE, ....)
-        :type access_type: \
-            :py:class:`psyclone.core.access_type.AccessType`
         :param node: Node in PSyIR in which the access happens.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param component_indices: indices used for each component of the \
             access.
-        :type component_indices:  \
-            :py:class:`psyclone.core.component_indices.ComponentIndices`
         '''
         self._accesses.append(AccessInfo(access_type, node, component_indices))
 
