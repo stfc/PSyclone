@@ -2878,7 +2878,6 @@ class Fparser2Reader():
             preceding_comments
         )
 
-
     def process_nodes(self, parent, nodes):
         '''
         Create the PSyIR of the supplied list of nodes in the
@@ -5495,7 +5494,7 @@ class Fparser2Reader():
             self.process_declarations(routine, decl_list, arg_list)
 
             # fparser puts comments after the declarations as part of
-            # the declarations, but in PSyclone they need to be a 
+            # the declarations, but in PSyclone they need to be a
             # preceding_comment unless it's an inline comment on the
             # last declaration.
             lost_comments = self._get_lost_declaration_comments(decl_list)
