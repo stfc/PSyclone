@@ -51,7 +51,7 @@ from psyclone.psyir.nodes import Routine, FileContainer, IntrinsicCall, Call
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import (
-    ACCRoutineTrans, OMPDeclareTargetTrans, Dynamo0p3KernelConstTrans)
+    ACCRoutineTrans, OMPDeclareTargetTrans, LFRicKernelConstTrans)
 
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -171,7 +171,7 @@ def test_kernel_module_name(kernel_outputdir, mod_name, sub_name, monkeypatch):
     sched = invoke.schedule
     kernels = sched.coded_kernels()
     kern = kernels[0]
-    ktrans = Dynamo0p3KernelConstTrans()
+    ktrans = LFRicKernelConstTrans()
     ktrans.apply(kern, {"number_of_layers": 100})
     # Modify the kernel module and subroutine names.
     monkeypatch.setattr(kern, "_module_name", mod_name)
@@ -200,7 +200,7 @@ def test_kern_case_insensitive(mod_name, sub_name, kernel_outputdir,
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kern = kernels[0]
-    ktrans = Dynamo0p3KernelConstTrans()
+    ktrans = LFRicKernelConstTrans()
     ktrans.apply(kern, {"number_of_layers": 100})
     monkeypatch.setattr(kern, "_module_name", mod_name)
     monkeypatch.setattr(kern, "_name", sub_name)
@@ -317,7 +317,7 @@ def test_gpumixin_validate_no_schedule(monkeypatch):
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kern = kernels[0]
-    # We monkeypatch the 'get_kernel_schedule' method of DynKern so that it
+    # We monkeypatch the 'get_kernel_schedule' method of LFRicKern so that it
     # just raises an exception.
 
     def broken(_1_):
@@ -429,10 +429,9 @@ def test_gpumixin_validate_no_call():
         IntrinsicCall.create(IntrinsicCall.Intrinsic.GET_COMMAND))
     with pytest.raises(TransformationError) as err:
         rtrans.validate(kernel)
-    assert ("Kernel 'testkern_with_call_code' calls another routine "
-            "'GET_COMMAND()' which is not available on the accelerator device "
-            "and therefore cannot have ACCRoutineTrans applied to it "
-            "(TODO #342)."
+    assert ("Kernel 'testkern_with_call_code' calls intrinsic 'GET_COMMAND' "
+            "which is not available on the default accelerator device. Use "
+            "the 'device_string' option to specify a different device."
             in str(err.value))
 
 
@@ -452,6 +451,40 @@ def test_kernel_gpu_annotation_trans(rtrans, expected_directive,
     # Check that the directive has been added to the kernel code
     code = fortran_writer(kern.get_kernel_schedule())
     assert expected_directive in code
+
+
+@pytest.mark.parametrize(
+    "rtrans",
+    [ACCRoutineTrans(), OMPDeclareTargetTrans()])
+def test_kernel_gpu_annotation_device_id(rtrans, fortran_reader):
+    ''' Check that the GPU annotation transformations validations
+    check the intrinsics using the provided device id. '''
+
+    code = '''
+    function myfunc(a)
+        integer :: a
+        real :: myfunc
+        myfunc = REAL(a)
+    end function
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    # The routine is valid
+    rtrans.validate(routine)
+    # But not if we are targeting "nvidia-repr" or an invalid device
+    with pytest.raises(TransformationError) as err:
+        rtrans.validate(routine, options={'device_string':
+                                          'nvfortran-uniform'})
+    assert ("routine 'myfunc' calls intrinsic 'REAL' which is not available on"
+            " the 'nvfortran-uniform' accelerator device. Use the "
+            "'device_string' option to specify a different device."
+            in str(err.value))
+    with pytest.raises(ValueError) as err:
+        rtrans.validate(routine, options={'device_string':
+                                          'unknown-device'})
+    assert ("Unsupported device_string value 'unknown-device', the supported "
+            "values are '' (default), 'nvfortran-all', 'nvfortran-uniform'"
+            in str(err.value))
 
 
 def test_1kern_trans(kernel_outputdir):
@@ -488,7 +521,7 @@ def test_2kern_trans(kernel_outputdir):
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     assert len(kernels) == 5
-    ktrans = Dynamo0p3KernelConstTrans()
+    ktrans = LFRicKernelConstTrans()
     ktrans.apply(kernels[1], {"number_of_layers": 100})
     ktrans.apply(kernels[2], {"number_of_layers": 100})
     # Generate the code (this triggers the generation of new kernels)

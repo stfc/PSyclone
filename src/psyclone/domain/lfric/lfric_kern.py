@@ -41,10 +41,10 @@
 
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
+from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
@@ -112,7 +112,7 @@ class LFRicKern(CodedKern):
         # because we must preserve the ordering specified in the metadata.
         self._qr_rules = OrderedDict()
         self._cma_operation = None
-        # Reference to the DynInterGrid object holding any inter-grid aspects
+        # Reference to the LFRicInterGrid object holding any inter-grid aspects
         # of this kernel or None if it is not an intergrid kernel
         self._intergrid_ref = None  # Reference to this kernel inter-grid
         # The reference-element properties required by this kernel
@@ -129,16 +129,15 @@ class LFRicKern(CodedKern):
         self._argument_kinds = {api_config.default_kind["real"],
                                 api_config.default_kind["integer"]}
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. All accesses are marked
-        according to the kernel metadata
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
+        var_accesses = VariablesAccessMap()
         # Use the KernelCallArgList class, which can also provide variable
         # access information:
         create_arg_list = KernCallArgList(self)
@@ -150,10 +149,11 @@ class LFRicKern(CodedKern):
         create_arg_list._forced_symtab = tmp_symtab
         create_arg_list.generate(var_accesses)
 
-        super().reference_accesses(var_accesses)
+        var_accesses.update(super().reference_accesses())
         # Set the current location index to the next location, since after
         # this kernel a new statement starts.
         var_accesses.next_location()
+        return var_accesses
 
     def load(self, call, parent=None):
         '''
@@ -279,8 +279,8 @@ class LFRicKern(CodedKern):
         '''
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynKernelArguments, FSDescriptors
-        super().__init__(DynKernelArguments,
+        from psyclone.lfric import LFRicKernelArguments, FSDescriptors
+        super().__init__(LFRicKernelArguments,
                          KernelCall(module_name, ktype, args),
                          parent, check)
 
@@ -300,7 +300,7 @@ class LFRicKern(CodedKern):
         self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
 
         # If the kernel metadata specifies that this is an inter-grid kernel
-        # create the associated DynInterGrid
+        # create the associated LFRicInterGrid
         if ktype.is_intergrid:
             if not self.ancestor(InvokeSchedule):
                 raise NotImplementedError(
@@ -311,8 +311,8 @@ class LFRicKern(CodedKern):
             coarse_args = args_filter(self.arguments.args,
                                       arg_meshes=["gh_coarse"])
 
-            from psyclone.dynamo0p3 import DynInterGrid
-            intergrid = DynInterGrid(fine_args[0], coarse_args[0])
+            from psyclone.lfric import LFRicInterGrid
+            intergrid = LFRicInterGrid(fine_args[0], coarse_args[0])
             self._intergrid_ref = intergrid
 
         const = LFRicConstants()
@@ -469,7 +469,8 @@ class LFRicKern(CodedKern):
         '''
         :returns: the symbol representing the colourmap for this kernel call.
 
-        :raises InternalError: if this kernel is not coloured.
+        :raises InternalError: if this kernel is not coloured or the dictionary
+            of inter-grid kernels and colourmaps has not been constructed.
 
         '''
         if not self.is_coloured():
@@ -482,14 +483,47 @@ class LFRicKern(CodedKern):
             try:
                 cmap = sched.symbol_table.lookup_with_tag("cmap")
             except KeyError:
-                # We have to do this here as _init_colourmap (which calls this
-                # method) is only called at code-generation time.
+                # Declare array holding map from a given colour-cell to
+                # the index of the cell (this is not initialised until code
+                # lowering)
                 cmap = sched.symbol_table.find_or_create_tag(
                     "cmap", symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
                         "integer(kind=i_def), pointer :: cmap(:,:)"))
 
         return cmap
+
+    @property
+    def tilecolourmap(self) -> DataSymbol:
+        '''
+        Getter for the name of the tilecolourmap associated with this
+        kernel call.
+
+        :returns: the symbol representing the tilecolourmap.
+
+        :raises InternalError: if this kernel is not coloured or the dictionary
+            of inter-grid kernels and colourmaps has not been constructed.
+
+        '''
+        if not self.is_coloured():
+            raise InternalError(f"Kernel '{self.name}' is not inside a "
+                                f"coloured loop.")
+        sched = self.ancestor(InvokeSchedule)
+        if self.is_intergrid:
+            tmap = self._intergrid_ref.tilecolourmap_symbol.name
+        else:
+            try:
+                tmap = sched.symbol_table.lookup_with_tag("tilecolourmap").name
+            except KeyError:
+                # Declare array holding map from a given tile-colour-cell to
+                # the index of the cell (this is not initialised until code
+                # lowering)
+                tmap = sched.symbol_table.find_or_create_tag(
+                    "tilecolourmap", root_name="tmap", symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(
+                        "integer(kind=i_def), pointer :: tmap(:,:,:)")).name
+
+        return tmap
 
     @property
     def last_cell_all_colours_symbol(self):
@@ -541,7 +575,35 @@ class LFRicKern(CodedKern):
             ncols_sym = self._intergrid_ref.ncolours_var_symbol
             return ncols_sym.name if ncols_sym is not None else None
 
-        return self.scope.symbol_table.lookup_with_tag("ncolour").name
+        try:
+            symbol = self.scope.symbol_table.lookup_with_tag("ncolour")
+        except KeyError:
+            return None
+        return symbol.name
+
+    @property
+    def ntilecolours_var(self) -> Optional[str]:
+        '''
+        Getter for the name of the variable holding the number of colours
+        (over tiled cells) associated with this kernel call.
+
+        :return: name of the variable holding the number of colours
+
+        :raises InternalError: if this kernel is not coloured or the
+            colour-map information has not been initialised.
+        '''
+        if not self.is_coloured():
+            raise InternalError(f"Kernel '{self.name}' is not inside a "
+                                f"coloured loop.")
+        if self.is_intergrid:
+            ncols_sym = self._intergrid_ref.ntilecolours_var_symbol
+            return ncols_sym.name if ncols_sym is not None else None
+
+        try:
+            symbol = self.scope.symbol_table.lookup_with_tag("ntilecolours")
+        except KeyError:
+            return None
+        return symbol.name
 
     @property
     def fs_descriptors(self):
@@ -579,7 +641,7 @@ class LFRicKern(CodedKern):
         :return: the function spaces upon which basis/diff-basis functions \
                  are to be evaluated for this kernel.
         :rtype: dict of (:py:class:`psyclone.domain.lfric.FunctionSpace`, \
-                :py:class`psyclone.dynamo0p3.DynKernelArgument`), indexed by \
+                :py:class`psyclone.lfric.LFRicKernelArgument`), indexed by \
                 the names of the target function spaces.
         '''
         return self._eval_targets
@@ -588,7 +650,7 @@ class LFRicKern(CodedKern):
     def reference_element(self):
         '''
         :returns: the reference-element properties required by this kernel.
-        :rtype: :py:class:`psyclone.dynamo0p3.RefElementMetaData`
+        :rtype: :py:class:`psyclone.lfric.RefElementMetaData`
         '''
         return self._reference_element
 
@@ -596,17 +658,15 @@ class LFRicKern(CodedKern):
     def mesh(self):
         '''
         :returns: the mesh properties required by this kernel.
-        :rtype: :py:class`psyclone.dynamo0p3.MeshPropertiesMetaData`
+        :rtype: :py:class`psyclone.lfric.MeshPropertiesMetaData`
         '''
         return self._mesh_properties
 
     @property
-    def all_updates_are_writes(self):
+    def all_updates_are_writes(self) -> bool:
         '''
-        :returns: True if all of the arguments updated by this kernel have \
+        :returns: True if all arguments updated by this kernel have
                   'GH_WRITE' access, False otherwise.
-        :rtype: bool
-
         '''
         accesses = set(arg.access for arg in self.args)
         all_writes = AccessType.all_write_accesses()
@@ -696,14 +756,14 @@ class LFRicKern(CodedKern):
         from psyclone.domain.lfric import (
             LFRicCellIterators, LFRicScalarArgs, LFRicFields,
             LFRicDofmaps, LFRicStencils)
-        from psyclone.dynamo0p3 import (
-            DynFunctionSpaces, DynCMAOperators, DynBoundaryConditions,
-            DynLMAOperators, LFRicMeshProperties, DynBasisFunctions,
-            DynReferenceElement)
-        for entities in [LFRicCellIterators, LFRicDofmaps, DynFunctionSpaces,
-                         DynCMAOperators, LFRicScalarArgs, LFRicFields,
-                         DynLMAOperators, LFRicStencils, DynBasisFunctions,
-                         DynBoundaryConditions, DynReferenceElement,
+        from psyclone.lfric import (
+            LFRicFunctionSpaces, LFRicCMAOperators, LFRicBoundaryConditions,
+            LFRicLMAOperators, LFRicMeshProperties, LFRicBasisFunctions,
+            LFRicReferenceElement)
+        for entities in [LFRicCellIterators, LFRicDofmaps, LFRicFunctionSpaces,
+                         LFRicCMAOperators, LFRicScalarArgs, LFRicFields,
+                         LFRicLMAOperators, LFRicStencils, LFRicBasisFunctions,
+                         LFRicBoundaryConditions, LFRicReferenceElement,
                          LFRicMeshProperties]:
             entities(self).stub_declarations()
 
@@ -846,7 +906,7 @@ class LFRicKern(CodedKern):
             scalar, field and operator arguments directly correspond to \
             arguments that appear in the Algorithm layer.
         :type alg_arg: \
-            Optional[:py:class`psyclone.dynamo0p3.DynKernelArgument`]
+            Optional[:py:class`psyclone.lfric.LFRicKernelArgument`]
 
         :raises GenerationError: if the contents of the arguments do \
             not match.

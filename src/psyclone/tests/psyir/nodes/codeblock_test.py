@@ -40,7 +40,6 @@
 
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes import CodeBlock
 from psyclone.psyir.nodes.node import colored
 from psyclone.errors import GenerationError
@@ -142,7 +141,6 @@ def test_codeblock_ref_accesses(parser):
     Fortran intrinsics are not captured.
 
     '''
-    vai = VariablesAccessInfo()
     reader = FortranStringReader('''
     subroutine mytest
       that_is_true = .TRUE._bool_kind
@@ -162,8 +160,8 @@ def test_codeblock_ref_accesses(parser):
     end subroutine mytest''')
     prog = parser(reader)
     block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
-    block.reference_accesses(vai)
-    all_sigs = vai.all_signatures
+    vam = block.reference_accesses()
+    all_sigs = vam.all_signatures
     all_names = [sig.var_name for sig in all_sigs]
     assert "a" in all_names
     assert "i" in all_names
@@ -177,7 +175,7 @@ def test_codeblock_ref_accesses(parser):
     # The target of a CALL is included.
     assert "my_routine" in all_names
     # All signatures should be marked as READWRITE access.
-    assert all(vai.has_read_write(sig) for sig in all_sigs)
+    assert all(vam.has_read_write(sig) for sig in all_sigs)
 
 
 def test_codeblock_equality(parser):
@@ -199,3 +197,30 @@ def test_codeblock_equality(parser):
     prog = parser(reader)
     block4 = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
     assert block != block4
+
+
+def test_codeblock_has_potential_control_flow_jump(fortran_reader):
+    """Test the has_potential_control_flow_jump function of the CodeBlock
+    class."""
+
+    code = """subroutine test()
+    integer :: i
+    GOTO 1234
+    i = 1
+    write(*,*) "Hello"
+    do i = 1, 100
+        EXIT
+    end do
+1234 i = 3
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    codeblocks = psyir.walk(CodeBlock)
+
+    # GOTO statement
+    assert codeblocks[0].has_potential_control_flow_jump()
+    # Write statement
+    assert not codeblocks[1].has_potential_control_flow_jump()
+    # Exit statement
+    assert codeblocks[2].has_potential_control_flow_jump()
+    # labelled statement
+    assert codeblocks[3].has_potential_control_flow_jump()
