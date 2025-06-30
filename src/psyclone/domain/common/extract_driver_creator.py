@@ -137,12 +137,6 @@ class ExtractDriverCreator(BaseDriverCreator):
                                                    symbol_type=DataSymbol,
                                                    datatype=psy_data_type)
 
-        # Copy the nodes that are part of the extraction
-        program.children.extend([n.copy() for n in nodes[0].children])
-
-        # Find all imported modules and add them to the symbol table
-        self.import_modules(program)
-
         module_str = Literal(module_name, CHARACTER_TYPE)
         region_str = Literal(local_name, CHARACTER_TYPE)
         self.add_call(program, f"{psy_data.name}%OpenReadModuleRegion",
@@ -151,6 +145,13 @@ class ExtractDriverCreator(BaseDriverCreator):
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    og_symtab,
                                                    read_write_info, postfix)
+
+        # Copy the nodes that are part of the extraction
+        extract_region = nodes[0].copy()
+        program.children.extend(extract_region.pop_all_children())
+
+        # Find all imported modules and add them to the symbol table
+        self.import_modules(program)
 
         self.replace_precisions(program)
 

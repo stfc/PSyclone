@@ -264,8 +264,8 @@ def test_lfric_driver_dm_test():
 
     # Check that DM infrastructure calls such as "set_dirty" are still in the
     # psylayer, so following extraction regions still have the correct values,
-    # while it has been removed from the driver (because it is executed in a)
-    # single rank (and without the infrastructure imported).
+    # while it has been removed from the driver (because it is executed in a
+    # single rank and without the infrastructure imported).
     assert "set_dirty" in code
     assert "set_dirty" not in driver
 
@@ -475,9 +475,8 @@ def test_lfric_driver_field_array_write():
         # of the elements that are not being updated.
         assert (f"ProvideVariable(\"coord_{i}_data\", coord_{i}_data)"
                 in code)
-        # The variable coord is an output value, but we still need to
-        # provide its input value (in case of kernels that only updates
-        # partial fields)
+        # The variable coord is an output value, but we still need to provide
+        # its input value (for kernels that only update partial fields)
         assert (f"ProvideVariable(\"coord_{i}_data_post\", coord_{i}_data)"
                 in code)
 
