@@ -973,7 +973,8 @@ class IntrinsicCall(Call):
 
 # TODO #658 this can be removed once we have support for determining the
 # type of a PSyIR expression.
-# Intrinsics that perform a reduction on an array.
-REDUCTION_INTRINSICS = [
+# Intrinsics that perform operations on an array.
+ARRAY_INTRINSICS = [
     IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.MINVAL,
-    IntrinsicCall.Intrinsic.MAXVAL]
+    IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.PACK,
+    IntrinsicCall.Intrinsic.COUNT]

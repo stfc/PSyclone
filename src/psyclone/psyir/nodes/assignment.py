@@ -45,7 +45,7 @@ from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.intrinsic_call import (
-    IntrinsicCall, REDUCTION_INTRINSICS)
+    IntrinsicCall, ARRAY_INTRINSICS)
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.statement import Statement
@@ -230,7 +230,7 @@ class Assignment(Statement):
             for array_range in ranges:
                 opn = array_range.ancestor(IntrinsicCall)
                 while opn:
-                    if opn.intrinsic in REDUCTION_INTRINSICS:
+                    if opn.intrinsic in ARRAY_INTRINSICS:
                         # The current array range is in an argument to a
                         # reduction intrinsic so we assume that the result
                         # is a scalar.
