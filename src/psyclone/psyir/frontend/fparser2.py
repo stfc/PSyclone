@@ -68,7 +68,7 @@ from psyclone.psyir.symbols import (
     INTEGER_TYPE, NoType, RoutineSymbol, ScalarType, StaticInterface,
     StructureType, Symbol, SymbolError, UnknownInterface,
     UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
-    UnsupportedType, SymbolTable)
+    UnsupportedType)
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
