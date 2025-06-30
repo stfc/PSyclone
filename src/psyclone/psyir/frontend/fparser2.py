@@ -360,7 +360,7 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
 
 
 def _refine_symbols_with_usage_location(
-    symtab: SymbolTable,
+    location: Node,
     execution_part: Fortran2003.Execution_Part
 ):
     ''' Refine the symbol infomration that we obtained from parsing
@@ -375,15 +375,10 @@ def _refine_symbols_with_usage_location(
     for assignment in walk(execution_part, Fortran2003.Assignment_Stmt):
         if isinstance(assignment.items[0], Fortran2003.Part_Ref):
             name = assignment.items[0].items[0].string.lower()
-            symbol = symtab.lookup(name, otherwise=None)
-            if symbol is None:
-                symtab.new_symbol(name, symbol_type=DataSymbol,
-                                  datatype=UnresolvedType(),
-                                  interface=UnresolvedInterface())
-            # pylint: disable=unidiomatic-typecheck
-            if type(symbol) is Symbol:
-                symbol.specialise(subclass=DataSymbol,
-                                  datatype=UnresolvedType())
+            _find_or_create_unresolved_symbol(
+                location, name,
+                symbol_type=DataSymbol,
+                datatype=UnresolvedType())
     # References that have a Subscript in a top-level children is a DataSymbol
     for part_ref in walk(execution_part, Fortran2003.Part_Ref):
         for child in part_ref.items:
@@ -394,15 +389,10 @@ def _refine_symbols_with_usage_location(
                 if isinstance(part_ref.parent, Fortran2003.Data_Ref):
                     continue
                 name = part_ref.items[0].string.lower()
-                symbol = symtab.lookup(name, otherwise=None)
-                if symbol is None:
-                    symtab.new_symbol(name, symbol_type=DataSymbol,
-                                      datatype=UnresolvedType(),
-                                      interface=UnresolvedInterface())
-                # pylint: disable=unidiomatic-typecheck
-                if type(symbol) is Symbol:
-                    symbol.specialise(subclass=DataSymbol,
-                                      datatype=UnresolvedType())
+                _find_or_create_unresolved_symbol(
+                    location, name,
+                    symbol_type=DataSymbol,
+                    datatype=UnresolvedType())
 
 
 def _find_or_create_psyclone_internal_cmp(node):
@@ -5064,8 +5054,7 @@ class Fparser2Reader():
         # before any occurrence of this symbol, the psyclone frontend has entry
         # points parsing single statements/expressions), so we have to do
         # it again here
-        _refine_symbols_with_usage_location(parent.scope.symbol_table,
-                                            node)
+        _refine_symbols_with_usage_location(parent, node)
         symbol = _find_or_create_unresolved_symbol(parent, reference_name)
 
         if isinstance(symbol, DataSymbol):
@@ -5600,8 +5589,7 @@ class Fparser2Reader():
             else:
                 # We found a 'execution_part', before processing it we try
                 # to refine the symbol information
-                _refine_symbols_with_usage_location(routine.symbol_table,
-                                                    sub_exec)
+                _refine_symbols_with_usage_location(routine, sub_exec)
                 # Put the comments from the end of the declarations part
                 # at the start of the execution part manually
                 self.process_nodes(routine, lost_comments + sub_exec.content)
