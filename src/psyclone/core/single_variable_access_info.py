@@ -40,12 +40,13 @@
 '''This module provides management of variable access information.'''
 
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from psyclone.core.access_type import AccessType
 from psyclone.core.component_indices import ComponentIndices
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Node
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes import Node
 
 
 class AccessInfo():
@@ -59,8 +60,9 @@ class AccessInfo():
 
     '''
     def __init__(
-        self, access_type: AccessType, node: Node,
-        component_indices: Optional[list[list[Node]] | ComponentIndices] = None
+        self, access_type: AccessType, node: 'Node',
+        component_indices: Optional[list[list['Node']] |
+                                    ComponentIndices] = None
     ):
         self._access_type = access_type
         self._node = node
@@ -310,8 +312,9 @@ class SingleVariableAccessInfo():
                 if access.access_type in AccessType.all_write_accesses()]
 
     def add_access(
-        self, access_type: AccessType, node: Node,
-        component_indices: Optional[list[list[Node]] | ComponentIndices] = None
+        self, access_type: AccessType, node: 'Node',
+        component_indices: Optional[list[list['Node']] |
+                                    ComponentIndices] = None
     ):
         '''Adds access information to this variable.
 
