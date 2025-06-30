@@ -45,7 +45,7 @@ from typing import TYPE_CHECKING, Optional
 from psyclone.core.access_type import AccessType
 from psyclone.core.component_indices import ComponentIndices
 from psyclone.errors import InternalError
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from psyclone.psyir.nodes import Node
 
 
