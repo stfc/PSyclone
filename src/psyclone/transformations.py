@@ -61,11 +61,11 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Container, Directive, Literal, Loop, Node,
+    Call, CodeBlock, Directive, Literal, Loop, Node,
     OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Return,
-    Routine, Schedule)
+    Routine, Schedule, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
@@ -378,13 +378,13 @@ class MarkRoutineForGPUMixin:
         :type options: Optional[Dict[str, Any]]
         :param bool options["force"]: whether to allow routines with
             CodeBlocks to run on the GPU.
+        :param str options["device_string"]: provide a compiler-platform
+            identifier.
 
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
         :raises TransformationError: if it is a kernel but without an
                                      associated PSyIR.
-        :raises TransformationError: if it is a Kernel that has multiple
-                                     implementations (mixed precision).
         :raises TransformationError: if any of the symbols in the kernel are
                                      accessed via a module use statement (and
                                      are not compile-time constants).
@@ -393,6 +393,7 @@ class MarkRoutineForGPUMixin:
                                      routines.
         '''
         force = options.get("force", False) if options else False
+        device_string = options.get("device_string", "") if options else ""
 
         if not isinstance(node, (Kern, Routine)):
             raise TransformationError(
@@ -412,89 +413,89 @@ class MarkRoutineForGPUMixin:
             # or that the frontend failed to convert it into PSyIR) reraise it
             # as a TransformationError
             try:
-                kernel_schedule = node.get_kernel_schedule()
+                kernel_schedules = node.get_callees()
             except Exception as error:
                 raise TransformationError(
                     f"Failed to create PSyIR for kernel '{node.name}'. "
                     f"Cannot transform such a kernel.") from error
 
-            if not node.ancestor(Container, shared_with=kernel_schedule):
-                # The KernelSchedule to be transformed has not been inlined
-                # into the Container of the call-site. Therefore we can
-                # Check that it's not a mixed-precision kernel (which will have
-                # more than one Routine implementing it). We can't transform
-                # these at the moment because we can't correctly manipulate
-                # their metadata - TODO #1946.
-                if len(kernel_schedule.root.walk(Routine)) > 1:
-                    raise TransformationError(
-                        f"Cannot apply {self.name} to kernel '{node.name}' as "
-                        f"it has multiple implementations - TODO #1946")
-
             k_or_r = "Kernel"
         else:
             # Supplied node is a PSyIR Routine which *is* a Schedule.
-            kernel_schedule = node
+            kernel_schedules = [node]
             k_or_r = "routine"
 
-        # Check that the routine does not access any data that is imported via
-        # a 'use' statement.
-        vam = kernel_schedule.reference_accesses()
-        ktable = kernel_schedule.symbol_table
-        for sig in vam.all_signatures:
-            name = sig.var_name
-            first = vam[sig].all_accesses[0].node
-            if isinstance(first, (Symbol, DataType)):
-                table = ktable
-            else:
-                try:
-                    table = first.scope.symbol_table
-                except SymbolError:
-                    # The node associated with this access is not within a
-                    # scoping region.
+        # Check that the routine(s) do(oes) not access any data that is
+        # imported via a 'use' statement.
+        for sched in kernel_schedules:
+            vam = sched.reference_accesses()
+            ktable = sched.symbol_table
+            for sig in vam.all_signatures:
+                name = sig.var_name
+                first = vam[sig].all_accesses[0].node
+                if isinstance(first, (Symbol, DataType)):
                     table = ktable
-            symbol = table.lookup(name)
-            if symbol.is_import:
-                # resolve_type does nothing if the Symbol type is known.
-                try:
-                    symbol.resolve_type()
-                except (SymbolError, FileNotFoundError):
-                    # TODO #11 - log that we failed to resolve this Symbol.
-                    pass
-                if (isinstance(symbol, DataSymbol) and symbol.is_constant):
-                    # An import of a compile-time constant is fine.
-                    continue
-                raise TransformationError(
-                    f"{k_or_r} '{node.name}' accesses the symbol "
-                    f"'{symbol}' which is imported. If this symbol "
-                    f"represents data then it must first be converted to a "
-                    f"{k_or_r} argument using the KernelImportsToArguments "
-                    f"transformation.")
+                else:
+                    try:
+                        table = first.scope.symbol_table
+                    except SymbolError:
+                        # The node associated with this access is not within a
+                        # scoping region.
+                        table = ktable
+                symbol = table.lookup(name)
+                if symbol.is_import:
+                    # resolve_type does nothing if the Symbol type is known.
+                    try:
+                        symbol.resolve_type()
+                    except (SymbolError, FileNotFoundError):
+                        # TODO #11 - log that we failed to resolve this Symbol.
+                        pass
+                    if (isinstance(symbol, DataSymbol) and symbol.is_constant):
+                        # An import of a compile-time constant is fine.
+                        continue
+                    raise TransformationError(
+                        f"{k_or_r} '{node.name}' accesses the symbol "
+                        f"'{symbol}' which is imported. If this symbol "
+                        f"represents data then it must first be converted to a"
+                        f" {k_or_r} argument using the "
+                        f"KernelImportsToArguments transformation.")
 
-        # We forbid CodeBlocks because we can't be certain that what they
-        # contain can be executed on a GPU. However, we do permit the user
-        # to override this check.
-        cblocks = kernel_schedule.walk(CodeBlock)
-        if not force:
-            if cblocks:
-                cblock_txt = ("\n  " + "\n  ".join(str(node) for node in
-                                                   cblocks[0].get_ast_nodes)
-                              + "\n")
-                option_txt = "options={'force': True}"
-                raise TransformationError(
-                    f"Cannot safely apply {type(self).__name__} to {k_or_r} "
-                    f"'{node.name}' because its PSyIR contains one or more "
-                    f"CodeBlocks:{cblock_txt}You may use '{option_txt}' to "
-                    f"override this check.")
+            # We forbid CodeBlocks because we can't be certain that what they
+            # contain can be executed on a GPU. However, we do permit the user
+            # to override this check.
+            cblocks = sched.walk(CodeBlock)
+            if not force:
+                if cblocks:
+                    cblock_txt = ("\n  " + "\n  ".join(
+                        str(node) for node in cblocks[0].get_ast_nodes)
+                                  + "\n")
+                    option_txt = "options={'force': True}"
+                    raise TransformationError(
+                        f"Cannot safely apply {type(self).__name__} to "
+                        f"{k_or_r} '{node.name}' because its PSyIR contains "
+                        f"one or more CodeBlocks:{cblock_txt}You may use "
+                        f"'{option_txt}' to override this check.")
 
-        calls = kernel_schedule.walk(Call)
-        for call in calls:
-            if not call.is_available_on_device():
-                call_str = call.debug_string().rstrip("\n")
-                raise TransformationError(
-                    f"{k_or_r} '{node.name}' calls another routine "
-                    f"'{call_str}' which is not available on the "
-                    f"accelerator device and therefore cannot have "
-                    f"{type(self).__name__} applied to it (TODO #342).")
+            for call in sched.walk(Call):
+                if not call.is_available_on_device(device_string):
+                    if isinstance(call, IntrinsicCall):
+                        if device_string:
+                            device_str = (f"on the '{device_string}' "
+                                          f"accelerator device")
+                        else:
+                            device_str = "on the default accelerator device"
+                        raise TransformationError(
+                            f"{k_or_r} '{node.name}' calls intrinsic "
+                            f"'{call.intrinsic.name}' which is not available "
+                            f"{device_str}. Use the 'device_string' option to "
+                            f"specify a different device."
+                        )
+                    call_str = call.debug_string().rstrip("\n")
+                    raise TransformationError(
+                        f"{k_or_r} '{node.name}' calls another routine "
+                        f"'{call_str}' which is not available on the "
+                        f"accelerator device and therefore cannot have "
+                        f"{type(self).__name__} applied to it (TODO #342).")
 
 
 class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
@@ -551,6 +552,8 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
         :type options: Optional[Dict[str, Any]]
         :param bool options["force"]: whether to allow routines with
             CodeBlocks to run on the GPU.
+        :param str options["device_string"]: provide a compiler-platform
+            identifier.
 
         '''
         self.validate(node, options)
@@ -560,15 +563,14 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
             node.modified = True
 
             # Get the schedule representing the kernel subroutine
-            routine = node.get_kernel_schedule()
+            routines = node.get_callees()
         else:
-            routine = node
+            routines = [node]
 
-        for child in routine.children:
-            if isinstance(child, OMPDeclareTargetDirective):
-                return  # The routine is already marked with OMPDeclareTarget
-
-        routine.children.insert(0, OMPDeclareTargetDirective())
+        for routine in routines:
+            if not any(isinstance(child, OMPDeclareTargetDirective) for
+                       child in routine.children):
+                routine.children.insert(0, OMPDeclareTargetDirective())
 
     def validate(self, node, options=None):
         ''' Check that an OMPDeclareTargetDirective can be inserted.
@@ -581,6 +583,8 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
         :type options: Optional[Dict[str, Any]]
         :param bool options["force"]: whether to allow routines with
             CodeBlocks to run on the GPU.
+        :param str options["device_string"]: provide a compiler-platform
+            identifier.
 
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
@@ -1669,9 +1673,21 @@ class ACCParallelTrans(ParallelRegionTrans):
                     f"The provided 'default_present' option must be a "
                     f"boolean, but found '{options['default_present']}'."
                 )
+        device_string = options.get("device_string", "") if options else ""
         for node in node_list:
             for call in node.walk(Call):
-                if not call.is_available_on_device():
+                if not call.is_available_on_device(device_string):
+                    if isinstance(call, IntrinsicCall):
+                        if device_string:
+                            device_str = (f"on the '{device_string}' "
+                                          f"accelerator device")
+                        else:
+                            device_str = "on the default accelerator device"
+                        raise TransformationError(
+                            f"'{call.intrinsic.name}' is not available "
+                            f"{device_str}. Use the 'device_string' option to "
+                            f"specify a different device."
+                        )
                     raise TransformationError(
                         f"'{call.routine.name}' is not available on the "
                         f"accelerator device, and therefore it cannot "
@@ -2160,7 +2176,7 @@ class LFRicKernelConstTrans(Transformation):
     >>> trans = LFRicKernelConstTrans()
     >>> for kernel in schedule.coded_kernels():
     >>>     trans.apply(kernel, number_of_layers=150)
-    >>>     kernel_schedule = kernel.get_kernel_schedule()
+    >>>     kernel_schedule = kernel.get_callees()[0]
     >>>     # Uncomment the following line to see a text view of the
     >>>     # symbol table
     >>>     # print(kernel_schedule.symbol_table.view())
@@ -2331,16 +2347,17 @@ class LFRicKernelConstTrans(Transformation):
         arg_list_info = KernCallArgList(kernel)
         arg_list_info.generate()
         try:
-            kernel_schedule = kernel.get_kernel_schedule()
+            kernel_schedules = kernel.get_callees()
         except NotImplementedError as excinfo:
             raise TransformationError(
                 f"Failed to parse kernel '{kernel.name}'. Error reported was "
                 f"'{excinfo}'.") from excinfo
 
-        symbol_table = kernel_schedule.symbol_table
-        if number_of_layers:
-            make_constant(symbol_table, arg_list_info.nlayers_positions[0],
-                          number_of_layers)
+        for kernel_schedule in kernel_schedules:
+            symbol_table = kernel_schedule.symbol_table
+            if number_of_layers:
+                make_constant(symbol_table, arg_list_info.nlayers_positions[0],
+                              number_of_layers)
 
         if quadrature and arg_list_info.nqp_positions:
             # TODO #705 - support the transformation of kernels requiring
@@ -2671,6 +2688,8 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         :param str options["parallelism"]: the level of parallelism that the
             target routine (or a callee) exposes. One of "seq" (the default),
             "vector", "worker" or "gang".
+        :param str options["device_string"]: provide a compiler-platform
+            identifier.
 
         '''
         # Check that we can safely apply this transformation
@@ -2680,19 +2699,20 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
             # Flag that the kernel has been modified
             node.modified = True
 
-            # Get the schedule representing the kernel subroutine
-            routine = node.get_kernel_schedule()
+            # Get the schedule(s) representing the kernel subroutine
+            routines = node.get_callees()
         else:
-            routine = node
-
-        # Insert the directive to the routine if it doesn't already exist
-        for child in routine.children:
-            if isinstance(child, ACCRoutineDirective):
-                return  # The routine is already marked with ACCRoutine
+            routines = [node]
 
         para = options.get("parallelism", "seq") if options else "seq"
+        for routine in routines:
+            # Insert the directive to the routine if it doesn't already exist
+            for child in routine.children:
+                if isinstance(child, ACCRoutineDirective):
+                    return  # The routine is already marked with ACCRoutine
 
-        routine.children.insert(0, ACCRoutineDirective(parallelism=para))
+            routine.children.insert(
+                0, ACCRoutineDirective(parallelism=para))
 
     def validate(self, node, options=None):
         '''
@@ -2706,6 +2726,8 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         :type options: Optional[Dict[str, Any]]
         :param bool options["force"]: whether to allow routines with
             CodeBlocks to run on the GPU.
+        :param str options["device_string"]: provide a compiler-platform
+            identifier.
 
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
@@ -2901,10 +2923,12 @@ class KernelImportsToArguments(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a CodedKern.
-        :raises TransformationError: if this transformation is not applied to \
+        :raises TransformationError: if this transformation is not applied to
             a Gocean API Invoke.
-        :raises TransformationError: if the supplied kernel contains wildcard \
-            imports of symbols from one or more containers (e.g. a USE without\
+        :raises TransformationError: if the supplied node is a polymorphic
+            Kernel.
+        :raises TransformationError: if the supplied kernel contains wildcard
+            imports of symbols from one or more containers (e.g. a USE without
             an ONLY clause in Fortran).
         '''
         if not isinstance(node, CodedKern):
@@ -2921,20 +2945,23 @@ class KernelImportsToArguments(Transformation):
 
         # Check that there are no unqualified imports or undeclared symbols
         try:
-            kernel = node.get_kernel_schedule()
+            kernels = node.get_callees()
         except SymbolError as err:
             raise TransformationError(
                 f"Kernel '{node.name}' contains undeclared symbol: "
                 f"{err.value}") from err
 
-        try:
-            kernel.check_outer_scope_accesses(node, "Kernel",
-                                              permit_unresolved=False,
-                                              ignore_non_data_accesses=True)
-        except SymbolError as err:
-            raise TransformationError(
-                f"Cannot apply {self.name} to Kernel '{node.name}' because it "
-                f"accesses data from its outer scope: {err.value}") from err
+        for kernel in kernels:
+            try:
+                kernel.check_outer_scope_accesses(
+                    node, "Kernel",
+                    permit_unresolved=False,
+                    ignore_non_data_accesses=True)
+            except SymbolError as err:
+                raise TransformationError(
+                    f"Cannot apply {self.name} to Kernel '{node.name}' "
+                    f"because it accesses data from its outer scope: "
+                    f"{err.value}") from err
 
     def apply(self, node, options=None):
         '''
@@ -2950,7 +2977,9 @@ class KernelImportsToArguments(Transformation):
         '''
         self.validate(node, options)
 
-        kernel = node.get_kernel_schedule()
+        kernels = node.get_callees()
+        # validate() has ensured that there is only one kernel routine.
+        kernel = kernels[0]
         symtab = kernel.symbol_table
         invoke_symtab = node.ancestor(InvokeSchedule).symbol_table
         count_imported_vars_removed = 0
