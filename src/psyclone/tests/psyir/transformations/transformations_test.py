@@ -196,6 +196,7 @@ def test_omptaskloop_getters_and_setters():
     ''' Check that the OMPTaskloopTrans getters and setters
     correctly throw TransformationErrors on illegal values '''
     trans = OMPTaskloopTrans()
+    assert "Adds an 'OpenMP TASKLOOP' directive to a loop" in str(trans)
     with pytest.raises(TransformationError) as err:
         trans.omp_num_tasks = "String"
     assert "num_tasks must be an integer or None, got str" in str(err.value)
