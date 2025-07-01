@@ -47,10 +47,11 @@ else
 	F90FLAGS += -DNO_MPI
 endif
 
-# Path to the LFRic infrastructure library. It defaults to the pared-down
+# Path to the LFRic infrastructure library. It defaults to the
 # version of the LFRic infrastructure distributed with PSyclone.
 # Overwrite for a different infrastructure version.
-LFRIC_PATH ?= ./../../../../src/psyclone/tests/test_files/lfric/infrastructure
+LFRIC_PATH ?= ../../../../external/lfric_infrastructure/preprocessed
+
 # Paths to the PSyclone wrapper libraries and required templates. They default
 # to the relative paths to the top-level 'lib' and 'lib/extract/standalone'
 # directories. Overwrite for a custom location.
@@ -88,7 +89,8 @@ $(PSYDATA_LIB): $(INF_LIB) $(OBJS) read_kernel_data_mod.f90
 
 # Create LFRic infrastructure library
 $(INF_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
+	$(MAKE) -C $(LFRIC_PATH) -f ../Makefile netcdf
+
 
 kernel_data_standalone.o:	extract_standalone_base.o
 extract_standalone_base.o:	psy_data_base.o

@@ -74,17 +74,19 @@ OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o dummy_mod.o
 
 ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/lfric
-	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 	F90FLAGS += $$(nf-config --fflags)
 else
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/lfric
 endif
 
+# Even standalone now needs NetCDF because of the LFRic infrastructure
+LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
+
 EXEC = extract.$(TYPE)
 EXTRACT_NAME ?= _extract
 EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
-LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/lfric/infrastructure
-LFRIC_NAME=lfric
+LFRIC_PATH ?= ../../../../external/lfric_infrastructure/preprocessed
+LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 # This will setup the required include flags in LFRIC_INCLUDE_FLAGS
@@ -107,7 +109,7 @@ $(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
 	      -L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS)
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
+	$(MAKE) -C $(LFRIC_PATH) -f ../Makefile netcdf
 
 $(EXTRACT_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(EXTRACT_DIR)
