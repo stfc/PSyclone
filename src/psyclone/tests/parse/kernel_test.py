@@ -57,7 +57,7 @@ from psyclone.errors import InternalError
 # pylint: disable=invalid-name
 
 LFRIC_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               os.path.pardir, "test_files", "dynamo0p3")
+                               os.path.pardir, "test_files", "lfric")
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.path.pardir, "test_files", "gocean1p0")
 

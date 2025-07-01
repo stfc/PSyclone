@@ -36,7 +36,7 @@
 #           J. Henrichs, Bureau of Meteorology
 #           A. R. Porter, STFC Daresbury Laboratory
 
-'''This module tests the LFRicKern class within dynamo0p3 using
+'''This module tests the LFRicKern class within LFRic using
 pytest. At the moment the tests here do not fully cover LFRicKern as
 tests for other classes end up covering the rest.'''
 
@@ -48,20 +48,23 @@ from fparser import api as fpapi
 import psyclone
 from psyclone.configuration import Config
 from psyclone.core import AccessType
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import (LFRicConstants, LFRicTypes, LFRicKern,
                                    LFRicKernMetadata, LFRicLoop)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Reference, KernelSchedule
-from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
-    INTEGER_TYPE, ArrayType
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import Container, KernelSchedule, Reference, Routine
+from psyclone.psyir.symbols import (
+    ArgumentInterface, ArrayType, DataSymbol, GenericInterfaceSymbol,
+    INTEGER_TYPE, REAL_TYPE)
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import Dynamo0p3ColourTrans
+from psyclone.transformations import LFRicColourTrans
 from psyclone.psyir.backend.visitor import VisitorError
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+                os.path.abspath(__file__)))), "test_files", "lfric")
 TEST_API = "lfric"
 
 CODE = '''
@@ -112,8 +115,8 @@ def test_scalar_kernel_load_meta_err():
             f"a scalar argument but found 'gh_triple'." in str(err.value))
 
 
-def test_kern_colourmap(monkeypatch):
-    ''' Tests for error conditions in the colourmap getter of LFRicKern. '''
+def test_kern_getter_errors():
+    ''' Tests for error conditions in the getter properties of LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -122,22 +125,22 @@ def test_kern_colourmap(monkeypatch):
         _ = kern.colourmap
     assert ("Kernel 'testkern_code' is not inside a coloured loop"
             in str(err.value))
-
-
-def test_kern_ncolours(monkeypatch):
-    ''' Tests for error conditions in the ncolours getter of LFRicKern. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    kern = psy.invokes.invoke_list[0].schedule.children[4].loop_body[0]
     with pytest.raises(InternalError) as err:
         _ = kern.ncolours_var
     assert ("Kernel 'testkern_code' is not inside a coloured loop"
             in str(err.value))
+    with pytest.raises(InternalError) as err:
+        _ = kern.tilecolourmap
+    assert ("Kernel 'testkern_code' is not inside a coloured loop"
+            in str(err.value))
+    with pytest.raises(InternalError) as err:
+        _ = kern.ntilecolours_var
+    assert ("Kernel 'testkern_code' is not inside a coloured loop"
+            in str(err.value))
 
 
-def test_get_kernel_schedule():
-    '''Test that a PSyIR kernel schedule is created by get_kernel_schedule
+def test_kern_get_callees(monkeypatch):
+    '''Test that a PSyIR kernel schedule is created by get_callees
     if one does not exist and that the same kernel schedule is
     returned if one has already been created.
 
@@ -149,17 +152,70 @@ def test_get_kernel_schedule():
     # matrix vector kernel
     kernel = schedule[2].loop_body[0]
 
-    assert kernel._kern_schedule is None
+    assert kernel._schedules is None
 
-    kernel_schedule = kernel.get_kernel_schedule()
-    assert isinstance(kernel_schedule, KernelSchedule)
-    assert kernel._kern_schedule is kernel_schedule
+    kernel_schedules = kernel.get_callees()
+    assert len(kernel_schedules) == 1
+    assert isinstance(kernel_schedules[0], KernelSchedule)
+    assert kernel._schedules[0] is kernel_schedules[0]
+    # Not a polymorphic kernel so has no interface symbol
+    assert kernel.get_interface_symbol() is None
 
-    kernel_schedule_2 = kernel.get_kernel_schedule()
-    assert kernel_schedule is kernel_schedule_2
+    kernel_schedules_2 = kernel.get_callees()
+    assert kernel_schedules[0] is kernel_schedules_2[0]
+    # Check the internal error for the case where we fail to get any
+    # implementation for the kernel.
+    kernel._schedules = None
+    # Monkeypatch the frontend so that it just returns an empty Container.
+    monkeypatch.setattr(Fparser2Reader, "generate_psyir",
+                        lambda _1, _2: Container("dummy_mod"))
+    with pytest.raises(InternalError) as err:
+        kernel.get_callees()
+    assert ("Failed to find any routines for Kernel 'matrix_vector_code'"
+            in str(err.value))
 
 
-def test_get_kernel_schedule_mixed_precision():
+def test_get_callees_same_container(monkeypatch):
+    '''
+    Check that get_callees() first examines all routines in the same
+    Container.
+
+    '''
+    _, invoke = get_invoke("12_kernel_specific.f90", TEST_API, idx=0)
+    sched = invoke.schedule
+    # Module-inline the kernels so that they are in the same Container as the
+    # call site.
+    mod_inline_trans = KernelModuleInlineTrans()
+    for kern in sched.walk(LFRicKern):
+        mod_inline_trans.apply(kern)
+        # Remove the cached schedule to force get_callees() to search.
+        monkeypatch.setattr(kern, "_schedules", None)
+        schedules = kern.get_callees()
+        # The returned schedule should be the one in the local Container.
+        assert schedules[0] in sched.ancestor(Container).walk(Routine)
+
+
+def test_get_callees_mixed_precision():
+    '''
+    Test that get_callees() and get_interface_symbol() work for a
+    mixed-precision kernel.
+
+    '''
+    _, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
+                           name="invoke_0", dist_mem=False)
+    sched = invoke.schedule
+    for kern in sched.walk(LFRicKern, stop_type=LFRicKern):
+        assert len(kern.get_callees()) == 2
+        isym = kern.get_interface_symbol()
+        assert isinstance(isym, GenericInterfaceSymbol)
+        assert isym.name == "mixed_code"
+
+
+@pytest.mark.xfail(reason="get_callees has been extended to return all"
+                   " implementations of a polymorphic kernel. We need to "
+                   "put back (and fix) the ability to resolve which "
+                   "implementation is being called.")
+def test_get_callees_mixed_precision_match():
     '''
     Test that we can get the correct schedule for a mixed-precision kernel.
 
@@ -178,12 +234,16 @@ def test_get_kernel_schedule_mixed_precision():
     # Check that the correct kernel implementation is obtained for each
     # one in the invoke.
     for precision, kern in zip(precisions, kernels):
-        sched = kern.get_kernel_schedule()
+        sched = kern.get_callees()
         assert isinstance(sched, KernelSchedule)
         assert sched.name == f"mixed_code_{8*precision}"
 
 
-def test_get_kernel_sched_mixed_precision_no_match(monkeypatch):
+@pytest.mark.xfail(reason="get_callees() has been extended to return all"
+                   " implementations of a polymorphic kernel. We need to "
+                   "put back (and fix) the ability to resolve which "
+                   "implementation is being called.")
+def test_get_callees_mixed_precision_no_match(monkeypatch):
     '''
     Test that we get the expected error if there's no matching implementation
     for a mixed-precision kernel.
@@ -202,34 +262,10 @@ def test_get_kernel_sched_mixed_precision_no_match(monkeypatch):
     monkeypatch.setattr(LFRicKern, "validate_kernel_code_args",
                         fake_validate)
     with pytest.raises(GenerationError) as err:
-        _ = kernels[0].get_kernel_schedule()
+        _ = kernels[0].get_callees()
     assert ("Failed to find a kernel implementation with an interface that "
             "matches the invoke of 'mixed_code'. (Tried routines "
             "['mixed_code_32', 'mixed_code_64'].)" in str(err.value))
-
-
-def test_get_kernel_sched_mixed_precision_multiple_match(monkeypatch):
-    '''
-    Test that we get the expected error if there appears to be more than
-    one matching implementation for a mixed-precision kernel.
-
-    TODO #2716 will fix this and then this test can be removed.
-
-    '''
-    _, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
-                           name="invoke_0", dist_mem=False)
-    sched = invoke.schedule
-    kernels = sched.walk(LFRicKern, stop_type=LFRicKern)
-
-    # To simplify things we just monkeypatch the 'validate_kernel_code_args'
-    # method so that it always succeeds.
-    monkeypatch.setattr(LFRicKern, "validate_kernel_code_args",
-                        lambda _1, _2: None)
-    with pytest.raises(GenerationError) as err:
-        _ = kernels[0].get_kernel_schedule()
-    assert ("Found multiple kernel implementations (['mixed_code_32', "
-            "'mixed_code_64']) that apparently match the interface of this "
-            "call to 'mixed_code'" in str(err.value))
 
 
 def test_validate_kernel_code_args(monkeypatch):
@@ -246,7 +282,8 @@ def test_validate_kernel_code_args(monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
     # matrix vector kernel
     kernel = schedule[2].loop_body[0]
-    sched = kernel.get_kernel_schedule()
+    schedules = kernel.get_callees()
+    sched = schedules[0]
     kernel.validate_kernel_code_args(sched.symbol_table)
 
     # Force LFRicKern to think that this kernel is an 'apply' kernel and
@@ -254,7 +291,7 @@ def test_validate_kernel_code_args(monkeypatch):
     monkeypatch.setattr(kernel, "_cma_operation", "apply")
     with pytest.raises(GenerationError) as info:
         kernel.validate_kernel_code_args(
-            kernel.get_kernel_schedule().symbol_table)
+            sched.symbol_table)
     assert (
         "In kernel 'matrix_vector_code' the number of arguments indicated by "
         "the kernel metadata is 8 but the actual number of kernel arguments "
@@ -413,13 +450,19 @@ def test_kern_last_cell_all_colours():
     sched = psy.invokes.invoke_list[0].schedule
     loop = sched.walk(LFRicLoop)[0]
     # Apply a colouring transformation to the loop.
-    trans = Dynamo0p3ColourTrans()
+    trans = LFRicColourTrans()
     trans.apply(loop)
-    # We have to perform code generation as that sets-up the symbol table.
-    # pylint:disable=pointless-statement
-    psy.gen
-    assert (loop.kernel.last_cell_all_colours_symbol.name
-            == "last_halo_cell_all_colours")
+
+    symbol = loop.kernel.last_cell_all_colours_symbol
+    assert symbol.name == "last_halo_cell_all_colours"
+    assert len(symbol.datatype.shape) == 2  # It's a 2-dimensional array
+
+    # Delete the symbols and try again inside a loop wihtout a halo
+    sched.symbol_table._symbols.pop("last_halo_cell_all_colours")
+    loop.kernel.parent.parent._upper_bound_name = "not-a-halo"
+    symbol = loop.kernel.last_cell_all_colours_symbol
+    assert symbol.name == "last_edge_cell_all_colours"
+    assert len(symbol.datatype.shape) == 1  # It's a 1-dimensional array
 
 
 def test_kern_last_cell_all_colours_intergrid():
@@ -434,7 +477,7 @@ def test_kern_last_cell_all_colours_intergrid():
     sched = psy.invokes.invoke_list[0].schedule
     loop = sched.walk(LFRicLoop)[0]
     # Apply a colouring transformation to the loop.
-    trans = Dynamo0p3ColourTrans()
+    trans = LFRicColourTrans()
     trans.apply(loop)
     # We have to perform code generation as that sets-up the symbol table.
     # pylint:disable=pointless-statement
@@ -443,22 +486,30 @@ def test_kern_last_cell_all_colours_intergrid():
             "last_edge_cell_all_colours_field1")
 
 
-def test_kern_all_updates_are_writes():
-    ''' Tests for the 'all_updates_are_writes' property of LFRicKern. '''
+def test_kern_all_updates_are_writes(monkeypatch):
+    ''' Tests for the 'all_updates_are_writes' property of
+    LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     loop = sched.walk(LFRicLoop)[0]
+    kernel = loop.kernel
     # The only argument updated by this kernel has GH_INC access.
-    assert not loop.kernel.all_updates_are_writes
-    # Patch the kernel so that a different argument has GH_WRITE access.
-    loop.kernel.args[2]._access = AccessType.WRITE
-    # There is still a GH_INC argument.
-    assert not loop.kernel.all_updates_are_writes
-    # Change the GH_INC to be GH_WRITE.
-    loop.kernel.args[1]._access = AccessType.WRITE
-    assert loop.kernel.all_updates_are_writes
+    assert not kernel.all_updates_are_writes
+    # Patch the kernel so that two arguments have GH_WRITE access.
+    kernel.args[2]._access = AccessType.WRITE
+    kernel.args[1]._access = AccessType.WRITE
+    assert kernel.all_updates_are_writes
+    # Patch the kernel so that both updated field arguments appear to be
+    # on a discontinuous space.
+    monkeypatch.setattr(
+        kernel.arguments._args[1]._function_spaces[0],
+        "_orig_name", "w3")
+    monkeypatch.setattr(
+        kernel.arguments._args[2]._function_spaces[0],
+        "_orig_name", "w3")
+    assert kernel.all_updates_are_writes
 
 
 def test_kern_not_coloured_inc(monkeypatch):
@@ -494,3 +545,16 @@ def test_undf_name():
     kern = sched.walk(LFRicKern)[0]
 
     assert kern.undf_name == "undf_w1"
+
+
+def test_argument_kinds():
+    ''' Test the LFRicKern.argument_kinds property. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    kern = sched.walk(LFRicKern)[0]
+
+    assert len(kern.argument_kinds) == 2
+    assert "i_def" in kern.argument_kinds
+    assert "r_def" in kern.argument_kinds

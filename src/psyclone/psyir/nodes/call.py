@@ -37,10 +37,11 @@
 ''' This module contains the Call node implementation.'''
 
 from collections.abc import Iterable
+from typing import List, Tuple
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
-from psyclone.errors import GenerationError
+from psyclone.core import AccessType, VariablesAccessMap
+from psyclone.errors import GenerationError, PSycloneError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.statement import Statement
@@ -48,6 +49,7 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
+    GenericInterfaceSymbol,
     DefaultModuleInterface,
     RoutineSymbol,
     Symbol,
@@ -55,8 +57,6 @@ from psyclone.psyir.symbols import (
     UnsupportedFortranType,
     DataSymbol,
 )
-from typing import List
-from psyclone.errors import PSycloneError
 
 
 class CallMatchingArgumentsNotFound(PSycloneError):
@@ -294,21 +294,21 @@ class Call(Statement, DataNode):
             return isinstance(child, Reference)
         return isinstance(child, DataNode)
 
-    def reference_accesses(self, var_accesses):
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
-        Updates the supplied var_accesses object with information on the
-        arguments passed to this call.
-
         TODO #446 - all arguments that are passed by reference are currently
         marked as having READWRITE access (unless we know that the routine is
         PURE). We could do better than this if we have the PSyIR of the called
         Routine.
 
-        :param var_accesses: VariablesAccessInfo instance that stores the
-            information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
+        var_accesses = VariablesAccessMap()
+
         if self.is_pure:
             # If the called routine is pure then any arguments are only
             # read.
@@ -323,7 +323,7 @@ class Call(Statement, DataNode):
         # Continue processing references in any index expressions.
         for indices in indices_list:
             for idx in indices:
-                idx.reference_accesses(var_accesses)
+                var_accesses.update(idx.reference_accesses())
 
         for arg in self.arguments:
             if isinstance(arg, Reference):
@@ -333,15 +333,16 @@ class Call(Statement, DataNode):
                 # Continue processing references in any index expressions.
                 for indices in indices_list:
                     for idx in indices:
-                        idx.reference_accesses(var_accesses)
+                        var_accesses.update(idx.reference_accesses())
             else:
                 # This argument is not a Reference so continue to walk down the
                 # tree. (e.g. it could be/contain a Call to
                 # an impure routine in which case any arguments to that Call
                 # will have READWRITE access.)
-                arg.reference_accesses(var_accesses)
+                var_accesses.update(arg.reference_accesses())
         # Make sure that the next statement will be on the next location
         var_accesses.next_location()
+        return var_accesses
 
     @property
     def routine(self):
@@ -354,14 +355,14 @@ class Call(Statement, DataNode):
         return None
 
     @property
-    def arguments(self) -> List[DataNode]:
+    def arguments(self) -> Tuple[DataNode]:
         '''
         :returns: the children of this node that represent its arguments.
         :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
         '''
         if len(self._children) >= 2:
-            return self.children[1:]
-        return []
+            return tuple(self.children[1:])
+        return ()
 
     @property
     def is_elemental(self):
@@ -389,12 +390,14 @@ class Call(Statement, DataNode):
             return self.routine.symbol.is_pure
         return None
 
-    def is_available_on_device(self):
+    def is_available_on_device(self, device_string: str = "") -> bool:
         '''
+        :param device_string: optional string to identify the offloading
+            device (or its compiler-platform family).
         :returns: whether this call is available on an accelerated device.
-        :rtype: bool
 
         '''
+        # pylint: disable=unused-argument
         return False
 
     @property
@@ -476,25 +479,6 @@ class Call(Statement, DataNode):
             limitation prevents definite determination of the target routine.
 
         '''
-        def _location_txt(node):
-            '''
-            Utility to generate meaningful location text.
-
-            :param node: a PSyIR node.
-            :type node: :py:class:`psyclone.psyir.nodes.Node`
-
-            :returns: description of location of node.
-            :rtype: str
-            '''
-            if isinstance(node, Container):
-                return f"Container '{node.name}'"
-            out_lines = node.debug_string().split("\n")
-            idx = -1
-            while not out_lines[idx]:
-                idx -= 1
-            last_line = out_lines[idx]
-            return f"code:\n'{out_lines[0]}\n...\n{last_line}'"
-
         rsym = self.routine.symbol
         if rsym.is_unresolved:
             # Search for the Routine in the current file. This search is
@@ -505,15 +489,22 @@ class Call(Statement, DataNode):
             cursor = table.node
             have_codeblock = False
             while cursor:
+                # We want to look in both Containers and FileContainers.
                 if isinstance(cursor, Container):
-                    psyir = cursor.find_routine_psyir(rsym.name,
-                                                      allow_private=True)
-                    if psyir:
+                    routines = []
+                    for name in cursor.resolve_routine(rsym.name):
+                        # Since we're looking in the local Container, the
+                        # target is permitted to be private.
+                        psyir = cursor.find_routine_psyir(name,
+                                                          allow_private=True)
+                        if psyir:
+                            routines.append(psyir)
+                    if routines:
                         rsym.interface = DefaultModuleInterface()
-                        return [psyir]
-                    if not have_codeblock:
-                        have_codeblock = any(isinstance(child, CodeBlock) for
-                                             child in cursor.children)
+                        return routines
+                if not have_codeblock:
+                    have_codeblock = any(isinstance(child, CodeBlock) for
+                                         child in cursor.children)
                 wildcard_names = [csym.name for csym in
                                   cursor.symbol_table.wildcard_imports(
                                       scope_limit=cursor)]
@@ -523,16 +514,17 @@ class Call(Statement, DataNode):
                     # bringing it into scope so we stop searching (the
                     # alternative is to resolve every wildcard import we
                     # encounter and that is very costly).
-                    msg = (f"Failed to find the source code of the unresolved "
-                           f"routine '{rsym.name}'. It may be being brought "
-                           f"into scope from one of {wildcard_names}")
+                    msg = (f"Failed to find the source code of the "
+                           f"unresolved routine '{rsym.name}'. It may be "
+                           f"being brought into scope from one of "
+                           f"{wildcard_names}")
                     if have_codeblock:
-                        msg += (" or it may be within a CodeBlock. If it isn't"
-                                ", you ")
+                        msg += (" or it may be within a CodeBlock. If it "
+                                "isn't, you ")
                     else:
                         msg += ". You "
-                    msg += ("may wish to add the appropriate module name to "
-                            "the `RESOLVE_IMPORTS` variable in the "
+                    msg += ("may wish to add the appropriate module name "
+                            "to the `RESOLVE_IMPORTS` variable in the "
                             "transformation script.")
                     raise NotImplementedError(msg)
                 parent = cursor.parent
@@ -560,12 +552,17 @@ class Call(Statement, DataNode):
         can_be_private = True
 
         if rsym.is_import:
+            # Chase down the Container from which the symbol is imported.
             cursor = rsym
             # A Routine imported from another Container must be public in that
             # Container.
             can_be_private = False
             while cursor.is_import:
                 csym = cursor.interface.container_symbol
+                if cursor.interface.orig_name:
+                    target_name = cursor.interface.orig_name
+                else:
+                    target_name = cursor.name
                 try:
                     container = csym.find_container_psyir(local_node=self)
                 except SymbolError:
@@ -574,7 +571,12 @@ class Call(Statement, DataNode):
                         f"Container '{csym.name}' but the source defining "
                         f"that container could not be found. The module search"
                         f" path is set to {Config.get().include_paths}")
-                imported_sym = container.symbol_table.lookup(cursor.name)
+                if not container:
+                    raise NotImplementedError(
+                        f"RoutineSymbol '{rsym.name}' is imported from "
+                        f"Container '{csym.name}' but the PSyIR for that "
+                        f"container could not be generated.")
+                imported_sym = container.symbol_table.lookup(target_name)
                 if imported_sym.visibility != Symbol.Visibility.PUBLIC:
                     # The required Symbol must be shadowed with a PRIVATE
                     # Symbol in this Container. This means that the one we
@@ -582,7 +584,7 @@ class Call(Statement, DataNode):
                     # import.
                     # TODO #924 - Use ModuleManager to search?
                     raise NotImplementedError(
-                        f"RoutineSymbol '{rsym.name}' is imported from "
+                        f"RoutineSymbol '{target_name}' is imported from "
                         f"Container '{csym.name}' but that Container defines "
                         f"a private Symbol of the same name. Searching for the"
                         f" Container that defines a public Routine with that "
@@ -595,33 +597,40 @@ class Call(Statement, DataNode):
             rsym = cursor
             root_node = container
 
-        if isinstance(rsym.datatype, UnsupportedFortranType):
-            # TODO #924 - an UnsupportedFortranType here typically indicates
-            # that the target is actually an interface.
-            raise NotImplementedError(
-                f"RoutineSymbol '{rsym.name}' exists in "
-                f"{_location_txt(root_node)} but is of "
-                f"UnsupportedFortranType:\n{rsym.datatype.declaration}\n"
-                f"Cannot get the PSyIR of such a routine.")
-
         # At this point, we should have found the PSyIR tree containing the
         # routine - we just need to locate it. It may be in a Container or
         # it may be in the parent FileContainer.
         cursor = container
         while cursor and isinstance(cursor, Container):
             routines = []
-            for name in cursor.resolve_routine(rsym.name):
+            all_names = cursor.resolve_routine(rsym.name)
+            if isinstance(rsym, GenericInterfaceSymbol):
+                # Although the interface must be public, the routines to which
+                # it points may themselves be private.
+                can_be_private = True
+            for name in all_names:
                 psyir = cursor.find_routine_psyir(
                     name, allow_private=can_be_private)
                 if psyir:
                     routines.append(psyir)
-            if routines:
+            if all_names and len(routines) == len(all_names):
+                # We've resolved everything.
                 return routines
             cursor = cursor.parent
 
+        if isinstance(root_node, Container):
+            location_txt = f"Container '{root_node.name}'"
+        else:
+            out_lines = root_node.debug_string().split("\n")
+            idx = -1
+            while not out_lines[idx]:
+                idx -= 1
+            last_line = out_lines[idx]
+            location_txt = f"code:\n'{out_lines[0]}\n...\n{last_line}'"
+
         raise SymbolError(
             f"Failed to find a Routine named '{rsym.name}' in "
-            f"{_location_txt(root_node)}. This is normally because the routine"
+            f"{location_txt}. This is normally because the routine"
             f" is within a CodeBlock.")
 
     def _check_argument_type_matches(

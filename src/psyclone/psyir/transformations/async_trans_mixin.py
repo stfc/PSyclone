@@ -38,7 +38,7 @@
 import abc
 from typing import List, Union
 
-from psyclone.core import VariablesAccessInfo
+from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes import (
         Directive, Loop, Node,
 )
@@ -84,9 +84,11 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
 
         '''
         if isinstance(nodes, Loop):
-            var_accesses = VariablesAccessInfo(nodes=nodes.loop_body)
+            var_accesses = nodes.loop_body.reference_accesses()
         else:
-            var_accesses = VariablesAccessInfo(nodes=nodes)
+            var_accesses = VariablesAccessMap()
+            for node in nodes:
+                var_accesses.update(node.reference_accesses())
         writes = []
         for signature in var_accesses.all_signatures:
             if var_accesses.is_written(signature):

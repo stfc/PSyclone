@@ -53,13 +53,11 @@ from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config, ConfigurationError
-from psyclone.core import Signature
+from psyclone.core import Signature, VariablesAccessMap
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
 from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
-from psyclone.f2pygen import (
-    DeclGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen)
 from psyclone.parse.algorithm import Arg
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
@@ -107,23 +105,6 @@ class GOPSy(PSy):
         # Create invokes
         self._invokes = GOInvokes(invoke_info.calls, self)
 
-    @property
-    def gen(self):
-        '''
-        Generate PSy code for the GOcean api v.1.0.
-
-        :rtype: ast
-
-        '''
-        # create an empty PSy layer module
-        psy_module = ModuleGen(self.name)
-        # include the kind_params module
-        psy_module.add(UseGen(psy_module, name="kind_params_mod"))
-        # include the field_mod module
-        psy_module.add(UseGen(psy_module, name="field_mod"))
-        self.invokes.gen_code(psy_module)
-        return psy_module.root
-
 
 class GOInvokes(Invokes):
     '''
@@ -166,45 +147,11 @@ class GOInvokes(Invokes):
                     # those seen so far
                     index_offsets.append(kern_call.index_offset)
 
-    def gen_code(self, parent):
-        '''
-        GOcean redefines the Invokes.gen_code() to start using the PSyIR
-        backend when possible. In cases where the backend can not be used yet
-        (e.g. OpenCL and PSyDataNodes) the parent class will be called. This
-        is a temporary workaround to avoid modifying the generator file while
-        other APIs still use the f2pygen module for code generation.
-        Once the PSyIR backend has generated an output, this is added into a
-        f2pygen PSyIRGen block in the f2pygen AST for each Invoke in the
-        PSy layer.
-
-        :param parent: the parent node in the f2pygen AST to which to add \
-                       content.
-        :type parent: `psyclone.f2pygen.ModuleGen`
-        '''
-        if self.invoke_list:
-            # We just need one invoke as they all have a common root.
-            invoke = self.invoke_list[0]
-
-            # Lower the GOcean PSyIR to language level so it can be visited
-            # by the backends
-            invoke.schedule.parent.lower_to_language_level()
-            # Then insert it into a f2pygen AST as a PSyIRGen node.
-            # Note that other routines besides the Invoke could have been
-            # inserted during the lowering (e.g. module-inlined kernels),
-            # so have to iterate over all current children of parent.
-            for child in invoke.schedule.parent.children:
-                parent.add(PSyIRGen(parent, child))
-
 
 class GOInvoke(Invoke):
     '''
     The GOcean specific invoke class. This passes the GOcean specific
     schedule class to the base class so it creates the one we require.
-    A set of GOcean infrastructure reserved names are also passed to
-    ensure that there are no name clashes. Also overrides the gen_code
-    method so that we generate GOcean specific invocation code and
-    provides three methods which separate arguments that are arrays from
-    arguments that are {integer, real} scalars.
 
     :param alg_invocation: Node in the AST describing the invoke call.
     :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
@@ -224,84 +171,6 @@ class GOInvoke(Invoke):
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
 
-    @property
-    def unique_args_arrays(self):
-        ''' find unique arguments that are arrays (defined as those that are
-            field objects as opposed to scalars or properties of the grid). '''
-        result = []
-        for call in self._schedule.kernels():
-            for arg in call.arguments.args:
-                if arg.argument_type == 'field' and arg.name not in result:
-                    result.append(arg.name)
-        return result
-
-    @property
-    def unique_args_iscalars(self):
-        '''
-        :returns: the unique arguments that are scalars of type integer \
-                  (defined as those that are i_scalar 'space').
-        :rtype: list of str.
-
-        '''
-        result = []
-        for call in self._schedule.kernels():
-            for arg in args_filter(call.arguments.args, arg_types=["scalar"],
-                                   include_literals=False):
-                if arg.space.lower() == "go_i_scalar" and \
-                   arg.name not in result:
-                    result.append(arg.name)
-        return result
-
-    def gen_code(self, parent):
-        # pylint: disable=too-many-locals
-        '''
-        Generates GOcean specific invocation code (the subroutine called
-        by the associated invoke call in the algorithm layer). This
-        consists of the PSy invocation subroutine and the declaration of
-        its arguments.
-
-        :param parent: the node in the generated AST to which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
-
-        '''
-        # TODO 1010: GOcean doesn't use this method anymore and it can be
-        # deleted, but some tests still call it directly.
-
-        # Create the subroutine
-        invoke_sub = SubroutineGen(parent, name=self.name,
-                                   args=self.psy_unique_var_names)
-        parent.add(invoke_sub)
-
-        # Generate the code body of this subroutine
-        self.schedule.gen_code(invoke_sub)
-
-        # Add the subroutine argument declarations for fields
-        if self.unique_args_arrays:
-            my_decl_arrays = TypeDeclGen(invoke_sub, datatype="r2d_field",
-                                         intent="inout",
-                                         entity_decls=self.unique_args_arrays)
-            invoke_sub.add(my_decl_arrays)
-
-        # Add the subroutine argument declarations for integer and real scalars
-        i_args = []
-        for argument in self.schedule.symbol_table.argument_datasymbols:
-            if argument.name in self.unique_args_iscalars:
-                i_args.append(argument.name)
-
-        if i_args:
-            my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
-                                       intent="inout",
-                                       entity_decls=i_args)
-            invoke_sub.add(my_decl_iscalars)
-
-        # Add remaining local scalar symbols using the symbol table
-        for symbol in self.schedule.symbol_table.automatic_datasymbols:
-            if isinstance(symbol.datatype, ScalarType):
-                invoke_sub.add(DeclGen(
-                    invoke_sub,
-                    datatype=symbol.datatype.intrinsic.name,
-                    entity_decls=[symbol.name]))
-
 
 class GOInvokeSchedule(InvokeSchedule):
     ''' The GOcean specific InvokeSchedule sub-class. We call the base class
@@ -314,9 +183,6 @@ class GOInvokeSchedule(InvokeSchedule):
                       layer.
     :type alg_calls: Optional[list of
                               :py:class:`psyclone.parse.algorithm.KernelCall`]
-    :param reserved_names: optional list of names that are not allowed in the \
-                           new InvokeSchedule SymbolTable.
-    :type reserved_names: list of str
     :param parent: the parent of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -324,14 +190,12 @@ class GOInvokeSchedule(InvokeSchedule):
     # Textual description of the node.
     _text_name = "GOInvokeSchedule"
 
-    def __init__(self, symbol, alg_calls=None, reserved_names=None,
-                 parent=None, **kwargs):
+    def __init__(self, symbol, alg_calls=None, parent=None, **kwargs):
         if not alg_calls:
             alg_calls = []
         InvokeSchedule.__init__(self, symbol, GOKernCallFactory,
-                                GOBuiltInCallFactory,
-                                alg_calls, reserved_names, parent=parent,
-                                **kwargs)
+                                GOBuiltInCallFactory, alg_calls,
+                                parent=parent, **kwargs)
 
 
 # pylint: disable=too-many-instance-attributes
@@ -340,7 +204,7 @@ class GOLoop(PSyLoop):
         single loop information to the base class so it creates the one we
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
-        in the Dynamo api.
+        in the LFRic API.
 
         :param parent: optional parent node (default None).
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
@@ -961,7 +825,7 @@ class GOLoop(PSyLoop):
 
     def _validate_loop(self):
         ''' Validate that the GOLoop has all necessary boundaries information
-        to lower or gen_code to f2pygen.
+        to lower to language-level PSyIR.
 
         :raises GenerationError: if we can't find an enclosing Schedule.
         :raises GenerationError: if this loop does not enclose a Kernel.
@@ -995,19 +859,6 @@ class GOLoop(PSyLoop):
                                       f"'{kernel.name}' has offset"
                                       f" '{kernel.index_offset}' which does "
                                       f"not match '{index_offset}'.")
-
-    def gen_code(self, parent):
-        ''' Create the f2pygen AST for this loop (and update the PSyIR
-        representing the loop bounds if necessary).
-
-        :param parent: the node in the f2pygen AST to which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        # Check that it is a properly formed GOLoop
-        self._validate_loop()
-
-        super().gen_code(parent)
 
 
 # pylint: disable=too-few-public-methods
@@ -1079,11 +930,10 @@ class GOKern(CodedKern):
     '''
     Stores information about GOcean Kernels as specified by the Kernel
     metadata. Uses this information to generate appropriate PSy layer
-    code for the Kernel instance. Specialises the gen_code method to
-    create the appropriate GOcean specific kernel call.
+    code for the Kernel instance.
 
-    :param call: information on the way in which this kernel is called \
-                 from the Algorithm layer.
+    :param call: information on the way in which this kernel is called
+        from the Algorithm layer.
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
     :param parent: optional node where the kernel call will be inserted.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
@@ -1138,10 +988,10 @@ class GOKern(CodedKern):
         :type signature: :py:class:`psyclone.core.Signature`
         :param arg:  the meta-data information for this argument.
         :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
-        :param var_accesses: VariablesAccessInfo instance that stores the\
+        :param var_accesses: VariablesAccessMap instance that stores the\
             information about the field accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # TODO #2530: if we parse the actual kernel code, it might not
@@ -1174,16 +1024,15 @@ class GOKern(CodedKern):
                     var_accesses.add_access(signature, acc, self,
                                             [i_expr, j_expr])
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. All accesses are marked
-        according to the kernel metadata.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the\
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
+        var_accesses = VariablesAccessMap()
         # Grid properties are accessed using one of the fields. This stores
         # the field used to avoid repeatedly determining the best field:
         field_for_grid_property = None
@@ -1217,24 +1066,30 @@ class GOKern(CodedKern):
                     var_accesses.add_access(signature, arg.access,
                                             self, [Reference(symbol_i),
                                                    Reference(symbol_j)])
-        super().reference_accesses(var_accesses)
+        var_accesses.update(super().reference_accesses())
         var_accesses.next_location()
+        return var_accesses
 
     @property
     def index_offset(self):
         ''' The grid index-offset convention that this kernel expects '''
         return self._index_offset
 
-    def get_kernel_schedule(self):
+    def get_callees(self):
         '''
-        :returns: a schedule representing the GOcean kernel code.
-        :rtype: :py:class:`psyclone.gocean1p0.GOKernelSchedule`
+        Obtains and returns the PSyIR Schedule representing the kernel code.
 
-        :raises GenerationError: if there is a problem raising the language- \
+        For consistency with LFRic kernels (which may be polymorphic), this
+        method actually returns a list comprising just one Schedule.
+
+        :returns: a schedule representing the GOcean kernel code.
+        :rtype: list[:py:class:`psyclone.gocean1p0.GOKernelSchedule`]
+
+        :raises GenerationError: if there is a problem raising the language-
                                  level PSyIR of this kernel to GOcean PSyIR.
         '''
-        if self._kern_schedule:
-            return self._kern_schedule
+        if self._schedules:
+            return self._schedules
 
         # Construct the PSyIR of the Fortran parse tree.
         astp = Fparser2Reader()
@@ -1255,9 +1110,9 @@ class GOKern(CodedKern):
         # We know the above loop will find the named routine because the
         # previous raising transformation would have failed otherwise.
         # pylint: disable=undefined-loop-variable
-        self._kern_schedule = routine
+        self._schedules = [routine]
 
-        return self._kern_schedule
+        return self._schedules
 
 
 class GOKernelArguments(Arguments):

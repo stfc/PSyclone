@@ -81,7 +81,8 @@ Ongoing Changes to the options parameter
 PSyclone has supported an ``options`` dictionary to provide options to both
 validate and apply functions on Transformation classes. This behaviour
 is now deprecated, and we are in the process of adding an alternative
-way to pass options to Transformations.
+way to pass options to Transformations. (If you are a developer, see
+these :ref:`instructions<updating_transformation_options>`.)
 
 In the future, each option will have its own argument, for example::
     
@@ -153,7 +154,7 @@ described above. Besides potentially modifying the validation
 process, optional parameters for the transformation are also
 provided this way. A simple example::
 
-    kctrans = Dynamo0p3KernelConstTrans()
+    kctrans = LFRicKernelConstTrans()
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0, "quadrature": True})
 
 The same ``options`` dictionary will be used when calling ``validate``.

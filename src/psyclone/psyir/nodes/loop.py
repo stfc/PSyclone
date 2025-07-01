@@ -39,6 +39,7 @@
 
 ''' This module contains the Loop node implementation.'''
 
+from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
@@ -46,7 +47,6 @@ from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
-from psyclone.f2pygen import DeclGen, PSyIRGen, UseGen
 
 
 class Loop(Statement):
@@ -482,17 +482,15 @@ class Loop(Statement):
         result += "End " + name
         return result
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. It combines the data from
-        the loop bounds (start, stop and step), as well as the loop body.
-        The loop variable is marked as 'READ+WRITE' and references in start,
-        stop and step are marked as 'READ'.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+
+        '''
+        var_accesses = VariablesAccessMap()
 
         # Only add the loop variable and start/stop/step values if this is
         # not an LFRic domain loop. We need to access the variable directly
@@ -508,14 +506,15 @@ class Loop(Statement):
                                     AccessType.READ, self)
 
             # Accesses of the start/stop/step expressions
-            self.start_expr.reference_accesses(var_accesses)
-            self.stop_expr.reference_accesses(var_accesses)
-            self.step_expr.reference_accesses(var_accesses)
+            var_accesses.update(self.start_expr.reference_accesses())
+            var_accesses.update(self.stop_expr.reference_accesses())
+            var_accesses.update(self.step_expr.reference_accesses())
             var_accesses.next_location()
 
         for child in self.loop_body.children:
-            child.reference_accesses(var_accesses)
+            var_accesses.update(child.reference_accesses())
             var_accesses.next_location()
+        return var_accesses
 
     def independent_iterations(self,
                                test_all_variables=False,
@@ -550,65 +549,3 @@ class Loop(Statement):
         return dtools.can_loop_be_parallelised(
             self, test_all_variables=test_all_variables,
             signatures_to_ignore=signatures_to_ignore)
-
-    def gen_code(self, parent):
-        '''
-        Generate the Fortran Loop and any associated code.
-
-        :param parent: the node in the f2pygen AST to which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import zero_reduction_variables
-
-        if not self.is_openmp_parallel():
-            calls = self.reductions()
-            zero_reduction_variables(calls, parent)
-
-        # TODO #1010: The Fortran backend operates on a copy of the node so
-        # that the lowering changes are not reflected in the provided node.
-        # This is the correct behaviour but it means that the lowering changes
-        # to ancestors will be lost here because the ancestors use gen_code
-        # instead of lowering+backend.
-        # So we need to do the "rename_and_write" here for the invoke symbol
-        # table to be updated.
-        from psyclone.psyGen import CodedKern
-        for kernel in self.walk(CodedKern):
-            if not kernel.module_inline:
-                if kernel.modified:
-                    kernel.rename_and_write()
-
-        # Use the Fortran Backend from this point
-        parent.add(PSyIRGen(parent, self))
-
-        # TODO #1010: The Fortran backend operates on a copy of the node so
-        # that the lowering changes are not reflected in the provided node.
-        # This is the correct behaviour but it means that the lowering changes
-        # to ancestors will be lost here because the ancestors use gen_code
-        # instead of lowering+backend.
-        # Therefore we need to replicate the lowering ancestor changes
-        # manually here (all this can be removed when the invoke schedule also
-        # uses the lowering+backend), these are:
-        # - Declaring the loop variable symbols
-        for loop in self.walk(Loop):
-            # pylint: disable=protected-access
-            if loop._variable is None:
-                # This is the dummy iteration variable
-                name = "dummy"
-                kind_gen = None
-            else:
-                name = loop.variable.name
-                kind = loop.variable.datatype.precision.name
-                kind_gen = None if kind == "UNDEFINED" else kind
-            my_decl = DeclGen(parent, datatype="integer",
-                              kind=kind_gen,
-                              entity_decls=[name])
-            parent.add(my_decl)
-
-        # - Add the kernel module import statements
-        for kernel in self.walk(CodedKern):
-            if not kernel.module_inline:
-                parent.add(UseGen(parent, name=kernel.module_name, only=True,
-                                  funcnames=[kernel.name]))

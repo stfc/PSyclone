@@ -39,20 +39,19 @@
 ''' Performs py.test tests on the PSyIR Directive node. '''
 
 import os
-import pytest
 from collections import OrderedDict
+import pytest
 
-from psyclone import f2pygen
 from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-from psyclone.transformations import ACCDataTrans, DynamoOMPParallelLoopTrans
+from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.transformations import ACCDataTrans, LFRicOMPParallelLoopTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+    os.path.abspath(__file__)))), "test_files", "lfric")
 
 
 def test_directive_backward_dependence():
@@ -65,7 +64,7 @@ def test_directive_backward_dependence():
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     for child in schedule.children:
         otrans.apply(child)
     # 1: omp directive no backwards dependence
@@ -190,30 +189,6 @@ def test_regiondirective_children_validation():
         directive.addchild(schedule)
     assert ("Item 'Schedule' can't be child 1 of 'RegionDirective'. The valid "
             "format is: 'Schedule'." in str(excinfo.value))
-
-
-@pytest.mark.usefixtures("dist_mem")
-def test_regiondirective_gen_post_region_code():
-    '''Test that the RegionDirective.gen_post_region_code() method does
-    nothing for language-level PSyIR.
-
-    TODO #1648 - this can be removed when the gen_post_region_code() method is
-    removed.'''
-    temporary_module = f2pygen.ModuleGen("test")
-    subroutine = nodes.Routine.create("testsub")
-    directive = nodes.RegionDirective()
-    sym = subroutine.symbol_table.new_symbol(
-            "i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    loop = nodes.Loop.create(sym,
-                             nodes.Literal("1", INTEGER_TYPE),
-                             nodes.Literal("10", INTEGER_TYPE),
-                             nodes.Literal("1", INTEGER_TYPE), [])
-    directive.dir_body.addchild(loop)
-    subroutine.addchild(directive)
-    directive.gen_post_region_code(temporary_module)
-    # No nodes should have been added to the tree.
-    assert len(temporary_module.children) == 1
-    assert isinstance(temporary_module.children[0], f2pygen.ImplicitNoneGen)
 
 
 def test_standalonedirective_children_validation():

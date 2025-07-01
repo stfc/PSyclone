@@ -37,9 +37,8 @@
 ''' This module provides the OMPTaskwaitTrans transformation that can be
 applied to an OMPParallelDirective to satisfy any task-based dependencies
 created by OpenMP Taskloops.'''
-from __future__ import absolute_import, print_function
 
-from psyclone.core import VariablesAccessInfo
+from psyclone.core import VariablesAccessMap
 from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir import nodes
@@ -203,14 +202,14 @@ class OMPTaskwaitTrans(Transformation):
         The forward dependency is never a child of taskloop, and must have
         abs_position > taskloop.abs_position
 
-        :param taskloop: the taskloop node for which to find the \
-                         forward_dependence.
+        :param taskloop: the taskloop node for which to find the
+            forward_dependence.
         :type taskloop: :py:class:`psyclone.psyir.nodes.OMPTaskloopDirective`
         :param root: the tree in which to search for the forward_dependence.
         :type root: :py:class:`psyclone.psyir.nodes.OMPParallelDirective`
 
         :returns: the forward_dependence of taskloop.
-        :rtype: :py:class:`psyclone.f2pygen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         # Check supplied the correct type for root
@@ -225,11 +224,11 @@ class OMPTaskwaitTrans(Transformation):
                                OMPTaskwaitDirective))
         # Find the taskloop's variable access info. We need to skip over the
         # Loop variable writes from the Loop, so we skip the Loop children.
-        taskloop_vars = VariablesAccessInfo()
+        taskloop_vars = VariablesAccessMap()
         for child in taskloop.walk(nodes.Node):
             if child is not taskloop and not isinstance(child,
                                                         (Schedule, Loop)):
-                taskloop_vars.merge(VariablesAccessInfo(child))
+                taskloop_vars.update(child.reference_accesses())
         taskloop_signatures = taskloop_vars.all_signatures
         # Find our parent serial region if it has a barrier
         parent_single = taskloop.ancestor(OMPSingleDirective)
@@ -275,13 +274,11 @@ class OMPTaskwaitTrans(Transformation):
             if not isinstance(node, OMPTaskwaitDirective):
                 # For all our other node types we calculate their own
                 # variable accesses
-                node_vars = VariablesAccessInfo()
+                node_vars = VariablesAccessMap()
                 for child in node.walk(nodes.Node):
                     if child is not node and not isinstance(child,
                                                             (Schedule, Loop)):
-                        refs = VariablesAccessInfo(child)
-                        if refs is not None:
-                            node_vars.merge(refs)
+                        node_vars.update(child.reference_accesses())
             node_signatures = node_vars.all_signatures
             # Once we have the node's variable accesses, check for collisions
             for sig1 in taskloop_signatures:

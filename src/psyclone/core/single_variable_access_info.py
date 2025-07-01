@@ -221,6 +221,9 @@ class SingleVariableAccessInfo():
 
         return f"{self._signature}:{all_accesses}"
 
+    def __repr__(self):
+        return ",".join([str(access) for access in self._accesses])
+
     @property
     def signature(self):
         ''':returns: the signature for which the accesses are stored.

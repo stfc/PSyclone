@@ -41,6 +41,7 @@
 import abc
 from collections.abc import Iterable
 from typing import Union, List
+import warnings
 
 from psyclone import psyGen
 from psyclone.core import Signature
@@ -147,7 +148,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             collapse as much as possible. If it's an integer, it will attempt
             to collapse until the specified number of loops (if they exist and
             are safe to collapse them). The options 'ignore_dependencies_for'
-            and 'force' also affect the collapse applicabilty analysis.
+            and 'force' also affect the collapse applicability analysis.
         :param bool force: whether to force parallelisation of the
             target loop (i.e. ignore any dependence analysis).
         :param list[str] ignore_dependencies_for: whether to ignore
@@ -325,7 +326,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
           end do
           !$OMP END DO
 
-        At code-generation time, this node must be
+        At code-generation time (when lowering is called), this node must be
         within (i.e. a child of) a PARALLEL region.
 
         :param node: the supplied node to which we will apply the
@@ -338,7 +339,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             collapse as much as possible. If it's an integer, it will attempt
             to collapse until the specified number of loops (if they exist and
             are safe to collapse them). The options 'ignore_dependencies_for'
-            and 'force' also affect the collapse applicabilty analysis.
+            and 'force' also affect the collapse applicability analysis.
         :param bool force: whether to force parallelisation of the
             target loop (i.e. ignore any dependence analysis).
         :param list[str] ignore_dependencies_for: whether to ignore
@@ -353,7 +354,6 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             dependency symbols declared as private.
 
         '''
-        # TODO 2668 - options dict is deprecated.
         if not options:
             self.validate_options(
                     verbose=verbose, collapse=collapse,
@@ -369,6 +369,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             else:
                 list_of_names = ignore_dependencies_for
         else:
+            # TODO 2668 - options dict is deprecated.
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
             verbose = options.get("verbose", False)
             collapse = options.get("collapse", False)
             ignore_dep_analysis = options.get("force", False)

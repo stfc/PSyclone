@@ -43,7 +43,7 @@ from typing import List
 
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 
@@ -209,28 +209,55 @@ class CodeBlock(Statement, DataNode):
                     result.append(part.items[1])
         return result
 
-    def reference_accesses(self, var_accesses: VariablesAccessInfo):
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
-        Get all variable access information. Since this is a CodeBlock we
+        Get the symbol access map. Since this is a CodeBlock we
         only know the names of symbols accessed within it but not how they
         are accessed. Therefore we err on the side of caution and mark
         them all as READWRITE, unfortunately, this will include the names of
         any routines that are called.
 
         TODO #2863 - it would be better to use AccessType.UNKNOWN here but
-        currently VariablesAccessInfo does not consider that type of access.
+        currently VariablesAccessMap does not consider that type of access.
 
         This method makes use of
         :py:meth:`~psyclone.psyir.nodes.CodeBlock.get_symbol_names` and is
         therefore subject to the same limitations as that method.
 
-        :param var_accesses: VariablesAccessInfo instance that stores the
-            information about variable accesses.
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
+        var_accesses = VariablesAccessMap()
         for name in self.get_symbol_names():
             var_accesses.add_access(Signature(name), AccessType.READWRITE,
                                     self)
+        return var_accesses
 
     def __str__(self):
         return f"CodeBlock[{len(self._fp2_nodes)} nodes]"
+
+    def has_potential_control_flow_jump(self) -> bool:
+        '''
+        :returns: whether this CodeBlock contains a potential control flow
+                  jump, e.g. GOTO, EXIT or a labeled statement.
+        '''
+        # Loop over the fp2_nodes and check if any are GOTO, EXIT or
+        # labelled statements
+        for node in self._fp2_nodes:
+            for child in walk(node, (Fortran2003.Goto_Stmt,
+                                     Fortran2003.Exit_Stmt,
+                                     Fortran2003.Cycle_Stmt,
+                                     Fortran2003.StmtBase)):
+                if isinstance(child,
+                              (Fortran2003.Goto_Stmt,
+                               Fortran2003.Exit_Stmt,
+                               Fortran2003.Cycle_Stmt)):
+                    return True
+                # Also can't support Labelled statements.
+                if isinstance(child, Fortran2003.StmtBase):
+                    if child.item and child.item.label:
+                        return True
+        return False
