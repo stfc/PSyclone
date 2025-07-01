@@ -81,8 +81,8 @@ from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.psyir.transformations import ParallelRegionTrans
+from psyclone.psyir.transformations import OMPTaskloopTrans
 from psyclone.utils import transformation_documentation_wrapper
-
 
 def check_intergrid(node):
     '''

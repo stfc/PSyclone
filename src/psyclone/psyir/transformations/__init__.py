@@ -161,4 +161,5 @@ __all__ = [
     "TransformationError",
     "ValueRangeCheckTrans",
     "ParallelRegionTrans",
+    "OMPTaskloopTrans",
 ]
