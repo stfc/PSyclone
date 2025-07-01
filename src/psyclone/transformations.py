@@ -62,7 +62,7 @@ from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
     Call, CodeBlock, Directive, Literal, Loop, Node,
-    OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
+    OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     Return, Routine, Schedule,
     OMPSingleDirective, PSyDataNode, IntrinsicCall)
@@ -249,109 +249,6 @@ class MarkRoutineForGPUMixin:
                         f"'{call_str}' which is not available on the "
                         f"accelerator device and therefore cannot have "
                         f"{type(self).__name__} applied to it (TODO #342).")
-
-
-class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
-    '''
-    Adds an OpenMP declare target directive to the specified routine.
-
-    For example:
-
-    >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.psyir.nodes import Loop
-    >>> from psyclone.transformations import OMPDeclareTargetTrans
-    >>>
-    >>> tree = FortranReader().psyir_from_source("""
-    ...     subroutine my_subroutine(A)
-    ...         integer, dimension(10, 10), intent(inout) :: A
-    ...         integer :: i
-    ...         integer :: j
-    ...         do i = 1, 10
-    ...             do j = 1, 10
-    ...                 A(i, j) = 0
-    ...             end do
-    ...         end do
-    ...     end subroutine
-    ...     """
-    >>> omptargettrans = OMPDeclareTargetTrans()
-    >>> omptargettrans.apply(tree.walk(Routine)[0])
-
-    will generate:
-
-    .. code-block:: fortran
-
-        subroutine my_subroutine(A)
-            integer, dimension(10, 10), intent(inout) :: A
-            integer :: i
-            integer :: j
-            !$omp declare target
-            do i = 1, 10
-                do j = 1, 10
-                    A(i, j) = 0
-                end do
-            end do
-        end subroutine
-
-    '''
-    def apply(self, node, options=None):
-        ''' Insert an OMPDeclareTargetDirective inside the provided routine or
-        associated PSyKAl kernel.
-
-        :param node: the kernel or routine which is the target of this
-            transformation.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine` |
-                    :py:class:`psyclone.psyGen.Kern`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["force"]: whether to allow routines with
-            CodeBlocks to run on the GPU.
-        :param str options["device_string"]: provide a compiler-platform
-            identifier.
-
-        '''
-        self.validate(node, options)
-
-        if isinstance(node, Kern):
-            # Flag that the kernel has been modified
-            node.modified = True
-
-            # Get the schedule representing the kernel subroutine
-            routines = node.get_callees()
-        else:
-            routines = [node]
-
-        for routine in routines:
-            if not any(isinstance(child, OMPDeclareTargetDirective) for
-                       child in routine.children):
-                routine.children.insert(0, OMPDeclareTargetDirective())
-
-    def validate(self, node, options=None):
-        ''' Check that an OMPDeclareTargetDirective can be inserted.
-
-        :param node: the kernel or routine which is the target of this
-            transformation.
-        :type node: :py:class:`psyclone.psyGen.Kern` |
-                    :py:class:`psyclone.psyir.nodes.Routine`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["force"]: whether to allow routines with
-            CodeBlocks to run on the GPU.
-        :param str options["device_string"]: provide a compiler-platform
-            identifier.
-
-        :raises TransformationError: if the node is not a kernel or a routine.
-        :raises TransformationError: if the target is a built-in kernel.
-        :raises TransformationError: if it is a kernel but without an
-                                     associated PSyIR.
-        :raises TransformationError: if any of the symbols in the kernel are
-                                     accessed via a module use statement.
-        :raises TransformationError: if the kernel contains any calls to other
-                                     routines.
-
-        '''
-        super().validate(node, options=options)
-
-        self.validate_it_can_run_on_gpu(node, options)
 
 
 class ACCLoopTrans(ParallelLoopTrans):
