@@ -138,7 +138,7 @@ module field_parent_mod
 
     subroutine write_interface(field_name, field_proxy)
       import field_parent_proxy_type
-      character(len=*), optional,      intent(in) :: field_name
+      character(len=*), intent(in)                :: field_name
       class(field_parent_proxy_type ), intent(in) :: field_proxy
     end subroutine write_interface
 

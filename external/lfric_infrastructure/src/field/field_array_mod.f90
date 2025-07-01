@@ -79,7 +79,14 @@ contains
 
     class(field_array_type), intent(inout) :: self
 
-    if (allocated(self%bundle)) deallocate(self%bundle)
+    integer(kind=i_def) :: i
+
+    if (allocated(self%bundle)) then
+      do i = 1, size(self%bundle)
+        call self%bundle(i)%field_final()
+      end do
+      deallocate(self%bundle)
+    endif
 
   end subroutine clear
 

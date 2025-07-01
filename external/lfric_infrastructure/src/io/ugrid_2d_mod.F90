@@ -11,9 +11,11 @@
 
 module ugrid_2d_mod
 
-use constants_mod,  only : i_def, r_def, str_def, str_longlong, l_def, &
-                           imdi, rmdi, cmdi
-use ugrid_file_mod, only : ugrid_file_type
+use constants_mod,  only: i_def, r_def, str_def, str_longlong, l_def, &
+                          imdi, rmdi, cmdi
+use file_mod,       only: file_mode_write
+use ugrid_file_mod, only: ugrid_file_type
+
 
 use local_mesh_map_collection_mod,  only: local_mesh_map_collection_type
 use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
@@ -628,7 +630,8 @@ subroutine append_to_file(self, filename)
   class(ugrid_2d_type), intent(inout) :: self
   character(len=*),     intent(in)    :: filename
 
-  call self%file_handler%file_open(trim(filename))
+  call self%file_handler%file_open( trim(filename), &
+                                    file_mode=file_mode_write)
 
   call self%file_handler%append_mesh(                        &
 

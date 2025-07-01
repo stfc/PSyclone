@@ -10,12 +10,18 @@
 !-------------------------------------------------------------------------------
 module file_mod
 
-  use constants_mod,        only: i_def
-  use linked_list_data_mod, only: linked_list_data_type
+use constants_mod,        only: i_def
+use linked_list_data_mod, only: linked_list_data_type
 
 implicit none
 
 private
+
+! IO Mode enumerations
+integer(i_def), public, parameter :: file_mode_read  = 971
+integer(i_def), public, parameter :: file_mode_write = 248
+integer(i_def), public, parameter :: file_op_create  = 485
+integer(i_def), public, parameter :: file_op_open    = 653
 
 !-------------------------------------------------------------------------------
 !> @brief Abstract file type
@@ -29,9 +35,9 @@ type, public, abstract, extends(linked_list_data_type) :: file_type
   private
 
 contains
-  procedure (new_open_interface ),      deferred :: file_open
-  procedure (new_open_interface ),      deferred :: file_new
-  procedure (close_interface),          deferred :: file_close
+  procedure (new_interface ),  deferred :: file_new
+  procedure (open_interface ), deferred :: file_open
+  procedure (close_interface), deferred :: file_close
 
 end type file_type
 
@@ -41,28 +47,42 @@ end type file_type
 abstract interface
 
   !-----------------------------------------------------------------------------
-  !> @brief  Interface: Open an existing file, or create a new file.
+  !> @brief  Interface: Open an existing file
   !!
-  !! @param[in] self               The file strategy object.
-  !! @param[in] file_name          Filename
+  !! @param[in] file_name Filename
   !-----------------------------------------------------------------------------
+  subroutine new_interface(self, file_name)
 
-  subroutine new_open_interface(self, file_name)
     import :: file_type
 
     !Arguments
-    class(file_type),       intent(inout) :: self
-    character(len=*),       intent(in)    :: file_name
+    class(file_type), intent(inout) :: self
+    character(len=*), intent(in)    :: file_name
 
-  end subroutine new_open_interface
+  end subroutine new_interface
+
+  !-----------------------------------------------------------------------------
+  !> @brief  Interface: Open an existing file
+  !!
+  !! @param[in] file_name Filename
+  !! @param[in] file_mode Action identifier on file
+  !-----------------------------------------------------------------------------
+  subroutine open_interface(self, file_name, file_mode)
+
+    import :: file_type, i_def
+
+    !Arguments
+    class(file_type),         intent(inout) :: self
+    character(len=*),         intent(in)    :: file_name
+    integer(i_def), optional, intent(in)    :: file_mode
+
+  end subroutine open_interface
 
   !-----------------------------------------------------------------------------
   !> @brief  Interface: Close a file
-  !!
-  !! @param[in] self               The file strategy object.
   !-----------------------------------------------------------------------------
-
   subroutine close_interface(self)
+
     import :: file_type
 
     !Arguments
@@ -71,13 +91,5 @@ abstract interface
   end subroutine close_interface
 
 end interface
-
-! IO Mode enumerations
-integer(kind=i_def), public, parameter :: FILE_OP_OPEN    = 485
-integer(kind=i_def), public, parameter :: FILE_OP_CREATE  = 653
-integer(kind=i_def), public, parameter :: FILE_MODE_READ  = 971
-integer(kind=i_def), public, parameter :: FILE_MODE_WRITE = 248
-
-contains
 
 end module file_mod

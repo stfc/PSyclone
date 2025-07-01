@@ -36,13 +36,18 @@ contains
   !>                         needed, replacing any existing allocation.
   !> @param [in] description Optional description of the expected filename. If
   !>                         not specified, master namelist is assumed.
+  !> @param [inout] component_name Optional component-component name
   !>
-  subroutine get_initial_filename( filename, description )
+  subroutine get_initial_filename( filename, description, component_name )
 
     implicit none
 
-    character(:), allocatable, intent(inout) :: filename
-    character(*), optional,    intent(in)    :: description
+    character(:), allocatable,           intent(inout) :: filename
+    character(*), optional,              intent(in)    :: description
+    character(:), allocatable, optional, intent(inout) :: component_name
+
+    character(:), allocatable :: oname
+    character(:), allocatable :: arg
 
     character(:), allocatable :: program_name
     character(:), allocatable :: filename_description
@@ -51,6 +56,8 @@ contains
     integer      :: length
     integer      :: status
     integer      :: argument_tally
+    integer      :: iarg
+    logical      :: filename_set
 
     if (present(description)) then
       allocate( filename_description, source=description )
@@ -64,13 +71,6 @@ contains
 
     argument_tally = command_argument_count()
 
-    if (argument_tally > 1) then
-      write( error_unit, '("Too many arguments supplied")' )
-      write( error_unit, '()' )
-      call print_usage( error_unit, program_name, filename_description )
-      stop 2
-    end if
-
     if (argument_tally == 0 .and. .not. allocated(filename)) then
       write( error_unit, '("No filename specified")' )
       write( error_unit, '()' )
@@ -78,22 +78,50 @@ contains
       stop 2
     end if
 
-    if (argument_tally == 1) then
-      if (allocated(filename)) deallocate(filename)
+    iarg = 1
+    filename_set=.false.
 
-      call get_command_argument( 1, dummy, length, status )
-      allocate( character(length) :: filename )
-      call get_command_argument( 1, filename, length, status )
+    do
+      if( iarg > argument_tally ) exit
 
-      if (filename == '-help' &
-          .or. filename == '-h' &
-          .or. filename == '--help' ) then
+      if(allocated(arg)) deallocate(arg)
+      call get_command_argument( iarg, dummy, length, status )
+      allocate( character(length) :: arg )
+      call get_command_argument( iarg, arg, length, status )
+
+      if (arg == '-help' &
+          .or. arg == '-h' &
+          .or. arg == '--help' ) then
         call print_usage( error_unit, program_name, filename_description )
         stop 2
+      else if (arg == '-c' ) then
+        call get_command_argument( iarg+1, dummy, length, status )
+        allocate( character(length) :: oname )
+        call get_command_argument( iarg+1, oname, length, status )
+        iarg = iarg + 2
+      else if (arg(1:17) == '--component-name=' ) then
+        allocate(oname, source=arg(18:) )
+        iarg = iarg + 1
+      else
+        if(.not.filename_set)then
+          if(allocated(filename)) deallocate(filename)
+          allocate(filename,source=arg)
+          iarg = iarg + 1
+          filename_set = .true.
+        else
+          write( error_unit, '("Too many arguments supplied")' )
+          write( error_unit, '()' )
+          call print_usage( error_unit, program_name, filename_description )
+          stop 2
+        end if
       end if
-    end if
+    end do
 
     deallocate( program_name )
+
+    if(present(component_name))then
+      if(allocated(oname))allocate(component_name,source=oname)
+    end if
 
   end subroutine get_initial_filename
 
@@ -106,13 +134,18 @@ contains
     character(*), intent(in) :: filename_description
 
     write( to_unit, '("Usage:")' )
-    write( to_unit, &
-           '("    ", A, " [-help|-h|--help] <filename>")' ) program_name
-    write( to_unit, '()' )
-    write( to_unit, '("    filename - ", A)' ) filename_description
+    write( to_unit, '("    ", A, " [-help|-h|--help] [-c name|--component-name=name] <filename>")' ) &
+            program_name
     write( to_unit, '()' )
     write( to_unit, &
            '("    -help, -h, --help - Print this usage information")' )
+    write( to_unit, '()' )
+    write( to_unit, &
+           '("    -c name, --component-name=name - Sets the coupler-component name")' )
+    write( to_unit, '()' )
+    write( to_unit, '("    filename - ", A)' ) filename_description
+    write( to_unit, '()' )
+
 
   end subroutine print_usage
 

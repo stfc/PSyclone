@@ -14,7 +14,7 @@
 module quadrature_rule_newton_cotes_mod
 use constants_mod, only: r_def, i_def, PI, EPS
 use quadrature_rule_mod, only: quadrature_rule_type
-use matrix_invert_mod, only: matrix_invert
+use matrix_invert_mod, only: matrix_invert_lu
 
 implicit none
 private
@@ -67,7 +67,7 @@ function quadrature_rule(self, nqp_1d)
       A(i,j) = real(j,r_def)**(i-1)
     end do
   end do
-  call matrix_invert(A,Ainv,nqp_1d)
+  call matrix_invert_lu(A,Ainv,nqp_1d)
   quadrature_rule(:,2) = matmul(Ainv,b)
 
   quadrature_rule(:,2) = DOMAIN_CHANGE_FACTOR*quadrature_rule(:,2)

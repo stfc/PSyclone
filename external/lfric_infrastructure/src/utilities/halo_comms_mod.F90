@@ -321,6 +321,8 @@ subroutine clear(self)
 
 #ifdef NO_MPI
   ! No finalization step is needed
+  max_depth = 0 ! Set local variables to avoid unused variable errors
+  idepth=0
 #else
   max_depth = self%max_depth
   do idepth = 1, max_depth

@@ -38,7 +38,10 @@ module function_space_constructor_helper_functions_mod
   implicit none
 
   private
-  public :: ndof_setup, basis_setup, dofmap_setup, levels_setup, generate_fs_id
+  public :: ndof_setup, basis_setup, dofmap_setup, levels_setup,               &
+            generate_fs_id, compute_global_dof_ids,                            &
+            compute_global_cell_dof_id_2d, compute_global_edge_dof_id_2d,      &
+            compute_global_vert_dof_id_2d
 
   ! Select entities in the function space
   type select_entity_type
@@ -1725,8 +1728,7 @@ contains
                            ndof_edge_h, ndof_edge_v, ndof_face_h, ndof_face_v, &
                            ndof_vol, ndof_cell, last_dof_owned,                &
                            last_dof_annexed, last_dof_halo, dofmap,            &
-                           global_dof_id, global_cell_dof_id_2d,               &
-                           global_edge_dof_id_2d, global_vert_dof_id_2d )
+                           dof_cell_owner, dof_column_height )
     implicit none
 
     ! Input
@@ -1753,12 +1755,8 @@ contains
     integer(i_def), intent(out) :: last_dof_halo(0:)
 
     integer(i_def), intent(out) :: dofmap(ndof_cell, 0:ncells_2d_with_ghost)
-
-    integer(i_halo_index), intent(out) :: global_dof_id(:)
-
-    integer(i_def), intent(out) :: global_cell_dof_id_2d(:)
-    integer(i_def), intent(out) :: global_edge_dof_id_2d(:)
-    integer(i_def), intent(out) :: global_vert_dof_id_2d(:)
+    integer(i_def), intent(out) :: dof_cell_owner(ndof_cell, 0:ncells_2d_with_ghost)
+    integer(i_def), intent(out) :: dof_column_height(ndof_cell, 0:ncells_2d_with_ghost)
 
     ! Local variables
 
@@ -1779,7 +1777,7 @@ contains
     integer(i_def) :: ncells ! Number of cells in the rank (including ghosts)
 
     ! Loop counters
-    integer(i_def) :: icell, iface, iedge, ivert, idof, idepth, k, m
+    integer(i_def) :: icell, iface, iedge, ivert, idof, idepth
 
     ! Loop upper bound for ndof loops on vertical or horizontal edges
     integer(i_def) :: ndof_stop
@@ -1817,15 +1815,6 @@ contains
                                    dof_cell_owner_d2(:,:), &
                                    dof_cell_owner_d3(:,:)
 
-    ! dof column heights for whole space
-    integer(i_def), allocatable :: dof_column_height(:,:)
-
-    ! Owning cell of each entry in the dofamp
-    integer(i_def), allocatable :: dof_cell_owner(:,:)
-
-    ! Cell id in global index space
-    integer(i_def) :: global_cell_id
-
     integer(i_def) :: dofmap_size(0:3)
 
     ! Number of cells in all the inner halos added together
@@ -1838,8 +1827,6 @@ contains
                                         select_entity_w2h,   &
                                         select_entity_w2v
     type(select_entity_type), pointer :: select_entity => null()
-
-    integer(i_halo_index) :: num_layers, num_dofs, num_ndata
 
     integer(i_def) :: ndata_offset
 
@@ -1882,9 +1869,6 @@ contains
     dofmap_size(1) = max(dofmap_size(1), ndof_edge_h, ndof_edge_v)
     dofmap_size(2) = max(dofmap_size(2), ndof_face_h, ndof_face_v)
     dofmap_size(3) = max(dofmap_size(3), ndof_vol)
-
-    allocate( dof_column_height (ndof_cell, 0:ncells))
-    allocate( dof_cell_owner    (ndof_cell, 0:ncells))
 
     allocate( dofmap_d0             (dofmap_size(0), nvert_layer) )
     allocate( dof_column_height_d0  (dofmap_size(0), nvert_layer) )
@@ -2328,12 +2312,84 @@ contains
     if (allocated(dof_cell_owner_d2)) deallocate(dof_cell_owner_d2)
     if (allocated(dof_cell_owner_d3)) deallocate(dof_cell_owner_d3)
 
+    if (allocated(select_entity_all%faces)) deallocate(select_entity_all%faces)
+    if (allocated(select_entity_all%edges)) deallocate(select_entity_all%edges)
+    if (allocated(select_entity_all%verts)) deallocate(select_entity_all%verts)
+    if (allocated(select_entity_theta%faces)) deallocate(select_entity_theta%faces)
+    if (allocated(select_entity_theta%edges)) deallocate(select_entity_theta%edges)
+    if (allocated(select_entity_theta%verts)) deallocate(select_entity_theta%verts)
+    if (allocated(select_entity_w2v%faces)) deallocate(select_entity_w2v%faces)
+    if (allocated(select_entity_w2v%edges)) deallocate(select_entity_w2v%edges)
+    if (allocated(select_entity_w2v%verts)) deallocate(select_entity_w2v%verts)
+    if (allocated(select_entity_w2h%faces)) deallocate(select_entity_w2h%faces)
+    if (allocated(select_entity_w2h%edges)) deallocate(select_entity_w2h%edges)
+    if (allocated(select_entity_w2h%verts)) deallocate(select_entity_w2h%verts)
+
+  end subroutine dofmap_setup
+
+  !---------------------------------------------------------------------------
+  !> @brief Work out the ID of each unique DoF (in this partition) for a given
+  !!        function space
+  !> @param[in] mesh                  Mesh to operate on
+  !> @param[in] gungho_fs             ID of function space
+  !> @param[in] element_order_h       Horizontal element order
+  !> @param[in] element_order_v       Vertical element order
+  !> @param[in] ndata                 Num of data points collocated at each DoF
+  !> @param[in] ncells_2d_with_ghost  Num of columns in the rank (incl. ghosts)
+  !> @param[in] ndof_cell             Num of DoFs per cell of the function space
+  !> @param[in] dofmap                DoF map for the function space
+  !> @param[in] dof_cell_owner        Cell that owns the DoF
+  !> @param[in] dof_column_height     Column height for each DoF
+  !> @param[out] global_dof_id        Global DoF ID for the function space
+  subroutine compute_global_dof_ids(                                           &
+                           mesh, gungho_fs, element_order_h, element_order_v,  &
+                           ndata, ncells_2d_with_ghost, ndof_cell,             &
+                           dofmap, dof_cell_owner, dof_column_height,          &
+                           global_dof_id )
+    implicit none
+
+    ! Input
+    type(mesh_type), intent(in), pointer :: mesh
+    integer(i_def),  intent(in) :: gungho_fs
+    integer(i_def),  intent(in) :: element_order_h
+    integer(i_def),  intent(in) :: element_order_v
+    integer(i_def),  intent(in) :: ndata
+
+    integer(i_def),  intent(in) :: ncells_2d_with_ghost
+    integer(i_def),  intent(in) :: ndof_cell
+
+    integer(i_def), intent(in) :: dofmap(ndof_cell, 1:ncells_2d_with_ghost)
+    integer(i_def), intent(in) :: dof_cell_owner(ndof_cell, 0:ncells_2d_with_ghost)
+    integer(i_def), intent(in) :: dof_column_height(ndof_cell, 0:ncells_2d_with_ghost)
+
+    integer(i_halo_index), intent(out) :: global_dof_id(:)
+
+    integer(i_def) :: ncells ! Number of cells in the rank (including ghosts)
+
+    ! Loop counters
+    integer(i_def) :: icell, idof, k, m
+
+    ! Number of layers
+    integer(i_def) :: nlayers
+
+    ! Cell id in global index space
+    integer(i_def) :: global_cell_id
+
+    integer(i_halo_index) :: num_layers, num_dofs, num_ndata
+
+    !===========================================================================
+
+    ncells = ncells_2d_with_ghost
+
+    ! dofmaps for a 3D horizontal layer
+    nlayers = mesh%get_nlayers()
+
     ! Special cases for lowest order w3 and wtheta. These allow global_dof_id
     ! to have an index space with no gaps in it for these specific funct spaces
     num_layers = int(nlayers, i_halo_index) + 1_i_halo_index
     num_dofs = int(ndof_cell, i_halo_index)
     num_ndata = int(ndata, i_halo_index)
-    if( element_order_h == 0 .and. element_order_v == 0 ) then
+    if ( element_order_h == 0 .and. element_order_v == 0 ) then
       if (gungho_fs == W3) then
         num_layers = int(nlayers, i_halo_index)
       else if( gungho_fs == WTHETA ) then
@@ -2369,6 +2425,23 @@ contains
       end do
     end do
 
+  end subroutine compute_global_dof_ids
+
+  !> @brief Compute array of global indices of cell dofs in 2D
+  !> @param[in]  mesh                   Mesh to operate on
+  !> @param[in]  ndata                  Num data points collocated at each DoF
+  !> @param[out] global_cell_dof_id_2d  Array of global cell dof ids in 2D
+  subroutine compute_global_cell_dof_id_2d(mesh, ndata, global_cell_dof_id_2d)
+
+    implicit none
+
+    type(mesh_type), intent(in)  :: mesh
+    integer(i_def),  intent(in)  :: ndata
+    integer(i_def),  intent(out) :: global_cell_dof_id_2d(:)
+
+    integer(i_def) :: icell, m
+    integer(i_def) :: global_cell_id
+
     ! Calculate a globally unique id for the dofs in the volume of each cell
     ! in the 2D horizontal part of the local domain. This uses cell lookups, so
     ! will work for all function spaces - even if they don't have cell vol dofs
@@ -2384,6 +2457,43 @@ contains
       end do
     end do
 
+  end subroutine compute_global_cell_dof_id_2d
+
+  !> @brief Compute array of global indices of edge dofs in 2D
+  !> @param[in]  mesh                   Mesh to operate on
+  !> @param[in]  gungho_fs              ID of function space
+  !> @param[in]  ndata                  Num data points collocated at each DoF
+  !> @param[in]  nlayers                Number of layers in the mesh
+  !> @param[in]  dofmap                 DoF map for the function space
+  !> @param[in]  ndof_cell              Num of DoFs per cell
+  !> @param[in]  ncells_2d_with_ghost   Num of columns in the rank (incl. ghosts)
+  !> @param[in]  element_order_h        Horizontal element order
+  !> @param[in]  element_order_v        Vertical element order
+  !> @param[out] global_edge_dof_id_2d  Array of global edge dof ids in 2D
+  subroutine compute_global_edge_dof_id_2d(mesh, gungho_fs, ndata, nlayers,    &
+                                           dofmap, ndof_cell,                  &
+                                           ncells_2d_with_ghost,               &
+                                           element_order_h, element_order_v,   &
+                                           global_edge_dof_id_2d)
+
+    implicit none
+
+    type(mesh_type), intent(in)  :: mesh
+    integer(i_def),  intent(in)  :: gungho_fs
+    integer(i_def),  intent(in)  :: ndata
+    integer(i_def),  intent(in)  :: nlayers
+    integer(i_def),  intent(in)  :: ndof_cell
+    integer(i_def),  intent(in)  :: ncells_2d_with_ghost
+    integer(i_def),  intent(in)  :: dofmap(ndof_cell, 1:ncells_2d_with_ghost)
+    integer(i_def),  intent(in)  :: element_order_h
+    integer(i_def),  intent(in)  :: element_order_v
+    integer(i_def),  intent(out) :: global_edge_dof_id_2d(:)
+
+    integer(i_def)                 :: icell, iedge, m
+    type(local_mesh_type), pointer :: local_mesh
+
+    local_mesh => mesh%get_local_mesh()
+
     ! Calculate a globally unique id for the dofs on the edges of each cell
     ! in the 2D horizontal part of the local domain - only possible for
     ! function spaces that (appear to) have 2d edge dofs
@@ -2396,7 +2506,7 @@ contains
       do icell = 1, mesh%get_last_edge_cell()
         ! loop over 2d edges within a cell
         do iedge = 1, mesh%get_nedges_per_cell_2d()
-          if(mesh%is_edge_owned(iedge, icell))then
+          if (mesh%is_edge_owned(iedge, icell)) then
             do m = 1, ndata
               global_edge_dof_id_2d(                                           &
                     ((dofmap(iedge, icell) - 1) / (nlayers * ndata)) + 1 )     &
@@ -2409,6 +2519,43 @@ contains
       global_edge_dof_id_2d(:) = -1
     end if
 
+  end subroutine compute_global_edge_dof_id_2d
+
+  !> @brief Compute array of global indices of vertex dofs in 2D
+  !> @param[in]  mesh                   Mesh to operate on
+  !> @param[in]  gungho_fs              ID of function space
+  !> @param[in]  ndata                  Num data points collocated at each DoF
+  !> @param[in]  nlayers                Number of layers in the mesh
+  !> @param[in]  dofmap                 DoF map for the function space
+  !> @param[in]  ndof_cell              Num of DoFs per cell
+  !> @param[in]  ncells_2d_with_ghost   Num of columns in the rank (incl. ghosts)
+  !> @param[in]  element_order_h        Horizontal element order
+  !> @param[in]  element_order_v        Vertical element order
+  !> @param[out] global_vert_dof_id_2d  Array of global vertex dof ids in 2D
+  subroutine compute_global_vert_dof_id_2d(mesh, gungho_fs, ndata, nlayers,    &
+                                           dofmap, ndof_cell,                  &
+                                           ncells_2d_with_ghost,               &
+                                           element_order_h, element_order_v,   &
+                                           global_vert_dof_id_2d)
+
+    implicit none
+
+    type(mesh_type), intent(in)  :: mesh
+    integer(i_def),  intent(in)  :: gungho_fs
+    integer(i_def),  intent(in)  :: ndata
+    integer(i_def),  intent(in)  :: nlayers
+    integer(i_def),  intent(in)  :: ndof_cell
+    integer(i_def),  intent(in)  :: ncells_2d_with_ghost
+    integer(i_def),  intent(in)  :: dofmap(ndof_cell, 1:ncells_2d_with_ghost)
+    integer(i_def),  intent(in)  :: element_order_h
+    integer(i_def),  intent(in)  :: element_order_v
+    integer(i_def),  intent(out) :: global_vert_dof_id_2d(:)
+
+    integer(i_def)                 :: icell, ivert, m
+    type(local_mesh_type), pointer :: local_mesh
+
+    local_mesh => mesh%get_local_mesh()
+
     ! Calculate a globally unique id for the dofs on the vertices of each cell
     ! in the 2D horizontal part of the local domain - only possible for
     ! function spaces that have vertex dofs.
@@ -2420,10 +2567,10 @@ contains
       do icell = 1, mesh%get_last_edge_cell()
         ! loop over 2d vertices within a cell
         do ivert = 1, mesh%get_nverts_per_cell_2d()
-          if(mesh%is_vertex_owned(ivert, icell))then
+          if (mesh%is_vertex_owned(ivert, icell)) then
             do m = 1, ndata
-              global_vert_dof_id_2d(                                             &
-                    ((dofmap(ivert, icell) - 1) / ((nlayers + 1) * ndata)) + 1 ) &
+              global_vert_dof_id_2d(                                           &
+                  ((dofmap(ivert, icell) - 1) / ((nlayers + 1) * ndata)) + 1 ) &
                 = (local_mesh%get_vert_gid_on_cell(ivert, icell) - 1) * ndata + m - 1
             end do
           end if
@@ -2433,23 +2580,7 @@ contains
       global_vert_dof_id_2d(:) = -1
     end if
 
-    if (allocated(dof_column_height)) deallocate(dof_column_height)
-    if (allocated(dof_cell_owner))    deallocate(dof_cell_owner)
-
-    if (allocated(select_entity_all%faces)) deallocate(select_entity_all%faces)
-    if (allocated(select_entity_all%edges)) deallocate(select_entity_all%edges)
-    if (allocated(select_entity_all%verts)) deallocate(select_entity_all%verts)
-    if (allocated(select_entity_theta%faces)) deallocate(select_entity_theta%faces)
-    if (allocated(select_entity_theta%edges)) deallocate(select_entity_theta%edges)
-    if (allocated(select_entity_theta%verts)) deallocate(select_entity_theta%verts)
-    if (allocated(select_entity_w2v%faces)) deallocate(select_entity_w2v%faces)
-    if (allocated(select_entity_w2v%edges)) deallocate(select_entity_w2v%edges)
-    if (allocated(select_entity_w2v%verts)) deallocate(select_entity_w2v%verts)
-    if (allocated(select_entity_w2h%faces)) deallocate(select_entity_w2h%faces)
-    if (allocated(select_entity_w2h%edges)) deallocate(select_entity_w2h%edges)
-    if (allocated(select_entity_w2h%verts)) deallocate(select_entity_w2h%verts)
-
-  end subroutine dofmap_setup
+  end subroutine compute_global_vert_dof_id_2d
 
   !-----------------------------------------------------------------------------
   !> @brief Creates an array of unique fractional levels.

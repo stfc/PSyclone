@@ -67,6 +67,22 @@ module extrusion_mod
     end subroutine extrude_method
   end interface
 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Extrudes against user provided levels.
+  !>
+  type, public, extends(extrusion_type) :: user_extrusion_type
+    private
+    real(r_def), allocatable :: levels(:)
+  contains
+    private
+    procedure, public :: extrude => user_extrude
+    final :: user_extrusion_destructor
+  end type user_extrusion_type
+
+  interface user_extrusion_type
+    module procedure user_extrusion_constructor
+  end interface user_extrusion_type
+
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Extrudes with equal distribution of layers.
   !>
@@ -149,6 +165,95 @@ module extrusion_mod
 
 
 contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Creates an extrusion from a user supplied list of levels.
+  !>
+  !> The levels are described by their boundaries as a proprtion of the whole
+  !> height. They have a value between 0.0 and 1.0. The first value is always
+  !> 0.0 and may be ommitted. The last value is always 1.0 and may also be
+  !> omitted.
+  !>
+  !> @param[in] atmosphere_bottom  Bottom of the atmosphere in meters.
+  !> @param[in] atmosphere_top  Top of the atmosphere in meters.
+  !> @param[in] levels  Boundaries between levels, described above.
+  !> @param[in] extrusion_id  Identifier of extrusion type.
+  !>
+  function user_extrusion_constructor( atmosphere_bottom, &
+                                       atmosphere_top,    &
+                                       levels,            &
+                                       extrusion_id ) result(new)
+
+    implicit none
+
+    real(r_def), intent(in) :: atmosphere_bottom
+    real(r_def), intent(in) :: atmosphere_top
+    real(r_def), intent(in) :: levels(:)
+    integer,     intent(in) :: extrusion_id
+
+    type(user_extrusion_type) :: new
+
+    integer :: level_size
+    integer :: offset
+
+    if (any(levels < 0.0_r_def) .or. any(levels > 1.0_r_def)) then
+      call log_event( "Extrusion factors out of range", log_level_error )
+    end if
+
+    level_size = size(levels)
+    offset = 0
+
+    if (levels(1) /= 0.0_r_def) then
+      level_size = level_size + 1
+      offset = 1
+    end if
+
+    if (levels(size(levels)) /= 1.0_r_def) then
+      level_size = level_size + 1
+    end if
+
+    call new%extrusion_constructor( atmosphere_bottom, &
+                                    atmosphere_top,    &
+                                    level_size,        &
+                                    extrusion_id )
+
+    allocate( new%levels(level_size) )
+    new%levels(1) = 0.0_r_def
+    new%levels(level_size) = 1.0_r_def
+    new%levels(1+offset:size(levels)+offset) = levels
+
+  end function user_extrusion_constructor
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Destroys this object.
+  !>
+  elemental subroutine user_extrusion_destructor( this )
+
+    implicit none
+
+    type(user_extrusion_type), intent(inout) :: this
+
+    if (allocated(this%levels)) then
+      deallocate(this%levels)
+    end if
+
+  end subroutine user_extrusion_destructor
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Extrudes the mesh using provided levels.
+  !>
+  !> @param[out] eta Nondimensional vertical coordinate.
+  !>
+  subroutine user_extrude( this, eta )
+
+    implicit none
+
+    class(user_extrusion_type), intent(in)  :: this
+    real(r_def),                intent(out) :: eta(0:)
+
+    eta = this%levels
+
+  end subroutine user_extrude
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Creates a uniform_extrusion_type object.

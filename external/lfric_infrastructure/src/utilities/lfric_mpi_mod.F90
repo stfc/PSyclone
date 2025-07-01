@@ -87,6 +87,10 @@ module lfric_mpi_mod
                              global_max_real64, &
                              global_max_real32
     procedure, public :: all_gather
+    procedure, public :: broadcast_logical_scalar
+    procedure, public :: broadcast_int32_scalar
+    procedure, public :: broadcast_real64_scalar
+    procedure, public :: broadcast_real32_scalar
     procedure, public :: broadcast_logical_1d
     procedure, public :: broadcast_int32_1d
     procedure, public :: broadcast_real64_1d
@@ -100,18 +104,22 @@ module lfric_mpi_mod
     procedure, public :: broadcast_int32_3d
     procedure, public :: broadcast_real64_3d
     procedure, public :: broadcast_real32_3d
-    generic :: broadcast => broadcast_logical_1d, &
-                            broadcast_int32_1d,   &
-                            broadcast_real64_1d,  &
-                            broadcast_real32_1d,  &
-                            broadcast_str_1d,     &
-                            broadcast_logical_2d, &
-                            broadcast_int32_2d,   &
-                            broadcast_real64_2d,  &
-                            broadcast_real32_2d,  &
-                            broadcast_logical_3d, &
-                            broadcast_int32_3d,   &
-                            broadcast_real64_3d,  &
+    generic :: broadcast => broadcast_logical_scalar, &
+                            broadcast_int32_scalar,   &
+                            broadcast_real64_scalar,  &
+                            broadcast_real32_scalar,  &
+                            broadcast_logical_1d,     &
+                            broadcast_int32_1d,       &
+                            broadcast_real64_1d,      &
+                            broadcast_real32_1d,      &
+                            broadcast_str_1d,         &
+                            broadcast_logical_2d,     &
+                            broadcast_int32_2d,       &
+                            broadcast_real64_2d,      &
+                            broadcast_real32_2d,      &
+                            broadcast_logical_3d,     &
+                            broadcast_int32_3d,       &
+                            broadcast_real64_3d,      &
                             broadcast_real32_3d
     procedure, public :: get_comm_size
     procedure, public :: get_comm_rank
@@ -276,15 +284,24 @@ contains
     type(lfric_comm_type), intent(in)    :: in_comm
     integer :: ierr
 
-    self%comm = in_comm%comm
 #ifdef NO_MPI
+    ! Store incoming dummy communicator
+    self%comm = in_comm%comm
     ! Set default values for number of ranks and local rank in non-mpi build
     self%comm_size = 1
     self%comm_rank = 0
     ierr=0 ! Set local variable to avoid unused variable errors
 #else
-    call mpi_comm_size(self%comm,self%comm_size,ierr)
-    call mpi_comm_rank(self%comm,self%comm_rank,ierr)
+    ! Duplicate the communicator  - so we can't do any damage to the original
+    call mpi_comm_dup(in_comm%comm, self%comm, ierr)
+    if (ierr /= 0) &
+      call log_event('Cannot duplicate the communicator.', LOG_LEVEL_ERROR )
+    ! Get the values for number of ranks and local rank
+    call mpi_comm_size(self%comm, self%comm_size, ierr)
+    if (ierr /= 0) &
+      call log_event('Cannot determine number of ranks.', LOG_LEVEL_ERROR )
+    call mpi_comm_rank(self%comm, self%comm_rank, ierr)
+    if (ierr /= 0) call log_event('Cannot determine rank.', LOG_LEVEL_ERROR )
 #endif
     self%comm_set = .true.
   end subroutine initialise
@@ -716,6 +733,175 @@ contains
 #endif
   end subroutine all_gather
 
+  !> Broadcasts a logical scalar from the root MPI task to all other
+  !> MPI tasks
+  !>
+  !> @param buffer On the root MPI task, contains the data to broadcast,
+  !>               on other tasks the data from root task will be written to here
+  !> @param root The MPI task from which data will be broadcast
+  subroutine broadcast_logical_scalar(self, buffer, root)
+
+    implicit none
+
+    class(lfric_mpi_type), intent(inout) :: self
+    logical,               intent(inout) :: buffer
+    integer,               intent(in)    :: root
+
+    integer(int32) :: err
+    logical :: buffer_array(1)
+
+#ifdef NO_MPI
+    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
+
+    ! Set local variables to avoid unused variable errors
+    err=0
+    buffer_array(1)=.false.
+#else
+    if(self%comm_set)then
+      buffer_array(1) = buffer
+      call mpi_bcast( buffer_array, 1, MPI_LOGICAL, root, self%comm, err )
+      if (err /= mpi_success) &
+        call log_event('Call to logical broadcast failed with an MPI error.', &
+                       LOG_LEVEL_ERROR )
+      buffer = buffer_array(1)
+    else
+      call log_event( &
+      'Call to broadcast failed. Must initialise the mpi object first',&
+      LOG_LEVEL_ERROR )
+    end if
+#endif
+  end subroutine broadcast_logical_scalar
+
+  !> Broadcasts a 32-bit integer scalar from the root MPI task to all
+  !> other MPI tasks
+  !>
+  !> @param buffer On the root MPI task, contains the data to broadcast,
+  !>               on other tasks the data from root task will be written to here
+  !> @param root The MPI task from which data will be broadcast
+  subroutine broadcast_int32_scalar(self, buffer, root)
+
+    implicit none
+
+    class(lfric_mpi_type), intent(inout) :: self
+    integer(int32),        intent(inout) :: buffer
+    integer,               intent(in)    :: root
+
+    type(lfric_datatype_type) :: lfric_datatype
+    integer :: err
+    integer(int32) :: buffer_array(1)
+
+#ifdef NO_MPI
+    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
+
+    ! Set local variables to avoid unused variable errors
+    lfric_datatype%datatype%mpi_val = 0
+    err=0
+    buffer_array(1)=0
+#else
+    if(self%comm_set)then
+      buffer_array(1) = buffer
+      lfric_datatype = get_lfric_datatype( integer_type, int32 )
+      call mpi_bcast( buffer_array, 1, lfric_datatype%get_mpi_datatype(), &
+                      root, self%comm, err )
+      if (err /= mpi_success) &
+        call log_event('Call to integer broadcast failed with an MPI error.', &
+                       LOG_LEVEL_ERROR )
+      buffer = buffer_array(1)
+    else
+      call log_event( &
+      'Call to broadcast failed. Must initialise the mpi object first',&
+      LOG_LEVEL_ERROR )
+    end if
+#endif
+  end subroutine broadcast_int32_scalar
+
+  !> Broadcasts a 64-bit real data scalar from the root MPI task to all
+  !> other MPI tasks.
+  !>
+  !> @param buffer On the root MPI task, contains the data to broadcast,
+  !>               on other tasks the data from root task will be written to here
+  !> @param root The MPI task from which data will be broadcast
+  subroutine broadcast_real64_scalar(self, buffer, root)
+
+    implicit none
+
+    class(lfric_mpi_type), intent(inout) :: self
+    real(real64),          intent(inout) :: buffer
+    integer,               intent(in)    :: root
+
+    type(lfric_datatype_type) :: lfric_datatype
+    integer :: err
+    real(real64) :: buffer_array(1)
+
+#ifdef NO_MPI
+    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
+
+    ! Set local variables to avoid unused variable errors
+    lfric_datatype%datatype%mpi_val = 0
+    err=0
+    buffer_array(1)=0.0_real64
+#else
+    if(self%comm_set)then
+      buffer_array(1) = buffer
+      lfric_datatype = get_lfric_datatype( real_type, real64 )
+      call mpi_bcast( buffer_array, 1, &
+                      lfric_datatype%get_mpi_datatype(), &
+                      root, self%comm, err )
+      if (err /= mpi_success) &
+        call log_event('Call to real broadcast failed with an MPI error.', &
+                       LOG_LEVEL_ERROR )
+      buffer = buffer_array(1)
+    else
+      call log_event( &
+      'Call to broadcast failed. Must initialise the mpi object first',&
+      LOG_LEVEL_ERROR )
+    end if
+#endif
+  end subroutine broadcast_real64_scalar
+
+  !> Broadcasts a 32-bit real data scalar from the root MPI task to all
+  !> other MPI tasks.
+  !>
+  !> @param buffer On the root MPI task, contains the data to broadcast,
+  !>               on other tasks the data from root task will be written to here
+  !> @param root The MPI task from which data will be broadcast
+  subroutine broadcast_real32_scalar(self, buffer, root)
+
+    implicit none
+
+    class(lfric_mpi_type), intent(inout) :: self
+    real(real32),          intent(inout) :: buffer
+    integer,               intent(in)    :: root
+
+    type(lfric_datatype_type) :: lfric_datatype
+    integer :: err
+    real(real32) :: buffer_array(1)
+
+#ifdef NO_MPI
+    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
+
+    ! Set local variables to avoid unused variable errors
+    lfric_datatype%datatype%mpi_val = 0
+    err=0
+    buffer_array(1)=0.0_real32
+#else
+    if(self%comm_set)then
+      buffer_array(1) = buffer
+      lfric_datatype = get_lfric_datatype( real_type, real32 )
+      call mpi_bcast( buffer_array, 1, &
+                      lfric_datatype%get_mpi_datatype(), &
+                      root, self%comm, err )
+      if (err /= mpi_success) &
+        call log_event('Call to real broadcast failed with an MPI error.', &
+                       LOG_LEVEL_ERROR )
+      buffer = buffer_array(1)
+    else
+      call log_event( &
+      'Call to broadcast failed. Must initialise the mpi object first',&
+      LOG_LEVEL_ERROR )
+    end if
+#endif
+  end subroutine broadcast_real32_scalar
 
   !> Broadcasts 1d array of logical data from the root MPI task to all other
   !> MPI tasks

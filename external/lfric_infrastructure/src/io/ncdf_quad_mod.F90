@@ -17,18 +17,19 @@ use global_mesh_map_mod,            only: global_mesh_map_type
 use local_mesh_map_collection_mod,  only: local_mesh_map_collection_type
 use local_mesh_map_mod,             only: local_mesh_map_type
 
-use log_mod,        only: log_event, log_scratch_space, LOG_LEVEL_ERROR, &
-                          LOG_LEVEL_WARNING
-use netcdf,         only: nf90_max_name, nf90_open, nf90_write, nf90_noerr,    &
-                          nf90_strerror, nf90_put_var, nf90_get_var,           &
-                          nf90_get_att, nf90_inquire, nf90_inquire_variable,   &
-                          nf90_def_var, nf90_inq_varid, nf90_int, nf90_double, &
-                          nf90_clobber, nf90_enddef, nf90_inquire_dimension,   &
-                          nf90_inq_dimid, nf90_def_dim, nf90_create,           &
-                          nf90_inq_attname, nf90_inquire_attribute,            &
-                          nf90_redef, nf90_close, nf90_put_att,                &
-                          nf90_64bit_offset
+use log_mod, only: log_event, log_scratch_space, log_level_error, &
+                   log_level_warning
+use netcdf,  only: nf90_max_name, nf90_open, nf90_write, nf90_nowrite,    &
+                   nf90_noerr, nf90_strerror, nf90_put_var, nf90_get_var, &
+                   nf90_get_att, nf90_inquire, nf90_inquire_variable,     &
+                   nf90_def_var, nf90_inq_varid, nf90_int, nf90_double,   &
+                   nf90_clobber, nf90_enddef, nf90_inquire_dimension,     &
+                   nf90_inq_dimid, nf90_def_dim, nf90_create,             &
+                   nf90_inq_attname, nf90_inquire_attribute,              &
+                   nf90_redef, nf90_close, nf90_put_att, nf90_64bit_offset
+
 use ugrid_file_mod, only: ugrid_file_type
+use file_mod,       only: file_mode_read, file_mode_write
 
 implicit none
 
@@ -221,41 +222,60 @@ end type ncdf_quad_type
 contains
 
 !-------------------------------------------------------------------------------
-!>  @brief Open an existing NetCDF file.
-!>
-!>  @param[in,out]  self      The NetCDF file object.
-!>  @param[in]      file_name Name of the file to open.
+!>  @brief Open an existing NetCDF file to read only.
+!>  @param[in] file_name  Name of the file to open.
+!>  @param[in] file_mode  Optional, Read/Write Mode, Default(Read).
 !-------------------------------------------------------------------------------
+subroutine file_open(self, file_name, file_mode)
 
-subroutine file_open(self, file_name)
   implicit none
 
   ! Arguments
-  class(ncdf_quad_type), intent(inout) :: self
-  character(len=*),      intent(in)    :: file_name
+  class(ncdf_quad_type),    intent(inout) :: self
+  character(len=*),         intent(in)    :: file_name
+  integer(i_def), optional, intent(in)    :: file_mode
 
   ! Internal variables
   integer(i_def) :: ierr
   character(*), parameter :: routine = 'file_open'
   character(str_long) :: cmess
 
-  self%file_name = file_name
+  integer(i_def) :: mode
 
-  cmess = 'Opening file, "'//trim(self%file_name)//'"'
-  ierr = nf90_open( trim(self%file_name), nf90_write, self%ncid )
+  self%file_name = file_name
+  cmess = 'Opening file "'//trim(self%file_name)//'" '
+  if (present(file_mode)) then
+
+    select case(file_mode)
+    case (file_mode_read)
+      mode = nf90_nowrite
+      write(cmess,'(A)') trim(cmess) // '(read-only)'
+    case (file_mode_write)
+      mode = nf90_write
+      write(cmess,'(A)') trim(cmess) // '(read-write)'
+    case default
+      write(log_scratch_space,'(A)')            &
+          'Invalid requested file_mode for ' // &
+          trim(self%file_name)
+      call log_event(log_scratch_space, log_level_error)
+    end select
+
+  else
+    mode = nf90_nowrite
+    write(cmess,'(A)') trim(cmess) // '(read-only)'
+  end if
+
+  ierr = nf90_open( trim(self%file_name), mode, self%ncid )
   call check_err(ierr, routine, cmess)
 
   return
 end subroutine file_open
 
-
 !-------------------------------------------------------------------------------
 !>  @brief Closes a NetCDF file.
-!>
-!>  @param[in]  self   The NetCDF file object.
 !-------------------------------------------------------------------------------
-
 subroutine file_close(self)
+
   implicit none
 
   ! Arguments
@@ -278,11 +298,10 @@ end subroutine file_close
 !>  @description Creates an opens a new, clean NetCDF file. If a file of the
 !>               same name already exists, this routine will clobber it.
 !>
-!>  @param[in,out]  self      The NetCDF file object.
-!>  @param[in]      file_name The name of the file to create/open.
+!>  @param[in] file_name The name of the file to create.
 !-------------------------------------------------------------------------------
-
 subroutine file_new(self, file_name)
+
   implicit none
 
   ! Arguments
@@ -312,8 +331,8 @@ end subroutine file_new
 !>           dimension ids in the NetCDF file object. The dimension lengths are
 !>           used for sizes of other arrays within the NetCDF file.
 !-------------------------------------------------------------------------------
-
 subroutine define_dimensions(self)
+
   implicit none
 
   ! Arguments
@@ -558,7 +577,6 @@ end subroutine define_dimensions
 !>           Array lengths are specified via the pre-existing NetCDF dimension
 !>           IDs, which were obtained elsewhere in this module.
 !-------------------------------------------------------------------------------
-
 subroutine define_variables(self)
 
   implicit none
@@ -814,10 +832,9 @@ end subroutine define_variables
 !>           already been defined elsewhere in this module.  Attributes include
 !>           variable names and descriptions.
 !>
-!>  @param[in]   self   The NetCDF file object.
 !-------------------------------------------------------------------------------
-
 subroutine assign_attributes(self)
+
   implicit none
 
   ! Arguments
@@ -1565,10 +1582,8 @@ end subroutine assign_attributes
 !>           dimension and variable ids for all variables of interest in the
 !>           open NetCDF file.
 !>
-!>  @param[in,out] self      The NetCDF file object.
-!>  @param[in]     mesh_name Name of mesh topology to get ids for
+!>  @param[in] mesh_name Name of mesh topology to get ids for.
 !-------------------------------------------------------------------------------
-
 subroutine inquire_ids(self, mesh_name)
 
   implicit none
@@ -1787,6 +1802,7 @@ end subroutine inquire_ids
 !>  @param(in] log_level [optional] Logging behaviour for this call
 !-------------------------------------------------------------------------------
 subroutine check_err(ierr, routine, cmess, log_level)
+
   implicit none
 
   ! Arguments
@@ -1866,17 +1882,15 @@ end subroutine get_mesh_names
 !>  @details Calls NetCDF inquiry functions to determine array lengths, such as
 !>           the number of nodes.
 !>
-!>  @param[in,out]   self                   The NetCDF file object.
-!>  @param[in]       mesh_name              Name of the mesh topology
-!>  @param[out]      num_nodes              The number of nodes on the mesh.
-!>  @param[out]      num_edges              The number of edges on the mesh.
-!>  @param[out]      num_faces              The number of faces on the mesh.
-!>  @param[out]      num_nodes_per_face     The number of nodes per face.
-!>  @param[out]      num_edges_per_face     The number of edges per face.
-!>  @param[out]      num_nodes_per_edge     The number of nodes per edge.
-!>  @param[out]      max_num_faces_per_node The maximum number of faces surrounding a node.
+!>  @param[in]  mesh_name              Name of the mesh topology
+!>  @param[out] num_nodes              The number of nodes on the mesh.
+!>  @param[out] num_edges              The number of edges on the mesh.
+!>  @param[out] num_faces              The number of faces on the mesh.
+!>  @param[out] num_nodes_per_face     The number of nodes per face.
+!>  @param[out] num_edges_per_face     The number of edges per face.
+!>  @param[out] num_nodes_per_edge     The number of nodes per edge.
+!>  @param[out] max_num_faces_per_node The maximum number of faces surrounding a node.
 !-------------------------------------------------------------------------------
-
 subroutine get_dimensions( self,               &
                            mesh_name,          &
                            num_nodes,          &
@@ -1886,6 +1900,7 @@ subroutine get_dimensions( self,               &
                            num_edges_per_face, &
                            num_nodes_per_edge, &
                            max_num_faces_per_node )
+
   implicit none
 
   ! Arguments
@@ -3435,8 +3450,6 @@ end subroutine append_mesh
 !>           ugrid mesh topologies.
 !>  @details Scans the variable attributes for cf_role = mesh_topology as
 !>           a flag that the variable name relates to a mesh.
-!>
-!>  @param[in]  self        ncdf_quad_type object associated with NetCDF file
 !>
 !>  @param[out] mesh_names  Character[:], Names of the mesh_topologies
 !>                          in the NetCDF file

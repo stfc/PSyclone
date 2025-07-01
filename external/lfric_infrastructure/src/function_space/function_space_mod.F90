@@ -27,7 +27,11 @@ module function_space_mod
                                    W2Hbroken
   use function_space_constructor_helper_functions_mod, &
                             only : ndof_setup, basis_setup, dofmap_setup,      &
-                                   levels_setup, generate_fs_id
+                                   levels_setup, generate_fs_id,               &
+                                   compute_global_dof_ids,                     &
+                                   compute_global_cell_dof_id_2d,              &
+                                   compute_global_edge_dof_id_2d,              &
+                                   compute_global_vert_dof_id_2d
   use linked_list_data_mod, only : linked_list_data_type
   use linked_list_mod,      only : linked_list_type, linked_list_item_type
   use mesh_collection_mod,  only : mesh_collection
@@ -143,21 +147,11 @@ module function_space_mod
     real(r_def),    allocatable :: basis_z(:,:)
     !> @}
 
-    !> A one dimensional, allocatable array which holds a unique global index
-    !> for every dof in the local domain
-    integer(i_halo_index), allocatable :: global_dof_id(:)
+    !> The index of the cell owner, arranged by local DoF and column
+    integer(i_def), allocatable :: dof_cell_owner(:,:)
 
-    !> A one dimensional, allocatable array which holds a unique global index
-    !> for cell dofs in the 2D horizontal portion of the local domain
-    integer(i_def), allocatable :: global_cell_dof_id_2d(:)
-
-    !> A one dimensional, allocatable array which holds a unique global index
-    !> for edge dofs in the 2D horizontal portion of the local domain
-    integer(i_def), allocatable :: global_edge_dof_id_2d(:)
-
-    !> A one dimensional, allocatable array which holds a unique global index
-    !> for vertex dofs in the 2D horizontal portion of the local domain
-    integer(i_def), allocatable :: global_vert_dof_id_2d(:)
+    ! The DoF column height, arranged by local DoF and column
+    integer(i_def), allocatable :: dof_column_height(:,:)
 
     !> The index within the dofmap of the last "owned" dof
     integer(i_def) :: last_dof_owned
@@ -567,16 +561,8 @@ contains
     ncells_2d_with_ghost = self%mesh % get_ncells_2d_with_ghost()
 
     allocate(dofmap( self%ndof_cell, 0:ncells_2d_with_ghost ))
-
-    allocate(self%global_dof_id (self%ndof_glob * self%ndata))
-    allocate(&
-    self%global_cell_dof_id_2d(self%mesh%get_last_edge_cell() * self%ndata))
-
-    allocate(&
-    self%global_edge_dof_id_2d(self%mesh%get_num_edges_owned_2d() * self%ndata))
-
-    allocate(&
-    self%global_vert_dof_id_2d(self%mesh%get_num_verts_owned_2d() * self%ndata))
+    allocate(self%dof_cell_owner( self%ndof_cell, 0:ncells_2d_with_ghost ))
+    allocate(self%dof_column_height( self%ndof_cell, 0:ncells_2d_with_ghost ))
 
     allocate(self%last_dof_halo (0 : self%mesh % get_halo_depth()))
 
@@ -595,10 +581,8 @@ contains
                         self%last_dof_annexed,                                 &
                         self%last_dof_halo,                                    &
                         dofmap,                                                &
-                        self%global_dof_id,                                    &
-                        self%global_cell_dof_id_2d,                            &
-                        self%global_edge_dof_id_2d,                            &
-                        self%global_vert_dof_id_2d )
+                        self%dof_cell_owner,                                   &
+                        self%dof_column_height )
 
     self%master_dofmap = master_dofmap_type(dofmap)
 
@@ -1191,17 +1175,29 @@ contains
   !-----------------------------------------------------------------------------
   ! Gets the array that holds the global indices of all dofs
   !-----------------------------------------------------------------------------
-  function get_global_dof_id(self) result(global_dof_id)
+  subroutine get_global_dof_id(self, global_dof_id)
 
     implicit none
 
-    class(function_space_type), target, intent(in) :: self
+    class(function_space_type), target, intent(in)  :: self
+    integer(i_halo_index), allocatable, intent(out) :: global_dof_id(:)
 
-    integer(i_halo_index), pointer :: global_dof_id(:)
+    integer(i_def), pointer :: dofmap(:,:)
+    integer(i_def)          :: ncells_2d_with_ghost
 
-    global_dof_id => self%global_dof_id(:)
+    dofmap => self%get_whole_dofmap()
+    ncells_2d_with_ghost = self%mesh%get_ncells_2d_with_ghost()
 
-  end function get_global_dof_id
+    ! As the global_dof_id is a very large array, we only allocate and compute
+    ! it when it is needed
+    allocate(global_dof_id(self%ndof_glob * self%ndata))
+    call compute_global_dof_ids(                                               &
+            self%mesh, self%fs, self%element_order_h, self%element_order_v,    &
+            self%ndata, ncells_2d_with_ghost, self%ndof_cell, dofmap,          &
+            self%dof_cell_owner, self%dof_column_height, global_dof_id         &
+    )
+
+  end subroutine get_global_dof_id
 
   !-----------------------------------------------------------------------------
   ! Gets the array that holds the global indices of cell dofs in 2D
@@ -1211,11 +1207,13 @@ contains
 
     implicit none
 
-    class(function_space_type), intent(in) :: self
+    class(function_space_type),  intent(in)    :: self
+    integer(i_def), allocatable, intent(inout) :: global_cell_dof_id_2d(:)
 
-    integer(i_def), intent(out) :: global_cell_dof_id_2d(:)
-
-    global_cell_dof_id_2d(:) = self%global_cell_dof_id_2d(:)
+    allocate(global_cell_dof_id_2d(self%mesh%get_last_edge_cell() * self%ndata))
+    call compute_global_cell_dof_id_2d(                                        &
+            self%mesh, self%ndata, global_cell_dof_id_2d                       &
+    )
 
   end subroutine get_global_cell_dof_id_2d
 
@@ -1227,11 +1225,22 @@ contains
 
     implicit none
 
-    class(function_space_type), intent(in) :: self
+    class(function_space_type),  intent(in)    :: self
+    integer(i_def), allocatable, intent(inout) :: global_edge_dof_id_2d(:)
 
-    integer(i_def), intent(out) :: global_edge_dof_id_2d(:)
+    integer(i_def), pointer :: dofmap(:,:)
+    integer(i_def)          :: ncells_2d_with_ghost
 
-    global_edge_dof_id_2d(:) = self%global_edge_dof_id_2d(:)
+    dofmap => self%get_whole_dofmap()
+    ncells_2d_with_ghost = self%mesh%get_ncells_2d_with_ghost()
+
+    allocate(global_edge_dof_id_2d(self%mesh%get_num_edges_owned_2d() * self%ndata))
+    call compute_global_edge_dof_id_2d(                                        &
+            self%mesh, self%fs, self%ndata, self%mesh%get_nlayers(),           &
+            dofmap, self%ndof_cell, ncells_2d_with_ghost,                      &
+            self%element_order_h, self%element_order_v,                        &
+            global_edge_dof_id_2d                                              &
+    )
 
   end subroutine get_global_edge_dof_id_2d
 
@@ -1243,11 +1252,22 @@ contains
 
     implicit none
 
-    class(function_space_type), intent(in) :: self
+    class(function_space_type),  intent(in)    :: self
+    integer(i_def), allocatable, intent(inout) :: global_vert_dof_id_2d(:)
 
-    integer(i_def), intent(out) :: global_vert_dof_id_2d(:)
+    integer(i_def), pointer :: dofmap(:,:)
+    integer(i_def)          :: ncells_2d_with_ghost
 
-    global_vert_dof_id_2d(:) = self%global_vert_dof_id_2d(:)
+    dofmap => self%get_whole_dofmap()
+    ncells_2d_with_ghost = self%mesh%get_ncells_2d_with_ghost()
+
+    allocate(global_vert_dof_id_2d(self%mesh%get_num_verts_owned_2d() * self%ndata))
+    call compute_global_vert_dof_id_2d(                                        &
+            self%mesh, self%fs, self%ndata, self%mesh%get_nlayers(),           &
+            dofmap, self%ndof_cell, ncells_2d_with_ghost,                      &
+            self%element_order_h, self%element_order_v,                        &
+            global_vert_dof_id_2d                                              &
+    )
 
   end subroutine get_global_vert_dof_id_2d
 
@@ -1549,17 +1569,13 @@ contains
     if (allocated(self%basis_vector))     deallocate(self%basis_vector)
     if (allocated(self%basis_x))          deallocate(self%basis_x)
     if (allocated(self%basis_z))          deallocate(self%basis_z)
-    if (allocated(self%global_dof_id))    deallocate(self%global_dof_id)
-    if (allocated(self%global_cell_dof_id_2d))  &
-                                          deallocate(self%global_cell_dof_id_2d)
-    if (allocated(self%global_edge_dof_id_2d))  &
-                                          deallocate(self%global_edge_dof_id_2d)
-    if (allocated(self%global_vert_dof_id_2d))  &
-                                          deallocate(self%global_vert_dof_id_2d)
     if (allocated(self%last_dof_halo))    deallocate(self%last_dof_halo)
     if (allocated(self%fractional_levels))deallocate(self%fractional_levels)
     if (allocated(self%dof_on_vert_boundary))   &
                                           deallocate(self%dof_on_vert_boundary)
+    if (allocated(self%dof_cell_owner))   deallocate(self%dof_cell_owner)
+    if (allocated(self%dof_column_height))      &
+                                          deallocate(self%dof_column_height)
 
     call self%master_dofmap%clear()
     call self%dofmap_list%clear()

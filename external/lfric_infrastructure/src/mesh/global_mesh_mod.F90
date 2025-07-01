@@ -1675,16 +1675,19 @@ contains
 
     class (global_mesh_type), intent(inout) :: self
 
-    if (allocated(self%vert_coords))       deallocate( self%vert_coords )
-    if (allocated(self%cell_next_2d))      deallocate( self%cell_next_2d )
-    if (allocated(self%vert_on_cell_2d))   deallocate( self%vert_on_cell_2d )
-    if (allocated(self%vert_on_edge_2d))   deallocate( self%vert_on_edge_2d )
-    if (allocated(self%cell_on_vert_2d))   deallocate( self%cell_on_vert_2d )
-    if (allocated(self%edge_on_cell_2d))   deallocate( self%edge_on_cell_2d )
-    if (allocated(self%cell_on_edge_2d))   deallocate( self%cell_on_edge_2d )
-    if (allocated(self%vert_cell_owner))   deallocate( self%vert_cell_owner )
-    if (allocated(self%edge_cell_owner))   deallocate( self%edge_cell_owner )
-    if (allocated(self%global_mesh_maps))  deallocate( self%global_mesh_maps )
+    if (allocated(self%vert_coords))              deallocate( self%vert_coords )
+    if (allocated(self%cell_next_2d))             deallocate( self%cell_next_2d )
+    if (allocated(self%vert_on_cell_2d))          deallocate( self%vert_on_cell_2d )
+    if (allocated(self%vert_on_edge_2d))          deallocate( self%vert_on_edge_2d )
+    if (allocated(self%cell_on_vert_2d))          deallocate( self%cell_on_vert_2d )
+    if (allocated(self%edge_on_cell_2d))          deallocate( self%edge_on_cell_2d )
+    if (allocated(self%cell_on_edge_2d))          deallocate( self%cell_on_edge_2d )
+    if (allocated(self%vert_cell_owner))          deallocate( self%vert_cell_owner )
+    if (allocated(self%edge_cell_owner))          deallocate( self%edge_cell_owner )
+    if (allocated(self%target_global_mesh_names)) deallocate( self%target_global_mesh_names)
+    if (allocated(self%global_mesh_maps))         call self%global_mesh_maps%clear()
+    if (allocated(self%global_mesh_maps))         deallocate( self%global_mesh_maps )
+    if (allocated(self%cell_coords))              deallocate( self%cell_coords )
 
     return
   end subroutine clear

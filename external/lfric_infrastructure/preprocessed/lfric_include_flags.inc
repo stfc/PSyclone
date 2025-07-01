@@ -58,6 +58,6 @@
 # define $(BUILD_PATH) to point to the build directory.
 
 BUILD_PATH ?= $(LFRIC_PATH)
-DIRS := $(subst $(LFRIC_PATH),,\
-		    $(shell find $(LFRIC_PATH) -type d -print))
+DIRS := $(subst $(LFRIC_PATH)/,,\
+		    $(shell find $(LFRIC_PATH)/* -type d -print))
 LFRIC_INCLUDE_FLAGS ?= $(patsubst %,-I $(BUILD_PATH)/%,$(DIRS))

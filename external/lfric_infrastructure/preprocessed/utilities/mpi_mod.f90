@@ -19,7 +19,7 @@
 !>
 !> Provides access to global reduction functions, all_gather and broadcasts
 !>
-module lfric_mpi_mod
+module mpi_mod
 
   use, intrinsic :: iso_fortran_env, only : int32, real32, real64
 
@@ -31,20 +31,14 @@ module lfric_mpi_mod
 
   private
 
-  public global_mpi, create_comm, destroy_comm, get_lfric_datatype
+  public global_mpi, create_comm, destroy_comm, get_mpi_datatype
 
-  ! When running without MPI, create a dummy object that looks like an MPI_F08
-  ! communicator object
-  type, public :: mpi_comm
-    integer, public :: mpi_val
-  end type
+  type, public :: mpi_type
 
-  type, public :: lfric_mpi_type
     private
+
     !> The mpi communicator
-    type(mpi_comm) :: comm
-    integer :: comm_size
-    integer :: comm_rank
+    integer :: comm=-999, comm_size=-999, comm_rank=-999
     !> Flag marks whether an MPI communicator has been stored
     logical :: comm_set = .false.
 
@@ -73,10 +67,6 @@ module lfric_mpi_mod
                              global_max_real64, &
                              global_max_real32
     procedure, public :: all_gather
-    procedure, public :: broadcast_logical_scalar
-    procedure, public :: broadcast_int32_scalar
-    procedure, public :: broadcast_real64_scalar
-    procedure, public :: broadcast_real32_scalar
     procedure, public :: broadcast_logical_1d
     procedure, public :: broadcast_int32_1d
     procedure, public :: broadcast_real64_1d
@@ -90,56 +80,28 @@ module lfric_mpi_mod
     procedure, public :: broadcast_int32_3d
     procedure, public :: broadcast_real64_3d
     procedure, public :: broadcast_real32_3d
-    generic :: broadcast => broadcast_logical_scalar, &
-                            broadcast_int32_scalar,   &
-                            broadcast_real64_scalar,  &
-                            broadcast_real32_scalar,  &
-                            broadcast_logical_1d,     &
-                            broadcast_int32_1d,       &
-                            broadcast_real64_1d,      &
-                            broadcast_real32_1d,      &
-                            broadcast_str_1d,         &
-                            broadcast_logical_2d,     &
-                            broadcast_int32_2d,       &
-                            broadcast_real64_2d,      &
-                            broadcast_real32_2d,      &
-                            broadcast_logical_3d,     &
-                            broadcast_int32_3d,       &
-                            broadcast_real64_3d,      &
+    generic :: broadcast => broadcast_logical_1d, &
+                            broadcast_int32_1d,   &
+                            broadcast_real64_1d,  &
+                            broadcast_real32_1d,  &
+                            broadcast_str_1d,     &
+                            broadcast_logical_2d, &
+                            broadcast_int32_2d,   &
+                            broadcast_real64_2d,  &
+                            broadcast_real32_2d,  &
+                            broadcast_logical_3d, &
+                            broadcast_int32_3d,   &
+                            broadcast_real64_3d,  &
                             broadcast_real32_3d
     procedure, public :: get_comm_size
     procedure, public :: get_comm_rank
 
-  end type lfric_mpi_type
-
-  ! Define an "LFRic" type that we can pass around that holds a communicator
-  type, public :: lfric_comm_type
-    private
-    type(mpi_comm) :: comm
-  contains
-    procedure, public :: get_comm_mpi_val
-    procedure, public :: set_comm_mpi_val
-  end type
-
-  ! When running without MPI, create a dummy object that looks like an MPI_F08
-  ! datatype object
-  type, public :: mpi_datatype
-    integer, public :: mpi_val
-  end type
-
-  ! Define an "LFRic" type that we can pass around that holds an mpi datatype
-  type, public :: lfric_datatype_type
-    private
-    type(mpi_datatype) :: datatype
-  contains
-    procedure, public :: get_datatype_mpi_val
-    procedure, public :: get_mpi_datatype
-  end type
+  end type mpi_type
 
   !Global MPI object
   !> @todo This needs to be moved out of global scope and into the modeldb
   !>       object, when that object exists
-  type(lfric_mpi_type), target :: global_mpi
+  type(mpi_type), target :: global_mpi
 
 contains
 
@@ -150,11 +112,11 @@ contains
   !>
   subroutine create_comm(out_comm)
     implicit none
-    type(lfric_comm_type), intent(out) :: out_comm
+    integer, intent(out) :: out_comm
     integer :: ierr
 
     ! Don't initialise mpi in non-mpi build.
-    out_comm%comm%mpi_val = 0
+    out_comm = 0
     ierr=0 ! Set local variable to avoid unused variable errors
   end subroutine create_comm
 
@@ -177,18 +139,18 @@ contains
   !> @param fortran_kind A Fortran kind variable
   !> @return mpi_datatype The MPI datatype enumerator associated with the
   !>                      given Fortran type and kind
-  function get_lfric_datatype( fortran_type, fortran_kind ) result(mpi_datatype)
+  function get_mpi_datatype( fortran_type, fortran_kind ) result(mpi_datatype)
     use, intrinsic :: iso_fortran_env, only : real128, real64, real32, &
                                               int64, int32, int16, int8
     implicit none
-    integer,       intent(in) :: fortran_type
-    integer,       intent(in) :: fortran_kind
-    type(lfric_datatype_type) :: mpi_datatype
+    integer, intent(in) :: fortran_type
+    integer, intent(in) :: fortran_kind
+    integer             :: mpi_datatype
 
     ! In a non-mpi build the mpi datatype is meaningless - just return zero
-    mpi_datatype%datatype%mpi_val = 0
+    mpi_datatype = 0
 
-  end function get_lfric_datatype
+  end function get_mpi_datatype
 
   !> Stores the MPI communicator in a private variable, ready for later use.
   !>
@@ -196,12 +158,11 @@ contains
   !>
   subroutine initialise(self, in_comm)
     implicit none
-    class(lfric_mpi_type), intent(inout) :: self
-    type(lfric_comm_type), intent(in)    :: in_comm
+    class(mpi_type), intent(inout) :: self
+    integer,         intent(in)    :: in_comm
     integer :: ierr
 
-    ! Store incoming dummy communicator
-    self%comm = in_comm%comm
+    self%comm = in_comm
     ! Set default values for number of ranks and local rank in non-mpi build
     self%comm_size = 1
     self%comm_rank = 0
@@ -213,7 +174,11 @@ contains
   !>
   subroutine finalise(self)
     implicit none
-    class(lfric_mpi_type), intent(inout) :: self
+    class(mpi_type), intent(inout) :: self
+
+    self%comm = -999
+    self%comm_size = -999
+    self%comm_rank = -999
     self%comm_set = .false.
   end subroutine finalise
 
@@ -222,9 +187,9 @@ contains
   !>
   function get_comm(self) result(communicator)
     implicit none
-    class(lfric_mpi_type), intent(in) :: self
-    type(lfric_comm_type) :: communicator
-    communicator%comm = self%comm
+    class(mpi_type), intent(in) :: self
+    integer :: communicator
+    communicator = self%comm
   end function get_comm
 
   !> Returns whether the MPI communicator has been stored
@@ -232,7 +197,7 @@ contains
   !>
   function is_comm_set(self) result(comm_state)
     implicit none
-    class(lfric_mpi_type), intent(inout) :: self
+    class(mpi_type), intent(inout) :: self
     logical :: comm_state
     comm_state = self%comm_set
   end function is_comm_set
@@ -244,19 +209,15 @@ contains
   !>
   subroutine global_sum_real64(self, l_sum, g_sum)
     implicit none
-    class(lfric_mpi_type), intent(inout) :: self
-    real(real64),          intent(in)    :: l_sum
-    real(real64),          intent(out)   :: g_sum
+    class(mpi_type), intent(inout) :: self
+    real(real64), intent(in)       :: l_sum
+    real(real64), intent(out)      :: g_sum
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! Global sum and local sum are the same thing in a non-mpi build
     g_sum = l_sum
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
 
   end subroutine global_sum_real64
 
@@ -268,19 +229,15 @@ contains
   !>
   subroutine global_sum_real32(self, l_sum, g_sum)
     implicit none
-    class(lfric_mpi_type), intent(inout) :: self
-    real(real32),          intent(in)    :: l_sum
-    real(real32),          intent(out)   :: g_sum
+    class(mpi_type), intent(inout) :: self
+    real(real32), intent(in)       :: l_sum
+    real(real32), intent(out)      :: g_sum
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! Global sum and local sum are the same thing in a non-mpi build
     g_sum = l_sum
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
 
   end subroutine global_sum_real32
 
@@ -292,19 +249,15 @@ contains
   !>
   subroutine global_sum_int32(self, l_sum, g_sum)
     implicit none
-    class(lfric_mpi_type), intent(inout) :: self
-    integer(int32),        intent(in)    :: l_sum
-    integer(int32),        intent(out)   :: g_sum
+    class(mpi_type), intent(inout) :: self
+    integer(int32), intent(in)     :: l_sum
+    integer(int32), intent(out)    :: g_sum
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! Global sum and local sum are the same thing in a non-mpi build
     g_sum = l_sum
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
 
   end subroutine global_sum_int32
 
@@ -316,19 +269,15 @@ contains
   !>
   subroutine global_min_real64(self, l_min, g_min)
     implicit none
-    class(lfric_mpi_type), intent(inout) :: self
-    real(real64),          intent(in)    :: l_min
-    real(real64),          intent(out)   :: g_min
+    class(mpi_type), intent(inout) :: self
+    real(real64), intent(in)       :: l_min
+    real(real64), intent(out)      :: g_min
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! Global minimum and local minimum are the same thing in a non-mpi build
     g_min = l_min
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
 
   end subroutine global_min_real64
 
@@ -339,19 +288,15 @@ contains
   !>
   subroutine global_min_real32(self, l_min, g_min)
     implicit none
-    class(lfric_mpi_type), intent(inout) :: self
-    real(real32),          intent(in)    :: l_min
-    real(real32),          intent(out)   :: g_min
+    class(mpi_type), intent(inout) :: self
+    real(real32), intent(in)       :: l_min
+    real(real32), intent(out)      :: g_min
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! Global minimum and local minimum are the same thing in a non-mpi build
     g_min = l_min
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
 
   end subroutine global_min_real32
 
@@ -363,19 +308,15 @@ contains
   !>
   subroutine global_min_int32(self, l_min, g_min)
     implicit none
-    class(lfric_mpi_type), intent(inout) :: self
-    integer(int32),        intent(in)    :: l_min
-    integer(int32),        intent(out)   :: g_min
+    class(mpi_type), intent(inout) :: self
+    integer(int32), intent(in)     :: l_min
+    integer(int32), intent(out)    :: g_min
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! Global minimum and local minimum are the same thing in a non-mpi build
     g_min = l_min
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
 
   end subroutine global_min_int32
 
@@ -387,19 +328,15 @@ contains
   !>
   subroutine global_max_real64(self, l_max, g_max)
     implicit none
-    class(lfric_mpi_type), intent(inout) :: self
-    real(real64),          intent(in)    :: l_max
-    real(real64),          intent(out)   :: g_max
+    class(mpi_type), intent(inout) :: self
+    real(real64), intent(in)       :: l_max
+    real(real64), intent(out)      :: g_max
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! Global maximum and local maximum are the same thing in a non-mpi build
     g_max = l_max
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
 
   end subroutine global_max_real64
 
@@ -411,19 +348,15 @@ contains
   !>
   subroutine global_max_real32(self, l_max, g_max)
     implicit none
-    class(lfric_mpi_type), intent(inout) :: self
-    real(real32),          intent(in)    :: l_max
-    real(real32),          intent(out)   :: g_max
+    class(mpi_type), intent(inout) :: self
+    real(real32), intent(in)       :: l_max
+    real(real32), intent(out)      :: g_max
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! Global maximum and local maximum are the same thing in a non-mpi build
     g_max = l_max
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
 
   end subroutine global_max_real32
 
@@ -435,19 +368,15 @@ contains
   !>
   subroutine global_max_int32(self, l_max, g_max)
     implicit none
-    class(lfric_mpi_type), intent(inout) :: self
-    integer(int32),        intent(in)    :: l_max
-    integer(int32),        intent(out)   :: g_max
+    class(mpi_type), intent(inout) :: self
+    integer(int32), intent(in)     :: l_max
+    integer(int32), intent(out)    :: g_max
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! Global maximum and local maximum are the same thing in a non-mpi build
     g_max = l_max
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
 
   end subroutine global_max_int32
 
@@ -461,122 +390,18 @@ contains
   !> @param count The number of items in send_buffer
   subroutine all_gather(self, send_buffer, recv_buffer, count)
     implicit none
-    class(lfric_mpi_type), intent(inout) :: self
-    integer(int32),        intent(in)    :: send_buffer(:)
-    integer(int32),        intent(out)   :: recv_buffer(:)
-    integer(int32),        intent(in)    :: count
+    class(mpi_type), intent(inout) :: self
+    integer(int32), intent(in)     :: send_buffer(:)
+    integer(int32), intent(out)    :: recv_buffer(:)
+    integer(int32), intent(in)     :: count
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! Send and recv buffers in a gather are the same thing in a non-mpi build
     recv_buffer = send_buffer
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
   end subroutine all_gather
 
-  !> Broadcasts a logical scalar from the root MPI task to all other
-  !> MPI tasks
-  !>
-  !> @param buffer On the root MPI task, contains the data to broadcast,
-  !>               on other tasks the data from root task will be written to here
-  !> @param root The MPI task from which data will be broadcast
-  subroutine broadcast_logical_scalar(self, buffer, root)
-
-    implicit none
-
-    class(lfric_mpi_type), intent(inout) :: self
-    logical,               intent(inout) :: buffer
-    integer,               intent(in)    :: root
-
-    integer(int32) :: err
-    logical :: buffer_array(1)
-
-    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    err=0
-    buffer_array(1)=.false.
-  end subroutine broadcast_logical_scalar
-
-  !> Broadcasts a 32-bit integer scalar from the root MPI task to all
-  !> other MPI tasks
-  !>
-  !> @param buffer On the root MPI task, contains the data to broadcast,
-  !>               on other tasks the data from root task will be written to here
-  !> @param root The MPI task from which data will be broadcast
-  subroutine broadcast_int32_scalar(self, buffer, root)
-
-    implicit none
-
-    class(lfric_mpi_type), intent(inout) :: self
-    integer(int32),        intent(inout) :: buffer
-    integer,               intent(in)    :: root
-
-    type(lfric_datatype_type) :: lfric_datatype
-    integer :: err
-    integer(int32) :: buffer_array(1)
-
-    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
-    buffer_array(1)=0
-  end subroutine broadcast_int32_scalar
-
-  !> Broadcasts a 64-bit real data scalar from the root MPI task to all
-  !> other MPI tasks.
-  !>
-  !> @param buffer On the root MPI task, contains the data to broadcast,
-  !>               on other tasks the data from root task will be written to here
-  !> @param root The MPI task from which data will be broadcast
-  subroutine broadcast_real64_scalar(self, buffer, root)
-
-    implicit none
-
-    class(lfric_mpi_type), intent(inout) :: self
-    real(real64),          intent(inout) :: buffer
-    integer,               intent(in)    :: root
-
-    type(lfric_datatype_type) :: lfric_datatype
-    integer :: err
-    real(real64) :: buffer_array(1)
-
-    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
-    buffer_array(1)=0.0_real64
-  end subroutine broadcast_real64_scalar
-
-  !> Broadcasts a 32-bit real data scalar from the root MPI task to all
-  !> other MPI tasks.
-  !>
-  !> @param buffer On the root MPI task, contains the data to broadcast,
-  !>               on other tasks the data from root task will be written to here
-  !> @param root The MPI task from which data will be broadcast
-  subroutine broadcast_real32_scalar(self, buffer, root)
-
-    implicit none
-
-    class(lfric_mpi_type), intent(inout) :: self
-    real(real32),          intent(inout) :: buffer
-    integer,               intent(in)    :: root
-
-    type(lfric_datatype_type) :: lfric_datatype
-    integer :: err
-    real(real32) :: buffer_array(1)
-
-    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
-    buffer_array(1)=0.0_real32
-  end subroutine broadcast_real32_scalar
 
   !> Broadcasts 1d array of logical data from the root MPI task to all other
   !> MPI tasks
@@ -589,17 +414,15 @@ contains
 
     implicit none
 
-    class(lfric_mpi_type), intent(inout) :: self
-    logical,               intent(inout) :: buffer(:)
-    integer,               intent(in)    :: count
-    integer,               intent(in)    :: root
+    class(mpi_type), intent(inout) :: self
+    logical,         intent(inout) :: buffer(:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
 
     integer(int32) :: err
 
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
   end subroutine broadcast_logical_1d
 
   !> Broadcasts 1d array of 32-bit integer data from the root MPI task to all
@@ -613,19 +436,15 @@ contains
 
     implicit none
 
-    class(lfric_mpi_type), intent(inout) :: self
-    integer(int32),        intent(inout) :: buffer(:)
-    integer,               intent(in)    :: count
-    integer,               intent(in)    :: root
+    class(mpi_type), intent(inout) :: self
+    integer(int32),  intent(inout) :: buffer(:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
   end subroutine broadcast_int32_1d
 
   !> Broadcasts 1d array of 64-bit real data from the root MPI task to all
@@ -639,19 +458,15 @@ contains
 
     implicit none
 
-    class(lfric_mpi_type), intent(inout) :: self
-    real(real64),          intent(inout) :: buffer(:)
-    integer,               intent(in)    :: count
-    integer,               intent(in)    :: root
+    class(mpi_type), intent(inout) :: self
+    real(real64),    intent(inout) :: buffer(:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
   end subroutine broadcast_real64_1d
 
   !> Broadcasts 1d array of 32-bit real data from the root MPI task to all
@@ -665,19 +480,15 @@ contains
 
     implicit none
 
-    class(lfric_mpi_type), intent(inout) :: self
-    real(real32),          intent(inout) :: buffer(:)
-    integer,               intent(in)    :: count
-    integer,               intent(in)    :: root
+    class(mpi_type), intent(inout) :: self
+    real(real32),    intent(inout) :: buffer(:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
   end subroutine broadcast_real32_1d
 
   !> Broadcasts 1d array of character data from the root MPI task to all other
@@ -691,17 +502,15 @@ contains
 
     implicit none
 
-    class(lfric_mpi_type),  intent(inout) :: self
-    character(len=*),       intent(inout) :: buffer(:)
-    integer,                intent(in)    :: count
-    integer,                intent(in)    :: root
+    class(mpi_type),  intent(inout) :: self
+    character(len=*), intent(inout) :: buffer(:)
+    integer,          intent(in)    :: count
+    integer,          intent(in)    :: root
 
     integer :: err
 
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
   end subroutine broadcast_str_1d
 
   !> Broadcasts 2d array of logical data from the root MPI task to all other
@@ -715,17 +524,15 @@ contains
 
     implicit none
 
-    class(lfric_mpi_type), intent(inout) :: self
-    logical,               intent(inout) :: buffer(:,:)
-    integer,               intent(in)    :: count
-    integer,               intent(in)    :: root
+    class(mpi_type), intent(inout) :: self
+    logical,         intent(inout) :: buffer(:,:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
 
     integer :: err
 
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
   end subroutine broadcast_logical_2d
 
   !> Broadcasts 2d array of 32-bit integer data from the root MPI task to all
@@ -739,19 +546,15 @@ contains
 
     implicit none
 
-    class(lfric_mpi_type), intent(inout) :: self
-    integer(int32),        intent(inout) :: buffer(:,:)
-    integer,               intent(in)    :: count
-    integer,               intent(in)    :: root
+    class(mpi_type), intent(inout) :: self
+    integer(int32),  intent(inout) :: buffer(:,:)
+    integer, intent(in)            :: count
+    integer, intent(in)            :: root
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
   end subroutine broadcast_int32_2d
 
   !> Broadcasts 2d array of 64-bit real data from the root MPI task to all
@@ -765,19 +568,15 @@ contains
 
     implicit none
 
-    class(lfric_mpi_type), intent(inout) :: self
-    real(real64),          intent(inout) :: buffer(:,:)
-    integer,               intent(in)    :: count
-    integer,               intent(in)    :: root
+    class(mpi_type), intent(inout) :: self
+    real(real64),    intent(inout) :: buffer(:,:)
+    integer, intent(in)            :: count
+    integer, intent(in)            :: root
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
   end subroutine broadcast_real64_2d
 
   !> Broadcasts 2d array of 32-bit real data from the root MPI task to all
@@ -791,19 +590,15 @@ contains
 
     implicit none
 
-    class(lfric_mpi_type), intent(inout) :: self
-    real(real32),          intent(inout) :: buffer(:,:)
-    integer,               intent(in)    :: count
-    integer,               intent(in)    :: root
+    class(mpi_type), intent(inout) :: self
+    real(real32),    intent(inout) :: buffer(:,:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
   end subroutine broadcast_real32_2d
 
   !> Broadcasts 3d array of logical data from the root MPI task to all other
@@ -817,17 +612,15 @@ contains
 
     implicit none
 
-    class(lfric_mpi_type), intent(inout) :: self
-    logical,               intent(inout) :: buffer(:,:,:)
-    integer,               intent(in)    :: count
-    integer,               intent(in)    :: root
+    class(mpi_type), intent(inout) :: self
+    logical,         intent(inout) :: buffer(:,:,:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
 
     integer :: err
 
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
   end subroutine broadcast_logical_3d
 
   !> Broadcasts 3d array of 32-bit integer data from the root MPI task to all
@@ -841,19 +634,15 @@ contains
 
     implicit none
 
-    class(lfric_mpi_type), intent(inout) :: self
-    integer(int32),        intent(inout) :: buffer(:,:,:)
-    integer,               intent(in)    :: count
-    integer,               intent(in)    :: root
+    class(mpi_type), intent(inout) :: self
+    integer(int32),  intent(inout) :: buffer(:,:,:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer(int32) :: err
 
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
   end subroutine broadcast_int32_3d
 
   !> Broadcasts 3d array of 64-bit real data from the root MPI task to all
@@ -867,19 +656,15 @@ contains
 
     implicit none
 
-    class(lfric_mpi_type), intent(inout) :: self
-    real(real64),          intent(inout) :: buffer(:,:,:)
-    integer,               intent(in)    :: count
-    integer,               intent(in)    :: root
+    class(mpi_type), intent(inout) :: self
+    real(real64),    intent(inout) :: buffer(:,:,:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
   end subroutine broadcast_real64_3d
 
   !> Broadcasts 3d array of 32-bit real data from the root MPI task to all
@@ -893,19 +678,15 @@ contains
 
     implicit none
 
-    class(lfric_mpi_type), intent(inout) :: self
-    real(real32),          intent(inout) :: buffer(:,:,:)
-    integer,               intent(in)    :: count
-    integer,               intent(in)    :: root
+    class(mpi_type), intent(inout) :: self
+    real(real32),    intent(inout) :: buffer(:,:,:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
 
-    type(lfric_datatype_type) :: lfric_datatype
     integer :: err
 
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
-
-    ! Set local variables to avoid unused variable errors
-    lfric_datatype%datatype%mpi_val = 0
-    err=0
+    err=0 ! Set local variable to avoid unused variable errors
   end subroutine broadcast_real32_3d
 
 
@@ -915,7 +696,7 @@ contains
   !> @return c_size The number of MPI ranks in the communicator
   function get_comm_size(self) result(c_size)
     implicit none
-    class(lfric_mpi_type), intent(inout)  :: self
+    class(mpi_type), intent(inout)  :: self
     integer :: c_size
     ! A non-mpi run is serial, therefore, number of ranks has to be one
     c_size = 1
@@ -926,50 +707,10 @@ contains
   !> @return c_size The number of the local MPI rank
   function get_comm_rank(self) result(c_rank)
     implicit none
-    class(lfric_mpi_type), intent(inout)  :: self
+    class(mpi_type), intent(inout)  :: self
     integer :: c_rank
     ! A non-mpi run is serial, therefore, local rank is always rank zero
     c_rank = 0
   end function get_comm_rank
 
-  !> Returns the integer communicator
-  !>
-  !> @return comm The integer component of the communicator
-  function get_comm_mpi_val(self) result(comm)
-    implicit none
-    class(lfric_comm_type), intent(in)  :: self
-    integer :: comm
-    comm = self%comm%mpi_val
-  end function get_comm_mpi_val
-
-  !> Sets the LFRic communicator to point at the given integer communicator
-  !>
-  !> @param comm Integer communicator that the LFRic comm should point at
-  subroutine set_comm_mpi_val(self, comm)
-    implicit none
-    class(lfric_comm_type), intent(inout)  :: self
-    integer, intent(in) :: comm
-    self%comm%mpi_val = comm
-  end subroutine set_comm_mpi_val
-
-  !> Returns the integer datatype
-  !>
-  !> @return datatype The integer component of the datatype
-  function get_datatype_mpi_val(self) result(datatype)
-    implicit none
-    class(lfric_datatype_type), intent(in)  :: self
-    integer :: datatype
-    datatype = self%datatype%mpi_val
-  end function get_datatype_mpi_val
-
-  !> Returns the mpi datatype
-  !>
-  !> @return datatype The integer component of the datatype
-  function get_mpi_datatype(self) result(datatype)
-    implicit none
-    class(lfric_datatype_type), intent(inout)  :: self
-    type(mpi_datatype) :: datatype
-    datatype = self%datatype
-  end function get_mpi_datatype
-
-end module lfric_mpi_mod
+end module mpi_mod

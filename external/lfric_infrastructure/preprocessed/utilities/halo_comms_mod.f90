@@ -297,6 +297,8 @@ subroutine clear(self)
   integer(i_def) :: idepth
 
   ! No finalization step is needed
+  max_depth = 0 ! Set local variables to avoid unused variable errors
+  idepth=0
   if (allocated(self%redist)) deallocate(self%redist)
 end subroutine clear
 

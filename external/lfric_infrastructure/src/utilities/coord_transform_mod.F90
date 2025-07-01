@@ -1168,10 +1168,10 @@ function schmidt_transform_xyz(native_xyz, stretch) result(physical_xyz)
   physical_xyz(3) = radius                                                     &
     * (one - stretch**2 + (one + stretch**2)*native_xyz(3)/radius)             &
     / (one + stretch**2 + (one - stretch**2)*native_xyz(3)/radius)
-  ! Include EPS in radius to avoid divide by zero errors at poles
+  ! Enforce min of EPS in numerator/denominator to avoid divide-by-zero at poles
   psi = sqrt(                                                                  &
-    ((radius + EPS)**2 - physical_xyz(3)**2 + EPS)                             &
-    / ((radius + EPS)**2 - native_xyz(3)**2 + EPS)                             &
+    MAX(radius**2 - physical_xyz(3)**2, EPS)                                   &
+    / MAX(radius**2 - native_xyz(3)**2, EPS)                                   &
   )
 
   physical_xyz(1) = native_xyz(1) * psi
@@ -1210,10 +1210,10 @@ function inverse_schmidt_transform_xyz(physical_xyz, stretch) result(native_xyz)
   native_xyz(3) = radius                                                       &
     * ((one + stretch**2)*physical_xyz(3)/radius - (one - stretch**2))         &
     / (one + stretch**2 - (one - stretch**2)*physical_xyz(3)/radius)
-  ! Include EPS in radius to avoid divide by zero errors at poles
+  ! Enforce min of EPS in numerator/denominator to avoid divide-by-zero at poles
   psi = sqrt(                                                                  &
-    ((radius + EPS)**2 - physical_xyz(3)**2 + EPS)                             &
-    / ((radius + EPS)**2 - native_xyz(3)**2 + EPS)                             &
+    MAX(radius**2 - physical_xyz(3)**2, EPS)                                   &
+    / MAX(radius**2 - native_xyz(3)**2, EPS)                                   &
   )
 
   native_xyz(1) = physical_xyz(1) / psi

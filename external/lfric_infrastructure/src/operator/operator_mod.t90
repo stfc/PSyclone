@@ -153,7 +153,7 @@ contains
   end function operator_{{kind}}_type_deep_copy
 
   !>@brief Destroys the operator type
-  subroutine operator_final(self)
+  pure subroutine operator_final(self)
     implicit none
     class(operator_{{kind}}_type), intent(inout) :: self
     if(allocated(self%local_stencil)) then
@@ -162,7 +162,7 @@ contains
   end subroutine operator_final
 
   !>@brief Finalizer for the object type
-  subroutine operator_{{kind}}_destructor(self)
+  elemental subroutine operator_{{kind}}_destructor(self)
     implicit none
     type(operator_{{kind}}_type), intent(inout) :: self
     call self%destroy_operator_parent()
@@ -170,9 +170,9 @@ contains
   end subroutine operator_{{kind}}_destructor
 
   !>@brief Destroy the operator proxy
-  subroutine operator_{{kind}}_proxy_destructor(self)
+  elemental subroutine operator_{{kind}}_proxy_destructor(self)
     implicit none
-    type(operator_{{kind}}_proxy_type) :: self
+    type(operator_{{kind}}_proxy_type), intent(inout) :: self
     call self%destroy_operator_parent_proxy()
     nullify(self%local_stencil)
   end subroutine operator_{{kind}}_proxy_destructor

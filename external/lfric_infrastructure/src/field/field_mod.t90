@@ -133,9 +133,7 @@ module field_{{kind}}_mod
     procedure         :: field_final
 
     !> Finalizers for scalar and arrays of field_type objects
-    final             :: field_{{kind}}_destructor_scalar, &
-                         field_{{kind}}_destructor_array1d, &
-                         field_{{kind}}_destructor_array2d
+    final             :: field_destructor
 
     !> Override default assignment for field_type pairs.
     generic           :: assignment(=) => field_type_assign
@@ -293,7 +291,7 @@ contains
 
     ! In case the field is already initialised, destruct it ready for
     ! re-initialisation
-    call field_{{kind}}_destructor_scalar(self)
+    call field_destructor(self)
 
     call self%field_parent_initialiser(vector_space, &
                                        name=local_name, &
@@ -453,7 +451,7 @@ contains
   end subroutine field_final
 
   !> Finalizer for a scalar <code>field_type</code> instance.
-  subroutine field_{{kind}}_destructor_scalar(self)
+  impure elemental subroutine field_destructor(self)
 
     implicit none
 
@@ -461,37 +459,7 @@ contains
 
     call self%field_final()
 
-  end subroutine field_{{kind}}_destructor_scalar
-
-  !> Finalizer for a 1d array of <code>field_type</code> instances.
-  subroutine field_{{kind}}_destructor_array1d(self)
-
-    implicit none
-
-    type(field_{{kind}}_type), intent(inout) :: self(:)
-    integer(i_def) :: i
-
-    do i=lbound(self,1), ubound(self,1)
-      call self(i)%field_final()
-    end do
-
-  end subroutine field_{{kind}}_destructor_array1d
-
-  !> Finalizer for a 2d array of <code>field_type</code> instances.
-  subroutine field_{{kind}}_destructor_array2d(self)
-
-    implicit none
-
-    type(field_{{kind}}_type), intent(inout) :: self(:,:)
-    integer(i_def) :: i,j
-
-    do i=lbound(self,1), ubound(self,1)
-      do j=lbound(self,2), ubound(self,2)
-        call self(i,j)%field_final()
-      end do
-    end do
-
-  end subroutine field_{{kind}}_destructor_array2d
+  end subroutine field_destructor
 
   !> Setter for field write behaviour
   !> @param[in,out]  self  field_type

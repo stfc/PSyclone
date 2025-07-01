@@ -122,14 +122,14 @@ function get_halo_routing( self,            &
   integer(i_def), intent(in) :: halo_depth
 
   type(function_space_type), pointer :: function_space
-  integer(i_halo_index), pointer :: global_dof_id(:)
+  integer(i_halo_index), allocatable :: global_dof_id(:)
   integer(i_def), allocatable :: halo_start(:)
   integer(i_def), allocatable :: halo_finish(:)
   integer(i_def) :: idepth
   integer(i_def) :: last_owned_dof
   integer(i_def) :: mesh_id
 
-  nullify( function_space, global_dof_id )
+  nullify( function_space )
 
   halo_routing => get_halo_routing_from_list( self,            &
                                               mesh,            &
@@ -143,7 +143,7 @@ function get_halo_routing( self,            &
 
   if (.not. associated(halo_routing)) then
 
-    !Get indices of owned and halo cells
+    ! Get indices of owned and halo cells
     function_space => function_space_collection%get_fs( mesh,            &
                                                         element_order_h, &
                                                         element_order_v, &
@@ -153,7 +153,7 @@ function get_halo_routing( self,            &
     last_owned_dof = function_space%get_last_dof_owned()
 
     ! Set up the global dof index array
-    global_dof_id => function_space%get_global_dof_id()
+    call function_space%get_global_dof_id(global_dof_id)
 
     ! Set up the boundaries of the different depths of halo
     allocate( halo_start(halo_depth) )
@@ -187,7 +187,7 @@ function get_halo_routing( self,            &
                                                                 fortran_type,    &
                                                                 fortran_kind,    &
                                                                 halo_depth ) )
-    deallocate( halo_start, halo_finish )
+    deallocate( halo_start, halo_finish, global_dof_id )
 
     halo_routing => get_halo_routing_from_list( self,            &
                                                 mesh,            &

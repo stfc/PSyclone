@@ -161,7 +161,7 @@ contains
   end function is_initialised
 
   ! Destroy an operator_parent_type instance.
-  subroutine destroy_operator_parent(self)
+  pure subroutine destroy_operator_parent(self)
     implicit none
     class(operator_parent_type), intent(inout) :: self
     nullify( self%fs_to )
@@ -170,7 +170,7 @@ contains
   end subroutine destroy_operator_parent
 
   ! Destroy an operator_parent_type instance.
-  subroutine destroy_operator_parent_proxy(self)
+  pure subroutine destroy_operator_parent_proxy(self)
     implicit none
     class(operator_parent_proxy_type), intent(inout) :: self
     nullify( self%fs_to )

@@ -93,18 +93,19 @@ contains
   !> @param[in] communicator MPI communicator to operate in.
   !> @param[in] file_name Appears in output filename.
   !> @param[in] trace_on_warnings Output a backtrace on warnings.
-  !> @param[in] log_file_one_rank_only Rank number of single MPI rank to log.
+  !> @param[in] log_to_rank_zero_only Only log to rank zero.
   !>
   subroutine initialise_logging( communicator, &
                                  file_name,    &
                                  trace_on_warnings, &
-                                 sole_log_file_rank_number)
+                                 log_to_rank_zero_only)
+
     implicit none
 
     integer(i_def),           intent(in) :: communicator
     character(*),             intent(in) :: file_name
     logical, optional,        intent(in) :: trace_on_warnings
-    integer(i_def), optional, intent(in) :: sole_log_file_rank_number
+    logical, optional,        intent(in) :: log_to_rank_zero_only
 
     ! The logging is running with no MPI communications
     ! If no MPI then default behaviour is the only behaviour: do emit log
