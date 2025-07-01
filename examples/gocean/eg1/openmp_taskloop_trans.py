@@ -43,6 +43,7 @@ from psyclone.psyir.nodes import Loop
 from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
 from psyclone.psyir.transformations import OMPTaskloopTrans, OMPTaskwaitTrans
 
+
 def trans(psyir):
     '''
     Transformation routine for use with PSyclone. Applies the OpenMP
