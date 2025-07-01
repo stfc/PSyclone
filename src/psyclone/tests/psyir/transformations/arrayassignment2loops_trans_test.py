@@ -726,16 +726,27 @@ def test_validate_non_elemental_functions(fortran_reader):
     assignment3 = psyir.walk(Assignment)[3]
     assignment4 = psyir.walk(Assignment)[4]
 
-    # matmul and mylocalfunc are known to be non-elemental
-    trans.validate(assignment1, options={"verbose": True})
-    trans.validate(assignment2, options={"verbose": True})
+    # When we know for sure that they are not elemental
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignment1, options={"verbose": True})
+    errormsg = ("ArrayAssignment2LoopsTrans does not accept calls which are "
+                "not guaranteed to be elemental, but found: MATMUL")
+    assert errormsg in assignment1.preceding_comment
+    assert errormsg in str(err.value)
 
-    # The next two cases are not-known
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignment2, options={"verbose": True})
+    errormsg = ("ArrayAssignment2LoopsTrans does not accept calls which are "
+                "not guaranteed to be elemental, but found: mylocalfunc")
+    assert errormsg in assignment2.preceding_comment
+    assert errormsg in str(err.value)
+
+    # Also, when calls are to unresolved symbols and we don't know if they
+    # are elemental or not
     with pytest.raises(TransformationError) as err:
         trans.validate(assignment3, options={"verbose": True})
-    errormsg = ("ArrayAssignment2LoopsTrans does not accept calls to symbols "
-                "not guaranteed to be arrays or elemental functions, but "
-                "found: myfunc")
+    errormsg = ("ArrayAssignment2LoopsTrans does not accept calls which are "
+                "not guaranteed to be elemental, but found: myfunc")
     assert errormsg in assignment3.preceding_comment
     assert errormsg in str(err.value)
 
@@ -794,9 +805,9 @@ def test_validate_indirect_indexing(fortran_reader):
             "cannot be guaranteed" in str(err.value))
     with pytest.raises(TransformationError) as err:
         trans.validate(assignments[3])
-    assert ("ArrayAssignment2LoopsTrans does not accept calls to symbols not "
-            "guaranteed to be arrays or elemental functions, but found: "
-            "my_func in:\nishtsi(5:,jf)" in str(err.value))
+    assert ("ArrayAssignment2LoopsTrans does not accept calls which are not "
+            "guaranteed to be elemental, but found: my_func"
+            in str(err.value))
 
 
 def test_validate_structure(fortran_reader):
@@ -807,6 +818,7 @@ def test_validate_structure(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_source('''
     program test
+      use other
       integer, parameter :: ngrids = 4, kfld=5
       integer, dimension(8,kfld)  :: ishtSi
       type :: sub_grid_type
@@ -817,27 +829,39 @@ def test_validate_structure(fortran_reader):
         type(sub_grid_type), dimension(ngrids) :: subgrid
       end type grid_type
       type(grid_type) :: grid
+      type(unresolved_type) :: grid1
       integer :: jf
-      ! Cannot tell whether or not the access on the RHS is an array.
-      ishtSi(5:8,jf) = grid%data(my_func(1), jf)
-      ! The array access to subgrid is not yet supported.
+      ! This is an array
+      ishtSi(5:8,jf) = grid%data(1, jf)
+      ! This is an array
       ishtSi(5:8,jf) = grid%subgrid%map(1,1)
+      ! This is an array
+      ishtSi(5:8,jf) = grid1%data(1, jf)
+      ! This is an array
+      ishtSi(5:8,jf) = grid1%subgrid%map(1,1)
     end program test
     ''')
     assignments = psyir.walk(Assignment)
     trans = ArrayAssignment2LoopsTrans()
-    with pytest.raises(TransformationError) as err:
-        trans.validate(assignments[0])
-    assert ("ArrayAssignment2LoopsTrans does not accept calls to symbols "
-            "not guaranteed to be arrays or elemental functions, but found:"
-            " my_func" in str(err.value))
-    # TODO #1858 - once we've extended Reference2ArrayRangeTrans to support
-    # StructureMembers we can use it as part of this transformation and this
-    # example will be supported.
+    # We know the type of these, so they can be validated
+    trans.validate(assignments[0])
     trans.validate(assignments[1])
 
+    # We don't know the type of these
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignments[2])
+    assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
+            "contains the access 'grid1%data(1,jf)' which is an UnresolvedType"
+            " and therefore cannot be guaranteed to be ScalarType"
+            in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignments[3])
+    assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
+            "contains the access 'grid1%subgrid%map(1,1)' which is an "
+            "UnresolvedType and therefore cannot be guaranteed to be "
+            "ScalarType" in str(err.value))
 
-@pytest.mark.xfail(reason="??")
+
 def test_shape_intrinsic(fortran_reader):
     '''
     Check the validation of the transformation when it has a call to an inquiry

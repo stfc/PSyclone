@@ -301,10 +301,10 @@ class ArrayAssignment2LoopsTrans(Transformation):
                 name = call.intrinsic.name
             else:
                 name = call.routine.symbol.name
-            if call.is_elemental is None:
-                message = (f"{self.name} does not accept calls to symbols"
-                           f" not guaranteed to be arrays or elemental"
-                           f" functions, but found: {name}")
+            if not call.is_elemental:
+                message = (f"{self.name} does not accept calls which are not"
+                           f" guaranteed to be elemental, but found: "
+                           f"{name}")
                 if verbose:
                     node.append_preceding_comment(message)
                 # pylint: disable=cell-var-from-loop
