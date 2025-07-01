@@ -143,7 +143,8 @@ endef
 $(foreach dir,$(DIRS),$(eval $(call compile_rule_template,$(dir))))
 
 clean:
-	rm -f */*.o */*.mod
+	find . -iname "*.o" -exec rm '{}' \;
+	find . -iname "*.mod" -exec rm '{}' \;
 	rm -f liblfric.a liblfric_netcdf.a
 
 allclean: clean

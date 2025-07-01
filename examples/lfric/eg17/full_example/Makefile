@@ -51,8 +51,11 @@ OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 
 EXEC = example
 LFRIC_PATH = ../../../../external/lfric_infrastructure/preprocessed
-LFRIC_NAME=lfric
+
+# TODO: standalone compilation is not yet supported, so use the NetCDF version.
+LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
+LDFLAGS=$$(nf-config --flibs)
 
 # This sets up LFRIC_INCLUDE_FLAGS
 include $(LFRIC_PATH)/lfric_include_flags.inc
@@ -63,10 +66,11 @@ run: compile
 compile: transform $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) $(F90FLAGS)
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) \
+	-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS)
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) netcdf
+	$(MAKE) -C $(LFRIC_PATH) -f ../Makefile netcdf
 
 # Dependencies
 main_psy.o:	testkern_w0_kernel_mod.o
