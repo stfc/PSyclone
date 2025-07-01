@@ -68,6 +68,7 @@ def test_call_init():
     assert len(call.arguments) == 0
     assert call.is_elemental is None
     assert call.is_pure is None
+    assert call.symbol is None
 
     # Initialise with parent and add routine and argument children
     parent = Schedule()
@@ -76,6 +77,7 @@ def test_call_init():
     call.addchild(Reference(routine))
     call.addchild(Literal('3', INTEGER_TYPE))
     assert call.routine.symbol is routine
+    assert call.symbol is routine
     assert call.parent is parent
     assert call.arguments == (Literal('3', INTEGER_TYPE),)
 
