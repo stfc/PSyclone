@@ -51,6 +51,9 @@ echo Copying source files
 # therefore identical between all potential preprocessed directories)
 cp -r $source/infrastructure/source  $ROOT_DIR/src
 
+# Add svn info to the source directory
+svn info $source >$ROOT_DIR/src/svn_info
+
 PPFLAGS="-DNO_MPI -DRDEF_PRECISION=64 -DR_SOLVER_PRECISION=64  \
         -DR_TRAN_PRECISION=64 -DR_BL_PRECISION=64"
 
@@ -66,6 +69,9 @@ echo Preprocessing files
 # all required directories and files
 preprocessed=$ROOT_DIR/preprocessed
 mkdir -p $preprocessed
+
+# Add svn info to the preprocessed directory
+svn info $source >$preprocessed/svn_info
 
 CPP=${CPP:-cpp}
 # Preprocess all files - iname will cause f90 and F90 to be returned
@@ -102,7 +108,6 @@ for template in $all_templates; do
 	done
 done
 
-echo Creating dependencies
 # Create all the dependencies using the fparser script (of which
 # we have a copy in PSyclone):
 # Preprocess all files
@@ -113,11 +118,13 @@ for i in $(find $preprocessed -iname "*.f90"); do
     all_files="$all_files $(realpath -s --relative-to=$preprocessed $i)"
 done
 
+echo "Creating dependencies for $(echo $all_files | wc -w) files"
 ../create_dependencies.py $all_files  >dependency
 
 # Copy the makefile include file that defines the required include flags:
 cp ../lfric_include_flags.inc .
 
-make -f ../Makefile netcdf
+echo Compiling infrastructure library
+make -f ../Makefile netcdf -j 4
 
 popd
