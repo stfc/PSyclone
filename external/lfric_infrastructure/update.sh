@@ -38,7 +38,6 @@ fi
 # Get the root dir of this script, which is in external/lfric_infrastructure
 ROOT_DIR=$( cd -- "$( dirname -- "$(readlink -f ${BASH_SOURCE[0]})" )" &> /dev/null && pwd )
 
-
 if [[ -d ./src ]]; then
 	rm -rf src.backup
 	mv src src.backup
@@ -50,6 +49,13 @@ echo Copying source files
 # since always all files in preprocessed will come from src (and are
 # therefore identical between all potential preprocessed directories)
 cp -r $source/infrastructure/source  $ROOT_DIR/src
+
+# The LFRic infrastructure needs a lot of global collections. There is a
+# separate function that initialises them all. Using it reduces code and
+# should make our example more robust to changes in the LFRic infrastructure.
+# So copy that one file from the components directory and add it to the build.
+mkdir $ROOT_DIR/src/components
+cp $source/components/driver/source/driver_collections_mod.f90 $ROOT_DIR/src/components
 
 # Add svn info to the source directory
 svn info $source >$ROOT_DIR/src/svn_info
