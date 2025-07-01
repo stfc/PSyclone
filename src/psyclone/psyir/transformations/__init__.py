@@ -114,6 +114,8 @@ from psyclone.psyir.transformations.scalarisation_trans import \
     ScalarisationTrans
 from psyclone.psyir.transformations.parallel_region_trans import \
     ParallelRegionTrans
+from psyclone.psyir.transformations.omp_taskloop_trans import \
+    OMPTaskloopTrans
 
 # For AutoAPI documentation generation
 __all__ = [
