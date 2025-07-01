@@ -45,9 +45,10 @@ if [[ -d ./src ]]; then
 fi
 
 echo Copying source files
-# First create a copy of the original source files. This will make
-# it easier to pre-process the files with different settings if required,
-# since always all files in preprocessed will come from src
+# First create a copy of the original source files. This will allow us
+# to pre-process the files with different settings if required,
+# since always all files in preprocessed will come from src (and are
+# therefore identical between all potential preprocessed directories)
 cp -r $source/infrastructure/source  $ROOT_DIR/src
 
 PPFLAGS="-DNO_MPI -DRDEF_PRECISION=64 -DR_SOLVER_PRECISION=64  \
@@ -57,25 +58,26 @@ PPFLAGS="-DNO_MPI -DRDEF_PRECISION=64 -DR_SOLVER_PRECISION=64  \
 # compiler-specific traceback, and in case of NVIDIA to avoid some runtime
 # issues in namelist_mod. Since none of this is important for PSyclone's
 # compilation tests (we don't read namelist files, nor do we even execute
-# most of the programs)
+# most of the programs), this is for now ignored.
+
+echo Preprocessing files
 
 # We preprocess ALL files, even .f90 - this way we have one loop to create
 # all required directories and files
-source_pp=$ROOT_DIR/preprocessed
-mkdir -p $source_pp
+preprocessed=$ROOT_DIR/preprocessed
+mkdir -p $preprocessed
 
 CPP=${CPP:-cpp}
 # Preprocess all files - iname will cause f90 and F90 to be returned
 all_files=$(find $ROOT_DIR/src -iname "*.f90")
 
-echo Preprocessing files
 for file in $all_files; do
 	# Convert the absolute name to a relative name
 	rel_name=${file##$ROOT_DIR/src/}
 	rel_path=$(dirname $rel_name)
 	# Convert F90 to f90:
-	out_file=$source_pp/${rel_name%.*}.f90
-	mkdir -p $source_pp/$rel_path
+	out_file=$preprocessed/${rel_name%.*}.f90
+	mkdir -p $preprocessed/$rel_path
 	# Single apostrophes (e.g. in "and Queen's Printer") create a
 	# preprocessor warning. Ignore these warnings
 	cpp -traditional-cpp -P $PPFLAGS $file >$out_file  2>/dev/null
@@ -94,7 +96,7 @@ for template in $all_templates; do
 			type="integer"
 		fi
 		args="-s kind=$kind -s type=$type"
-		out_file=$source_pp/${rel_name%_mod.t90}_${kind}_mod.f90
+		out_file=$preprocessed/${rel_name%_mod.t90}_${kind}_mod.f90
 		echo $template
  		$source/infrastructure/build/tools/Templaterator $args $template -o $out_file
 	done
@@ -107,13 +109,15 @@ echo Creating dependencies
 pushd preprocessed
 
 all_files=""
-for i in $(find $source_pp -iname "*.f90"); do
-    all_files="$all_files $(realpath -s --relative-to=$source_pp $i)"
+for i in $(find $preprocessed -iname "*.f90"); do
+    all_files="$all_files $(realpath -s --relative-to=$preprocessed $i)"
 done
-echo $all_files
-
-#all_files=$(find $source_pp -iname "*.f90")
 
 ../create_dependencies.py $all_files  >dependency
-#../create_dependencies.py  */*.f90 >dependency
 
+# Copy the makefile include file that defines the required include flags:
+cp ../lfric_include_flags.inc .
+
+make -f ../Makefile netcdf
+
+popd

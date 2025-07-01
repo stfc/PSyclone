@@ -37,13 +37,13 @@
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
-
+PRE_DIR = preprocessed
 # MAKEFILE_LIST is a Gnu-make variable that contains all of the
 # arguments passed to the first invocation of Make. The last entry
 # in this list is the current file.
 this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 # PSyclone directory is up two from this file
-LFRIC_PATH := $(dir $(this_file))
+LFRIC_PATH := $(dir $(this_file))/$(PRE_DIR)
 
 # $(LFRIC_PATH) is the location of the source files. Define
 # $(BUILD_DIR) to point to the build directory, which the include
@@ -55,25 +55,32 @@ include $(LFRIC_PATH)/lfric_include_flags.inc
 
 # Since the repo includes the pre-processed files (.f90), we only
 # need to search for those here.
-ALL_SRC := $(subst $(LFRIC_PATH),,\
+ALL_SRC := $(subst $(LFRIC_PATH)/,,\
 		    $(shell find $(LFRIC_PATH) -name '*.f90' -print))
 ALL_OBJ = $(subst .F90,.o,$(subst .f90,.o,$(ALL_SRC)))
 
 # Additional object files required for netcdf support
-OBJ_NETCDF = mesh/global_mesh_netcdf_mod.o io/ugrid_2d_mod.o     \
-	io/ugrid_file_mod.o io/file_mod.o io/ugrid_generator_mod.o \
-	io/ncdf_quad_mod.o
+# TODO: atm compiling without NetCDF is not supported.
+OBJ_NETCDF = io/file_mod.o io/ugrid_generator_mod.o           \
+	io/ncdf_quad_mod.o io/lfric_ncdf_field_group_mod.o        \
+	io/lfric_ncdf_dims_mod.o io/lfric_ncdf_file_mod.o         \
+	io/lfric_ncdf_field_mod.o mesh/ugrid_mesh_data_mod.o      \
+	io/ncdf_quad_mod.o io/ugrid_2d_mod.o  io/ugrid_file_mod.o
 
 # We need to remove the objects only required for NetCDF from the
 # list of all objects (since we don't want to require NetCDF for
 # most compilation tests):
 OBJ := $(filter-out $(OBJ_NETCDF),$(ALL_OBJ))
 
-.PHONY: standalone netcdf dirs get_include_flags preprocess
+.PHONY: default netcdf dirs get_include_flags preprocess
 
+default: netcdf
+
+# TODO: Compiling without NetCDF does not work yet
+# .PHONY: standalone
 # Standalone target, no netcdf dependency:
 # ----------------------------------------
-standalone: liblfric.a
+#standalone: liblfric.a
 
 liblfric.a: dirs $(OBJ)
 	$(AR) $(ARFLAGS) $@ $(OBJ)
@@ -123,14 +130,11 @@ include $(LFRIC_PATH)/dependency
 # .mod files, this changes into the directory where the .o files should
 # be stored. This avoids the hassle of handling compiler specific flags.
 # An example for the rule created:
-# field/%.o: $(INFRASTRUCTURE)/field/%.f90
+# field/%.o: $(LFRIC_PATH)/field/%.f90
 #     cd field; $(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $< -o $(notdir $@)
 
 define compile_rule_template =
-$(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.f90 dirs
-	cd $(1); $$(F90) $$(F90FLAGS) $$(LFRIC_INCLUDE_FLAGS) -c $$< -o $$(notdir $$@)
-
-$(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.F90 dirs
+$(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.f90
 	cd $(1); $$(F90) $$(F90FLAGS) $$(LFRIC_INCLUDE_FLAGS) -c $$< -o $$(notdir $$@)
 endef
 
