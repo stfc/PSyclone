@@ -498,8 +498,6 @@ def insert_explicit_loop_parallelism(
             # This loop cannot be transformed, proceed to next loop.
             # The parallelisation restrictions will be explained with a comment
             # associted to the loop in the generated output.
-            if not loop.preceding_comment:
-                loop.append_preceding_comment(str(err.value))
             continue
 
 
@@ -559,9 +557,10 @@ def add_profile_region(nodes):
                 # of a single statement
                 return
             if isinstance(nodes[0], IfBlock) and \
-               "was_single_stmt" in nodes[0].annotations:
+               "was_single_stmt" in nodes[0].annotations and \
+               isinstance(nodes[0].if_body[0], CodeBlock):
                 # We also don't put single statements consisting of
-                # 'IF(condition) statement' inside profiling regions
+                # 'IF(condition) CALL blah()' inside profiling regions
                 return
         try:
             ProfileTrans().apply(nodes)

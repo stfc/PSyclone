@@ -689,9 +689,11 @@ UBOUND(c, dim=1) /= var + 5) then
         end if
         ALLOCATE(c(var - 5:var + 5))
       end if
+
       ! PSyclone warning: HoistLocalArraysTrans found an ALLOCATE with \
 alloc-options, this is not supported
       ALLOCATE(d(1:10), MOLD=arg)
+
       ! PSyclone warning: HoistLocalArraysTrans found more than one ALLOCATE \
 for this variable, but currently it just supports cases with single allocations
       ALLOCATE(e(1:10))
