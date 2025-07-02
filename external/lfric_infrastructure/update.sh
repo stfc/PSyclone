@@ -56,6 +56,8 @@ cp -r $source/infrastructure/source  $ROOT_DIR/src
 # So copy that one file from the components directory and add it to the build.
 mkdir $ROOT_DIR/src/components
 cp $source/components/driver/source/driver_collections_mod.f90 $ROOT_DIR/src/components
+mkdir $ROOT_DIR/src/apps
+cp $ROOT_DIR/apps/* $ROOT_DIR/src/apps
 
 # Add svn info to the source directory
 svn info $source >$ROOT_DIR/src/svn_info

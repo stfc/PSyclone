@@ -1,4 +1,5 @@
 PSYKE/dino_mod.o: utilities/constants_mod.o
+apps/flux_direction_mod.o: utilities/constants_mod.o
 components/driver_collections_mod.o: field/halo_routing_collection_mod.o \
 	function_space/function_space_collection_mod.o mesh/global_mesh_collection_mod.o \
 	mesh/local_mesh_collection_mod.o mesh/mesh_collection_mod.o
