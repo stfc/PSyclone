@@ -93,11 +93,11 @@ class ArrayReference(ArrayMixin, Reference):
                 raise GenerationError(
                     f"expecting the symbol '{symbol.name}' to be an array, but"
                     f" found '{symbol.datatype}'.")
-        elif len(symbol.shape) != len(indices):
+        elif len(symbol.shape) < len(indices):
             raise GenerationError(
-                f"the symbol '{symbol.name}' should have the same number of "
-                f"dimensions as indices (provided in the 'indices' argument). "
-                f"Expecting '{len(indices)}' but found '{len(symbol.shape)}'.")
+                f"the indices argument has '{len(indices)}' elements, but it "
+                f"must have a number of dimensions less or equal to the shape"
+                f" of '{symbol.name}', which has '{len(symbol.shape)}'.")
 
         array = ArrayReference(symbol)
         for ind, child in enumerate(indices):

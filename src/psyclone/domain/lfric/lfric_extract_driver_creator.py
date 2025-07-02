@@ -602,7 +602,10 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                     print(f"Error finding symbol '{sig_str}' in "
                           f"'{module_name}'.")
             else:
-                orig_sym = original_symbol_table.lookup(signature[0])
+                try:
+                    orig_sym = original_symbol_table.lookup(signature[0])
+                except KeyError:
+                    print(f"Error finding symbol '{signature[0]}'")
 
             if orig_sym and orig_sym.is_array and _sym_is_field(orig_sym):
                 # This is a field vector, so add all individual fields
@@ -1007,7 +1010,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                             if isinstance(symbol, ContainerSymbol))
 
         mod_manager = ModuleManager.get()
-        return mod_manager.get_all_dependencies_recursively(all_mods)
+        return mod_manager.get_all_dependencies_recursively(
+            list(all_mods))
 
     # -------------------------------------------------------------------------
     def get_driver_as_string(self, nodes, read_write_info, prefix, postfix,

@@ -3,10 +3,9 @@
 # @section intro_sec Introduction
 #
 # This is the reference documentation for the PSyclone
-# Domain-Specific Compiler. The
-# [User Guide](https://psyclone.readthedocs.io/en/stable/) and
-# [Developers' Guide](https://psyclone-dev.readthedocs.io/en/stable/) are
-# both available on ReadTheDocs.
+# Domain-Specific Compiler. See the
+# [complete PSyclone documentation](https://psyclone.readthedocs.io/en/latest/)
+# on ReadTheDocs.
 #
 # The PSyclone project itself is hosted on
 # [GitHub](https://github.com/stfc/PSyclone)

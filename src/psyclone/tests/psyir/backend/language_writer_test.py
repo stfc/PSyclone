@@ -37,8 +37,6 @@
 '''Performs pytest tests on the psyclone.psyir.backend.language_writer
 module.'''
 
-from __future__ import absolute_import
-
 import pytest
 
 from psyclone.psyir.backend.language_writer import LanguageWriter

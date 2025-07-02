@@ -391,6 +391,18 @@ def test_symbol_resolve_type(monkeypatch):
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
     assert new_sym.visibility == Symbol.Visibility.PRIVATE
     assert new_sym.is_import
+    # Repeat the test but get_external_symbol() just returns
+    # a new bare Symbol (e.g. because it is a transitive import)
+    bsym = Symbol("b", visibility=Symbol.Visibility.PRIVATE,
+                  interface=ImportInterface(other_container))
+    monkeypatch.setattr(bsym, "get_external_symbol",
+                        lambda: Symbol("b"))
+    with pytest.raises(SymbolError) as err:
+        new_sym = bsym.resolve_type()
+    assert ("The external symbol 'b' was found but it does not have a "
+            "type. Maybe it is a transitive (indirect) import which is "
+            "currently not resolvable." in str(err.value))
+
     # Repeat but test when the imported Symbol is a parameter.
     csym = Symbol("c", visibility=Symbol.Visibility.PRIVATE,
                   interface=ImportInterface(other_container))
@@ -441,24 +453,38 @@ def test_symbol_array_handling():
     assert not asym.is_array_access("i", svinfo)
 
 
-def test_symbol_replace_symbols_using():
+@pytest.mark.parametrize("table", [None, SymbolTable()])
+def test_symbol_replace_symbols_using(table):
     '''Test the replace_symbols_using() method in Symbol.'''
     interf = DefaultModuleInterface()
     asym = Symbol("a", interface=interf)
-    table = SymbolTable()
-    # No symbols in table and nothing to update.
-    asym.replace_symbols_using(table)
+    if table is not None:
+        # No symbols in table and nothing to update.
+        asym.replace_symbols_using(table)
     assert asym.interface is interf
     cont = ContainerSymbol("genesis")
     binterf = ImportInterface(cont, orig_name="e")
     bsym = Symbol("b", interface=binterf)
     # No symbols in table.
-    bsym.replace_symbols_using(table)
+    if table is not None:
+        bsym.replace_symbols_using(table)
     assert bsym.interface is binterf
     assert bsym.interface.container_symbol is cont
     # Add a new ContainerSymbol to the table.
     cont2 = cont.copy()
-    table.add(cont2)
-    bsym.replace_symbols_using(table)
+    if table is not None:
+        table.add(cont2)
+        bsym.replace_symbols_using(table)
+    else:
+        bsym.replace_symbols_using(cont2)
     assert bsym.interface is not binterf
     assert bsym.interface.container_symbol is cont2
+
+
+def test_symbol_reference_accesses():
+    '''Test that the reference_accesses() method of a Symbol does not add any
+    accesses.'''
+    interf = DefaultModuleInterface()
+    asym = Symbol("a", interface=interf)
+    vam = asym.reference_accesses()
+    assert not vam.all_signatures

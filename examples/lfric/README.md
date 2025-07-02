@@ -1,10 +1,9 @@
 # PSyclone LFRic Examples
 
 These examples assume that you have PSyclone installed. The easiest
-way to do this is via pip, e.g. `pip install psyclone`. See the user
-manual for more details (`../../psyclone.pdf` or
-http://psyclone.readthedocs.io/en/stable/). After doing this `psyclone`
-should be on your PATH.
+way to do this is via pip, e.g. `pip install psyclone`. See the [User
+Guide](http://psyclone.readthedocs.io/) for more details. After doing
+this `psyclone` should be on your PATH.
 
 The first two examples are primarily provided to illustrate the use of
 the PSyclone code-generation system. No guarantee is made as to their
@@ -245,14 +244,14 @@ Kernel call 'matrix_vector_code' was found in
 InvokeSchedule[invoke='invoke_0', dm=False]
     ...
     Loop[type='', field_space='any_space_1', it_space='cells', upper_bound='ncells']
-        Literal[value:'NOT_INITIALISED']
-        Literal[value:'NOT_INITIALISED']
+        Reference[name:'loop0_start']
+        Reference[name:'loop0_stop']
         Literal[value:'1']
         Schedule[]
             CodedKern matrix_vector_kernel_code(m_lumped,ones,mb) [module_inline=False]
     Loop[type='dofs', field_space='any_space_1', it_space='dofs', upper_bound='ndofs']
-        Literal[value:'NOT_INITIALISED']
-        Literal[value:'NOT_INITIALISED']
+        Reference[name:'loop1_start']
+        Reference[name:'loop1_stop']
         Literal[value:'1']
         Schedule[]
             BuiltIn x_divideby_y(self_mb_lumped_inv,ones,m_lumped)

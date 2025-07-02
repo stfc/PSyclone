@@ -41,17 +41,16 @@ import os
 import re
 import pytest
 
-from psyclone.core import AccessType, VariablesAccessInfo, Signature
+from psyclone.core import AccessType, VariablesAccessMap, Signature
 from psyclone.domain.lfric import (KernCallArgList, KernStubArgList,
                                    LFRicConstants, LFRicKern,
-                                   LFRicKernMetadata, LFRicLoop,
-                                   LFRicSymbolTable)
+                                   LFRicKernMetadata, LFRicLoop)
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import ArrayReference, Literal, Reference
-from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
+from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 
@@ -98,7 +97,7 @@ def test_argordering_append():
     assert len(arg_list._arglist) == 2
     assert arg_list._arg_index_to_metadata_index[1] == 3
     # Access info captured.
-    vinfo = VariablesAccessInfo()
+    vinfo = VariablesAccessMap()
     arg_list.append("beckfoot", var_accesses=vinfo, mode=AccessType.WRITE)
     assert len(arg_list._arglist) == 3
     assert vinfo.all_signatures == [Signature("beckfoot")]
@@ -122,42 +121,26 @@ def test_argordering_get_array_reference():
 
     # First test access using an index, e.g. `array(1)`
     one = Literal("1", INTEGER_TYPE)
-    ref = arg_list.get_array_reference("array1", [one],
-                                       ScalarType.Intrinsic.REAL)
+    ref = arg_list.get_array_reference("array1", [one])
     assert isinstance(ref, ArrayReference)
-    ref = arg_list.get_array_reference("array2", [":"],
-                                       ScalarType.Intrinsic.INTEGER)
+    ref = arg_list.get_array_reference("array2", [":"])
     assert not isinstance(ref, ArrayReference)
 
     # Now test access using ":" only, e.g. `array(:)` -> this should
     # be returned just a reference to `array`
-    ref = arg_list.get_array_reference("array3", [":", ":"],
-                                       ScalarType.Intrinsic.REAL)
+    ref = arg_list.get_array_reference("array3", [":", ":"])
     assert isinstance(ref, Reference)
     assert not isinstance(ref, ArrayReference)
-    ref = arg_list.get_array_reference("array4", [":", ":"],
-                                       ScalarType.Intrinsic.INTEGER)
+    ref = arg_list.get_array_reference("array4", [":", ":"])
     assert isinstance(ref, Reference)
     assert not isinstance(ref, ArrayReference)
 
     # Now specify a symbol, but an incorrect array name:
     with pytest.raises(InternalError) as err:
         arg_list.get_array_reference("wrong-name", [":", ":"],
-                                     ScalarType.Intrinsic.INTEGER,
                                      symbol=ref.symbol)
     assert ("Specified symbol 'array4' has a different name than the "
             "specified array name 'wrong-name'" in str(err.value))
-
-    with pytest.raises(TypeError) as err:
-        arg_list.get_array_reference("does-not-exist", [":"], "invalid")
-    assert ("Unsupported data type 'invalid' in find_or_create_array"
-            in str(err.value))
-
-    with pytest.raises(TypeError) as err:
-        arg_list.get_array_reference("array4", [":"],
-                                     ScalarType.Intrinsic.INTEGER)
-    assert ("Array 'array4' already exists, but has 2 dimensions, not 1."
-            in str(err.value))
 
 
 def test_argordering_extend():
@@ -175,7 +158,7 @@ def test_argordering_extend():
     arg_list.append("roger")
     arg_list.extend(["peggy", "nancy"])
     assert len(arg_list._arglist) == 3
-    vinfo = VariablesAccessInfo()
+    vinfo = VariablesAccessMap()
     arg_list.extend(["flint", "captain"], var_accesses=vinfo,
                     mode=AccessType.WRITE)
     assert len(arg_list._arglist) == 5
@@ -274,6 +257,7 @@ def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
+    psy.invokes.invoke_list[0].setup_psy_layer_symbols()
     kernel = schedule.kernels()[0]
 
     create_arg_list = KernCallArgList(kernel)
@@ -290,12 +274,10 @@ def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
     psyir_arglist = create_arg_list.psyir_arglist
 
-    sym_tab = LFRicSymbolTable()
-    arr_2d = sym_tab.find_or_create_array("doesnt_matter", 2,
-                                          ScalarType.Intrinsic.INTEGER)
     # Check datatype of the cbanded_map parameters are indeed 2d int arrays
     for i in [14, 16]:
-        assert psyir_arglist[i].datatype == arr_2d.datatype
+        assert "integer" in psyir_arglist[i].datatype.declaration
+        assert "(:,:)" in psyir_arglist[i].datatype.declaration
 
 
 def test_arg_ordering_mdata_index():

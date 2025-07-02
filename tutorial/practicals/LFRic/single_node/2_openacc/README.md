@@ -114,7 +114,7 @@ adding them after the existing `routine_trans = ACCRoutineTrans()`
 transformation
 
 ```python
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     loop_trans = ACCLoopTrans()
 ```
 
@@ -151,7 +151,7 @@ In case you're having problems, this is what your script should now look like:
 ```python
     kernels_trans = ACCKernelsTrans()
     routine_trans = ACCRoutineTrans()
-    ctrans = Dynamo0p3ColourTrans()
+    ctrans = LFRicColourTrans()
     loop_trans = ACCLoopTrans()
     const = LFRicConstants()
     for subroutine in psyir.walk(Routine):

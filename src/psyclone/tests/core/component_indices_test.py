@@ -35,10 +35,9 @@
 
 '''This module tests the ComponentIndices class in psyclone/core.'''
 
-from __future__ import absolute_import
 import pytest
 
-from psyclone.core import ComponentIndices, VariablesAccessInfo
+from psyclone.core import ComponentIndices
 from psyclone.errors import InternalError
 
 
@@ -129,8 +128,7 @@ def test_component_indices_getitem_exceptions():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.parametrize("expression, correct",
-                         # We look for i, j and k; l will be ignored
-                         [("a1(i+i+j+l)", [set(("i", "j"))]),
+                         [("a1(i+i+j+l)", [set(("i", "j", "l"))]),
                           ("a1(1)", [set()]),
                           ("a2(i+j,2*j+k+1)", [set(("i", "j")),
                                                set(("j", "k"))]),
@@ -155,12 +153,12 @@ def test_get_subscripts_of(expression, correct, fortran_reader):
     assign = psyir.children[0].children[0]
 
     # Get all access info for the expression
-    access_info = VariablesAccessInfo(assign)
+    access_info = assign.reference_accesses()
 
-    # Find the access that is not to i,j, or k --> this must be
+    # Find the access that is not to i,j, k, or l --> this must be
     # the 'main' array variable we need to check for:
     sig = None
-    loop_vars = set(["i", "j", "k"])
+    loop_vars = set(["i", "j", "k", "l"])
     for sig in access_info:
         if str(sig) not in loop_vars:
             break

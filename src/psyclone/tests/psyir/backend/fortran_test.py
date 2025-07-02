@@ -454,8 +454,8 @@ def test_gen_typedecl(fortran_writer):
             "end type my_type\n")
     private_tsymbol = DataTypeSymbol("my_type", dtype,
                                      Symbol.Visibility.PRIVATE)
-    gen_code = fortran_writer.gen_typedecl(private_tsymbol)
-    assert gen_code.startswith("type, private :: my_type\n")
+    code = fortran_writer.gen_typedecl(private_tsymbol)
+    assert code.startswith("type, private :: my_type\n")
 
 
 def test_reverse_map():
@@ -579,7 +579,8 @@ def test_fw_gen_use(fortran_writer):
     container_symbol.wildcard_import = True
     result = fortran_writer.gen_use(container_symbol, symbol_table)
     assert "use my_module, only : dummy1=>orig_name, my_sub" not in result
-    assert "use my_module\n" in result
+    # A wildcard import should still preserve any symbol renaming.
+    assert "use my_module, dummy1=>orig_name\n" in result
 
     container_symbol.is_intrinsic = True
     result = fortran_writer.gen_use(container_symbol, symbol_table)
@@ -703,6 +704,13 @@ def test_fw_gen_vardecl(fortran_writer):
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, save :: dummy3a = 10\n"
 
+    # Generic symbol
+    symbol = Symbol("dummy1")
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fortran_writer.gen_vardecl(symbol)
+    assert ("Symbol 'dummy1' must be a symbol with a datatype in order to "
+            "use 'gen_vardecl'." in str(excinfo.value))
+
     # Use statement
     symbol = DataSymbol("dummy1", UnresolvedType(),
                         interface=ImportInterface(
@@ -804,9 +812,10 @@ def test_gen_access_stmts(fortran_writer):
     code = fortran_writer.gen_access_stmts(symbol_table)
     assert "private :: my_sub2\n" in code
     # Check that the interface of the symbol does not matter
+    csym = symbol_table.new_symbol("some_mod", symbol_type=ContainerSymbol)
     symbol_table.add(
         RoutineSymbol("used_sub", visibility=Symbol.Visibility.PRIVATE,
-                      interface=ImportInterface(ContainerSymbol("some_mod"))))
+                      interface=ImportInterface(csym)))
     code = fortran_writer.gen_access_stmts(symbol_table)
     assert "private :: my_sub2, used_sub\n" in code
     # Since the default visibility of the table is PUBLIC, we should not
@@ -1545,8 +1554,10 @@ def test_fw_return(fortran_reader, fortran_writer, tmpdir):
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp()\n"
+        "subroutine tmp(a)\n"
+        "  integer, intent(inout) :: a\n"
         "  return\n"
+        "  a = 3\n"  # Stmt after return to avoid droping it
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
@@ -1579,7 +1590,7 @@ def test_fw_codeblock_1(fortran_reader, fortran_writer, tmpdir):
     # Generate Fortran from the PSyIR
     result = fortran_writer(psyir)
     assert (
-        "    a = 1\n"
+        "    a = 1\n\n"
         "    ! PSyclone CodeBlock (unsupported code) reason:\n"
         "    !  - Unsupported statement: Print_Stmt\n"
         "    !  - Unsupported statement: Print_Stmt\n"
@@ -1909,7 +1920,7 @@ def test_fw_comments(fortran_writer):
         "  ! My routine preceding comment\n"
         "  subroutine my_routine()\n\n"
         "    ! My statement with a preceding comment\n"
-        "    return\n"
+        "    return\n\n"
         "    ! My statement with a\n"
         "    ! multi-line comment.\n"
         "    return  ! ... and an inline comment\n"
@@ -1943,9 +1954,9 @@ def test_fw_directive_with_clause(fortran_reader, fortran_writer):
     master = OMPMasterDirective(children=[directive])
     parallel = OMPParallelDirective.create(children=[master])
     schedule.addchild(parallel, 0)
-    assert '''!$omp parallel default(shared), private(i)
+    assert '''!$omp parallel default(shared) private(i)
   !$omp master
-  !$omp taskloop num_tasks(32), nogroup
+  !$omp taskloop num_tasks(32) nogroup
   do i = 1, n, 1
     a(i) = 0.0
   enddo

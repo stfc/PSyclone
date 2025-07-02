@@ -36,7 +36,7 @@
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by S. Siso and N. Nobre, STFC Daresbury Lab
 
-'''File containing a PSyclone transformation script for the Dynamo0.3
+'''File containing a PSyclone transformation script for the LFRic
 API to apply loop fusion generically. Fusion is attempted for all
 adjacent loops at the top level of a schedule. It will not fuse loops
 that are lower in the schedule e.g. coloured loops. This can be
