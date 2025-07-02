@@ -51,7 +51,8 @@ from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import CodeBlock, Reference, Schedule
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
-from psyclone.tests.utilities import get_base_path, get_invoke
+from psyclone.tests.utilities import (get_base_path, get_infrastructure_path,
+                                      get_invoke)
 
 # This is used in a fixture
 # pylint: disable-next=unused-import
@@ -644,9 +645,9 @@ def test_call_tree_error_var_not_found(capsys):
     contain the variable is handled, i.e. printing a warning and otherwise
     ignores (TODO #2120)
     '''
-    lfric_test_dir = get_base_path("lfric")
+    infra_dir = get_infrastructure_path("lfric")
     mod_man = ModuleManager.get()
-    mod_man.add_search_path(os.path.join(lfric_test_dir, "infrastructure"))
+    mod_man.add_search_path(infra_dir)
 
     read_write_info = ReadWriteInfo()
     ctu = CallTreeUtils()
