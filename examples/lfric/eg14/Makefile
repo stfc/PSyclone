@@ -78,7 +78,9 @@ PROFILE_LINK=-ldummy
 
 # This makefile assumes that the transformed kernel will be named
 # 'testkern_w0_kernel_0_mod.f90'. However, if it already exists then PSyclone
-# will create 'testkern_..._1_mod.f90' so remove it first.
+# will create 'testkern_..._1_mod.f90' so remove it first. Also remove
+# main_psy.f90, since testkern_w0_kernel_0_mod will not be recreated
+# if main_psy.f90 exists
 transform:
 	rm -f testkern_w0_kernel_0_mod.f90 main_psy.f90
 	${MAKE} main_psy.f90
