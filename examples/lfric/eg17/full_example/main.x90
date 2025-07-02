@@ -76,14 +76,7 @@ program main
     character(str_def) :: name="123"
     real*8  :: field_min_norm
 
-    ! This function is not part of the actual infrastructure
     call init_collections()
-    ! This is the required bit, but it might be more future-proof
-    ! to add init_collections to our infrastructure
-    !allocate( local_mesh_collection, source=local_mesh_collection_type() )
-    !allocate( mesh_collection, source=mesh_collection_type() )
-    !allocate( halo_routing_collection,   source=halo_routing_collection_type() )
-    !allocate( function_space_collection, source=function_space_collection_type() )
 
     ! Use the unit-testing constructor:
     global_mesh = global_mesh_type()

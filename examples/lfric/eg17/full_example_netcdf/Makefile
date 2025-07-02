@@ -53,17 +53,19 @@ OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 
 EXEC = example
 
-LFRIC_PATH = $(PSYROOT)/src/psyclone/tests/test_files/lfric/infrastructure
+LFRIC_PATH = ../../../../external/lfric_infrastructure/preprocessed
 LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 # This will add the required include flags to LFRIC_INCLUDE_FLAGS
 include $(LFRIC_PATH)/lfric_include_flags.inc
 
-run: compile
-	./example
+# TODO: refactor this example to work with the new infrastructure
+compile: transform
+	@echo "No compilation supported for lfric/eg1"
 
-compile: transform $(EXEC)
+run: compile
+	@echo "No run targets for lfric/eg1"
 
 transform: main_psy.f90
 

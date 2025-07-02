@@ -57,8 +57,8 @@ OBJ = main_psy.o main_alg.o other_alg_mod_psy.o other_alg_mod_alg.o \
 
 EXEC = example_openacc
 
-LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/lfric/infrastructure
-LFRIC_NAME=lfric
+LFRIC_PATH ?= $(PSYROOT)/external/lfric_infrastructure/preprocessed
+LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 # This sets up LFRIC_INCLUDE_FLAGS
 include $(LFRIC_PATH)/lfric_include_flags.inc
@@ -80,7 +80,7 @@ PROFILE_LINK=-ldummy
 # 'testkern_w0_kernel_0_mod.f90'. However, if it already exists then PSyclone
 # will create 'testkern_..._1_mod.f90' so remove it first.
 transform:
-	rm -f testkern_w0_kernel_0_mod.f90
+	rm -f testkern_w0_kernel_0_mod.f90 main_psy.f90
 	${MAKE} main_psy.f90
 	${MAKE} other_alg_mod_psy.f90
 
@@ -95,16 +95,14 @@ testkern_w0_kernel_0_mod.f90: main_psy.f90
 compile: transform ${EXEC}
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
+	$(MAKE) -C $(LFRIC_PATH) -f ../Makefile
 
 run: compile
 	./$(EXEC)
 
 $(EXEC): $(PROFILE_LIB) $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) -L${PROFILE_PATH} $(PROFILE_LINK)
-
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) \
+	-l$(LFRIC_NAME) -L${PROFILE_PATH} $(PROFILE_LINK) $$(nf-config --flibs)
 
 $(PROFILE_LIB):
 	$(MAKE) -C $(PROFILE_PATH)
