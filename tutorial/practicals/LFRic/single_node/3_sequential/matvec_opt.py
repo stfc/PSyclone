@@ -65,7 +65,7 @@ def trans(psyir):
     for kernel in psyir.coded_kernels():
         if kernel.name.lower() == "scaled_matrix_vector_code":
             kernel.modified = True
-            kernel_schedule = kernel.get_kernel_schedule()
+            kernel_schedule = kernel.get_callees()
             # Replace matmul with inline code
             for icall in kernel_schedule.walk(IntrinsicCall):
                 if icall.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
