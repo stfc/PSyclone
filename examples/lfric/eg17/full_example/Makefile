@@ -94,4 +94,4 @@ transform: main_psy.f90
 	${PSYCLONE} -api lfric -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 allclean: clean
-	make -C $(LFRIC_PATH) allclean
+	make -C $(LFRIC_PATH) -f ../Makefile allclean
