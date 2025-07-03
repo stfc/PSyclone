@@ -38,6 +38,7 @@
 directives into Nemo code. '''
 
 import os
+import sys
 from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
     normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
@@ -46,7 +47,14 @@ from psyclone.psyir.nodes import Routine
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import (
     OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
+from psyclone.transformations import (
+    ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans)
 
+
+# This environment variable informs which parallelisation directives to use
+# It supports acc_offloading, omp_offloading and omp_threading
+# They can be combined, e.g PARALLEL_DIRECTIVES='omp_offloading+omp_threading'
+PARALLEL_DIRECTIVES = os.environ.get('PARALLEL_DIRECTIVES', '')
 
 # This environment variable informs if profiling hooks have to be inserted.
 PROFILING_ENABLED = os.environ.get('ENABLE_PROFILING', False)
@@ -71,6 +79,7 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = [
     "vremap.f90",  # TODO #2772
+    "fldread.f90",
 ]
 
 NEMOV5_EXCLUSIONS = []
@@ -85,6 +94,8 @@ SKIP_FOR_PERFORMANCE = [
     "iom_nf90.f90",
     "iom_def.f90",
     "timing.f90",
+    "lbclnk.f90",
+    "histcom.f90",
 ]
 
 OFFLOADING_ISSUES = [
@@ -93,7 +104,7 @@ OFFLOADING_ISSUES = [
     # The following issues only affect BENCH (because ice is enabled?)
     # Runtime Error: Illegal address during kernel execution
     "trcrad.f90",
-    # Signal 11 issues
+    # nvhpc > 24.11 - Signal 11 issues
     "trcbbl.f90",
     "bdyice.f90",
     "sedfunc.f90",
@@ -105,6 +116,57 @@ OFFLOADING_ISSUES = [
     "trcatf.f90",
 ]
 
+if "acc_offloading" in PARALLEL_DIRECTIVES:
+    OFFLOADING_ISSUES = OFFLOADING_ISSUES + [
+        # Fail in OpenACC ORCA2_ICE_PISCES
+        "dynzdf.f90",
+        "trabbl.f90",
+        "trazdf.f90",
+        "zdfsh2.f90",
+    ]
+
+
+def select_transformations():
+    ''' Select what directives to apply by looking at the
+    PARALLEL_DIRECTIVES environment variables. '''
+
+    process_directives = PARALLEL_DIRECTIVES
+
+    if 'omp_offloading' in process_directives:
+        offload_region_trans = OMPTargetTrans()
+        mark_for_gpu_trans = OMPDeclareTargetTrans()
+        if NEMOV4:
+            # TODO #2895: Explore why loop/teams loop diverge for NEMOv4
+            gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
+            gpu_loop_trans.omp_directive = "loop"
+        else:
+            gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
+            gpu_loop_trans.omp_directive = "teamsloop"
+        process_directives = process_directives.replace('omp_offloading', '')
+    elif 'acc_offloading' in process_directives:
+        offload_region_trans = ACCParallelTrans(default_present=False)
+        mark_for_gpu_trans = ACCRoutineTrans()
+        gpu_loop_trans = ACCLoopTrans()
+        process_directives = process_directives.replace('acc_offloading', '')
+    else:
+        offload_region_trans = None
+        mark_for_gpu_trans = None
+        gpu_loop_trans = None
+
+    if 'omp_threading' in process_directives:
+        cpu_loop_trans = OMPLoopTrans(omp_schedule="static")
+        cpu_loop_trans.omp_directive = "paralleldo"
+        process_directives = process_directives.replace('omp_threading', '')
+    else:
+        cpu_loop_trans = None
+
+    process_directives = process_directives.replace('+', '')
+    if process_directives != '':
+        sys.exit(f"Unkown PARALLEL_DIRECTIVES: {process_directives}")
+
+    return (offload_region_trans, mark_for_gpu_trans,
+            gpu_loop_trans, cpu_loop_trans)
+
 
 def trans(psyir):
     ''' Add OpenMP Target and Loop directives to all loops, including the
@@ -115,25 +177,17 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    # If the environemnt has ONLY_FILE defined, only process that one file and
-    # known-good files that need a "declare target" inside. This is useful for
-    # file-by-file exhaustive tests.
+    (offload_region_trans, mark_for_gpu_trans, gpu_loop_trans,
+     cpu_loop_trans) = select_transformations()
+
+    # If the environment has ONLY_FILE defined, only process that one file and
+    # known-good files that need a mark_for_gpu annotation inside them. This is
+    # useful for performing debug exhaustive tests.
     only_do_file = os.environ.get('ONLY_FILE', False)
     if only_do_file and psyir.name not in (only_do_file,
                                            "lib_fortran.f90",
                                            "solfrac_mod.f90"):
         return
-
-    omp_target_trans = OMPTargetTrans()
-    if NEMOV4:
-        # TODO #2895: Explore why loop/teams loop diverge for NEMOv4
-        omp_gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
-        omp_gpu_loop_trans.omp_directive = "loop"
-    else:
-        omp_gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
-        omp_gpu_loop_trans.omp_directive = "teamsloop"
-    omp_cpu_loop_trans = OMPLoopTrans(omp_schedule="static")
-    omp_cpu_loop_trans.omp_directive = "paralleldo"
 
     disable_profiling_for = []
 
@@ -182,13 +236,14 @@ def trans(psyir):
         # These are functions that are called from inside parallel regions,
         # annotate them with 'omp declare target'
         if (
+            mark_for_gpu_trans and
             subroutine.name.lower().startswith("sign_")
             # or subroutine.name.lower() == "solfrac"
             # Important for performance but causes SIGNAL 11 in some cases
             # or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
         ):
             try:
-                OMPDeclareTargetTrans().apply(subroutine)
+                mark_for_gpu_trans.apply(subroutine)
                 print(f"Marked {subroutine.name} as GPU-enabled")
             except TransformationError as err:
                 print(err)
@@ -197,34 +252,28 @@ def trans(psyir):
             # nestable, in that case we could add a 'continue' here
             disable_profiling_for.append(subroutine.name)
 
-        if NEMOV4:
-            # For nemo4 always offload but without privatisation
-            print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
+        elif (psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES
+              and gpu_loop_trans):
+            if NEMOV4:
+                privatise_arrays = False
+            else:
+                privatise_arrays = psyir.name not in PRIVATISATION_ISSUES
+            print(
+                f"Adding offload directives to subroutine: {subroutine.name}")
             insert_explicit_loop_parallelism(
                     subroutine,
-                    region_directive_trans=omp_target_trans,
-                    loop_directive_trans=omp_gpu_loop_trans,
+                    region_directive_trans=offload_region_trans,
+                    loop_directive_trans=gpu_loop_trans,
                     collapse=True,
-                    privatise_arrays=False,
+                    privatise_arrays=privatise_arrays,
                     uniform_intrinsics_only=REPRODUCIBLE,
             )
-        elif psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES:
-            print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
-            insert_explicit_loop_parallelism(
-                    subroutine,
-                    region_directive_trans=omp_target_trans,
-                    loop_directive_trans=omp_gpu_loop_trans,
-                    collapse=True,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
-                    uniform_intrinsics_only=REPRODUCIBLE,
-            )
-        elif psyir.name not in PARALLELISATION_ISSUES:
-            # This have issues offloading, but we can still do OpenMP threading
+        elif psyir.name not in PARALLELISATION_ISSUES and cpu_loop_trans:
+            # These have issues offloading, but we can still do threading
             print(f"Adding OpenMP threading to subroutine: {subroutine.name}")
             insert_explicit_loop_parallelism(
                     subroutine,
-                    loop_directive_trans=omp_cpu_loop_trans,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
+                    loop_directive_trans=cpu_loop_trans,
             )
 
     # Iterate again and add profiling hooks when needed
