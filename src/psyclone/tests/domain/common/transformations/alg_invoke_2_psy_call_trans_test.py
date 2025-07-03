@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
+# Modified: A. B. G. Chalk, STFC Daresbury Laboratory.
 
 ''' Module containing pytest unit tests for the AlgInvoke2PSyCallTrans
 transformation.
@@ -44,6 +45,7 @@ from psyclone.domain.common.algorithm import AlgorithmInvokeCall, KernelFunctor
 from psyclone.domain.common.transformations import AlgTrans
 from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
 from psyclone.domain.gocean.transformations import GOceanAlgInvoke2PSyCallTrans
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Call, Loop, Literal, Container, Reference, ArrayReference, BinaryOperation,
     CodeBlock, UnaryOperation)
@@ -588,3 +590,29 @@ def test_ai2psycall_remove_imported_symbols(fortran_reader):
     trans.apply(invokes[1])
     assert "kern" not in module.symbol_table._symbols
     assert "kern_mod" not in module.symbol_table._symbols
+
+
+def test_ai2psycall_keep_comments():
+    '''Check that the apply method doesn't strip out the comments when
+    FortranReader had ignore_comments=False, and that the comments appear in
+    the expected place.
+    '''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : field_type\n"
+        "  integer :: i,j\n"
+        "  type(field_type) :: field1, field2(10)\n"
+        " !preceding comment\n"
+        "  call invoke(kern1(field1, field1, field2(i), field2( j )))"
+        " !inline comment\n"
+        "end subroutine alg1\n")
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    AlgTrans().apply(psyir)
+    invoke = psyir.children[0][0]
+    trans = GOceanAlgInvoke2PSyCallTrans()
+    trans.apply(invoke)
+    invoke = psyir.children[0][0]
+    assert invoke.preceding_comment == "preceding comment"
+    assert invoke.inline_comment == "inline comment"

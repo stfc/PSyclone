@@ -2528,7 +2528,9 @@ class Fparser2Reader():
                                      visibility=vis,
                                      initial_value=init)
                             new_symbol.preceding_comment \
-                                = '\n'.join(preceding_comments)
+                                = self._comments_list_to_string(
+                                        preceding_comments)
+                            preceding_comments = []
                             self._last_psyir_parsed_and_span\
                                 = (new_symbol,
                                    node.item.span)
@@ -2847,6 +2849,35 @@ class Fparser2Reader():
 
         return _kind_find_or_create(str(kind_names[0]), symbol_table)
 
+    def _add_comments_to_tree(self, parent: Node, preceding_comments,
+                              psy_child: Node) -> None:
+        '''
+        Add the comments in preceding_comments into the PsyIR tree.
+
+        :param parent: Parent node in the PSyIR we are constructing.
+        :param preceding_comments: List of comment nodes to add to the tree.
+        :type preceding_comments: list[:py:class:`fparser.two.utils.Base`]
+        :param psy_child: The current PSyIR node being constructed.
+        '''
+        for comment in preceding_comments[:]:
+            # If the comment is a directive and we
+            # keep_directives then create a CodeBlock for
+            # the directive.
+            if (not self._ignore_directives and
+                    comment.tostr().startswith("!$")):
+                block = self.nodes_to_code_block(parent, [comment])
+                # Attach any comments that came before this directive to this
+                # CodeBlock node.
+                if comment is not preceding_comments[0]:
+                    index = preceding_comments.index(comment)
+                    block.preceding_comment += self._comments_list_to_string(
+                        preceding_comments[0:index])
+                    preceding_comments = preceding_comments[index:]
+                preceding_comments.remove(comment)
+        psy_child.preceding_comment += self._comments_list_to_string(
+            preceding_comments
+        )
+
     def process_nodes(self, parent, nodes):
         '''
         Create the PSyIR of the supplied list of nodes in the
@@ -2889,9 +2920,8 @@ class Fparser2Reader():
                     # Add the comments to nodes that support it and reset the
                     # list of comments
                     if isinstance(psy_child, CommentableMixin):
-                        psy_child.preceding_comment\
-                            += self._comments_list_to_string(
-                                preceding_comments)
+                        self._add_comments_to_tree(parent, preceding_comments,
+                                                   psy_child)
                         preceding_comments = []
                     if isinstance(psy_child, CommentableMixin):
                         if child.item is not None:
@@ -2912,9 +2942,16 @@ class Fparser2Reader():
                     parent.addchild(psy_child)
                 # If psy_child is not initialised but it didn't produce a
                 # NotImplementedError, it means it is safe to ignore it.
-
         # Complete any unfinished code-block
         self.nodes_to_code_block(parent, code_block_nodes, message)
+
+        # If there are any directives at the end we create code blocks for
+        # them.
+        if not self._ignore_directives and len(preceding_comments) != 0:
+            for comment in preceding_comments[:]:
+                if comment.tostr().startswith("!$"):
+                    self.nodes_to_code_block(parent, [comment])
+                    preceding_comments.remove(comment)
 
         if self._last_comments_as_codeblocks and len(preceding_comments) != 0:
             self.nodes_to_code_block(parent, preceding_comments)
@@ -5319,6 +5356,32 @@ class Fparser2Reader():
 
         return call
 
+    def _get_lost_declaration_comments(self, decl_list)\
+            -> list[Fortran2003.Comment]:
+        '''Finds comments from the variable declaration that the default
+        declaration handler doesn't keep.
+
+        :param decl_list: The declaration list being processed.
+
+        :returns: a list of comments that have been missed.
+        '''
+        lost_comments = []
+        if len(decl_list) != 0 and isinstance(decl_list[-1],
+                                              Fortran2003.Implicit_Part):
+            for comment in walk(decl_list[-1], Fortran2003.Comment):
+                if len(comment.tostr()) == 0:
+                    continue
+                if self._last_psyir_parsed_and_span is not None:
+                    last_symbol, last_span \
+                        = self._last_psyir_parsed_and_span
+                    if (last_span is not None
+                            and last_span[1] == comment.item.span[0]):
+                        last_symbol.inline_comment\
+                            = self._comment_to_string(comment)
+                        continue
+                lost_comments.append(comment)
+        return lost_comments
+
     def _subroutine_handler(self, node, parent):
         '''Transforms an fparser2 Subroutine_Subprogram or Function_Subprogram
         statement into a PSyIR Routine node.
@@ -5430,24 +5493,11 @@ class Fparser2Reader():
                 arg_list = []
             self.process_declarations(routine, decl_list, arg_list)
 
-            # fparser puts comments at the end of the declarations
-            # whereas as preceding comments they belong in the execution part
-            # except if it's an inline comment on the last declaration.
-            lost_comments = []
-            if len(decl_list) != 0 and isinstance(decl_list[-1],
-                                                  Fortran2003.Implicit_Part):
-                for comment in walk(decl_list[-1], Fortran2003.Comment):
-                    if len(comment.tostr()) == 0:
-                        continue
-                    if self._last_psyir_parsed_and_span is not None:
-                        last_symbol, last_span \
-                            = self._last_psyir_parsed_and_span
-                        if (last_span is not None
-                                and last_span[1] == comment.item.span[0]):
-                            last_symbol.inline_comment\
-                                = self._comment_to_string(comment)
-                            continue
-                    lost_comments.append(comment)
+            # fparser puts comments after the declarations as part of
+            # the declarations, but in PSyclone they need to be a
+            # preceding_comment unless it's an inline comment on the
+            # last declaration.
+            lost_comments = self._get_lost_declaration_comments(decl_list)
 
             # Check whether the function-stmt has a prefix specifying the
             # return type (other prefixes are handled in
@@ -5599,6 +5649,26 @@ class Fparser2Reader():
             decl_list = []
         self.process_declarations(routine, decl_list, [])
 
+        # fparser puts comments at the end of the declarations
+        # whereas as preceding comments they belong in the execution part
+        # except if it's an inline comment on the last declaration.
+        lost_comments = []
+        if len(decl_list) != 0 and isinstance(decl_list[-1],
+                                              Fortran2003.Implicit_Part):
+            for comment in walk(decl_list[-1], Fortran2003.Comment):
+                if len(comment.tostr()) == 0:
+                    continue
+                if self._last_psyir_parsed_and_span is not None:
+                    last_symbol, last_span \
+                        = self._last_psyir_parsed_and_span
+                    # If the comment goes on the last parsed psyir node
+                    # or symbol, then we don't need to do anything with
+                    # it as its handled by process_declarations.
+                    if (last_span is not None
+                            and last_span[1] == comment.item.span[0]):
+                        continue
+                lost_comments.append(comment)
+
         try:
             prog_exec = _first_type_match(node.content,
                                           Fortran2003.Execution_Part)
@@ -5607,7 +5677,7 @@ class Fparser2Reader():
             # valid.
             pass
         else:
-            self.process_nodes(routine, prog_exec.content)
+            self.process_nodes(routine, lost_comments + prog_exec.content)
 
         return routine
 

@@ -267,13 +267,14 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
                                    ignore_directives=False)
     file_container = fortran_reader.psyir_from_file(filename)
     assert isinstance(file_container, FileContainer)
+    assignment = file_container.walk(Assignment)[0]
+    assert assignment.preceding_comment == "Comment on assignment"
+    # When keeping directives a comment before the directive
+    # goes on the directive.
+    par_direc = file_container.walk(CodeBlock)[0]
+    assert par_direc.preceding_comment == "Comment on do loop"
     for node in file_container.walk(CommentableMixin):
-        if isinstance(node, Loop):
-            assert node.preceding_comment == ("Comment on do loop\n"
-                                              "$omp parallel do")
-        elif isinstance(node, Assignment):
-            assert node.preceding_comment == "Comment on assignment"
-        else:
+        if node not in (assignment, par_direc):
             assert node.preceding_comment == ""
 
     # Check that the following combination raises an error
