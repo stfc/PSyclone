@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Laboratory
+# Modifications: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
 # The compiler to use may be specified via the F90 environment
 #
@@ -97,12 +97,17 @@ LFRIC_INCLUDE_FLAGS += -I$(EXTRACT_DIR)
 transform: main_psy.f90 main_alg.f90
 
 	
-# TODO #2950 : Restore compilation and execution
-# compile: transform $(EXEC)
-compile: transform
+compile: transform $(EXEC)
 
 run: compile
+	# Run application and extract data into files
 	./$(EXEC)
+	# Compile drivers
+	make driver-main-init
+	make driver-main-update
+	# Run drivers with extracted data
+	./driver-main-init
+	./driver-main-update
 
 $(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(EXTRACT_DIR) -l$(EXTRACT_NAME) \
