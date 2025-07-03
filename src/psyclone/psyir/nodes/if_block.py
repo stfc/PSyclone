@@ -190,11 +190,8 @@ class IfBlock(Statement):
 
         '''
         var_accesses = self.condition.reference_accesses()
-        var_accesses.next_location()
         var_accesses.update(self.if_body.reference_accesses())
-        var_accesses.next_location()
 
         if self.else_body:
             var_accesses.update(self.else_body.reference_accesses())
-            var_accesses.next_location()
         return var_accesses
