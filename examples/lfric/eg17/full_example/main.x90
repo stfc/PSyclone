@@ -74,7 +74,6 @@ program main
     integer(kind=i_def)                        :: element_order_v = 1
     integer(kind=i_def)                        :: ndata_sz, mesh_id
     character(str_def) :: name="123"
-    real*8  :: field_min_norm
 
     call init_collections()
 
@@ -122,7 +121,6 @@ program main
     call invoke( name = 'testkern_w0', testkern_w0_kernel_type(field1, field2) )
 
     field1_proxy = field1%get_proxy()
-        field_min_norm = field1_proxy%get_min()
 
     print *,"minmax of field1", field1_proxy % get_min(), field1_proxy % get_max()!
 end program main

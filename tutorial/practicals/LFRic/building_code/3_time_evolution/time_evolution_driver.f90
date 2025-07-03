@@ -42,7 +42,7 @@
 program time_evolution_driver
 
   ! Infrastructure
-  use constants_mod,          only : i_def, i_native, r_def, str_short
+  use constants_mod,          only : i_def, i_medium, r_def, str_short
   use global_mesh_base_mod,   only : global_mesh_base_type
   use global_mesh_netcdf_mod, only : global_mesh_netcdf_type
   use mesh_mod,               only : mesh_type
@@ -108,7 +108,7 @@ program time_evolution_driver
   ! A nine-point square region stencil will have max_stencil_depth=1.
   integer(kind=i_def)                :: max_stencil_depth
   ! Number of the MPI rank of this process
-  integer(kind=i_native)             :: local_rank
+  integer(kind=i_medium)             :: local_rank
   ! Total number of MPI ranks (processes) in this job
   integer(kind=i_def)                :: total_ranks
   ! Auxiliary variables for coordinate fields (function space ID, loop counters)

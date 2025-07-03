@@ -54,7 +54,8 @@ EXEC = ./time_evolution
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../..
-LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/lfric/infrastructure
+LFRIC_PATH = $(PSYCLONE_RELPATH)/external/lfric_infrastructure/preprocessed
+
 LFRIC_NAME = lfric_netcdf
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
@@ -96,7 +97,7 @@ $(GHLIB_LIB):
 	$(MAKE) -C $(GHLIB_PATH)
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) netcdf 
+	$(MAKE) -C $(LFRIC_PATH) -f ../Makefile
 
 # Dependencies
 $(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
