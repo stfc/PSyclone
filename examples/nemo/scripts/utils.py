@@ -414,6 +414,7 @@ def insert_explicit_loop_parallelism(
         loop_directive_trans=None,
         collapse: bool = True,
         privatise_arrays: bool = False,
+        uniform_intrinsics_only: bool = False,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
@@ -432,6 +433,8 @@ def insert_explicit_loop_parallelism(
         many nested loops as possible.
     :param privatise_arrays: whether to attempt to privatise arrays that cause
         write-write race conditions.
+    :param uniform_intrinsics_only: if True it prevent offloading loops
+        with non-reproducible device intrinsics.
 
     '''
     if schedule.name == "ts_wgt":
@@ -442,7 +445,10 @@ def insert_explicit_loop_parallelism(
             continue  # Skip if an outer loop is already parallelised
 
         opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
-                "verbose": True, "nowait": True}
+                "verbose": True, "nowait": False}
+
+        if uniform_intrinsics_only:
+            opts["device_string"] = "nvfortran-uniform"
 
         routine_name = loop.ancestor(Routine).name
 
@@ -490,7 +496,7 @@ def insert_explicit_loop_parallelism(
 
             # And if successful, the region directive on top.
             if region_directive_trans:
-                region_directive_trans.apply(loop.parent.parent)
+                region_directive_trans.apply(loop.parent.parent, options=opts)
         except TransformationError:
             # This loop cannot be transformed, proceed to next loop.
             # The parallelisation restrictions will be explained with a comment

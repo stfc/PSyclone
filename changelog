@@ -1,3 +1,21 @@
+   45) PR #2948 for #2950. Update extraction transformation to perform
+   extraction and driver creation at lowering
+
+   44) PR #2972 for #2971. Move the ParallelRegionTrans from transformations.py
+   into psyir/transformations.
+
+   43) PR #2732 for #2716. Add support for module-inlining polymorphic kernels
+   and rename get_kernel_schedule to get_callees (to match the Call method).
+ 
+   42) PR #3034 for #2837. Updates the supported versions of Python used in
+   the test suite to 3.10 and 3.13.
+
+   41) PR #3013 for #2856. Makes 'intrinsics available on device'
+   configurable.
+
+   40) PR #2962 for #2935. Errors in use of LBOUND and looping in generated
+   adjoint kernel.
+
    39) PR #3021. Remove hoisted reference from chunking/tiling
    transformations.
 
