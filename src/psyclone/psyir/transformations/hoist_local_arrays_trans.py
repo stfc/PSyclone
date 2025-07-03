@@ -298,28 +298,14 @@ then
                             IntrinsicCall.Intrinsic.DEALLOCATE) and
                         ref.symbol is sym
                     ):
-                        # If its the only reference in the deallocate
-                        # statement, remove the full statement, otherwise
-                        # just the relevant reference
-                        deallocate_stmt = ref.parent
-                        if len(deallocate_stmt.arguments) == 1:
-                            deallocate_stmt.detach()
-                        else:
-                            for child in deallocate_stmt.arguments:
-                                if child == ref:
-                                    child.detach()
-                # Now insert guarded allocate expression
+                        self._remove_allocation_reference(ref)
+                # Now insert a guarded allocate expression, and remove the
+                # original one.
                 original_allocate.parent.children.insert(
                         original_allocate.position, if_stmt)
-                # Remove the unguarded allocate, if its the only reference in
-                # a allocate statement, remove the full statement, otherwise
-                # just the relevant reference
-                if len(original_allocate.arguments) == 1:
-                    original_allocate.detach()
-                else:
-                    for child in original_allocate.arguments:
-                        if child == aref:
-                            child.detach()
+                for ref in original_allocate.arguments:
+                    if ref.symbol is sym:
+                        self._remove_allocation_reference(ref)
 
             else:
                 # Insert the conditional allocation at the start of the
@@ -481,6 +467,34 @@ then
 
     def __str__(self):
         return "Hoist all local, automatic arrays to container scope."
+
+    @staticmethod
+    def _remove_allocation_reference(ref: Reference):
+        ''' Remove the provided reference from its parent allocation or
+        deallocation statement.
+
+        These statements can have multiple references as arguments. If there
+        are multiple arguments, just remove the provided reference. If there
+        are no more arguments, remove the whole statement. If it was inside a
+        condition with nothing else in it, remove the whole condition (because
+        if they are single-line conditions they would become invalid).
+
+        :param ref: the reference to delete.
+
+        '''
+        allocate_stmt = ref.parent
+        if len(allocate_stmt.arguments) == 1:
+            allocate_parent = allocate_stmt.parent
+            allocate_stmt.detach()
+            if len(allocate_parent.children) == 0:
+                # Since this is only mandatory for single-line conditions we
+                # don't need to iterate upwards as this cannot be nested
+                if isinstance(allocate_parent.parent, IfBlock):
+                    allocate_parent.parent.detach()
+        else:
+            for child in allocate_stmt.arguments:
+                if child == ref:
+                    child.detach()
 
 
 # For Sphinx AutoAPI documentation generation

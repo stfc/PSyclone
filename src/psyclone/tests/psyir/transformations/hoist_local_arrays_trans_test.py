@@ -633,7 +633,7 @@ def test_apply_with_allocatables(fortran_reader, fortran_writer, tmpdir):
               do i=1,10
                 a(i) = 1.0
               end do
-              DEALLOCATE(a,c)
+              if(.true.) DEALLOCATE(a,c)
               DEALLOCATE(b,d)
           endif
         end subroutine test
@@ -650,12 +650,13 @@ def test_apply_with_allocatables(fortran_reader, fortran_writer, tmpdir):
     hoist_trans = HoistLocalArraysTrans()
     hoist_trans.apply(routine)
     output = fortran_writer(psyir)
+
     # Check that:
-    # - Local allocatable declarations has been hoisted unless they have
-    #   multiple allocation statements or one with named arguments
-    # - Their ALLOCATEs have been guarded in-place
-    # - Their DEALLOCATEs have been removed
-    # - Warning messages for non-hoisted allocatables have been added
+    # - Local allocatable declarations are hoisted unless it is a non-
+    # supported case, which has a warning message added.
+    # - Their ALLOCATEs have been guarded with a "if (.NOT.ALLOCATED"
+    # - Their DEALLOCATEs have been removed, respecting other symbols in the
+    # same deallocate statements and deleting parent single-line conditions
     assert output == """\
 module my_mod
   implicit none
