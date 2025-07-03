@@ -41,7 +41,7 @@ import os
 from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
     normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
-    NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
+    NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import (
@@ -75,14 +75,16 @@ SKIP_FOR_PERFORMANCE = [
 ]
 
 OFFLOADING_ISSUES = [
-    # Produces different output results
-    "zdftke.f90",
-    # The following issues only affect BENCH (because ice is enabled?)
-    # Runtime Error: Illegal address during kernel execution
-    "trcrad.f90",
     # Signal 11
     "trcice_pisces.f90",
     "trcice_c14.f90",
+    "trddyn.f90",
+    "trcrad.f90",
+    "icerst.f90",
+    "sedfunc.f90",
+    "icesbc.f90",
+    "trcbbl.f90",
+    "trczdf.f90",
     # NEMOv4: Compilation issue
     "icbdia.f90",
 ]
@@ -169,25 +171,13 @@ def trans(psyir):
             # nestable, in that case we could add a 'continue' here
             disable_profiling_for.append(subroutine.name)
 
-        if NEMOV4:
-            # For nemo4 always offload but without privatisation
+        if psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES:
             print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
             insert_explicit_loop_parallelism(
                     subroutine,
                     region_directive_trans=omp_target_trans,
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
-                    privatise_arrays=False,
-                    uniform_intrinsics_only=REPRODUCIBLE,
-            )
-        elif psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES:
-            print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
-            insert_explicit_loop_parallelism(
-                    subroutine,
-                    region_directive_trans=omp_target_trans,
-                    loop_directive_trans=omp_gpu_loop_trans,
-                    collapse=True,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
                     uniform_intrinsics_only=REPRODUCIBLE,
             )
         elif psyir.name not in PARALLELISATION_ISSUES:
@@ -196,7 +186,6 @@ def trans(psyir):
             insert_explicit_loop_parallelism(
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
             )
 
     # Iterate again and add profiling hooks when needed
