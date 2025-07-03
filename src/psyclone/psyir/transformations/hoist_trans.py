@@ -46,6 +46,7 @@ from psyclone.psyir.nodes import (
     Loop, Assignment, Schedule, Call, CodeBlock)
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
 
 
 class HoistTrans(Transformation):
@@ -226,13 +227,15 @@ class HoistTrans(Transformation):
                                           f"('{written_sig}') that is both "
                                           f"read and written.")
 
-            # Check if the variable is written or read before the first
-            # access in the statement to be hoisted:
+            # Check if any of the written variables could be used inside the
+            # loop before the statement that we are hoisting, this could be
+            # after the statement if there are conditional control flows.
             written_node = accesses_in_statement[0].node
-            # Get all access to that variable in the whole loop before the
-            # first write access that is to be hoisted:
             accesses_in_loop = all_loop_vars[written_sig]
-            if accesses_in_loop.is_accessed_before(written_node):
+            chains = DefinitionUseChain(
+                written_node, parent_loop.children[:]
+            )
+            if chains.find_backward_accesses():
                 code = statement.debug_string().strip()
                 raise TransformationError(f"The statement '{code}' can't be "
                                           f"hoisted as variable "
