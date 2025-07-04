@@ -39,7 +39,7 @@
 '''
 
 import keyword
-from typing import Dict, Iterable, List, Optional, Set, Union
+from typing import Iterable, Optional, Union
 
 import sympy
 from sympy.parsing.sympy_parser import parse_expr
@@ -103,11 +103,11 @@ class SymPyWriter(FortranWriter):
     # A list of all reserved Python keywords (Fortran variables that are the
     # same as a reserved name must be renamed, otherwise parsing will fail).
     # This class attribute will get initialised in __init__:
-    _RESERVED_NAMES: Set[str] = set()
+    _RESERVED_NAMES: set[str] = set()
 
     # A mapping of PSyIR's logical binary operations to the required
     # SymPy format:
-    _BINARY_OP_MAPPING: Dict[BinaryOperation.Operator, str] = \
+    _BINARY_OP_MAPPING: dict[BinaryOperation.Operator, str] = \
         {BinaryOperation.Operator.AND: "And({lhs}, {rhs})",
          BinaryOperation.Operator.OR: "Or({lhs}, {rhs})",
          BinaryOperation.Operator.EQV: "Equivalent({lhs}, {rhs})",
@@ -190,7 +190,7 @@ class SymPyWriter(FortranWriter):
         :returns: either an instance of SymPyWriter, if no parameter is
             specified, or a list of SymPy expressions.
         :rtype: Union[:py:class:`psyclone.psyir.backend.SymPyWriter`,
-                      List[:py:class:`sympy.core.basic.Basic`]]
+                      list[:py:class:`sympy.core.basic.Basic`]]
 
         '''
         if expressions:
@@ -214,11 +214,12 @@ class SymPyWriter(FortranWriter):
                                   "never be called.")
 
     # -------------------------------------------------------------------------
-    def _create_sympy_array_function(self,
-                                     name: str,
-                                     sig: Optional[Signature] = None,
-                                     num_dims: Optional[List[int]] = None,
-                                     is_call: Optional[bool] = False):
+    def _create_sympy_array_function(
+            self,
+            name: str,
+            sig: Optional[Signature] = None,
+            num_dims: Optional[list[int]] = None,
+            is_call: Optional[bool] = False) -> sympy.Function:
         '''Creates a Function class with the given name to be used for SymPy
         parsing. This Function overwrites the conversion to string, and will
         replace the triplicated array indices back to the normal Fortran
@@ -271,7 +272,7 @@ class SymPyWriter(FortranWriter):
 
     @staticmethod
     def _ndims_for_struct_access(sig: Signature,
-                                 sva: SingleVariableAccessInfo) -> List[int]:
+                                 sva: SingleVariableAccessInfo) -> list[int]:
         '''
         The same Signature can be accessed with different numbers of indices,
         e.g. a%b, a%b(1) and a(1)%b. This routine examines all accesses and
@@ -333,8 +334,8 @@ class SymPyWriter(FortranWriter):
             return
 
     # -------------------------------------------------------------------------
-    def _create_type_map(self, list_of_expressions: List[Node],
-                         identical_variables: Optional[Dict[str, str]] = None,
+    def _create_type_map(self, list_of_expressions: Iterable[Node],
+                         identical_variables: Optional[dict[str, str]] = None,
                          all_variables_positive: Optional[bool] = None):
         '''This function creates a dictionary mapping each access in any
         of the expressions to either a SymPy Function (if the reference
@@ -390,6 +391,7 @@ class SymPyWriter(FortranWriter):
         # conversion). First, add all reserved names so that these names will
         # automatically be renamed. The symbol table is used later to also
         # create guaranteed unique names for lower and upper bounds.
+        # pylint: disable=too-many-locals, too-many-branches
         self._symbol_table = SymbolTable()
         for reserved in SymPyWriter._RESERVED_NAMES:
             self._symbol_table.new_symbol(reserved)
@@ -502,11 +504,9 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     @property
-    def type_map(self) -> Dict[str, Union[sympy.core.symbol.Symbol,
+    def type_map(self) -> dict[str, Union[sympy.core.symbol.Symbol,
                                           sympy.core.function.Function]]:
         ''':returns: the mapping of names to SymPy symbols or functions.
-        :rtype: Dict[str, Union[:py:class:`sympy.core.symbol.Symbol`,
-                                :py:class:`sympy.core.function.Function`]]
 
         '''
         return self._sympy_type_map
@@ -515,9 +515,9 @@ class SymPyWriter(FortranWriter):
     def _to_str(
         self,
         list_of_expressions: Union[Node, Iterable[Node]],
-        identical_variables: Optional[Dict[str, str]] = None,
+        identical_variables: Optional[dict[str, str]] = None,
         all_variables_positive: Optional[bool] = False) -> Union[str,
-                                                                 List[str]]:
+                                                                 list[str]]:
         '''Converts PSyIR expressions to strings. It will replace Fortran-
         specific expressions with code that can be parsed by SymPy. The
         argument can either be a single element (in which case a single string
@@ -538,14 +538,11 @@ class SymPyWriter(FortranWriter):
         :returns: the converted strings(s).
 
         '''
-        is_list = isinstance(list_of_expressions, (Iterable))
-        if not is_list:
-            # Make mypy happy:
-            assert isinstance(list_of_expressions, Node)
+        is_list = True
+        if isinstance(list_of_expressions, Node):
+            is_list = False
             list_of_expressions = [list_of_expressions]
 
-        # Make mypy happy:
-        assert isinstance(list_of_expressions, Iterable)
         # Create the type map in `self._sympy_type_map`, which is required
         # when converting these strings to SymPy expressions
         self._create_type_map(list_of_expressions,
@@ -565,11 +562,11 @@ class SymPyWriter(FortranWriter):
     # -------------------------------------------------------------------------
     def __call__(
         self,
-        list_of_expressions: Union[Node, List[Node]],
-        identical_variables: Optional[Dict[str, str]] = None,
+        list_of_expressions: Union[Node, list[Node]],
+        identical_variables: Optional[dict[str, str]] = None,
         all_variables_positive: Optional[bool] = False) \
             -> Union[sympy.core.basic.Basic,
-                     List[sympy.core.basic.Basic]]:
+                     list[sympy.core.basic.Basic]]:
         '''
         This function takes a list of PSyIR expressions, and converts
         them all into Sympy expressions using the SymPy parser.
@@ -609,9 +606,9 @@ class SymPyWriter(FortranWriter):
                 raise TypeError("Dictionary identical_variables "
                                 "contains a non-string key or value.")
 
-        is_list = isinstance(list_of_expressions, (tuple, list))
-        if not is_list:
-            assert isinstance(list_of_expressions, Node)
+        is_list = True
+        if isinstance(list_of_expressions, Node):
+            is_list = False
             list_of_expressions = [list_of_expressions]
 
         expression_str_list = self._to_str(
@@ -676,7 +673,7 @@ class SymPyWriter(FortranWriter):
         sig, indices = node.get_signature_and_indices()
 
         all_dims = []
-        for i, name in enumerate(sig):
+        for i, _ in enumerate(sig):
             if indices[i]:
                 for index in indices[i]:
                     all_dims.append(index)
@@ -842,7 +839,7 @@ class SymPyWriter(FortranWriter):
 
     # ------------------------------------------------------------------------
     def gen_indices(self,
-                    indices: List[Node],
+                    indices: Iterable[Node],
                     var_name: Optional[str] = None):
         '''Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
