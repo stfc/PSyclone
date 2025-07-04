@@ -65,10 +65,11 @@ from psyclone.psyir.symbols import (
     REAL_TYPE, DataTypeSymbol)
 from psyclone.psyir.transformations import ChunkLoopTrans, OMPTaskTrans
 from psyclone.errors import InternalError, GenerationError
+from psyclone.psyir.transformations.omp_taskloop_trans import OMPTaskloopTrans
 from psyclone.transformations import (
     LFRicOMPLoopTrans, OMPParallelTrans,
     OMPParallelLoopTrans, LFRicOMPParallelLoopTrans, OMPSingleTrans,
-    OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans)
+    OMPMasterTrans, OMPLoopTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "lfric")

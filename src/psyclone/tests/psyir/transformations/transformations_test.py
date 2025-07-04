@@ -54,9 +54,10 @@ from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
 from psyclone.tests.utilities import get_invoke, Compile
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPDeclareTargetTrans
+    OMPSingleTrans, OMPMasterTrans, OMPDeclareTargetTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.transformations.omp_taskloop_trans import OMPTaskloopTrans
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
@@ -195,6 +196,7 @@ def test_omptaskloop_getters_and_setters():
     ''' Check that the OMPTaskloopTrans getters and setters
     correctly throw TransformationErrors on illegal values '''
     trans = OMPTaskloopTrans()
+    assert "Adds an 'OpenMP TASKLOOP' directive to a loop" in str(trans)
     with pytest.raises(TransformationError) as err:
         trans.omp_num_tasks = "String"
     assert "num_tasks must be an integer or None, got str" in str(err.value)

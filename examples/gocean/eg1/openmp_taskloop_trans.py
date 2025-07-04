@@ -41,8 +41,7 @@ PSyclone.
 
 from psyclone.psyir.nodes import Loop
 from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
-from psyclone.transformations import OMPTaskloopTrans
-from psyclone.psyir.transformations import OMPTaskwaitTrans
+from psyclone.psyir.transformations import OMPTaskloopTrans, OMPTaskwaitTrans
 
 
 def trans(psyir):
