@@ -575,7 +575,7 @@ def test_call_tree_utils_inout_parameters_generic(fortran_reader):
     read_write_info = ReadWriteInfo()
     ctu.get_input_parameters(read_write_info, loops,
                              include_non_data_accesses=True)
-    input_set = set(sig for _, sig in read_write_info.set_of_all_used_vars)
+    input_set = set(sig for _, sig in read_write_info.all_used_vars_list)
     assert input_set == set([Signature("b"), Signature("c"),
                              Signature("jpj"), Signature("dummy")])
 
@@ -644,9 +644,9 @@ def test_call_tree_error_var_not_found(capsys):
     contain the variable is handled, i.e. printing a warning and otherwise
     ignores (TODO #2120)
     '''
-    dyn_test_dir = get_base_path("lfric")
+    lfric_test_dir = get_base_path("lfric")
     mod_man = ModuleManager.get()
-    mod_man.add_search_path(os.path.join(dyn_test_dir, "infrastructure"))
+    mod_man.add_search_path(os.path.join(lfric_test_dir, "infrastructure"))
 
     read_write_info = ReadWriteInfo()
     ctu = CallTreeUtils()
@@ -665,9 +665,9 @@ def test_call_tree_error_module_is_codeblock(capsys):
     '''Tests that a module that cannot be parsed and becomes a codeblock
     is handled correctly.
     '''
-    dyn_test_dir = get_base_path("lfric")
+    lfric_test_dir = get_base_path("lfric")
     mod_man = ModuleManager.get()
-    mod_man.add_search_path(os.path.join(dyn_test_dir, "driver_creation"))
+    mod_man.add_search_path(os.path.join(lfric_test_dir, "driver_creation"))
 
     cblock = CodeBlock([], "dummy")
     mod_info = mod_man.get_module_info("testkern_import_symbols_mod")

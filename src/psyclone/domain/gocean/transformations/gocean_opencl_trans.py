@@ -113,27 +113,26 @@ class GOOpenCLTrans(Transformation):
         :type node: :py:class:`psyclone.psyGen.InvokeSchedule`
         :param options: a dictionary with options for transformations.
         :type options: dict of str:value or None
-        :param bool options["enable_profiling"]: whether or not to set up the \
+        :param bool options["enable_profiling"]: whether or not to set up the
                 OpenCL environment with the profiling option enabled.
-        :param bool options["out_of_order"]: whether or not to set up the \
+        :param bool options["out_of_order"]: whether or not to set up the
                 OpenCL environment with the out_of_order option enabled.
-        :param bool options["end_barrier"]: whether or not to add an OpenCL \
+        :param bool options["end_barrier"]: whether or not to add an OpenCL
                 barrier at the end of the transformed invoke.
 
-        :raises TransformationError: if the InvokeSchedule is not for the \
-                                     GOcean1.0 API.
-        :raises TransformationError: if any of the kernels have arguments \
-                                     which are passed as a literal.
+        :raises TransformationError: if the InvokeSchedule is not for the
+                                     GOcean API.
+        :raises TransformationError: if any of the kernels have arguments
+            which are passed as a literal.
         :raises TransformationError: if any of the provided options is invalid.
-        :raises TransformationError: if any of the provided options is not \
-                                     compatible with a previous OpenCL
-                                     environment.
-        :raises TransformationError: if any kernel in this invoke has a \
-                                     global variable used by an import.
-        :raises TransformationError: if any kernel does not iterate over \
-                                     the whole grid.
-        '''
+        :raises TransformationError: if any of the provided options is not
+            compatible with a previous OpenCL environment.
+        :raises TransformationError: if any kernel in this invoke has a
+            global variable used by an import.
+        :raises TransformationError: if any kernel does not iterate over
+            the whole grid.
 
+        '''
         if isinstance(node, InvokeSchedule):
             if not isinstance(node, GOInvokeSchedule):
                 raise TransformationError(
@@ -147,17 +146,19 @@ class GOOpenCLTrans(Transformation):
 
         # Validate options map
         valid_options = ['end_barrier', 'enable_profiling', 'out_of_order']
-        for key, value in options.items():
-            if key in valid_options:
-                # All current options should contain boolean values
-                if not isinstance(value, bool):
+        if options:
+            for key, value in options.items():
+                if key in valid_options:
+                    # All current options should contain boolean values
+                    if not isinstance(value, bool):
+                        raise TransformationError(
+                            f"InvokeSchedule OpenCL option '{key}' should be "
+                            f"a boolean.")
+                else:
                     raise TransformationError(
-                        f"InvokeSchedule OpenCL option '{key}' should be a "
-                        f"boolean.")
-            else:
-                raise TransformationError(
-                    f"InvokeSchedule does not support the OpenCL option "
-                    f"'{key}'. The supported options are: {valid_options}.")
+                        f"InvokeSchedule does not support the OpenCL option "
+                        f"'{key}'. The supported options are: "
+                        f"{valid_options}.")
 
         # Validate that the options are valid with previously generated OpenCL
         if self._transformed_invokes > 0:
@@ -189,20 +190,25 @@ class GOOpenCLTrans(Transformation):
 
         # Check that we can construct the PSyIR and SymbolTable of each of
         # the kernels in this Schedule. Also check that none of them access
-        # any form of global data (that is not a routine argument).
+        # any form of global data (that is not a routine argument or just
+        # type information).
         for kern in node.kernels():
             KernelModuleInlineTrans().validate(kern)
-            ksched = kern.get_kernel_schedule()
-            global_variables = ksched.symbol_table.imported_symbols
-            if global_variables:
-                raise TransformationError(
-                    f"The Symbol Table for kernel '{kern.name}' contains the "
-                    f"following symbols with 'global' scope: "
-                    f"{[sym.name for sym in global_variables]}. An OpenCL "
-                    f"kernel cannot call other kernels and all of the data it "
-                    f"accesses must be passed by argument. Use the "
-                    f"KernelImportsToArguments transformation to convert such "
-                    f"symbols to kernel arguments first.")
+
+            for ksched in kern.get_callees():
+
+                global_variables = set(ksched.symbol_table.imported_symbols)
+                prec_symbols = set(ksched.symbol_table.precision_datasymbols)
+                if global_variables.difference(prec_symbols):
+                    names = sorted([sym.name for sym in
+                                    global_variables.difference(prec_symbols)])
+                    raise TransformationError(
+                        f"The Symbol Table for kernel '{kern.name}' contains "
+                        f"the following symbols with 'global' scope: {names}. "
+                        f"An OpenCL kernel cannot call other kernels and all "
+                        f"of the data it accesses must be passed by argument. "
+                        f"Use the KernelImportsToArguments transformation to "
+                        f"convert such symbols to kernel arguments first.")
 
         # In OpenCL all kernel loops should iterate the whole grid
         for kernel in node.kernels():
@@ -750,7 +756,9 @@ class GOOpenCLTrans(Transformation):
 
         # Create a copy of the kernel and remove precision symbols since they
         # are not supported in the OpenCL backend.
-        kernel_copy = kernel.get_kernel_schedule().copy()
+        # validate() has checked that the kernel is not polymorphic.
+        schedule = kernel.get_callees()[0]
+        kernel_copy = schedule.copy()
         symtab = kernel_copy.symbol_table
 
         # TODO #898: Removing symbols is not properly supported by PSyIR

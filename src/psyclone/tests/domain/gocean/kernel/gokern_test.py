@@ -38,7 +38,7 @@
 pytest tests for the GOKern class.
 
 TODO #1938 - expand the tests to fully cover the class. Currently only the
-constructor and the get_kernel_schedule() method are tested.
+constructor and the get_callees() method are tested.
 
 '''
 
@@ -49,7 +49,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
 from psyclone.configuration import Config
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern, GOKernelSchedule
 from psyclone.psyir.nodes import Reference
@@ -89,9 +89,9 @@ def test_gok_construction():
     assert kern._index_offset == "go_offset_sw"
 
 
-def test_gok_get_kernel_schedule():
+def test_gok_get_callees():
     '''
-    Test the get_kernel_schedule() method of GOKern.
+    Test the get_callees() method of GOKern.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "single_invoke.f90"),
@@ -99,15 +99,18 @@ def test_gok_get_kernel_schedule():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.walk(GOKern)[0]
-    assert kern._kern_schedule is None
-    sched = kern.get_kernel_schedule()
+    assert kern._schedules is None
+    scheds = kern.get_callees()
+    assert isinstance(scheds, list)
+    assert len(scheds) == 1
+    sched = scheds[0]
     assert isinstance(sched, GOKernelSchedule)
     # A second call should just return the previously-obtained schedule.
-    sched2 = kern.get_kernel_schedule()
-    assert sched2 is sched
+    scheds2 = kern.get_callees()
+    assert scheds2[0] is sched
     # Check that the expected error is raised if the subroutine that
     # implements the kernel cannot be found.
-    kern._kern_schedule = None
+    kern._schedules = None
     # Remove the subroutine that implements the kernel from the Fortran
     # parse tree.
     subs = walk(kern.ast, Fortran2003.Subroutine_Subprogram)
@@ -116,7 +119,7 @@ def test_gok_get_kernel_schedule():
             sub.parent.content.remove(sub)
             break
     with pytest.raises(GenerationError) as err:
-        kern.get_kernel_schedule()
+        kern.get_callees()
     err_text = str(err.value)
     assert ("Failed to raise the PSyIR for kernel 'compute_cu_code' to GOcean "
             "PSyIR" in err_text)
@@ -136,9 +139,9 @@ def test_gok_reference_accesses(fortran_writer):
 
     # Get the first kernel
     kern1 = schedule.walk(GOKern)[0]
-    vai = VariablesAccessInfo(kern1)
-    assert str(vai) == "cu_fld: WRITE, p_fld: READ, u_fld: READ"
-    p_fld = vai[Signature("p_fld")]
+    vam = kern1.reference_accesses()
+    assert str(vam) == "cu_fld: WRITE, p_fld: READ, u_fld: READ"
+    p_fld = vam[Signature("p_fld")]
     # We can't have lists in a set, so we convert the lists to string
     # for easy comparison. Calling `fortran_writer` also ensures that the
     # component indices are PSyIR nodes (not strings)
@@ -183,16 +186,16 @@ def test_gok_access_info_scalar_and_property():
 
     # Get the first kernel
     kern1 = schedule.walk(GOKern)[0]
-    vai = VariablesAccessInfo(kern1)
+    vam = kern1.reference_accesses()
 
     # Check that we get the grid properties listed:
-    assert (str(vai) == "p_fld: READWRITE, "
+    assert (str(vam) == "p_fld: READWRITE, "
             "p_fld%grid%subdomain%internal%xstop: READ, "
             "p_fld%grid%tmask: READ")
 
     # Check that the derived type using tmask has the corresponding component
     # indices specified. No indices for p_fld and grid:
-    tmask = vai[Signature("p_fld%grid%tmask")]
+    tmask = vam[Signature("p_fld%grid%tmask")]
     comp_ind = tmask[0].component_indices
     assert comp_ind[0] == []
     assert comp_ind[1] == []

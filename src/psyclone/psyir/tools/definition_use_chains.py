@@ -52,6 +52,7 @@ from psyclone.psyir.nodes import (
     Loop,
     Node,
     Reference,
+    RegionDirective,
     Return,
     Routine,
     Schedule,
@@ -181,9 +182,9 @@ class DefinitionUseChain:
         """
         # A basic block is a scope without any control flow nodes inside.
         # In PSyclone, possible control flow nodes are IfBlock, Loop
-        # and WhileLoop.
+        # and WhileLoop, along with RegionDirectives.
         for node in self._scope:
-            c_f_nodes = node.walk((IfBlock, Loop, WhileLoop))
+            c_f_nodes = node.walk((IfBlock, Loop, WhileLoop, RegionDirective))
             if len(c_f_nodes) > 0:
                 return False
         return True
@@ -234,11 +235,7 @@ class DefinitionUseChain:
             ):
                 # Check if there is an ancestor Loop/WhileLoop.
                 ancestor = self._reference.ancestor((Loop, WhileLoop))
-                if ancestor is not None:
-                    next_ancestor = ancestor.ancestor((Loop, WhileLoop))
-                    while next_ancestor is not None:
-                        ancestor = next_ancestor
-                        next_ancestor = ancestor.ancestor((Loop, WhileLoop))
+                while ancestor is not None:
                     # Create a basic block for the ancestor Loop.
                     body = ancestor.loop_body.children[:]
                     control_flow_nodes.insert(0, ancestor)
@@ -250,16 +247,20 @@ class DefinitionUseChain:
                         .abs_position
                         + 1
                     )
-                    # We make a copy of the reference to have a detached
-                    # node to avoid handling the special cases based on
-                    # the parents of the reference.
-                    chain = DefinitionUseChain(
-                        self._reference.copy(),
-                        body,
-                        start_point=ancestor.abs_position,
-                        stop_point=sub_stop_point,
-                    )
-                    chains.insert(0, chain)
+                    # If we have a basic block with no children then skip it,
+                    # e.g. for an if block with no code before the else
+                    # statement.
+                    if len(body) > 0:
+                        # We make a copy of the reference to have a detached
+                        # node to avoid handling the special cases based on
+                        # the parents of the reference.
+                        chain = DefinitionUseChain(
+                            self._reference.copy(),
+                            body,
+                            start_point=ancestor.abs_position,
+                            stop_point=sub_stop_point,
+                        )
+                        chains.insert(0, chain)
                     # If its a while loop, create a basic block for the while
                     # condition.
                     if isinstance(ancestor, WhileLoop):
@@ -272,6 +273,7 @@ class DefinitionUseChain:
                             stop_point=sub_stop_point,
                         )
                         chains.insert(0, chain)
+                    ancestor = ancestor.ancestor((Loop, WhileLoop))
 
                 # Check if there is an ancestor Assignment.
                 ancestor = self._reference.ancestor(Assignment)
@@ -300,6 +302,11 @@ class DefinitionUseChain:
             # Now add all the other standardly handled basic_blocks to the
             # list of chains.
             for block in basic_blocks:
+                # If we have a basic block with no children then skip it,
+                # e.g. for an if block with no code before the else
+                # statement.
+                if len(block) == 0:
+                    continue
                 chain = DefinitionUseChain(
                     self._reference,
                     block,
@@ -307,7 +314,6 @@ class DefinitionUseChain:
                     stop_point=self._stop_point,
                 )
                 chains.append(chain)
-
             for i, chain in enumerate(chains):
                 # Compute the defsout, killed and reaches for the block.
                 chain.find_forward_accesses()
@@ -449,6 +455,12 @@ class DefinitionUseChain:
                     if defs_out is not None:
                         self._defsout.append(defs_out)
                     return
+                # If its parent is an inquiry function then its neither
+                # a read nor write if its the first argument.
+                if (isinstance(reference.parent, IntrinsicCall) and
+                        reference.parent.is_inquiry and
+                        reference.parent.arguments[0] is reference):
+                    continue
                 if isinstance(reference, CodeBlock):
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
@@ -486,6 +498,11 @@ class DefinitionUseChain:
                         # will be caught by Reference walk already.
                         # Note that this assumes two symbols are not
                         # aliases of each other.
+                        continue
+                    if reference.is_pure:
+                        # Pure subroutines only touch their arguments, so we'll
+                        # catch the arguments that are passed into the call
+                        # later as References.
                         continue
                     # For now just assume calls are bad if we have a non-local
                     # variable and we treat them as though they were a write.
@@ -525,9 +542,7 @@ class DefinitionUseChain:
                             if defs_out is None:
                                 self._uses.append(reference)
                     elif reference.ancestor(Call):
-                        # It has a Call ancestor so assume read/write access
-                        # for now.
-                        # We can do better for IntrinsicCalls realistically.
+                        # Otherwise we assume read/write access for now.
                         if defs_out is not None:
                             self._killed.append(defs_out)
                         defs_out = reference
@@ -637,6 +652,20 @@ class DefinitionUseChain:
                 if node.else_body and not in_if_body:
                     control_flow_nodes.append(node)
                     basic_blocks.append(node.else_body.children[:])
+            elif isinstance(node, RegionDirective):
+                # Add any current block to the list of blocks.
+                if len(current_block) > 0:
+                    basic_blocks.append(current_block)
+                    control_flow_nodes.append(None)
+                    current_block = []
+                # TODO #2751 if directives are optional we should be more
+                # careful, i.e. if we add support for the if clause.
+                # We add a basic block for each of the parts of the
+                # RegionDirective. We don't need to do anything with the
+                # control flow storing for now.
+                # This assumes that data in clauses is inquiry for now.
+                control_flow_nodes.append(None)
+                basic_blocks.append([node.dir_body])
             else:
                 # This is a basic node, add it to the current block
                 current_block.append(node)
@@ -699,6 +728,12 @@ class DefinitionUseChain:
                 abs_pos = reference.abs_position
                 if abs_pos < self._start_point or abs_pos >= stop_position:
                     continue
+                # If its parent is an inquiry function then its neither
+                # a read nor write if its the first argument.
+                if (isinstance(reference.parent, IntrinsicCall) and
+                        reference.parent.is_inquiry and
+                        reference.parent.arguments[0] is reference):
+                    continue
                 if isinstance(reference, CodeBlock):
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
@@ -728,6 +763,11 @@ class DefinitionUseChain:
                         # will be caught by Reference walk already.
                         # Note that this assumes two symbols are not
                         # aliases of each other.
+                        continue
+                    if reference.is_pure:
+                        # Pure subroutines only touch their arguments, so we'll
+                        # catch the arguments that are passed into the call
+                        # later as References.
                         continue
                     # For now just assume calls are bad if we have a non-local
                     # variable and we treat them as though they were a write.
@@ -784,9 +824,7 @@ class DefinitionUseChain:
                             if defs_out is None:
                                 self._uses.append(reference)
                     elif reference.ancestor(Call):
-                        # It has a Call ancestor so assume read/write access
-                        # for now.
-                        # We can do better for IntrinsicCalls realistically.
+                        # Otherwise we assume read/write access for now.
                         if defs_out is not None:
                             self._killed.append(defs_out)
                         defs_out = reference
@@ -835,6 +873,11 @@ class DefinitionUseChain:
             # Now add all the other standardly handled basic_blocks to the
             # list of chains.
             for block in basic_blocks:
+                # If we have a basic block with no children then skip it,
+                # e.g. for an if block with no code before the else
+                # statement.
+                if len(block) == 0:
+                    continue
                 chain = DefinitionUseChain(
                     self._reference,
                     block,
@@ -855,11 +898,7 @@ class DefinitionUseChain:
             ):
                 # Check if there is an ancestor Loop/WhileLoop.
                 ancestor = self._reference.ancestor((Loop, WhileLoop))
-                if ancestor is not None:
-                    next_ancestor = ancestor.ancestor((Loop, WhileLoop))
-                    while next_ancestor is not None:
-                        ancestor = next_ancestor
-                        next_ancestor = ancestor.ancestor((Loop, WhileLoop))
+                while ancestor is not None:
                     # Create a basic block for the ancestor Loop.
                     body = ancestor.loop_body.children[:]
                     # Find the stop point - this needs to be the last node
@@ -874,14 +913,18 @@ class DefinitionUseChain:
                         ).abs_position
                     else:
                         sub_start_point = self._reference.abs_position
-                    chain = DefinitionUseChain(
-                        self._reference.copy(),
-                        body,
-                        start_point=sub_start_point,
-                        stop_point=sub_stop_point,
-                    )
-                    chains.append(chain)
-                    control_flow_nodes.append(ancestor)
+                    # If we have a basic block with no children then skip it,
+                    # e.g. for an if block with no code before the else
+                    # statement.
+                    if len(body) > 0:
+                        chain = DefinitionUseChain(
+                            self._reference.copy(),
+                            body,
+                            start_point=sub_start_point,
+                            stop_point=sub_stop_point,
+                        )
+                        chains.append(chain)
+                        control_flow_nodes.append(ancestor)
                     # If its a while loop, create a basic block for the while
                     # condition.
                     if isinstance(ancestor, WhileLoop):
@@ -894,6 +937,7 @@ class DefinitionUseChain:
                             stop_point=sub_stop_point,
                         )
                         chains.append(chain)
+                    ancestor = ancestor.ancestor((Loop, WhileLoop))
 
                 # Check if there is an ancestor Assignment.
                 ancestor = self._reference.ancestor(Assignment)

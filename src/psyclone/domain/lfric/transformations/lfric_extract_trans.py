@@ -42,7 +42,6 @@ transformation.
 
 from psyclone.domain.lfric import LFRicExtractDriverCreator, LFRicLoop
 from psyclone.psyir.nodes import ExtractNode
-from psyclone.psyir.tools import CallTreeUtils
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
@@ -70,10 +69,9 @@ class LFRicExtractTrans(ExtractTrans):
 
     def __init__(self):
         super().__init__(ExtractNode)
-        self._driver_creator = LFRicExtractDriverCreator()
 
     def validate(self, node_list, options=None):
-        ''' Perform Dynamo0.3 API specific validation checks before applying
+        ''' Perform LFRic API specific validation checks before applying
         the transformation.
 
         :param node_list: the list of Node(s) we are checking.
@@ -99,7 +97,7 @@ class LFRicExtractTrans(ExtractTrans):
             ancestor = node.ancestor(LFRicLoop)
             if ancestor and ancestor.loop_type == 'colours':
                 raise TransformationError(
-                    f"Error in {self.name} for Dynamo0.3 API: Extraction of a "
+                    f"Error in {self.name} for LFRic API: Extraction of a "
                     f"Loop over cells in a colour without its ancestor Loop "
                     f"over colours is not allowed.")
 
@@ -142,42 +140,9 @@ class LFRicExtractTrans(ExtractTrans):
             # changing the user's options:
             my_options = options.copy()
 
-        ctu = CallTreeUtils()
         nodes = self.get_node_list(nodes)
-        region_name = self.get_unique_region_name(nodes, my_options)
-        my_options["region_name"] = region_name
-        my_options["prefix"] = my_options.get("prefix", "extract")
-        # Get the input- and output-parameters of the node list
-        read_write_info = \
-            ctu.get_in_out_parameters(nodes, collect_non_local_symbols=True)
-
-        # Even variables that are output-only need to be written with their
-        # values at the time the kernel is called: many kernels will only
-        # write to part of a field (e.g. in case of MPI the halo region
-        # will not be written). Since the comparison in the driver uses
-        # the whole field (including values not updated), we need to write
-        # the current value of an output-only field as well. This is
-        # achieved by adding any written-only field to the list of fields
-        # read. This will trigger to write the values in the extraction,
-        # and the driver code created will read in their values.
-        for sig in read_write_info.write_list:
-            if sig not in read_write_info.read_list:
-                read_write_info.read_list.append(sig)
-
-        # Determine a unique postfix to be used for output variables
-        # that avoid any name clashes
-        postfix = ExtractTrans.determine_postfix(read_write_info,
-                                                 postfix="_post")
-        my_options["post_var_postfix"] = postfix
-        if my_options.get("create_driver", False):
-            # We need to create the driver before inserting the ExtractNode
-            # (since some of the visitors used in driver creation do not
-            # handle an ExtractNode in the tree)
-            self._driver_creator.write_driver(nodes, read_write_info,
-                                              postfix=postfix,
-                                              prefix=my_options["prefix"],
-                                              region_name=region_name)
-        # The PSyData transformation needs to pass this object to
-        # the corresponding PSyData node, so add it to the option arguments.
-        my_options["read_write_info"] = read_write_info
         super().apply(nodes, my_options)
+        new_node = nodes[0].ancestor(ExtractNode)
+        if my_options.get("create_driver", False):
+            region_name = my_options.get("region_name", None)
+            new_node._driver_creator = LFRicExtractDriverCreator(region_name)

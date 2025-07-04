@@ -44,7 +44,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 import os
 import sys
-from typing import Optional, List, Iterable
+from typing import Iterable
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
@@ -228,7 +228,7 @@ def _first_type_match(nodelist, typekind):
 
 
 def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
-                                      **kargs):
+                                      **kargs) -> Symbol:
     '''Returns the symbol with the given 'name' from a symbol table
     associated with the 'location' node or one of its ancestors. If a
     symbol is found then the type of the existing symbol is compared
@@ -257,9 +257,11 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
         searched.
     :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or
         `NoneType`
+    :param kargs: arguments to pass on when either specialising an
+        existing symbol or creating a new one.
+    :type kargs: unwrapped dict
 
     :returns: the matching symbol.
-    :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
     :raises TypeError: if the supplied scope_limit is not a Node.
     :raises ValueError: if the supplied scope_limit node is not an
@@ -283,8 +285,7 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
         mynode = location.parent
         while mynode is not None:
             if mynode is scope_limit:
-                # The scope_limit node is an ancestor of the
-                # supplied node.
+                # The scope_limit node is an ancestor of the supplied node.
                 break
             mynode = mynode.parent
         else:
@@ -295,19 +296,49 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
                 f"_find_or_create_unresolved_symbol() is not an ancestor of "
                 f"this node '{location}'.")
 
-    try:
-        sym = location.scope.symbol_table.lookup(name, scope_limit=scope_limit)
-        if "symbol_type" in kargs:
-            expected_type = kargs.pop("symbol_type")
-            if not isinstance(sym, expected_type):
-                # The caller specified a sub-class so we need to
-                # specialise the existing symbol.
-                sym.specialise(expected_type, **kargs)
-        return sym
-    except KeyError:
-        pass
+    # In Fortran, no import can clash with the name of a parent Routine.
+    # Therefore, if the name we've been given corresponds to the name of the
+    # enclosing Routine (or its RESULT if it is a function) then it *must*
+    # refer to that and cannot be brought in by an import.
+    parent_scope = location.ancestor(Routine)
+    if parent_scope:
+        if (parent_scope.return_symbol and
+                parent_scope.return_symbol.name.lower() == name.lower()):
+            # The PSyIR canonicalises functions such that they always have
+            # a RESULT clause. As such, according to the Fortan standard, any
+            # reference to the name specified in the RESULT clause is to the
+            # DataSymbol.
+            return parent_scope.return_symbol
+        if parent_scope.name.lower() == name.lower():
+            return parent_scope.symbol
 
-    # find the closest ancestor symbol table attached to a Routine or
+    table = location.scope.symbol_table
+    while table:
+        # By default, `lookup` looks in all ancestor scopes. However, we need
+        # to check for wildcard imports as we work our way up.
+        sym = table.lookup(name, scope_limit=table.node,
+                           otherwise=None)
+        if sym:
+            if "symbol_type" in kargs:
+                expected_type = kargs.pop("symbol_type")
+                if not isinstance(sym, expected_type):
+                    # The caller specified a sub-class so we need to
+                    # specialise the existing symbol.
+                    sym.specialise(expected_type, **kargs)
+            return sym
+
+        if table.wildcard_imports(scope_limit=table.node):
+            # There's a wildcard import into this scope so we stop
+            # searching and create an unresolved symbol (below). This is
+            # permitted to shadow a declaration in an outer scope because
+            # it may be a different entity (coming from the import).
+            # TODO #2915 - it may be that we've already resolved all symbols
+            # from this import but currently we have no way of recording that.
+            kargs["shadowing"] = True
+            break
+        table = table.parent_symbol_table(scope_limit)
+
+    # Find the closest ancestor symbol table attached to a Routine or
     # Container node. We don't want to add to a Schedule node as in
     # some situations PSyclone assumes symbols are declared within
     # Routine or Container symbol tables due to its Fortran provenance
@@ -349,14 +380,18 @@ def _find_or_create_psyclone_internal_cmp(node):
         if container and not isinstance(container, FileContainer):
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.frontend.fortran import FortranReader
+            # Giving them the same name in different modules causes issues with
+            # the nvidia compiler when offloading, so we use the module name as
+            # prefix
+            root = container.name + "_psyclone_internal_cmp"
             name_interface = node.scope.symbol_table.next_available_name(
-                "psyclone_internal_cmp")
+                root)
             name_f_int = node.scope.symbol_table.next_available_name(
-                "psyclone_cmp_int")
+                root + "_int")
             name_f_logical = node.scope.symbol_table.next_available_name(
-                "psyclone_cmp_logical")
+                root + "_logical")
             name_f_char = node.scope.symbol_table.next_available_name(
-                "psyclone_cmp_char")
+                root + "_char")
             fortran_reader = FortranReader()
             dummymod = fortran_reader.psyir_from_source(f'''
             module dummy
@@ -393,14 +428,17 @@ def _find_or_create_psyclone_internal_cmp(node):
             # manually.
             sym = dummymod.symbol_table.lookup(name_interface)
             routine_symbol1 = container.symbol_table.lookup(name_f_int)
+            routine_symbol1.visibitity = Symbol.Visibility.PRIVATE
             routine_symbol2 = container.symbol_table.lookup(name_f_logical)
+            routine_symbol2.visibitity = Symbol.Visibility.PRIVATE
             routine_symbol3 = container.symbol_table.lookup(name_f_char)
+            routine_symbol3.visibitity = Symbol.Visibility.PRIVATE
             symbol = GenericInterfaceSymbol(
                     sym.name,
                     [(routine_symbol1, sym.routines[0].from_container),
                      (routine_symbol2, sym.routines[1].from_container),
                      (routine_symbol3, sym.routines[2].from_container)],
-                    visibility=sym.visibility
+                    visibility=Symbol.Visibility.PRIVATE
                     )
             container.symbol_table.add(symbol)
             symbol = container.symbol_table.lookup(name_interface)
@@ -936,14 +974,11 @@ class Fparser2Reader():
             'class default' clauses, or -1 if no default clause is found.
 
         """
-        # 'str | None' syntax is only supported in Python >=3.10 so use
-        # 'typing.Optional[]'. Similarly, 'list[str]' is only valid in
-        # Python >=3.9 so use 'typing.List[str]'.
-        guard_type: List[Optional[str]] = field(default_factory=list)
-        guard_type_name: List[Optional[str]] = field(default_factory=list)
-        intrinsic_type_name: List[Optional[str]] = field(default_factory=list)
-        clause_type: List[str] = field(default_factory=list)
-        stmts: List[List[StmtBase]] = field(default_factory=list)
+        guard_type: list[str | None] = field(default_factory=list)
+        guard_type_name: list[str | None] = field(default_factory=list)
+        intrinsic_type_name: list[str | None] = field(default_factory=list)
+        clause_type: list[str] = field(default_factory=list)
+        stmts: list[list[StmtBase]] = field(default_factory=list)
         selector: str = ""
         num_clauses: int = -1
         default_idx: int = -1
@@ -1573,6 +1608,13 @@ class Fparser2Reader():
             if (self._resolve_all_modules or
                     container.name.lower() in self._modules_to_resolve):
                 parent.symbol_table.resolve_imports([container])
+
+            if visibility_map:
+                # Some of the imported symbols could have explicit visibility
+                # statements, so set the visibilities of all existing symbols
+                for symbol in parent.symbol_table.symbols_dict.values():
+                    if symbol.name.lower() in visibility_map:
+                        symbol.visibility = visibility_map[symbol.name.lower()]
 
     def _process_type_spec(self, parent, type_spec):
         '''
@@ -4411,10 +4453,12 @@ class Fparser2Reader():
             # TODO 2884: We should be able to handle this imported symbol
             # better. If we can, we need to handle a case where is_elemental
             # can be None.
-            if isinstance(ref.symbol.interface, ImportInterface):
+            if isinstance(ref.symbol.interface, (ImportInterface,
+                                                 UnresolvedInterface)):
                 raise NotImplementedError(
-                        "PSyclone doesn't yet support reference to imported "
-                        "symbols inside WHERE clauses.")
+                        f"PSyclone doesn't yet support references to imported/"
+                        f"unresolved symbols inside WHERE clauses: "
+                        f"'{ref.symbol.name}' is unresolved.")
             if (isinstance(ref.symbol, DataSymbol) and
                     elemental_ancestor):
                 try:
@@ -4432,7 +4476,7 @@ class Fparser2Reader():
             raise NotImplementedError(
                 f"Only WHERE constructs using explicit array notation "
                 f"including ranges (e.g. 'my_array(1,:)') are supported but "
-                f"found '{logical_expr}'")
+                f"found '{logical_expr[0]}'")
 
         array_ref = first_array.ancestor(Reference, include_self=True)
         if not isinstance(array_ref.datatype, ArrayType):
@@ -4616,7 +4660,18 @@ class Fparser2Reader():
         :return: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Return`
 
+        :raises NotImplementedError: if the parse tree contains an
+            alternate return statement.
         '''
+        # Fortran Alternate Return statements are not supported
+        if node.children != (None, ):
+            raise NotImplementedError(
+                "Fortran alternate returns are not supported.")
+        # Ignore redundant Returns at the end of Execution sections
+        if isinstance(node.parent, Fortran2003.Execution_Part):
+            if node is node.parent.children[-1]:
+                return None
+        # Everything else is a valid PSyIR Return
         rtn = Return(parent=parent)
         rtn.ast = node
         return rtn
@@ -5158,6 +5213,7 @@ class Fparser2Reader():
         # fparser2 is fixed.
         if str(node.items[0]).lower() == "null" and node.items[1] is None:
             return self._intrinsic_handler(node, parent)
+
         self.process_nodes(parent=call, nodes=[node.items[0]])
         routine = call.children[0]
         # If it's a plain reference, promote the symbol to a RoutineSymbol
@@ -5410,7 +5466,7 @@ class Fparser2Reader():
 
             if isinstance(node, Fortran2003.Function_Subprogram):
                 # Check whether this function-stmt has a suffix containing
-                # 'RETURNS'
+                # 'RESULT'
                 suffix = stmt.children[3]
                 if suffix:
                     # Although the suffix can, in principle, contain a proc-

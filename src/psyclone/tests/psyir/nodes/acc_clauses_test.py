@@ -39,9 +39,34 @@
 
 import pytest
 
-from psyclone.psyir.nodes import (ACCCopyClause, ACCCopyInClause,
-                                  ACCCopyOutClause, Literal, Reference)
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.errors import GenerationError
+from psyclone.psyir.nodes import (
+    ACCAsyncQueueClause, ACCCopyClause, ACCCopyInClause, ACCCopyOutClause,
+    Literal, Reference, Return)
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, Symbol
+
+
+def test_acc_async_queue_clause():
+    '''
+    Tests for the ACCAsyncQueueClause class.
+    '''
+    clause = ACCAsyncQueueClause()
+    # By default, there is no queue specified by the clause.
+    assert clause.queue is None
+    # The clause is only permitted to have a single child which must be
+    # a DataNode.
+    with pytest.raises(GenerationError) as err:
+        clause.addchild(Return())
+    assert ("Item 'Return' can't be child 0 of 'ACCAsyncQueueClause'"
+            in str(err.value))
+    sym = Symbol("some_value")
+    clause.addchild(Reference(sym))
+    with pytest.raises(GenerationError) as err:
+        clause.addchild(Reference(sym))
+    assert ("Item 'Reference' can't be child 1 of 'ACCAsyncQueueClause'"
+            in str(err.value))
+    # Check that the `queue` property now returns the expected value.
+    assert clause.queue.symbol is sym
 
 
 @pytest.mark.parametrize("cls, string", [(ACCCopyClause, "copy"),

@@ -329,7 +329,7 @@ The SIR back-end is limited in a number of ways:
 
 The current implementation also outputs text rather than running Dawn
 directly. This text needs to be pasted into another script in order to
-run Dawn, see :ref:`user_guide:nemo-eg4-sir` the NEMO API example 4.
+run Dawn, see :ref:`nemo-eg4-sir` the NEMO API example 4.
 
 Currently there is no way to tell PSyclone to output SIR. Outputting
 SIR is achieved by writing a script which creates an SIRWriter and

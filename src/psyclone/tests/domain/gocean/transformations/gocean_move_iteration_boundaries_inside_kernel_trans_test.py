@@ -40,13 +40,13 @@ GOMoveIterationBoundariesInsideKernelTrans transformation.
 
 import pytest
 from psyclone.tests.utilities import get_invoke
-from psyclone.domain.gocean.transformations import \
-    GOMoveIterationBoundariesInsideKernelTrans
-from psyclone.psyir.nodes import Assignment, Container, IfBlock, Return
+from psyclone.domain.gocean.transformations import (
+    GOMoveIterationBoundariesInsideKernelTrans)
+from psyclone.psyir.nodes import (
+    Assignment, Container, IfBlock, Return)
 from psyclone.psyir.symbols import ArgumentInterface
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.backend.fortran import FortranWriter
 
 API = "gocean"
 
@@ -59,11 +59,11 @@ def test_description():
         "Move kernel iteration boundaries inside the kernel code."
 
 
-def test_validation():
-    ''' Check that the transformation can only be applied to routine nodes '''
+def test_validation(monkeypatch):
+    '''Check that the transformation can only be applied to routine nodes.'''
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     with pytest.raises(TransformationError) as info:
-        trans.apply(None)
+        trans.validate(None)
     assert ("Error in GOMoveIterationBoundariesInsideKernelTrans "
             "transformation. This transformation can only be applied to "
             "'GOKern' nodes, but found 'NoneType'." in str(info.value))
@@ -81,7 +81,9 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
 
     # Add some name conflicting symbols in the Invoke and the Kernel
     kernel.ancestor(Container).symbol_table.new_symbol("xstop")
-    kernel.get_kernel_schedule().symbol_table.new_symbol("ystart")
+    routines = kernel.get_callees()
+    ksched = routines[0]
+    ksched.symbol_table.new_symbol("ystart")
 
     # Apply the transformation
     trans = GOMoveIterationBoundariesInsideKernelTrans()
@@ -118,7 +120,7 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
     assert kernel.arguments.args[-1].argument_type == "scalar"
 
     # Check that the kernel subroutine has been transformed:
-    kschedule = kernel.get_kernel_schedule()
+    kschedule = kernel.get_callees()[0]
 
     # - It has the boundary conditions mask
     assert isinstance(kschedule.children[0], IfBlock)
@@ -151,7 +153,8 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
                       ArgumentInterface)
 
 
-def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice():
+def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice(
+        fortran_writer):
     ''' Tests that the GOMoveIterationBoundariesInsideKernelTrans
     transformation for the GOcean API produces the expected code when the
     invoke has two kernels and the transformation is applied twice.
@@ -212,5 +215,4 @@ xstart_1, xstop_1, ystart_1, ystop_1)
 end subroutine invoke_0
 '''
 
-    writer = FortranWriter()
-    assert writer(sched) == expected
+    assert fortran_writer(sched) == expected

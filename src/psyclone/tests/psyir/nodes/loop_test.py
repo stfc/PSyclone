@@ -39,11 +39,8 @@
 
 ''' Performs py.test tests on the Loop PSyIR node. '''
 
-import os
 import pytest
 from psyclone.errors import InternalError, GenerationError
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import (
     Assignment, Loop, Literal, Schedule, Return, Reference, Routine)
 from psyclone.psyir.symbols import (
@@ -138,15 +135,6 @@ def test_loop_navigation_properties():
     with pytest.raises(InternalError) as err:
         _ = loop.loop_body
     assert error_str in str(err.value)
-    with pytest.raises(InternalError) as err:
-        loop.start_expr = Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE)
-    assert error_str in str(err.value)
-    with pytest.raises(InternalError) as err:
-        loop.stop_expr = Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE)
-    assert error_str in str(err.value)
-    with pytest.raises(InternalError) as err:
-        loop.step_expr = Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE)
-    assert error_str in str(err.value)
 
     # Check that Getters properties work
     loop.addchild(Schedule(parent=loop))
@@ -201,16 +189,19 @@ def test_loop_node_str(monkeypatch):
     Loop.set_loop_type_inference_rules({})
 
 
-def test_loop_replace_symbols_using():
+@pytest.mark.parametrize("table", [None, SymbolTable()])
+def test_loop_replace_symbols_using(table):
     '''Test the replace_symbols_using() method of Loop.'''
     loop = make_loop()
     assert loop.variable.name == "i"
-    # Create a symbol table containing a replacement symbol.
-    table = SymbolTable()
-    new_i = table.new_symbol("i", symbol_type=DataSymbol,
-                             datatype=INTEGER_TYPE)
+    # Create a replacement symbol.
+    new_i = DataSymbol("i", datatype=INTEGER_TYPE)
     assert loop.variable is not new_i
-    loop.replace_symbols_using(table)
+    if table is not None:
+        table.add(new_i)
+        loop.replace_symbols_using(table)
+    else:
+        loop.replace_symbols_using(new_i)
     # Loop variable should have been updated.
     assert loop.variable is new_i
     # Check that the method has recursed to the children too.
@@ -222,7 +213,24 @@ def test_loop_replace_symbols_using():
     loop.addchild(Literal("1", INTEGER_SINGLE_TYPE))
     loop.addchild(Schedule(parent=loop))
     assert not loop._variable
-    loop.replace_symbols_using(table)
+    if table is not None:
+        loop.replace_symbols_using(table)
+    else:
+        loop.replace_symbols_using(new_i)
+    # Test when the Loop has a list of explicitly-private symbols
+    var = DataSymbol("var", INTEGER_TYPE)
+    var2 = DataSymbol("var2", INTEGER_TYPE)
+    loop.explicitly_private_symbols.add(var)
+    loop.explicitly_private_symbols.add(var2)
+    new_var = DataSymbol("var", INTEGER_TYPE)
+    if table is not None:
+        table.add(new_var)
+        loop.replace_symbols_using(table)
+    else:
+        loop.replace_symbols_using(new_var)
+    assert new_var in loop.explicitly_private_symbols
+    assert var not in loop.explicitly_private_symbols
+    assert var2 in loop.explicitly_private_symbols
 
 
 def test_loop_str():
@@ -250,30 +258,6 @@ def test_loop_independent_iterations():
     msgs = dtools.get_all_messages()
     assert len(msgs) == 1
     assert "variable 'tmp' is only written once" in str(msgs[0])
-
-
-def test_loop_gen_code():
-    ''' Check that the Loop gen_code method prints the proper loop '''
-    base_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))), "test_files", "dynamo0p3")
-    _, invoke_info = parse(os.path.join(base_path,
-                                        "1.0.1_single_named_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-
-    # By default LFRicLoop has step = 1 and it is not printed in the Fortran DO
-    gen = str(psy.gen)
-    assert "loop0_start = 1" in gen
-    assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
-    assert "DO cell = loop0_start, loop0_stop" in gen
-
-    # Change step to 2
-    loop = psy.invokes.get('invoke_important_invoke').schedule[4]
-    loop.step_expr = Literal("2", INTEGER_SINGLE_TYPE)
-
-    # Now it is printed in the Fortran DO with the expression  ",2" at the end
-    gen = str(psy.gen)
-    assert "DO cell = loop0_start, loop0_stop, 2" in gen
 
 
 def test_invalid_loop_annotations():

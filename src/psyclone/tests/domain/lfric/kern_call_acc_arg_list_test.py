@@ -42,7 +42,7 @@ import os
 
 import pytest
 
-from psyclone.core import VariablesAccessInfo
+from psyclone.core import VariablesAccessMap
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    LFRicKern)
 from psyclone.errors import InternalError
@@ -58,7 +58,7 @@ BASE_PATH = get_base_path(TEST_API)
 
 def test_acc_arg_list_cell_map(dist_mem, monkeypatch):
     '''Test the cell_map() method.'''
-    # We need a LFRicKern in order to construct an instance of
+    # We need an LFRicKern in order to construct an instance of
     # KernCallAccArgList
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.0_intergrid_prolong.f90"),
@@ -148,7 +148,7 @@ def test_lfric_acc():
     # Find the first kernel:
     kern = invoke.schedule.walk(psyGen.CodedKern)[0]
     create_acc_arg_list = KernCallAccArgList(kern)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     assert "f1_data: READ+WRITE" in var_info
@@ -180,8 +180,9 @@ def test_lfric_acc_operator():
 
     # Find the first kernel:
     kern = invoke.schedule.walk(psyGen.CodedKern)[0]
+    invoke.setup_psy_layer_symbols()
     create_acc_arg_list = KernCallAccArgList(kern)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     assert "lma_op1_proxy%ncell_3d: READ" in var_info
@@ -206,7 +207,7 @@ def test_lfric_stencil():
     # Find the first kernel:
     kern = invoke.schedule.walk(psyGen.CodedKern)[0]
     create_acc_arg_list = KernCallAccArgList(kern)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     assert "f1: READ+WRITE" in var_info
@@ -232,7 +233,7 @@ def test_lfric_field():
     # Find the first kernel:
     kern = invoke.schedule.walk(psyGen.CodedKern)[0]
     create_acc_arg_list = KernCallAccArgList(kern)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     # Check fields

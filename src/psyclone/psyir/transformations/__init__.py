@@ -53,6 +53,8 @@ from psyclone.psyir.transformations.arrayaccess2loop_trans import \
     ArrayAccess2LoopTrans
 from psyclone.psyir.transformations.arrayassignment2loops_trans import \
     ArrayAssignment2LoopsTrans
+from psyclone.psyir.transformations.debug_checksum_trans import \
+    DebugChecksumTrans
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
@@ -103,47 +105,58 @@ from psyclone.psyir.transformations.read_only_verify_trans \
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.replace_induction_variables_trans import \
      ReplaceInductionVariablesTrans
+from psyclone.psyir.transformations.replace_reference_by_literal_trans import (
+    ReplaceReferenceByLiteralTrans,
+)
 from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
-
+from psyclone.psyir.transformations.scalarisation_trans import \
+    ScalarisationTrans
+from psyclone.psyir.transformations.parallel_region_trans import \
+    ParallelRegionTrans
 
 # For AutoAPI documentation generation
-__all__ = ['ACCKernelsTrans',
-           'ACCUpdateTrans',
-           'AllArrayAccess2LoopTrans',
-           'ArrayAccess2LoopTrans',
-           'ArrayAssignment2LoopsTrans',
-           'ChunkLoopTrans',
-           'ExtractTrans',
-           'FoldConditionalReturnExpressionsTrans',
-           'HoistLocalArraysTrans',
-           'HoistLoopBoundExprTrans',
-           'HoistTrans',
-           'InlineTrans',
-           'Abs2CodeTrans',
-           'DotProduct2CodeTrans',
-           'Matmul2CodeTrans',
-           'Max2CodeTrans',
-           'Min2CodeTrans',
-           'Sign2CodeTrans',
-           'Sum2LoopTrans',
-           'LoopFuseTrans',
-           'LoopSwapTrans',
-           'LoopTiling2DTrans',
-           'LoopTrans',
-           'Maxval2LoopTrans',
-           'Minval2LoopTrans',
-           'OMPLoopTrans',
-           'OMPTargetTrans',
-           'OMPTaskTrans',
-           'OMPTaskwaitTrans',
-           'ParallelLoopTrans',
-           'Product2LoopTrans',
-           'ProfileTrans',
-           'PSyDataTrans',
-           'ReadOnlyVerifyTrans',
-           'Reference2ArrayRangeTrans',
-           'RegionTrans',
-           'ReplaceInductionVariablesTrans',
-           'TransformationError',
-           'ValueRangeCheckTrans']
+__all__ = [
+    "ACCKernelsTrans",
+    "ACCUpdateTrans",
+    "AllArrayAccess2LoopTrans",
+    "ArrayAccess2LoopTrans",
+    "ArrayAssignment2LoopsTrans",
+    "DebugChecksumTrans",
+    "ChunkLoopTrans",
+    "ExtractTrans",
+    "FoldConditionalReturnExpressionsTrans",
+    "HoistLocalArraysTrans",
+    "HoistLoopBoundExprTrans",
+    "HoistTrans",
+    "InlineTrans",
+    "Abs2CodeTrans",
+    "DotProduct2CodeTrans",
+    "Matmul2CodeTrans",
+    "Max2CodeTrans",
+    "Min2CodeTrans",
+    "Sign2CodeTrans",
+    "Sum2LoopTrans",
+    "LoopFuseTrans",
+    "LoopSwapTrans",
+    "LoopTiling2DTrans",
+    "LoopTrans",
+    "Maxval2LoopTrans",
+    "Minval2LoopTrans",
+    "OMPLoopTrans",
+    "OMPTargetTrans",
+    "OMPTaskTrans",
+    "OMPTaskwaitTrans",
+    "ParallelLoopTrans",
+    "Product2LoopTrans",
+    "ProfileTrans",
+    "PSyDataTrans",
+    "ReadOnlyVerifyTrans",
+    "Reference2ArrayRangeTrans",
+    "RegionTrans",
+    "ReplaceInductionVariablesTrans",
+    "ReplaceReferenceByLiteralTrans",
+    "TransformationError",
+    "ValueRangeCheckTrans",
+    "ParallelRegionTrans",
+]

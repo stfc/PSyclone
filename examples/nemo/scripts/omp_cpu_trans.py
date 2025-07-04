@@ -40,16 +40,19 @@ directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT,
-    PRIVATISATION_ISSUES)
+    enhance_tree_information, PARALLELISATION_ISSUES, PRIVATISATION_ISSUES,
+    NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
 # Enable the insertion of profiling hooks during the transformation script
 PROFILING_ENABLED = False
 
-# List of all module names that PSyclone will chase during the creation of the
-# PSyIR tree in order to use the symbol information from those modules
+# Whether to chase the imported modules to improve symbol information (it can
+# also be a list of module filenames to limit the chasing to only specific
+# modules). This has to be used in combination with '-I' command flag in order
+# to point to the module location directory. We also strongly recommend using
+# the '--enable-cache' flag to reduce the performance overhead.
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # A environment variable can inform if this is targeting NEMOv4, in which case
@@ -72,7 +75,6 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-
     # If the environemnt has ONLY_FILE defined, only process that one file and
     # nothing else. This is useful for file-by-file exhaustive tests.
     only_do_file = os.environ.get('ONLY_FILE', False)
@@ -96,7 +98,8 @@ def trans(psyir):
                 hoist_local_arrays=False,
                 convert_array_notation=True,
                 convert_range_loops=True,
-                hoist_expressions=False
+                hoist_expressions=False,
+                scalarise_loops=False
         )
 
         if psyir.name not in PARALLELISATION_ISSUES:

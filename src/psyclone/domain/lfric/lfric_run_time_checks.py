@@ -46,7 +46,12 @@ the LFRicCollection class.'''
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants
-from psyclone.f2pygen import CallGen, CommentGen, IfThenGen, UseGen
+from psyclone.psyir.symbols import (
+    CHARACTER_TYPE, ContainerSymbol, RoutineSymbol, ImportInterface,
+    DataSymbol, UnresolvedType, INTEGER_TYPE)
+from psyclone.psyir.nodes import (
+    Call, StructureReference, BinaryOperation, Reference, Literal, IfBlock,
+    ArrayOfStructuresReference)
 
 
 class LFRicRunTimeChecks(LFRicCollection):
@@ -55,41 +60,41 @@ class LFRicRunTimeChecks(LFRicCollection):
 
     '''
 
-    def _invoke_declarations(self, parent):
+    def invoke_declarations(self):
         '''Insert declarations of all data and functions required by the
         run-time checks code into the PSy layer.
 
-        :param parent: the node in the f2pygen AST representing the PSy- \
-                       layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
         '''
+        super().invoke_declarations()
         if Config.get().api_conf("lfric").run_time_checks:
             # Only add if run-time checks are requested
             const = LFRicConstants()
-            parent.add(
-                UseGen(parent, name=const.
-                       FUNCTION_SPACE_TYPE_MAP["fs_continuity"]["module"]))
-            parent.add(UseGen(parent, name=const.
-                              UTILITIES_MOD_MAP["logging"]["module"],
-                              only=True,
-                              funcnames=["log_event", "LOG_LEVEL_ERROR"]))
+            csym = self.symtab.find_or_create(
+                const.UTILITIES_MOD_MAP["logging"]["module"],
+                symbol_type=ContainerSymbol
+            )
+            self.symtab.find_or_create(
+                "log_event", symbol_type=RoutineSymbol,
+                interface=ImportInterface(csym)
+            )
+            self.symtab.find_or_create(
+                "LOG_LEVEL_ERROR", symbol_type=DataSymbol,
+                datatype=UnresolvedType(),
+                interface=ImportInterface(csym)
+            )
 
-    def _check_field_fs(self, parent):
+    def _check_field_fs(self, cursor: int) -> int:
         '''
         Internal method that adds run-time checks to make sure that the
         field's function space is consistent with the appropriate
         kernel metadata function spaces.
 
-        :param parent: the node in the f2pygen AST representing the PSy- \
-                       layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
-        parent.add(CommentGen(
-            parent, " Check field function space and kernel metadata "
-            "function spaces are compatible"))
-
         # When issue #30 is addressed (with issue #79 helping further)
         # we may know some or all field function spaces statically. If
         # so, we should remove these from the fields to check at run
@@ -97,7 +102,9 @@ class LFRicRunTimeChecks(LFRicCollection):
         # generation time).
 
         const = LFRicConstants()
+        symtab = self._invoke.schedule.symbol_table
         existing_checks = []
+        first = True
         for kern_call in self._invoke.schedule.kernels():
             for arg in kern_call.arguments.args:
                 if not arg.is_field:
@@ -129,21 +136,55 @@ class LFRicRunTimeChecks(LFRicCollection):
                     # We need to check against a specific function space
                     function_space_names = [fs_name]
 
-                if_condition = " .and. ".join(
-                    [f"{field_name}%which_function_space() /= {name.upper()}"
-                     for name in function_space_names])
-                if_then = IfThenGen(parent, if_condition)
-                call_abort = CallGen(
-                    if_then, "log_event(\"In alg "
-                    f"'{self._invoke.invokes.psy.orig_name}' invoke "
-                    f"'{self._invoke.name}', the field '{arg.name}' is passed "
-                    f"to kernel '{kern_call.name}' but its function space is "
-                    f"not compatible with the function space specified in the "
-                    f"kernel metadata '{fs_name}'.\", LOG_LEVEL_ERROR)")
-                if_then.add(call_abort)
-                parent.add(if_then)
+                field_symbol = symtab.lookup(arg.name)
 
-    def _check_field_ro(self, parent):
+                if_condition = None
+                for name in function_space_names:
+                    if arg._vector_size > 1:
+                        call = Call.create(ArrayOfStructuresReference.create(
+                            field_symbol, [Literal('1', INTEGER_TYPE)],
+                            ["which_function_space"]))
+                    else:
+                        call = Call.create(StructureReference.create(
+                            field_symbol, ["which_function_space"]))
+                    mod_symbol = symtab.find_or_create(
+                        "fs_continuity_mod", symbol_type=ContainerSymbol)
+                    symbol = symtab.find_or_create(
+                        name.upper(),
+                        interface=ImportInterface(mod_symbol))
+                    cmp = BinaryOperation.create(
+                        BinaryOperation.Operator.NE,
+                        call, Reference(symbol)
+                    )
+                    if if_condition is None:
+                        if_condition = cmp
+                    else:
+                        if_condition = BinaryOperation.create(
+                            BinaryOperation.Operator.AND, if_condition, cmp
+                        )
+
+                if_body = Call.create(
+                    symtab.lookup("log_event"),
+                    [Literal(f"In alg '{self._invoke.invokes.psy.orig_name}' "
+                             f"invoke '{self._invoke.name}', the field "
+                             f"'{arg.name}' is passed to kernel "
+                             f"'{kern_call.name}' but its function space is "
+                             f"not compatible with the function space "
+                             f"specified in the kernel metadata '{fs_name}'.",
+                             CHARACTER_TYPE),
+                     Reference(symtab.lookup("LOG_LEVEL_ERROR"))])
+
+                ifblock = IfBlock.create(if_condition, [if_body])
+                self._invoke.schedule.addchild(ifblock, cursor)
+                cursor += 1
+                if first:
+                    ifblock.preceding_comment = (
+                        "Check field function space and kernel metadata "
+                        "function spaces are compatible")
+                    first = False
+        return cursor
+
+    def _check_field_ro(self, cursor: int) -> int:
         '''
         Internal method that adds runtime checks to make sure that if the
         field is on a read-only function space then the associated
@@ -160,11 +201,12 @@ class LFRicRunTimeChecks(LFRicCollection):
         not be picked up where the error occured. Therefore adding
         checks here is still useful.
 
-        :param parent: the node in the f2pygen AST representing the PSy- \
-                       layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
 
         '''
+        symtab = self._invoke.schedule.symbol_table
         # When issue #30 is addressed (with issue #79 helping further)
         # we may know some or all field function spaces statically. If
         # so, we should remove these from the fields to check at run
@@ -180,55 +222,64 @@ class LFRicRunTimeChecks(LFRicCollection):
                         not [entry for entry in modified_fields if
                              entry[0].name == arg.name]):
                     modified_fields.append((arg, call))
-        if modified_fields:
-            parent.add(CommentGen(
-                parent, " Check that read-only fields are not modified"))
+        first = True
         for field, call in modified_fields:
-            if_then = IfThenGen(
-                parent, f"{field.proxy_name_indexed}%vspace%is_readonly()")
-            call_abort = CallGen(
-                if_then, "log_event(\"In alg "
-                f"'{self._invoke.invokes.psy.orig_name}' invoke "
-                f"'{self._invoke.name}', field '{field.name}' is on a "
-                f"read-only function space but is modified by kernel "
-                f"'{call.name}'.\", LOG_LEVEL_ERROR)")
-            if_then.add(call_abort)
-            parent.add(if_then)
+            if_condition = field.generate_method_call("is_readonly")
+            if_body = Call.create(
+                symtab.lookup("log_event"),
+                [Literal(f"In alg '{self._invoke.invokes.psy.orig_name}' "
+                         f"invoke '{self._invoke.name}', field '{field.name}' "
+                         f"is on a read-only function space but is modified "
+                         f"by kernel '{call.name}'.", CHARACTER_TYPE),
+                 Reference(symtab.lookup("LOG_LEVEL_ERROR"))])
 
-    def initialise(self, parent):
+            ifblock = IfBlock.create(if_condition, [if_body])
+            self._invoke.schedule.addchild(ifblock, cursor)
+            cursor += 1
+            if first:
+                ifblock.preceding_comment = (
+                    "Check that read-only fields are not modified")
+                first = False
+        return cursor
+
+    def initialise(self, cursor: int) -> int:
         '''Add runtime checks to make sure that the arguments being passed
         from the algorithm layer are consistent with the metadata
         specified in the associated kernels. Currently checks are
         limited to ensuring that field function spaces are consistent
         with the associated kernel function-space metadata.
 
-        :param parent: the node in the f2pygen AST representing the PSy- \
-                       layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
 
         '''
         if not Config.get().api_conf("lfric").run_time_checks:
             # Run-time checks are not requested.
-            return
+            return cursor
 
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Perform run-time checks"))
-        parent.add(CommentGen(parent, ""))
+        init_cursor = cursor
 
         # Check that field function spaces are compatible with the
         # function spaces specified in the kernel metadata.
-        self._check_field_fs(parent)
+        cursor = self._check_field_fs(cursor)
 
         # Check that fields on read-only function spaces are not
         # passed into a kernel where the kernel metadata specifies
         # that the field will be modified.
-        self._check_field_ro(parent)
+        cursor = self._check_field_ro(cursor)
+
+        self._invoke.schedule[init_cursor].preceding_comment = (
+            "Perform run-time checks\n"
+            + self._invoke.schedule[init_cursor].preceding_comment
+        )
 
         # These checks should be expanded. Issue #768 suggests
         # extending function space checks to operators.
+        return cursor
 
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for.
 __all__ = ['LFRicRunTimeChecks']

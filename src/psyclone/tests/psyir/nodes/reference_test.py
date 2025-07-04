@@ -41,10 +41,10 @@
 
 import pytest
 
-from psyclone.core import VariablesAccessInfo
 from psyclone.psyGen import GenerationError
-from psyclone.psyir.nodes import (ArrayReference, Assignment, colored,
-                                  KernelSchedule, Literal, Reference)
+from psyclone.psyir.nodes import (
+    ArrayReference, Assignment, CodeBlock, colored,
+    KernelSchedule, Literal, Reference)
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     UnresolvedType, ImportInterface,
                                     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
@@ -168,8 +168,7 @@ def test_reference_accesses():
 
     '''
     reference = Reference(DataSymbol("test", REAL_TYPE))
-    var_access_info = VariablesAccessInfo()
-    reference.reference_accesses(var_access_info)
+    var_access_info = reference.reference_accesses()
     assert (str(var_access_info)) == "test: READ"
 
     # Test using reference_access with an array to check
@@ -179,8 +178,7 @@ def test_reference_accesses():
     symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
     array = ArrayReference.create(symbol_temp, [Reference(symbol_i)])
     assert array.is_array is True
-    var_access_info = VariablesAccessInfo()
-    array.reference_accesses(var_access_info)
+    var_access_info = array.reference_accesses()
     assert str(var_access_info) == "i: READ, temp: READ"
 
     # Test that renaming an imported reference is handled
@@ -189,13 +187,8 @@ def test_reference_accesses():
     symbol.interface = ImportInterface(ContainerSymbol("my_mod"),
                                        orig_name="orig_name")
     reference.symbol = symbol
-    var_access_info = VariablesAccessInfo()
-    reference.reference_accesses(var_access_info)
+    var_access_info = reference.reference_accesses()
     assert "renamed_name: READ" in str(var_access_info)
-
-    var_access_info = VariablesAccessInfo(options={"USE-ORIGINAL-NAMES": True})
-    reference.reference_accesses(var_access_info)
-    assert "orig_name: READ" in str(var_access_info)
 
 
 def test_reference_can_be_copied():
@@ -544,10 +537,8 @@ def test_reference_previous_accesses_with_codeblock(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.children[0]
     a = routine.children[1].lhs
-    codeblock = routine.children[1]
-    if a.previous_accesses() is not codeblock:
-        pytest.xfail("#2271 Codeblocks don't currently support "
-                     "reference_accesses")
+    codeblock = routine.walk(CodeBlock)[0]
+    assert a.previous_accesses()[0] is codeblock
 
 
 def test_reference_replace_symbols_using():
@@ -583,6 +574,7 @@ def test_reference_is_read(fortran_reader):
     code = """subroutine my_subroutine()
         b = a
         call somecall(c)
+        b = lbound(d, dim=x)
     end subroutine"""
 
     psyir = fortran_reader.psyir_from_source(code)
@@ -591,6 +583,12 @@ def test_reference_is_read(fortran_reader):
     assert references[1].is_read
     assert references[3].symbol.name == "c"
     assert references[3].is_read
+    # For the lbound, d should be an inquiry (so not a read) but
+    # x should be a read
+    assert references[6].symbol.name == "d"
+    assert not references[6].is_read
+    assert references[7].symbol.name == "x"
+    assert references[7].is_read
 
 
 def test_reference_is_write(fortran_reader):
