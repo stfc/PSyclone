@@ -1,8 +1,10 @@
+extract.standalone_ascii
 extract.standalone
 extract.netcdf
 main.x90
 main_alg.f90
 main_psy.f90
 main-*.nc
+main-*.ascii
 main-*.binary
 driver-main*
