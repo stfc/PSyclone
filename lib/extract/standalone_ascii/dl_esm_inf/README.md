@@ -2,7 +2,7 @@
 
 This wrapper library is used to [write (extract)](
 https://psyclone.readthedocs.io/en/stable/psyke.html)
-input and output parameters of instrumented code regions to a [binary file](
+input and output parameters of instrumented code regions to an [ASCII file](
 https://psyclone.readthedocs.io/en/stable/psyke.html#extraction_libraries)
 using the [``dl_esm_inf`` library](https://github.com/stfc/dl_esm_inf).
 A stand-alone driver can then be used to rerun this specific code region and

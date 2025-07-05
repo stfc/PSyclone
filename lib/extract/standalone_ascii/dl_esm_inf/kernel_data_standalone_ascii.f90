@@ -33,7 +33,7 @@
 ! -----------------------------------------------------------------------------
 ! Author J. Henrichs, Bureau of Meteorology
 
-!> This module implements a simple binary-file writer using the PSyData
+!> This module implements a simple ASCII-file writer using the PSyData
 !! interface. It is specific to the dl_esm_inf library used with
 !! the GOcean API.
 !! A Fortran code instrumented with corresponding calls
@@ -48,7 +48,7 @@ module extract_psy_data_mod
     implicit none
 
     !> This is the data type that manages the information required
-    !! to write data to a binary file using the PSyData API. A
+    !! to write data to a ASCII file using the PSyData API. A
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
@@ -88,7 +88,7 @@ contains
     ! -------------------------------------------------------------------------
     !> This subroutine declares a double precision field as defined in
     !! dl_esm_info (r2d_field). A corresponding variable definition is added
-    !! to the Fortran binary file.
+    !! to the ASCII file.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
@@ -109,7 +109,7 @@ contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine writes the value of a dl_esm_field (r2d_field)
-    !! to the Fortran binary file.
+    !! to the ASCII file.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.

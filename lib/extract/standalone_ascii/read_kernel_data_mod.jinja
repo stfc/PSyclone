@@ -65,7 +65,7 @@
 ! -----------------------------------------------------------------------------
 ! Author: J. Henrichs, Bureau of Meteorology
 
-!> This module implements a simple binary file reader. It provides the
+!> This module implements a simple ASCII file reader. It provides the
 !! functions:
 !! OpenRead:      opens a file for reading
 !! ReadScalar...:           reads the specified scalar value
@@ -80,7 +80,7 @@ module read_kernel_data_mod
     implicit none
 
     !> This is the data type that manages the information required
-    !! to read data from a Fortran binary file created by the
+    !! to read data from an ASCII file created by the
     !! extraction library.
 
     type, public :: ReadKernelDataType
@@ -124,9 +124,9 @@ module read_kernel_data_mod
 contains
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine is called to open a binary file for reading. The
+    !> @brief This subroutine is called to open an ASCII file for reading. The
     !! filename is based on the module and kernel name. This is used by a
-    !! driver program that will read a binary file previously created by the
+    !! driver program that will read an ASCII file previously created by the
     !! PSyData API.
     !! @param[in,out] this The instance of the ReadKernelDataType.
     !! @param[in] module_name The name of the module of the instrumented
@@ -148,13 +148,13 @@ contains
     end subroutine OpenReadModuleRegion
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine is called to open a binary file for reading. The
+    !> @brief This subroutine is called to open an ASCII file for reading. The
     !! filename is specified explicitly (as opposed to be based on module-name
     !! and region name in OpenReadModuleRegion). This is used by a driver
-    !! program that will read a binary file previously created by the
+    !! program that will read an ASCII file previously created by the
     !! PSyData API.
     !! @param[in,out] this The instance of the ReadKernelDataType.
-    !! @param[in] file_name The name of the binary file to open.
+    !! @param[in] file_name The name of the ASCII file to open.
     subroutine OpenReadFileName(this, file_name)
 
         implicit none
@@ -173,7 +173,7 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the value of a scalar {{type}}
-    !! variable from the binary file and returns it to the user. Note that
+    !! variable from the ASCII file and returns it to the user. Note that
     !! this function is not part of the PSyData API, but it is convenient to
     !! have these functions together here. The driver can then be linked with
     !! this PSyData library and will be able to read the files.
