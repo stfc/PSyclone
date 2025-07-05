@@ -5,8 +5,8 @@
 This example demonstrates the use of PSyclone to add code for kernel
 extraction, i.e. writing input- and output-data of a kernel into a data file.
 
-Once you have installed PSyclone, either script may be supplied to
-PSyclone via the -s option, e.g.:
+Once you have installed PSyclone, you can create the version with
+data instructions using the ``-s`` option:
 
 ```sh
 psyclone -l all  -s ./extract_kernels.py ../code/tra_adv.F90
