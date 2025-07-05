@@ -43,13 +43,15 @@ setval_* generically.
 '''
 import os
 import sys
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.psyir.nodes import Directive, Loop, Routine
+from psyclone.psyir.nodes import (
+    Call, Directive, IntrinsicCall, Loop, Routine, Schedule)
 from psyclone.psyir.transformations import (
-    ACCKernelsTrans, TransformationError, OMPTargetTrans)
+    ACCKernelsTrans, Matmul2CodeTrans, OMPTargetTrans, TransformationError)
 from psyclone.transformations import (
-    Dynamo0p3ColourTrans, Dynamo0p3OMPLoopTrans,
-    Dynamo0p3RedundantComputationTrans, OMPParallelTrans,
+    LFRicColourTrans, LFRicOMPLoopTrans,
+    LFRicRedundantComputationTrans, OMPParallelTrans,
     ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans,
     OMPDeclareTargetTrans, OMPLoopTrans)
 
@@ -58,7 +60,36 @@ from psyclone.transformations import (
 INVOKE_EXCLUSIONS = [
 ]
 
+# We won't attempt to inline calls to routines with names that contain
+# these strings (because they're not computationally important).
+INLINE_EXCLUSIONS = ["abort", "logging"]
+
 OFFLOAD_DIRECTIVES = os.getenv('LFRIC_OFFLOAD_DIRECTIVES', "none")
+
+
+def _replace_matmuls(sched: Schedule):
+    '''
+    Attempts to replace all MATMUL intrinsic calls with inline
+    code.
+
+    :param sched: schedule to transform.
+
+    '''
+    matrans = Matmul2CodeTrans()
+
+    for call in sched.walk(Call):
+        call: Call
+        # The NVIDIA compiler (as at 25.3) will sometimes fail to compile
+        # code with calls to MATMUL with a claim that they are not
+        # available on the device, e.g.:
+        # Call to NVHPC runtime function not supported -
+        #   pgf90_matmul_real4_i8
+        # Therefore, if we are unable to replace a MATMUL by generic code,
+        # the resulting TransformationError will signal (to the calling
+        # routine) that we are not to mark this kernel for offload.
+        if (isinstance(call, IntrinsicCall) and
+                call.intrinsic == IntrinsicCall.Intrinsic.MATMUL):
+            matrans.apply(call)
 
 
 def trans(psyir):
@@ -71,11 +102,12 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    rtrans = Dynamo0p3RedundantComputationTrans()
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = LFRicRedundantComputationTrans()
+    ctrans = LFRicColourTrans()
+    otrans = LFRicOMPLoopTrans()
     const = LFRicConstants()
     cpu_parallel = OMPParallelTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
 
     if OFFLOAD_DIRECTIVES == "omp":
         # Use OpenMP offloading
@@ -104,7 +136,7 @@ def trans(psyir):
 
     for subroutine in psyir.walk(Routine):
 
-        print("Transforming invoke '{0}' ...".format(subroutine.name))
+        print(f"Transforming invoke '{subroutine.name}' ...")
 
         # Make setval_* compute redundantly to the level 1 halo if it
         # is in its own loop
@@ -120,7 +152,8 @@ def trans(psyir):
         else:
             offload = True
 
-        # Keep a record of any kernels we fail to offload
+        # Keep a record of any kernels we fail to offload.
+        failed_inline = set()
         failed_to_offload = set()
 
         # Colour loops over cells unless they are on discontinuous spaces
@@ -131,22 +164,37 @@ def trans(psyir):
                         const.VALID_DISCONTINUOUS_NAMES):
                     ctrans.apply(loop)
 
-        # Mark Kernels inside the loops over cells as GPU-enabled
-        # (alternatively we could inline them)
+        # Module-inline the Kernels inside the loops over cells and then mark
+        # them as GPU-enabled.
+        # (The latter step won't be necessary if/when we fully inline them.)
         for loop in subroutine.loops():
             if loop.iteration_space.endswith("cell_column"):
                 if offload:
                     for kern in loop.kernels():
+                        # Attempt to module-inline the kernel.
                         try:
+                            mod_inline_trans.apply(kern)
+                            print(f"Module-inlined kernel '{kern.name}'")
+                        except TransformationError as err:
+                            failed_inline.add(kern.name.lower())
+                            print(f"Failed to module-inline kernel "
+                                  f"'{kern.name}' due to:\n{err.value}")
+                        try:
+                            # Ensure any MATMULs within the kernel are
+                            # replaced.
+                            for routine in kern.get_callees():
+                                _replace_matmuls(routine)
+                            # Finally, annotate the kernel routine for GPU.
                             gpu_annotation_trans.apply(kern)
+                            print(f"Annotated kernel '{kern.name}'")
                         except TransformationError as err:
                             failed_to_offload.add(kern.name.lower())
                             print(f"Failed to annotate '{kern.name}' with "
                                   f"GPU-enabled directive due to:\n"
                                   f"{err.value}")
-                        # For annotated or inlined kernels we could attempt to
-                        # provide compile-time dimensions for the temporary
-                        # arrays and convert to code unsupported intrinsics.
+                        # For annotated/inlined kernels we could attempt to
+                        # provide compile-time dimensions for temporary arrays
+                        # and convert to code any unsupported intrinsics.
 
         # Add GPU offloading to loops unless they are over colours or are null.
         for loop in subroutine.walk(Loop):
@@ -156,7 +204,7 @@ def trans(psyir):
                 try:
                     if loop.loop_type == "colours":
                         pass
-                    if loop.loop_type == "colour":
+                    if loop.loop_type == "cells_in_colour":
                         loop_offloading_trans.apply(
                             loop, options={"independent": True})
                         gpu_region_trans.apply(loop.ancestor(Directive))
@@ -192,3 +240,5 @@ def trans(psyir):
                 if loop.loop_type not in ["colours", "null"]:
                     cpu_parallel.apply(loop)
                     otrans.apply(loop, options={"reprod": True})
+                    kernel_names = [kn.name for kn in loop.kernels()]
+                    print(f"Added OMP threading to loop with {kernel_names}")

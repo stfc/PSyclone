@@ -38,7 +38,7 @@
 
 .. testsetup::
 
-    from psyclone.core import Signature, VariablesAccessInfo
+    from psyclone.core import Signature, VariablesAccessMap
     from psyclone.psyir.frontend.fortran import FortranReader
 
     code = '''subroutine sub()
@@ -140,9 +140,12 @@ expression ``a(i:j:k)`` will become
 ``a(i, j, k)``, and to then maintain the same number of arguments for
 each use of an array/function, ``a(i)`` will become ``a(i,i,1)``, and
 ``b(i,j)`` becomes ``b(i,i,1,j,j,1)`` etc. Array expressions like ``a(:)``
-will be using specific names for the lower and upper bound, defaulting
+will use specific names for the lower and upper bound, defaulting
 to ``sympy_lower`` and ``sympy_upper``. So the previous expression
-becomes ``a(sympy_lower, sympy_upper, 1)``. Note that in case of a name
+becomes ``a(sympy_lower, sympy_upper, 1)``. Array accesses that do not have
+parentheses (i.e. just ``a``) are treated similarly but use ``sympy_no_bounds``
+for the lower and upper bounds so ``a`` becomes
+``a(sympy_no_bounds, sympy_no_bounds, 1)``. Note that in case of a name
 clash SymPyWriter will change the names of the boundaries to be unique.
 
 Fortran-specific Syntax

@@ -46,10 +46,11 @@
 .. _psyir-ug:
 
 ===============================================
-PSyIR: the PSyclone Intermediate Representation
+The PSyIR
 ===============================================
 
-The PSyIR is at the heart of PSyclone, representing code for existing
+The PSyIR (PSyclone Intermediate Representation) is at the heart of PSyclone,
+representing both existing
 code and PSyKAl DSLs (at both the PSy- and kernel-layer levels). A PSyIR
 tree may be constructed from scratch (in Python) or by processing existing
 source code using a frontend. Transformations act on the PSyIR and
@@ -220,6 +221,12 @@ The semantic navigation methods are:
        :no-index:
 - Nodes representing accesses of data within a structure (e.g. ``StructureReference``, ``StructureMember``):
    .. automethod:: psyclone.psyir.nodes.StructureReference.member()
+       :no-index:
+- ``BinaryOperation``:
+   .. automethod:: psyclone.psyir.nodes.BinaryOperation.operands()
+       :no-index:
+- ``UnaryOperation``:
+   .. automethod:: psyclone.psyir.nodes.UnaryOperation.operand()
        :no-index:
 
 

@@ -39,23 +39,21 @@
 ''' This module implements the LFRic-specific implementation of the Invoke
     base class from psyGen.py. '''
 
-# Imports
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import GenerationError, FieldNotFoundError
-from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen, SubroutineGen,
-                              UseGen)
 from psyclone.psyGen import Invoke
-from psyclone.psyir.nodes import Literal
+from psyclone.psyir.nodes import Assignment, Reference, Call, Literal
+from psyclone.psyir.symbols import (
+    ContainerSymbol, RoutineSymbol, ImportInterface, DataSymbol, INTEGER_TYPE)
 
 
 class LFRicInvoke(Invoke):
     '''
     The LFRic-specific Invoke class. This passes the LFRic-specific
     InvokeSchedule class to the base class so it creates the one we
-    require.  Also overrides the 'gen_code' method so that we generate
-    dynamo specific invocation code.
+    require.
 
     :param alg_invocation: object containing the invoke call information.
     :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
@@ -75,13 +73,9 @@ class LFRicInvoke(Invoke):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicInvokeSchedule
-        reserved_names_list = []
         const = LFRicConstants()
-        reserved_names_list.extend(const.STENCIL_MAPPING.values())
-        reserved_names_list.extend(["omp_get_thread_num",
-                                    "omp_get_max_threads"])
         Invoke.__init__(self, alg_invocation, idx, LFRicInvokeSchedule,
-                        invokes, reserved_names=reserved_names_list)
+                        invokes)
 
         # The base class works out the algorithm code's unique argument
         # list and stores it in the 'self._alg_unique_args'
@@ -90,11 +84,12 @@ class LFRicInvoke(Invoke):
 
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import (DynFunctionSpaces, DynGlobalSum,
-                                        DynLMAOperators, DynReferenceElement,
-                                        DynCMAOperators, DynBasisFunctions,
-                                        DynMeshes, DynBoundaryConditions,
-                                        DynProxies, LFRicMeshProperties)
+        from psyclone.lfric import (LFRicFunctionSpaces, LFRicGlobalSum,
+                                    LFRicLMAOperators,
+                                    LFRicReferenceElement,
+                                    LFRicCMAOperators, LFRicBasisFunctions,
+                                    LFRicMeshes, LFRicBoundaryConditions,
+                                    LFRicProxies, LFRicMeshProperties)
         from psyclone.domain.lfric import (
             LFRicCellIterators, LFRicHaloDepths, LFRicLoopBounds,
             LFRicRunTimeChecks,
@@ -106,7 +101,7 @@ class LFRicInvoke(Invoke):
         self.stencil = LFRicStencils(self)
 
         # Initialise our information on the function spaces used by this Invoke
-        self.function_spaces = DynFunctionSpaces(self)
+        self.function_spaces = LFRicFunctionSpaces(self)
 
         # Initialise the object holding all information on the dofmaps
         # required by this Invoke
@@ -116,28 +111,28 @@ class LFRicInvoke(Invoke):
         self.fields = LFRicFields(self)
 
         # Initialise info on all of the LMA operators used in this Invoke
-        self.lma_ops = DynLMAOperators(self)
+        self.lma_ops = LFRicLMAOperators(self)
 
         # Initialise the object holding all information on the column-
         # -matrix assembly operators required by this Invoke
-        self.cma_ops = DynCMAOperators(self)
+        self.cma_ops = LFRicCMAOperators(self)
 
         self.halo_depths = LFRicHaloDepths(self)
 
         # Initialise the object holding all information on the quadrature
         # and/or evaluators required by this Invoke
-        self.evaluators = DynBasisFunctions(self)
+        self.evaluators = LFRicBasisFunctions(self)
 
         # Initialise the object holding all information related to meshes
         # and inter-grid operations
-        self.meshes = DynMeshes(self, self.psy_unique_vars)
+        self.meshes = LFRicMeshes(self, self.psy_unique_vars)
 
         # Initialise the object holding information on any boundary-condition
         # kernel calls
-        self.boundary_conditions = DynBoundaryConditions(self)
+        self.boundary_conditions = LFRicBoundaryConditions(self)
 
         # Information on all proxies required by this Invoke
-        self.proxies = DynProxies(self)
+        self.proxies = LFRicProxies(self)
 
         # Run-time checks for this Invoke
         self.run_time_checks = LFRicRunTimeChecks(self)
@@ -146,7 +141,7 @@ class LFRicInvoke(Invoke):
         self.cell_iterators = LFRicCellIterators(self)
 
         # Information on the required properties of the reference element
-        self.reference_element_properties = DynReferenceElement(self)
+        self.reference_element_properties = LFRicReferenceElement(self)
 
         # Properties of the mesh
         self.mesh_properties = LFRicMeshProperties(self)
@@ -190,7 +185,7 @@ class LFRicInvoke(Invoke):
                         arg_types=const.VALID_SCALAR_NAMES,
                         arg_accesses=AccessType.get_valid_reduction_modes(),
                         unique=True):
-                    global_sum = DynGlobalSum(scalar, parent=loop.parent)
+                    global_sum = LFRicGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
         # Add the halo depth(s) for any kernel(s) that operate in the halos
@@ -216,7 +211,7 @@ class LFRicInvoke(Invoke):
         :type fspace: :py:class:`psyclone.domain.lfric.FunctionSpace`
 
         :returns: an argument object which is on the requested function space.
-        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :rtype: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :raises GenerationError: if the argument object does not exist.
 
@@ -273,26 +268,11 @@ class LFRicInvoke(Invoke):
                 return field
         return None
 
-    def gen_code(self, parent):
-        '''
-        Generates LFRic-specific invocation code (the subroutine
-        called by the associated Invoke call in the algorithm
-        layer). This consists of the PSy invocation subroutine and the
-        declaration of its arguments.
-
-        :param parent: the parent node in the AST (of the code to be \
-                       generated) to which the node describing the PSy \
-                       subroutine will be added.
-        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+    def setup_psy_layer_symbols(self):
+        ''' Declare, initialise and deallocate all symbols required by the
+        PSy-layer Invoke subroutine.
 
         '''
-        # Create the subroutine
-        invoke_sub = SubroutineGen(parent, name=self.name,
-                                   args=self.psy_unique_var_names +
-                                   self.stencil.unique_alg_vars +
-                                   self._psy_unique_qr_vars +
-                                   self._alg_unique_halo_depth_args)
-
         # Declare all quantities required by this PSy routine (Invoke)
         for entities in [self.scalar_args, self.fields, self.lma_ops,
                          self.stencil, self.meshes,
@@ -303,31 +283,9 @@ class LFRicInvoke(Invoke):
                          self.reference_element_properties,
                          self.mesh_properties, self.loop_bounds,
                          self.run_time_checks]:
-            entities.declarations(invoke_sub)
+            entities.invoke_declarations()
 
-        # Initialise all quantities required by this PSy routine (Invoke)
-
-        if self.schedule.reductions(reprod=True):
-            # We have at least one reproducible reduction so we need
-            # to know the number of OpenMP threads
-            omp_function_name = "omp_get_max_threads"
-            tag = "omp_num_threads"
-            nthreads_name = \
-                self.schedule.symbol_table.lookup_with_tag(tag).name
-            invoke_sub.add(UseGen(invoke_sub, name="omp_lib", only=True,
-                                  funcnames=[omp_function_name]))
-            # Note: There is no assigned kind for 'integer' 'nthreads' as this
-            # would imply assigning 'kind' to 'th_idx' and other elements of
-            # the OMPParallelDirective
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   entity_decls=[nthreads_name]))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(
-                invoke_sub, " Determine the number of OpenMP threads"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(AssignGen(invoke_sub, lhs=nthreads_name,
-                                     rhs=omp_function_name+"()"))
-
+        cursor = 0
         for entities in [self.proxies, self.run_time_checks,
                          self.cell_iterators, self.meshes,
                          self.stencil, self.dofmaps,
@@ -335,32 +293,45 @@ class LFRicInvoke(Invoke):
                          self.function_spaces, self.evaluators,
                          self.reference_element_properties,
                          self.mesh_properties, self.loop_bounds]:
-            entities.initialise(invoke_sub)
+            cursor = entities.initialise(cursor)
 
-        # Now that everything is initialised and checked, we can call
-        # our kernels
+        if self.schedule.reductions(reprod=True):
+            # We have at least one reproducible reduction so we need
+            # to know the number of OpenMP threads
+            symtab = self.schedule.symbol_table
+            nthreads = symtab.find_or_create_tag(
+                            "omp_num_threads",
+                            root_name="nthreads",
+                            symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+            omp_lib = symtab.find_or_create("omp_lib",
+                                            symbol_type=ContainerSymbol)
+            omp_get_max_threads = symtab.find_or_create(
+                "omp_get_max_threads", symbol_type=RoutineSymbol,
+                interface=ImportInterface(omp_lib))
 
-        invoke_sub.add(CommentGen(invoke_sub, ""))
+            assignment = Assignment.create(
+                lhs=Reference(nthreads),
+                rhs=Call.create(omp_get_max_threads))
+            assignment.append_preceding_comment(
+                "Determine the number of OpenMP threads")
+            self.schedule.addchild(assignment, 0)
+            cursor += 1
+
+        # Now that all initialisation is done, add the comment before
+        # the start of the kernels
         if Config.get().distributed_memory:
-            invoke_sub.add(CommentGen(invoke_sub, " Call kernels and "
-                                      "communication routines"))
+            self.schedule[cursor].preceding_comment = (
+                "Call kernels and communication routines")
         else:
-            invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-
-        # Add content from the schedule
-        self.schedule.gen_code(invoke_sub)
+            self.schedule[cursor].preceding_comment = (
+                "Call kernels")
 
         # Deallocate any basis arrays
-        self.evaluators.deallocate(invoke_sub)
-
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-
-        # finally, add me to my parent
-        parent.add(invoke_sub)
+        self.evaluators.deallocate()
 
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for.
 __all__ = ['LFRicInvoke']

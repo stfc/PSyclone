@@ -25,7 +25,7 @@ or ``netcdf`` when compiling to use the other libraries::
 
  To compile the example, the following dependencies are needed:
 - the infrastructure library ``liblfric.a`` provided in
-  ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``
+  ``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``
 - one of the LFRic PSyData wrapper libraries, either:
     - ``lib_kernel_data_netcdf`` from
       ``<PSYCLONEHOME>/lib/extract/netcdf/lfric`` and NetCDF,
@@ -67,9 +67,10 @@ The binary can be executed using ``extract.standalone`` (or ``extract.netcdf``)
  Mesh has           5 layers.
 20210318131720.135+1100:INFO : Min/max minmax of field1 =   0.10000000E+01  0.80000000E+01
 ```
-This will produce two binary files ``main-update.binary`` and ``main-init.binary``.
-If you are using the NetCDF-based extraction library, instead two NetCDF files
-called ``main-update.nc`` and ``main-init.nc`` will be created, which can be
+
+This will produce two data dumps, by default these are the binary files ``main-update.binary``
+and ``main-init.binary``, or if you are using the NetCDF-based extraction library, the NetCDF
+files ``main-update.nc`` and ``main-init.nc``, which can be
 analysed using ``ncdump``:
 
 ```shell
@@ -95,4 +96,13 @@ data:
  field1 = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 ...
 ```
-Note that due to #1392 the driver cannot be created yet.
+
+The driver files can be compiled with `make driver-main-init` and `make driver-main-update`,
+which will generate executables with the same name. Finally, once the drivers are compiled
+and the data dumps generated, the kernel can be executed and compared with the original
+results with:
+
+```shell
+./driver-main-init
+./driver-main-update
+````

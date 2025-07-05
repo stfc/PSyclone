@@ -38,8 +38,8 @@
 
 .. _psy_data:
 
-PSyData API
-===========
+The PSyData Transformations
+===========================
 
 PSyclone provides transformations that will insert callbacks to
 an external library at runtime. These callbacks allow third-party
@@ -163,7 +163,7 @@ The ``Makefile`` uses the variable ``LFRIC_INF_DIR`` to point to the
 location where LFRic's ``field_mod`` and ``integer_field_mod`` have been
 compiled. It defaults to the path to location of the pared-down LFRic
 infrastructure located in a clone of PSyclone repository,
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``,
+``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``,
 but this will certainly need to be changed for any user (for instance with
 PSyclone installation). The LFRic infrastructure library is not used in
 linking the verification library. The application which uses the

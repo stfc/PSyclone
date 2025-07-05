@@ -870,8 +870,8 @@ class BaseConfig:
 # =============================================================================
 class LFRicConfig(BaseConfig):
     '''
-    LFRic-specific (Dynamo 0.3) Config sub-class. Holds configuration options
-    specific to the LFRic (Dynamo 0.3) API.
+    LFRic-specific Config sub-class. Holds configuration options
+    specific to the LFRic API.
 
     :param config: the 'parent' Config object.
     :type config: :py:class:`psyclone.configuration.Config`
@@ -1277,7 +1277,7 @@ class GOceanConfig(BaseConfig):
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for.
 __all__ = ["BaseConfig",
            "Config",
            "ConfigurationError",

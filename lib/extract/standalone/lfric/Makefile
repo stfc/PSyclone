@@ -50,7 +50,7 @@ endif
 # Path to the LFRic infrastructure library. It defaults to the pared-down
 # version of the LFRic infrastructure distributed with PSyclone.
 # Overwrite for a different infrastructure version.
-LFRIC_PATH ?= ./../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH ?= ./../../../../src/psyclone/tests/test_files/lfric/infrastructure
 # Paths to the PSyclone wrapper libraries and required templates. They default
 # to the relative paths to the top-level 'lib' and 'lib/extract/standalone'
 # directories. Overwrite for a custom location.
@@ -115,8 +115,7 @@ compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinj
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.F90 \
-	read_kernel_data_mod.f90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.F90
 
 allclean: clean
 	$(MAKE) -C $(LFRIC_PATH) allclean

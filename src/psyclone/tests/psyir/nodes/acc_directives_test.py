@@ -46,26 +46,25 @@ import pytest
 
 from psyclone.core import Signature
 from psyclone.errors import GenerationError
-from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.acc_directives import ACCAsyncMixin
 from psyclone.psyir.nodes import (
     ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective,
     ACCParallelDirective, ACCRegionDirective, ACCRoutineDirective,
     ACCUpdateDirective, ACCAtomicDirective, ACCWaitDirective, Assignment,
-    BinaryOperation, Literal, Reference, Return, Routine, Schedule)
+    BinaryOperation, Literal, Reference, Return, Routine, Schedule,
+    ACCDirective)
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.symbols import (
-    Symbol, SymbolTable, DataSymbol, INTEGER_TYPE, UnresolvedType)
+    Symbol, SymbolTable, DataSymbol, INTEGER_TYPE)
 from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (
     ACCDataTrans, ACCEnterDataTrans, ACCLoopTrans,
-    ACCParallelTrans, ACCRoutineTrans, TransformationError)
+    ACCParallelTrans, ACCRoutineTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+    os.path.abspath(__file__)))), "test_files", "lfric")
 
 
 # Class ACCRegionDirective
@@ -112,8 +111,8 @@ def test_accregiondir_signatures():
 # Class ACCEnterDataDirective start
 
 
-# (1/4) Method gen_code
-def test_accenterdatadirective_gencode_1():
+# (1/4) Method lower_to_language_level
+def test_accenterdatadirective_lowering_1():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, raises the expected exception as there is no
     following OpenACC Parallel or OpenACC Kernels directive as at
@@ -126,24 +125,16 @@ def test_accenterdatadirective_gencode_1():
     psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     acc_enter_trans.apply(sched)
+    directive = sched.walk(ACCDirective)[0].lower_to_language_level()
     with pytest.raises(GenerationError) as excinfo:
-        str(psy.gen)
-    assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
-            "there are no ACCParallel or ACCKernels directives within the "
-            "region?" in str(excinfo.value))
-
-    # Test that the same error is produced by the begin_string() which is used
-    # by the PSyIR backend
-    sched[0].lower_to_language_level()
-    with pytest.raises(GenerationError) as excinfo:
-        sched[0].begin_string()
+        directive.begin_string()
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
             "there are no ACCParallel or ACCKernels directives within the "
             "region?" in str(excinfo.value))
 
 
-# (2/4) Method gen_code
-def test_accenterdatadirective_gencode_2():
+# (2/4) Method lower_to_language_level
+def test_accenterdatadirective_lowering_2():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with multiple loops, raises the expected exception, as there is no
     following OpenACC Parallel or OpenACCKernels directive and at
@@ -163,9 +154,9 @@ def test_accenterdatadirective_gencode_2():
             "region?" in str(excinfo.value))
 
 
-# (3/4) Method gen_code
+# (3/4) Method lower_to_language_level
 @pytest.mark.parametrize("trans", [ACCParallelTrans, ACCKernelsTrans])
-def test_accenterdatadirective_gencode_3(trans):
+def test_accenterdatadirective_lowering_3(trans):
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, produces the expected code (there should be
     "copy in" data as there is a following OpenACC parallel or kernels
@@ -182,18 +173,18 @@ def test_accenterdatadirective_gencode_3(trans):
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
+        "    !$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
         "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
         "undf_w1,undf_w2,undf_w3)\n" in code)
 
 
-# (4/4) Method gen_code
+# (4/4) Method lower_to_language_level
 @pytest.mark.parametrize("trans1,trans2",
                          [(ACCParallelTrans, ACCParallelTrans),
                           (ACCParallelTrans, ACCKernelsTrans),
                           (ACCKernelsTrans, ACCParallelTrans),
                           (ACCKernelsTrans, ACCKernelsTrans)])
-def test_accenterdatadirective_gencode_4(trans1, trans2):
+def test_accenterdatadirective_lowering_4(trans1, trans2):
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with multiple loops and multiple OpenACC parallel and/or Kernel
     directives, produces the expected code (when the same argument is
@@ -213,42 +204,9 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(f1_data,f2_data,f3_data,m1_data,"
+        "    !$acc enter data copyin(f1_data,f2_data,f3_data,m1_data,"
         "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
         "nlayers_f1,undf_w1,undf_w2,undf_w3)\n" in code)
-
-
-# (3/4) Method gen_code
-def test_accenterdatadirective_gencode_3_async():
-    '''Test that we can add the async directive on enter data.'''
-    API = "lfric"
-    acc_trans = ACCKernelsTrans()
-    acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
-    psy = PSyFactory(distributed_memory=False, api=API).create(info)
-    sched = psy.invokes.get('invoke_0_testkern_type').schedule
-    acc_trans.apply(sched.children, options={"async_queue": 3})
-    acc_enter_trans.apply(sched, options={"async_queue": 3})
-    code = str(psy.gen)
-    assert (
-        "      !$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,map_w1,"
-        "map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
-        "undf_w1,undf_w2,undf_w3) async(3)\n" in code)
-
-
-# (3/4) Method gen_code
-def test_accenterdatadirective_gencode_3_async_error():
-    '''Test that we can add the async directive on enter data.'''
-    API = "lfric"
-    acc_trans = ACCKernelsTrans()
-    acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
-    psy = PSyFactory(distributed_memory=False, api=API).create(info)
-    sched = psy.invokes.get('invoke_0_testkern_type').schedule
-    acc_trans.apply(sched.children)
-    with pytest.raises(TransformationError) as error:
-        acc_enter_trans.apply(sched, options={"async_queue": 3})
-    assert 'async_queue different' in str(error.value)
 
 
 # Class ACCLoopDirective start
@@ -430,11 +388,11 @@ def test_acckernelsdirective_init():
     assert not directive._default_present
 
 
-# (1/1) Method gen_code
+# (1/1) Method lower_to_language_level
 @pytest.mark.parametrize("default_present", [False, True])
-def test_acckernelsdirective_gencode(default_present):
-    '''Check that the gen_code method in the ACCKernelsDirective class
-    generates the expected code. Use the lfric API.
+def test_acckernelsdirective_lowering(default_present):
+    '''Check that the lower_to_language_level method in the ACCKernelsDirective
+    class generates the expected code. Use the lfric API.
 
     '''
     API = "lfric"
@@ -450,56 +408,11 @@ def test_acckernelsdirective_gencode(default_present):
     if default_present:
         string = " default(present)"
     assert (
-        f"      !$acc kernels{string}\n"
-        f"      DO cell = loop0_start, loop0_stop, 1\n" in code)
+        f"    !$acc kernels{string}\n"
+        f"    do cell = loop0_start, loop0_stop, 1\n" in code)
     assert (
-        "      END DO\n"
-        "      !$acc end kernels\n" in code)
-
-
-# (1/1) Method gen_code
-@pytest.mark.parametrize("async_queue", [
-                          False, True, 1, 0,
-                          Reference(Symbol('stream1')),
-                          ArrayReference.create(DataSymbol(
-                              'stream2',
-                              UnresolvedType()),
-                              [Literal("1", INTEGER_TYPE)]
-                            )
-                        ])
-def test_acckernelsdirective_gencode_async_queue(async_queue):
-    '''Check that the gen_code method in the ACCKernelsDirective class
-    generates the expected code. Use the dynamo0.3 API.
-
-    '''
-    API = "lfric"
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
-    psy = PSyFactory(distributed_memory=False, api=API).create(info)
-    sched = psy.invokes.get('invoke_0_testkern_type').schedule
-
-    trans = ACCKernelsTrans()
-    trans.apply(sched, {"async_queue": async_queue})
-
-    code = str(psy.gen)
-    string = ""
-    if async_queue is None:
-        string = ""
-    elif isinstance(async_queue, bool) and async_queue is True:
-        string = " async"
-    elif isinstance(async_queue, bool) and async_queue is False:
-        string = ""
-    elif isinstance(async_queue, int):
-        string = f" async({async_queue})"
-    elif isinstance(async_queue, ArrayReference):
-        string = " async(stream2(1))"
-    elif isinstance(async_queue, Reference):
-        string = " async(stream1)"
-    assert (
-        f"      !$acc kernels{string}\n"
-        f"      DO cell = loop0_start, loop0_stop, 1\n" in code)
-    assert (
-        "      END DO\n"
-        "      !$acc end kernels\n" in code)
+        "    enddo\n"
+        "    !$acc end kernels\n" in code)
 
 
 def test_acckerneldirective_equality():
@@ -527,10 +440,6 @@ def test_acc_routine_directive_constructor_and_strings():
     # Defaults to sequential.
     assert target.begin_string() == "acc routine seq"
     assert str(target) == "ACCRoutineDirective[]"
-
-    temporary_module = ModuleGen("test")
-    target.gen_code(temporary_module)
-    assert "!$acc routine seq\n" in str(temporary_module.root)
 
     target2 = ACCRoutineDirective("VECTOR")
     assert target2.parallelism == "vector"
@@ -687,17 +596,6 @@ def test_accwaitdirective_begin_string():
     assert directive3.begin_string() == "acc wait (variable_name)"
 
 
-def test_accwaitdirective_gencode():
-    '''Test gen code of ACCWaitDirective'''
-    API = "lfric"
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
-    psy = PSyFactory(distributed_memory=False, api=API).create(info)
-    routines = psy.container.walk(Routine)
-    routines[0].children.append(ACCWaitDirective(1))
-    code = str(psy.gen)
-    assert '$acc wait (1)' in code
-
-
 def test_accwaitdirective_eq():
     '''Test the __eq__ implementation of ACCWaitDirective.'''
 
@@ -803,7 +701,7 @@ def test_accdatadirective_update_data_movement_clauses(fortran_reader,
     dtrans.apply(loop)
     output = fortran_writer(psyir)
     expected = ("!$acc data copyin(sfactor,small_holding,small_holding(3)%grid"
-                ",small_holding(3)%grid(jf)%data), copy(sto_tmp)")
+                ",small_holding(3)%grid(jf)%data) copy(sto_tmp)")
     assert expected in output
     # Check that calling update_signal() explicitly has no effect as the tree
     # has not changed.
@@ -815,7 +713,7 @@ def test_accdatadirective_update_data_movement_clauses(fortran_reader,
     output = fortran_writer(psyir)
     # 'sfactor' should have been removed from the copyin()
     assert ("!$acc data copyin(small_holding,small_holding(3)%grid,"
-            "small_holding(3)%grid(jf)%data), copy(sto_tmp)" in output)
+            "small_holding(3)%grid(jf)%data) copy(sto_tmp)" in output)
 
 
 def test_accparalleldirective():

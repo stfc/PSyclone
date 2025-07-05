@@ -48,111 +48,6 @@ in the PSyKAl DSLs, for a particular architecture. However, transformations
 could be added for other reasons, such as to aid debugging or for
 performance monitoring.
 
-
-.. _sec_transformations_script:
-
-PSyclone User Scripts
----------------------
-
-A convenient way to apply transformations to a codebase is through the
-:ref:`psyclone_command` tool, which has the optional ``-s <SCRIPT_NAME>``
-flag that allows users to specify a script file to programatically modify
-input code::
-
-    > psyclone -s optimise.py input_source.f90
-
-In this case, the current directory is prepended to the Python search path
-**PYTHONPATH** which will then be used to try to find the script file. Thus,
-the search begins in the current directory and continues over any pre-existing
-directories in the search path, failing if the file cannot be found.
-
-Alternatively, script files may be specified with a path. In this case
-the file must exist in the specified location. This location is then added to
-the Python search path **PYTHONPATH** as before. For example::
-
-    > psyclone -s ./optimise.py input_source.f90
-    > psyclone -s ../scripts/optimise.py input_source.f90
-    > psyclone -s /home/me/PSyclone/scripts/optimise.py input_source.f90
-
-A valid PSyclone user script file must contain a **trans** function which accepts
-a :ref:`PSyIR node<psyir-ug>` representing the root of the psy-layer
-code (as a FileConatainer):
-
-.. code-block:: python
-
-    def trans(psyir):
-        # ...
-
-The example below adds an OpenMP directive to a specific PSyKAL kernel:
-
-.. code-block:: python
-
-    def trans(psyir):
-        from psyclone.transformations import OMPParallelLoopTrans
-        from psyclone.psyir.node import Routine
-        for subroutine in psyir.walk(Routine):
-            if subroutine.name == 'invoke_0_v3_kernel_type':
-                ol = OMPParallelLoopTrans()
-                ol.apply(subroutine.children[0])
-
-
-The script may apply as many transformations as is required for the intended
-optimisation, and may also apply transformations to all the routines (i.e. invokes
-and/or kernels) contained within the provided tree.
-The :ref:`examples section<examples>` provides a list of psyclone user scripts
-and associated usage instructions for multiple applications.
-
-
-Script Global Variables
-+++++++++++++++++++++++
-
-In addition to the ``trans`` function, there are special global variables that can be set
-to control some of the behaviours of the front-end (before the optimisation function
-is applied). These are:
-
-.. code-block:: python
-
-    # List of all files that psyclone will skip processing
-    FILES_TO_SKIP = ["boken_file1.f90", "boken_file2.f90"]
-
-    # Boolean to decide whether PSyclone should chase external modules while
-    # creating a PSyIR tree in order to obtain better external symbol information.
-    # It can also be a list of module names for more precise control
-    RESOLVE_IMPORTS = ["relevant_module1.f90", "relevant_module2.f90"]
-
-    def trans(psyir):
-        # ...
-
-
-PSyKAl algorithm code transformations
-+++++++++++++++++++++++++++++++++++++
-
-When using PSyKAl, the ``trans`` functions is used to transform the PSy-layer (the
-layer in charge of the Parallel-System and Loops traversal orders), however, a
-second optional transformation entry point ``trans_alg`` can be provided to
-directly transform the Algorithm-layer (this is currently only implemented for
-GOcean, but in the future it will also affect the LFRic DSL).
-
-.. code-block:: python
-
-   def trans_alg(psyir):
-       # ...
-
-As with the `trans()` function it is up to the script what it does with
-the algorithm PSyIR. Note that the `trans_alg()` script is applied to
-the algorithm layer before the PSy-layer is generated so any changes
-applied to the algorithm layer will be reflected in the PSy-layer PSyIR tree
-object that is passed to the `trans()` function.
-
-For example, if the `trans_alg()` function in the script merged two
-`invoke` calls into one then the PSyIR node passed to the
-`trans()` function of the script would only contain one Routine
-associated with the merged invoke.
-
-An example of the use of a script making use of the `trans_alg()`
-function can be found in examples/gocean/eg7.
-
-
 Finding transformations
 -----------------------
 
@@ -180,6 +75,48 @@ can be applied, and one to actually apply the transformation. They are
 described in detail in the
 :ref:`overview of all transformations<sec_transformations_available>`,
 but the following general guidelines apply.
+
+Ongoing Changes to the options parameter
+++++++++++++++++++++++++++++++++++++++++
+PSyclone has supported an ``options`` dictionary to provide options to both
+validate and apply functions on Transformation classes. This behaviour
+is now deprecated, and we are in the process of adding an alternative
+way to pass options to Transformations. (If you are a developer, see
+these :ref:`instructions<updating_transformation_options>`.)
+
+In the future, each option will have its own argument, for example::
+    
+    def apply(node, option1: int = 0, option2: bool = False, ...):
+
+These can be inherited from parent Transformation classes if appropriate.
+All of the options (including inherited options) will be visible in the
+sphinx generated documentation, and a ``get_valid_options`` function is
+available on each Transformation class to view the possible options
+programmatically.
+
+For existing transformation scripts, switching to using the new options
+strategy can be done by unpacking the current options dict, for example::
+
+    options = {"option1": 2, "option2": True}
+    mytransformation.apply(node, **options)
+    mytransformation.apply(node, option1=2, option2=True)
+
+would be the new possible ways to call the ``apply`` method we defined above,
+as opposed to the old strategy of::
+
+    options = {"option1": 2, "option2: True}
+    mytransformation.apply(node, options=options)
+
+Options dictionaries will continue to remain in the code until they have been
+deprecated for all Transformations, and providing an options dict will
+make the Transformation ignore any other arguments (i.e. only the new or
+old method of providing options can be used - the two cannot be mixed).
+
+This new functionality also performs checks on options supplied as arguments.
+All arguments will be checked to see if they are valid options for the
+Transformation, and their types will also be checked. If an invalid option is
+supplied, or the type of an option is incorrect then an Exception will be
+thrown.
 
 Validation
 +++++++++++
@@ -217,7 +154,7 @@ described above. Besides potentially modifying the validation
 process, optional parameters for the transformation are also
 provided this way. A simple example::
 
-    kctrans = Dynamo0p3KernelConstTrans()
+    kctrans = LFRicKernelConstTrans()
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0, "quadrature": True})
 
 The same ``options`` dictionary will be used when calling ``validate``.
@@ -313,6 +250,12 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.transformations.ColourTrans
     :members: apply
     :no-index:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.DebugChecksumTrans
+      :members: apply
+      :no-index:
 
 ####
 
@@ -924,7 +867,7 @@ mentioned run-time configuration options could look something like::
 OpenACC
 -------
 
-PSyclone supports the generation of code targetting GPUs through the
+PSyclone supports the generation of code targeting GPUs through the
 addition of OpenACC directives. This is achieved by a user applying
 various OpenACC transformations to the PSyIR before the final Fortran
 code is generated. The steps to parallelisation are very similar to

@@ -38,7 +38,7 @@ API to apply redundant computation to halo depth 1 for all instances
 of loops that iterate over dofs and contain the setval_c builtin.
 
 '''
-from psyclone.transformations import Dynamo0p3RedundantComputationTrans
+from psyclone.transformations import LFRicRedundantComputationTrans
 
 ITERATION_SPACES = ["dofs"]
 KERNEL_NAMES = ["setval_c"]
@@ -58,7 +58,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
 
     transformed = 0
 

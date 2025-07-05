@@ -40,7 +40,7 @@
 ''' This module contains the implementation of the Reference node.'''
 
 
-from psyclone.core import AccessType, Signature
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import Symbol
@@ -201,31 +201,21 @@ class Reference(DataNode):
         '''
         return (Signature(self.name), [[]])
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information from this node, i.e.
-        it sets this variable to be read. It relies on
-        `get_signature_and_indices` and will correctly handle
-        array expressions.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
+        var_accesses = VariablesAccessMap()
         sig, all_indices = self.get_signature_and_indices()
-        if self.symbol.is_import and \
-                var_accesses.options("USE-ORIGINAL-NAMES") and \
-                self.symbol.interface.orig_name:
-            # If the option is set to return the original (un-renamed)
-            # name of an imported symbol, get the original name from
-            # the interface and use it. The rest of the signature is
-            # used from the original access, it does not change.
-            sig = Signature(self.symbol.interface.orig_name, sig[1:])
         for indices in all_indices:
             for index in indices:
-                index.reference_accesses(var_accesses)
+                var_accesses.update(index.reference_accesses())
         var_accesses.add_access(sig, AccessType.READ, self, all_indices)
+        return var_accesses
 
     @property
     def datatype(self):
@@ -267,23 +257,30 @@ class Reference(DataNode):
         chain = DefinitionUseChain(self)
         return chain.find_forward_accesses()
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Update any Symbols referenced by this Node with those in the
-        supplied table with matching names. If there is no match for a given
+        supplied table (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given
         Symbol then it is left unchanged.
 
-        :param table: the symbol table in which to look up replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        try:
-            self.symbol = table.lookup(self.symbol.name)
-        except KeyError:
-            pass
+        if isinstance(table_or_symbol, Symbol):
+            if self.symbol.name.lower() == table_or_symbol.name.lower():
+                self.symbol = table_or_symbol
+        else:
+            try:
+                self.symbol = table_or_symbol.lookup(self.symbol.name)
+            except KeyError:
+                pass
 
         # Walk on down the tree.
-        super().replace_symbols_using(table)
+        super().replace_symbols_using(table_or_symbol)
 
 
 # For AutoAPI documentation generation

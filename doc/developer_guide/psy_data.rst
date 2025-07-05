@@ -463,8 +463,8 @@ The derived classes will typically control the behaviour
 of ``PSyDataNode`` by providing additional parameters.
 
 .. autoclass:: psyclone.psyir.nodes.PSyDataNode
+    :members:
     :no-index:
-    :members: gen_code
 
 There are two ways of passing options to the
 ``PSyDataNode``. The first one is used to pass
@@ -491,8 +491,8 @@ can be somewhat cryptic due to the need to be unique).
 The region name is validated by ``PSyDataTrans``, and
 then passed to the node constructor. The ``PSyDataNode``
 stores the name as an instance attribute, so that they can
-be used at code creation time (when ``gen_code`` is being
-called). Below is the list of all options that the PSyData
+be used at code creation time (PSyIR lowering).
+Below is the list of all options that the PSyData
 node supports in the option dictionary:
 
 .. table::
@@ -519,15 +519,15 @@ node supports in the option dictionary:
 
 Passing Parameter From a Derived Node to the ``PSyDataNode``
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-The ``PSyDataTrans.gen_code`` function also accepts
-an option dictionary, which is used by derived nodes
-to control code creation. The ``gen_code`` function
-is called internally, not directly by the user. If
-the ``gen_code`` function of a node derived from
-``PSyDataNode`` is called, it can define this
+The ``PSyDataNode.lower_to_language_level`` function also accepts
+an option dictionary, which is used by derived nodes to control code
+creation.
+The ``lower_to_language_level`` function is called internally, not
+directly by the user. If the ``lower_to_language_level`` function of a
+node derived from ``PSyDataNode`` is called, it can define this
 option directory to pass the parameters to the ``PSyDataNode``'s
-``gen_code`` function. Here are the options that are currently
-supported by ``PSyDataNode``:
+``lower_to_language_level`` function. Here are the options that are
+currently supported by ``PSyDataNode``:
 
 ================ =========================================
 Parameter Name   Description
@@ -557,9 +557,9 @@ for more details.
 
 The kernel extraction node ``ExtractNode`` uses the dependency
 module to determine which variables are input- and output-parameters,
-and provides these two lists to the ``gen_code()`` function of its base class,
-a ``PSyDataNode`` node. It also uses the ``post_var_postfix`` option
-as described under ``gen_code()`` above (see also
+and provides these two lists to the ````lower_to_language_level``()`` function
+of its base class, a ``PSyDataNode`` node. It also uses the ``post_var_postfix``
+option as described under ``lower_to_language_level``()`` above (see also
 :ref:`extraction_libraries`).
 
 .. _psydata_base_class:
@@ -668,7 +668,7 @@ takes the following parameters:
 
 -prefix:
     The prefix to use for the PSyData type and functions. Default is
-    emtpy (i.e. no prefix). If you specify a prefix, you have to
+    empty (i.e. no prefix). If you specify a prefix, you have to
     add the ``_`` between the prefix and name explicitly.
 
 -generic-declare:

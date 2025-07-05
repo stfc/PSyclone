@@ -6,7 +6,7 @@ and not [``NaN`` or infinite](
 https://psyclone.readthedocs.io/en/latest/psy_data.html#psydata-value-range-check).
 
 There is a [PSyData base class](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-base-class)
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#psydata-base-class)
 as a Jinja template that can be used to simplify the creation of API-specific
 wrapper libraries.
 
@@ -19,7 +19,7 @@ https://psyclone.readthedocs.io/en/stable/psy_data.html) calls for
 Fortran base types (scalar and arrays).
 Full documentation to the Jinja implementation of a PSyData base class is
 in the PSyclone [Developer Guide](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja).
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#jinja).
 The script [``process.py``](./../README.md#psydata-base-class) is used by the
 derived classes to process this template. There is a simple ``Makefile``
 contained here for compilation tests, but each API-specific implementation (in
@@ -37,8 +37,8 @@ https://psyclone.readthedocs.io/en/latest/gocean1p0.html).
 ## [``lfric``](./lfric) directory
 
 Contains the ``ValueRangeCheck``, PSyData-API-based, wrapper library for the
-[LFRic (Dynamo 0.3) API](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
+[LFRic API](
+https://psyclone.readthedocs.io/en/latest/lfric.html).
 
 <!--
 ## Licence

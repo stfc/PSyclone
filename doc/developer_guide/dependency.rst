@@ -36,7 +36,7 @@
 
 .. testsetup::
 
-    from psyclone.core import AccessType, Signature, VariablesAccessInfo
+    from psyclone.core import AccessType, Signature, VariablesAccessMap
     from psyclone.psyir.frontend.fortran import FortranReader
     from psyclone.psyir.backend.fortran import FortranWriter
     from psyclone.psyir.nodes import Loop
@@ -54,7 +54,7 @@
     end subroutine sub
     '''
     psyir = FortranReader().psyir_from_source(code)
-    all_var_accesses = VariablesAccessInfo(psyir.children)
+    all_var_accesses = psyir.reference_accesses()
     # Get all accesses to the variable 'a', i.e. a(i.j)
     all_a_accesses = all_var_accesses[Signature("a")]
     # Get the first access, which is the write access to 'a(i,j)'
@@ -272,7 +272,7 @@ exception to this is if a kernel is called, in which case the metadata
 for the kernel declaration will be used to determine the variable
 accesses for the call statement. The information about all variable
 usage of a PSyIR node or a list of nodes can be gathered by creating
-an object of type `psyclone.core.VariablesAccessInfo`.  This class
+an object of type `psyclone.core.VariablesAccessMap`.  This class
 uses a `Signature` object to keep track of the variables used.
 
 Signature
@@ -301,53 +301,37 @@ An individual access to a ``Signature`` is described by an instance of the
     :no-index:
     :members:
 
-VariablesAccessInfo
+VariablesAccessMap
 -------------------
 
-The `VariablesAccessInfo` class is used to store information about all
-accesses in a region of code. To collect access information, the
-function `reference_accesses()` for the code region must be called.
-It will add the accesses for the PSyIR subtree to the specified instance
-of `VariablesAccessInfo`.
+The `VariablesAccessMap` class is used to store information about all
+accesses in a region of code. To collect access information, call any
+Node `reference_accesses()` method for the code region of interest.
+It will return the accesses for the PSyIR in a dictionary of
+kind `VariablesAccessMap`.
 
 .. automethod:: psyclone.psyir.nodes.Node.reference_accesses
     :no-index:
 
-.. autoclass:: psyclone.core.VariablesAccessInfo
+.. autoclass:: psyclone.core.VariablesAccessMap
     :no-index:
     :members:
     :special-members: __str__
 
 This class collects information for each variable used in the tree
-starting with the given node. A `VariablesAccessInfo` instance can store
-information about variables in high-level concepts such as
-a kernel, as well as for language-level PSyIR. You can pass a single
-instance to more than one call to `reference_accesses()` in order to
-add more variable access information, or use the `merge()` function to
-combine two `VariablesAccessInfo` objects into one. It is up to the user to
-keep track of which statements (PSyIR nodes) a given `VariablesAccessInfo`
-instance is holding information about.
+starting with the given node. Use the `update()` method to
+combine two `VariablesAccessMap` objects into one. It is up to the user to
+keep track of which statements (PSyIR nodes) a given `VariablesAccessMap`
+instance is holding information about. If the PSyIR tree is modified the
+`VariablesAccessMap` maps become invalid, so it is not recommended to
+store them.
 
-
-VariablesAccessInfo Options
-+++++++++++++++++++++++++++
-
-Fortran allows an imported symbol to be renamed locally
-(`use some_mod, only: renamed => original_name`). Depending on use case,
-it might be useful to get the non-local, original name. By default,
-`VariablesAccessInfo` will report the local name (i.e. the renamed name),
-but if you add the key `USE-ORIGINAL-NAMES` and set it to True::
-
-    vai = VariablesAccessInfo(options={'USE-ORIGINAL-NAMES': True})
-
-the original name will be returned in the `VariablesAccessInfo` object.
 
 SingleVariableAccessInfo
 ------------------------
-The class `VariablesAccessInfo` uses a dictionary of
-`psyclone.core.SingleVariableAccessInfo` instances to map
-from each variable to the accesses of that variable. When a new variable
-is detected when adding access information to a `VariablesAccessInfo` instance
+The values of the `VariablesAccessMap` map are `SingleVariableAccessInfo`,
+which contain the sequence of accesses to a single variable. When a new variable
+is detected when adding access information to a `VariablesAccessMap` instance
 via `add_access()`, a new instance of `SingleVariableAccessInfo` is added,
 which in turn stores all access to the specified variable.
 
@@ -444,7 +428,7 @@ wrapped in an outer loop over all accesses.
 
       # Create an access info object to collect the accesses
       # in the index expression
-      accesses = VariablesAccessInfo(index_expression)
+      accesses = VariablesAccessMap(index_expression)
       
       # Then test if the index variable is used. Note that
       # the key of `access` is a signature, as is the `index_variable`
@@ -469,7 +453,7 @@ Variable accesses are stored in the order in which they happen. For example,
 an assignment `a=a+1` will store two access for the variable `a`, the
 first one being a READ access, followed by a WRITE access, since this is the
 order in which the accesses are executed.
-Additionally, the function `reference_accessess()` keeps track of the location
+Additionally, the function `reference_accesses()` keeps track of the location
 at which the accesses happen. A location is an integer number, starting with 0,
 which is increased for each new statement. This makes it possible to
 compare accesses to variables: if two accesses have the same location value,
@@ -482,13 +466,13 @@ If two statements have consecutive locations, this does not necessarily mean
 that the statements are executed one after another. For example in if-statements
 the statements in the if-body are counted first, then the statements in the
 else-body. It is the responsibility of the user to handle these cases - for
-example by creating separate `VariablesAccessInfo` for statements in the if-body
+example by creating separate `VariablesAccessMap` for statements in the if-body
 and for the else-body.
 
 .. note:: When using different instances for an if- and else-body, the first
     statement of the if-body will
     have the same location number as the first statement of the else-body. So
-    you can only compare location numbers from the same `VariablesAccessInformation`
+    you can only compare location numbers from the same `VariablesAccessMap`
     instance. If you merge two instances together, the locations of the merged-in
     instance will be appropriately increased to follow the locations of the
     instance to which it is merged.
@@ -498,14 +482,14 @@ The location number is not exactly a line number - several statements can be
 on one line, which will get different location numbers. And certain lines
 will not have a location number (e.g. comment lines).
 
-As stated above, one instance of `VariablesAccessInfo` can be extended by adding
+As stated above, one instance of `VariablesAccessMap` can be extended by adding
 additional variable information. It is the responsibility of the user to make
-sure the accesses are added in the right order - the `VariablesAccessInfo` object
+sure the accesses are added in the right order - the `VariablesAccessMap` object
 will always assume accesses happen at the current location, and a call to 
 `next_location()` is required (internally) to increase the location number.
 
 .. note:: It is not possible to add access information about an earlier
-     usage to an existing `VariablesAccessInfo` object. 
+     usage to an existing `VariablesAccessMap` object. 
 
 
 Access Examples
@@ -530,8 +514,7 @@ thread-private. Note that this code does not handle the usage of
 .. testcode::
 
   result = set()
-  var_accesses = VariablesAccessInfo()
-  omp_directive.reference_accesses(var_accesses)
+  var_accesses = omp_directive.reference_accesses()
   for signature in var_accesses.all_signatures:
       if signature.is_structure:
           # A lookup in the symbol table for structures are
@@ -567,7 +550,7 @@ thread-private. Note that this code does not handle the usage of
     Private variable j
 
 
-The next, hypothetical example shows how the `VariablesAccessInfo` class
+The next, hypothetical example shows how the `VariablesAccessMap` class
 can be used iteratively. Assume that you have a function
 `can_be_parallelised` that determines
 if the given variable accesses can be parallelised, and the aim is to
@@ -583,7 +566,7 @@ until we find accesses that would prevent parallelisation:
 .. testcode::
 
    # Create an empty instance to store accesses
-   accesses = VariablesAccessInfo()
+   accesses = VariablesAccessMap()
    list_of_parallelisable_statements = []
    for next_statement in statements:
        # Add the variable accesses of the next statement to
@@ -607,7 +590,7 @@ until we find accesses that would prevent parallelisation:
 .. note:: There is a certain overlap in the dependency analysis code
           and the variable access API. More work on unifying those two
           approaches will be undertaken in the future. Also, when calling
-          `reference_accesses()` for a Dynamo or GOcean kernel, the
+          `reference_accesses()` for an LFRic or GOcean kernel, the
           variable access mode for parameters is taken
           from the kernel metadata, not from the actual kernel source 
           code.
@@ -673,7 +656,7 @@ implementation differs from the DependencyTools as it is control-flow aware, so
 can find many dependencies for a single Reference in a given Routine or scope.
 
 This is primarily used to implement the `Reference.next_accesses` and
-`Reference.previous_accessess` functions, but can be used directly as follows:
+`Reference.previous_accesses` functions, but can be used directly as follows:
 
 .. code::
 

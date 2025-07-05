@@ -35,10 +35,13 @@
 
 ''' Utilities file to parallelise Nemo code. '''
 
+from typing import List, Union
+
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Assignment, Loop, Directive, Reference, CodeBlock, ArrayReference,
-    Call, Return, IfBlock, Routine, IntrinsicCall)
+    Assignment, Loop, Directive, Node, Reference, CodeBlock, ArrayReference,
+    Call, Return, IfBlock, Routine, Schedule, IntrinsicCall,
+    StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
 from psyclone.psyir.transformations import (
@@ -47,10 +50,9 @@ from psyclone.psyir.transformations import (
     Reference2ArrayRangeTrans, ScalarisationTrans)
 from psyclone.transformations import TransformationError
 
-
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
-    "oce", "par_oce", "dom_oce", "phycst", "ice",
+    "oce", "par_oce", "par_kind", "dom_oce", "phycst", "ice",
     "obs_fbm", "flo_oce", "sbc_ice", "wet_dry"
 ]
 
@@ -143,6 +145,25 @@ NEMO_FUNCTIONS = [
     'z0tq_LKB', 'zdf_gls_alloc', 'zdf_iwm_alloc', 'zdf_mfc_alloc',
     'zdf_mxl_alloc', 'zdf_oce_alloc', 'zdf_osm_alloc', 'zdf_phy_alloc',
     'zdf_tke_alloc', 'zdf_tmx_alloc',
+    # grep -rh "INTERFACE" src | grep -v "END" | awk '{print $2}' | uniq | sort
+    'alpha_sw', 'bulk_formula', 'cp_air', 'debug', 'DECAL_FEEDBACK',
+    'DECAL_FEEDBACK_2D', 'depth_to_e3', 'de_sat_dt_ice', 'dia_ar5_hst',
+    'dia_ptr_hst', 'div_hor', 'dom_tile_copyin', 'dom_tile_copyout',
+    'dq_sat_dt_ice', 'dyn_vor', 'e3_to_depth', 'eos', 'eos_fzp',
+    'eos_rab', 'e_sat', 'e_sat_ice', 'f_h_louis', 'f_m_louis',
+    'gamma_moist', 'glob_2Dmax', 'glob_2Dmin', 'glob_2Dsum', 'glob_3Dmax',
+    'glob_3Dmin', 'glob_3Dsum', 'halo_mng_resize', 'icb_utl_bilin_h',
+    'ice_var_itd', 'ice_var_snwblow', 'ice_var_snwfra', 'iom_get',
+    'iom_getatt', 'iom_nf90_get', 'iom_put', 'iom_putatt',
+    'iom_rstput', 'lbc_lnk', 'lbc_lnk_neicoll', 'lbc_lnk_pt2pt',
+    'lbc_nfd', 'lbnd_ij', 'ldf_eiv_trp', 'local_2Dmax', 'local_2Dmin',
+    'local_2Dsum', 'local_3Dmax', 'local_3Dmin', 'local_3Dsum',
+    'L_vap', 'mpp_max', 'mpp_maxloc', 'mpp_min', 'mpp_minloc',
+    'mpp_nfd', 'mpp_sum', 'pres_temp', 'prt_ctl_sum', 'ptr_mpp_sum',
+    'ptr_sj', 'ptr_sum', 'qlw_net', 'q_sat', 'rho_air', 'Ri_bulk',
+    'SIGN', 'sum3x3', 'theta_exner', 'tra_mle_trp', 'trd_vor_zint',
+    'virt_temp', 'visc_air', 'wAimp', 'wzv', 'zdf_osm_iomput',
+    'zdf_osm_velocity_rotation',
 ]
 
 # Currently fparser has no way of distinguishing array accesses from statement
@@ -154,7 +175,6 @@ CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 PARALLELISATION_ISSUES = [
     "ldfc1d_c2d.f90",
     "tramle.f90",
-    "dynspg_ts.f90",
 ]
 
 PRIVATISATION_ISSUES = [
@@ -180,8 +200,8 @@ def _it_should_be(symbol, of_type, instance):
 
 def enhance_tree_information(schedule):
     ''' Manually fix some PSyIR issues produced by not having enough symbol
-    information from external modules. Setting NEMO_MODULES_TO_IMPORT above
-    improve the situation but its not complete (not all symbols are imported)
+    information from external modules. Using RESOLVE_IMPORTS improves the
+    situation but it's not complete (not all symbols are imported)
     and it is not transitive (imports that inside import other symbols).
 
     :param schedule: the PSyIR Schedule to transform.
@@ -231,9 +251,14 @@ def inline_calls(schedule):
 
       1. Find the source of the routine being called.
       2. Insert that source into the same Container as the call site.
-      3. Replace the call to the routine with the body of the routine.
 
     where each step is dependent upon the success of the previous one.
+
+    Ideally (#924), this would then be followed by:
+
+      3. Replace the call to the routine with the body of the routine.
+
+    but currently this functionality is not robust enough for use here.
 
     TODO #924 - this could be InlineAllCallsTrans.apply(schedule,
                                                         excluding={})
@@ -242,14 +267,16 @@ def inline_calls(schedule):
     :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
 
     '''
-    excluding = ["ctl_stop", "ctl_warn", "eos", "iom_", "hist", "mpi_",
-                 "timing_", "oasis_"]
+    excluding = ["ctl_nam", "ctl_stop", "ctl_warn", "prt_ctl", "eos",
+                 "iom_", "hist", "mpi_", "timing_", "oasis_",
+                 "fatal_error"  # TODO #2846 - is brought into scope via
+                                # multiple wildcard imports
+                 ]
     ignore_codeblocks = ["bdy_dyn3d_frs", "bdy_dyn3d_spe", "bdy_dyn3d_zro",
                          "bdy_dyn3d_zgrad"]
     mod_inline_trans = KernelModuleInlineTrans()
     inline_trans = InlineTrans()
-    all_calls = schedule.walk(Call)
-    for call in all_calls:
+    for call in schedule.walk(Call):
         if isinstance(call, IntrinsicCall):
             continue
         rsym = call.routine.symbol
@@ -257,13 +284,18 @@ def inline_calls(schedule):
         if any(name.startswith(excl_name) for excl_name in excluding):
             print(f"Inlining of routine '{name}' is disabled.")
             continue
-        if rsym.is_import:
+        if rsym.is_import or rsym.is_unresolved:
             try:
                 mod_inline_trans.apply(call)
                 print(f"Module-inlined routine '{name}'")
             except TransformationError as err:
                 print(f"Module inline of '{name}' failed:\n{err}")
                 continue
+
+        # TODO #924 - SKIP ACTUAL INLINING FOR NOW. Currently this causes
+        # failures when processing NEMO and this needs further work.
+        continue
+
         try:
             options = {}
             if name in ignore_codeblocks:
@@ -337,6 +369,8 @@ def normalise_loops(
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
+            if assignment.walk(StructureReference):
+                continue  # TODO #2951 Fix issues with structure_refs
             try:
                 explicit_loops.apply(assignment)
             except TransformationError:
@@ -380,6 +414,7 @@ def insert_explicit_loop_parallelism(
         loop_directive_trans=None,
         collapse: bool = True,
         privatise_arrays: bool = False,
+        uniform_intrinsics_only: bool = False,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
@@ -398,15 +433,22 @@ def insert_explicit_loop_parallelism(
         many nested loops as possible.
     :param privatise_arrays: whether to attempt to privatise arrays that cause
         write-write race conditions.
+    :param uniform_intrinsics_only: if True it prevent offloading loops
+        with non-reproducible device intrinsics.
 
     '''
+    if schedule.name == "ts_wgt":
+        return  # TODO #2937 WaW dependency incorrectly considered private
     # Add the parallel directives in each loop
     for loop in schedule.walk(Loop):
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
         opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
-                "verbose": True}
+                "verbose": True, "nowait": False}
+
+        if uniform_intrinsics_only:
+            opts["device_string"] = "nvfortran-uniform"
 
         routine_name = loop.ancestor(Routine).name
 
@@ -454,7 +496,7 @@ def insert_explicit_loop_parallelism(
 
             # And if successful, the region directive on top.
             if region_directive_trans:
-                region_directive_trans.apply(loop.parent.parent)
+                region_directive_trans.apply(loop.parent.parent, options=opts)
         except TransformationError:
             # This loop cannot be transformed, proceed to next loop.
             # The parallelisation restrictions will be explained with a comment
@@ -462,17 +504,26 @@ def insert_explicit_loop_parallelism(
             continue
 
 
-def add_profiling(children):
+def add_profiling(children: Union[List[Node], Schedule]):
     '''
-    Walks down the PSyIR and inserts the largest possible profiling regions.
-    Code that contains directives is excluded.
+    Walks down the PSyIR and inserts the largest possible profiling regions
+    in place. Code inside functions or that contains directives is excluded.
 
-    :param children: sibling nodes in the PSyIR to which to attempt to add \
-                     profiling regions.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+    :param children: a Schedule or sibling nodes in the PSyIR to which to
+        attempt to add profiling regions.
 
     '''
+    if children and isinstance(children, Schedule):
+        # If we are given a Schedule, we look at its children.
+        children = children.children
+
     if not children:
+        return
+
+    # We do not want profiling calipers inside functions (such as the
+    # PSyclone-generated comparison functions).
+    parent_routine = children[0].ancestor(Routine)
+    if parent_routine and parent_routine.return_symbol:
         return
 
     node_list = []

@@ -77,8 +77,11 @@ Loop.set_loop_type_inference_rules({
         "tracers": {"variable": "jt"}
 })
 
-# List of all module names that PSyclone will chase during the creation of the
-# PSyIR tree in order to use the symbol information from those modules
+# Whether to chase the imported modules to improve symbol information (it can
+# also be a list of module filenames to limit the chasing to only specific
+# modules). This has to be used in combination with '-I' command flag in order
+# to point to the module location directory. We also strongly recommend using
+# the '--enable-cache' flag to reduce the performance overhead.
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # Get the PSyclone transformations we will use
@@ -232,7 +235,7 @@ def valid_acc_kernel(node):
             # if they themselves contain several 2D loops.
             # In general, this heuristic will depend upon how many levels the
             # model configuration will contain.
-            child = enode.loop_body[0]
+            child = enode.loop_body[0] if enode.loop_body.children else None
             if isinstance(child, Loop) and child.loop_type == "levels":
                 # We have a loop around a loop over levels
                 log_msg(routine_name, "Loop is around a loop over levels",

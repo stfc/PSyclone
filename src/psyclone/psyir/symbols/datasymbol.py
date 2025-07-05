@@ -212,8 +212,9 @@ class DataSymbol(TypedSymbol):
 
         '''
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import (Node, Literal, Operation, Reference,
-                                          CodeBlock, IntrinsicCall)
+        from psyclone.psyir.nodes import (
+            Assignment, Node, Literal, Operation, Reference,
+            CodeBlock, IntrinsicCall)
         from psyclone.psyir.symbols.datatypes import (ScalarType, ArrayType,
                                                       UnsupportedType)
 
@@ -271,7 +272,6 @@ class DataSymbol(TypedSymbol):
             # expression, enabling some functionality without special cases.
             # Note that the parent dangles on top of the init value, and is not
             # referenced directly from anywhere else.
-            from psyclone.psyir.nodes import Assignment
             parent = Assignment()
             parent.addchild(Reference(self))
             parent.addchild(new_initial_value)
@@ -347,18 +347,48 @@ class DataSymbol(TypedSymbol):
         self.preceding_comment = symbol_in.preceding_comment
         self.inline_comment = symbol_in.inline_comment
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        super().replace_symbols_using(table)
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import ArrayType
+
+        super().replace_symbols_using(table_or_symbol)
 
         # Ensure any Symbols referenced in the initial value are updated.
         if self.initial_value:
-            self.initial_value.replace_symbols_using(table)
+            self.initial_value.replace_symbols_using(table_or_symbol)
+
+        # Ensure any Symbols referenced in the shape are updated.
+        for dim in self.shape:
+            if isinstance(dim, ArrayType.Extent):
+                continue
+            for bnd in [dim.lower, dim.upper]:
+                if isinstance(bnd, ArrayType.Extent):
+                    continue
+                bnd.replace_symbols_using(table_or_symbol)
+
+    def reference_accesses(self):
+        '''
+        :returns: a map of all the symbol accessed inside this Symbol, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
+
+        '''
+        access_info = super().reference_accesses()
+
+        if self.initial_value:
+            access_info.update(self.initial_value.reference_accesses())
+        return access_info
