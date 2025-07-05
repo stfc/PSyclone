@@ -38,12 +38,12 @@
 !! the GOcean API.
 !! A Fortran code instrumented with corresponding calls
 !! to the PSyData API and linked in with this library will write
-!! the requested input and output parameters to a Fortran binary file.
+!! the requested input and output parameters to an ASCII file.
 !!
 
 module extract_psy_data_mod
 
-    use extract_standalone_base_mod, only : ExtractStandaloneBaseType
+    use extract_standalone_ascii_base_mod, only : ExtractStandaloneASciiBaseType
 
     implicit none
 
@@ -52,7 +52,7 @@ module extract_psy_data_mod
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, extends(ExtractStandaloneBaseType), public :: extract_PsyDataType
+    type, extends(ExtractStandaloneAsciiBaseType), public :: extract_PsyDataType
 
     contains
 

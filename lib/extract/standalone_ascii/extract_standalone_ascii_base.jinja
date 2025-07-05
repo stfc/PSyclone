@@ -78,7 +78,7 @@
 !! a binary file that contains all scalar values, and the dimensions
 !! and content for each array.
 
-module extract_standalone_base_mod
+module extract_standalone_ascii_base_mod
 
     use psy_data_base_mod, only : PSyDataBaseType, is_enabled
 
@@ -93,7 +93,7 @@ module extract_standalone_base_mod
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, extends(PSyDataBaseType), public :: ExtractStandaloneBaseType
+    type, extends(PSyDataBaseType), public :: ExtractStandaloneAsciiBaseType
 
         !> The unit number to use for output
         integer                            :: unit_number = -1
@@ -124,7 +124,7 @@ module extract_standalone_base_mod
             {{all_provides|join(", &\n"+indent) }}
         {% endif %}
 
-    end type ExtractStandaloneBaseType
+    end type ExtractStandaloneAsciiBaseType
 
 contains
 
@@ -163,7 +163,7 @@ contains
 
         implicit none
 
-        class(ExtractStandaloneBaseType), intent(inout), target :: this
+        class(ExtractStandaloneAsciiBaseType), intent(inout), target :: this
         character(*), intent(in)                            :: module_name, &
                                                                region_name
         integer, intent(in)                                 :: num_pre_vars, &
@@ -204,7 +204,7 @@ contains
 
         implicit none
 
-        class(ExtractStandaloneBaseType), intent(inout), target :: this
+        class(ExtractStandaloneAsciiBaseType), intent(inout), target :: this
 
         close(this%unit_number)
         call this%PSyDataBaseType%PostEnd()
@@ -223,7 +223,7 @@ contains
 
         implicit none
 
-        class(ExtractStandaloneBaseType), intent(inout), target :: this
+        class(ExtractStandaloneAsciiBaseType), intent(inout), target :: this
         character(*), intent(in)                                :: name
         {{type}}, intent(in)                                    :: value
         integer                                                 :: retval
@@ -253,7 +253,7 @@ contains
 
         implicit none
 
-        class(ExtractStandaloneBaseType), intent(inout), target :: this
+        class(ExtractStandaloneAsciiBaseType), intent(inout), target :: this
         character(*), intent(in)                                :: name
         {{type}}, dimension({{DIMENSION}}), intent(in)          :: value
 
@@ -273,4 +273,4 @@ contains
 
 {%- endfor -%}  {# for name, type in ALL_TYPES #}
 
-end module extract_standalone_base_mod
+end module extract_standalone_ascii_base_mod

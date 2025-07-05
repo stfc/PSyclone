@@ -37,13 +37,13 @@
 !! interface. It is for handling generic Fortran code, i.e. it does 
 !! not actually provide any API-specific types like fields, only standard
 !! Fortran data types. Therefore, it is just an empty wrapper to around
-!! the ExtractNetcdfBaseType, which provides the standard module name
+!! the ExtractStandaloneAsciiBaseType, which provides the standard module name
 !! and class name expected by the extraction scripts.
 !!
 
 module extract_psy_data_mod
 
-    use extract_standalone_base_mod, only : ExtractStandaloneBaseType
+    use extract_standalone_ascii_base_mod, only : ExtractStandaloneAsciiBaseType
 
     implicit none
 
@@ -52,7 +52,7 @@ module extract_psy_data_mod
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, extends(ExtractStandaloneBaseType), public :: extract_PsyDataType
+    type, extends(ExtractStandaloneAsciiBaseType), public :: extract_PsyDataType
 
     end type extract_PSyDataType
 

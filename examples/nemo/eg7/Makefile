@@ -74,7 +74,7 @@ ifeq ($(TYPE), netcdf)
 else ifeq ($(TYPE), standalone_ascii)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone_ascii/generic
 	READ_DIR ?= $(PSYROOT)/lib/extract/standalone_ascii
-	GENERATED_FILES += tra_adv-r*.ascii
+	GENERATED_FILES += tra_adv-tra_adv-r*.ascii
 else
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/generic
 	READ_DIR ?= $(PSYROOT)/lib/extract/standalone

@@ -45,7 +45,7 @@
 !! interface. It is specific to the LFRic infrastructure library.
 !! A Fortran code instrumented with corresponding calls
 !! to the PSyData API and linked in with this library will write
-!! the requested input and output parameters to a Fortran binary file.
+!! the requested input and output parameters to an ASCII file.
 !!
 
 {% set ALL_PREC = ["32", "64"] -%}
@@ -53,7 +53,7 @@
 module extract_psy_data_mod
 
     use, intrinsic :: iso_fortran_env, only : int64, int32
-    use extract_standalone_base_mod,   only : ExtractStandaloneBaseType
+    use extract_standalone_ascii_base_mod, only : ExtractStandaloneAsciiBaseType
 
     implicit none
 
@@ -62,7 +62,7 @@ module extract_psy_data_mod
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, extends(ExtractStandaloneBaseType), public :: extract_PSyDataType
+    type, extends(ExtractStandaloneAsciiBaseType), public :: extract_PSyDataType
 
     contains
         {% set all_declares=[] -%}

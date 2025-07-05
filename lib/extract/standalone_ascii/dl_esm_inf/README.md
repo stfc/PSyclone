@@ -1,4 +1,4 @@
-# Stand-alone Kernel Extraction Library for GOcean
+# Stand-alone ASCII Kernel Extraction Library for GOcean
 
 This wrapper library is used to [write (extract)](
 https://psyclone.readthedocs.io/en/stable/psyke.html)
@@ -6,7 +6,11 @@ input and output parameters of instrumented code regions to a [binary file](
 https://psyclone.readthedocs.io/en/stable/psyke.html#extraction_libraries)
 using the [``dl_esm_inf`` library](https://github.com/stfc/dl_esm_inf).
 A stand-alone driver can then be used to rerun this specific code region and
-verify the results (or compare performance).
+verify the results (or compare performance). This version of the extraction
+library writes the file in plain ASCII format, so there is no additional
+dependency, and the ASCII format is compatible across different compilers
+(the binary format used in the normal standalone library will likely not
+be able to be read by binaries compiled with a different compiler).
 
 A full, stand-alone and runnable example can be found in
 [``examples/gocean/eg5/extract``](
@@ -27,12 +31,12 @@ the application. The following dependencies must be available:
   submodules). However, it is not included in the PSyclone [installation](
   ./../../../README.md#installation) and has to be cloned separately.
 
-- The ExtractStandalone (``extract_standalone_base.jinja``) and PSyData
+- The ExtractStandaloneAscii (``extract_standalone_ascii_base.jinja``) and PSyData
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
   installation. These Jinja templates are processed to create the
   code to write ``integer``, 32- and 64-bit ``real`` scalars, and
   2-dimensional ``real`` and ``integer`` arrays. The generated Fortran
-  modules, ``extract_standalone_base.f90`` and ``psy_data_base.f90``, are
+  modules, ``extract_standalone_ascii_base.f90`` and ``psy_data_base.f90``, are
   then used by the supplied kernel-extraction module,
   ``kernel_data_standalone.f90``, to create the wrapper library.
 
