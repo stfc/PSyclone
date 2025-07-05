@@ -38,7 +38,6 @@
 '''
 
 from sympy.printing.printer import Printer
-from sympy.printing.str import StrPrinter
 
 from psyclone.psyir.frontend.fortran import FortranReader
 
@@ -48,7 +47,7 @@ class FortranPrinter(Printer):
     '''Specialise the SymPy Printer to convert logical operators back to
     Fortran format. While SymPy has a Fortran printer (fcode), it does not
     handle e.g. Fortran Array expressions (a(2:5)), so we specialise the
-    generic SymPy Printer and handle the necessary conversions.'''    
+    generic SymPy Printer and handle the necessary conversions.'''
 
     def _print_And(self, expr):
         '''Called when converting an AND expression.'''
