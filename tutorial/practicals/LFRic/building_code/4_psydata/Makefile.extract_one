@@ -51,7 +51,7 @@ driver-time_evolution-propagate: driver-time_evolution-propagate.o
 time_evolution_alg_mod_psy.f90: time_evolution_alg_mod.x90 extract_one_transform.py
 	psyclone $(PSYCLONE_CMD)                                                      \
     -d . -d ../gungho_lib -d $(PSYROOT)/lib/extract/$(TYPE)/lfric                 \
-    -d ../../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure      \
+    -d ../../../../../src/psyclone/tests/test_files/lfric/infrastructure          \
     -opsy time_evolution_alg_mod_psy.f90                                          \
     -oalg time_evolution_alg_mod.f90 time_evolution_alg_mod.x90
 
