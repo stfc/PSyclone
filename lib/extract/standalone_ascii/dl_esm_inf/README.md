@@ -22,7 +22,7 @@ This library uses the [PSyData API](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
 the application. The following dependencies must be available:
 
-- The [GOcean](https://psyclone.readthedocs.io/en/latest/gocean1p0.html)
+- The [GOcean](https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html)
   infrastructure library ``dl_esm_inf``. A stable version of this is included
   in the PSyclone repository as a Git submodule (see ["Installation"](
   https://psyclone-dev.readthedocs.io/en/stable/working_practises.html#dev-installation)
