@@ -25,9 +25,10 @@ the application. The following dependencies must be available:
 - The [GOcean](https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html)
   infrastructure library ``dl_esm_inf``. A stable version of this is included
   in the PSyclone repository as a Git submodule (see ["Installation"](
-  https://psyclone-dev.readthedocs.io/en/stable/working_practises.html#dev-installation)
+  https://psyclone.readthedocs.io/en/latest/developer_guide/working_practises.html#dev-installation)
   in the PSyclone [Developer Guide](
-  https://psyclone-dev.readthedocs.io/en/stable) for details on working with
+  https://psyclone.readthedocs.io/en/latest/developer_guide/)
+  for details on working with
   submodules). However, it is not included in the PSyclone [installation](
   ./../../../README.md#installation) and has to be cloned separately.
 
