@@ -34,8 +34,8 @@
 
 program main
 
-    use global_mesh_mod,        only: global_mesh_type
-    use global_mesh_netcdf_mod, only: global_mesh_netcdf_type
+    use global_mesh_mod,        only : global_mesh_type
+    use lfric_ncdf_file_mod,    only : lfric_ncdf_file_type
 
     use local_mesh_mod,         only: local_mesh_type
     use local_mesh_collection_mod, only: local_mesh_collection, local_mesh_collection_type
@@ -57,13 +57,16 @@ program main
     use testkern_w0_kernel_mod, only: testkern_w0_kernel_type
     use constants_mod,          only: r_def, i_def, str_def
     use log_mod,                only: LOG_LEVEL_ALWAYS
+    use ugrid_mesh_data_mod, only: ugrid_mesh_data_type
 
     implicit none
 
-    type(global_mesh_netcdf_type), target      :: global_mesh
+    type(lfric_ncdf_file_type), target         :: global_netcdf_mesh
+    type(global_mesh_type), target             :: global_mesh
+    type(local_mesh_type), target              :: local_mesh
     type(partition_type)                       :: partition
     type(mesh_type), target                    :: mesh
-    class(extrusion_type), pointer             :: extrusion_ptr
+    type(uniform_extrusion_type), target       :: extrusion
     type(function_space_type), target          :: vector_space
     type(function_space_type), pointer         :: vector_space_ptr
     procedure (partitioner_interface), pointer :: partitioner_ptr
@@ -75,13 +78,16 @@ program main
     integer(kind=i_def)                        :: ndata_sz, mesh_id
     character(str_def) :: name="123"
     real*8  :: field_min_norm
-
-    type(ugrid_2d_type) :: ugrid_2d
+    type(ugrid_mesh_data_type) :: ugrid_mesh_data
 
     ! This function is not part of the actual infrastructure
     call init_collections()
 
-    global_mesh = global_mesh_netcdf_type("mesh_BiP128x16-400x100.nc", "dynamics")
+
+    call ugrid_mesh_data%read_from_file("mesh_BiP128x16-400x100.nc", &
+                                        "dynamics")
+    global_mesh = global_mesh_type( ugrid_mesh_data )
+
     ! Use the unit-testing constructor:
     global_mesh = global_mesh_type()
 
