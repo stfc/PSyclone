@@ -145,8 +145,26 @@ def test_loop_tiling_trans_validation_options(fortran_reader):
             "integers but found '[-32]'." in str(err.value))
 
 
+def test_loop_tiling_trans_validation_no_options(fortran_reader):
+    ''' Validation passes on a 2D loop when no options are provided '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test(tmp)
+            integer:: i, j
+            integer, intent(inout), dimension(100,100) :: tmp
+
+            do i=1, 100
+              do j=1, 100
+                tmp(i,j) = 2 * tmp(i,j)
+              enddo
+            enddo
+        end subroutine test
+     ''')
+    outer_loop = psyir.walk(Loop)[0]
+    LoopTilingTrans().apply(outer_loop)
+
+
 def test_loop_tiling_trans_apply(fortran_reader, fortran_writer):
-    ''' Validation passes when found a 3D nested loop construct. '''
+    ''' Transformation works on a 3D nested loop construct. '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine test(tmp)
             integer:: i, j, k
