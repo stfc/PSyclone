@@ -1,4 +1,7 @@
-   46) PR 3033 for #3031 and #3032. Prevent inserting profiling callipers to
+   47) PR #2997 for #223. Add support for logical operators in the SymPy
+   comparisons.
+
+   46) PR #3033 for #3031 and #3032. Prevent inserting profiling callipers to
    NEMO functions and any elemental function. Also remove pure attribute when
    inserting psy_data wrappers.
 
