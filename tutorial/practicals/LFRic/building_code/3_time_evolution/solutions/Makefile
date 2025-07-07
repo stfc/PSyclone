@@ -133,4 +133,4 @@ clean:
 
 allclean: clean
 	make -C $(GHLIB_PATH) clean
-	make -C $(LFRIC_PATH) clean
+	make -C $(LFRIC_PATH) -f ../Makefile clean

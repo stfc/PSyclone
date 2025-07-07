@@ -42,7 +42,7 @@ module assign_coordinate_field_mod
 
   use base_mesh_config_mod, only : geometry, &
                                    geometry_spherical
-  use constants_mod,        only : r_def, i_def, i_native
+  use constants_mod,        only : r_def, i_def, i_medium
   use log_mod,              only : log_event, LOG_LEVEL_ERROR
   use planet_config_mod,    only : scaled_radius
   use mesh_mod,             only : mesh_type
@@ -86,7 +86,7 @@ contains
     integer(i_def) :: undf, ndf, nlayers
     integer(i_def) :: nverts
 
-    integer(i_native) :: alloc_error
+    integer(i_medium) :: alloc_error
     integer(i_def)    :: depth
 
     ! Break encapsulation and get the proxy.
