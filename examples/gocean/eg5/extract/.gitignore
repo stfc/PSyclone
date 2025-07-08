@@ -6,4 +6,5 @@ extract_test.ascii
 extract_test.netcdf
 *.nc
 *.binary
+*.ascii
 driver-main*

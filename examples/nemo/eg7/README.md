@@ -37,11 +37,11 @@ The three different extraction libraries, as described in
 can be linked in.  The stand-alone extraction library in
 ``../../../lib/extract/standalone/nemo`` is used as default, and
 will also be automatically compiled. You can set the ``TYPE`` environment
-variable to either ``standalone_ascii``
+variable to either ``ascii``
 or ``netcdf`` when compiling to use the other libraries::
 
     $ TYPE=netcdf make compile
-    $ TYPE=standalone_ascii make compile
+    $ TYPE=ascii make compile
 
  To compile the example, the following dependencies are needed:
 - one of the LFRic PSyData wrapper libraries, either:
@@ -49,8 +49,8 @@ or ``netcdf`` when compiling to use the other libraries::
       ``<PSYCLONEHOME>/lib/extract/netcdf/lfric`` and NetCDF,
     - ``lib_kernel_data_standalone`` from
       ``<PSYCLONEHOME>/lib/extract/standalone/lfric``, or
-    - ``lib_kernel_data_standalone_ascii`` from
-      ``<PSYCLONEHOME>/lib/extract/standalone_ascii/lfric``
+    - ``lib_kernel_data_ascii`` from
+      ``<PSYCLONEHOME>/lib/extract/ascii/lfric``
 
 The infrastructure and PSyData wrapper libraries will be compiled
 if they are not available, the NetCDF library requires NetCDF to
@@ -58,7 +58,7 @@ be available (including ``nf-config`` to detect installation-specific
 paths).
 
 The binary  instrumented for extraction will either be called
-``traadv-standalone.exe``, ``traadv-standalone_ascii.exe`` or
+``traadv-standalone.exe``, ``traadv-ascii.exe`` or
 ``traadv-netcdf.exe``.
 
 `tra_adv.F90` is a stand-alone version of one of the tracer-advection

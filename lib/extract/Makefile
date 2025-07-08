@@ -70,7 +70,7 @@ compare_variables_mod.F90:      compare_variables_mod.jinja Makefile
 all: compare
 	$(MAKE) -C netcdf all
 	$(MAKE) -C standalone all
-	$(MAKE) -C standalone_ascii all
+	$(MAKE) -C ascii all
 
 clean:
 	rm -f compare_variables_mod.mod compare_variables_mod.o \

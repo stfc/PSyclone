@@ -348,5 +348,5 @@ After running the instrumented `time_evolution` binary, two output files
 ``time_evolution-invoke_initialise_perturbation.binary`` and 
 ``time_evolution-invoke_propagate_perturbation.binary`` are created.
 
-Similarly, using ``TYPE=standalone_ascii`` will produce two files with the
+Similarly, using ``TYPE=ascii`` will produce two files with the
 ``ascii`` suffix.

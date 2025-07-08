@@ -32,12 +32,12 @@ the application. The following dependencies must be available:
   submodules). However, it is not included in the PSyclone [installation](
   ./../../../README.md#installation) and has to be cloned separately.
 
-- The ExtractStandaloneAscii (``extract_standalone_ascii_base.jinja``) and PSyData
+- The ExtractStandaloneAscii (``extract_ascii_base.jinja``) and PSyData
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
   installation. These Jinja templates are processed to create the
   code to write ``integer``, 32- and 64-bit ``real`` scalars, and
   2-dimensional ``real`` and ``integer`` arrays. The generated Fortran
-  modules, ``extract_standalone_ascii_base.f90`` and ``psy_data_base.f90``, are
+  modules, ``extract_ascii_base.f90`` and ``psy_data_base.f90``, are
   then used by the supplied kernel-extraction module,
   ``kernel_data_standalone.f90``, to create the wrapper library.
 

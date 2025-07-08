@@ -1,4 +1,4 @@
-extract.standalone_ascii
+extract.ascii
 extract.standalone
 extract.netcdf
 main.x90

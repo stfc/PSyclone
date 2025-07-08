@@ -51,11 +51,11 @@ include ../../common.mk
 # 1) standalone, which uses Fortan binary data files to store the data
 #    (which might not be transferable between different machines or
 #     or different compilers)
-# 2) standalone_ascii, which uses Fortan ASCII data files to store the data
+# 2) ascii, which uses Fortan ASCII data files to store the data
 #    (which might depending on compiler not have bitwise identical results)
 # 3) netcdf, which uses NetCDF for writing the data files.
 # The library can be selected by setting TYPE to either 'standalone'
-# (which is the default), 'standalone_ascii', or 'netcdf'. Note that both
+# (which is the default), 'ascii', or 'netcdf'. Note that both
 # libraries implement the same API, so no change to any script is required
 # for switching between the two libraries, but recompilation is required
 # (since the .mod files will be different).
@@ -71,9 +71,9 @@ ifeq ($(TYPE), netcdf)
 	F90FLAGS += $$(nf-config --fflags)
 	LDFLAGS += $$(nf-config --flibs)
 	GENERATED_FILES += tra_adv-r*.nc
-else ifeq ($(TYPE), standalone_ascii)
-	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone_ascii/generic
-	READ_DIR ?= $(PSYROOT)/lib/extract/standalone_ascii
+else ifeq ($(TYPE), ascii)
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/ascii/generic
+	READ_DIR ?= $(PSYROOT)/lib/extract/ascii
 	GENERATED_FILES += tra_adv-tra_adv-r*.ascii
 else
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/generic

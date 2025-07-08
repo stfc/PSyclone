@@ -59,7 +59,7 @@ include $(PSYROOT)/examples/common.mk
 
 ifeq ($(TYPE), netcdf)
 	GENERATED_FILES += main-update.nc main-init.nc
-else ifeq ($(TYPE), standalone_ascii)
+else ifeq ($(TYPE), ascii)
 	GENERATED_FILES += main-update.ascii main-init.ascii
 else
 	GENERATED_FILES += main-update.binary main-init.binary
@@ -78,8 +78,8 @@ ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/lfric
 	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 	F90FLAGS += $$(nf-config --fflags)
-else ifeq ($(TYPE), standalone_ascii)
-	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone_ascii/lfric
+else ifeq ($(TYPE), ascii)
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/ascii/lfric
 else
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/lfric
 endif

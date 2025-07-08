@@ -60,9 +60,9 @@ PROCESS_ARGS = -prefix=extract_ -types=char,int,long,logical,real,double \
 		       -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-default: extract_standalone_ascii_base.o psy_data_base.o read_kernel_data_mod.o
+default: extract_ascii_base.o psy_data_base.o read_kernel_data_mod.o
 
-process: extract_standalone_ascii_base.F90
+process: extract_ascii_base.F90
 
 .PHONY: default process all clean allclean
 
@@ -73,16 +73,16 @@ all:
 
 # The dependencies
 # ----------------
-extract_standalone_ascii_base.o: psy_data_base.o
+extract_ascii_base.o: psy_data_base.o
 
 # Jinja rules for creating the base class, and the
-# standalone_ascii extraction class
+# ascii extraction class
 # ------------------------------------------------
 psy_data_base.f90:	$(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
-extract_standalone_ascii_base.F90:	extract_standalone_ascii_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_standalone_ascii_base.F90
+extract_ascii_base.F90:	extract_ascii_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_ascii_base.F90
 
 read_kernel_data_mod.f90:	read_kernel_data_mod.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > read_kernel_data_mod.f90
@@ -96,7 +96,7 @@ read_kernel_data_mod.f90:	read_kernel_data_mod.jinja Makefile
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f extract_standalone_ascii_base.F90 psy_data_base.f90 read_kernel_data_mod.f90
+	rm -f extract_ascii_base.F90 psy_data_base.f90 read_kernel_data_mod.f90
 	rm -f *.o *.mod
 
 allclean:

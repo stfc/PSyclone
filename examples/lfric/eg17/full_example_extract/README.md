@@ -17,11 +17,11 @@ three extraction libraries, as outlined in the
 [PSyKE extraction libraries](https://psyclone.readthedocs.io/en/stable/psyke.html#extraction-libraries) section.
 
 By default, the stand-alone binary version will be used,
-but you can set the ``TYPE`` environment variable to either ``standalone_ascii``
+but you can set the ``TYPE`` environment variable to either ``ascii``
 or ``netcdf`` when compiling to use the other libraries::
 
     $ TYPE=netcdf make compile
-    $ TYPE=standalone_ascii make compile
+    $ TYPE=ascii make compile
 
  To compile the example, the following dependencies are needed:
 - the infrastructure library ``liblfric.a`` provided in
@@ -31,8 +31,8 @@ or ``netcdf`` when compiling to use the other libraries::
       ``<PSYCLONEHOME>/lib/extract/netcdf/lfric`` and NetCDF,
     - ``lib_kernel_data_standalone`` from
       ``<PSYCLONEHOME>/lib/extract/standalone/lfric``, or
-    - ``lib_kernel_data_standalone_ascii`` from
-      ``<PSYCLONEHOME>/lib/extract/standalone_ascii/lfric``
+    - ``lib_kernel_data_ascii`` from
+      ``<PSYCLONEHOME>/lib/extract/ascii/lfric``
 
 The infrastructure and PSyData wrapper libraries will be compiled
 if they are not available.

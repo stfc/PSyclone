@@ -393,8 +393,8 @@ hardware is the NetCDF extraction library.
 The three extraction :ref:`libraries <libraries>` are in
 `lib/extract/standalone
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone>`_,
-`lib/extract/standalone_ascii
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone_ascii>`_,
+`lib/extract/ascii
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/ascii>`_,
 and in
 `lib/extract/netcdf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf>`_.
@@ -420,8 +420,8 @@ Extraction for GOcean
 The extraction libraries in 
 `lib/extract/standalone/dl_esm_inf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/dl_esm_inf>`_,
-`lib/extract/standalone_ascii/dl_esm_inf
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone_ascii/dl_esm_inf>`_
+`lib/extract/ascii/dl_esm_inf
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/ascii/dl_esm_inf>`_
 and 
 `lib/extract/netcdf/dl_esm_inf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/dl_esm_inf>`_
@@ -480,8 +480,8 @@ Extraction for LFRic
 The libraries in 
 `lib/extract/standalone/lfric
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/lfric>`_,
-`lib/extract/standalone_ascii/lfric
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone_ascii/lfric>`_
+`lib/extract/ascii/lfric
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/ascii/lfric>`_
 and
 `lib/extract/netcdf/lfric
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/lfric>`_
@@ -576,8 +576,8 @@ Extraction for generic Fortran
 The libraries in
 `lib/extract/standalone/generic
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/generic>`_,
-`lib/extract/standalone_ascii/generic
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone_ascii/generic>`_
+`lib/extract/ascii/generic
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/ascii/generic>`_
 and
 `lib/extract/netcdf/generic
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/generic>`_

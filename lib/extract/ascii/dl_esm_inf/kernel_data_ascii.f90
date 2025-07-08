@@ -43,7 +43,7 @@
 
 module extract_psy_data_mod
 
-    use extract_standalone_ascii_base_mod, only : ExtractStandaloneASciiBaseType
+    use extract_ascii_base_mod, only : ExtractASciiBaseType
 
     implicit none
 
@@ -52,7 +52,7 @@ module extract_psy_data_mod
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, extends(ExtractStandaloneAsciiBaseType), public :: extract_PsyDataType
+    type, extends(ExtractAsciiBaseType), public :: extract_PsyDataType
 
     contains
 

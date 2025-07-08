@@ -292,7 +292,7 @@ used. PSyclone will declare the variables to be static, meaning that they
 can be used to accumulate data from call to call. An example of
 the PSyDataType can be found in the example extraction code
 (see ``lib/extract/standalone/dl_esm_inf``,
-``lib/extract/standalone_ascii/dl_esm_inf``,
+``lib/extract/ascii/dl_esm_inf``,
 ``lib/extract/netcdf/dl_esm_inf``, or
 :ref:`extraction_libraries` for
 a detailed description), any of the profiling wrapper libraries
