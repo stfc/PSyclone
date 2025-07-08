@@ -75,7 +75,7 @@ SKIP_FOR_PERFORMANCE = [
 ]
 
 OFFLOADING_ISSUES = [
-    # Signal 11
+    # Nemov5: Signal 11
     "trcice_pisces.f90",
     "trcice_c14.f90",
     "trddyn.f90",
@@ -85,6 +85,7 @@ OFFLOADING_ISSUES = [
     "icesbc.f90",
     "trcbbl.f90",
     "trczdf.f90",
+    "stpmlf.90",
     # NEMOv4: Compilation issue
     "icbdia.f90",
 ]
@@ -143,11 +144,11 @@ def trans(psyir):
         enhance_tree_information(subroutine)
         normalise_loops(
                 subroutine,
-                hoist_local_arrays=False,
+                hoist_local_arrays=True,
                 convert_array_notation=True,
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
-                hoist_expressions=True
+                hoist_expressions=True,
         )
         # Perform module-inlining of called routines.
         if INLINING_ENABLED:
