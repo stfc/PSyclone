@@ -93,7 +93,7 @@ run: compile
 	IT=2 JPI=10 JPJ=10 JPK=5  ./traadv-$(TYPE).exe
 
 traadv-$(TYPE).exe: psy.o $(EXTRACT_DIR)/$(LIB_NAME)
-	$(F90) psy.o -o traadv-$(TYPE).exe $(EXTRACT_DIR)/$(LIB_NAME) $(LDFLAGS)
+	$(F90) $(F90FLAGS) psy.o -o traadv-$(TYPE).exe $(EXTRACT_DIR)/$(LIB_NAME) $(LDFLAGS)
 
 transform: kernels
 
