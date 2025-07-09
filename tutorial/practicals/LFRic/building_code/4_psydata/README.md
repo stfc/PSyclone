@@ -340,9 +340,9 @@ but you need to recompile the files that use kernel extraction.
 
 The extraction makefiles are all set up so you can easily switch to use
 the stand-alone library instead of the NetCDF one. Just set the
-makefile variable `TYPE` to `standalone` when invoking `make`:
+makefile variable `TYPE` to `binary` when invoking `make`:
 
-    make TYPE=standalone -f solutions/Makefile.extract_all
+    make TYPE=binary -f solutions/Makefile.extract_all
 
 After running the instrumented `time_evolution` binary, two output files
 ``time_evolution-invoke_initialise_perturbation.binary`` and 
