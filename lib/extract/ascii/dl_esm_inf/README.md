@@ -9,7 +9,7 @@ A stand-alone driver can then be used to rerun this specific code region and
 verify the results (or compare performance). This version of the extraction
 library writes the file in plain ASCII format, so there is no additional
 dependency, and the ASCII format is compatible across different compilers
-(the binary format used in the normal standalone library will likely not
+(the binary format used in the binary library will likely not
 be able to be read by binaries compiled with a different compiler).
 
 A full, stand-alone and runnable example can be found in
@@ -32,14 +32,14 @@ the application. The following dependencies must be available:
   submodules). However, it is not included in the PSyclone [installation](
   ./../../../README.md#installation) and has to be cloned separately.
 
-- The ExtractStandaloneAscii (``extract_ascii_base.jinja``) and PSyData
+- The ExtractAsciiBase (``extract_ascii_base.jinja``) and PSyData
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
   installation. These Jinja templates are processed to create the
   code to write ``integer``, 32- and 64-bit ``real`` scalars, and
   2-dimensional ``real`` and ``integer`` arrays. The generated Fortran
   modules, ``extract_ascii_base.f90`` and ``psy_data_base.f90``, are
   then used by the supplied kernel-extraction module,
-  ``kernel_data_standalone.f90``, to create the wrapper library.
+  ``kernel_data_ascii.f90``, to create the wrapper library.
 
 ## Compilation
 
@@ -70,10 +70,10 @@ so the exact path **must be specified** using the environment variable
 GOCEAN_INF_DIR=<path/to/dl_esm_inf/finite_difference> make
 ```
 
-The locations of the ExtractStandalone and PSyData base classes are
+The locations of the ExtractAsciiBase and PSyData base classes are
 specified using the environment variables ``$LIB_TMPLT_DIR`` and
 ``$PSYDATA_LIB_DIR``, respectively. They default to the relative paths to
-the [``lib/extract/standalone``](./../) and top-level [``lib``](./../../../)
+the [``lib/extract/ascii``](./../) and top-level [``lib``](./../../../)
 directories.
 
 The compilation process will create the wrapper library
@@ -91,12 +91,12 @@ or compiler flags).
 ### Linking the wrapper library
 
 At link time, the path to the stand-alone-kernel-extraction library,
-``_kernel_data_standalone``, and the ``dl_esm_inf`` infrastructure
+``_kernel_data_ascii``, and the ``dl_esm_inf`` infrastructure
 library, ``_fd``, need to be specified when compiling and linking.
 For instance:
 
 ```shell
-$(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/standalone/dl_esm_inf -l_kernel_data_standalone \
+$(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/ascii/dl_esm_inf -l_kernel_data_ascii \
         -L$(GOCEAN_INF_DIR) -l_fd
 ```
 

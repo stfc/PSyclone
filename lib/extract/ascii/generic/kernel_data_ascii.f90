@@ -37,7 +37,7 @@
 !! interface. It is for handling generic Fortran code, i.e. it does 
 !! not actually provide any API-specific types like fields, only standard
 !! Fortran data types. Therefore, it is just an empty wrapper to around
-!! the ExtractStandaloneAsciiBaseType, which provides the standard module name
+!! the ExtractAsciiBaseType, which provides the standard module name
 !! and class name expected by the extraction scripts.
 !!
 

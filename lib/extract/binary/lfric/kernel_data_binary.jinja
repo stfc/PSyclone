@@ -41,7 +41,7 @@
 ! Author J. Henrichs, Bureau of Meteorology
 ! Modified I. Kavcic, Met Office
 
-!> This module implements a simple standalone writer using the PSyData
+!> This module implements a simple binary writer using the PSyData
 !! interface. It is specific to the LFRic infrastructure library.
 !! A Fortran code instrumented with corresponding calls
 !! to the PSyData API and linked in with this library will write
@@ -53,7 +53,7 @@
 module extract_psy_data_mod
 
     use, intrinsic :: iso_fortran_env, only : int64, int32
-    use extract_standalone_base_mod,   only : ExtractStandaloneBaseType
+    use extract_binary_base_mod,   only : ExtractBinaryBaseType
 
     implicit none
 
@@ -62,7 +62,7 @@ module extract_psy_data_mod
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, extends(ExtractStandaloneBaseType), public :: extract_PSyDataType
+    type, extends(ExtractBinaryBaseType), public :: extract_PSyDataType
 
     contains
         {% set all_declares=[] -%}

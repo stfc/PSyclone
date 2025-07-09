@@ -69,7 +69,7 @@ compare_variables_mod.F90:      compare_variables_mod.jinja Makefile
 # Handy shortcut to trigger compilation of all libraries
 all: compare
 	$(MAKE) -C netcdf all
-	$(MAKE) -C standalone all
+	$(MAKE) -C binary all
 	$(MAKE) -C ascii all
 
 clean:

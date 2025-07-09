@@ -23,14 +23,14 @@ the application. The following dependencies must be available:
   https://psyclone.readthedocs.io/en/stable/dynamo0p3.html) documentation
   for information on how to obtain access to the LFRic code.
 
-- The ExtractStandalone (``extract_standalone_base.jinja``) and PSyData
+- The ExtractAsciiBase (``extract_ascii_base.jinja``) and PSyData
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
   installation. These Jinja templates are processed to create the
   code to write ``integer``, 32- and 64-bit ``real`` scalars, and 1, 2, 3,
   and 4-dimensional ``real`` and ``integer`` arrays. The generated Fortran
-  modules, ``extract_standalone_base.f90`` and ``psy_data_base.f90``, are then
-  used by the supplied standalone-kernel-extraction module,
-  ``kernel_data_standalone.f90``, to create the wrapper library.
+  modules, ``extract_ascii_base.f90`` and ``psy_data_base.f90``, are then
+  used by the supplied ascii-kernel-extraction module,
+  ``kernel_data_ascii.f90``, to create the wrapper library.
 
 ## Compilation
 
@@ -69,10 +69,10 @@ It is the responsibility of the user to make sure that the module files
 used when compiling the LFRic extraction library are identical to the ones
 used when running an LFRic application.
 
-The locations of the ExtractStandalone and PSyData base classes are
+The locations of the ExtractAscii and PSyData base classes are
 specified using the environment variables ``$LIB_TMPLT_DIR`` and
 ``$PSYDATA_LIB_DIR``, respectively. They default to the relative paths to
-the [``lib/extract/standalone``](./../) and top-level [``lib``](./../../../)
+the [``lib/extract/ascii``](./../) and top-level [``lib``](./../../../)
 directories.
 
 The compilation process will create the wrapper library
@@ -95,7 +95,7 @@ infrastructure library, ``lfric``, and any required
 parameters when compiling and linking. For instance:
 
 ```shell
-$(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/standalone/lfric -l_extract \
+$(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/ascii/lfric -l_extract \
         -L$(LFRIC_PATH) -llfric $(LFRIC_SPECIFIC_LINKING_PARAMETERS)
 ```
 

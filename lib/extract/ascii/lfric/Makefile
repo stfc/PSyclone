@@ -50,7 +50,7 @@ endif
 # Overwrite for a different infrastructure version.
 LFRIC_PATH ?= ./../../../../src/psyclone/tests/test_files/lfric/infrastructure
 # Paths to the PSyclone wrapper libraries and required templates. They default
-# to the relative paths to the top-level 'lib' and 'lib/extract/standalone'
+# to the relative paths to the top-level 'lib' and 'lib/extract/ascii'
 # directories. Overwrite for a custom location.
 PSYDATA_LIB_DIR ?= ./../../..
 LIB_TMPLT_DIR ?= ./..

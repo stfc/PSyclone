@@ -24,7 +24,7 @@ the application. The following dependencies must be available:
   and 1- to 4-dimensional ``real`` and ``integer`` arrays. The generated
   Fortran modules, ``extract_ascii_base.f90`` and ``psy_data_base.f90``,
   are then used by the supplied kernel-extraction module,
-  ``kernel_data_standalone.f90``, to create the wrapper library.
+  ``kernel_data_ascii.f90``, to create the wrapper library.
 
 ## Compilation
 
@@ -53,7 +53,7 @@ compiled wrapper library can be removed by running ``make clean``.
 ### Linking the wrapper library
 
 At link time, the path to the stand-alone-kernel-extraction library,
-``_kernel_data_standalone``, needs to be specified when compiling and linking.
+``_kernel_data_ascii``, needs to be specified when compiling and linking.
 For instance:
 
 ```shell

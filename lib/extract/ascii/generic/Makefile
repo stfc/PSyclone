@@ -60,7 +60,7 @@ PROCESS_ARGS = -prefix=extract_ -types=int,long,real,double \
                        -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-OBJS = psy_data_base.o kernel_data_standalone.o extract_ascii_base.o \
+OBJS = psy_data_base.o kernel_data_ascii.o extract_ascii_base.o \
 	   compare_variables_mod.o
 
 default: $(PSYDATA_LIB)
@@ -70,8 +70,8 @@ default: $(PSYDATA_LIB)
 $(PSYDATA_LIB): $(OBJS)
 	${AR} ${ARFLAGS} ${PSYDATA_LIB} $^
 
-kernel_data_standalone.o:	extract_ascii_base.o
-extract_standalone_base.o:	psy_data_base.o
+kernel_data_ascii.o:	extract_ascii_base.o
+extract_ascii_base.o:	psy_data_base.o
 
 psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
