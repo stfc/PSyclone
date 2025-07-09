@@ -42,13 +42,13 @@ from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
-    ArrayReference, Assignment, BinaryOperation, Call, CodeBlock, Literal,
+    ArrayReference, BinaryOperation, Call, Literal,
     Node, Reference, Routine, Schedule)
 from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
-    ArrayType, INTEGER_TYPE, DataSymbol, NoType, RoutineSymbol, REAL_TYPE,
-    SymbolError, UnsupportedFortranType)
+    ArrayType, INTEGER_TYPE, ContainerSymbol, DataSymbol, NoType,
+    RoutineSymbol, REAL_TYPE, SymbolError, UnresolvedInterface)
 
 
 class SpecialCall(Call):
@@ -675,6 +675,45 @@ end module some_mod'''
     call = psyir.walk(Call)[0]
     result = call.get_callees()
     assert result == [psyir.walk(Routine)[1]]
+
+
+def test_call_get_callees_local_unresolved_interface(fortran_reader,
+                                                     monkeypatch):
+    '''
+    Check that get_callees() works as expected when the target of the Call
+    is an unresolved interface that exists in the same Container as the call
+    site. This shouldn't ever occur in practise so we use monkeypatch.
+
+    '''
+    code = '''
+module some_mod
+  implicit none
+  integer :: luggage
+  interface polymorph
+    module procedure :: morph1, morph2
+  end interface
+contains
+  subroutine top()
+    luggage = 0
+    call polymorph(luggage)
+  end subroutine top
+
+  subroutine morph1(arg)
+    integer, intent(inout) :: arg
+  end subroutine morph1
+
+  subroutine morph2(arg)
+    real, intent(inout) :: arg
+  end subroutine morph2
+end module some_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    # Monkeypatch the called symbol so that it appears to be unresolved.
+    monkeypatch.setattr(call.routine.symbol, "_interface",
+                        UnresolvedInterface())
+    result = call.get_callees()
+    assert len(result) == 2
+    assert result == psyir.walk(Routine)[1:]
 
 
 def test_call_get_callees_local_file_container(fortran_reader):
@@ -1407,7 +1446,7 @@ end module my_mod
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_call_get_callees_resolved_not_found(fortran_reader):
+def test_call_get_callees_resolved_not_found(fortran_reader, monkeypatch):
     '''
     Test get_callees() when the RoutineSymbol is resolved (i.e. we know which
     Container it comes from) but we can't find the source of the Container.
@@ -1425,6 +1464,13 @@ end subroutine top'''
     assert ("RoutineSymbol 'this_one' is imported from Container 'another_mod'"
             " but the source defining that container could not be found. The "
             "module search path is set to [" in str(err.value))
+    monkeypatch.setattr(ContainerSymbol, "find_container_psyir",
+                        lambda _1, local_node=None: None)
+    with pytest.raises(NotImplementedError) as err:
+        _ = call.get_callees()
+    assert ("RoutineSymbol 'this_one' is imported from Container 'another_mod'"
+            " but the PSyIR for that container could not be generated."
+            in str(err.value))
 
 
 def test_call_get_callees_interface(fortran_reader):
@@ -1464,47 +1510,6 @@ end module my_mod
     assert callees[0].name == "rbottom"
     assert isinstance(callees[1], Routine)
     assert callees[1].name == "ibottom"
-
-
-def test_call_get_callees_unsupported_type(fortran_reader):
-    '''
-    Check that get_callees() raises the expected error when the called routine
-    is of UnsupportedFortranType. This is hard to achieve so we have to
-    manually construct some aspects of the test case.
-
-    '''
-    code = '''
-module my_mod
-  integer, target :: value
-contains
-  subroutine top()
-    integer :: luggage
-    luggage = bottom()
-  end subroutine top
-  function bottom() result(fval)
-    integer, pointer :: fval
-    fval => value
-  end function bottom
-end module my_mod
-'''
-    psyir = fortran_reader.psyir_from_source(code)
-    container = psyir.children[0]
-    routine = container.find_routine_psyir("bottom")
-    rsym = container.symbol_table.lookup(routine.name)
-    # Ensure the type of this RoutineSymbol is UnsupportedFortranType.
-    rsym.datatype = UnsupportedFortranType("integer, pointer :: fval")
-    assign = container.walk(Assignment)[0]
-    # Currently `bottom()` gets matched by fparser2 as a structure constructor
-    # and the fparser2 frontend leaves this as a CodeBlock (TODO #2429) so
-    # replace it with a Call. Once #2429 is fixed the next two lines can be
-    # removed.
-    assert isinstance(assign.rhs, CodeBlock)
-    assign.rhs.replace_with(Call.create(rsym))
-    call = psyir.walk(Call)[0]
-    with pytest.raises(NotImplementedError) as err:
-        _ = call.get_callees()
-    assert ("RoutineSymbol 'bottom' exists in Container 'my_mod' but is of "
-            "UnsupportedFortranType" in str(err.value))
 
 
 def test_call_get_callees_file_container(fortran_reader):
@@ -1558,13 +1563,19 @@ end module my_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     top_routine = psyir.walk(Routine)[0]
+    new_call = Call.create(RoutineSymbol("missing"), [])
+    top_routine.addchild(new_call)
+    with pytest.raises(SymbolError) as err:
+        _ = new_call.get_callees()
+    assert ("Failed to find a Routine named 'missing' in Container 'my_mod'"
+            in str(err.value))
     # Deliberately make the Routine node an orphan so there's no Container.
     top_routine.detach()
     call = top_routine.walk(Call)[0]
     with pytest.raises(SymbolError) as err:
         _ = call.get_callees()
-    assert ("Failed to find a Routine named 'bottom' in code:\n'subroutine "
-            "top()" in str(err.value))
+    assert ("Failed to find a Routine named 'bottom' in code:\n'"
+            "subroutine top()" in str(err.value))
 
 
 def test_call_get_callees_import_local_container(fortran_reader):

@@ -47,8 +47,8 @@ from typing import List
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, DataTypeSymbol,
-    ImportInterface, RoutineSymbol, Symbol, SymbolError, SymbolTable)
+    ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface,
+    GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError, SymbolTable)
 from psyclone.psyir.nodes import (
     Call, Container, FileContainer, Routine, ScopingNode, IntrinsicCall)
 
@@ -97,13 +97,12 @@ class KernelModuleInlineTrans(Transformation):
         :raises TransformationError: if there is no explicit import of the
             called Routine and there is already a Routine of that name in the
             parent Container.
-        :raises TransformationError: if the PSyIR of the implementation of the
-            called Routine/kernel cannot be retrieved.
-        :raises TransformationError: if the name of the routine that
-            implements the kernel is not the same as the kernel name. This
-            will happen if the kernel is polymorphic (uses a Fortran
-            INTERFACE) and will be resolved by #1824.
+        :raises TransformationError: if the call is to a polymorphic routine
+            and there's no Container at the call site to which to add the
+            interface definition.
         :raises TransformationError: if the kernel cannot be safely inlined.
+        :raises TransformationError: if the target of the supplied call is
+            already module inlined.
 
         '''
         if isinstance(node, CodedKern):
@@ -124,18 +123,68 @@ class KernelModuleInlineTrans(Transformation):
                 f"psyGen.CodedKern or psyir.nodes.Call but got "
                 f"'{type(node).__name__}'")
 
-        parent_container = node.ancestor(Container)
-
         # Check that the PSyIR of the routine/kernel can be retrieved.
         try:
-            _, kernel_schedule = (
-                KernelModuleInlineTrans._get_psyir_to_inline(node))
+            kernels = node.get_callees()
         except Exception as error:
             raise TransformationError(
                 f"{self.name} failed to retrieve PSyIR for {kern_or_call} "
                 f"'{kname}' due to: {error}"
             ) from error
 
+        needs_inline = False
+
+        if len(kernels) > 1:
+            # We can't 'module' inline a call to an interface if there's no
+            # ancestor Container in which to put the interface.
+            cntr = node
+            while cntr:
+                cntr = cntr.ancestor(Container)
+                if cntr and not isinstance(cntr, FileContainer):
+                    break
+            else:
+                raise TransformationError(
+                    f"Cannot module-inline the call to '{kname}' since it is "
+                    f"a polymorphic routine (i.e. an interface) and the call-"
+                    f"site is not within a module.")
+            iface_sym = node.scope.symbol_table.lookup(kname, otherwise=None)
+            if (not iface_sym or (iface_sym.is_import or
+                                  iface_sym.is_unresolved)):
+                needs_inline = True
+
+        # Validate the PSyIR of each routine/kernel.
+        for kernel_schedule in kernels:
+            self._validate_schedule(node, kname, kern_or_call, kernel_schedule)
+            rt_sym = node.scope.symbol_table.lookup(kernel_schedule.name,
+                                                    otherwise=None)
+            if (not rt_sym or (rt_sym is not kernel_schedule.symbol) or
+                    (rt_sym.is_import or rt_sym.is_unresolved)):
+                needs_inline = True
+
+        if not needs_inline:
+            raise TransformationError(
+                f"The target of '{node.debug_string().strip()}' is already "
+                f"module inlined.")
+
+    def _validate_schedule(self, node, kname, kern_or_call, kernel_schedule):
+        '''
+        Validates that the supplied schedule can be module-inlined.
+
+        :param node: the candidate kernel/routine call to inline.
+        :type node: :py:class:`psyclone.psyGen.CodedKern` |
+                    :py:class:`psyclone.psyir.nodes.Call`
+        :param str kname: the name of the kernel/routine.
+        :param str kern_or_call: text for readable error messages.
+        :param kernel_schedule: the schedule of the routine to inline.
+        :type kernel_schedule: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :raises TransformationError: if the called routine contains accesses
+             to data declared in the same module scope or of unknown origin.
+        :raises TransformationError: if the called routine has the same
+             name as an existing Symbol in the calling scope (other than the
+             one representing the routine itself).
+
+        '''
         # We do not support kernels that use symbols representing data
         # declared in their own parent module (we would need to add new imports
         # from this module at the call site, and we don't do this yet).
@@ -161,7 +210,7 @@ class KernelModuleInlineTrans(Transformation):
                             f"symbol name of the module container "
                             f"'{symbol.name}'.")
 
-        # If the symbol already exist at the call site it must be referring
+        # If the symbol already exists at the call site it must be referring
         # to a Routine
         existing_symbol = node.scope.symbol_table.lookup(kernel_schedule.name,
                                                          otherwise=None)
@@ -177,12 +226,13 @@ class KernelModuleInlineTrans(Transformation):
         # any existing Routine matches that required by the Call but for now
         # we live with the possibility of a false positive resulting in a
         # refusal to module inline.
+        parent_container = node.ancestor(Container)
         for routine in parent_container.walk(Routine, stop_type=Routine):
             if routine.name.lower() == kname.lower():
                 # Compare the routine to be inlined with the one that
                 # is already present.
-                (new_rt, ) = self._prepare_code_to_inline([kernel_schedule])
-                if routine == new_rt:
+                new_rts = self._prepare_code_to_inline([kernel_schedule])
+                if len(new_rts) == 1 and routine == new_rts[0]:
                     # It's the same so we can proceed (although all we need to
                     # do is update the RoutineSymbol referenced by the Call.)
                     return
@@ -267,54 +317,12 @@ class KernelModuleInlineTrans(Transformation):
                     if module_symbol.name not in code_to_inline.symbol_table:
                         code_to_inline.symbol_table.add(module_symbol)
                     else:
-                        # If it already exists, we know its a container (from
+                        # If it already exists, we know it's a container (from
                         # the validation) so we just need to point to it
                         symbol.interface.container_symbol = \
                             code_to_inline.symbol_table.lookup(
                                 module_symbol.name)
         return copied_routines
-
-    @staticmethod
-    def _get_psyir_to_inline(node):
-        '''
-        Wrapper that gets the name and PSyIR of the routine or kernel
-        corresponding to the call described by `node`.
-
-        :param node: the Call or CodedKern to resolve.
-        :type node: :py:class:`psyclone.psyir.nodes.Call` |
-                    :py:class:`psyclone.psyGen.CodedKern`
-
-        :returns: the name of the routine as seen by the caller and the
-                  PSyIR of the routine implementation.
-        :rtype: Tuple(str, :py:class:`psyclone.psyir.nodes.Call`)
-
-        :raises TransformationError: if we have a call to a language-level
-            Routine that maps to an Interface block as this is not yet
-            supported (TODO #924).
-        '''
-        # TODO #2054 - once CodedKern has been migrated so that it subclasses
-        # Call then this if/else (and thus this whole routine) can be removed.
-        if isinstance(node, CodedKern):
-            # We have a call to a Kernel in a PSyKAl API.
-            # Where mixed-precision kernels are supported (e.g. in LFRic) the
-            # call to get_kernel_schedule() will return the one which has an
-            # interface matching the arguments in the call.
-            routines = [node.get_kernel_schedule()]
-            caller_name = node.name.lower()
-        else:
-            # We have a generic routine call.
-            routines = node.get_callees()
-            caller_name = node.routine.name.lower()
-            # TODO #924 - at this point we may have found (an interface to)
-            # multiple implementations. We can try to work out which one this
-            # call will map to. Failing that, we'll have to insert all of them
-            # plus the interface definition.
-            if len(routines) > 1:
-                raise TransformationError(
-                    f"The target of the call to '{caller_name}' cannot be "
-                    f"inserted because multiple implementations were found: "
-                    f"{[rout.name for rout in routines]}. TODO #924")
-        return (caller_name, routines[0])
 
     @staticmethod
     def _rm_imported_routine_symbol(symbol: Symbol,
@@ -362,6 +370,8 @@ class KernelModuleInlineTrans(Transformation):
                         symbol.name not in table else table)
         # Find the table containing the ContainerSymbol from which
         # the symbol is imported.
+        # TODO #1734 - this *should* always be the same as `actual_table` but
+        # this is not currently guaranteed.
         ctable = (csym.find_symbol_table(table.node) if
                   csym.name not in table else table)
         remove_csym = (ctable.symbols_imported_from(csym) == [symbol] and
@@ -370,6 +380,10 @@ class KernelModuleInlineTrans(Transformation):
             # The Routine is brought into scope via a wildcard import. We have
             # to rename it on import to avoid a clash with the newly inlined
             # Routine.
+            # TODO #2846 - if the same Routine is also brought into scope
+            # through some other wildcard import then this renaming doesn't
+            # help. The only solution to this is to rename the module-inlined
+            # Routine (or proceed to fully inline it).
             KernelModuleInlineTrans._rename_import(ctable, csym, symbol.name)
         # pylint:disable-next=protected-access
         actual_table._symbols.pop(symbol.name.lower())
@@ -405,7 +419,7 @@ class KernelModuleInlineTrans(Transformation):
                 csym, orig_name=name))
 
     def apply(self, node, options=None):
-        ''' Bring the kernel subroutine into this Container.
+        ''' Bring the implementation of this kernel/call into this Container.
 
         NOTE: when applying this transformation to a Kernel in a PSyKAl invoke,
         *all* Kernels of that name in that invoke are marked as inlined.
@@ -428,6 +442,17 @@ class KernelModuleInlineTrans(Transformation):
 
         self.validate(node, options)
 
+        external_callee_name = None
+        if isinstance(node, CodedKern):
+            caller_name = node.name
+        else:
+            caller_name = node.routine.symbol.name
+            if (node.routine.symbol.is_import and
+                    node.routine.symbol.interface.orig_name):
+                external_callee_name = node.routine.symbol.interface.orig_name
+        if not external_callee_name:
+            external_callee_name = caller_name
+
         # Get the PSyIR of the routine to module inline as well as the name
         # with which it is being called.
         # Note that we use the resolved callee subroutine name and not the
@@ -436,28 +461,31 @@ class KernelModuleInlineTrans(Transformation):
         # may already be in use, but the equality check below guarantees
         # that if it exists it is only valid when it references the exact same
         # implementation.
-        caller_name, code_to_inline = (
-            KernelModuleInlineTrans._get_psyir_to_inline(node))
-        callee_name = code_to_inline.name
-        codes_to_inline = [code_to_inline]
+        codes_to_inline = node.get_callees()
+        interface_sym = None
+        if len(codes_to_inline) > 1:
+            interface_sym = codes_to_inline[0].symbol_table.lookup(
+                external_callee_name)
+
         callsite_table = node.scope.symbol_table
 
-        for routine in codes_to_inline:
-            # N.B.in a PSyKAl DSL, we won't have a RoutineSymbol for the
-            # Kernel that is being called, so we look it up instead of using
-            # node.symbol.
+        if interface_sym:
             called_sym = callsite_table.lookup(caller_name, otherwise=None)
-            if (not called_sym or called_sym is not routine.symbol or
-                    (called_sym.is_import or called_sym.is_unresolved)):
-                # This routine is not module-inlined.
-                break
         else:
-            # All routines are module-inlined so there's nothing to do.
-            # TODO #11 - log this.
-            return
+            for routine in codes_to_inline:
+                # N.B. in a PSyKAl DSL, we won't have a RoutineSymbol for the
+                # Kernel that is being called, so we look it up instead of
+                # using node.symbol.
+                called_sym = callsite_table.lookup(caller_name,
+                                                   otherwise=None)
+                if (not called_sym or called_sym is not routine.symbol or
+                        (called_sym.is_import or called_sym.is_unresolved)):
+                    # This routine is not module-inlined.
+                    break
 
         # Deal with the RoutineSymbol that is in scope at the call site.
         sym_in_ctr = None
+        shadowed_sym = None
 
         if called_sym and (called_sym.is_import or called_sym.is_unresolved):
             table = called_sym.find_symbol_table(node)
@@ -467,7 +495,7 @@ class KernelModuleInlineTrans(Transformation):
                 # update any other Calls to it (at the end of this method).
                 sym_in_ctr = called_sym
 
-            self._rm_imported_routine_symbol(called_sym, code_to_inline,
+            self._rm_imported_routine_symbol(called_sym, codes_to_inline[0],
                                              table)
 
             # Double check that this import is not shadowing a routine we've
@@ -478,32 +506,23 @@ class KernelModuleInlineTrans(Transformation):
                 caller_cntr_table = table.node.parent.scope.symbol_table
                 # Look to see whether it also contains a symbol matching
                 # the name of the called routine.
-                caller_cntr_sym = caller_cntr_table.lookup(called_sym.name,
-                                                           otherwise=None)
-                if caller_cntr_sym:
-                    caller_cntr_table = caller_cntr_sym.find_symbol_table(
+                shadowed_sym = caller_cntr_table.lookup(called_sym.name,
+                                                        otherwise=None)
+                if shadowed_sym:
+                    caller_cntr_table = shadowed_sym.find_symbol_table(
                         table.node.parent)
                     if not isinstance(caller_cntr_table.node, FileContainer):
                         # It is shadowing an outer symbol that is in a
                         # Container (not a FileContainer) so we just need to
                         # update the call to point to the outer symbol.
-                        node.routine.symbol = caller_cntr_sym
-                        if not (caller_cntr_sym.is_import or
-                                caller_cntr_sym.is_unresolved):
+                        node.routine.symbol = shadowed_sym
+                        if not (shadowed_sym.is_import or
+                                shadowed_sym.is_unresolved):
                             # The outer symbol is local to this Container so
                             # there's nothing else to do.
                             return
 
         updated_routines = self._prepare_code_to_inline(codes_to_inline)
-
-        # Update the Kernel to point to the updated PSyIR.
-        if isinstance(node, CodedKern):
-            # TODO #924 - this will need updating to support kernels with
-            # multiple schedules (mixed precision).
-            # pylint: disable=protected-access
-            node._kern_schedule = updated_routines[0]
-            if callee_name != caller_name:
-                node.name = callee_name
 
         # The Container into which we will inline the Routine(s).
         container = node.ancestor(Container)
@@ -561,14 +580,60 @@ class KernelModuleInlineTrans(Transformation):
                 name = call.routine.symbol.name.lower()
                 if name == target_name:
                     call.routine.symbol = target_sym
-            # All Calls that referred to this Symbol must also be updated.
-            if sym_in_ctr:
+            # All Calls that referred to this Symbol must also be updated. Take
+            # care that the name matches as sym_in_ctr might be an interface.
+            if sym_in_ctr and sym_in_ctr.name == target_sym.name:
                 for call in container.walk(Call):
                     if call.routine.symbol is sym_in_ctr:
                         call.routine.symbol = target_sym
 
-        # Set the module-inline flag to avoid generating the kernel imports
+        if interface_sym:
+            # Deal with the interface symbol - remove any existing import and
+            # then make sure the local symbol is private.
+            self._rm_imported_routine_symbol(interface_sym,
+                                             codes_to_inline[0],
+                                             callsite_table)
+            if shadowed_sym:
+                self._rm_imported_routine_symbol(shadowed_sym,
+                                                 codes_to_inline[0],
+                                                 caller_cntr_table)
+            if caller_name != interface_sym.name:
+                # If the interface was originally renamed on import, then we
+                # must create a new symbol with the local name.
+                new_sym = GenericInterfaceSymbol(
+                    caller_name, routines=[(RoutineSymbol("dummy"), True)])
+                new_sym.copy_properties(interface_sym)
+            else:
+                # Otherwise we can use the existing symbol.
+                new_sym = interface_sym
+            container.symbol_table.add(new_sym)
+            interface_sym.visibility = Symbol.Visibility.PRIVATE
+            interface_sym.replace_symbols_using(container.symbol_table)
+        else:
+            # No interface but was the original routine symbol renamed
+            # on import?
+            if caller_name != external_callee_name:
+                # It was so we need to rename the inlined routine.
+                sym = node.scope.symbol_table.lookup(external_callee_name)
+                table = sym.find_symbol_table(node)
+                table.rename_symbol(sym, caller_name)
+
+        # Update the Kernel to point to the updated PSyIR and set
+        # the module-inline flag to avoid generating the kernel imports
         # TODO #1823. If the kernel imports were generated at PSy-layer
         # creation time, we could just remove it here instead of setting a
         # flag.
-        node.module_inline = True
+        if isinstance(node, CodedKern):
+            cntr = node.ancestor(Container)
+            # TODO #2846 - since we do not currently rename module-inlined
+            # routines, inlining just one instance of a Kernel call and
+            # subsequently transforming it (e.g. by adding ACC ROUTINE) would
+            # inhibit all further transformations of any other calls to that
+            # kernel (that relied upon inlining). Therefore, for now, we update
+            # *all* calls to this particular kernel in the current module to
+            # point to the module-inlined version.
+            for kern in cntr.walk(CodedKern, stop_type=CodedKern):
+                if kern.name == node.name:
+                    kern.module_inline = True
+                    # pylint: disable=protected-access
+                    kern._schedules = updated_routines
