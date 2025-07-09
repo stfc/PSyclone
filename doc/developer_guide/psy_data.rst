@@ -291,7 +291,7 @@ called ``PREFIX_PSyDataType``. It is up to the application how this variable is
 used. PSyclone will declare the variables to be static, meaning that they
 can be used to accumulate data from call to call. An example of
 the PSyDataType can be found in the example extraction code
-(see ``lib/extract/standalone/dl_esm_inf``,
+(see ``lib/extract/binary/dl_esm_inf``,
 ``lib/extract/ascii/dl_esm_inf``,
 ``lib/extract/netcdf/dl_esm_inf``, or
 :ref:`extraction_libraries` for

@@ -391,8 +391,8 @@ The best option for portability across different compilers and different
 hardware is the NetCDF extraction library.
 
 The three extraction :ref:`libraries <libraries>` are in
-`lib/extract/standalone
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone>`_,
+`lib/extract/binary
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/binary>`_,
 `lib/extract/ascii
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/ascii>`_,
 and in
@@ -418,8 +418,8 @@ Extraction for GOcean
 +++++++++++++++++++++
 
 The extraction libraries in 
-`lib/extract/standalone/dl_esm_inf
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/dl_esm_inf>`_,
+`lib/extract/binary/dl_esm_inf
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/binary/dl_esm_inf>`_,
 `lib/extract/ascii/dl_esm_inf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/ascii/dl_esm_inf>`_
 and 
@@ -478,8 +478,8 @@ Extraction for LFRic
 ++++++++++++++++++++
 
 The libraries in 
-`lib/extract/standalone/lfric
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/lfric>`_,
+`lib/extract/binary/lfric
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/binary/lfric>`_,
 `lib/extract/ascii/lfric
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/ascii/lfric>`_
 and
@@ -574,8 +574,8 @@ creation code:
 Extraction for generic Fortran
 ++++++++++++++++++++++++++++++
 The libraries in
-`lib/extract/standalone/generic
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/generic>`_,
+`lib/extract/binary/generic
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/binary/generic>`_,
 `lib/extract/ascii/generic
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/ascii/generic>`_
 and
