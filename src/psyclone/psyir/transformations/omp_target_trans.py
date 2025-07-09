@@ -39,8 +39,9 @@
 ''' This module provides the OMPTargetTrans PSyIR transformation '''
 
 from psyclone.psyir.nodes import (
-    CodeBlock, OMPTargetDirective, Call, Routine, Reference,
+    CodeBlock, OMPTargetDirective, Call, Routine, Reference, Literal,
     OMPTaskwaitDirective, Directive, Schedule)
+from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
@@ -183,6 +184,19 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
                             f"OpenMP Target cannot enclose a region that has "
                             f"a function return value symbol, but found one in"
                             f" '{routine.return_symbol.name}'.")
+
+        for check_node in node_list:
+            for datanode in check_node.walk((Reference, Literal)):
+                dtype = datanode.datatype
+                # Don't allow CHARACTERS on GPU
+                # TODO: This check is incomplete because it allows to pass
+                # UnresolvedType, that if resolved would point to a character
+                if hasattr(dtype, "intrinsic"):
+                    if dtype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                        raise TransformationError(
+                            f"OpenMP Target cannot enclose a region that uses "
+                            f"characters, but found: {datanode.debug_string()}"
+                        )
 
     def apply(self, node, options=None):
         ''' Insert an OMPTargetDirective before the provided node or list

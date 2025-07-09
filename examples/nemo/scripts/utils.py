@@ -477,14 +477,16 @@ def insert_explicit_loop_parallelism(
                 "PSyclone: ICE Loop not parallelised for performance reasons")
             continue
 
-        # Skip if looping over ice categories, ice or snow layers
-        # as these have only 5, 4, and 1 iterations, respectively
-        # if (any(ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
-        #         for ref in loop.stop_expr.walk(Reference))):
-        #     loop.append_preceding_comment(
-        #         "PSyclone: Loop not parallelised because stops at 'jpl',"
-        #         " 'nlay_i' or 'nlay_s'.")
-        #     continue
+        # Skip if looping over ice categories, ice or snow layers as these have
+        # small trip counts (unless collapse is enabled)
+        if not collapse and any(
+                ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
+                for ref in loop.stop_expr.walk(Reference)
+        ):
+            loop.append_preceding_comment(
+                "PSyclone: Loop not parallelised because stops at 'jpl',"
+                " 'nlay_i' or 'nlay_s'.")
+            continue
 
         try:
             # First check that the region_directive is feasible for this region

@@ -42,7 +42,7 @@ from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
     normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
     NEMO_MODULES_TO_IMPORT)
-from psyclone.psyir.nodes import Routine
+from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import (
     OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
@@ -84,8 +84,12 @@ OFFLOADING_ISSUES = [
     "sedfunc.f90",
     "icesbc.f90",
     "trcbbl.f90",
-    "trczdf.f90",
     "stpmlf.90",
+    "isfpar.f90",
+    "trcdta.f90",
+    "trcbdy.f90",
+    "icedyn_rdgrft.f90",
+    "bdyice.f90",
     # NEMOv4: Compilation issue
     "icbdia.f90",
 ]
@@ -144,7 +148,7 @@ def trans(psyir):
         enhance_tree_information(subroutine)
         normalise_loops(
                 subroutine,
-                hoist_local_arrays=True,
+                hoist_local_arrays=False,
                 convert_array_notation=True,
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
@@ -159,8 +163,7 @@ def trans(psyir):
         if (
             subroutine.name.lower().startswith("sign_")
             or subroutine.name.lower() == "solfrac"
-            # Important for performance but causes SIGNAL 11 in some cases
-            # or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
+            or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
         ):
             try:
                 OMPDeclareTargetTrans().apply(subroutine)
