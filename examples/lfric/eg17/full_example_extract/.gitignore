@@ -1,5 +1,5 @@
 extract.ascii
-extract.standalone
+extract.binary
 extract.netcdf
 main.x90
 main_alg.f90

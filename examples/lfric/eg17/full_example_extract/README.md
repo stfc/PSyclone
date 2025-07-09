@@ -1,4 +1,4 @@
-# Standalone LFRic Kernel Extraction Example
+# Binary LFRic Kernel Extraction Example
 
 This directory contains a runnable example of kernel extraction
 with LFRic. The main code is explained in more details in the
@@ -29,8 +29,8 @@ or ``netcdf`` when compiling to use the other libraries::
 - one of the LFRic PSyData wrapper libraries, either:
     - ``lib_kernel_data_netcdf`` from
       ``<PSYCLONEHOME>/lib/extract/netcdf/lfric`` and NetCDF,
-    - ``lib_kernel_data_standalone`` from
-      ``<PSYCLONEHOME>/lib/extract/standalone/lfric``, or
+    - ``lib_kernel_data_binary`` from
+      ``<PSYCLONEHOME>/lib/extract/binary/lfric``, or
     - ``lib_kernel_data_ascii`` from
       ``<PSYCLONEHOME>/lib/extract/ascii/lfric``
 
@@ -60,10 +60,10 @@ PSyclone.
 
 ## Running
 
-The binary can be executed using ``extract.standalone`` (or ``extract.netcdf``)
+The binary can be executed using ``extract.binary`` (or ``extract.netcdf``)
  without additional parameters:
 ```shell
-./extract.standalone
+./extract.binary
  Mesh has           5 layers.
 20210318131720.135+1100:INFO : Min/max minmax of field1 =   0.10000000E+01  0.80000000E+01
 ```

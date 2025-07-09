@@ -1,16 +1,15 @@
-# Stand-alone Kernel Extraction Library for GOcean
+# Kernel Extraction Library for LFRic
 
-This wrapper library is used to [write (extract)](
-https://psyclone.readthedocs.io/en/stable/psyke.html)
-input and output parameters of instrumented code regions to a [binary file](
-https://psyclone.readthedocs.io/en/stable/psyke.html#extraction_libraries)
-using the [``dl_esm_inf`` library](https://github.com/stfc/dl_esm_inf).
-A stand-alone driver can then be used to rerun this specific code region and
-verify the results (or compare performance).
+This wrapper library [writes (extracts)](
+https://psyclone.readthedocs.io/en/stable/psyke.html) input and output
+parameters of instrumented code regions to a stand-alone
+[binary file](https://psyclone.readthedocs.io/en/stable/psyke.html#extraction_libraries)
+using the LFRic infrastructure library. A stand-alone driver can then be
+used to rerun this specific code region and verify the results (or
+compare performance).
 
-A full, stand-alone and runnable example can be found in
-[``examples/gocean/eg5/extract``](
-https://github.com/stfc/PSyclone/tree/master/examples/gocean/eg5/extract).
+Note that the processed file ``read_kernel_data_mod.f90`` is required for
+compilation tests.
 
 ## Dependencies
 
@@ -18,23 +17,23 @@ This library uses the [PSyData API](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
 the application. The following dependencies must be available:
 
-- The [GOcean](https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html)
-  infrastructure library ``dl_esm_inf``. A stable version of this is included
-  in the PSyclone repository as a Git submodule (see ["Installation"](
-  https://psyclone.readthedocs.io/en/latest/developer_guide/working_practises.html#dev-installation)
-  in the PSyclone [Developer Guide](
-  https://psyclone.readthedocs.io/en/latest/developer_guide/) for details on working with
-  submodules). However, it is not included in the PSyclone [installation](
-  ./../../../README.md#installation) and has to be cloned separately.
+- The LFRic infrastructure library. A pared-down version of LFRic
+  infrastructure is located in the PSyclone repository (see e.g.
+  [LFRic Example 17](
+  https://github.com/stfc/PSyclone/tree/master/examples/lfric/eg17), however
+  it is not included in the PSyclone [installation](
+  ./../../../README.md#installation). See the [LFRic API](
+  https://psyclone.readthedocs.io/en/latest/lfric.html) documentation
+  for information on how to obtain access to the LFRic code.
 
-- The ExtractStandalone (``extract_standalone_base.jinja``) and PSyData
+- The ExtractBinary (``extract_binary_base.jinja``) and PSyData
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
   installation. These Jinja templates are processed to create the
-  code to write ``integer``, 32- and 64-bit ``real`` scalars, and
-  2-dimensional ``real`` and ``integer`` arrays. The generated Fortran
-  modules, ``extract_standalone_base.f90`` and ``psy_data_base.f90``, are
-  then used by the supplied kernel-extraction module,
-  ``kernel_data_standalone.f90``, to create the wrapper library.
+  code to write ``integer``, 32- and 64-bit ``real`` scalars, and 1, 2, 3,
+  and 4-dimensional ``real`` and ``integer`` arrays. The generated Fortran
+  modules, ``extract_binary_base.f90`` and ``psy_data_base.f90``, are then
+  used by the supplied binary-kernel-extraction module,
+  ``kernel_data_binary.f90``, to create the wrapper library.
 
 ## Compilation
 
@@ -50,30 +49,38 @@ to each output filename, by setting ``MPI=yes``:
 MPI=yes make
 ```
 
-The build environment will provide ``NO_MPI`` as a pre-processor definition when
-MPI is not enabled (to be compatible with LFRic) so that MPI specific code can
-be disabled.
+It uses ``NO_MPI`` as a preprocessor directive, which is what the LFRic build
+environment uses, so the source files can be copied into the LFRic build, and
+will automatically be using MPI (or not), depending on compilation options used
+for LFRic. In order to support MPI in extraction (which means each process will write
+its own output data by appending its rank to the filename), set the environment
+variable ``MPI=yes`` before starting the build process (which will make sure
+that ``NO_MPI`` is not set).
 
-It needs the dl_esm_inf infrastructure library. By default, the version
-included in PSyclone repository
-(``<PSYCLONEHOME>/external/dl_esm_inf/finite_difference``) is used. This is not
-available in the PSyclone [installation](./../../../README.md#installation)
-so the exact path **must be specified** using the environment variable
-``GOCEAN_INF_DIR``, e.g.
+By default the ``Makefile`` links with the pared-down
+LFRic infrastructure located in a clone of PSyclone repository,
+``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
+This is not available in the PSyclone [installation](
+./../../../README.md#installation) so the exact path
+**must be specified** using the environment variable ``LFRIC_PATH``, e.g.
 
 ```shell
-GOCEAN_INF_DIR=<path/to/dl_esm_inf/finite_difference> make
+F90=ifort F90FLAGS="-g -check bounds" LFRIC_PATH=<path/to/LFRic/code> make
 ```
 
-The locations of the ExtractStandalone and PSyData base classes are
+It is the responsibility of the user to make sure that the module files
+used when compiling the LFRic extraction library are identical to the ones
+used when running an LFRic application.
+
+The locations of the ExtractBinary and PSyData base classes are
 specified using the environment variables ``$LIB_TMPLT_DIR`` and
 ``$PSYDATA_LIB_DIR``, respectively. They default to the relative paths to
-the [``lib/extract/standalone``](./../) and top-level [``lib``](./../../../)
+the [``lib/extract/binary``](./../) and top-level [``lib``](./../../../)
 directories.
 
 The compilation process will create the wrapper library
-``lib_extract.a``. The ``Makefile`` will compile the
-``dl_esm_inf`` infrastructure library, ``lib_fd.a``, if required, with the
+``lib_extract.a``. The ``Makefile`` will compile the LFRic
+infrastructure library, ``liblfric.a``, if required, with the
 previously selected compiler flags.
 
 Similar to compilation of the [examples](
@@ -85,16 +92,15 @@ or compiler flags).
 
 ### Linking the wrapper library
 
-At link time, the path to the stand-alone-kernel-extraction library,
-``_kernel_data_standalone``, and the ``dl_esm_inf`` infrastructure
-library, ``_fd``, need to be specified when compiling and linking.
-For instance:
+The application needs to provide the parameters to link in this
+binary-kernel-extraction library, ``_extract``, the LFRic
+infrastructure library, ``lfric``, and any required
+parameters when compiling and linking. For instance:
 
 ```shell
-$(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/standalone/dl_esm_inf -l_kernel_data_standalone \
-        -L$(GOCEAN_INF_DIR) -l_fd
+$(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/binary/lfric -l_extract \
+        -L$(LFRIC_PATH) -llfric $(LFRIC_SPECIFIC_LINKING_PARAMETERS)
 ```
-
 
 <!--
 ## Licence

@@ -35,7 +35,7 @@ They default to use ``gfortran`` with ``-g -O0``.
 The three different extraction libraries, as described in
 [PSyKE extraction libraries](https://psyclone.readthedocs.io/en/stable/psyke.html#extraction-libraries)
 can be linked in.  The stand-alone extraction library in
-``../../../lib/extract/standalone/nemo`` is used as default, and
+``../../../lib/extract/binary/nemo`` is used as default, and
 will also be automatically compiled. You can set the ``TYPE`` environment
 variable to either ``ascii``
 or ``netcdf`` when compiling to use the other libraries::
@@ -47,8 +47,8 @@ or ``netcdf`` when compiling to use the other libraries::
 - one of the LFRic PSyData wrapper libraries, either:
     - ``lib_kernel_data_netcdf`` from
       ``<PSYCLONEHOME>/lib/extract/netcdf/lfric`` and NetCDF,
-    - ``lib_kernel_data_standalone`` from
-      ``<PSYCLONEHOME>/lib/extract/standalone/lfric``, or
+    - ``lib_kernel_data_binary`` from
+      ``<PSYCLONEHOME>/lib/extract/binary/lfric``, or
     - ``lib_kernel_data_ascii`` from
       ``<PSYCLONEHOME>/lib/extract/ascii/lfric``
 
@@ -58,7 +58,7 @@ be available (including ``nf-config`` to detect installation-specific
 paths).
 
 The binary  instrumented for extraction will either be called
-``traadv-standalone.exe``, ``traadv-ascii.exe`` or
+``traadv-binary.exe``, ``traadv-ascii.exe`` or
 ``traadv-netcdf.exe``.
 
 `tra_adv.F90` is a stand-alone version of one of the tracer-advection
@@ -76,7 +76,7 @@ test using:
 
 ```shell
 export F90=gfortran
-IT=2 JPI=10 JPJ=10 JPK=5  ./traadv-standalone.exe
+IT=2 JPI=10 JPJ=10 JPK=5  ./traadv-binary.exe
 ```
 which is a very fast run. This example will create 14 data files, e.g.
 ``tra_adv-r0.binary``, ..., ``tra_adv-r13.binary`` for the stand-alone

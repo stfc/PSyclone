@@ -48,18 +48,18 @@
 include ../../common.mk
 
 # There are three different extraction libraries that can be used:
-# 1) standalone, which uses Fortan binary data files to store the data
+# 1) binary, which uses Fortan binary data files to store the data
 #    (which might not be transferable between different machines or
 #     or different compilers)
 # 2) ascii, which uses Fortan ASCII data files to store the data
 #    (which might depending on compiler not have bitwise identical results)
 # 3) netcdf, which uses NetCDF for writing the data files.
-# The library can be selected by setting TYPE to either 'standalone'
+# The library can be selected by setting TYPE to either 'binary'
 # (which is the default), 'ascii', or 'netcdf'. Note that both
 # libraries implement the same API, so no change to any script is required
 # for switching between the two libraries, but recompilation is required
 # (since the .mod files will be different).
-TYPE ?= standalone
+TYPE ?= binary
 
 GENERATED_FILES += psy.f90 psy.o traadv-$(TYPE).exe output.dat
 
@@ -76,8 +76,8 @@ else ifeq ($(TYPE), ascii)
 	READ_DIR ?= $(PSYROOT)/lib/extract/ascii
 	GENERATED_FILES += tra_adv-tra_adv-r*.ascii
 else
-	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/generic
-	READ_DIR ?= $(PSYROOT)/lib/extract/standalone
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/binary/generic
+	READ_DIR ?= $(PSYROOT)/lib/extract/binary
 	GENERATED_FILES += tra_adv-r*.binary
 endif
 

@@ -53,7 +53,7 @@ endif
 PSYROOT=../../../..
 
 # Set it to 'netcdf' to use the NetCDF writer
-TYPE?=standalone
+TYPE?=binary
 
 include $(PSYROOT)/examples/common.mk
 
@@ -81,7 +81,7 @@ ifeq ($(TYPE), netcdf)
 else ifeq ($(TYPE), ascii)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/ascii/lfric
 else
-	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/lfric
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/binary/lfric
 endif
 
 EXEC = extract.$(TYPE)

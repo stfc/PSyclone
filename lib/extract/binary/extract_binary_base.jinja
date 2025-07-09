@@ -78,7 +78,7 @@
 !! a binary file that contains all scalar values, and the dimensions
 !! and content for each array.
 
-module extract_standalone_base_mod
+module extract_binary_base_mod
 
     use psy_data_base_mod, only : PSyDataBaseType, is_enabled
 
@@ -93,7 +93,7 @@ module extract_standalone_base_mod
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, extends(PSyDataBaseType), public :: ExtractStandaloneBaseType
+    type, extends(PSyDataBaseType), public :: ExtractBinaryBaseType
 
         !> The unit number to use for output
         integer                            :: unit_number
@@ -124,7 +124,7 @@ module extract_standalone_base_mod
             {{all_provides|join(", &\n"+indent) }}
         {% endif %}
 
-    end type ExtractStandaloneBaseType
+    end type ExtractBinaryBaseType
 
 contains
 
@@ -145,7 +145,7 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine is the first function called when data is written out
     !! before an instrumented region of code.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    !! @param[in,out] this The instance of the ExtractBinaryBaseType.
     !! @param[in] module_name The name of the module of the instrumented
     !!            region.
     !! @param[in] region_name The name of the instrumented region.
@@ -163,7 +163,7 @@ contains
 
         implicit none
 
-        class(ExtractStandaloneBaseType), intent(inout), target :: this
+        class(ExtractBinaryBaseType), intent(inout), target :: this
         character(*), intent(in)                            :: module_name, &
                                                                region_name
         integer, intent(in)                                 :: num_pre_vars, &
@@ -199,12 +199,12 @@ contains
     !> @brief This subroutine is called after the instrumented region has been
     !! executed and all values of variables after the instrumented
     !! region have been provided. This will close the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    !! @param[in,out] this The instance of the ExtractBinaryBaseType.
     subroutine PostEnd(this)
 
         implicit none
 
-        class(ExtractStandaloneBaseType), intent(inout), target :: this
+        class(ExtractBinaryBaseType), intent(inout), target :: this
 
         close(this%unit_number)
         call this%PSyDataBaseType%PostEnd()
@@ -216,14 +216,14 @@ contains
     !> @brief This subroutine writes the value of a scalar {{type}}
     !! variable to the file. It takes the variable id from the
     !! corresponding declaration.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    !! @param[in,out] this The instance of the ExtractBinaryBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteScalar{{name}}(this, name, value)
 
         implicit none
 
-        class(ExtractStandaloneBaseType), intent(inout), target :: this
+        class(ExtractBinaryBaseType), intent(inout), target :: this
         character(*), intent(in)                                :: name
         {{type}}, intent(in)                                    :: value
         integer                                                 :: retval
@@ -246,16 +246,16 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a {{dim}}D array of {{type}}
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    !! @param[in,out] this The instance of the ExtractBinaryBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteArray{{dim}}d{{name}}(this, name, value)
 
         implicit none
 
-        class(ExtractStandaloneBaseType), intent(inout), target :: this
-        character(*), intent(in)                                :: name
-        {{type}}, dimension({{DIMENSION}}), intent(in)          :: value
+        class(ExtractBinaryBaseType), intent(inout), target :: this
+        character(*), intent(in)                            :: name
+        {{type}}, dimension({{DIMENSION}}), intent(in)      :: value
 
         integer :: retval
 
@@ -273,4 +273,4 @@ contains
 
 {%- endfor -%}  {# for name, type in ALL_TYPES #}
 
-end module extract_standalone_base_mod
+end module extract_binary_base_mod

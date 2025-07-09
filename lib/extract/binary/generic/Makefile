@@ -60,7 +60,7 @@ PROCESS_ARGS = -prefix=extract_ -types=int,long,real,double \
                        -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-OBJS = psy_data_base.o kernel_data_standalone.o extract_standalone_base.o \
+OBJS = psy_data_base.o kernel_data_binary.o extract_binary_base.o \
 	   compare_variables_mod.o
 
 default: $(PSYDATA_LIB)
@@ -70,14 +70,14 @@ default: $(PSYDATA_LIB)
 $(PSYDATA_LIB): $(OBJS)
 	${AR} ${ARFLAGS} ${PSYDATA_LIB} $^
 
-kernel_data_standalone.o:	extract_standalone_base.o
-extract_standalone_base.o:	psy_data_base.o
+kernel_data_binary.o:	extract_binary_base.o
+extract_binary_base.o:	psy_data_base.o
 
 psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
-extract_standalone_base.F90: $(LIB_TMPLT_DIR)/extract_standalone_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_standalone_base.F90
+extract_binary_base.F90: $(LIB_TMPLT_DIR)/extract_binary_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_binary_base.F90
 
 compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > compare_variables_mod.F90
@@ -89,7 +89,7 @@ compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinj
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.F90 \
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_binary_base.F90 \
 		  compare_variables_mod.F90
 
 allclean: clean
