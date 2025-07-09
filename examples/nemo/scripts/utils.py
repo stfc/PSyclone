@@ -40,8 +40,7 @@ from typing import List, Union
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, ArrayReference,
-    Call, Return, IfBlock, Routine, Schedule, IntrinsicCall,
-    StructureReference)
+    Call, Return, IfBlock, Routine, Schedule, IntrinsicCall)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
 from psyclone.psyir.transformations import (
@@ -52,8 +51,11 @@ from psyclone.transformations import TransformationError
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
-    "oce", "par_oce", "par_kind", "dom_oce", "phycst", "ice",
-    "obs_fbm", "flo_oce", "sbc_ice", "wet_dry"
+    "oce", "par_oce", "par_kind", "dom_oce", "phycst", "ice", "sbc_oce",
+    "obs_fbm", "flo_oce", "sbc_ice", "wet_dry", "ldfslp", "zdfiwm", "zdfmxl",
+    "bdy_oce", "zdf_oce", "zdfdrg", "ldftra", "crs", "sbcapr", "tideini",
+    "ldfdyn", "sbcapr", "sbctide", "zdfgls", "sbcrnf", "sbcisf", "dynldf_iso",
+    "stopts", "icb_oce", "domvvl"
 ]
 
 # Files that PSyclone could process but would reduce the performance.
@@ -369,8 +371,6 @@ def normalise_loops(
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
-            if assignment.walk(StructureReference):
-                continue  # TODO #2951 Fix issues with structure_refs
             try:
                 explicit_loops.apply(assignment)
             except TransformationError:
@@ -497,10 +497,11 @@ def insert_explicit_loop_parallelism(
             # And if successful, the region directive on top.
             if region_directive_trans:
                 region_directive_trans.apply(loop.parent.parent, options=opts)
-        except TransformationError:
+        except TransformationError as err:
             # This loop cannot be transformed, proceed to next loop.
             # The parallelisation restrictions will be explained with a comment
             # associted to the loop in the generated output.
+            loop.preceding_comment = str(err.value)
             continue
 
 
