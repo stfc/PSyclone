@@ -309,6 +309,9 @@ class LFRicInvoke(Invoke):
             omp_get_max_threads = symtab.find_or_create(
                 "omp_get_max_threads", symbol_type=RoutineSymbol,
                 interface=ImportInterface(omp_lib))
+            _ = symtab.find_or_create(
+                "omp_get_thread_num", symbol_type=RoutineSymbol,
+                interface=ImportInterface(omp_lib))
 
             assignment = Assignment.create(
                 lhs=Reference(nthreads),
