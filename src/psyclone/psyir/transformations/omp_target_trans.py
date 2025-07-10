@@ -41,7 +41,7 @@
 from psyclone.psyir.nodes import (
     CodeBlock, OMPTargetDirective, Call, Routine, Reference, Literal,
     OMPTaskwaitDirective, Directive, Schedule)
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.symbols import ScalarType, UnresolvedType
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
@@ -186,7 +186,8 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
                             f" '{routine.return_symbol.name}'.")
 
         for check_node in node_list:
-            for datanode in check_node.walk((Reference, Literal)):
+            for datanode in check_node.walk((Reference, Literal),
+                                            stop_type=Reference):
                 dtype = datanode.datatype
                 # Don't allow CHARACTERS on GPU
                 if hasattr(dtype, "intrinsic"):
@@ -195,6 +196,9 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
                             f"OpenMP Target cannot enclose a region that uses "
                             f"characters, but found: {datanode.debug_string()}"
                         )
+                if isinstance(dtype, UnresolvedType):
+                    raise TransformationError(
+                            f"Type of {datanode.debug_string()} is unresolved")
 
     def apply(self, node, options=None):
         ''' Insert an OMPTargetDirective before the provided node or list

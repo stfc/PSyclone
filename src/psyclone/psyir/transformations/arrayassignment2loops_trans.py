@@ -381,9 +381,10 @@ class ArrayAssignment2LoopsTrans(Transformation):
 
         for child in node.walk((Literal, Reference)):
             try:
-                forbidden = ScalarType.Intrinsic.CHARACTER
-                if (child.is_character(unknown_as=False) or
-                        (child.symbol.datatype.intrinsic == forbidden)):
+                # if isinstance(child, Reference):
+                #     if child.symbol.name == "cdnambuff":
+                #         import pdb; pdb.set_trace()
+                if child.is_character(unknown_as=True):
                     if verbose:
                         node.append_preceding_comment(message)
                     # pylint: disable=cell-var-from-loop
@@ -391,8 +392,11 @@ class ArrayAssignment2LoopsTrans(Transformation):
                         lambda: f"{message}, but found:"
                         f"\n{node.debug_string()}"))
             except (NotImplementedError, AttributeError):
-                # We cannot always get the datatype, we ignore this for now
-                pass
+                # We cannot always get the datatype
+                node.append_preceding_comment(message)
+                raise TransformationError(LazyString(
+                    lambda: f"We cound not check if {child.debug_string()}"
+                    f" is a character"))
 
 
 __all__ = [

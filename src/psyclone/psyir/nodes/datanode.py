@@ -38,7 +38,8 @@
 ''' This module contains the DataNode abstract node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols.datatypes import ScalarType, UnresolvedType
+from psyclone.psyir.symbols.datatypes import (
+    ScalarType, UnresolvedType, INTEGER_TYPE)
 
 
 class DataNode(Node):
@@ -55,6 +56,12 @@ class DataNode(Node):
             better then it must override this method.
         :rtype: :py:class:`psyclone.psyir.symbols.UnresolvedType`
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.loop import Loop
+        from psyclone.psyir.nodes.ranges import Range
+        # If it is a direct child of Loop or Range, it can only be an Integer
+        if self.parent and isinstance(self.parent, (Loop, Range)):
+            return INTEGER_TYPE
         return UnresolvedType()
 
     def is_character(self, unknown_as=None):
@@ -70,13 +77,14 @@ class DataNode(Node):
         :raises ValueError: if the intrinsic type cannot be determined.
 
         '''
-        if not hasattr(self.datatype, "intrinsic"):
-            if unknown_as is None:
-                raise ValueError(
-                    "is_character could not resolve whether the expression"
-                    f" '{self.debug_string()}' operates on characters."
+        if hasattr(self.datatype, "intrinsic"):
+            if isinstance(self.datatype.intrinsic, ScalarType.Intrinsic):
+                return (
+                    self.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
                 )
-            return unknown_as
-        return (
-            self.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
-        )
+        if unknown_as is None:
+            raise ValueError(
+                "is_character could not resolve whether the expression"
+                f" '{self.debug_string()}' operates on characters."
+            )
+        return unknown_as

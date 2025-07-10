@@ -74,7 +74,7 @@ FILES_TO_SKIP = []
 NEMOV5_EXCLUSIONS = []
 
 NEMOV4_EXCLUSIONS = [
-    "dynspg_ts.f90",
+    # "dynspg_ts.f90",
     "tranxt.f90",
 ]
 
@@ -87,20 +87,22 @@ SKIP_FOR_PERFORMANCE = [
 
 OFFLOADING_ISSUES = [
     # Produces different output results
-    "zdftke.f90",
+    # "zdftke.f90",
     # The following issues only affect BENCH (because ice is enabled?)
     # Runtime Error: Illegal address during kernel execution
     "trcrad.f90",
     # Signal 11 issues
-    "trcbbl.f90",
-    "bdyice.f90",
-    "sedfunc.f90",
-    "stpmlf.f90",
-    "trddyn.f90",
-    "trczdf.f90",
-    "trcice_pisces.f90",
-    "dtatsd.f90",
-    "trcatf.f90",
+    # "trcbbl.f90",
+    # "bdyice.f90",
+    # "sedfunc.f90",
+    # "stpmlf.f90",
+    # "trddyn.f90",
+    # # "trczdf.f90",
+    # "trcice_pisces.f90",
+    # "dtatsd.f90",
+    # "trcatf.f90",
+    # "trcais.f90",
+    # "p4zrem.f90",
 ]
 
 
@@ -170,8 +172,8 @@ def trans(psyir):
                 # TODO #2951 Fix issues with fldread structure_refs
                 convert_array_notation=psyir.name != "fldread.f90",
                 loopify_array_intrinsics=True,
-                convert_range_loops=True,
-                hoist_expressions=True
+                convert_range_loops=psyir.name != "dynstg_ts.f90",
+                hoist_expressions=False
         )
         # Perform module-inlining of called routines.
         if INLINING_ENABLED:
