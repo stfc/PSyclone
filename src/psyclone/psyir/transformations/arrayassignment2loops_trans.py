@@ -285,10 +285,17 @@ class ArrayAssignment2LoopsTrans(Transformation):
 
         # If we allow string arrays then we can skip the check.
         if not options.get("allow_string", False):
-            message = (f"{self.name} does not expand ranges "
-                       f"on character arrays by default (use the"
-                       f"'allow_string' option to expand them)")
-            self.validate_no_char(node, message, options)
+            for child in node.walk((Literal, Reference, Call)):
+                if child.is_character(unknown_as=True):
+                    # pylint: disable=cell-var-from-loop
+                    message = LazyString(
+                        lambda: f"{self.name} cannot guarantee that "
+                        f"{child.debug_string()} is not a character. Chase "
+                        f"module imports to get better type information or "
+                        f"use the 'allow_string' option.")
+                    if verbose:
+                        node.append_preceding_comment(str(message))
+                    raise TransformationError(message)
 
         # We don't accept calls that are not guaranteed to be elemental
         for call in node.rhs.walk(Call):
@@ -379,14 +386,13 @@ class ArrayAssignment2LoopsTrans(Transformation):
         # "logging" means adding a comment in the output code.
         verbose = options.get("verbose", False)
 
-        for child in node.walk((Literal, Reference)):
+        for child in node.walk((Literal, Reference, Call)):
             try:
                 # if isinstance(child, Reference):
-                #     if child.symbol.name == "cdnambuff":
+                #     if child.symbol.name == "zz0_s":
                 #         import pdb; pdb.set_trace()
                 if child.is_character(unknown_as=True):
-                    if verbose:
-                        node.append_preceding_comment(message)
+                    node.append_preceding_comment(message)
                     # pylint: disable=cell-var-from-loop
                     raise TransformationError(LazyString(
                         lambda: f"{message}, but found:"

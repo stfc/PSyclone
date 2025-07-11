@@ -44,14 +44,12 @@ from typing import Tuple
 
 from psyclone.core import SymbolicMaths
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes.call import Call
-from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.operation import Operation, BinaryOperation
+from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol
@@ -619,7 +617,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             if isinstance(idx_expr, Range):
                 shape.append(self._extent(idx))
 
-            elif isinstance(idx_expr, (Reference, Operation)):
+            elif isinstance(idx_expr, DataNode):
                 dtype = idx_expr.datatype
                 if isinstance(dtype, ArrayType):
                     # An array slice can be defined by a 1D slice of another
@@ -648,7 +646,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         f"'{self.debug_string()}' is of '{dtype}' type and "
                         f"therefore whether it is an array slice (i.e. an "
                         f"indirect access) cannot be determined.")
-            elif isinstance(idx_expr, (Call, CodeBlock)):
+            else:
                 # We can't yet straightforwardly query the type of a function
                 # call - TODO #1799.
                 raise NotImplementedError(

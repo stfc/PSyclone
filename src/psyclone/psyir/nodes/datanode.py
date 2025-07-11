@@ -39,7 +39,7 @@
 
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols.datatypes import (
-    ScalarType, UnresolvedType, INTEGER_TYPE)
+    ScalarType, UnresolvedType, INTEGER_TYPE, NoType)
 
 
 class DataNode(Node):
@@ -82,6 +82,8 @@ class DataNode(Node):
                 return (
                     self.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
                 )
+        if isinstance(self.datatype, NoType):
+            return False
         if unknown_as is None:
             raise ValueError(
                 "is_character could not resolve whether the expression"

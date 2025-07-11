@@ -120,13 +120,12 @@ def enhance_tree_information(schedule):
     :type schedule: :py:class:`psyclone.psyir.nodes.node`
 
     '''
-    are_integers = ('jpi', 'jpim1', 'jpj', 'jpjm1', 'jp_tem', 'jp_sal',
-                    'jpkm1', 'jpiglo', 'jpni', 'jpk', 'jpiglo_crs',
-                    'jpmxl_atf', 'jpmxl_ldf', 'jpmxl_zdf', 'jpnij',
-                    'jpts', 'jpvor_bev', 'nleapy', 'nn_ctls', 'jpmxl_npc',
-                    'jpmxl_zdfp', 'npti')
     # These are all indirect wildcard imports that psyclone misses but are
     # necessary to offload performance-sensitive loops.
+    are_integers = ('ntsj', 'ntsi', 'ntei', 'ntej', 'jpk', 'jpkm1', 'jpkglo',
+                    'nksr', 'Ni_0', 'Nj_0', 'Ni0glo', 'nn_hls', 'jpiglo',
+                    'Nis0', 'Nie0', 'Njs0', 'Nje0', 'ntei', 'ntej', 'jpi',
+                    'jpj')
     are_arrays = {
         'tmask': UnsupportedFortranType(
                     "real(kind = wp), public, allocatable, dimension(:, :, :),"
@@ -140,8 +139,8 @@ def enhance_tree_information(schedule):
     }
 
     for reference in schedule.walk(Reference):
-        # if reference.symbol.name in are_integers:
-        #     _it_should_be(reference.symbol, ScalarType, INTEGER_TYPE)
+        if reference.symbol.name in are_integers:
+            _it_should_be(reference.symbol, ScalarType, INTEGER_TYPE)
         if reference.symbol.name in are_arrays:
             new_type = are_arrays[reference.symbol.name]
             if not isinstance(reference.symbol, DataSymbol):
@@ -268,6 +267,9 @@ def normalise_loops(
                         reference, options={'verbose': True})
                 except TransformationError:
                     pass
+        # This brings new symbols that where only in the dimension expressions,
+        # we need the type of this symbols
+        enhance_tree_information(schedule)
 
     if loopify_array_intrinsics:
         for intr in schedule.walk(IntrinsicCall):
@@ -282,7 +284,8 @@ def normalise_loops(
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
             try:
-                explicit_loops.apply(assignment)
+                explicit_loops.apply(
+                    assignment, options={'verbose': True})
             except TransformationError:
                 pass
 

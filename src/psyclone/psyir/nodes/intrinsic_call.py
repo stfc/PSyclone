@@ -47,7 +47,7 @@ from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import IntrinsicSymbol
+from psyclone.psyir.symbols import IntrinsicSymbol, INTEGER_TYPE
 
 # pylint: disable=too-many-branches
 
@@ -917,6 +917,21 @@ class IntrinsicCall(Call):
         for child in self.arguments[1:]:
             var_accesses.update(child.reference_accesses())
         return var_accesses
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of the result of this IntrinsicCall.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        '''
+        if self.intrinsic in (
+            IntrinsicCall.Intrinsic.LBOUND,
+            IntrinsicCall.Intrinsic.UBOUND,
+        ):
+            if "dim" in self.argument_names:
+                return INTEGER_TYPE
+        return super().datatype
 
     # TODO #2102: Maybe the three properties below can be removed if intrinsic
     # is a symbol, as they would act as the super() implementation.
