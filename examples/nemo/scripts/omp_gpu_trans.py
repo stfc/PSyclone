@@ -42,7 +42,7 @@ from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
     normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
     NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
-from psyclone.psyir.nodes import Routine, Loop
+from psyclone.psyir.nodes import Routine
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import (
     OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
@@ -69,21 +69,12 @@ NEMOV4 = os.environ.get('NEMOV4', False)
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = [
-    "isfcav.f90",
-    "trcrad.f90",
-    "p4zsms.f90",
-    "p4zpoc.f90",
-    "trddyn.f90",
-    "trcsink.f90",
-    "trc.f90",
-    "oce_trc.f90",
-    "par_trc.f90",
-]
+FILES_TO_SKIP = []
 
 NEMOV5_EXCLUSIONS = []
 
 NEMOV4_EXCLUSIONS = [
+    "dynspg_ts.f90",
     "tranxt.f90",
 ]
 
@@ -96,21 +87,20 @@ SKIP_FOR_PERFORMANCE = [
 
 OFFLOADING_ISSUES = [
     # Produces different output results
-    # "zdftke.f90",
+    "zdftke.f90",
     # The following issues only affect BENCH (because ice is enabled?)
     # Runtime Error: Illegal address during kernel execution
+    "trcrad.f90",
     # Signal 11 issues
-    # "trcbbl.f90",
-    # "bdyice.f90",
-    # "sedfunc.f90",
-    # "stpmlf.f90",
-    # "trddyn.f90",
-    # # "trczdf.f90",
-    # "trcice_pisces.f90",
-    # "dtatsd.f90",
-    # "trcatf.f90",
-    # "trcais.f90",
-    # "p4zrem.f90",
+    "trcbbl.f90",
+    "bdyice.f90",
+    "sedfunc.f90",
+    "stpmlf.f90",
+    "trddyn.f90",
+    "trczdf.f90",
+    "trcice_pisces.f90",
+    "dtatsd.f90",
+    "trcatf.f90",
 ]
 
 
@@ -177,11 +167,10 @@ def trans(psyir):
         normalise_loops(
                 subroutine,
                 hoist_local_arrays=False,
-                # TODO #2951 Fix issues with fldread structure_refs
-                convert_array_notation=psyir.name != "fldread.f90",
+                convert_array_notation=True,
                 loopify_array_intrinsics=True,
-                convert_range_loops=psyir.name != "dynstg_ts.f90",
-                hoist_expressions=True,
+                convert_range_loops=True,
+                hoist_expressions=True
         )
         # Perform module-inlining of called routines.
         if INLINING_ENABLED:
@@ -192,6 +181,7 @@ def trans(psyir):
         if (
             subroutine.name.lower().startswith("sign_")
             or subroutine.name.lower() == "solfrac"
+            # Important for performance but causes SIGNAL 11 in some cases
             # or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
         ):
             try:
@@ -222,6 +212,7 @@ def trans(psyir):
                     region_directive_trans=omp_target_trans,
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
+                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
                     uniform_intrinsics_only=REPRODUCIBLE,
             )
         elif psyir.name not in PARALLELISATION_ISSUES:
@@ -230,6 +221,7 @@ def trans(psyir):
             insert_explicit_loop_parallelism(
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
+                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
             )
 
     # Iterate again and add profiling hooks when needed

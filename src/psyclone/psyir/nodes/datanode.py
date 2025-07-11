@@ -39,7 +39,7 @@
 
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols.datatypes import (
-    ScalarType, UnresolvedType, INTEGER_TYPE, NoType)
+    ScalarType, UnresolvedType, INTEGER_TYPE)
 
 
 class DataNode(Node):
@@ -77,16 +77,13 @@ class DataNode(Node):
         :raises ValueError: if the intrinsic type cannot be determined.
 
         '''
-        if hasattr(self.datatype, "intrinsic"):
-            if isinstance(self.datatype.intrinsic, ScalarType.Intrinsic):
-                return (
-                    self.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
+        if not hasattr(self.datatype, "intrinsic"):
+            if unknown_as is None:
+                raise ValueError(
+                    "is_character could not resolve whether the expression"
+                    f" '{self.debug_string()}' operates on characters."
                 )
-        if isinstance(self.datatype, NoType):
-            return False
-        if unknown_as is None:
-            raise ValueError(
-                "is_character could not resolve whether the expression"
-                f" '{self.debug_string()}' operates on characters."
-            )
-        return unknown_as
+            return unknown_as
+        return (
+            self.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
+        )

@@ -196,9 +196,9 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
                             f"OpenMP Target cannot enclose a region that uses "
                             f"characters, but found: {datanode.debug_string()}"
                         )
-                if isinstance(dtype, UnresolvedType):
-                    raise TransformationError(
-                            f"Type of {datanode.debug_string()} is unresolved")
+                # if isinstance(dtype, UnresolvedType):
+                #     raise TransformationError(
+                #             f"Type of {datanode.debug_string()} is unresolved")
 
     def apply(self, node, options=None):
         ''' Insert an OMPTargetDirective before the provided node or list

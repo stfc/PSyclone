@@ -285,17 +285,10 @@ class ArrayAssignment2LoopsTrans(Transformation):
 
         # If we allow string arrays then we can skip the check.
         if not options.get("allow_string", False):
-            for child in node.walk((Literal, Reference, Call)):
-                if child.is_character(unknown_as=True):
-                    # pylint: disable=cell-var-from-loop
-                    message = LazyString(
-                        lambda: f"{self.name} cannot guarantee that "
-                        f"{child.debug_string()} is not a character. Chase "
-                        f"module imports to get better type information or "
-                        f"use the 'allow_string' option.")
-                    if verbose:
-                        node.append_preceding_comment(str(message))
-                    raise TransformationError(message)
+            message = (f"{self.name} does not expand ranges "
+                       f"on character arrays by default (use the"
+                       f"'allow_string' option to expand them)")
+            self.validate_no_char(node, message, options)
 
         # We don't accept calls that are not guaranteed to be elemental
         for call in node.rhs.walk(Call):
@@ -386,23 +379,20 @@ class ArrayAssignment2LoopsTrans(Transformation):
         # "logging" means adding a comment in the output code.
         verbose = options.get("verbose", False)
 
-        for child in node.walk((Literal, Reference, Call)):
+        for child in node.walk((Literal, Reference)):
             try:
-                # if isinstance(child, Reference):
-                #     if child.symbol.name == "zz0_s":
-                #         import pdb; pdb.set_trace()
-                if child.is_character(unknown_as=True):
-                    node.append_preceding_comment(message)
+                forbidden = ScalarType.Intrinsic.CHARACTER
+                if (child.is_character(unknown_as=False) or
+                        (child.symbol.datatype.intrinsic == forbidden)):
+                    if verbose:
+                        node.append_preceding_comment(message)
                     # pylint: disable=cell-var-from-loop
                     raise TransformationError(LazyString(
                         lambda: f"{message}, but found:"
                         f"\n{node.debug_string()}"))
             except (NotImplementedError, AttributeError):
-                # We cannot always get the datatype
-                node.append_preceding_comment(message)
-                raise TransformationError(LazyString(
-                    lambda: f"We cound not check if {child.debug_string()}"
-                    f" is a character"))
+                # We cannot always get the datatype, we ignore this for now
+                pass
 
 
 __all__ = [
