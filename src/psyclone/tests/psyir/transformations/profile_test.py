@@ -48,15 +48,15 @@ from psyclone.domain.lfric import LFRicKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.profiler import Profiler
-from psyclone.psyir.nodes import (colored, ProfileNode, Loop, Literal,
-                                  Assignment, Return, Reference,
-                                  KernelSchedule, Routine, Schedule)
+from psyclone.psyir.nodes import (
+    colored, ProfileNode, Loop, Literal, Assignment, Return, Reference,
+    OMPDoDirective, KernelSchedule, Routine, Schedule)
 from psyclone.psyir.symbols import (SymbolTable, REAL_TYPE, DataSymbol)
-from psyclone.psyir.transformations import (ACCKernelsTrans, ProfileTrans,
-                                            TransformationError)
+from psyclone.psyir.transformations import (
+    ACCKernelsTrans, ProfileTrans, TransformationError)
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (GOceanOMPLoopTrans,
-                                      OMPParallelTrans)
+from psyclone.transformations import (
+    GOceanOMPLoopTrans, OMPParallelTrans, LFRicOMPLoopTrans)
 
 
 # -----------------------------------------------------------------------------
@@ -365,6 +365,29 @@ def test_profile_invokes_lfric(fortran_writer):
     assert "CALL profile_psy_data % PostEnd" in code
 
     Profiler._options = []
+
+
+def test_profile_lfric_reprod_reductions(dist_mem):
+    ''' Test that the openmp symbols that are needed for LFRic reprod
+    reductions are there.'''
+    file_name = "15.19.1_three_builtins_two_reductions.f90"
+    psy, invoke = get_invoke(file_name, "lfric", idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    rtrans = OMPParallelTrans()
+    otrans = LFRicOMPLoopTrans()
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            otrans.apply(child, {"reprod": True})
+    for child in schedule.children:
+        if isinstance(child, OMPDoDirective):
+            rtrans.apply(child)
+    profile_trans = ProfileTrans()
+    options = {"region_name": (psy.name, invoke.name)}
+    profile_trans.apply(schedule.children, options=options)
+    code = str(psy.gen)
+
+    assert "omp_lib, only : omp_get_max_threads, omp_get_thread_num" in code
+    assert "integer :: th_idx" in code
 
 
 # -----------------------------------------------------------------------------
