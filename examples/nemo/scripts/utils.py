@@ -42,7 +42,7 @@ from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, ArrayReference,
     Call, Return, IfBlock, Routine, Schedule, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol, UnsupportedFortranType,
+    DataSymbol, INTEGER_TYPE, ScalarType, UnsupportedFortranType,
     ArrayType, REAL_TYPE)
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
@@ -267,8 +267,9 @@ def normalise_loops(
                         reference, options={'verbose': True})
                 except TransformationError:
                     pass
-        # This brings new symbols that where only in the dimension expressions,
-        # we need the type of this symbols
+        # The transformation above brings new symbols from dimension
+        # expressions, we want these symbols to have all typing information
+        # possible as these are offloading candidates
         enhance_tree_information(schedule)
 
     if loopify_array_intrinsics:

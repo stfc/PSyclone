@@ -699,7 +699,11 @@ def test_get_effective_shape(fortran_reader):
     child_idx += 1
     with pytest.raises(NotImplementedError) as err:
         _ = routine.children[child_idx].lhs._get_effective_shape()
-    assert "include a function call or unsupported feature" in str(err.value)
+    assert (
+        "The array index expression 'f()' in access 'a(f())' is of "
+        "'UnresolvedType' type and therefore whether it is an array "
+        "slice (i.e. an indirect access) cannot be determined."
+        in str(err.value))
     # Array access with simple expression in indices.
     #   a(2+3) = 1.0
     child_idx += 1

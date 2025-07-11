@@ -647,13 +647,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         f"therefore whether it is an array slice (i.e. an "
                         f"indirect access) cannot be determined.")
             else:
-                # We can't yet straightforwardly query the type of a function
-                # call - TODO #1799.
+                # TODO #1799: Anything else is not supported
                 raise NotImplementedError(
-                    f"The array index expressions for access "
-                    f"'{self.debug_string()}' include a function call or "
-                    f"unsupported feature. Querying the return type of "
-                    f"such things is yet to be implemented.")
+                    f"Querying the datatype of '{self.debug_string()}' "
+                    f"is yet to be implemented.")
 
         return shape
 

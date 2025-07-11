@@ -41,7 +41,7 @@
 from psyclone.psyir.nodes import (
     CodeBlock, OMPTargetDirective, Call, Routine, Reference, Literal,
     OMPTaskwaitDirective, Directive, Schedule)
-from psyclone.psyir.symbols import ScalarType, UnresolvedType
+from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
@@ -196,9 +196,11 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
                             f"OpenMP Target cannot enclose a region that uses "
                             f"characters, but found: {datanode.debug_string()}"
                         )
+                # TODO #3054: Deal with UnresolvedType
                 # if isinstance(dtype, UnresolvedType):
                 #     raise TransformationError(
-                #             f"Type of {datanode.debug_string()} is unresolved")
+                #             f"Type of {datanode.debug_string()} is "
+                #             f"unresolved")
 
     def apply(self, node, options=None):
         ''' Insert an OMPTargetDirective before the provided node or list

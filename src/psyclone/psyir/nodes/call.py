@@ -387,9 +387,8 @@ class Call(Statement, DataNode):
             information is not known then it returns None.
         :rtype: NoneType | bool
         '''
-        if (self.routine and self.routine.symbol and
-                isinstance(self.routine.symbol, RoutineSymbol)):
-            return self.routine.symbol.is_elemental
+        if (self.symbol and isinstance(self.symbol, RoutineSymbol)):
+            return self.symbol.is_elemental
         return None
 
     @property

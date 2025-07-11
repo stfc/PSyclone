@@ -342,13 +342,13 @@ def test_arg_error(fortran_reader, arg):
         invoke_trans.validate(psyir.children[0][0])
     if arg == "alg(field)":
         assert ("Error in RaisePSyIR2AlgTrans transformation. The invoke "
-                "call argument 'alg' has been used as a routine name. This "
-                "is not allowed." in str(info.value))
+                "call argument 'alg' has been used as the Algorithm routine "
+                "name. This is not allowed." in str(info.value))
     else:
         assert (
             f"The arguments to this invoke call are expected to be kernel "
-            f"calls which are represented in generic PSyIR as CodeBlocks "
-            f"or ArrayReferences, but '{arg}' is of type 'Literal'."
+            f"calls which are represented in generic PSyIR as Calls or "
+            f"Codeblocks, but '{arg}' is of type 'Literal'."
             in str(info.value))
 
 

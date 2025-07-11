@@ -1005,7 +1005,7 @@ DEFAULT_DEVICE_INTRINISCS = NVFORTRAN_ALL
 # TODO #658 this can be removed once we have support for determining the
 # type of a PSyIR expression.
 # Intrinsics that perform operations on an array.
-ARRAY_INTRINSICS = [
+REDUCTION_INTRINSICS = [
     IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.MINVAL,
     IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.PACK,
     IntrinsicCall.Intrinsic.COUNT]

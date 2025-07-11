@@ -379,7 +379,9 @@ def _refine_symbols_with_usage_location(
                 location, name,
                 symbol_type=DataSymbol,
                 datatype=UnresolvedType())
-    # References that have a Subscript in a top-level children is a DataSymbol
+    # References that have Subscript in direct children are DataSymbol, e.g.:
+    # a(i,:,k) -> 'a' must be a DataSymbol, for now of UnresolvedType because
+    # we don't have enough information to know the shape of the ArrayType
     for part_ref in walk(execution_part, Fortran2003.Part_Ref):
         for child in part_ref.items:
             if isinstance(child, Fortran2003.Section_Subscript_List):
@@ -5027,9 +5029,9 @@ class Fparser2Reader():
         fparser2 cannot always disambiguate between Array Accessors, Calls and
         DerivedType constuctors, and it fallbacks to Part_Ref when unknown.
         PSyclone has a better chance of properly categorising them because we
-        chase import 'use' statements to retrieve symbol information. If
-        psyclone does not find the definition we will fallback as Call. The
-        reason for this is that it is the more safe options. Constructors and
+        can follow 'use' statements to retrieve symbol information. If
+        psyclone does not find the definition it fallbacks to a Call. The
+        reason for this is that it is the more safest option. Constructors and
         accessors can be cosidered calls (of unknown purity and elemental attr)
         but the opposite is not true.
 
@@ -5047,10 +5049,10 @@ class Fparser2Reader():
 
         '''
         reference_name = node.items[0].string.lower()
-        # Even if refining symbols is already done at the top of the routine,
-        # before any occurrence of this symbol, the psyclone frontend has entry
-        # points parsing single statements/expressions), so we have to do
-        # it again here
+        # Even if refining symbols is already/better done at the top of the
+        # routine scope, before any occurrence of this symbol, psyclone's
+        # Fortran frontend has entry points to parse single statements/
+        # expressions, so we have to repeat it here
         _refine_symbols_with_usage_location(parent, node)
         symbol = _find_or_create_unresolved_symbol(parent, reference_name)
 
@@ -5584,7 +5586,7 @@ class Fparser2Reader():
                 # valid.
                 pass
             else:
-                # We found a 'execution_part', before processing it we try
+                # We found an 'execution_part', before processing it we try
                 # to refine the symbol information
                 _refine_symbols_with_usage_location(routine, sub_exec)
                 # Put the comments from the end of the declarations part

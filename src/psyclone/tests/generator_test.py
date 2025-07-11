@@ -1059,8 +1059,8 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
     _, output = capsys.readouterr()
     # The output is split as the location of the algorithm file varies
     # due to it being stored in a temporary directory by pytest.
-    assert ("A symbol with the same name as builtin \'setval_c\'"
-            " exists but" in output)
+    assert ("The invoke call argument 'setval_c' has been used as the "
+            "Algorithm routine name. This is not allowed." in output)
 
 
 def test_generate_no_builtin_container(tmpdir, monkeypatch):

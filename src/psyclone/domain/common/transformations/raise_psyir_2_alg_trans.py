@@ -44,7 +44,7 @@ from fparser.two.Fortran2003 import Structure_Constructor
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Call, CodeBlock, Literal, Reference)
+    Call, CodeBlock, Literal, Reference, Routine)
 from psyclone.psyir.symbols import (
     Symbol, DataTypeSymbol, StructureType, RoutineSymbol, ScalarType)
 from psyclone.domain.common.algorithm import (
@@ -204,7 +204,11 @@ class RaisePSyIR2AlgTrans(Transformation):
             if node.argument_names[idx]:
                 pass
             elif isinstance(arg, Call):
-                pass
+                if arg.symbol == arg.ancestor(Routine).symbol:
+                    raise TransformationError(
+                        f"The invoke call argument '{arg.symbol.name}' has "
+                        f"been used as the Algorithm routine name. This is not"
+                        f" allowed.")
             elif isinstance(arg, CodeBlock):
                 # pylint: disable=protected-access
                 for fp2_node in arg._fp2_nodes:
@@ -213,7 +217,7 @@ class RaisePSyIR2AlgTrans(Transformation):
                 info = (
                     f"The arguments to this invoke call are expected to "
                     f"be kernel calls which are represented in generic "
-                    f"PSyIR as CodeBlocks or ArrayReferences, but "
+                    f"PSyIR as Calls or Codeblocks, but "
                     f"'{arg.debug_string()}' is of type "
                     f"'{type(arg).__name__}'.")
                 raise TransformationError(
@@ -243,7 +247,8 @@ class RaisePSyIR2AlgTrans(Transformation):
                 call_name = f"{call_arg.value}"
                 continue
             elif isinstance(call_arg, Call):
-                # We will reconstruct it as a higer-abstraction Call node
+                # Get the symbols and args to reconstruct it as a
+                # higer-abstraction AlgorithmInvokeCall node
                 type_symbol = call_arg.routine.symbol
                 args = call_arg.pop_all_children()[1:]
                 arg_info.append((type_symbol, args))
