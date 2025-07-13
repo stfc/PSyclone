@@ -56,7 +56,7 @@ NEMO_MODULES_TO_IMPORT = [
     "obs_fbm", "flo_oce", "sbc_ice", "wet_dry", "ldfslp", "zdfiwm", "zdfmxl",
     "bdy_oce", "zdf_oce", "zdfdrg", "ldftra", "crs", "sbcapr", "tideini",
     "ldfdyn", "sbcapr", "sbctide", "zdfgls", "sbcrnf", "sbcisf", "dynldf_iso",
-    "stopts", "icb_oce", "domvvl", "sms_pisces"
+    "stopts", "icb_oce", "domvvl", "sms_pisces", "zdfmfc"
 ]
 
 # Files that PSyclone could process but would reduce the performance.
@@ -401,6 +401,9 @@ def insert_explicit_loop_parallelism(
                 " 'nlay_i' or 'nlay_s'.")
             continue
 
+        if routine_name == "tra_zdf_imp":
+            opts['allow_strings'] = True
+
         try:
             # First check that the region_directive is feasible for this region
             if region_directive_trans:
@@ -412,11 +415,10 @@ def insert_explicit_loop_parallelism(
             # And if successful, the region directive on top.
             if region_directive_trans:
                 region_directive_trans.apply(loop.parent.parent, options=opts)
-        except TransformationError as err:
+        except TransformationError:
             # This loop cannot be transformed, proceed to next loop.
             # The parallelisation restrictions will be explained with a comment
             # associted to the loop in the generated output.
-            loop.preceding_comment = str(err.value)
             continue
 
 

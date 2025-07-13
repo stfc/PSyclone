@@ -42,7 +42,7 @@ from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
     normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
     NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
-from psyclone.psyir.nodes import Routine
+from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import (
     OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
@@ -83,6 +83,7 @@ SKIP_FOR_PERFORMANCE = [
     "iom_nf90.f90",
     "iom_def.f90",
     "timing.f90",
+    "lbclnk.f90",
 ]
 
 OFFLOADING_ISSUES = [
@@ -97,10 +98,11 @@ OFFLOADING_ISSUES = [
     "sedfunc.f90",
     "stpmlf.f90",
     "trddyn.f90",
-    "trczdf.f90",
     "trcice_pisces.f90",
     "dtatsd.f90",
     "trcatf.f90",
+    "trcais.f90",
+    "zdfiwm.f90",
 ]
 
 
@@ -158,16 +160,14 @@ def trans(psyir):
                 subroutine.name.endswith('_init') or
                 subroutine.name.startswith('Agrif') or
                 subroutine.name.startswith('dia_') or
-                subroutine.name == 'dom_msk' or
-                subroutine.name == 'dom_zgr' or
-                subroutine.name == 'dom_ngb'):
+                psyir.name.startswith('dom')):
             continue
 
         enhance_tree_information(subroutine)
         normalise_loops(
                 subroutine,
                 hoist_local_arrays=False,
-                convert_array_notation=True,
+                convert_array_notation=psyir.name != "fldread.f90",
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
                 hoist_expressions=True
@@ -181,8 +181,7 @@ def trans(psyir):
         if (
             subroutine.name.lower().startswith("sign_")
             or subroutine.name.lower() == "solfrac"
-            # Important for performance but causes SIGNAL 11 in some cases
-            # or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
+            or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
         ):
             try:
                 OMPDeclareTargetTrans().apply(subroutine)
