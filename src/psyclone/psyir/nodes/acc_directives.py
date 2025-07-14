@@ -390,7 +390,7 @@ class ACCParallelDirective(ACCRegionDirective, ACCAsyncMixin):
             # on the device. If we've made a mistake and it isn't present
             # then we'll get a run-time error.
             options = " default(present)"
-            
+
         return f"acc parallel{options}"
 
     def end_string(self) -> str:
