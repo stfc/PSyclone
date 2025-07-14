@@ -631,34 +631,40 @@ def test_directives_async_queue(directive_type):
 
     # check initial status
     assert directive.async_queue.value == "1"
-    assert 'async(1)' in directive._build_async_string()
+    assert 'async(1)' in directive.debug_string()
+    print(directive.debug_string())
 
     # change value to true
     directive.async_queue = True
     assert directive.async_queue is True
-    assert 'async' in directive._build_async_string()
+    assert 'async' in directive.debug_string()
+    print(directive.debug_string())
 
     # change value to False
     directive.async_queue = False
     assert directive.async_queue is False
-    assert 'async' not in directive._build_async_string()
+    assert 'async' not in directive.debug_string()
+    print(directive.debug_string())
 
     # change value afterward
     directive.async_queue = Reference(Symbol("stream"))
     assert directive.async_queue == Reference(Symbol("stream"))
-    assert 'async(stream)' in directive._build_async_string()
+    assert 'async(stream)' in directive.debug_string()
+    print(directive.debug_string())
 
     # Value is a PSyIR expression
     directive.async_queue = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
         Literal("1", INTEGER_TYPE),
         Reference(Symbol("stream")))
-    assert 'async(1 + stream)' in directive._build_async_string()
+    assert 'async(1 + stream)' in directive.debug_string()
+    print(directive.debug_string())
 
     # put wrong type
     with pytest.raises(TypeError) as error:
         directive.async_queue = 3.5
     assert "Invalid async_queue" in str(error)
+    print(directive.debug_string())
 
 
 def test_mixin_constructor_error():
