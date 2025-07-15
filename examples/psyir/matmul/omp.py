@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council
+# Copyright (c) 2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,8 @@ from psyclone.psyir.transformations import OMPLoopTrans
 from psyclone.psyir.nodes import Loop, Routine
 
 
+# Find the first loop in the subroutine "my_matmul" (it is a triply nested
+# loop), then parallelise the two outer loops using OpenMP.
 def trans(psyir):
     for routine in psyir.walk(Routine):
         if routine.name == "my_matmul":

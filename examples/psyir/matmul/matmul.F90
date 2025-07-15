@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019-2025, Science and Technology Facilities Council
+! Copyright (c) 2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,13 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: M. Naylor, University of Cambridge, UK
+
+! This a program to demonstrate PSyclone's loop tiling transformation on
+! a simple subroutine for matrix multiplication. It generates a random 2D
+! matrix with the specified dimensions, calls the subroutine, and checks
+! that the output is as expected (i.e., equivalent to the output of
+! Fortran's matmul intrinsic). It outputs the time taken for the
+! subroutine to complete.
 
 program matmul_example
   use omp_lib

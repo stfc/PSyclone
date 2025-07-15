@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council
+# Copyright (c) 2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author: M. Naylor, University of Cambridge, UK
 
+F90 ?= gfortran
+F90FLAGS ?= -O2 -fopenmp
+
 .PHONY: all
 all: matmul matmul_tiled matmul_omp matmul_omp_tiled
 	./matmul
@@ -55,4 +58,4 @@ matmul_omp_tiled.F90: matmul.F90 omp-tile.py
 	psyclone -s omp-tile.py matmul.F90 -o matmul_omp_tiled.F90
 
 %: %.F90
-	gfortran -O2 -fopenmp $< -o $@
+	$(F90) $(F90FLAGS) $< -o $@

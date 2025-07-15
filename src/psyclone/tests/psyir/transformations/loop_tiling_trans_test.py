@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: M. Naylor, University of Cambridge, UK
+# Based on code by: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module contains the unit tests for the LoopTilingTrans module'''
@@ -49,7 +50,7 @@ def test_loop_tiling_trans():
     assert str(trans) == "Tile the loop construct"
 
 
-def test_loop_tiling_trans_validation(fortran_reader):
+def test_loop_tiling_trans_validation1(fortran_reader):
     ''' Validation passes when found a 3D nested loop construct. '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine test(tmp)
@@ -66,10 +67,10 @@ def test_loop_tiling_trans_validation(fortran_reader):
         end subroutine test
      ''')
     outer_loop = psyir.walk(Loop)[0]
-    LoopTilingTrans().validate(outer_loop, {"tiledims": [8, 8, 8]})
+    LoopTilingTrans().validate(outer_loop, tiledims=[8, 8, 8])
 
 
-def test_loop_tiling_trans_validation1(fortran_reader):
+def test_loop_tiling_trans_validation2(fortran_reader):
     ''' Validation fails if the are more tile dimensions than loops. '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine test(tmp)
@@ -85,12 +86,12 @@ def test_loop_tiling_trans_validation1(fortran_reader):
      ''')
     outer_loop = psyir.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
-        LoopTilingTrans().validate(outer_loop, {"tiledims": [8, 8, 8]})
+        LoopTilingTrans().validate(outer_loop, tiledims=[8, 8, 8])
     assert ("must be a sub-class of Loop but got 'Assignment'."
             in str(err.value))
 
 
-def test_loop_tiling_trans_validation2(fortran_reader):
+def test_loop_tiling_trans_validation3(fortran_reader):
     ''' Validation fails if the loop body may have side effects. '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine test(tmp)
@@ -107,14 +108,36 @@ def test_loop_tiling_trans_validation2(fortran_reader):
      ''')
     outer_loop = psyir.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
-        LoopTilingTrans().validate(outer_loop)
+        LoopTilingTrans().validate(outer_loop, tiledims=[8, 8])
     assert ("Nodes of type 'Call' cannot be enclosed by a LoopSwapTrans "
             "unless they can be guaranteed to be pure, but found: "
             "['call my_sub(i, j)\\n']." in str(err.value))
 
 
-def test_loop_tiling_trans_validation_options(fortran_reader):
-    ''' Validation fails if an invalid option map is provided '''
+def test_loop_tiling_trans_validation4(fortran_reader):
+    ''' Validation fails if loops are not perfectly nested. '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test(tmp)
+            integer:: i, j, a
+            integer, intent(inout), dimension(100,100) :: tmp
+
+            do i=1, 100
+              a = 4
+              do j=1, 100
+                tmp(i,j) = 2 * tmp(i,j)
+              enddo
+            enddo
+        end subroutine test
+     ''')
+    outer_loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        LoopTilingTrans().validate(outer_loop, tiledims=[8, 8])
+    assert ("must be a sub-class of Loop but got 'Assignment'."
+            in str(err.value))
+
+
+def test_loop_tiling_trans_validation_args(fortran_reader):
+    ''' Validation fails if invalid arguments are provided '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine test(tmp)
             integer:: i, j
@@ -128,42 +151,23 @@ def test_loop_tiling_trans_validation_options(fortran_reader):
         end subroutine test
      ''')
     outer_loop = psyir.walk(Loop)[0]
-    with pytest.raises(TransformationError) as err:
-        LoopTilingTrans().apply(outer_loop, {'unsupported': None})
-    assert ("The LoopTilingTrans does not support the transformation option"
-            " 'unsupported', the supported options are: ['tiledims']."
-            in str(err.value))
+    with pytest.raises(ValueError) as err:
+        LoopTilingTrans().apply(outer_loop, tiledims=[8, 8], unsupported=None)
+    assert ("'LoopTilingTrans' received invalid options "
+            "['unsupported']" in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        LoopTilingTrans().apply(outer_loop, {'tiledims': '32'})
-    assert ("The LoopTilingTrans tiledims option must be a list "
-            "but found a 'str'." in str(err.value))
+        LoopTilingTrans().apply(outer_loop, tiledims=32)
+    assert ("The LoopTilingTrans tiledims argument must be a list of positive "
+            "integers but found '32'." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        LoopTilingTrans().apply(outer_loop, {'tiledims': [-32]})
-    assert ("The LoopTilingTrans tiledims option must be a list of positive "
+        LoopTilingTrans().apply(outer_loop, tiledims=[-32])
+    assert ("The LoopTilingTrans tiledims argument must be a list of positive "
             "integers but found '[-32]'." in str(err.value))
 
 
-def test_loop_tiling_trans_validation_no_options(fortran_reader):
-    ''' Validation passes on a 2D loop when no options are provided '''
-    psyir = fortran_reader.psyir_from_source('''
-        subroutine test(tmp)
-            integer:: i, j
-            integer, intent(inout), dimension(100,100) :: tmp
-
-            do i=1, 100
-              do j=1, 100
-                tmp(i,j) = 2 * tmp(i,j)
-              enddo
-            enddo
-        end subroutine test
-     ''')
-    outer_loop = psyir.walk(Loop)[0]
-    LoopTilingTrans().apply(outer_loop)
-
-
-def test_loop_tiling_trans_apply(fortran_reader, fortran_writer):
+def test_loop_tiling_trans_apply1(fortran_reader, fortran_writer):
     ''' Transformation works on a 3D nested loop construct. '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine test(tmp)
@@ -180,7 +184,7 @@ def test_loop_tiling_trans_apply(fortran_reader, fortran_writer):
         end subroutine test
      ''')
     outer_loop = psyir.walk(Loop)[0]
-    LoopTilingTrans().apply(outer_loop, {"tiledims": [8, 16, 32]})
+    LoopTilingTrans().apply(outer_loop, tiledims=[8, 16, 32])
 
     outer_loop = psyir.walk(Loop)[0]
     result = fortran_writer(outer_loop)
@@ -195,6 +199,75 @@ do i_out_var = 1, 100, 8
           enddo
         enddo
       enddo
+    enddo
+  enddo
+enddo'''
+    assert expected in result
+
+
+def test_loop_tiling_trans_apply2(fortran_reader, fortran_writer):
+    ''' Transformation works for a 2D tile in a 3D nested loop construct. '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test(tmp)
+            integer:: i, j, k
+            integer, intent(inout), dimension(100,100) :: tmp
+
+            do i=1, 100
+              do j=1, 100
+                do k=1, 100
+                  tmp(i,j) = 2 * tmp(i,j) + k
+                enddo
+              enddo
+            enddo
+        end subroutine test
+     ''')
+    outer_loop = psyir.walk(Loop)[0]
+    LoopTilingTrans().apply(outer_loop, tiledims=[8, 16])
+
+    outer_loop = psyir.walk(Loop)[0]
+    result = fortran_writer(outer_loop)
+    expected = '''\
+do i_out_var = 1, 100, 8
+  do j_out_var = 1, 100, 16
+    do i = i_out_var, MIN(i_out_var + (8 - 1), 100), 1
+      do j = j_out_var, MIN(j_out_var + (16 - 1), 100), 1
+        do k = 1, 100, 1
+          tmp(i,j) = 2 * tmp(i,j) + k
+        enddo
+      enddo
+    enddo
+  enddo
+enddo'''
+    assert expected in result
+
+
+def test_loop_tiling_trans_apply3(fortran_reader, fortran_writer):
+    ''' Transformation works for a 0D tile. '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test(tmp)
+            integer:: i, j, k
+            integer, intent(inout), dimension(100,100) :: tmp
+
+            do i=1, 100
+              do j=1, 100
+                do k=1, 100
+                  tmp(i,j) = 2 * tmp(i,j) + k
+                enddo
+              enddo
+            enddo
+        end subroutine test
+     ''')
+    outer_loop = psyir.walk(Loop)[0]
+    LoopTilingTrans().apply(outer_loop, tiledims=[])
+
+    outer_loop = psyir.walk(Loop)[0]
+    result = fortran_writer(outer_loop)
+    print(result)
+    expected = '''\
+do i = 1, 100, 1
+  do j = 1, 100, 1
+    do k = 1, 100, 1
+      tmp(i,j) = 2 * tmp(i,j) + k
     enddo
   enddo
 enddo'''

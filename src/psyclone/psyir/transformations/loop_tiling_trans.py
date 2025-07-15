@@ -63,7 +63,7 @@ class LoopTilingTrans(LoopTrans):
     ...     enddo
     ... end subroutine sub""")
     >>> loop = psyir.walk(Loop)[0]
-    >>> LoopTilingTrans().apply(loop)
+    >>> LoopTilingTrans().apply(loop, tiledims=[32, 32])
 
     will generate:
 
@@ -91,15 +91,15 @@ class LoopTilingTrans(LoopTrans):
     def __str__(self):
         return "Tile the loop construct"
 
-    def _sink_validate(self, node, num_levels):
+    def _sink_validate(self, loop: Loop, num_levels: int):
         '''
-        Check that we can sink the outermost loop of a loop nest
-        downwards by the given number of levels.
+        Check that we can sink the outermost loop of a loop nest downwards by
+        the given number of levels. This includes validating that the body of
+        each loop in the loop nest (except the innermost one) is a single
+        loop statement (this is checked via internal calls to LoopSwapTrans).
 
-        :param node: the Loop that we want to sink.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param loop: the Loop that we want to sink.
         :param num_levels: the number of levels to sink the loop by.
-        :type num_levels: int
 
         :raises TransformationError: if it is not possible to sink the \
             loop by the requested number of levels.
@@ -107,79 +107,48 @@ class LoopTilingTrans(LoopTrans):
 
         # Try to sink a loop by repeated swapping.
         # Do this on a copy of the loop as we are only validating here.
-        loop = node.copy()
+        loop_copy = loop.copy()
         # Make sure the copy has a parent, as required by LoopSwapTrans.
-        Schedule().addchild(loop)
-        for i in range(0, num_levels):
-            swap = LoopSwapTrans()
-            swap.validate(loop)
-            swap.apply(loop)
+        Schedule().addchild(loop_copy)
+        for _ in range(0, num_levels):
+            LoopSwapTrans().apply(loop_copy)
 
-    def _sink_apply(self, node, num_levels):
+    def _sink_apply(self, loop: Loop, num_levels: int):
         '''
         Sink the outermost loop of a loop nest downwards by the given \
         number of levels.
 
-        :param node: the Loop that we want to sink.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param loop: the Loop that we want to sink.
         :param num_levels: the number of levels to sink the loop by.
-        :type num_levels: int
 
         :raises TransformationError: if it is not possible to sink the \
             loop by the requested number of levels.
         '''
-
-        self._sink_validate(node, num_levels)
+        self._sink_validate(loop, num_levels)
 
         # Sink a loop by repeated swapping.
-        for i in range(0, num_levels):
-            LoopSwapTrans().apply(node)
+        for _ in range(0, num_levels):
+            LoopSwapTrans().apply(loop)
 
-    def validate(self, node, options=None):
+    def validate(self, outer_loop: Loop, tiledims: list[int], **kwargs):
         '''
-        Validates that the given Loop node can have a LoopTilingTrans
-        applied.
+        Validates that the given Loop node can have a LoopTilingTrans applied.
 
-        :param node: the loop to validate.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dict with options for transformation.
-        :type options: Optional[Dict[str, Any]]
-        :param list[int] options["tiledims"]: The dimensions of the
-            resulting tile. If not specified, the value [32, 32] is
-            assumed, i.e. a 2D 32x32 tile. \
+        :param outer_loop: the loop to validate.
+        :param tiledims: the dimensions of the tile.
 
-        :raises TransformationError: if an unsupported option has been \
-            provided.
-        :raises TransformationError: if the provided tilesize is not a \
-            integer.
+        :raises TransformationError: if any of the tile dimensions are not \
+                positive integers
+        :raises TransformationError: if the transformation cannot be applied
         '''
-        if options is None:
-            options = {}
-        super(LoopTilingTrans, self).validate(node, options=options)
+        super().validate(outer_loop, **kwargs)
+        self.validate_options(**kwargs)
 
-        # Validate options map
-        # TODO #613: Hardcoding the valid_options does not allow for
-        # subclassing this transformation and adding new options, this
-        # should be fixed.
-        valid_options = ['tiledims']
-        for key, value in options.items():
-            if key in valid_options:
-                if key == "tiledims" and not isinstance(value, list):
-                    raise TransformationError(
-                        f"The LoopTilingTrans tiledims option must be a "
-                        f"list but found a '{type(value).__name__}'.")
-                if (key == "tiledims" and not
-                        all([isinstance(v, int) and v > 0 for v in value])):
-                    raise TransformationError(
-                        f"The LoopTilingTrans tiledims option must be a "
-                        f"list of positive integers but found '{value}'.")
-            else:
-                raise TransformationError(
-                    f"The LoopTilingTrans does not support the "
-                    f"transformation option '{key}', the supported options "
-                    f"are: {valid_options}.")
-
-        tiledims = options.get("tiledims", [32, 32])
+        if (not (isinstance(tiledims, list) and
+                 all([isinstance(n, int) and n > 0 for n in tiledims]))):
+            raise TransformationError(
+                f"The LoopTilingTrans tiledims argument must be a "
+                f"list of positive integers but found '{tiledims}'.")
         numdims = len(tiledims)
 
         # Even though the loops that ultimately will be sunk are the ones
@@ -189,40 +158,36 @@ class LoopTilingTrans(LoopTrans):
         # construct with numdims loops where each loop except the innermost
         # one contains exactly one child which is also a loop.
         sink_upto = numdims
-        for loop in node.walk(Loop)[0:numdims]:
+        for loop in outer_loop.walk(Loop)[0:numdims]:
             for i in range(1, sink_upto):
-                self._sink_validate(node, i)
+                self._sink_validate(outer_loop, i)
             sink_upto = sink_upto - 1
 
         # Check that we can chunk each loop
-        for (dim, loop) in zip(tiledims, node.walk(Loop)):
+        for (dim, loop) in zip(tiledims, outer_loop.walk(Loop)):
             ChunkLoopTrans().validate(loop, options={'chunksize': dim})
 
-    def apply(self, node, options=None):
+    def apply(self, outer_loop: Loop, tiledims: list[int], **kwargs):
         '''
         Converts the given Loop construct into a tiled version of the nested
         loops.
 
-        :param node: the loop to transform.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dict with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param list[int] options["tiledims"]: The dimensions of the
-            resulting tile. If not specified, the value [32, 32] is
-            assumed, i.e. a 2D 32x32 tile. \
+        :param outer_loop: the loop to transform.
+        :param tiledims: the dimensions of the tile.
 
+        :raises TransformationError: if any of the tile dimensions are not \
+                positive integers
+        :raises TransformationError: if the transformation cannot be applied
         '''
-        self.validate(node, options)
-        if options is None:
-            options = {}
-        tiledims = options.get("tiledims", [32, 32])
-        numdims = len(tiledims)
+        self.validate(outer_loop, tiledims, **kwargs)
 
-        parent = node.parent
-        position = node.position
+        numdims = len(tiledims)
+        parent = outer_loop.parent
+        position = outer_loop.position
 
         # Chunk the loops, from innermost to outermost
-        for (dim, loop) in reversed(list(zip(tiledims, node.walk(Loop)))):
+        for (dim, loop) in reversed(list(
+                             zip(tiledims, outer_loop.walk(Loop)))):
             ChunkLoopTrans().apply(loop, options={'chunksize': dim})
 
         # Sink the new loops, from innermost to outermost
