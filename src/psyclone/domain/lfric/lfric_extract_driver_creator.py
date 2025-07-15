@@ -188,12 +188,11 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         constant_mod = ContainerSymbol(mod_name)
         symbol_table.add(constant_mod)
 
-        # r_quad is defined in constants_mod, but not exported. And r_phys
-        # does not exist at all in LFRic. So we have to remove them from the
-        # lists of precisions to import.  TODO #2018
+        # r_quad is defined in constants_mod, but not exported. So we have
+        # to remove r_quad from the lists of precisions to import.  TODO #2018
         api_config = Config.get().api_conf("lfric")
         all_precisions = [name for name in api_config.precision_map
-                          if name not in ["r_quad", "r_phys"]]
+                          if name != "r_quad"]
         for prec_name in all_precisions:
             symbol_table.new_symbol(prec_name,
                                     tag=f"{prec_name}@{mod_name}",

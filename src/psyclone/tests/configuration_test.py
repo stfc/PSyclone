@@ -92,7 +92,6 @@ precision_map = i_def: 4,
                 r_solver: 4,
                 r_tran: 8,
                 r_bl: 8,
-                r_phys: 8,
                 r_um: 8
 RUN_TIME_CHECKS = false
 NUM_ANY_SPACE = 10

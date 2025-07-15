@@ -427,8 +427,6 @@ associated kernel metadata description and their precision:
 +--------------------------+---------------------------------+-----------+
 | REAL(R_BL)               | GH_SCALAR, GH_REAL              | R_BL      |
 +--------------------------+---------------------------------+-----------+
-| REAL(R_PHYS)             | GH_SCALAR, GH_REAL              | R_PHYS    |
-+--------------------------+---------------------------------+-----------+
 | REAL(R_SOLVER)           | GH_SCALAR, GH_REAL              | R_SOLVER  |
 +--------------------------+---------------------------------+-----------+
 | REAL(R_TRAN)             | GH_SCALAR, GH_REAL              | R_TRAN    |
@@ -440,8 +438,6 @@ associated kernel metadata description and their precision:
 | FIELD_TYPE               | GH_FIELD, GH_REAL               | R_DEF     |
 +--------------------------+---------------------------------+-----------+
 | R_BL_FIELD_TYPE          | GH_FIELD, GH_REAL               | R_BL      |
-+--------------------------+---------------------------------+-----------+
-| R_PHYS_FIELD_TYPE        | GH_FIELD, GH_REAL               | R_PHYS    |
 +--------------------------+---------------------------------+-----------+
 | R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL               | R_SOLVER  |
 +--------------------------+---------------------------------+-----------+
@@ -573,8 +569,6 @@ outlined in the table below:
 +-------------------------+------------------+--------------+
 | ``r_bl_field_type``     | ``real``         | ``r_bl``     |
 +-------------------------+------------------+--------------+
-| ``r_phys_field_type``   | ``real``         | ``r_phys``   |
-+-------------------------+------------------+--------------+
 | ``r_solver_field_type`` | ``real``         | ``r_solver`` |
 +-------------------------+------------------+--------------+
 | ``r_tran_field_type``   | ``real``         | ``r_tran``   |
@@ -609,8 +603,6 @@ implementations is given in the table below (note that only
 | ``field_type``          | ``field_vector_type``          |
 +-------------------------+--------------------------------+
 | ``r_bl_field_type``     | ``r_bl_field_vector_type``     |
-+-------------------------+--------------------------------+
-| ``r_phys_field_type``   | ``r_phys_field_vector_type``   |
 +-------------------------+--------------------------------+
 | ``r_solver_field_type`` | ``r_solver_field_vector_type`` |
 +-------------------------+--------------------------------+
@@ -677,16 +669,16 @@ a message that indicates the problem.
 
 .. tabularcolumns:: |l|l|
 
-+------------------+----------------------------------+
-| Fortran Datatype | Supported Precision              |
-+==================+==================================+
-| ``real``         | ``r_def``, ``r_bl``, ``r_phys``, |
-|                  | ``r_solver``, ``r_tran``         |
-+------------------+----------------------------------+
-| ``integer``      | ``i_def``                        |
-+------------------+----------------------------------+
-| ``logical``      | ``l_def``                        |
-+------------------+----------------------------------+
++------------------+--------------------------+
+| Fortran Datatype | Supported Precision      |
++==================+==========================+
+| ``real``         | ``r_def``, ``r_bl``,     |
+|                  | ``r_solver``, ``r_tran`` |
++------------------+--------------------------+
+| ``integer``      | ``i_def``                |
++------------------+--------------------------+
+| ``logical``      | ``l_def``                |
++------------------+--------------------------+
 
 .. _lfric-mixed-precision-lma-operators:
 
@@ -3896,7 +3888,7 @@ Precision Map
 
 This gives the amount of storage (in bytes) associated with a
 particular LFRic precision. The values for 'r_tran', 'r_solver',
-'r_def', 'r_bl' and 'r_phys' are set within LFRic infrastructure
+'r_def', and 'r_bl' are set within LFRic infrastructure
 according to CPP ifdefs. The values given in the configuration file
 are the defaults. 'l_def' is included in the dictionary so that it
 contains a complete record of the various precision symbols used in

@@ -39,14 +39,13 @@ include ../../common.mk
 GENERATED_FILES = mixed_precision_psy.f90 alg.f90 ${EXEC} ${OBJ} *.mod
 
 F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound
-
+F90FLAGS ?= -Wall -g -fcheck=bound 
 
 OBJ = alg.o mixed_precision_psy.o mixed_kernel_mod.o
 
 EXEC = will_not_run.exe
-LFRIC_PATH = ../../../src/psyclone/tests/test_files/lfric/infrastructure
-LFRIC_NAME=lfric
+LFRIC_PATH = ../../../external/lfric_infrastructure/preprocessed
+LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 # This will add the required include flags to LFRIC_INCLUDE_FLAGS
@@ -55,7 +54,8 @@ include $(LFRIC_PATH)/lfric_include_flags.inc
 .PHONY: transform compile run
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) \
+	$$(nf-config --flibs)
 
 compile: transform $(EXEC)
 
@@ -73,7 +73,7 @@ run: compile
 	@echo "No run targets for lfric/eg19"
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
+	$(MAKE) -C $(LFRIC_PATH) -f ../Makefile
 
 
 %.o: %.F90

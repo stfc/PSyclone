@@ -1920,7 +1920,7 @@ def test_int_to_real_x(fortran_writer):
         "f2_data(df) = REAL(f1_data(df), kind=r_def)\n") in code
 
 
-@pytest.mark.parametrize("kind_name", ["r_solver", "r_tran", "r_bl", "r_phys"])
+@pytest.mark.parametrize("kind_name", ["r_solver", "r_tran", "r_bl"])
 def test_int_to_real_x_precision(tmpdir, kind_name):
     '''
     Test that the built-in picks up and creates correct code for field
@@ -2063,7 +2063,7 @@ def test_real_to_real_x(fortran_writer):
             assert False, code  # There are only 3 kern
 
 
-@pytest.mark.parametrize("kind_name", ["r_bl", "r_phys", "r_um"])
+@pytest.mark.parametrize("kind_name", ["r_bl", "r_um"])
 def test_real_to_real_x_lowering(monkeypatch, tmpdir, kind_name):
     '''
     Test that the lower_to_language_level() method works as expected.
