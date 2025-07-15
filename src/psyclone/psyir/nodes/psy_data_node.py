@@ -715,9 +715,9 @@ class PSyDataNode(Statement):
         # end calls
         for child in self.psy_data_body.pop_all_children():
             self.parent.children.insert(self.position, child)
-        # If there is any symbol in the PSyDataSchedule (it can happen
-        # by any parent lower_to_language_level writing to self.scope)
-        # it needs to be moved together with the nodes
+        # If there is any symbol in the PSyData scope (it could have been
+        # added by any posterior modification writing to child.scope) it needs
+        # to be moved together with the nodes
         self.scope.symbol_table.merge(self.psy_data_body.symbol_table)
 
         if has_var:
