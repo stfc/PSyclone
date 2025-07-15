@@ -78,7 +78,7 @@ be run by doing:
 ## Example 4:
 
 Demonstrates acceleration of a simple routine for matrix transposition using
-`LoopTiling2DTrans` and `OMPLoopTrans`. To run this example:
+`LoopTilingTrans` and `OMPLoopTrans`. To run this example:
 
 ```sh
 > cd transpose
