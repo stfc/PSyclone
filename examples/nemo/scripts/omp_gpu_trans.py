@@ -167,6 +167,7 @@ def trans(psyir):
         normalise_loops(
                 subroutine,
                 hoist_local_arrays=False,
+                # TODO #2951 NEMOV5 fldread has problem with StructuresRefs
                 convert_array_notation=psyir.name != "fldread.f90",
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
