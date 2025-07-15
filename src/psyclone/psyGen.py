@@ -1185,7 +1185,7 @@ class Kern(Statement):
                 f"'{reduction_access.api_specific_name()}' found in "
                 f"LFRicBuiltIn:reduction_sum_loop(). Expected one of "
                 f"{api_strings}.")
-        symtab = self.ancestor(Routine).symbol_table
+        symtab = self.scope.symbol_table
         thread_idx = symtab.find_or_create_tag(
                                 "omp_thread_index",
                                 root_name="th_idx",

@@ -51,7 +51,8 @@ from psyclone.profiler import Profiler
 from psyclone.psyir.nodes import (
     colored, ProfileNode, Loop, Literal, Assignment, Return, Reference,
     OMPDoDirective, KernelSchedule, Routine, Schedule)
-from psyclone.psyir.symbols import (SymbolTable, REAL_TYPE, DataSymbol)
+from psyclone.psyir.symbols import (
+    SymbolTable, REAL_TYPE, DataSymbol, INTEGER_TYPE)
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, ProfileTrans, TransformationError)
 from psyclone.tests.utilities import get_invoke
@@ -367,11 +368,12 @@ def test_profile_invokes_lfric(fortran_writer):
     Profiler._options = []
 
 
-def test_profile_lfric_reprod_reductions(dist_mem):
-    ''' Test that the openmp symbols that are needed for LFRic reprod
-    reductions are there.'''
+def test_profile_with_symbols_declared_in_the_profiler_scope(tmpdir):
+    ''' Test that Symbols that are declared in the Profiler schedule node end
+    up in the output code. For example, LFRic OpenMP with reprod reductions
+    declares symbols in there. '''
     file_name = "15.19.1_three_builtins_two_reductions.f90"
-    psy, invoke = get_invoke(file_name, "lfric", idx=0, dist_mem=dist_mem)
+    psy, invoke = get_invoke(file_name, "lfric", idx=0)
     schedule = invoke.schedule
     rtrans = OMPParallelTrans()
     otrans = LFRicOMPLoopTrans()
@@ -384,10 +386,15 @@ def test_profile_lfric_reprod_reductions(dist_mem):
     profile_trans = ProfileTrans()
     options = {"region_name": (psy.name, invoke.name)}
     profile_trans.apply(schedule.children, options=options)
+    # In addition to the OpenMP symbols, manually add one in that scope
+    schedule.children[0].psy_data_body.symbol_table.new_symbol(
+        "profiler_scoped_symbol", symbol_type=DataSymbol,
+        datatype=INTEGER_TYPE)
     code = str(psy.gen)
 
     assert "omp_lib, only : omp_get_max_threads, omp_get_thread_num" in code
     assert "integer :: th_idx" in code
+    assert "integer :: profiler_scoped_symbol" in code
 
 
 # -----------------------------------------------------------------------------
