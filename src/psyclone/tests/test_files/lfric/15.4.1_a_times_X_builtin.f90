@@ -39,11 +39,11 @@ program single_invoke
   ! Description: single point-wise operation (scale a field: Y = aX) on
   ! real-valued fields and a real scalar of precision 'r_bl' specified
   ! in an invoke call (the default precision is 'r_def').
-  use constants_mod,    only: r_bl
+  use constants_mod,  only: r_bl
   use r_bl_field_mod, only: r_bl_field_type
   implicit none
 
-  type(r_bl) :: f1, f2
+  type(r_bl_field_type) :: f1, f2
   real(r_bl)            :: a_scalar
 
   a_scalar = 2.0_r_bl

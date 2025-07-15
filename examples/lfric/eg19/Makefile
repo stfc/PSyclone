@@ -39,7 +39,7 @@ include ../../common.mk
 GENERATED_FILES = mixed_precision_psy.f90 alg.f90 ${EXEC} ${OBJ} *.mod
 
 F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound 
+F90FLAGS ?= -Wall -g -fcheck=bound
 
 OBJ = alg.o mixed_precision_psy.o mixed_kernel_mod.o
 
