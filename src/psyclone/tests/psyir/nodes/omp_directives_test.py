@@ -41,6 +41,7 @@
 
 import os
 import pytest
+import logging
 from psyclone.errors import UnresolvedDependencyError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -140,7 +141,8 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch, caplog):
     a_sym = Symbol("a")
     monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({}, {}, {a_sym}))
-    pdir.lower_to_language_level()
+    with caplog.at_level(logging.WARNING):
+        pdir.lower_to_language_level()
     assert ("Lowering 'OMPParallelDirective' detected a possible race "
             "condition for symbol 'a'. Make sure this is a false WaW "
             "dependency or the code includes the necessary synchronisations."
@@ -157,7 +159,8 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch, caplog):
     task_dir.addchild(in_clause)
     pdir.children[0].addchild(task_dir)
 
-    pdir.lower_to_language_level()
+    with caplog.at_level(logging.WARNING):
+        pdir.lower_to_language_level()
     assert ("Lowering 'OMPParallelDirective' detected a possible race "
             "condition for symbol 'a'. Make sure this is a false WaW "
             "dependency or the code includes the necessary synchronisations."
@@ -230,7 +233,8 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch, caplog):
     # Monkeypatch a case with shared variables that need synchronisation
     monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({}, {}, {Symbol("a")}))
-    pdir.lower_to_language_level()
+    with caplog.at_level(logging.WARNING):
+        pdir.lower_to_language_level()
     assert ("Lowering 'OMPParallelDoDirective' detected a possible race "
             "condition for symbol 'a'. Make sure this is a false WaW "
             "dependency or the code includes the necessary synchronisations."
