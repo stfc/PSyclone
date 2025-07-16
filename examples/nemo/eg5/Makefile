@@ -70,15 +70,15 @@ ifeq ($(TYPE), netcdf)
 	READ_DIR ?= $(PSYROOT)/lib/extract/netcdf
 	F90FLAGS += $$(nf-config --fflags)
 	LDFLAGS += $$(nf-config --flibs)
-	GENERATED_FILES += tra_adv-tra_adv-r?.nc
+	GENERATED_FILES += tra_adv-tra_adv-r*.nc
 else ifeq ($(TYPE), ascii)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/ascii/generic
 	READ_DIR ?= $(PSYROOT)/lib/extract/ascii
-	GENERATED_FILES += tra_adv-tra_adv-r?.ascii
+	GENERATED_FILES += tra_adv-tra_adv-r*.ascii
 else
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/binary/generic
 	READ_DIR ?= $(PSYROOT)/lib/extract/binary
-	GENERATED_FILES += tra_adv-tra_adv-r?.binary
+	GENERATED_FILES += tra_adv-tra_adv-r*.binary
 endif
 
 F90FLAGS += -I$(EXTRACT_DIR) -I$(READ_DIR)
