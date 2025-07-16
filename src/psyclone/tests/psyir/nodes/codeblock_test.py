@@ -157,6 +157,8 @@ def test_codeblock_get_symbol_names_comments_and_directives():
     assert "omp" not in sym_names
     assert "dir" not in sym_names
     assert "private" not in sym_names
+    block = psyir.walk(CodeBlock)[1]
+    sym_names = block.get_symbol_names()
     assert "Here" not in sym_names
     assert "is" not in sym_names
     assert "a" not in sym_names

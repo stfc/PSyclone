@@ -595,9 +595,29 @@ def test_lost_program_comments():
     reader = FortranReader(ignore_comments=False)
     code = """program a
     integer :: i ! inline here
+
     ! Comment here
     i = 1
     end program"""
     psyir = reader.psyir_from_source(code)
+    assert (psyir.children[0].symbol_table.lookup("i").inline_comment ==
+            "inline here")
     assignment = psyir.walk(Assignment)[0]
     assert assignment.preceding_comment == "Comment here"
+
+
+def test_directive_at_end():
+    """Test that the FortranReader stores a directive after all
+    other code in a subroutine."""
+
+    code = """subroutine x
+    integer :: i
+    i = i + 1
+    !$omp barrier
+    end subroutine"""
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    # The directive is a codeblock
+    assert isinstance(routine.children[-1], CodeBlock)
+    assert routine.children[-1].debug_string() == "!$omp barrier\n"

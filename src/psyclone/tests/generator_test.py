@@ -874,6 +874,10 @@ end subroutine a
                 in caplog.record_tuples[0][2])
     output, _ = capsys.readouterr()
 
+
+def test_keep_comments_lfric(capsys, monkeypatch):
+    '''Test that the LFRic API correctly keeps comments and directives
+    when applied the appropriate arguments.'''
     # Test this for LFRIC algorithm domain.
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     filename = os.path.join(LFRIC_BASE_PATH,
@@ -890,7 +894,10 @@ end subroutine a
     assert "! Here is a comment" in output
     assert "!$omp barrier" in output
 
-    # FIXME Test Gocean
+
+def test_keep_comments_gocean(capsys, monkeypatch):
+    '''Test that the GOcean API correctly keeps comments and directives
+    when applied the appropriate arguments.'''
     filename = os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90")
     main([filename, "-api", "gocean"])
     output, _ = capsys.readouterr()

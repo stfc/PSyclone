@@ -33,10 +33,12 @@
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
 ! Modified I. Kavcic, Met Office
+! Modified A. B. G. Chalk, STFC Daresbury Lab
 
 program single_invoke
 
-  ! Description: single function specified in an invoke call
+  ! Description: single function specified in an invoke call. Added directive
+  ! and comment to test keep-comments and keep-directives functionality.
   use constants_mod, only: r_def
   use field_mod,     only: field_type
   use testkern_mod,  only: testkern_type
