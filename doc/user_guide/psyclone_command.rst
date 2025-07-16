@@ -104,7 +104,8 @@ by the command:
      --log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}
                            sets the level of the logging (defaults to OFF).
      --log-file LOG_FILE   sets the output file to use for logging (defaults to stderr).
-      --keep-comments       keeps comments from the original code (defaults to False).
+     --keep-comments       keeps comments from the original code (defaults to False).
+                           Directives are not kept with this option (use --keep-directives).
      --keep-directives     keeps directives from the original code (defaults to False).
 
 Basic Use
@@ -452,4 +453,9 @@ some limitations:
      kept.
   2. Directives are kept as ``CodeBlock`` nodes in the PSyIR which means
      some transformations will be unavailable on regions containing these
-     nodes.
+     nodes. Also PSyclone will not know any details about these nodes
+     (including that they contain directives) but this functionality will
+     be improved over time.
+
+Note that using the ``keep-comments`` option alone means that any comments
+that PSyclone interprets as directives will be lost from the input.
