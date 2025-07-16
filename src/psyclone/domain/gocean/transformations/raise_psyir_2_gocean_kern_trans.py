@@ -244,7 +244,6 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
                                        symbol_table=gotable.detach())
         for child in routine.pop_all_children():
             gokernsched.addchild(child)
-
         routine.replace_with(gokernsched)
 
 

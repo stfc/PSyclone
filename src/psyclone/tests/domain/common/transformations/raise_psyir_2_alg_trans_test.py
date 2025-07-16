@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: A. R. Porter,  S. Siso and A. B. G. Chalk,  STFC Daresbury Lab
 
 '''Module containing tests for the translation of PSyIR to PSyclone
 Algorithm PSyIR.
@@ -539,10 +539,8 @@ def test_multi_name():
 
 
 def test_apply_keep_comments():
-    '''Test that an invoke with an array reference argument is transformed
-    into PSyclone-specific AlgorithmInvokeCall and KernelFunctor
-    classes.
-
+    '''Test that comment nodes are correctly kept on an invoke when the
+    RaisePSyIR2AlgTrans is applied.
     '''
     code = (
         "subroutine alg()\n"

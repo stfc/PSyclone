@@ -522,7 +522,9 @@ def main(arguments):
     )
     parser.add_argument(
         "--keep-comments", default=False, action="store_true",
-        help="keeps comments from the original code (defaults to False)."
+        help="keeps comments from the original code (defaults to False). "
+             "Directives are not kept with this option (use "
+             "--keep-directives)."
     )
     parser.add_argument(
         "--keep-directives", default=False, action="store_true",
