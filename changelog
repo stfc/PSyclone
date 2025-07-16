@@ -1,3 +1,6 @@
+   48) PR #2977 for #2971. Move the OMPTaskLoopTrans from transformations.py
+   to psyir/transformations.
+
    47) PR #2997 for #223. Add support for logical operators in the SymPy
    comparisons.
 
