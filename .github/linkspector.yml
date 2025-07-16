@@ -3,6 +3,8 @@ dirs:
 useGitIgnore: true
 ignorePatterns:
   - pattern: '^https://mybinder.org/v2/gh/stfc/psyclone'
+  - pattern: '^https://codecov.io/gh/stfc/PSyclone'
+  - pattern: '^\.'
 replacementPatterns:
   - pattern: '^https:\/\/(psyclone.*\.readthedocs\.io\/en)\/stable$'
     replacement: 'https://$1/latest'

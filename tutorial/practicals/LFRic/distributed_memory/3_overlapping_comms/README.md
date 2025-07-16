@@ -67,11 +67,11 @@ As transformations are objects we also need to create an instance of
 
 If you would like to find out more about this transformation, it is
 documented in the
-[User Guide](https://psyclone.readthedocs.io/en/latest/lfric.html)
+[User Guide](https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html)
 (search for `LFRicAsyncHaloExchangeTrans`).
 
 Traversing the PSyIR tree is discussed in the [user
-guide](https://psyclone.readthedocs.io/en/latest/psyir.html) (search
+guide](https://psyclone.readthedocs.io/en/latest/user_guide/psyir.html) (search
 for Tree Navigation) and in one of the [notebook
 tutorials](../../../../notebooks/introduction.ipynb).
 

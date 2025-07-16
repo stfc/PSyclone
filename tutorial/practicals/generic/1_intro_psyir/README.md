@@ -166,7 +166,7 @@ content of the program (the sequence of executable statements) as children.
 ## 3. Interpreting the PSyIR ##
 
 The basic structure and means of navigating the PSyIR are covered in the
-[PSyIR - Tree navigation documentation](https://psyclone.readthedocs.io/en/latest/psyir.html#tree-navigation).
+[PSyIR - Tree navigation documentation](https://psyclone.readthedocs.io/en/latest/user_guide/psyir.html#tree-navigation).
 In summary, all nodes in the PSyIR have `parent` and `children`
 properties and a `walk` method which may be used to find all nodes of
 a given type (or types) below the current node. Various sub-classes of

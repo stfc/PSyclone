@@ -95,7 +95,7 @@ becomes `setval_field_w3_`).
 The new kernel updates a field on a discontinuous function space
 `W3` so you will need to correct the access metadata for the updated
 field from `GH_INC` to `GH_READWRITE` (see [here](
-https://psyclone.readthedocs.io/en/latest/lfric.html#valid-access-modes)
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#valid-access-modes)
 for more information of valid access modes depending on the function
 space that a field argument is defined on).
 
