@@ -12,7 +12,7 @@ jobs:
         with:
           github_token: ${{ secrets.github_token }}
           reporter: github-pr-check
-          config_file: '.github/linkspector.yml'
           fail_on_error: true
-          filter-mode: nofilter
+          config_file: '.github/linkspector.yml'
+          filter_mode: nofilter
           show_stats: true
