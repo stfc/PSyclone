@@ -45,7 +45,7 @@ def test_read_write_info():
     '''
 
     rwi = ReadWriteInfo()
-    assert rwi.set_of_all_used_vars == set()
+    assert rwi.all_used_vars_list == []
     assert rwi.read_list == []
     assert rwi.signatures_read == []
     assert rwi.write_list == []
@@ -58,9 +58,9 @@ def test_add_read():
     rwi = ReadWriteInfo()
     sig_b = Signature("b")
     rwi.add_read(sig_b)
-    correct = set()
-    correct.add(("", sig_b))
-    assert rwi.set_of_all_used_vars == correct
+    correct = []
+    correct.append(("", sig_b))
+    assert rwi.all_used_vars_list == correct
     assert rwi.read_list == [("", sig_b)]
     assert rwi.signatures_read == [sig_b]
 
@@ -68,15 +68,15 @@ def test_add_read():
     # 'a' is added later, it must be first in the output list:
     sig_a = Signature("a")
     rwi.add_read(sig_a)
-    correct.add(("", sig_a))
-    assert rwi.set_of_all_used_vars == correct
+    correct.insert(0, ("", sig_a))
+    assert rwi.all_used_vars_list == correct
     assert rwi.read_list == [("", sig_a), ("", sig_b)]
     assert rwi.signatures_read == [sig_a, sig_b]
 
     sig_c = Signature("c")
     rwi.add_read(sig_c, "c_mod")
-    correct.add(("c_mod", sig_c))
-    assert rwi.set_of_all_used_vars == correct
+    correct.append(("c_mod", sig_c))
+    assert rwi.all_used_vars_list == correct
     assert rwi.read_list == [("", sig_a), ("", sig_b), ("c_mod", sig_c)]
     assert rwi.signatures_read == [sig_a, sig_b, sig_c]
 
@@ -89,9 +89,9 @@ def test_add_write():
     rwi = ReadWriteInfo()
     sig_b = Signature("b")
     rwi.add_write(sig_b)
-    correct = set()
-    correct.add(("", sig_b))
-    assert rwi.set_of_all_used_vars == correct
+    correct = []
+    correct.append(("", sig_b))
+    assert rwi.all_used_vars_list == correct
     assert rwi.write_list == [("", sig_b)]
     assert rwi.signatures_written == [sig_b]
 
@@ -99,15 +99,15 @@ def test_add_write():
     # 'a' is added later, it must be first in the output list:
     sig_a = Signature("a")
     rwi.add_write(sig_a)
-    correct.add(("", sig_a))
-    assert rwi.set_of_all_used_vars == correct
+    correct.insert(0, ("", sig_a))
+    assert rwi.all_used_vars_list == correct
     assert rwi.write_list == [("", sig_a), ("", sig_b)]
     assert rwi.signatures_written == [sig_a, sig_b]
 
     sig_c = Signature("c")
     rwi.add_write(sig_c, "c_mod")
-    correct.add(("c_mod", sig_c))
-    assert rwi.set_of_all_used_vars == correct
+    correct.append(("c_mod", sig_c))
+    assert rwi.all_used_vars_list == correct
     assert rwi.write_list == [("", sig_a), ("", sig_b), ("c_mod", sig_c)]
     assert rwi.signatures_written == [sig_a, sig_b, sig_c]
 

@@ -34,8 +34,7 @@
 # Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified by R. W. Ford, STFC Daresbury Lab
 
-''' Tests the KernelImportsToArguments Transformation for the GOcean
-1.0 API.'''
+''' Tests the KernelImportsToArguments Transformation for the GOcean API.'''
 
 import os
 import pytest
@@ -158,16 +157,16 @@ def test_kernelimportstoargumentstrans(monkeypatch):
 
     # 3) Has converted the Kernel Schedule symbol into an argument which is
     # in also the last position
-    ksymbol = kernel.get_kernel_schedule().symbol_table.lookup("rdt")
+    ksymbol = kernel.get_callees()[0].symbol_table.lookup("rdt")
     assert ksymbol.is_argument
-    assert kernel.get_kernel_schedule().symbol_table.argument_list[-1] == \
+    assert kernel.get_callees()[0].symbol_table.argument_list[-1] == \
         ksymbol
-    assert len(kernel.get_kernel_schedule().symbol_table.argument_list) == \
+    assert len(kernel.get_callees()[0].symbol_table.argument_list) == \
         len(kernel.args) + 2  # GOcean kernels have 2 implicit arguments
 
     # Check the kernel code is generated as expected
     fwriter = FortranWriter()
-    kernel_code = fwriter(kernel.get_kernel_schedule())
+    kernel_code = fwriter(kernel.get_callees()[0])
     assert "subroutine kernel_with_use_code(ji,jj,istep,ssha,tmask,rdt)" \
         in kernel_code
     assert "real, intent(inout) :: rdt" in kernel_code
@@ -211,7 +210,8 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch):
     trans.apply(kernel)
 
     fwriter = FortranWriter()
-    kernel_code = fwriter(kernel.get_kernel_schedule())
+    kernels = kernel.get_callees()
+    kernel_code = fwriter(kernels[0])
 
     assert ("subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
             "magic)" in kernel_code)
@@ -289,7 +289,8 @@ def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
     monkeypatch.setattr(DataSymbol, "resolve_type", create_data_symbol)
 
     for num, kernel in enumerate(invoke.schedule.coded_kernels()):
-        kschedule = kernel.get_kernel_schedule()
+        kernels = kernel.get_callees()
+        kschedule = kernels[0]
 
         trans.apply(kernel)
 
