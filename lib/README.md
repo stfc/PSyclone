@@ -80,7 +80,7 @@ Fortran compiler (``gfortran``), i.e. simply running ``make`` will build a
 wrapper library with the version of ``gfortran`` available in a user's
 environment. The compilation flags vary from one library to another (they
 are usually set to debugging). As for the compilation of the [API examples](
-https://psyclone.readthedocs.io/en/latest/examples.html#compilation), these
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/examples_intro.html#compilation), these
 flags can be set to a different compiler. For instance,
 
 ```shell
@@ -88,7 +88,7 @@ F90=ifort F90FLAGS="-g -check bounds" make
 ```
 
 Similar to compilation of the [examples](
-https://psyclone.readthedocs.io/en/latest/examples.html#compilation), the
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/examples_intro.html#compilation), the
 compiled library can be removed by running ``make clean``. There is also
 the ``allclean`` target that removes the compiled wrapper library as well
 as the compiled infrastructure library that the wrapper may
@@ -96,7 +96,7 @@ as the compiled infrastructure library that the wrapper may
 
 The compilation of wrapper libraries was tested with the Gnu and Intel
 Fortran compilers, see [here](
-https://psyclone.readthedocs.io/en/latest/examples.html#supported-compilers)
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/examples_intro.html#supported-compilers)
 for the full list. Please let the PSyclone developers know if you have
 problems using a compiler that has been tested or if you are working
 with a different compiler.
@@ -118,7 +118,7 @@ to the API they are used for. [GOcean API](
 https://psyclone.readthedocs.io/en/stable/gocean1p0.html) uses the
 [``dl_esm_inf`` library](https://github.com/stfc/dl_esm_inf) and
 [LFRic API](
-https://psyclone.readthedocs.io/en/latest/lfric.html)
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html)
 uses the LFRic infrastructure (see the linked documentation on how to
 access and use the LFRic code). The locations of the respective
 infrastructure libraries can be configured with the variables
