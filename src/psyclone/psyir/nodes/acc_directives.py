@@ -980,11 +980,7 @@ class ACCUpdateDirective(ACCStandaloneDirective, ACCAsyncMixin):
         condition = "if_present " if self._if_present else ""
         sym_list = _sig_set_to_string(self._sig_set)
 
-        # async
-        async_str = self._build_async_string()
-
-        return \
-            f"acc update {condition}{self._direction}({sym_list}){async_str}"
+        return f"acc update {condition}{self._direction}({sym_list})"
 
 
 def _sig_set_to_string(sig_set: Set[Signature]) -> str:
