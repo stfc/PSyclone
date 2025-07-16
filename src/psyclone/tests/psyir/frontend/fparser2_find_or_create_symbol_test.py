@@ -61,7 +61,8 @@ def test_find_or_create_unresolved_symbol():
                            api="gocean", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
-    kernel_schedule = kernels[0].get_kernel_schedule()
+    kernel_schedules = kernels[0].get_callees()
+    kernel_schedule = kernel_schedules[0]
     references = kernel_schedule.walk(Reference)
 
     # Symbol in KernelSchedule SymbolTable
