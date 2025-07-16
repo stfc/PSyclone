@@ -52,145 +52,20 @@ to be extracted and run as a stand-alone application. This ability, called
 PSyKE (PSy Kernel Extractor), can be useful for benchmarking parts of a
 model, such as LFRic, without the need for using its infrastructure.
 
-.. _psyke-intro-mechanism:
+.. _psyke-use:
 
-Mechanism
-+++++++++
+Usage
+-----
 
-The code marked for extraction can be (subject to 
-:ref:`psyke-intro-restrictions`):
-
-* One or more Nodes in an Invoke (e.g. Loops containing Kernel or
-  Built-In calls, a Directive enclosing one or more Loops) or
-
-* The entire Invoke (extraction applied to all Nodes).
-
-The basic mechanism of code extraction is through applying the
-``ExtractTrans`` transformation to selected Nodes. This
+The code extraction is currently enabled by utilising an ``ExtractTrans``
+transformation in a user script (see :ref:`sec_transformations_script` section
+for more details). The basic mechanism of code extraction is through applying
+the ``ExtractTrans`` transformation to selected Nodes. This
 transformation is further sub-classed into API-specific implementations,
 ``LFRicExtractTrans`` and ``GOceanExtractTrans``. Both
 sub-classed transformations insert an instance of the ``ExtractNode``
 object into the Schedule of a specific Invoke. All Nodes marked for
 extraction become children of the ``ExtractNode``.
-
-The ``ExtractNode`` class uses the dependency analysis to detect
-which variables are input-, and which ones are output-parameters.
-The lists of variables are then passed to the ``PSyDataNode``,
-which is the base class of any ``ExtractNode`` (details of
-the ``PSyDataNode`` can be found in :ref:`psy_data`). This
-node then creates the actual code, as in the following LFRic example::
-
-      ! ExtractStart
-      !
-      CALL extract_psy_data%PreStart("testkern_mod", "testkern_code", 4, 2)
-      CALL extract_psy_data%PreDeclareVariable("a", a)
-      CALL extract_psy_data%PreDeclareVariable("f2", f2)
-      CALL extract_psy_data%PreDeclareVariable("m1", m1)
-      CALL extract_psy_data%PreDeclareVariable("m2", m2)
-      CALL extract_psy_data%PreDeclareVariable("map_w1", map_w1)
-      ...
-      CALL extract_psy_data%PreDeclareVariable("undf_w3", undf_w3)
-      CALL extract_psy_data%PreDeclareVariable("f1_post", f1)
-      CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
-      CALL extract_psy_data%PreEndDeclaration
-      CALL extract_psy_data%ProvideVariable("a", a)
-      CALL extract_psy_data%ProvideVariable("f2", f2)
-      CALL extract_psy_data%ProvideVariable("m1", m1)
-      CALL extract_psy_data%ProvideVariable("m2", m2)
-      CALL extract_psy_data%ProvideVariable("map_w1", map_w1)
-      ...
-      CALL extract_psy_data%ProvideVariable("undf_w3", undf_w3)      
-      CALL extract_psy_data%PreEnd
-      DO cell=1,f1_proxy%vspace%get_ncell()
-        !
-        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,  &
-             m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1,           &
-             map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, &
-             undf_w3, map_w3(:,cell))
-      END DO 
-      CALL extract_psy_data%PostStart
-      CALL extract_psy_data%ProvideVariable("cell_post", cell)
-      CALL extract_psy_data%ProvideVariable("f1_post", f1)
-      CALL extract_psy_data%PostEnd
-      !
-      ! ExtractEnd
-
-The :ref:`PSyData API <psy_data>` relies on generic Fortran interfaces to
-provide the  field-type-specific implementations of the ``ProvideVariable``
-for different types. This means that a different version of the external
-PSyData library that PSyKE uses must be supplied for each PSyclone API.
-
-.. _psyke-intro-restrictions:
-
-Restrictions
-++++++++++++
-
-Code extraction can be applied to unoptimised or optimised code. There are
-restrictions that check for correctness of optimising transformations when
-extraction is applied, as well as restrictions that eliminate dependence on
-the specific model infrastructure.
-
-.. _psyke-intro-restrictions-gen:
-
-General
-#######
-
-This group of restrictions is enforced irrespective of whether optimisations
-are used or not.
-
-* Extraction can be applied to a single Node or a list of Nodes in a
-  Schedule. For the latter, Nodes in the list must be consecutive children
-  of the same parent Schedule.
-
-* Extraction cannot be applied to an ``ExtractNode`` or a Node list that
-  already contains one (otherwise we would have an extract region within
-  another extract region).
-
-* A Kernel or a Built-In call cannot be extracted without its parent Loop.
-
-.. _psyke-intro-restrictions-dm:
-
-Distributed memory
-##################
-
-Kernel extraction for distributed memory is supported in as much as each
-process will write its own output file by adding its rank to the output
-file name. So each kernel and each rank will produce one file. It is possible
-to extract several consecutive kernels, but there must be no halo exchange
-calls between the kernels. The extraction transformation will test for this
-and raise an exception if this should happen.
-The compiled driver program accepts the name of the extracted kernel file as
-a command line parameter. If this is not specified, it will use the default
-name (``module-region`` without a rank).
-
-
-.. _psyke-intro-restrictions-shared:
-
-Shared memory and API-specific
-##############################
-
-The ``ExtractTrans`` transformation cannot be applied to:
-
-* A Loop without its parent Directive,
-
-* An orphaned Directive (e.g. ``OMPDoDirective``, ``ACCLoopDirective``)
-  without its parent Directive (e.g. ACC or OMP Parallel Directive),
-
-* A Loop over cells in a colour without its parent Loop over colours in
-  the LFRic API,
-
-* An inner Loop without its parent outer Loop in the GOcean API.
-
-* Kernels that have a halo exchange call between them.
-
-.. _psyke-use:
-
-Use
----
-
-The code extraction is currently enabled by utilising a transformation
-script (see :ref:`sec_transformations_script` section for more details).
-
 For example, the transformation script which extracts the first Kernel call
 in LFRic API test example ``15.1.2_builtin_and_normal_kernel_invoke.f90``
 would be written as:
@@ -279,7 +154,8 @@ to insert the extract region. As shown below, all children of an
               0: CodedKern testkern_code(scalar,f1,f2,f3,f4) [module_inline=False]
 
 To extract multiple Nodes, ``ExtractTrans`` can be applied to the list
-of Nodes (subject to :ref:`psyke-intro-restrictions-gen` restrictions above):
+of Nodes (subject to :ref:`psyke-intro-restrictions-gen` restrictions above).
+
 
 .. code-block:: python
 
@@ -303,6 +179,54 @@ This modifies the above Schedule as:
                   Schedule[]
                       0: CodedKern testkern_code_w2_only(f3,f2) [module_inline=False]
   ...
+
+
+The ``ExtractNode`` class uses the dependency analysis to detect
+which variables are input-, and which ones are output-parameters.
+The lists of variables are then passed to the ``PSyDataNode``,
+which is the base class of any ``ExtractNode`` (details of
+the ``PSyDataNode`` can be found in :ref:`psy_data`). This
+node then creates the actual code, as in the following LFRic example::
+
+      ! ExtractStart
+      !
+      CALL extract_psy_data%PreStart("testkern_mod", "testkern_code", 4, 2)
+      CALL extract_psy_data%PreDeclareVariable("a", a)
+      CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreDeclareVariable("m1", m1)
+      CALL extract_psy_data%PreDeclareVariable("m2", m2)
+      CALL extract_psy_data%PreDeclareVariable("map_w1", map_w1)
+      ...
+      CALL extract_psy_data%PreDeclareVariable("undf_w3", undf_w3)
+      CALL extract_psy_data%PreDeclareVariable("f1_post", f1)
+      CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
+      CALL extract_psy_data%PreEndDeclaration
+      CALL extract_psy_data%ProvideVariable("a", a)
+      CALL extract_psy_data%ProvideVariable("f2", f2)
+      CALL extract_psy_data%ProvideVariable("m1", m1)
+      CALL extract_psy_data%ProvideVariable("m2", m2)
+      CALL extract_psy_data%ProvideVariable("map_w1", map_w1)
+      ...
+      CALL extract_psy_data%ProvideVariable("undf_w3", undf_w3)
+      CALL extract_psy_data%PreEnd
+      DO cell=1,f1_proxy%vspace%get_ncell()
+        !
+        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,  &
+             m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1,           &
+             map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, &
+             undf_w3, map_w3(:,cell))
+      END DO
+      CALL extract_psy_data%PostStart
+      CALL extract_psy_data%ProvideVariable("cell_post", cell)
+      CALL extract_psy_data%ProvideVariable("f1_post", f1)
+      CALL extract_psy_data%PostEnd
+      !
+      ! ExtractEnd
+
+The :ref:`PSyData API <psy_data>` relies on generic Fortran interfaces to
+provide the  field-type-specific implementations of the ``ProvideVariable``
+for different types. This means that a different version of the external
+PSyData library that PSyKE uses must be supplied for each PSyclone API.
 
 As said above, extraction can be performed on optimised code. For example,
 the following example transformation script first adds ``!$OMP PARALLEL DO``
@@ -370,6 +294,82 @@ apply code extraction by utilising PSyclone transformation scripts
 in ``examples/lfric/eg17/full_example_extract`` can be compiled and
 run, and it will create two kernel data files.
 
+
+.. _psyke-intro-restrictions:
+
+Restrictions
+++++++++++++
+
+Code extraction can be applied to unoptimised or optimised code. There are
+restrictions that check for correctness of optimising transformations when
+extraction is applied, as well as restrictions that eliminate dependence on
+the specific model infrastructure.
+
+.. _psyke-intro-restrictions-gen:
+
+General
+#######
+
+This group of restrictions is enforced irrespective of whether optimisations
+are used or not.
+
+* Extraction can be applied to a single Node or a list of Nodes in a
+  Schedule. For the latter, Nodes in the list must be consecutive children
+  of the same parent Schedule.
+
+* Extraction cannot be applied to an ``ExtractNode`` or a Node list that
+  already contains one (otherwise we would have an extract region within
+  another extract region).
+
+* A Kernel or a Built-In call cannot be extracted without its parent Loop.
+
+* The extraction code will now write variables that are used from other
+  modules to the kernel data file, and the driver will read these values in.
+  Unfortunately, if a variable is used that is defined as ``private`` or
+  ``protected``, the value cannot be written to the file, and compilation
+  will abort. The only solution is to modify this file and make all variables
+  public.
+
+  * The new build system FAB will be able to remove ``private`` and
+    ``protected`` declarations in any source files, meaning no manual
+    modification of files is required anymore (TODO #2536).
+
+.. _psyke-intro-restrictions-dm:
+
+Distributed memory
+##################
+
+Kernel extraction for distributed memory is supported in as much as each
+process will write its own output file by adding its rank to the output
+file name. So each kernel and each rank will produce one file. It is possible
+to extract several consecutive kernels, but there must be no halo exchange
+calls between the kernels. The extraction transformation will test for this
+and raise an exception if this should happen.
+The compiled driver program accepts the name of the extracted kernel file as
+a command line parameter. If this is not specified, it will use the default
+name (``module-region`` without a rank).
+
+
+.. _psyke-intro-restrictions-shared:
+
+Shared memory and API-specific
+##############################
+
+The ``ExtractTrans`` transformation cannot be applied to:
+
+* A Loop without its parent Directive,
+
+* An orphaned Directive (e.g. ``OMPDoDirective``, ``ACCLoopDirective``)
+  without its parent Directive (e.g. ACC or OMP Parallel Directive),
+
+* A Loop over cells in a colour without its parent Loop over colours in
+  the LFRic API,
+
+* An inner Loop without its parent outer Loop in the GOcean API.
+
+* Kernels that have a halo exchange call between them.
+
+
 .. _extraction_libraries:
 
 Extraction Libraries
@@ -428,7 +428,7 @@ and
 implement the full PSyData API for use with the
 :ref:`GOcean <gocean-api>` dl_esm_inf infrastructure library.
 When running the instrumented executable, it will create a corresponding
-kernel data file for each instrumented
+data file for each instrumented
 code region. It includes all variables that are read before the code
 is executed, and all variables that have been modified. The output
 variables have the postfix ``_post`` attached to the names,
@@ -441,7 +441,7 @@ sizes stored as ``xyzdim1``, ``xyzdim2`` for the input values,
 and output arrays use the name ``xyz_postdim1``, ``xyz_postdim2``.
 
 .. note:: The stand-alone libraries do not store the names of the
-    variables in the output file, but these are the variable names
+    variables in the output file, but will match the variable names
     in the created driver.
 
 The output file contains the values of all variables used in the
@@ -554,22 +554,6 @@ Note that the Makefile in the example will actually provide additional include
 paths (infrastructure files and extraction library) for the compiler, but
 these flags are actually only required for compiling the example program, not
 for the driver.
-
-Restrictions of Kernel Extraction and Driver Creation
-#####################################################
-A few restrictions still apply to the current implementation of the driver
-creation code:
-
-- Distributed memory is not yet supported. See #1992.
-- The extraction code will now write variables that are used from other
-  modules to the kernel data file, and the driver will read these values in.
-  Unfortunately, if a variable is used that is defined as private,
-  the value cannot be written to the file, and compilation will abort.
-  The only solution is to modify this file and make all variables public.
-  This mostly affects ``log_mod.F90``, but a few other modules as well.
-- The new build system FAB will be able to remove ``private`` and
-  ``protected`` declarations in any source files, meaning no manual
-  modification of files is required anymore (TODO #2536).
 
 Extraction for generic Fortran
 ++++++++++++++++++++++++++++++

@@ -153,4 +153,4 @@ A simple stand-alone example that shows how data can be extracted for
 each loop nest using PSyclone's kernel extraction feature PSyKE. Note
 that creation of a driver program (which reads the data files,
 execute the original loop and then compares the results) is not yet
-support for generic transformations.
+supported for generic transformations.
