@@ -47,15 +47,19 @@
 
 include ../../common.mk
 
-# There are two different extraction libraries that can be used:
-# 1) standalone, which uses Fortan binary data files to store the data
-# 2) netcdf, which uses NetCDF for writing the data files.
-# The library can be selected by setting TYPE to either 'standalone'
-# (which is the default) or 'netcdf'. Note that both libraries implement
-# the same API, so no change to any script is required for switching
-# between the two libraries, but recompilation is required (since the
-# .mod files will be different).
-TYPE ?= standalone
+# There are three different extraction libraries that can be used:
+# 1) binary, which uses Fortan binary data files to store the data
+#    (which might not be transferable between different machines or
+#     or different compilers)
+# 2) ascii, which uses Fortan ASCII data files to store the data
+#    (which might depending on compiler not have bitwise identical results)
+# 3) netcdf, which uses NetCDF for writing the data files.
+# The library can be selected by setting TYPE to either 'binary'
+# (which is the default), 'ascii', or 'netcdf'. Note that both
+# libraries implement the same API, so no change to any script is required
+# for switching between the two libraries, but recompilation is required
+# (since the .mod files will be different).
+TYPE ?= binary
 
 GENERATED_FILES += psy.f90 psy.o traadv-$(TYPE).exe output.dat
 
@@ -65,12 +69,16 @@ ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/generic
 	READ_DIR ?= $(PSYROOT)/lib/extract/netcdf
 	F90FLAGS += $$(nf-config --fflags)
-	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
-	GENERATED_FILES += tra_adv-r?.nc
+	LDFLAGS += $$(nf-config --flibs)
+	GENERATED_FILES += tra_adv-tra_adv-r?.nc
+else ifeq ($(TYPE), ascii)
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/ascii/generic
+	READ_DIR ?= $(PSYROOT)/lib/extract/ascii
+	GENERATED_FILES += tra_adv-tra_adv-r?.ascii
 else
-	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/generic
-	READ_DIR ?= $(PSYROOT)/lib/extract/standalone
-	GENERATED_FILES += tra_adv-r?.binary
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/binary/generic
+	READ_DIR ?= $(PSYROOT)/lib/extract/binary
+	GENERATED_FILES += tra_adv-tra_adv-r?.binary
 endif
 
 F90FLAGS += -I$(EXTRACT_DIR) -I$(READ_DIR)
