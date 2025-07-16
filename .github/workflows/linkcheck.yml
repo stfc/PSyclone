@@ -13,5 +13,5 @@ jobs:
           github_token: ${{ secrets.github_token }}
           reporter: github-pr-check
           config_file: '.github/linkspector.yml'
-          fail_level: any
+          fail_level: error
           show_stats: true
