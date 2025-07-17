@@ -44,7 +44,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 import os
 import sys
-from typing import Iterable
+from typing import Iterable, Optional
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
@@ -974,9 +974,9 @@ class Fparser2Reader():
             'class default' clauses, or -1 if no default clause is found.
 
         """
-        guard_type: list[str | None] = field(default_factory=list)
-        guard_type_name: list[str | None] = field(default_factory=list)
-        intrinsic_type_name: list[str | None] = field(default_factory=list)
+        guard_type: list[Optional[str]] = field(default_factory=list)
+        guard_type_name: list[Optional[str]] = field(default_factory=list)
+        intrinsic_type_name: list[Optional[str]] = field(default_factory=list)
         clause_type: list[str] = field(default_factory=list)
         stmts: list[list[StmtBase]] = field(default_factory=list)
         selector: str = ""
