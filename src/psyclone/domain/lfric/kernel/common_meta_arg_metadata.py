@@ -32,7 +32,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modifier L. Turner, Met Office
 
 '''Module containing the abstract CommonMetaArgMetadata class which
 captures the metadata associated with an LFRic meta_arg
@@ -187,7 +186,7 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         :returns: the vector length value extracted from the fparser2 tree.
         :rtype: str
 
-        :raises TypeError: if the vector length metadata is not in the
+        :raises TypeError: if the vector length metadata is not in the \
             expected form.
 
         '''
