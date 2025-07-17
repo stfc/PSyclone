@@ -72,6 +72,7 @@ SKIP_FOR_PERFORMANCE = [
     "iom_nf90.f90",
     "iom_def.f90",
     "timing.f90",
+    "lbclnk.f90",
 ]
 
 OFFLOADING_ISSUES = [
@@ -90,6 +91,8 @@ OFFLOADING_ISSUES = [
     "trcbdy.f90",
     "icedyn_rdgrft.f90",
     "bdyice.f90",
+    "trcais.f90",
+    "zdfiwm.f90",
     # NEMOv4: Compilation issue
     "icbdia.f90",
 ]
@@ -140,16 +143,15 @@ def trans(psyir):
                 subroutine.name.endswith('_init') or
                 subroutine.name.startswith('Agrif') or
                 subroutine.name.startswith('dia_') or
-                subroutine.name == 'dom_msk' or
-                subroutine.name == 'dom_zgr' or
-                subroutine.name == 'dom_ngb'):
+                psyir.name.startswith('dom')):
             continue
 
         enhance_tree_information(subroutine)
         normalise_loops(
                 subroutine,
                 hoist_local_arrays=False,
-                convert_array_notation=True,
+                # TODO #2951 NEMOV5 fldread has problem with StructuresRefs
+                convert_array_notation=psyir.name != "fldread.f90",
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
                 hoist_expressions=True,

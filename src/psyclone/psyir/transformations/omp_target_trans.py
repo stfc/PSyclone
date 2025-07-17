@@ -162,18 +162,23 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
             attempts to enclose the assingment setting the return value.
         '''
         device_string = options.get("device_string", "") if options else ""
+        strings = options.get("allow_strings", False) if options else False
+        verbose = options.get("verbose", False) if options else False
         node_list = self.get_node_list(node)
         super().validate(node, options)
         for node in node_list:
             for call in node.walk(Call):
                 if not call.is_available_on_device(device_string):
                     device_str = device_string if device_string else "default"
-                    raise TransformationError(
+                    message = (
                         f"'{call.routine.name}' is not available on the"
                         f" '{device_str}' accelerator device, and therefore "
                         f"it cannot be called from within an OMP Target "
                         f"region. Use the 'device_string' option to specify a "
                         f"different device.")
+                    if verbose:
+                        node.preceding_comment = message
+                    raise TransformationError(message)
         routine = node.ancestor(Routine)
         if routine and routine.return_symbol:
             # if it is a function, the target must not include its return sym
@@ -185,18 +190,27 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
                             f"a function return value symbol, but found one in"
                             f" '{routine.return_symbol.name}'.")
 
-        for check_node in node_list:
-            for datanode in check_node.walk((Reference, Literal)):
-                dtype = datanode.datatype
-                # Don't allow CHARACTERS on GPU
-                # TODO: This check is incomplete because it allows to pass
-                # UnresolvedType, that if resolved would point to a character
-                if hasattr(dtype, "intrinsic"):
-                    if dtype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-                        raise TransformationError(
-                            f"OpenMP Target cannot enclose a region that uses "
-                            f"characters, but found: {datanode.debug_string()}"
-                        )
+        if not strings:
+            for check_node in node_list:
+                for datanode in check_node.walk((Reference, Literal),
+                                                stop_type=Reference):
+                    dtype = datanode.datatype
+                    # Don't allow CHARACTERS on GPU
+                    if hasattr(dtype, "intrinsic"):
+                        if dtype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                            message = (
+                                f"OpenMP Target cannot enclose a region that "
+                                f"uses characters, but found: "
+                                f"{datanode.debug_string()}"
+                            )
+                            if verbose:
+                                node.preceding_comment = message
+                            raise TransformationError(message)
+                    # TODO #3054: Deal with UnresolvedType
+                    # if isinstance(dtype, UnresolvedType):
+                    #     raise TransformationError(
+                    #             f"Type of {datanode.debug_string()} is "
+                    #             f"unresolved")
 
     def apply(self, node, options=None):
         ''' Insert an OMPTargetDirective before the provided node or list

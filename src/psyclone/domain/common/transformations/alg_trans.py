@@ -89,7 +89,7 @@ class AlgTrans(Transformation):
         '''
         self.validate(psyir, options=options)
         idx = 0
-        for call in psyir.walk(Call):
+        for call in psyir.walk(Call, stop_type=Call):
             if call.routine.name.lower() == "invoke":
                 self._invoke_trans.apply(call, idx, options=options)
                 idx += 1

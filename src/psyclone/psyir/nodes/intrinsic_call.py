@@ -47,7 +47,7 @@ from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import IntrinsicSymbol
+from psyclone.psyir.symbols import IntrinsicSymbol, INTEGER_TYPE
 
 # pylint: disable=too-many-branches
 
@@ -918,6 +918,21 @@ class IntrinsicCall(Call):
             var_accesses.update(child.reference_accesses())
         return var_accesses
 
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of the result of this IntrinsicCall.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        '''
+        if self.intrinsic in (
+            IntrinsicCall.Intrinsic.LBOUND,
+            IntrinsicCall.Intrinsic.UBOUND,
+        ):
+            if "dim" in self.argument_names:
+                return INTEGER_TYPE
+        return super().datatype
+
     # TODO #2102: Maybe the three properties below can be removed if intrinsic
     # is a symbol, as they would act as the super() implementation.
     @property
@@ -989,7 +1004,8 @@ DEFAULT_DEVICE_INTRINISCS = NVFORTRAN_ALL
 
 # TODO #658 this can be removed once we have support for determining the
 # type of a PSyIR expression.
-# Intrinsics that perform a reduction on an array.
+# Intrinsics that perform operations on an array.
 REDUCTION_INTRINSICS = [
     IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.MINVAL,
-    IntrinsicCall.Intrinsic.MAXVAL]
+    IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.PACK,
+    IntrinsicCall.Intrinsic.COUNT]

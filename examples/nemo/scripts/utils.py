@@ -40,10 +40,10 @@ from typing import List, Union
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, ArrayReference,
-    Call, Return, IfBlock, Routine, Schedule, IntrinsicCall,
-    StructureReference)
+    Call, Return, IfBlock, Routine, Schedule, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
+    DataSymbol, INTEGER_TYPE, ScalarType, UnsupportedFortranType,
+    ArrayType, REAL_TYPE)
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
@@ -52,8 +52,11 @@ from psyclone.transformations import TransformationError
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
-    "oce", "par_oce", "par_kind", "dom_oce", "phycst", "ice",
-    "obs_fbm", "flo_oce", "sbc_ice", "wet_dry"
+    "oce", "par_oce", "par_kind", "dom_oce", "phycst", "ice", "sbc_oce",
+    "obs_fbm", "flo_oce", "sbc_ice", "wet_dry", "ldfslp", "zdfiwm", "zdfmxl",
+    "bdy_oce", "zdf_oce", "zdfdrg", "ldftra", "crs", "sbcapr", "tideini",
+    "ldfdyn", "sbcapr", "sbctide", "zdfgls", "sbcrnf", "sbcisf", "dynldf_iso",
+    "stopts", "icb_oce", "domvvl", "sms_pisces", "zdfmfc"
 ]
 
 # Files that PSyclone could process but would reduce the performance.
@@ -74,98 +77,6 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
                     "sum", "sign_", "ddpdd", "solfrac", "psyclone_cmp_int",
                     "psyclone_cmp_char", "psyclone_cmp_logical"]
 
-# Currently fparser has no way of distinguishing array accesses from
-# function calls if the symbol is imported from some other module.
-# We therefore work-around this by keeping a list of known NEMO functions
-# from v4 and v5.
-NEMO_FUNCTIONS = [
-    # Internal funtions can be obtained with:
-    # $ grep -rhi "end function" src/ | awk '{print $3}' | uniq | sort
-    'abl_alloc', 'add_xxx', 'Agrif_CFixed', 'agrif_external_switch_index',
-    'Agrif_Fixed', 'agrif_oce_alloc', 'Agrif_Root', 'alfa_charn', 'alngam',
-    'alpha_sw_sclr', 'alpha_sw_vctr', 'arr_hls', 'arr_lbnd', 'arr_lbnd_2d_dp',
-    'arr_lbnd_2d_i', 'arr_lbnd_2d_sp', 'arr_lbnd_3d_dp', 'arr_lbnd_3d_i',
-    'arr_lbnd_3d_sp', 'arr_lbnd_4d_dp', 'arr_lbnd_4d_i', 'arr_lbnd_4d_sp',
-    'arr_lbnd_5d_dp', 'arr_lbnd_5d_i', 'arr_lbnd_5d_sp', 'atg',
-    'bdy_oce_alloc', 'bdy_segs_surf', 'Cd_from_z0', 'CdN10_f_LU12',
-    'CdN10_f_LU13', 'cd_n10_ncar', 'cd_neutral_10m', 'CdN_f_LG15',
-    'CdN_f_LG15_light', 'CdN_f_LU12_eq36', 'ce_n10_ncar', 'charn_coare3p0',
-    'charn_coare3p6', 'charn_coare3p6_wave', 'check_hdom', 'ch_n10_ncar',
-    'cp_air', 'cp_air_sclr', 'cp_air_vctr', 'cpl_freq', 'crs_dom_alloc',
-    'crs_dom_alloc2', 'dayjul', 'def_newlink', 'delta_skin_layer',
-    'depth', 'dep_to_p', 'de_sat_dt_ice_sclr', 'de_sat_dt_ice_vctr',
-    'dia_ar5_alloc', 'diadct_alloc', 'dia_hth_alloc', 'dia_ptr_alloc',
-    'dia_wri_alloc', 'dom_oce_alloc', 'dom_vvl_alloc', 'dq_sat_dt_ice_sclr',
-    'dq_sat_dt_ice_vctr', 'dyn_dmp_alloc', 'dyn_ldf_iso_alloc',
-    'dyn_spg_ts_alloc', 'eos_pt_from_ct', 'e_sat_ice_sclr', 'e_sat_ice_vctr',
-    'e_sat_sclr', 'e_sat_vctr', 'exa_mpl_alloc', 'f_h_louis_sclr',
-    'f_h_louis_vctr', 'find_link', 'fintegral', 'fld_filename',
-    'flo_dom_alloc', 'flo_dstnce', 'flo_oce_alloc', 'flo_rst_alloc',
-    'flo_wri_alloc', 'f_m_louis_sclr', 'f_m_louis_vctr', 'frac_solar_abs',
-    'fspott', 'FUNCTION_GLOBMINMAX', 'FUNCTION_GLOBSUM', 'gamain',
-    'gamma_moist', 'gamma_moist_sclr', 'gamma_moist_vctr', 'get_unit',
-    'grt_cir_dis', 'grt_cir_dis_saa', 'icb_alloc', 'icb_utl_bilin',
-    'icb_utl_bilin_2d_h', 'icb_utl_bilin_3d_h', 'icb_utl_bilin_e',
-    'icb_utl_bilin_h', 'icb_utl_bilin_x', 'icb_utl_count', 'icb_utl_heat',
-    'icb_utl_mass', 'icb_utl_yearday', 'ice1D_alloc', 'ice_alloc',
-    'ice_dia_alloc', 'ice_dyn_rdgrft_alloc', 'ice_perm_eff',
-    'ice_thd_pnd_alloc', 'ice_update_alloc', 'ice_var_sshdyn', 'in_hdom',
-    'integ_spline', 'interp', 'interp1', 'interp2', 'interp3',
-    'iom_axis', 'iom_getszuld', 'iom_nf90_varid', 'iom_sdate', 'iom_use',
-    'iom_varid', 'iom_xios_setid', 'iscpl_alloc', 'is_tile', 'kiss',
-    'ksec_week', 'lib_mpp_alloc', 'linquad', 'L_vap', 'L_vap_sclr',
-    'L_vap_vctr', 'm', 'maxdist', 'mynode', 'nblinks', 'nodal_factort',
-    'oce_alloc', 'oce_SWE_alloc', 'One_on_L', 'p2z_exp_alloc',
-    'p2z_lim_alloc', 'p2z_prod_alloc', 'p4z_che_alloc', 'p4z_diaz_alloc',
-    'p4z_flx_alloc', 'p4z_lim_alloc', 'p4z_meso_alloc', 'p4z_opt_alloc',
-    'p4z_prod_alloc', 'p4z_rem_alloc', 'p4z_sed_alloc', 'p4z_sink_alloc',
-    'p5z_lim_alloc', 'p5z_meso_alloc', 'p5z_prod_alloc',
-    'PHI', 'potemp', 'pres_temp_sclr', 'pres_temp_vctr', 'prt_ctl_sum_2d',
-    'prt_ctl_sum_3d', 'prt_ctl_write_sum', 'psi_h', 'psi_h_andreas',
-    'psi_h_coare', 'psi_h_ecmwf', 'psi_h_ice', 'psi_h_mfs', 'psi_h_ncar',
-    'psi_m', 'psi_m_andreas', 'psi_m_coare', 'psi_m_ecmwf', 'psi_m_ice',
-    'psi_m_mfs', 'psi_m_ncar', 'p_to_dep', 'ptr_ci_2d', 'ptr_sj_2d',
-    'ptr_sj_3d', 'ptr_sjk', 'q_air_rh', 'qlw_net_sclr', 'qlw_net_vctr',
-    'q_sat', 'q_sat_sclr', 'q_sat_vctr', 'qsr_ext_lev', 'rho_air',
-    'rho_air_sclr', 'rho_air_vctr', 'Ri_bulk', 'Ri_bulk_sclr', 'Ri_bulk_vctr',
-    'rough_leng_m', 'rough_leng_tq', 's', 'sbc_blk_alloc', 'sbc_blk_ice_alloc',
-    'sbc_cpl_alloc', 'sbc_dcy', 'sbc_dcy_alloc', 'sbc_ice_alloc',
-    'sbc_ice_cice_alloc', 'sbc_oce_alloc', 'sbc_rnf_alloc',
-    'sbc_ssr_alloc', 'sed_adv_alloc', 'sed_alloc', 'sed_oce_alloc',
-    'sms_c14_alloc', 'sms_pisces_alloc', 'snw_ent', 'solfrac',
-    'sto_par_flt_fac', 'sum2d', 'sw_adtg', 'sw_ptmp', 'theta',
-    'theta_exner_sclr', 'theta_exner_vctr', 't_imp', 'tra_bbl_alloc',
-    'tra_dmp_alloc', 'trc_alloc', 'trc_dmp_alloc', 'trc_dmp_sed_alloc',
-    'trc_oce_alloc', 'trc_oce_ext_lev', 'trc_opt_alloc', 'trc_sms_cfc_alloc',
-    'trc_sms_my_trc_alloc', 'trc_sub_alloc', 'trd_ken_alloc', 'trd_mxl_alloc',
-    'trdmxl_oce_alloc', 'trd_mxl_trc_alloc', 'trd_pen_alloc', 'trd_tra_alloc',
-    'trd_trc_oce_alloc', 'trd_vor_alloc', 'twrk_id', 'UN10_from_CD',
-    'UN10_from_ustar', 'u_star_andreas', 'virt_temp_sclr', 'virt_temp_vctr',
-    'visc_air', 'visc_air_sclr', 'visc_air_vctr', 'w1', 'w2', 'z0_from_Cd',
-    'z0tq_LKB', 'zdf_gls_alloc', 'zdf_iwm_alloc', 'zdf_mfc_alloc',
-    'zdf_mxl_alloc', 'zdf_oce_alloc', 'zdf_osm_alloc', 'zdf_phy_alloc',
-    'zdf_tke_alloc', 'zdf_tmx_alloc',
-    # grep -rh "INTERFACE" src | grep -v "END" | awk '{print $2}' | uniq | sort
-    'alpha_sw', 'bulk_formula', 'cp_air', 'debug', 'DECAL_FEEDBACK',
-    'DECAL_FEEDBACK_2D', 'depth_to_e3', 'de_sat_dt_ice', 'dia_ar5_hst',
-    'dia_ptr_hst', 'div_hor', 'dom_tile_copyin', 'dom_tile_copyout',
-    'dq_sat_dt_ice', 'dyn_vor', 'e3_to_depth', 'eos', 'eos_fzp',
-    'eos_rab', 'e_sat', 'e_sat_ice', 'f_h_louis', 'f_m_louis',
-    'gamma_moist', 'glob_2Dmax', 'glob_2Dmin', 'glob_2Dsum', 'glob_3Dmax',
-    'glob_3Dmin', 'glob_3Dsum', 'halo_mng_resize', 'icb_utl_bilin_h',
-    'ice_var_itd', 'ice_var_snwblow', 'ice_var_snwfra', 'iom_get',
-    'iom_getatt', 'iom_nf90_get', 'iom_put', 'iom_putatt',
-    'iom_rstput', 'lbc_lnk', 'lbc_lnk_neicoll', 'lbc_lnk_pt2pt',
-    'lbc_nfd', 'lbnd_ij', 'ldf_eiv_trp', 'local_2Dmax', 'local_2Dmin',
-    'local_2Dsum', 'local_3Dmax', 'local_3Dmin', 'local_3Dsum',
-    'L_vap', 'mpp_max', 'mpp_maxloc', 'mpp_min', 'mpp_minloc',
-    'mpp_nfd', 'mpp_sum', 'pres_temp', 'prt_ctl_sum', 'ptr_mpp_sum',
-    'ptr_sj', 'ptr_sum', 'qlw_net', 'q_sat', 'rho_air', 'Ri_bulk',
-    'SIGN', 'sum3x3', 'theta_exner', 'tra_mle_trp', 'trd_vor_zint',
-    'virt_temp', 'visc_air', 'wAimp', 'wzv', 'zdf_osm_iomput',
-    'zdf_osm_velocity_rotation',
-]
-
 # Currently fparser has no way of distinguishing array accesses from statement
 # functions, the following subroutines contains known statement functions
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
@@ -179,6 +90,7 @@ PARALLELISATION_ISSUES = [
 
 PRIVATISATION_ISSUES = [
     "ldftra.f90",  # Wrong runtime results
+    "zdftke.f90",
 ]
 
 
@@ -208,41 +120,39 @@ def enhance_tree_information(schedule):
     :type schedule: :py:class:`psyclone.psyir.nodes.node`
 
     '''
-    are_integers = ('jpi', 'jpim1', 'jpj', 'jpjm1', 'jp_tem', 'jp_sal',
-                    'jpkm1', 'jpiglo', 'jpni', 'jpk', 'jpiglo_crs',
-                    'jpmxl_atf', 'jpmxl_ldf', 'jpmxl_zdf', 'jpnij',
-                    'jpts', 'jpvor_bev', 'nleapy', 'nn_ctls', 'jpmxl_npc',
-                    'jpmxl_zdfp', 'npti')
+    # These are all indirect wildcard imports that psyclone misses but are
+    # necessary to offload performance-sensitive loops.
+    are_integers = ('ntsj', 'ntsi', 'ntei', 'ntej', 'jpk', 'jpkm1', 'jpkglo',
+                    'nksr', 'Ni_0', 'Nj_0', 'Ni0glo', 'nn_hls', 'jpiglo',
+                    'Nis0', 'Nie0', 'Njs0', 'Nje0', 'ntei', 'ntej', 'jpi',
+                    'jpj')
+    are_arrays = {
+        'tmask': UnsupportedFortranType(
+                    "real(kind = wp), public, allocatable, dimension(:, :, :),"
+                    " target :: tmask",
+                    ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]*3)),
+        'e3w_1d': ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]*1),
+        'e3t_1d': ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]*1),
+        'gdept_1d': ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]*1),
+        'hmld': ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]*2),
+        'r3t': ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]*3),
+    }
 
     for reference in schedule.walk(Reference):
         if reference.symbol.name in are_integers:
-            # Manually set the datatype of some integer scalars that are
-            # important for performance
             _it_should_be(reference.symbol, ScalarType, INTEGER_TYPE)
-        elif (
-            # If its an ArrayReference ...
-            isinstance(reference, ArrayReference) and
-            # ... with the following name ...
-            (reference.symbol.name in NEMO_FUNCTIONS or
-             reference.symbol.name.startswith('local_') or
-             reference.symbol.name.startswith('glob_') or
-             reference.symbol.name.startswith('SIGN_') or
-             reference.symbol.name.startswith('netcdf_') or
-             reference.symbol.name.startswith('nf90_')) and
-            # ... and the symbol is unresolved
-            (reference.symbol.is_import or reference.symbol.is_unresolved)
-        ):
-            # The parser gets these wrong, they are Calls not ArrayRefs
-            if not isinstance(reference.symbol, RoutineSymbol):
-                # We need to specialise the generic Symbol to a Routine
-                reference.symbol.specialise(RoutineSymbol)
-            if not (isinstance(reference.parent, Call) and
+        if reference.symbol.name in are_arrays:
+            new_type = are_arrays[reference.symbol.name]
+            if not isinstance(reference.symbol, DataSymbol):
+                # We need to specialise the generic Symbol with its type
+                reference.symbol.specialise(DataSymbol, datatype=new_type)
+            if (isinstance(reference.parent, Call) and
                     reference.parent.routine is reference):
-                # We also need to replace the Reference node with a Call
-                call = Call.create(reference.symbol)
-                for child in reference.children[:]:
-                    call.addchild(child.detach())
-                reference.replace_with(call)
+                # We also need to replace the Call with an ArrayRef
+                array_ref = ArrayReference.create(reference.symbol, [])
+                for child in reference.parent.arguments:
+                    array_ref.addchild(child.detach())
+                reference.parent.replace_with(array_ref)
 
 
 def inline_calls(schedule):
@@ -353,9 +263,14 @@ def normalise_loops(
                     continue
             if isinstance(reference.symbol, DataSymbol):
                 try:
-                    Reference2ArrayRangeTrans().apply(reference)
+                    Reference2ArrayRangeTrans().apply(
+                        reference, options={'verbose': True})
                 except TransformationError:
                     pass
+        # The transformation above brings new symbols from dimension
+        # expressions, we want these symbols to have all typing information
+        # possible as these are offloading candidates
+        enhance_tree_information(schedule)
 
     if loopify_array_intrinsics:
         for intr in schedule.walk(IntrinsicCall):
@@ -369,10 +284,9 @@ def normalise_loops(
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
-            if assignment.walk(StructureReference):
-                continue  # TODO #2951 Fix issues with structure_refs
             try:
-                explicit_loops.apply(assignment)
+                explicit_loops.apply(
+                    assignment, options={'verbose': True})
             except TransformationError:
                 pass
 
@@ -437,7 +351,8 @@ def insert_explicit_loop_parallelism(
         with non-reproducible device intrinsics.
 
     '''
-    if schedule.name == "ts_wgt":
+    # These are both in "dynstg_ts.f90" and has a big performance impact
+    if schedule.name in ("ts_wgt", "ts_rst"):
         return  # TODO #2937 WaW dependency incorrectly considered private
     # Add the parallel directives in each loop
     for loop in schedule.walk(Loop):
@@ -487,6 +402,9 @@ def insert_explicit_loop_parallelism(
                 "PSyclone: Loop not parallelised because stops at 'jpl',"
                 " 'nlay_i' or 'nlay_s'.")
             continue
+
+        if routine_name == "tra_zdf_imp":
+            opts['allow_strings'] = True
 
         try:
             # First check that the region_directive is feasible for this region

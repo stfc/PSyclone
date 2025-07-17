@@ -85,8 +85,9 @@ def test_assignment(fortran_reader):
     array_assignment = schedule.children[1]
     assert isinstance(array_assignment, Assignment)
     var_accesses = array_assignment.reference_accesses()
-    assert (str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "
-                                 "i: READ, j: READ, x: READ, y: READ")
+    assert (str(var_accesses) == "c: WRITE, d: READ, e: READ, f: UNKNOWN, "
+                                 "i: READ, j: READ, x: READWRITE, "
+                                 "y: READWRITE")
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)
@@ -264,10 +265,10 @@ def test_lfric():
     var_accesses = schedule.reference_accesses()
     assert str(var_accesses) == (
         "a: READ, cell: READ+WRITE, f1_data: READ+WRITE, f2_data: READ, "
-        "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, m1_data: READ, "
+        "field_type: UNKNOWN, i_def: UNKNOWN, m1_data: READ, "
         "m2_data: READ, map_w1: READ, "
         "map_w2: READ, map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ,"
-        " nlayers_f1: READ, r_def: NO_DATA_ACCESS, undf_w1: READ, undf_w2: "
+        " nlayers_f1: READ, r_def: UNKNOWN, undf_w1: READ, undf_w2: "
         "READ, undf_w3: READ, uninitialised_loop0_start: READ, "
         "uninitialised_loop0_stop: READ")
 

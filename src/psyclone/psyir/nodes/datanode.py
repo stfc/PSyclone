@@ -38,7 +38,8 @@
 ''' This module contains the DataNode abstract node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols.datatypes import ScalarType, UnresolvedType
+from psyclone.psyir.symbols.datatypes import (
+    ScalarType, UnresolvedType, INTEGER_TYPE)
 
 
 class DataNode(Node):
@@ -55,6 +56,12 @@ class DataNode(Node):
             better then it must override this method.
         :rtype: :py:class:`psyclone.psyir.symbols.UnresolvedType`
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.loop import Loop
+        from psyclone.psyir.nodes.ranges import Range
+        # If it is a direct child of Loop or Range, it can only be an Integer
+        if self.parent and isinstance(self.parent, (Loop, Range)):
+            return INTEGER_TYPE
         return UnresolvedType()
 
     def is_character(self, unknown_as=None):

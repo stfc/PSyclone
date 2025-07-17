@@ -382,7 +382,7 @@ def test_variables_access_map_shape_bounds(fortran_reader, function):
 
     # Array-shape accesses are 'inquiry'
     vam = node1.reference_accesses()
-    assert str(vam) == "a: NO_DATA_ACCESS, n: WRITE"
+    assert str(vam) == "a: UNKNOWN, n: WRITE"
 
 
 # -----------------------------------------------------------------------------
@@ -395,10 +395,10 @@ def test_variables_access_map_domain_loop():
     vam = invoke.schedule.reference_accesses()
     assert str(vam) == (
         "a: READ, b: READ, f1_data: READWRITE, f2_data: "
-        "READWRITE, field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, "
+        "READWRITE, field_type: UNKNOWN, i_def: UNKNOWN, "
         "map_w3: READ, ncell_2d_no_halos: "
         "READ, ndf_w3: READ, nlayers_f1: READ, nlayers_f2: READ, "
-        "r_def: NO_DATA_ACCESS, undf_w3: READ")
+        "r_def: UNKNOWN, undf_w3: READ")
 
 
 # -----------------------------------------------------------------------------
@@ -418,12 +418,12 @@ def test_lfric_access_map():
     assert (
         "basis_w1_qr: READ, basis_w3_qr: READ, cell: READ+WRITE, "
         "diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, f1_data: "
-        "READ+WRITE, f2_data: READ, field_type: NO_DATA_ACCESS, i_def: "
-        "NO_DATA_ACCESS, m1_data: READ, "
+        "READ+WRITE, f2_data: READ, field_type: UNKNOWN, i_def: "
+        "UNKNOWN, m1_data: READ, "
         "m2_data: READ, map_w1: READ, map_w2: READ, map_w3: READ, ndf_w1: "
         "READ, ndf_w2: READ, ndf_w3: READ, nlayers_f1: READ, np_xy_qr: READ, "
-        "np_z_qr: READ, quadrature_xyoz_type: NO_DATA_ACCESS, "
-        "r_def: NO_DATA_ACCESS, undf_w1: READ, undf_w2: READ, "
+        "np_z_qr: READ, quadrature_xyoz_type: UNKNOWN, "
+        "r_def: UNKNOWN, undf_w1: READ, undf_w2: READ, "
         "undf_w3: READ, uninitialised_loop0_start: READ, "
         "uninitialised_loop0_stop: READ, "
         "weights_xy_qr: READ, weights_z_qr: READ" == str(vam))
