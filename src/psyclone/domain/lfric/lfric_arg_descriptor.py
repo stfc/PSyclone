@@ -660,7 +660,8 @@ class LFRicArgDescriptor(Descriptor):
         :raises ParseError: if there are not exactly 4 metadata arguments.
         :raises InternalError: if the ScalarArray argument has an invalid data
                                type.
-        :raises ParseError: if ScalarArray argument has an invalid access type.
+        :raises ParseError: if ScalarArray argument does not have read-only
+                            access.
 
         '''
         const = LFRicConstants()
