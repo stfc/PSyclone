@@ -111,6 +111,14 @@ def test_accregiondir_signatures():
 # Class ACCEnterDataDirective start
 
 
+def test_accenterdatadirective_init():
+    ''' Test the constructor of ACCEnterDataDirective, and that it implements
+    the ACCAsyncMixin'''
+    _ = ACCEnterDataDirective()
+    directive = ACCEnterDataDirective(async_queue=1)
+    assert directive.async_queue == Literal("1", INTEGER_TYPE)
+
+
 # (1/4) Method lower_to_language_level
 def test_accenterdatadirective_lowering_1():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
@@ -519,21 +527,9 @@ def test_accupdatedirective_begin_string():
     directive_host = ACCUpdateDirective(sig, "host", if_present=False)
     directive_device = ACCUpdateDirective(sig, "device")
     directive_empty = ACCUpdateDirective(set(), "host", if_present=False)
-    directive_async_default = ACCUpdateDirective(sig, "device",
-                                                 async_queue=True)
-    directive_async_queue_int = ACCUpdateDirective(sig, "device",
-                                                   async_queue=1)
-    directive_async_queue_str = ACCUpdateDirective(
-        sig, "device", async_queue=Reference(Symbol("var")))
 
     assert directive_host.begin_string() == "acc update host(x)"
     assert directive_device.begin_string() == "acc update if_present device(x)"
-    assert (directive_async_default.begin_string() ==
-            "acc update if_present device(x) async")
-    assert (directive_async_queue_int.begin_string() ==
-            "acc update if_present device(x) async(1)")
-    assert (directive_async_queue_str.begin_string() ==
-            "acc update if_present device(x) async(var)")
 
     with pytest.raises(GenerationError) as err:
         directive_empty.begin_string()
@@ -613,8 +609,8 @@ def test_accwaitdirective_eq():
 
 @pytest.mark.parametrize("directive_type",
                          [ACCKernelsDirective, ACCParallelDirective,
-                          ACCUpdateDirective, ACCEnterDataDirective])
-def test_directives_async_queue(directive_type):
+                          ACCUpdateDirective])
+def test_directives_async_queue(directive_type, fortran_writer):
     '''Validate the various usage of async_queue parameter'''
 
     # args
@@ -625,35 +621,31 @@ def test_directives_async_queue(directive_type):
     # set value at init
     directive = directive_type(*args, async_queue=1)
 
-    # need to have some data in
-    if directive_type == ACCEnterDataDirective:
-        directive._sig_set.add(Signature("x"))
-
     # check initial status
     assert directive.async_queue.value == "1"
-    assert 'async(1)' in directive._build_async_string()
+    assert 'async(1)' in fortran_writer(directive).split('\n')[0]
 
     # change value to true
     directive.async_queue = True
     assert directive.async_queue is True
-    assert 'async' in directive._build_async_string()
+    assert 'async' in fortran_writer(directive).split('\n')[0]
 
     # change value to False
     directive.async_queue = False
     assert directive.async_queue is False
-    assert 'async' not in directive._build_async_string()
+    assert 'async' not in fortran_writer(directive).split('\n')[0]
 
     # change value afterward
     directive.async_queue = Reference(Symbol("stream"))
     assert directive.async_queue == Reference(Symbol("stream"))
-    assert 'async(stream)' in directive._build_async_string()
+    assert 'async(stream)' in fortran_writer(directive).split('\n')[0]
 
     # Value is a PSyIR expression
     directive.async_queue = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
         Literal("1", INTEGER_TYPE),
         Reference(Symbol("stream")))
-    assert 'async(1 + stream)' in directive._build_async_string()
+    assert 'async(1 + stream)' in fortran_writer(directive).split('\n')[0]
 
     # put wrong type
     with pytest.raises(TypeError) as error:
