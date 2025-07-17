@@ -421,3 +421,32 @@ end subroutine x"""
 end subroutine x
 """
     assert correct in out
+
+
+def test_kind_parameters_ignored(fortran_reader):
+    '''Test that kind parameters used inside REAL calls don't
+    result in dependencies.'''
+    # TODO #3060: Fixing 3060 should avoid this being necessary.
+    code = """
+    subroutine x()
+      integer, parameter :: wp = 8
+      real, dimension(100) :: a
+      real, dimension(100) :: b
+      integer :: i, j
+
+      do i = 1, 100
+        a(i) = real(i, wp)
+      end do
+
+      do j = 1, 100
+        b(j) = real(j, wp)
+      end do
+    end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    targettrans = OMPTargetTrans()
+    targettrans.apply(loops[1])
+    targettrans.apply(loops[0], options={"nowait": True})
+    barriers = psyir.walk(OMPTaskwaitDirective)
+    assert len(barriers) == 1

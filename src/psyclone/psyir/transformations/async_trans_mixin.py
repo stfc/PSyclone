@@ -39,7 +39,7 @@
 import abc
 from typing import List, Union
 
-from psyclone.core import VariablesAccessMap
+from psyclone.core import VariablesAccessMap, AccessType
 from psyclone.psyir.nodes import (
         Directive, IfBlock, Loop, Node, Reference, Schedule, Statement,
         WhileLoop,
@@ -115,6 +115,11 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         for signature in reads+writes:
             accesses = var_accesses[signature].all_accesses
             sym_name = signature.var_name
+            # TODO #3060: If any of the accesses are TYPE_INFO then this
+            # is a kind parameter, which can currently sometimes appear as
+            # a READ.
+            if any([x.access_type == AccessType.TYPE_INFO for x in accesses]):
+                continue
             last_access = accesses[-1].node
             sym = last_access.scope.symbol_table.lookup(sym_name)
             # If the symbol is private or firstprivate then we can
