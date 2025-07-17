@@ -35,10 +35,13 @@
 
 ''' Utilities file to parallelise Nemo code. '''
 
+from typing import List, Union
+
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Assignment, Loop, Directive, Reference, CodeBlock, ArrayReference,
-    Call, Return, IfBlock, Routine, IntrinsicCall, StructureReference)
+    Assignment, Loop, Directive, Node, Reference, CodeBlock, ArrayReference,
+    Call, Return, IfBlock, Routine, Schedule, IntrinsicCall,
+    StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
 from psyclone.psyir.transformations import (
@@ -411,6 +414,7 @@ def insert_explicit_loop_parallelism(
         loop_directive_trans=None,
         collapse: bool = True,
         privatise_arrays: bool = False,
+        uniform_intrinsics_only: bool = False,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
@@ -429,6 +433,8 @@ def insert_explicit_loop_parallelism(
         many nested loops as possible.
     :param privatise_arrays: whether to attempt to privatise arrays that cause
         write-write race conditions.
+    :param uniform_intrinsics_only: if True it prevent offloading loops
+        with non-reproducible device intrinsics.
 
     '''
     if schedule.name == "ts_wgt":
@@ -439,7 +445,10 @@ def insert_explicit_loop_parallelism(
             continue  # Skip if an outer loop is already parallelised
 
         opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
-                "verbose": True, "nowait": True}
+                "verbose": True, "nowait": False}
+
+        if uniform_intrinsics_only:
+            opts["device_string"] = "nvfortran-uniform"
 
         routine_name = loop.ancestor(Routine).name
 
@@ -487,7 +496,7 @@ def insert_explicit_loop_parallelism(
 
             # And if successful, the region directive on top.
             if region_directive_trans:
-                region_directive_trans.apply(loop.parent.parent)
+                region_directive_trans.apply(loop.parent.parent, options=opts)
         except TransformationError:
             # This loop cannot be transformed, proceed to next loop.
             # The parallelisation restrictions will be explained with a comment
@@ -495,17 +504,26 @@ def insert_explicit_loop_parallelism(
             continue
 
 
-def add_profiling(children):
+def add_profiling(children: Union[List[Node], Schedule]):
     '''
-    Walks down the PSyIR and inserts the largest possible profiling regions.
-    Code that contains directives is excluded.
+    Walks down the PSyIR and inserts the largest possible profiling regions
+    in place. Code inside functions or that contains directives is excluded.
 
-    :param children: sibling nodes in the PSyIR to which to attempt to add \
-                     profiling regions.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+    :param children: a Schedule or sibling nodes in the PSyIR to which to
+        attempt to add profiling regions.
 
     '''
+    if children and isinstance(children, Schedule):
+        # If we are given a Schedule, we look at its children.
+        children = children.children
+
     if not children:
+        return
+
+    # We do not want profiling calipers inside functions (such as the
+    # PSyclone-generated comparison functions).
+    parent_routine = children[0].ancestor(Routine)
+    if parent_routine and parent_routine.return_symbol:
         return
 
     node_list = []

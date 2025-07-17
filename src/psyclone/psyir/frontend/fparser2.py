@@ -44,7 +44,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 import os
 import sys
-from typing import Optional, List, Iterable
+from typing import Iterable, Optional
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
@@ -974,14 +974,11 @@ class Fparser2Reader():
             'class default' clauses, or -1 if no default clause is found.
 
         """
-        # 'str | None' syntax is only supported in Python >=3.10 so use
-        # 'typing.Optional[]'. Similarly, 'list[str]' is only valid in
-        # Python >=3.9 so use 'typing.List[str]'.
-        guard_type: List[Optional[str]] = field(default_factory=list)
-        guard_type_name: List[Optional[str]] = field(default_factory=list)
-        intrinsic_type_name: List[Optional[str]] = field(default_factory=list)
-        clause_type: List[str] = field(default_factory=list)
-        stmts: List[List[StmtBase]] = field(default_factory=list)
+        guard_type: list[Optional[str]] = field(default_factory=list)
+        guard_type_name: list[Optional[str]] = field(default_factory=list)
+        intrinsic_type_name: list[Optional[str]] = field(default_factory=list)
+        clause_type: list[str] = field(default_factory=list)
+        stmts: list[list[StmtBase]] = field(default_factory=list)
         selector: str = ""
         num_clauses: int = -1
         default_idx: int = -1
@@ -4456,10 +4453,12 @@ class Fparser2Reader():
             # TODO 2884: We should be able to handle this imported symbol
             # better. If we can, we need to handle a case where is_elemental
             # can be None.
-            if isinstance(ref.symbol.interface, ImportInterface):
+            if isinstance(ref.symbol.interface, (ImportInterface,
+                                                 UnresolvedInterface)):
                 raise NotImplementedError(
-                        "PSyclone doesn't yet support reference to imported "
-                        "symbols inside WHERE clauses.")
+                        f"PSyclone doesn't yet support references to imported/"
+                        f"unresolved symbols inside WHERE clauses: "
+                        f"'{ref.symbol.name}' is unresolved.")
             if (isinstance(ref.symbol, DataSymbol) and
                     elemental_ancestor):
                 try:
@@ -4477,7 +4476,7 @@ class Fparser2Reader():
             raise NotImplementedError(
                 f"Only WHERE constructs using explicit array notation "
                 f"including ranges (e.g. 'my_array(1,:)') are supported but "
-                f"found '{logical_expr}'")
+                f"found '{logical_expr[0]}'")
 
         array_ref = first_array.ancestor(Reference, include_self=True)
         if not isinstance(array_ref.datatype, ArrayType):

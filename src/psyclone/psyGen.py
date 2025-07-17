@@ -52,13 +52,8 @@ import warnings
 try:
     from sphinx.util.typing import stringify_annotation
 except ImportError:
-    # Fix for Python-3.7 where sphinx didn't yet rename this.
-    # TODO 2837: Can remove this 3.7 sphinx import
-    try:
-        from sphinx.util.typing import stringify as stringify_annotation
-    # Igoring coverage from the no sphinx workaround as too difficult to do
-    except ImportError:
-        from psyclone.utils import stringify_annotation
+    # No Sphinx available so use our own, simpler version.
+    from psyclone.utils import stringify_annotation
 
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.core import AccessType, VariablesAccessMap
@@ -1338,31 +1333,40 @@ class CodedKern(Kern):
                                         KernelArguments, check)
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
-        self._fp2_ast = None  # The fparser2 AST for the kernel
-        self._kern_schedule = None  # PSyIR schedule for the kernel
-        # Whether or not this kernel has been transformed
+        self._fp2_ast = None  #: The fparser2 AST for the kernel
+        #: PSyIR schedule(s) for the kernel
+        self._schedules = None
+        #: Whether or not this kernel has been transformed
         self._modified = False
-        # Whether or not to in-line this kernel into the module containing
-        # the PSy layer
+        #: Whether or not to in-line this kernel into the module containing
+        #: the PSy layer
         self._module_inline = False
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
         self.arg_descriptors = call.ktype.arg_descriptors
 
-    def get_kernel_schedule(self):
+    def get_interface_symbol(self) -> None:
         '''
-        Returns a PSyIR Schedule representing the kernel code. The Schedule
-        is just generated on first invocation, this allows us to retain
-        transformations that may subsequently be applied to the Schedule.
+        By default, a Kern is not polymorphic and therefore has no interface
+        symbol.
 
-        :returns: Schedule representing the kernel code.
-        :rtype: :py:class:`psyclone.psyir.nodes.KernelSchedule`
         '''
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-        if self._kern_schedule is None:
-            astp = Fparser2Reader()
-            self._kern_schedule = astp.generate_schedule(self.name, self.ast)
-            # TODO: Validate kernel with metadata (issue #288).
-        return self._kern_schedule
+        return None
+
+    def get_callees(self):
+        '''
+        Returns the PSyIR Schedule(s) representing the kernel code. The
+        Schedules are just generated on first invocation, this allows us to
+        retain transformations that may subsequently be applied to the
+        Schedule(s).
+
+        :returns: Schedule(s) representing the kernel code.
+        :rtype: list[:py:class:`psyclone.psyir.nodes.KernelSchedule`]
+
+        :raises NotImplementedError: must be overridden in sub-class.
+
+        '''
+        raise NotImplementedError(
+            f"get_callees() must be overridden in class {self.__class__}")
 
     @property
     def opencl_options(self):
@@ -1505,7 +1509,7 @@ class CodedKern(Kern):
                         shadowing=True,
                         interface=ImportInterface(csymbol))
         else:
-            # If its inlined, the symbol must exist
+            # If it's inlined, the symbol must exist
             try:
                 rsymbol = self.scope.symbol_table.lookup(self._name)
             except KeyError as err:
@@ -1661,7 +1665,8 @@ class CodedKern(Kern):
         # Start from the root of the schedule as we want to output
         # any module information surrounding the kernel subroutine
         # as well as the subroutine itself.
-        new_kern_code = fortran_writer(self.get_kernel_schedule().root)
+        schedules = self.get_callees()
+        new_kern_code = fortran_writer(schedules[0].root)
         fll = FortLineLength()
         new_kern_code = fll.process(new_kern_code)
 
@@ -1699,27 +1704,35 @@ class CodedKern(Kern):
         :param str suffix: the string to insert into the quantity names.
 
         '''
-        # We need to get the kernel schedule before modifying self.name
-        kern_schedule = self.get_kernel_schedule()
-        container = kern_schedule.ancestor(Container)
+        # We need to get the kernel schedule before modifying self.name.
+        kern_schedules = self.get_callees()
+        container = kern_schedules[0].ancestor(Container)
 
         # Use the suffix to create a new kernel name.  This will
         # conform to the PSyclone convention of ending in "_code"
         orig_mod_name = self.module_name[:]
-        orig_kern_name = self.name[:]
-
-        new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
         new_mod_name = self._new_name(orig_mod_name, suffix, "_mod")
 
-        # Change the name of this kernel and the associated
-        # module. These names are used when generating the PSy-layer.
-        self.name = new_kern_name[:]
-        self._module_name = new_mod_name[:]
-        kern_schedule.name = new_kern_name[:]
-        container.name = new_mod_name[:]
+        # If the kernel is polymorphic, we can just change the name of
+        # the interface.
+        interface_sym = self.get_interface_symbol()
+        if interface_sym:
+            orig_kern_name = interface_sym.name
+            new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
+            container.symbol_table.rename_symbol(interface_sym, new_kern_name)
+            self.name = new_kern_name
+        else:
+            kern_schedule = kern_schedules[0]
+            orig_kern_name = kern_schedule.name[:]
+            new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
 
-        # Change the name of the Kernel Schedule
-        kern_schedule.name = new_kern_name
+            # Change the name of this kernel and the associated
+            # module. These names are used when generating the PSy-layer.
+            self.name = new_kern_name[:]
+            kern_schedule.name = new_kern_name[:]
+
+        self._module_name = new_mod_name[:]
+        container.name = new_mod_name[:]
 
         # Ensure the metadata points to the correct procedure now. Since this
         # routine is general purpose, we won't always have a domain-specific
@@ -2884,9 +2897,8 @@ class Transformation(metaclass=abc.ABCMeta):
                             kwargs[option], valid_options[option].type):
                         wrong_types[option] = type(kwargs[option]).__name__
                 except TypeError:
-                    # For older versions of Python, such as 3.8 they don't yet
-                    # support type checking for Generics, e.g. Union[...] so
-                    # we skip this check and it needs to be done in the
+                    # Type checking for Generics, e.g. Union[...], doesn't
+                    # work so we skip this check - it is done in the
                     # relevant function instead.
                     pass
 

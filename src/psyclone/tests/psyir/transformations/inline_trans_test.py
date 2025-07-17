@@ -1553,6 +1553,7 @@ def test_apply_raw_subroutine(
     if start:
         modinline_trans = KernelModuleInlineTrans()
         modinline_trans.apply(call)
+        assert "sub" in psyir.children[0].symbol_table
     inline_trans = InlineTrans()
     inline_trans.apply(call)
     output = fortran_writer(psyir)
