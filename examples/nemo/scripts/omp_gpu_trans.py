@@ -69,7 +69,10 @@ NEMOV4 = os.environ.get('NEMOV4', False)
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = []
+FILES_TO_SKIP = [
+    # TODO #2951 NEMOV5 fldread has problem with StructuresRefs
+    "fldread.f90",
+]
 
 NEMOV5_EXCLUSIONS = []
 
@@ -167,8 +170,7 @@ def trans(psyir):
         normalise_loops(
                 subroutine,
                 hoist_local_arrays=False,
-                # TODO #2951 NEMOV5 fldread has problem with StructuresRefs
-                convert_array_notation=psyir.name != "fldread.f90",
+                convert_array_notation=True,
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
                 hoist_expressions=True
