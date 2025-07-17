@@ -40,6 +40,7 @@ modification and Fortran output of a ScalarArray argument.
 '''
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
+from typing import Tuple, Union
 
 
 class ScalarArrayArgMetadata(ScalarArgMetadata):
@@ -73,7 +74,8 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
         self.array_ndims = array_ndims
 
     @classmethod
-    def _get_metadata(cls, fparser2_tree):
+    def _get_metadata(cls, fparser2_tree: Union[Fortran2003.Part_Ref, Fortran2003.Structure_Constructor]) -> Tuple[str, str, str]:
+
         '''Extract the required metadata from the fparser2 tree and return it
         as strings. Also check that the metadata is in the expected
         form (but do not check the metadata values as that is done
@@ -81,12 +83,9 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
 
         :param fparser2_tree: fparser2 tree containing the metadata
             for this argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` |
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
         :returns: a tuple containing the datatype, access and array ndims
             metadata.
-        :rtype: Tuple[str, str, str]
 
         '''
         datatype, access = super()._get_metadata(fparser2_tree)
@@ -102,10 +101,9 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
                 f"{self.array_ndims})")
 
     @property
-    def array_ndims(self):
+    def array_ndims(self) -> str:
         '''
         :returns: the number of dimensions for this ScalarArray argument.
-        :rtype: str
         '''
         return self._array_ndims
 
