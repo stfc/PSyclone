@@ -719,7 +719,6 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
                                  Literal("1", INTEGER_TYPE),
                                  children))
 
-    pytest.xfail(reason="TODO #3061: DefUseChain issue")
     with pytest.raises(TransformationError) as err:
         trans.validate(loop, {"privatise_arrays": True})
     assert ("write-write dependency in 'ztmp' cannot be solved by array "
