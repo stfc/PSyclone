@@ -5366,7 +5366,8 @@ class Fparser2Reader():
 
         return call
 
-    def _get_lost_declaration_comments(self, decl_list)\
+    def _get_lost_declaration_comments(self, decl_list,
+                                       attach_trailing_symbol: bool = True)\
             -> list[Fortran2003.Comment]:
         '''Finds comments from the variable declaration that the default
         declaration handler doesn't keep. Any comments that appear after
@@ -5377,6 +5378,9 @@ class Fparser2Reader():
 
         :param decl_list: The declaration list being processed.
         :type decl_list: List[:py:class:`Fortran2003.Specification_Part`]
+        :param attach_trailing_symbol: whether to attach the inline comment on
+                                       the last symbol to the tree or not.
+                                       Defaults to True
 
         :returns: a list of comments that have been missed.
         '''
@@ -5396,8 +5400,9 @@ class Fparser2Reader():
                     # fparser tree we add the comment to the declaration.
                     if (last_span is not None
                             and last_span[1] == comment.item.span[0]):
-                        last_symbol.inline_comment\
-                            = self._comment_to_string(comment)
+                        if attach_trailing_symbol:
+                            last_symbol.inline_comment\
+                                = self._comment_to_string(comment)
                         continue
                 # Otherwise the comment is not an inline comment, so we append
                 # it to the lost comments list.
@@ -5674,22 +5679,7 @@ class Fparser2Reader():
         # fparser puts comments at the end of the declarations
         # whereas as preceding comments they belong in the execution part
         # except if it's an inline comment on the last declaration.
-        lost_comments = []
-        if len(decl_list) != 0 and isinstance(decl_list[-1],
-                                              Fortran2003.Implicit_Part):
-            for comment in walk(decl_list[-1], Fortran2003.Comment):
-                if len(comment.tostr()) == 0:
-                    continue
-                if self._last_psyir_parsed_and_span is not None:
-                    last_symbol, last_span \
-                        = self._last_psyir_parsed_and_span
-                    # If the comment goes on the last parsed psyir node
-                    # or symbol, then we don't need to do anything with
-                    # it as its handled by process_declarations.
-                    if (last_span is not None
-                            and last_span[1] == comment.item.span[0]):
-                        continue
-                lost_comments.append(comment)
+        lost_comments = self._get_lost_declaration_comments(decl_list, False)
 
         try:
             prog_exec = _first_type_match(node.content,
