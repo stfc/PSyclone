@@ -436,10 +436,12 @@ def test_kind_parameters_ignored(fortran_reader):
 
       do i = 1, 100
         a(i) = real(i, wp)
+        a(i) = a(i) + 1.0_wp
       end do
 
       do j = 1, 100
         b(j) = real(j, wp)
+        b(j) = b(j) + 2.0_wp
       end do
     end subroutine"""
 

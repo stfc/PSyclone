@@ -674,7 +674,6 @@ def test_multi_dependency_barriers(fortran_reader):
     # Only apply transformation to the last loop
     targettrans.apply(loops[-1], options={"nowait": True})
     # Check we have at least barriers as expected.
-    print(psyir.debug_string())
     assert isinstance(loops[1].parent.children[loops[1].position-1],
                       OMPTaskwaitDirective)
     assert isinstance(loops[3].parent.children[loops[3].position-1],

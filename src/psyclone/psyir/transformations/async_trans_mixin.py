@@ -67,17 +67,13 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                               directive: Directive) -> Union[List[Statement],
                                                              bool]:
         '''
-        Finds the closest dependency to the loop or set of nodes supplied.
-        If the supplied input is contained inside a Loop, then this dependency
-        can be before the input in the tree.
+        Finds the statement with the closest following dependency of
+        any symbol in the supplied nodes. It can be multiple due to branching,
+        and be before the supplied nodes if they are contained inside a
+        looping construct.
 
         If there is no dependency, this function will return True.
         If the next dependency is itself, the function will return False.
-
-        Otherwise the next dependency node will be returned. The returned
-        value will always be the statement containing the dependency, as
-        directives will occur the dependency, and this avoids needing special
-        cases to handle while and if conditions.
 
         :param nodes: The Loop or list of nodes to find the next dependency
                       for.
@@ -91,7 +87,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
 
         '''
         if isinstance(nodes, (Loop, WhileLoop)):
-            var_accesses = nodes.loop_body.reference_accesses()
+            var_accesses = nodes.reference_accesses()
         else:
             var_accesses = VariablesAccessMap()
             for node in nodes:
@@ -117,7 +113,8 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             sym_name = signature.var_name
             # TODO #3060: If any of the accesses are TYPE_INFO then this
             # is a kind parameter, which can currently sometimes appear as
-            # a READ.
+            # a READ. If the only access to a kind parameter is detected as
+            # a READ, then we won't skip it.
             if any([x.access_type == AccessType.TYPE_INFO for x in accesses]):
                 continue
             last_access = accesses[-1].node
@@ -171,7 +168,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                 # If the access is in the same IfBlock as closest, but one
                 # is in if_body and the other is in else_body we
                 # add the entire IfBlock to dependencies.
-                # TODO 2551: This is a simple solution that avoids needing
+                # TODO #2551: This is a simple solution that avoids needing
                 # to compute the closest dependency for both sections of
                 # an ifblock, which can get very complex.
                 shared_if_anc = access.ancestor(IfBlock, shared_with=closest)
