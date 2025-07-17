@@ -41,7 +41,8 @@ This module provides the implementation of OMPDeclareTargetTrans
 
 from psyclone.psyir.nodes import OMPDeclareTargetDirective
 from psyclone.psyGen import Transformation, Kern
-from psyclone.transformations import MarkRoutineForGPUMixin
+from psyclone.psyir.transformations.mark_routine_for_gpu_mixin import (
+        MarkRoutineForGPUMixin)
 
 
 class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
