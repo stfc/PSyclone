@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference,
     Loop, Literal, ArrayReference, Range, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL_TYPE, UnsupportedType)
+    DataSymbol, INTEGER_TYPE, REAL_TYPE, TypedSymbol, UnsupportedType)
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
 

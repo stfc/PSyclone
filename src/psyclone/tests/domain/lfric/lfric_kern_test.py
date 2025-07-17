@@ -55,7 +55,8 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Container, KernelSchedule, Reference, Routine
+from psyclone.psyir.nodes import (
+    Container, KernelSchedule, Literal, Reference, Routine)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, GenericInterfaceSymbol,
     INTEGER_TYPE, REAL_TYPE)
