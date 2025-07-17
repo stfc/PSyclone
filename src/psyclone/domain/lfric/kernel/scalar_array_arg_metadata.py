@@ -38,6 +38,7 @@ metadata associated with a ScalarArray argument. Supports the creation,
 modification and Fortran output of a ScalarArray argument.
 
 '''
+from typing import Union
 from fparser.two import Fortran2003
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
@@ -74,8 +75,8 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
         self.array_ndims = array_ndims
 
     @classmethod
-    def _get_metadata(cls, fparser2_tree: Fortran2003.Part_Ref |
-                      Fortran2003.Structure_Constructor
+    def _get_metadata(cls, fparser2_tree: Union[Fortran2003.Part_Ref,
+                      Fortran2003.Structure_Constructor]
                       ) -> tuple[str, str, str]:
 
         '''Extract the required metadata from the fparser2 tree and return it
