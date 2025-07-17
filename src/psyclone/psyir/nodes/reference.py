@@ -43,7 +43,7 @@
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.symbols import Symbol, AutomaticInterface
 from psyclone.psyir.symbols.datatypes import UnresolvedType
 
 
@@ -256,6 +256,34 @@ class Reference(DataNode):
         from psyclone.psyir.tools import DefinitionUseChain
         chain = DefinitionUseChain(self)
         return chain.find_forward_accesses()
+
+    def escapes_scope(self, scope, _stop_recursion=None) -> bool:
+        '''
+        :param scope: the given scope that we evaluate.
+        :returns: whether the symbol lifetime expands after the given scope.
+        '''
+
+        # Make _stop_recursion a set with visited ids
+        if _stop_recursion is None:
+            _stop_recursion = set()
+        if id(self) in _stop_recursion:
+            return False
+        _stop_recursion.add(id(self))
+
+        # If it's not a local symbol, we cannot guarantee its lifetime
+        if not isinstance(self.symbol.interface, AutomaticInterface):
+            return True
+
+        # Check if this instance is in the provided scope
+        if not self.is_descendent_of(scope):
+            return True
+
+        # Now check all possible next accesses
+        for ref in self.next_accesses():
+            if ref.escapes_scope(scope, _stop_recursion):
+                return True
+
+        return False
 
     def replace_symbols_using(self, table_or_symbol):
         '''
