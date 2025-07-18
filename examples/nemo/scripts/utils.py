@@ -477,14 +477,28 @@ def insert_explicit_loop_parallelism(
                 "PSyclone: ICE Loop not parallelised for performance reasons")
             continue
 
-        # Skip if looping over ice categories, ice or snow layers
-        # as these have only 5, 4, and 1 iterations, respectively
-        if (any(ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
-                for ref in loop.stop_expr.walk(Reference))):
+        # Skip if looping over ice categories, ice or snow layers as these have
+        # small trip counts if they are not collapsed
+        if not collapse and any(
+                ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
+                for ref in loop.stop_expr.walk(Reference)
+        ):
             loop.append_preceding_comment(
                 "PSyclone: Loop not parallelised because stops at 'jpl',"
-                " 'nlay_i' or 'nlay_s'.")
+                " 'nlay_i' or 'nlay_s' and is not collapsed.")
             continue
+
+        # Add the necessary explicit private symbols in icethd in order to
+        # parallelise the outer loop
+        if routine_name == "ice_thd_zdf_BL99":
+            if isinstance(loop.stop_expr, Reference):
+                if loop.stop_expr.symbol.name == "npti":
+                    for variable in ['zdiagbis', 'zindtbis', 'zindterm',
+                                     'ztib', 'ztrid', 'ztsb']:
+                        st = loop.scope.symbol_table
+                        sym = st.lookup(variable, otherwise=None)
+                        if sym is not None:
+                            loop.explicitly_private_symbols.add(sym)
 
         try:
             # First check that the region_directive is feasible for this region

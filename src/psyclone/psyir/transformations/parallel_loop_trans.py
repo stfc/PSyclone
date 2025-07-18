@@ -50,7 +50,6 @@ from psyclone.psyir import nodes
 from psyclone.psyir.nodes import (
         Call, Loop, Reference, Routine
 )
-from psyclone.psyir.symbols import AutomaticInterface
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
@@ -98,12 +97,12 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         '''
 
     @staticmethod
-    def _attempt_privatisation(node, symbol_name, dry_run=False):
+    def _attempt_privatisation(loop, symbol_name, dry_run=False):
         ''' Check and (if dry_run is False) perform symbol privatisation
         for the given symbol_name in the given node.
 
-        :param node: the loop that will be parallelised.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param loop: the loop that will be parallelised.
+        :type loop: :py:class:`psyclone.psyir.nodes.Loop`
         :param str symbol_name: the symbol that we want to privatise.
         :param bool dry_run: whether to perform the actual privatisation.
 
@@ -111,27 +110,27 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         :rtype: bool
         '''
         try:
-            sym = node.scope.symbol_table.lookup(symbol_name)
+            sym = loop.scope.symbol_table.lookup(symbol_name)
         except KeyError:
             # Structures are reported with the full expression:
             # "mystruct%myfield" by the DA var_name, we purposely avoid
             # privatising these
             return False
 
-        # If it's not a local symbol, we cannot safely analyse its lifetime
-        if not isinstance(sym.interface, AutomaticInterface):
-            return False
+        if sym in loop.explicitly_private_symbols:
+            return True
 
-        # Check that the symbol is not referenced after this loop (before
+        # Check that the symbol is not referenced following this loop (before
         # the loop is fine because we can use OpenMP/OpenACC first-private or
         # Fortran do concurrent local_init())
-        if any(ref.symbol is sym
-               for ref in node.following(include_children=False)
-               if isinstance(ref, Reference)):
+        refs_in_loop = filter(lambda x: x.symbol is sym, loop.walk(Reference))
+        last_access = list(refs_in_loop)[-1]
+        loop.compute_cached_abs_positions()
+        if last_access.escapes_scope(loop):
             return False
 
         if not dry_run:
-            node.explicitly_private_symbols.add(sym)
+            loop.explicitly_private_symbols.add(sym)
 
         return True
 

@@ -86,8 +86,6 @@ SKIP_FOR_PERFORMANCE = [
 ]
 
 OFFLOADING_ISSUES = [
-    # Produces different output results
-    "zdftke.f90",
     # The following issues only affect BENCH (because ice is enabled?)
     # Runtime Error: Illegal address during kernel execution
     "trcrad.f90",
@@ -101,6 +99,7 @@ OFFLOADING_ISSUES = [
     "trcice_pisces.f90",
     "dtatsd.f90",
     "trcatf.f90",
+    "zdfiwm.f90",
 ]
 
 
@@ -146,9 +145,6 @@ def trans(psyir):
         if NEMOV4 and psyir.name in NEMOV4_EXCLUSIONS:
             continue
         if not NEMOV4 and psyir.name in NEMOV5_EXCLUSIONS:
-            continue
-        # ICE routines do not perform well on GPU, so we skip them
-        if psyir.name.startswith("ice"):
             continue
         # Many of the obs_ files have problems to be offloaded to the GPU
         if psyir.name.startswith("obs_"):
