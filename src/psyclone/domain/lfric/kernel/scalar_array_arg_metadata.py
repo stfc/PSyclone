@@ -56,9 +56,9 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
     '''
     # The name used to specify a ScalarArray argument in LFRic metadata.
     form = "gh_scalar_array"
-    # The relative positions of LFRic metadata. Metadata for a ScalarAarray
+    # The relative positions of LFRic metadata. Metadata for a ScalarArray
     # argument is provided in the following format 'arg_type(form,
-    # datatype, access, function_space)'. Therefore, for example, the
+    # datatype, access, array_ndims)'. Therefore, for example, the
     # index of the form argument (form_arg_index) is 0.
     form_arg_index = 0
     datatype_arg_index = 1
