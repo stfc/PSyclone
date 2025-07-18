@@ -488,6 +488,8 @@ def insert_explicit_loop_parallelism(
                 " 'nlay_i' or 'nlay_s' and is not collapsed.")
             continue
 
+        # Add the necessary explicit private symbols in icethd in order to
+        # parallelise the outer loop
         if routine_name == "ice_thd_zdf_BL99":
             if isinstance(loop.stop_expr, Reference):
                 if loop.stop_expr.symbol.name == "npti":
