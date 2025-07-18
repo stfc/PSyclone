@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: A. R. Porter,  S. Siso and A. B. G. Chalk,  STFC Daresbury Lab
 
 '''Module containing tests for the translation of PSyIR to PSyclone
 Algorithm PSyIR.
@@ -536,3 +536,30 @@ def test_multi_name():
     assert ("There should be at most one named argument in an invoke, but "
             "there are 2 in 'call invoke(name='Sancho', name2='Fernandes')\n'."
             in str(info.value))
+
+
+def test_apply_keep_comments():
+    '''Test that comment nodes are correctly kept on an invoke when the
+    RaisePSyIR2AlgTrans is applied.
+    '''
+    code = (
+        "subroutine alg()\n"
+        "  use kern_mod, only: kern\n"
+        "  use field_mod, only: r2d_field\n"
+        "  type(r2d_field) :: field\n"
+        " ! preceding comment\n"
+        "  call invoke(kern(field)) !inline comment\n"
+        "end subroutine alg\n")
+
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    subroutine = psyir.children[0]
+    assert len(subroutine[0].arguments) == 1
+    assert isinstance(subroutine[0].arguments[0], ArrayReference)
+
+    invoke_trans = RaisePSyIR2AlgTrans()
+    invoke_trans.apply(subroutine[0], 1)
+
+    invoke = subroutine[0]
+    assert invoke.preceding_comment == "preceding comment"
+    assert invoke.inline_comment == "inline comment"

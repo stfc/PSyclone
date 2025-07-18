@@ -157,7 +157,6 @@ def test_if_statement(fortran_reader):
     assert len(q_accesses) == 2
     assert q_accesses[0].access_type == AccessType.READ
     assert q_accesses[1].access_type == AccessType.WRITE
-    assert q_accesses[0].location < q_accesses[1].location
 
 
 def test_do_loop(fortran_reader):
@@ -308,72 +307,6 @@ def test_lfric_kern_cma_args():
                 == AccessType.READ)
         assert (var_accesses_write[Signature(f"cma_op1_{name}")][0].access_type
                 == AccessType.READ)
-
-
-def test_location(fortran_reader):
-    '''Test if the location assignment is working, esp. if each new statement
-    gets a new location, but accesses in the same statement have the same
-    location.
-    '''
-
-    psyir = fortran_reader.psyir_from_source(
-        '''program test_prog
-             integer :: a, b, i, ji, jj, n, x
-             real :: p(5), q(5), r(5), s(5,5), t(5,5)
-             a = b
-             if (a .eq. b) then
-                p(i) = q(i)
-             else
-               q(i) = r(i)
-             endif
-             a = b
-             do jj=1, n
-                do ji=1, 10
-                   s(ji, jj)=t(ji, jj)+1
-                enddo
-             enddo
-             a = b
-             x = x + 1
-          end program test_prog''')
-    schedule = psyir.children[0]
-
-    var_accesses = schedule.reference_accesses()
-    # Test accesses for a:
-    a_accesses = var_accesses[Signature("a")].all_accesses
-    assert a_accesses[0].location == 0
-    assert a_accesses[1].location == 1
-    assert a_accesses[2].location == 6
-    assert a_accesses[3].location == 12
-
-    # b should have the same locations as a:
-    b_accesses = var_accesses[Signature("b")].all_accesses
-    assert len(a_accesses) == len(b_accesses)
-    for (index, access) in enumerate(a_accesses):
-        assert b_accesses[index].location == access.location
-
-    q_accesses = var_accesses[Signature("q")].all_accesses
-    assert q_accesses[0].location == 2
-    assert q_accesses[1].location == 4
-
-    # Test jj for the loop statement. Note that 'jj' has one read and
-    # one write access for the DO statement
-    jj_accesses = var_accesses[Signature("jj")].all_accesses
-    assert jj_accesses[0].location == 7
-    assert jj_accesses[1].location == 7
-    assert jj_accesses[2].location == 9
-    assert jj_accesses[3].location == 9
-
-    ji_accesses = var_accesses[Signature("ji")].all_accesses
-    assert ji_accesses[0].location == 8
-    assert ji_accesses[1].location == 8
-    assert ji_accesses[2].location == 9
-    assert ji_accesses[3].location == 9
-
-    # Verify that x=x+1 shows the READ access before the write access
-    x_accesses = var_accesses[Signature("x")].all_accesses    # x=x+1
-    assert x_accesses[0].access_type == AccessType.READ
-    assert x_accesses[1].access_type == AccessType.WRITE
-    assert x_accesses[0].location == x_accesses[1].location
 
 
 def test_user_defined_variables(fortran_reader):

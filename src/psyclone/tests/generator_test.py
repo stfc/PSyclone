@@ -807,6 +807,107 @@ def test_main_api(capsys, caplog):
         assert "Logging system initialised" in caplog.record_tuples[0][2]
 
 
+def test_keep_comments_and_keep_directives(capsys, caplog, tmpdir_factory,
+                                           monkeypatch):
+    ''' Test the keep comments and keep directives arguments to main. '''
+    filename = str(tmpdir_factory.mktemp('psyclone_test').join("test.f90"))
+    code = """subroutine a()
+    ! Here is a comment
+    integer :: a
+
+    !comment 1
+    !$omp parallel
+    !$omp do
+    !comment 2
+    do a = 1, 100
+    end do
+    !$omp end do
+    !$omp end parallel
+    end subroutine"""
+    with open(filename, "w", encoding='utf-8') as wfile:
+        wfile.write(code)
+
+    main([filename, "--keep-comments"])
+    output, _ = capsys.readouterr()
+
+    correct = """subroutine a()
+  ! Here is a comment
+  integer :: a
+
+  ! comment 1
+  ! comment 2
+  do a = 1, 100, 1
+  enddo
+
+end subroutine a
+
+"""
+    assert output == correct
+
+    main([filename, "--keep-comments", "--keep-directives"])
+    output, _ = capsys.readouterr()
+
+    correct = """subroutine a()
+  ! Here is a comment
+  integer :: a
+
+  ! comment 1
+  !$omp parallel
+  !$omp do
+
+  ! comment 2
+  do a = 1, 100, 1
+  enddo
+  !$omp end do
+  !$omp end parallel
+
+end subroutine a
+
+"""
+    assert output == correct
+
+    with caplog.at_level(logging.WARNING):
+        main([filename, "--keep-directives"])
+        assert caplog.records[0].levelname == "WARNING"
+        assert ("keep_directives requires keep_comments so "
+                "PSyclone enabled keep_comments."
+                in caplog.record_tuples[0][2])
+    output, _ = capsys.readouterr()
+
+
+def test_keep_comments_lfric(capsys, monkeypatch):
+    '''Test that the LFRic API correctly keeps comments and directives
+    when applied the appropriate arguments.'''
+    # Test this for LFRIC algorithm domain.
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    filename = os.path.join(LFRIC_BASE_PATH,
+                            "1_single_invoke_with_omp_dir.f90")
+    main([filename, "-api", "lfric", "--keep-comments"])
+    output, _ = capsys.readouterr()
+    assert "! Here is a comment" in output
+    assert "!$omp barrier" not in output
+
+    filename = os.path.join(LFRIC_BASE_PATH,
+                            "1_single_invoke_with_omp_dir.f90")
+    main([filename, "-api", "lfric", "--keep-comments", "--keep-directives"])
+    output, _ = capsys.readouterr()
+    assert "! Here is a comment" in output
+    assert "!$omp barrier" in output
+
+
+def test_keep_comments_gocean(capsys, monkeypatch):
+    '''Test that the GOcean API correctly keeps comments and directives
+    when applied the appropriate arguments.'''
+    filename = os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90")
+    main([filename, "-api", "gocean"])
+    output, _ = capsys.readouterr()
+    assert "! Create fields on this grid" not in output
+
+    main([filename, "-api", "gocean", "--keep-comments"])
+    output, _ = capsys.readouterr()
+    assert "! Create fields on this grid" in output
+
+
 def test_config_flag():
     ''' Test that -c/--config take precedence over the configuration
         file references in the environment variable.

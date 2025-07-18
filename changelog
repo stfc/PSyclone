@@ -1,3 +1,18 @@
+   53) #3065 for #3064 - adds a pytest.ini to ensure that pytest doesn't look
+   in the 'external' directory if run from the project root directory.
+
+   52) PR #3014 towards #2384. Adds flags to keep comments and have directives
+   turned into codeblocks.
+
+   51) PR #3046 for #3045. Replace eval call with getattr in visitor.
+
+   50) PR #3037 for #3036. Remove AccessType location and is_accessed_before method.
+
+   49) PR #3043. Bring back python 3.9 in the integration tests
+
+   48) PR #2977 for #2971. Move the OMPTaskLoopTrans from transformations.py
+   to psyir/transformations.
+
    47) PR #2997 for #223. Add support for logical operators in the SymPy
    comparisons.
 

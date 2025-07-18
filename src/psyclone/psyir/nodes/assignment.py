@@ -209,7 +209,6 @@ class Assignment(Statement):
         # location otherwise, but the order is still important)
         rhs_accesses = self.rhs.reference_accesses()
         rhs_accesses.update(lhs_accesses)
-        rhs_accesses.next_location()
         return rhs_accesses
 
     @property
