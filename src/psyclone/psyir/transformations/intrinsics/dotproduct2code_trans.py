@@ -272,8 +272,8 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
         else:
             lower_bound, upper_bound = bounds2[0], bounds2[1]
         # Create i loop and add the above code as a child
-        iloop = Loop.create(i_loop_symbol, lower_bound.copy(),
-                            upper_bound.copy(), Literal("1", INTEGER_TYPE),
+        iloop = Loop.create(i_loop_symbol, lower_bound,
+                            upper_bound, Literal("1", INTEGER_TYPE),
                             [assign])
         # Create "result = 0.0"
         assign = Assignment.create(result_ref.copy(),
