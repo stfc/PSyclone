@@ -235,10 +235,10 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
                              "map_w1: READ, ndf_w1: READ, nfaces_re_h: "
                              "READ, nlayers_f1: READ, undf_w1: READ")
     # Tests that multiple reads are reported as expected:
-    assert str(var_info[Signature("cell")]) == "cell:READ(0),READ(0)"
-    assert str(var_info[Signature("colour")]) == "colour:READ(0),READ(0)"
-    assert str(var_info[Signature("cmap")]) == "cmap:READ(0),READ(0)"
-    assert str(var_info[Signature("adjacent_face")]) == "adjacent_face:READ(0)"
+    assert str(var_info[Signature("cell")]) == "cell:[READ,READ]"
+    assert str(var_info[Signature("colour")]) == "colour:[READ,READ]"
+    assert str(var_info[Signature("cmap")]) == "cmap:[READ,READ]"
+    assert str(var_info[Signature("adjacent_face")]) == "adjacent_face:[READ]"
 
     assert create_arg_list._arglist == [
         'nlayers_f1', 'a', 'f1_data', 'ndf_w1', 'undf_w1',
@@ -403,9 +403,9 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
     # Also check that the structure access is correctly converted
     # into a 2-component signature:
     sig = Signature(("op_a_proxy", "ncell_3d"))
-    assert str(access_info[sig]) == "op_a_proxy%ncell_3d:READ(0)"
+    assert str(access_info[sig]) == "op_a_proxy%ncell_3d:[READ]"
     assert (str(access_info[Signature("op_a_local_stencil")]) ==
-            "op_a_local_stencil:READWRITE(0)")
+            "op_a_local_stencil:[READWRITE]")
 
 
 def test_kerncallarglist_mixed_precision():
