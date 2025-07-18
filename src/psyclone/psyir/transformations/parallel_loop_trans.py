@@ -50,7 +50,6 @@ from psyclone.psyir import nodes
 from psyclone.psyir.nodes import (
         Call, Loop, Reference, Routine
 )
-from psyclone.psyir.symbols import AutomaticInterface
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.async_trans_mixin import \

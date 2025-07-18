@@ -724,6 +724,7 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
     assert ("write-write dependency in 'ztmp' cannot be solved by array "
             "privatisation" in str(err.value))
 
+
 def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     '''
         Test the _find_next_dependency function in the ParallelLoopTrans
