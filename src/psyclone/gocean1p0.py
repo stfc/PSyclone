@@ -1067,7 +1067,6 @@ class GOKern(CodedKern):
                                             self, [Reference(symbol_i),
                                                    Reference(symbol_j)])
         var_accesses.update(super().reference_accesses())
-        var_accesses.next_location()
         return var_accesses
 
     @property
