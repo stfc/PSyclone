@@ -668,6 +668,7 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
     '''
     Check that the 'privatise_arrays' transformation option allows to ignore
     write-write dependencies by setting the associated variable as 'private'
+    when the loop has complex control flows (with branches and outer loops).
     '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_sub()
@@ -723,6 +724,10 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
         trans.validate(loop, {"privatise_arrays": True})
     assert ("write-write dependency in 'ztmp' cannot be solved by array "
             "privatisation" in str(err.value))
+
+    # But it is fine when explicitly requesting the symbol to be private
+    loop.explicitly_private_symbols.add(loop.scope.symbol_table.lookup("ztmp"))
+    trans.validate(loop, {"privatise_arrays": True})
 
 
 def test_parallel_loop_trans_find_next_dependency(fortran_reader):
