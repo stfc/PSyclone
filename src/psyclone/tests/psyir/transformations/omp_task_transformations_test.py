@@ -42,7 +42,7 @@ from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import Kern, PSyFactory
 from psyclone.psyir.nodes import Call, CodeBlock, Loop
-from psyclone.psyir.transformations import InlineTrans, TransformationError
+from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import OMPParallelTrans, \
     OMPSingleTrans
 from psyclone.psyir.transformations import OMPTaskTrans
@@ -183,7 +183,9 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     # frontend should have done it.
     calls[0].routine.symbol.is_pure = True
     loops = my_test.walk(Loop)
-    trans.apply(loops[1])
+    trans.apply(
+        loops[1], options={"check_matching_arguments_of_callee": False}
+    )
     master.apply(my_test.children[:])
     parallel.apply(my_test.children[:])
     assert len(my_test.walk(Call, Kern)) == 0
@@ -195,12 +197,16 @@ def test_omptask_inline_kernels(monkeypatch):
                            dist_mem=False, idx=0)
     taskt = OMPTaskTrans()
     schedule = invoke.schedule
+
     # Currently the InlineTrans validation will reject the GOcean kernel call
-    # because it can't determine the type of `fld%data` being passed in. We
-    # therefore monkeypatch the validate() method to get round this.
-    monkeypatch.setattr(InlineTrans, "validate", lambda _1, _2, _3: None)
-    taskt._inline_kernels(schedule.children[0])
-    assert not schedule.walk(Kern)
+    # because it can't determine the type of `fld%data` being passed in.
+    with pytest.raises(TransformationError) as err:
+        taskt._inline_kernels(schedule.children[0])
+
+    assert (
+        "CallMatchingArgumentsNotFound: Argument type mismatch of call"
+        " argument 'StructureReference[name:'cu_fld'" in str(err.value)
+    )
 
 
 # This test relies on inline functionality not yet supported
