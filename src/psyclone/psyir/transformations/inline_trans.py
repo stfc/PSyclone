@@ -147,24 +147,26 @@ class InlineTrans(Transformation):
 
         :param call_node: Target PSyIR node.
         :param routine_node: Routine to be inlined.
-        :param options:
-            A dictionary with options for transformations.
-            - `force`: whether or not to permit the inlining
-                of Routines containing CodeBlocks. Default is False.
-            - `check_argument_strict_array_datatype`:
-                If `True`, make strict checks for matching arguments of
-                array data types.
-                If `False`, it's sufficient that both arguments are of
-                ArrayType. Then, no further checks are performed, defaults
-                to None
-            - `check_matching_arguments`: If `True`, check for all arguments
-                to match. If `False`, if no matching argument was found, take
-                1st one in list. Defaults to `True`
-            - `check_codeblocks`: If `True`, raise Exception
-                if encountering code blocks, defaults to None
-            - `check_unsupported_type`: If `True`,
-                also perform checks (fail inlining) on arguments of
-                unsupported type, defaults to None
+        :param options: A dictionary with options for transformations.
+        :param bool options["force"]:
+            whether or not to permit the inlining
+            of Routines containing CodeBlocks. Default is False.
+        :param bool options["check_argument_strict_array_datatype"]:
+            If `True`, make strict checks for matching arguments of
+            array data types.
+            If `False`, it's sufficient that both arguments are of
+            ArrayType. Then, no further checks are performed, defaults
+            to None
+        :param bool options["check_matching_arguments"]:
+            If `True`, check for all arguments
+            to match. If `False`, if no matching argument was found, take
+            1st one in list. Defaults to `True`
+        :param bool options["check_codeblocks"]:
+            If `True`, raise Exception
+            if encountering code blocks, defaults to None
+        :param bool options["check_unsupported_type"]:
+            If `True`, also perform checks (fail inlining) on arguments of
+            unsupported type, defaults to None
 
         :raises InternalError: if the merge of the symbol tables fails.
             In theory this should never happen because validate() should

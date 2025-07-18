@@ -816,14 +816,15 @@ class Call(Statement, DataNode):
         including argument checks.
 
         :param options: a dictionary of options.
-            - `check_matching_arguments`: Also check argument types to match.
-              If set to `False` and in case it doesn't find matching arguments,
-              the very first implementation of the matching routine will be
-              returned (even if the argument type check failed). The argument
-              types and number of arguments might therefore mismatch!
-              This argument exists for backwards compatibility.
-            - `check_argument_strict_array_datatype`: Make strict checks for
-              the array data types.
+        :param bool options["check_matching_arguments"]:
+            Also check argument types to match.
+            If set to `False` and in case it doesn't find matching arguments,
+            the very first implementation of the matching routine will be
+            returned (even if the argument type check failed). The argument
+            types and number of arguments might therefore mismatch!
+            This argument exists for backwards compatibility.
+        :param bool options["check_argument_strict_array_datatype"]:
+            Make strict checks for the array data types.
 
         :returns: A tuple of two elements. The first element is the routine
             that this call targets. The second one a list of arguments
