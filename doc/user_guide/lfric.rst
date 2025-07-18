@@ -2007,7 +2007,7 @@ conventions, are:
    is an ``integer`` of kind ``i_def`` and has intent ``in``. PSyclone
    will obtain the value of ``nlayers`` to use for a particular kernel
    from the first field or operator in the argument list.
-3) For each scalar/field/vector_field/operator in the order specified by
+3) For each scalar/field/vector_field/operator/ScalarArray in the order specified by
    the meta_args metadata:
 
    1) If the current entry is a scalar quantity then include the Fortran
@@ -2047,7 +2047,7 @@ conventions, are:
 
    3) If the current entry is a field vector then for each dimension
       of the vector, include a field array. The field array name is
-      specified as being using
+      specified as
       ``"field_"<argument_position>"_"<field_function_space>"_v"<vector_position>``.
       A field array in a field vector is declared in the same way as a
       field array (described in the previous step).
@@ -2062,6 +2062,10 @@ conventions, are:
       freedom for the ``to`` and ``from`` function spaces,
       respectively. Again the intent is determined
       from the metadata (see :ref:`lfric-api-meta-args`).
+    5) If the current entry is a :ref:`scalar array <lfric-array>`
+      then include the Fortran variable in the argument list. The
+      ScalarArray must be denoted with intent ``in`` to match its
+      read-only nature.
 
 4) For each function space in the order they appear in the metadata arguments
    (the ``to`` function space of an operator is considered to be before the
