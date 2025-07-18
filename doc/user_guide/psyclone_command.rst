@@ -54,7 +54,8 @@ by the command:
     usage: psyclone [-h] [-v] [-c CONFIG] [-s SCRIPT] [-I INCLUDE] [-l {off,all,output}] [-p {invokes,routines,kernels}]
                     [--backend {enable-validation,disable-validation}]
                     [-o OUTPUT_FILE] [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE] [-okern OUTPUT_KERNEL_PATH] [-d DIRECTORY] [-dm] [-nodm]
-                    [--kernel-renaming {multiple,single}] [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--log-file LOG_FILE]
+                    [--kernel-renaming {multiple,single}] [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}]
+                    [--log-file LOG_FILE] [--keep-comments] [--keep-directives]
                     filename
 
     Transform a file using the PSyclone source-to-source Fortran compiler
@@ -103,6 +104,9 @@ by the command:
      --log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}
                            sets the level of the logging (defaults to OFF).
      --log-file LOG_FILE   sets the output file to use for logging (defaults to stderr).
+     --keep-comments       keeps comments from the original code (defaults to False).
+                           Directives are not kept with this option (use --keep-directives).
+     --keep-directives     keeps directives from the original code (defaults to False).
 
 Basic Use
 ---------
@@ -438,3 +442,20 @@ By default the output from the logging goes into stderr.
 To control the logging output, PSyclone provides the
 ``--log-file`` option. If this is set, the logging output will instead
 be directed to the provided file.
+
+Keeping Comments and Directives
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+PSyclone can now keep comments and directives from the original code, with
+some limitations:
+
+  1. Comments that appear after all statements in a routine are not currently
+     kept.
+  2. Directives are kept as ``CodeBlock`` nodes in the PSyIR which means
+     some transformations will be unavailable on regions containing these
+     nodes. Also PSyclone will not know any details about these nodes
+     (including that they contain directives) but this functionality will
+     be improved over time.
+
+Note that using the ``keep-comments`` option alone means that any comments
+that PSyclone interprets as directives will be lost from the input.
