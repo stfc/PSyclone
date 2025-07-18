@@ -87,6 +87,8 @@ from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
 from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
 from psyclone.psyir.transformations.loop_tiling_trans \
     import LoopTilingTrans
+from psyclone.psyir.transformations.loop_tiling_2d_trans \
+    import LoopTiling2DTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.value_range_check_trans import (
     ValueRangeCheckTrans)
@@ -139,6 +141,7 @@ __all__ = [
     "LoopFuseTrans",
     "LoopSwapTrans",
     "LoopTilingTrans",
+    "LoopTiling2DTrans",
     "LoopTrans",
     "Maxval2LoopTrans",
     "Minval2LoopTrans",
