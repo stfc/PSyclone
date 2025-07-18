@@ -31,37 +31,41 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#          A. B. G. Chalk, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+#         A. B. G. Chalk, V. K. Atkinson, STFC Daresbury Lab
+#         J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
+#          S. Valat, Inria / Laboratoire Jean Kuntzmann
+#          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
+#          J. Dendy, Met Office
 
-'''A simple test script showing the introduction of OpenMP tasking with
-PSyclone.
+'''
+Module containing tests for the parallel region transformation class.
 
 '''
 
-from psyclone.psyir.nodes import Loop
-from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
-from psyclone.psyir.transformations import OMPTaskloopTrans, OMPTaskwaitTrans
+import pytest
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
+from psyclone.psyir.nodes import CodeBlock
+from psyclone.psyir.nodes import (Literal, Loop)
+from psyclone.transformations import OMPParallelTrans
+from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE)
 
 
-def trans(psyir):
-    '''
-    Transformation routine for use with PSyclone. Applies the OpenMP
-    taskloop and taskwait transformations to the PSy layer.
-
-    :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
-
-    '''
-    singletrans = OMPSingleTrans()
-    paralleltrans = OMPParallelTrans()
-    tasklooptrans = OMPTaskloopTrans(nogroup=False)
-    taskwaittrans = OMPTaskwaitTrans()
-    for schedule in psyir.children[0].children:
-        print("Adding OpenMP tasking to invoke: " + schedule.name)
-        for child in schedule.children:
-            if isinstance(child, Loop):
-                tasklooptrans.apply(child)
-        singletrans.apply(schedule)
-        paralleltrans.apply(schedule)
-        taskwaittrans.apply(schedule[0])
+def test_parallelregion_refuse_codeblock():
+    ''' Check that ParallelRegionTrans.validate() rejects a loop nest that
+    encloses a CodeBlock. We use OMPParallelTrans as ParallelRegionTrans
+    is abstract. '''
+    otrans = OMPParallelTrans()
+    # Construct a valid Loop in the PSyIR with a CodeBlock in its body
+    parent = Loop.create(DataSymbol("ji", INTEGER_TYPE),
+                         Literal("1", INTEGER_TYPE),
+                         Literal("10", INTEGER_TYPE),
+                         Literal("1", INTEGER_TYPE),
+                         [CodeBlock([], CodeBlock.Structure.STATEMENT,
+                                    None)])
+    with pytest.raises(TransformationError) as err:
+        otrans.validate([parent])
+    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
+            "OMPParallelTrans transformation" in str(err.value))
