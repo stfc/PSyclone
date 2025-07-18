@@ -646,6 +646,12 @@ class Call(Statement, DataNode):
 
         :param call_arg: One argument of the call
         :param routine_arg: One argument of the routine
+        :param options: Dictionary with some additional options.
+            - `check_argument_strict_array_datatype`: If False, then
+              the array data types of the call and routine arguments
+              are not tested against each other.
+            - `check_argument_ignore_unresolved_types`: If True,
+              unresolved types are ignored.
 
         :raises CallMatchingArgumentsNotFound: Raised if no matching argument
             was found.
@@ -704,9 +710,10 @@ class Call(Statement, DataNode):
         the index of the corresponding entry in the argument list of the
         supplied routine.
 
-        :return: None if no match was found, otherwise list of integers
+        :param options: a dictionary of options.
+
+        :return: `None` if no match was found, otherwise list of integers
             referring to matching arguments.
-        :rtype: None|List[int]
         :raises CallMatchingArgumentsNotFound: If there was some problem in
             finding matching arguments.
         '''

@@ -184,10 +184,6 @@ class InlineTrans(Transformation):
         # The table associated with the scoping region holding the Call.
         table = node.ancestor(Routine).symbol_table
 
-        if orig_routine is None:
-            # Find the routine to be inlined.
-            orig_routine = node.get_callees()[0]
-
         if not orig_routine.children or isinstance(orig_routine.children[0],
                                                    Return):
             # Called routine is empty so just remove the call.
@@ -363,7 +359,7 @@ class InlineTrans(Transformation):
         (`True`) or not (`False`).
 
         :param routine_node: Routine to be inlined.
-        :arg_match_list: List of indices of arguments that match.
+        :param arg_match_list: List of indices of arguments that match.
         """
         # We first build a lookup table of all optional arguments
         # to see whether it's present or not.
@@ -412,9 +408,6 @@ class InlineTrans(Transformation):
 
         TODO: This also requires support of conditions containing logical
         expressions such as `(.true. .or. .false.)`
-        TODO: This could also become a Psyclone transformation.
-
-        :rtype: None
         """
 
         def if_else_replace(main_schedule, if_block, if_body_schedule):
@@ -857,6 +850,8 @@ class InlineTrans(Transformation):
         :type call_node: :py:class:`psyclone.psyir.nodes.Call`
         :param formal_args: the formal arguments of the called routine.
         :type formal_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+        :param routine_node: Routine node to be inlined.
+        :param options: A dictionary with options for transformations.
 
         :returns: the replacement reference.
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
@@ -970,10 +965,10 @@ class InlineTrans(Transformation):
         """This function performs tests to see whether the
         inlining can cope with it.
 
+        :param call_node: The call used for inlining
         :param call_arg: The argument of a call
-        :type call_arg: DataSymbol
+        :param routine: The routine to be inlined
         :param routine_arg: The argument of a routine
-        :type routine_arg: DataSymbol
 
         :raises TransformationError: Raised if transformation can't be done
         """
@@ -1066,6 +1061,9 @@ class InlineTrans(Transformation):
         '''
         Searches for the implementation(s) of the target routine for this Call
         including argument checks.
+
+        :option call_node: Get callee from this call node with matching
+            arguments.
 
         :returns: A tuple of two elements. The first element is the routine
             that this call targets. The second one a list of arguments

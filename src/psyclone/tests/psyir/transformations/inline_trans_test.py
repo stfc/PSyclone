@@ -2520,6 +2520,46 @@ def test_apply_optional_and_named_arg_2(fortran_reader):
     )
 
 
+def test_apply_provide_routine(fortran_reader):
+    '''Test that works with specific `routine` provided
+    to be inlined.'''
+
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real :: var = 0.0\n"
+        "  call sub(var, 1.0)\n"
+        "end subroutine main\n"
+        "subroutine sub(x, opt)\n"
+        "  real, intent(inout) :: x\n"
+        "  real, optional :: opt\n"
+        "  if( present(opt) )then\n"
+        "    x = x + 2.0 + opt\n"
+        "  else\n"
+        "    x = x + 3.0\n"
+        "  end if\n"
+        "  if( present(opt) )then\n"
+        "    x = x + 4.0 + opt\n"
+        "    x = x + 5.0 + opt\n"
+        "  else\n"
+        "    x = x + 6.0\n"
+        "    x = x + 7.0\n"
+        "  end if\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir: Node = fortran_reader.psyir_from_source(code)
+
+    inline_trans = InlineTrans()
+
+    call: Routine = psyir.walk(Call)[0]
+    routine_sub: Routine = psyir.walk(Routine)[1]
+    assert routine_sub.name == "sub"
+
+    inline_trans.apply(call, routine_sub)
+
+
 CALL_IN_SUB_USE = (
     "subroutine run_it()\n"
     "  use inline_mod, only : sub\n"
