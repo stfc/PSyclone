@@ -176,8 +176,8 @@ class AccessInfo():
 
 
 # =============================================================================
-class SingleVariableAccessInfo():
-    '''This class stores a list with all accesses to one variable.
+class AccessSequence():
+    ''' This class stores a list with all accesses to one variable.
 
     :param signature: signature of the variable.
     :type signature: :py:class:`psyclone.core.Signature`
@@ -331,7 +331,7 @@ class SingleVariableAccessInfo():
         The LHS has first all variables identified, which will be READ.
         This function is then called to change the assigned-to variable
         on the LHS to from READ to WRITE. Since the LHS is stored in a separate
-        SingleVariableAccessInfo class, it is guaranteed that there is only
+        AccessSequence class, it is guaranteed that there is only
         one READ entry for the variable (although there maybe INQUIRY accesses
         for array bounds).
 
@@ -400,5 +400,5 @@ class SingleVariableAccessInfo():
 # The list of module members that we wish AutoAPI to generate
 # documentation for.
 __all__ = ["AccessInfo",
-           "SingleVariableAccessInfo"
+           "AccessSequence"
            ]

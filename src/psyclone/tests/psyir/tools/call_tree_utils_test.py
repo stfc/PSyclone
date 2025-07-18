@@ -44,7 +44,7 @@ import re
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.core import Signature, SingleVariableAccessInfo
+from psyclone.core import Signature, AccessSequence
 from psyclone.domain.lfric import LFRicKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
@@ -442,7 +442,7 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
 
     # Get the associated PSyIR and break it by removing the Routine and
     # associated Symbol.
-    info = SingleVariableAccessInfo(Signature("module_subroutine"))
+    info = AccessSequence(Signature("module_subroutine"))
     minfo = mod_man.get_module_info("module_with_var_mod")
     cntr = minfo.get_psyir()
     cntr.find_routine_psyir("module_subroutine").detach()
@@ -650,7 +650,7 @@ def test_call_tree_error_var_not_found(capsys):
 
     read_write_info = ReadWriteInfo()
     ctu = CallTreeUtils()
-    sva = SingleVariableAccessInfo(Signature("a"))
+    sva = AccessSequence(Signature("a"))
     ctu._resolve_calls_and_unknowns([("unknown", "constants_mod",
                                       Signature("does_not_exist"), sva)],
                                     read_write_info)
@@ -677,7 +677,7 @@ def test_call_tree_error_module_is_codeblock(capsys):
     container.replace_with(cblock)
 
     ctu = CallTreeUtils()
-    sva = SingleVariableAccessInfo(Signature("a"))
+    sva = AccessSequence(Signature("a"))
     read_write_info = ReadWriteInfo()
     ctu._resolve_calls_and_unknowns(
         [("routine", "testkern_import_symbols_mod",

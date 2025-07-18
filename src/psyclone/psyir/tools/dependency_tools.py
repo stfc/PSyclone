@@ -638,7 +638,7 @@ class DependencyTools():
         :type loop_variables: List[str]
         :param var_info: access information for this variable.
         :type var_info:
-            :py:class:`psyclone.core.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.AccessSequence`
 
         :return: whether the variable can be used in parallel.
         :rtype: bool
@@ -990,10 +990,10 @@ class DependencyTools():
 
         :param var_info1: access information for variable in the first loop.
         :type var_info1: \
-            :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.var_info.AccessSequence`
         :param var_info2: access information for variable in the second loop.
         :type var_info2: \
-            :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.var_info.AccessSequence`
         :param loop_variable1: symbol of the variable associated with the \
             first loop being fused.
         :type loop_variable: :py:class:`psyclone.psyir.symbols.DataSymbol`

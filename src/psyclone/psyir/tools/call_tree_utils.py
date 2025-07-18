@@ -350,7 +350,7 @@ class CallTreeUtils():
             module_name, symbol_name, signature and access information.
         :type outstanding_nonlocals: list[tuple[
             str, str, str, :py:class:`psyclone.core.Signature`,
-            :py:class:`psyclone.core.SingleVariableAccessInfo`]]
+            :py:class:`psyclone.core.AccessSequence`]]
         :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
@@ -516,7 +516,7 @@ class CallTreeUtils():
 
         :returns: the non-local accesses in this routine.
         :rtype: list[tuple[str, str, :py:class:`psyclone.core.Signature`,
-            :py:class:`psyclone.core.SingleVariableAccessInfo`]]
+            :py:class:`psyclone.core.AccessSequence`]]
 
         '''
         non_locals = self._compute_all_non_locals(routine)

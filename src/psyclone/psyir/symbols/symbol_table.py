@@ -1217,7 +1217,7 @@ class SymbolTable():
         if sig not in vam:
             return
 
-        # TODO #2424 - ideally SingleVariableAccessInfo.AccessInfo or
+        # TODO #2424 - ideally AccessSequence.AccessInfo or
         # Signature would store the actual Symbol that the access is to. In
         # the absence of that, we have to examine each access to determine
         # the Symbol.
@@ -2034,7 +2034,7 @@ class SymbolTable():
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 

@@ -98,7 +98,7 @@ class DataType(metaclass=abc.ABCMeta):
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
@@ -332,7 +332,7 @@ class UnsupportedFortranType(UnsupportedType):
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
@@ -527,7 +527,7 @@ class ScalarType(DataType):
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
@@ -599,7 +599,7 @@ class ArrayType(DataType):
             :returns: a map of all the symbol accessed inside this object, the
                 keys are Signatures (unique identifiers to a symbol and its
                 structure acccessors) and the values are
-                SingleVariableAccessInfo (a sequence of AccessTypes).
+                AccessSequence (a sequence of AccessTypes).
             :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
             '''
@@ -1049,7 +1049,7 @@ class ArrayType(DataType):
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
@@ -1313,7 +1313,7 @@ class StructureType(DataType):
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 

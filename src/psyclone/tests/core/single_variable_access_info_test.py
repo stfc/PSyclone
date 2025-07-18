@@ -41,7 +41,7 @@ module.'''
 import pytest
 
 from psyclone.core import (AccessInfo, ComponentIndices, Signature,
-                           SingleVariableAccessInfo)
+                           AccessSequence)
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Assignment, Node, Reference, Return
@@ -130,7 +130,7 @@ def test_variable_access_info():
     list of VariableInfo instances for one variable
     '''
 
-    vam = SingleVariableAccessInfo(Signature("var_name"))
+    vam = AccessSequence(Signature("var_name"))
     assert vam.var_name == "var_name"
     assert str(vam) == "var_name:[]"
     assert vam.is_written() is False
@@ -185,7 +185,7 @@ def test_variable_access_info():
     assert vam.all_read_accesses == [vam[2]]
     assert vam.all_write_accesses == [vam[1], vam[3]]
     # Check that we catch a case where there are no accesses at all.
-    vam = SingleVariableAccessInfo(Signature("var_name"))
+    vam = AccessSequence(Signature("var_name"))
     with pytest.raises(InternalError) as err:
         vam.change_read_to_write()
     assert "but it does not have a 'READ' access" in str(err.value)
@@ -196,7 +196,7 @@ def test_variable_access_info_is_array(fortran_reader):
     '''Test that the SingleVariableAccesInfo class handles arrays as expected.
 
     '''
-    vam = SingleVariableAccessInfo(Signature("var_name"))
+    vam = AccessSequence(Signature("var_name"))
     # Add non array-like access:
     vam.add_access(AccessType.READ, Node(), component_indices=None)
     assert not vam.is_array()
@@ -217,7 +217,7 @@ def test_variable_access_info_is_array(fortran_reader):
     # Get the reference to i
     ref_i = rhs.children[0]
 
-    vam = SingleVariableAccessInfo(Signature("b"))
+    vam = AccessSequence(Signature("b"))
     vam.add_access(AccessType.READ, rhs, ComponentIndices([ref_i]))
 
     # Check that the access to "b[i]" is considered an array
@@ -236,7 +236,7 @@ def test_variable_access_info_read_write():
     used in subroutine calls (depending on kernel metadata)
     '''
 
-    vam = SingleVariableAccessInfo(Signature("var_name"))
+    vam = AccessSequence(Signature("var_name"))
     assert vam.has_read_write() is False
     assert vam.is_written_first() is False
 
@@ -256,7 +256,7 @@ def test_variable_access_info_read_write():
     assert vam.has_read_write()
 
     # Create a new instance, and add only one READWRITE access:
-    vam = SingleVariableAccessInfo(Signature("var_name"))
+    vam = AccessSequence(Signature("var_name"))
     vam.add_access(AccessType.READWRITE, Node(), component_indices=None)
     assert vam.has_read_write()
     assert vam.is_read()

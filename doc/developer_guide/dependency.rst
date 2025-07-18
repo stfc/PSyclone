@@ -327,21 +327,21 @@ instance is holding information about. If the PSyIR tree is modified the
 store them.
 
 
-SingleVariableAccessInfo
+AccessSequence
 ------------------------
-The values of the `VariablesAccessMap` map are `SingleVariableAccessInfo`,
+The values of the `VariablesAccessMap` map are `AccessSequence`,
 which contain the sequence of accesses to a single variable. When a new variable
 is detected when adding access information to a `VariablesAccessMap` instance
-via `add_access()`, a new instance of `SingleVariableAccessInfo` is added,
+via `add_access()`, a new instance of `AccessSequence` is added,
 which in turn stores all access to the specified variable.
 
-.. autoclass:: psyclone.core.SingleVariableAccessInfo
+.. autoclass:: psyclone.core.AccessSequence
     :no-index:
     :members:
 
 AccessInfo
 ----------
-The class `SingleVariableAccessInfo` uses a list of
+The class `AccessSequence` uses a list of
 `psyclone.core.AccessInfo` instances to store all
 accesses to a single variable. A new instance of `AccessInfo`
 is appended to the list whenever `add_access()`

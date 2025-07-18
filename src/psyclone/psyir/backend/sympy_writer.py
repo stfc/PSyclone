@@ -44,7 +44,7 @@ from typing import Iterable, Optional, Union
 import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
-from psyclone.core import (Signature, SingleVariableAccessInfo,
+from psyclone.core import (Signature, AccessSequence,
                            VariablesAccessMap)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -272,7 +272,7 @@ class SymPyWriter(FortranWriter):
 
     @staticmethod
     def _ndims_for_struct_access(sig: Signature,
-                                 sva: SingleVariableAccessInfo) -> list[int]:
+                                 sva: AccessSequence) -> list[int]:
         '''
         The same Signature can be accessed with different numbers of indices,
         e.g. a%b, a%b(1) and a(1)%b. This routine examines all accesses and
@@ -305,7 +305,7 @@ class SymPyWriter(FortranWriter):
         return max_dims
 
     @staticmethod
-    def _specialise_array_symbol(sym: Symbol, sva: SingleVariableAccessInfo):
+    def _specialise_array_symbol(sym: Symbol, sva: AccessSequence):
         '''
         If we can be confident that the supplied Symbol should be of ArrayType
         due to the way it is accessed then we specialise it in place.
@@ -409,7 +409,7 @@ class SymPyWriter(FortranWriter):
             vam.update(expr.reference_accesses())
 
         for sig in vam.all_signatures:
-            sva: SingleVariableAccessInfo = vam[sig]
+            sva: AccessSequence = vam[sig]
 
             flat_name = "_".join(name for name in sig)
             unique_sym = self._symbol_table.find_or_create_tag(
