@@ -32,14 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 '''This module provides the LoopTiling2DTrans, which transforms a 2D Loop
 construct into a tiled implementation of the construct.'''
 
-from psyclone.psyir.nodes import Loop
-from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
-from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
+import warnings
+from psyclone.psyir.transformations.loop_tiling_trans import LoopTilingTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
@@ -47,14 +47,15 @@ from psyclone.psyir.transformations.transformation_error import \
 
 class LoopTiling2DTrans(LoopTrans):
     '''
-    Apply a 2D loop tiling transformation to a loop. For example:
+    Apply a 2D loop tiling transformation to a loop.  This is a special
+    case of LoopTilingTrans for 2D square tiles. For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Loop
     >>> from psyclone.psyir.transformations import LoopTiling2DTrans
     >>> psyir = FortranReader().psyir_from_source("""
     ... subroutine sub()
-    ...     integer :: ji, tmp(100)
+    ...     integer :: i, j, tmp(100)
     ...     do i=1, 100
     ...       do j=1, 100
     ...         tmp(i, j) = 2 * tmp(i, j)
@@ -69,16 +70,16 @@ class LoopTiling2DTrans(LoopTrans):
     .. code-block:: fortran
 
         subroutine sub()
-            integer :: ji
+            integer :: i
+            integer :: j
             integer, dimension(100) :: tmp
-            integer :: ji_el_inner
-            integer :: ji_out_var
+            integer :: j_out_var
+            integer :: i_out_var
+
             do i_out_var = 1, 100, 32
-              i_el_inner = MIN(i_out_var + (32 - 1), 100)
               do j_out_var = 1, 100, 32
-                do i = i_out_var, i_el_inner, 1
-                  j_el_inner = MIN(j_out_var + (32 - 1), 100)
-                  do j = j_out_var, j_el_inner, 1
+                do i = i_out_var, MIN(i_out_var + (32 - 1), 100), 1
+                  do j = j_out_var, MIN(j_out_var + (32 - 1), 100), 1
                     tmp(i, j) = 2 * tmp(i, j)
                   enddo
                 enddo
@@ -135,19 +136,7 @@ class LoopTiling2DTrans(LoopTrans):
                     f"are: {valid_options}.")
 
         tilesize = options.get("tilesize", 32)
-
-        # Even though the loops that ultimately will be swapped are the ones
-        # resulting from the ChunkLoopTrans, these have the same validation
-        # constrains as swapping the two original loops. This already
-        # guarantees that we have a 2 loop construct with only one loop
-        # statement inside the outer loop.
-        LoopSwapTrans().validate(node)
-
-        # Check that we can chunk both loops
-        outer_loop = node
-        inner_loop = node.loop_body.children[0]
-        ChunkLoopTrans().validate(outer_loop, options={'chunksize': tilesize})
-        ChunkLoopTrans().validate(inner_loop, options={'chunksize': tilesize})
+        LoopTilingTrans().validate(node, tiledims=[tilesize, tilesize])
 
     def apply(self, node, options=None):
         '''
@@ -163,17 +152,11 @@ class LoopTiling2DTrans(LoopTrans):
                 specified, the value 32 is used.
 
         '''
+        warnings.warn("LoopTiling2DTrans is deprecated. "
+                      "Use LoopTilingTrans instead.",
+                      DeprecationWarning, 2)
         self.validate(node, options)
         if options is None:
             options = {}
         tilesize = options.get("tilesize", 32)
-        parent = node.parent
-        position = node.position
-        outer_loop = node
-        inner_loop = node.loop_body.children[0]
-
-        ChunkLoopTrans().apply(outer_loop, options={'chunksize': tilesize})
-        ChunkLoopTrans().apply(inner_loop, options={'chunksize': tilesize})
-
-        loops = parent[position].walk(Loop)[1]
-        LoopSwapTrans().apply(loops)
+        LoopTilingTrans().apply(node, tiledims=[tilesize, tilesize])
