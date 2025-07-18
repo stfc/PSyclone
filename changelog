@@ -1,3 +1,7 @@
+   51) PR #3046 for #3045. Replace eval call with getattr in visitor.
+
+   50) PR #3037 for #3036. Remove AccessType location and is_accessed_before method.
+
    49) PR #3043. Bring back python 3.9 in the integration tests
 
    48) PR #2977 for #2971. Move the OMPTaskLoopTrans from transformations.py
