@@ -2062,10 +2062,9 @@ conventions, are:
       freedom for the ``to`` and ``from`` function spaces,
       respectively. Again the intent is determined
       from the metadata (see :ref:`lfric-api-meta-args`).
-    5) If the current entry is a :ref:`scalar array <lfric-array>`
-      then include the Fortran variable in the argument list. The
-      ScalarArray must be denoted with intent ``in`` to match its
-      read-only nature.
+    5) If the current entry is a ScalarArray then include the Fortran
+      variable in the argument list. The ScalarArray must be denoted
+      with intent ``in`` to match its read-only nature.
 
 4) For each function space in the order they appear in the metadata arguments
    (the ``to`` function space of an operator is considered to be before the
