@@ -40,6 +40,7 @@
 '''This module provides management of variable access information.'''
 
 
+from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 from psyclone.core.access_type import AccessType
