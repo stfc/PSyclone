@@ -509,10 +509,10 @@ def test_directives():
     psyir = reader.psyir_from_source(CODE_WITH_DIRECTIVE)
 
     loop = psyir.walk(Loop)[0]
-    assert (
-        loop.preceding_comment
-        == "Comment on loop 'do i = 1, 10'\n$omp parallel do"
-    )
+    directive = loop.preceding(reverse=True)[0]
+    assert isinstance(directive, CodeBlock)
+    assert (directive.debug_string() ==
+            "! Comment on loop 'do i = 1, 10'\n!$omp parallel do\n")
 
 
 EXPECTED_WITH_DIRECTIVES = """subroutine test_sub()
@@ -529,10 +529,6 @@ end subroutine test_sub
 """
 
 
-@pytest.mark.xfail(
-    reason="Directive is written back as '! $omp parallel do'"
-    "instead of '!$omp parallel do'"
-)
 def test_write_directives():
     """Test that the directives are written back to the code"""
     reader = FortranReader(ignore_comments=False, ignore_directives=False)
@@ -591,3 +587,37 @@ def test_inline_comment():
     assert "a = i + 1" in assignment.debug_string()
     assert assignment.preceding_comment == ""
     assert assignment.inline_comment == "Third line of inline comment"
+
+
+def test_lost_program_comments():
+    """Test that the FortranReader doesn't lose comments after the
+    declarations when reading a Program."""
+    reader = FortranReader(ignore_comments=False)
+    code = """program a
+    integer :: i ! inline here
+
+    ! Comment here
+    i = 1
+    end program"""
+    psyir = reader.psyir_from_source(code)
+    assert (psyir.children[0].symbol_table.lookup("i").inline_comment ==
+            "inline here")
+    assignment = psyir.walk(Assignment)[0]
+    assert assignment.preceding_comment == "Comment here"
+
+
+def test_directive_at_end():
+    """Test that the FortranReader stores a directive after all
+    other code in a subroutine."""
+
+    code = """subroutine x
+    integer :: i
+    i = i + 1
+    !$omp barrier
+    end subroutine"""
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    # The directive is a codeblock
+    assert isinstance(routine.children[-1], CodeBlock)
+    assert routine.children[-1].debug_string() == "!$omp barrier\n"
