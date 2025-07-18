@@ -116,6 +116,8 @@ from psyclone.psyir.transformations.parallel_region_trans import \
     ParallelRegionTrans
 from psyclone.psyir.transformations.omp_taskloop_trans import \
     OMPTaskloopTrans
+from psyclone.psyir.transformations.omp_declare_target_trans import \
+    OMPDeclareTargetTrans
 
 # For AutoAPI documentation generation
 __all__ = [
@@ -162,4 +164,5 @@ __all__ = [
     "ValueRangeCheckTrans",
     "ParallelRegionTrans",
     "OMPTaskloopTrans",
+    "OMPDeclareTargetTrans",
 ]
