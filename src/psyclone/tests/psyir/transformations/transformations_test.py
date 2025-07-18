@@ -40,6 +40,7 @@
 API-agnostic tests for various transformation classes.
 '''
 
+import sys
 import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
@@ -54,9 +55,10 @@ from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
 from psyclone.tests.utilities import get_invoke, Compile
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
     ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPDeclareTargetTrans
+    OMPSingleTrans, OMPMasterTrans, OMPDeclareTargetTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.transformations.omp_taskloop_trans import OMPTaskloopTrans
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
@@ -195,6 +197,7 @@ def test_omptaskloop_getters_and_setters():
     ''' Check that the OMPTaskloopTrans getters and setters
     correctly throw TransformationErrors on illegal values '''
     trans = OMPTaskloopTrans()
+    assert "Adds an 'OpenMP TASKLOOP' directive to a loop" in str(trans)
     with pytest.raises(TransformationError) as err:
         trans.omp_num_tasks = "String"
     assert "num_tasks must be an integer or None, got str" in str(err.value)
@@ -588,11 +591,16 @@ def test_omploop_trans_new_options(sample_psyir):
 
     with pytest.raises(TypeError) as excinfo:
         omplooptrans.apply(tree.walk(Loop)[0], collapse="x")
-    assert ("'OMPLoopTrans' received options with the wrong types:\n"
-            "'collapse' option expects type 'int | bool' but "
-            "received 'x' of type 'str'.\n"
-            "Please see the documentation and check the provided types."
-            in str(excinfo.value))
+    if sys.version_info >= (3, 10):
+        assert ("'OMPLoopTrans' received options with the wrong types:\n"
+                "'collapse' option expects type 'int | bool' but "
+                "received 'x' of type 'str'.\n"
+                "Please see the documentation and check the provided types."
+                in str(excinfo.value))
+    else:
+        assert ("The 'collapse' argument must be an integer or a bool but got"
+                " an object of type <class 'str'>"
+                in str(excinfo.value))
 
 
 def test_omplooptrans_apply_nowait(fortran_reader, fortran_writer):

@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Utility module containing classes and functions that are used by
 the parser modules.
@@ -104,11 +105,13 @@ def check_line_length(filename):
             f"'-l/--limit' setting on the PSyclone command line.")
 
 
-def parse_fp2(filename):
+def parse_fp2(filename, ignore_comments: bool = True):
     '''Parse a Fortran source file contained in the file 'filename' using
     fparser2.
 
     :param str filename: source file (including path) to read.
+    :param ignore_comments: whether to remove the comments from the input
+                           file. Default is True.
     :returns: fparser2 AST for the source file.
     :rtype: :py:class:`fparser.two.Fortran2003.Program`
     :raises ParseError: if the file could not be parsed.
@@ -118,7 +121,8 @@ def parse_fp2(filename):
     # our configuration object.
     config = Config.get()
     try:
-        reader = FortranFileReader(filename, include_dirs=config.include_paths)
+        reader = FortranFileReader(filename, include_dirs=config.include_paths,
+                                   ignore_comments=ignore_comments)
     except IOError as error:
         raise ParseError(
             f"algorithm.py:parse_fp2: Failed to parse file '{filename}'. "
