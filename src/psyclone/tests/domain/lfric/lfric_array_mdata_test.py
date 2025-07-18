@@ -94,7 +94,7 @@ def test_ad_array_init_wrong_argument_type():
 
 def test_ad_array_type_wrong_num_of_args():
     ''' Tests that an error is raised when the ScalarArray argument
-    descriptor metadata for a ScalarArray has fewer than 3 args. '''
+    descriptor metadata for a ScalarArray has fewer than 4 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = ARRAY_CODE.replace(
         "arg_type(gh_scalar_array,   gh_real,    gh_read, 1)",
