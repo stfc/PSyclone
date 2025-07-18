@@ -59,10 +59,10 @@ from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
-    ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
+    ACCParallelDirective, ACCRoutineDirective,
     Call, CodeBlock, Directive, Literal, Loop, Node,
     OMPDirective, OMPMasterDirective,
-    OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
+    OMPParallelDirective, OMPSerialDirective,
     Return, Schedule,
     OMPSingleDirective, PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
@@ -74,8 +74,6 @@ from psyclone.psyir.symbols import (
     SymbolError, UnresolvedType)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
-from psyclone.psyir.transformations.parallel_loop_trans import (
-    ParallelLoopTrans)
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -83,6 +81,8 @@ from psyclone.psyir.transformations import ParallelRegionTrans
 from psyclone.utils import transformation_documentation_wrapper
 from psyclone.psyir.transformations.mark_routine_for_gpu_mixin import (
     MarkRoutineForGPUMixin)
+from psyclone.psyir.transformations.omp_parallel_loop_trans import (
+    OMPParallelLoopTrans)
 
 
 def check_intergrid(node):
@@ -110,178 +110,6 @@ def check_intergrid(node):
                 f"This Transformation cannot currently be applied to nodes "
                 f"which have inter-grid kernels as descendents and {kern.name}"
                 f" is such a kernel.")
-
-
-class ACCLoopTrans(ParallelLoopTrans):
-    '''
-    Adds an OpenACC loop directive to a loop. This directive must be within
-    the scope of some OpenACC Parallel region (at code-generation time).
-
-    For example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory
-    >>> from psyclone.errors import GenerationError
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>>
-    >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> ltrans = t.get_trans_name('ACCLoopTrans')
-    >>> rtrans = t.get_trans_name('ACCParallelTrans')
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> # Apply the OpenACC Loop transformation to *every* loop in the schedule
-    >>> for child in schedule.children[:]:
-    ...     ltrans.apply(child)
-    >>>
-    >>> # Enclose all of these loops within a single OpenACC parallel region
-    >>> rtrans.apply(schedule)
-    >>>
-
-    '''
-    # The types of node that must be excluded from the section of PSyIR
-    # being transformed.
-    excluded_node_types = (PSyDataNode,)
-
-    def __init__(self):
-        # Whether to add the "independent" clause
-        # to the loop directive.
-        self._independent = True
-        self._sequential = False
-        self._gang = False
-        self._vector = False
-        super().__init__()
-
-    def __str__(self):
-        return "Adds an 'OpenACC loop' directive to a loop"
-
-    def _directive(self, children, collapse=None):
-        '''
-        Creates the ACCLoopDirective needed by this sub-class of
-        transformation.
-
-        :param children: list of child nodes of the new directive Node.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param int collapse: number of nested loops to collapse or None if
-                             no collapse attribute is required.
-        '''
-        directive = ACCLoopDirective(children=children,
-                                     collapse=collapse,
-                                     independent=self._independent,
-                                     sequential=self._sequential,
-                                     gang=self._gang,
-                                     vector=self._vector)
-        return directive
-
-    def apply(self, node, options=None):
-        '''
-        Apply the ACCLoop transformation to the specified node. This node
-        must be a Loop since this transformation corresponds to
-        inserting a directive immediately before a loop, e.g.:
-
-        .. code-block:: fortran
-
-          !$ACC LOOP
-          do ...
-             ...
-          end do
-
-        At code-generation time (when lowering is called),
-        this node must be within (i.e. a child of) a PARALLEL region.
-
-        :param node: the supplied node to which we will apply the
-                     Loop transformation.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param int options["collapse"]: number of nested loops to collapse.
-        :param bool options["independent"]: whether to add the "independent"
-                clause to the directive (not strictly necessary within
-                PARALLEL regions).
-        :param bool options["sequential"]: whether to add the "seq" clause to
-                the directive.
-        :param bool options["gang"]: whether to add the "gang" clause to the
-                directive.
-        :param bool options["vector"]: whether to add the "vector" clause to
-                the directive.
-
-        '''
-        # Store sub-class specific options. These are used when
-        # creating the directive (in the _directive() method).
-        if not options:
-            options = {}
-        self._independent = options.get("independent", True)
-        self._sequential = options.get("sequential", False)
-        self._gang = options.get("gang", False)
-        self._vector = options.get("vector", False)
-
-        # Call the apply() method of the base class
-        super().apply(node, options)
-
-
-class OMPParallelLoopTrans(OMPLoopTrans):
-
-    ''' Adds an OpenMP PARALLEL DO directive to a loop.
-
-        For example:
-
-        >>> from psyclone.parse.algorithm import parse
-        >>> from psyclone.psyGen import PSyFactory
-        >>> ast, invokeInfo = parse("lfric.F90")
-        >>> psy = PSyFactory("lfric").create(invokeInfo)
-        >>> schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
-        >>> # Uncomment the following line to see a text view of the schedule
-        >>> # print(schedule.view())
-        >>>
-        >>> from psyclone.transformations import OMPParallelLoopTrans
-        >>> trans = OMPParallelLoopTrans()
-        >>> trans.apply(schedule.children[0])
-        >>> # Uncomment the following line to see a text view of the schedule
-        >>> # print(schedule.view())
-
-    '''
-    def __str__(self):
-        return "Add an 'OpenMP PARALLEL DO' directive"
-
-    def apply(self, node, options=None):
-        ''' Apply an OMPParallelLoop Transformation to the supplied node
-        (which must be a Loop). In the generated code this corresponds to
-        wrapping the Loop with directives:
-
-        .. code-block:: fortran
-
-          !$OMP PARALLEL DO ...
-          do ...
-            ...
-          end do
-          !$OMP END PARALLEL DO
-
-        :param node: the node (loop) to which to apply the transformation.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations
-            and validation.
-        :type options: Optional[Dict[str, Any]]
-        '''
-        self.validate(node, options=options)
-
-        # keep a reference to the node's original parent and its index as these
-        # are required and will change when we change the node's location
-        node_parent = node.parent
-        node_position = node.position
-
-        # add our OpenMP loop directive setting its parent to the node's
-        # parent and its children to the node
-        directive = OMPParallelDoDirective(children=[node.detach()],
-                                           omp_schedule=self.omp_schedule)
-
-        # add the OpenMP loop directive as a child of the node's parent
-        node_parent.addchild(directive, index=node_position)
 
 
 class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
@@ -2598,7 +2426,6 @@ class Dynamo0p3{name}(LFRic{name}):
 __all__ = [
    "ACCEnterDataTrans",
    "ACCDataTrans",
-   "ACCLoopTrans",
    "ACCParallelTrans",
    "ACCRoutineTrans",
    "ColourTrans",
