@@ -41,12 +41,12 @@ transformation.'''
 import pytest
 
 from psyclone.psyir.nodes import (
-    Literal, BinaryOperation, Range, ArrayReference, Assignment,
-    Node, DataNode, CodeBlock, Schedule, Loop)
+    BinaryOperation, ArrayReference, Assignment, Literal, Loop,
+    Node, DataNode, CodeBlock, Range, Reference, Schedule)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, INTEGER_TYPE, UnresolvedType)
-from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans, \
-    TransformationError
+from psyclone.psyir.transformations import (
+    ArrayAssignment2LoopsTrans, Reference2ArrayRangeTrans, TransformationError)
 from psyclone.tests.utilities import Compile
 
 
@@ -363,6 +363,31 @@ def test_apply_outside_routine(fortran_reader, fortran_writer):
     trans.apply(assignment)
     result = fortran_writer(loop)
     assert "a(idx) = a(idx) + b(idx +" in result
+
+
+def test_apply_assumed_shape(fortran_reader, fortran_writer, tmpdir):
+    '''Test when the underlying arrays are of assumed shape and have
+    different lower bounds.'''
+    code = ('''\
+    subroutine sub(var, var2, istart, istart2)
+      integer, intent(in) :: istart, istart2
+      integer, dimension(istart:) :: var
+      integer, dimension(istart2:) :: var2
+      var = 2*var2
+    end subroutine sub
+    ''')
+    psyir = fortran_reader.psyir_from_source(code)
+    r2array = Reference2ArrayRangeTrans()
+    assign = psyir.walk(Assignment)[0]
+    for ref in assign.walk(Reference):
+        r2array.apply(ref)
+    trans = ArrayAssignment2LoopsTrans()
+    trans.apply(assign)
+    result = fortran_writer(psyir)
+    assert '''do idx = istart, UBOUND(var, dim=1), 1
+    var(idx) = 2 * var2(idx + (istart2 - istart))
+  enddo''' in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_apply_calls_validate():
