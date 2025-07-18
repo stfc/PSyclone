@@ -48,8 +48,8 @@ import pytest
 
 from psyclone.psyir.nodes import IntrinsicCall
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.transformations.intrinsics.dotproduct2code_trans import \
-    DotProduct2CodeTrans, _get_array_bound
+from psyclone.psyir.transformations.intrinsics.dotproduct2code_trans import (
+    DotProduct2CodeTrans)
 from psyclone.tests.utilities import Compile
 
 
@@ -100,52 +100,6 @@ def check_trans(code, expected, fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(psyir)
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
-
-
-# _get_array_bound function
-
-@pytest.mark.parametrize("dim1,dim2", [("2:10", "2:10"), (":", "2:10"),
-                                       ("2:10", ":")])
-def test_bound_explicit(fortran_reader, dim1, dim2):
-    '''Test that explicit bounds are returned if at least one argument is
-    declared with explicit bounds.
-
-    '''
-    code = (
-        f"subroutine dot_product_test(v1,v2)\n"
-        f"real,intent(in) :: v1({dim1}), v2({dim2})\n"
-        f"real :: result\n"
-        f"result = dot_product(v1,v2)\n"
-        f"end subroutine\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    dot_product = psyir.walk(IntrinsicCall)[0]
-    assert dot_product.intrinsic == IntrinsicCall.Intrinsic.DOT_PRODUCT
-    lower, upper, step = _get_array_bound(
-        dot_product.arguments[0], dot_product.arguments[1])
-    assert lower.value == '2'
-    assert upper.value == '10'
-    assert step.value == '1'
-
-
-def test_bound_unknown(fortran_reader, fortran_writer):
-    '''Test that range bounds are returned if neither argument is declared
-    with explicit bounds.
-
-    '''
-    code = (
-        "subroutine dot_product_test(v1,v2)\n"
-        "real,intent(in) :: v1(:), v2(:)\n"
-        "real :: result\n"
-        "result = dot_product(v1,v2)\n"
-        "end subroutine\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    dot_product = psyir.walk(IntrinsicCall)[0]
-    assert dot_product.intrinsic == IntrinsicCall.Intrinsic.DOT_PRODUCT
-    lower, upper, step = _get_array_bound(
-        dot_product.arguments[0], dot_product.arguments[1])
-    assert 'LBOUND(v1, dim=1)' in fortran_writer(lower)
-    assert 'UBOUND(v1, dim=1)' in fortran_writer(upper)
-    assert step.value == '1'
 
 
 # DotProduct2CodeTrans class init method

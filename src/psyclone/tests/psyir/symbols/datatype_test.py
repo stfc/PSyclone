@@ -341,6 +341,29 @@ def test_arraytype_extent():
     assert not vam.all_signatures
 
 
+def test_arraytype_arraybounds():
+    '''
+    Test the ArrayType.ArrayBounds class. This is a dataclass with
+    type checking.
+    '''
+    two = Literal("2", INTEGER_TYPE)
+    bounds = ArrayType.ArrayBounds(lower=two,
+                                   upper=ArrayType.Extent.ATTRIBUTE)
+    assert bounds.lower is two
+    assert bounds.upper == ArrayType.Extent.ATTRIBUTE
+    with pytest.raises(TypeError) as err:
+        _ = ArrayType.ArrayBounds(lower=2,
+                                  upper=ArrayType.Extent.ATTRIBUTE)
+    assert ("The lower bound provided when constructing an ArrayBounds must "
+            "be an instance of DataNode but got 'int'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        _ = ArrayType.ArrayBounds(lower=two,
+                                  upper=ArrayType.Extent.DEFERRED)
+    assert ("The upper bound provided when constructing an ArrayBounds must "
+            "be either ArrayType.Extent.ATTRIBUTE or an instance of "
+            "DataNode but got 'Extent'" in str(err.value))
+
+
 def test_arraytype():
     '''Test that the ArrayType class __init__ works as expected. Test the
     different dimension datatypes that are supported.'''

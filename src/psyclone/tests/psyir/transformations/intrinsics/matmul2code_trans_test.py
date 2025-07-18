@@ -39,12 +39,12 @@
 import pytest
 from psyclone.psyir.transformations import Matmul2CodeTrans, \
     TransformationError
-from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
-    _create_array_ref, _get_array_bound
+from psyclone.psyir.transformations.intrinsics.matmul2code_trans import (
+    _create_array_ref)
 from psyclone.psyir.nodes import BinaryOperation, Literal, ArrayReference, \
     Assignment, Reference, Range, KernelSchedule, IntrinsicCall
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArrayType, \
-    ScalarType, INTEGER_TYPE, REAL_TYPE
+from psyclone.psyir.symbols import (DataSymbol, SymbolTable, ArrayType,
+                                    INTEGER_TYPE, REAL_TYPE)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import Compile
 
@@ -155,129 +155,6 @@ def test_create_array_ref_2d():
     assert len(ref2.indices) == 2
     assert ref2.indices[0].symbol is i_loop_sym
     assert ref2.indices[1].symbol is j_loop_sym
-
-
-def test_get_array_bound_error():
-    '''Test that the _get_array_bound() utility function raises the
-    expected exception if the shape of the array's symbol is not
-    supported.'''
-    array_type = ArrayType(REAL_TYPE, [10])
-    array_symbol = DataSymbol("x", array_type)
-    reference = Reference(array_symbol)
-    array_type._shape = [0.2]
-    with pytest.raises(TransformationError) as excinfo:
-        _get_array_bound(reference, 0)
-    assert ("Transformation Error: Unsupported index type found for "
-            "array 'x'" in str(excinfo.value))
-
-
-def test_get_array_bound():
-    '''Test that the _get_array_bound utility function returns the expected
-    bound values for different types of array declaration. Also checks that
-    new nodes are created each time the utility is called.
-
-    '''
-    scalar_symbol = DataSymbol("n", INTEGER_TYPE, is_constant=True,
-                               initial_value=20)
-    array_type = ArrayType(REAL_TYPE, [10, Reference(scalar_symbol)])
-    array_symbol = DataSymbol("x", array_type)
-    reference = Reference(array_symbol)
-    # literal value
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
-    assert isinstance(lower_bound, Literal)
-    assert lower_bound.value == "1"
-    assert lower_bound.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert isinstance(upper_bound, Literal)
-    assert upper_bound.value == "10"
-    assert upper_bound.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert isinstance(step, Literal)
-    assert step.value == "1"
-    assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    # Check that the method creates new nodes each time.
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 0)
-    assert lower_bound2 is not lower_bound
-    assert upper_bound2 is not upper_bound
-    assert step2 is not step
-    # symbol
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 1)
-    assert isinstance(lower_bound, Literal)
-    assert lower_bound.value == "1"
-    assert lower_bound.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert isinstance(upper_bound, Reference)
-    assert upper_bound.symbol.name == "n"
-    assert isinstance(step, Literal)
-    assert step.value == "1"
-    assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    # Check that the method creates new nodes each time.
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
-    assert lower_bound2 is not lower_bound
-    assert upper_bound2 is not upper_bound
-    assert step2 is not step
-
-    # deferred and attribute
-    def _check_ulbound(lower_bound, upper_bound, step, index):
-        '''Internal utility routine that checks LBOUND and UBOUND are used
-        correctly for the lower and upper array bounds
-        respectively.
-
-        '''
-        assert isinstance(lower_bound, IntrinsicCall)
-        assert lower_bound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
-        assert isinstance(lower_bound.children[0], Reference)
-        assert lower_bound.arguments[0].symbol is array_symbol
-        assert isinstance(lower_bound.arguments[1], Literal)
-        assert (lower_bound.arguments[1].datatype.intrinsic ==
-                ScalarType.Intrinsic.INTEGER)
-        assert lower_bound.arguments[1].value == str(index+1)
-        assert isinstance(upper_bound, IntrinsicCall)
-        assert upper_bound.intrinsic == IntrinsicCall.Intrinsic.UBOUND
-        assert isinstance(upper_bound.arguments[0], Reference)
-        assert upper_bound.arguments[0].symbol is array_symbol
-        assert isinstance(upper_bound.arguments[1], Literal)
-        assert (upper_bound.arguments[1].datatype.intrinsic ==
-                ScalarType.Intrinsic.INTEGER)
-        assert upper_bound.arguments[1].value == str(index+1)
-        assert isinstance(step, Literal)
-        assert step.value == "1"
-        assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-
-    # Allocatable array.
-    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED,
-                                       ArrayType.Extent.DEFERRED])
-    array_symbol = DataSymbol("x", array_type)
-    reference = Reference(array_symbol)
-
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
-    _check_ulbound(lower_bound, upper_bound, step, 0)
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
-    assert lower_bound2 is not lower_bound
-    assert upper_bound2 is not upper_bound
-    assert step2 is not step
-
-    # Assumed shape array.
-    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                       ArrayType.Extent.ATTRIBUTE])
-    array_symbol = DataSymbol("x", array_type)
-    reference = Reference(array_symbol)
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
-    _check_ulbound(lower_bound, upper_bound, step, 0)
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
-    assert lower_bound2 is not lower_bound
-    assert upper_bound2 is not upper_bound
-    assert step2 is not step
-
-    # Assumed-shape array with specified lower bound.
-    array_type = ArrayType(REAL_TYPE, [(3, ArrayType.Extent.ATTRIBUTE),
-                                       ArrayType.Extent.ATTRIBUTE])
-    array_symbol = DataSymbol("x", array_type)
-    reference = Reference(array_symbol)
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
-    assert isinstance(lower_bound, Literal)
-    assert isinstance(upper_bound, IntrinsicCall)
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
-    assert lower_bound2 is not lower_bound
-    assert upper_bound2 is not upper_bound
-    assert step2 is not step
 
 
 def test_initialise():

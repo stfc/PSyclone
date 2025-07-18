@@ -200,8 +200,8 @@ class Reference2ArrayRangeTrans(Transformation):
         symbol = node.symbol
         indices = []
         for idx, _ in enumerate(symbol.shape):
-            lbound, ubound, step = \
-                Reference2ArrayRangeTrans._get_array_bound(symbol, idx)
-            indices.append(Range.create(lbound, ubound, step))
+            lbound, ubound = symbol.get_bounds(idx)
+            indices.append(Range.create(lbound, ubound,
+                                        Literal("1", INTEGER_TYPE)))
         array_ref = ArrayReference.create(symbol, indices)
         node.replace_with(array_ref)

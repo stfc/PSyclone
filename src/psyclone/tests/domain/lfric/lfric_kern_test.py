@@ -55,7 +55,8 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Container, KernelSchedule, Reference, Routine
+from psyclone.psyir.nodes import (
+    Container, KernelSchedule, Literal, Reference, Routine)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, GenericInterfaceSymbol,
     INTEGER_TYPE, REAL_TYPE)
@@ -389,7 +390,8 @@ def test_validate_kernel_code_arg(monkeypatch):
                                      lfric_real_field_symbol2)
     # Lower array bound of 2 rather than 1
     monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
-                        [ArrayType.ArrayBounds(2, Reference(undf))])
+                        [ArrayType.ArrayBounds(Literal("2", INTEGER_TYPE),
+                                               Reference(undf))])
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(lfric_real_field_symbol3,
                                          lfric_real_field_symbol3)
