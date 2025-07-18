@@ -41,8 +41,8 @@ import os
 from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
     normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
-    NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
-from psyclone.psyir.nodes import Routine
+    NEMO_MODULES_TO_IMPORT)
+from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import (
     OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
@@ -57,10 +57,6 @@ INLINING_ENABLED = os.environ.get('ENABLE_INLINING', False)
 # By default, we allow all device intrinsics (not only the reproducible ones)
 REPRODUCIBLE = os.environ.get('REPRODUCIBLE', False)
 
-# This environment variable informs if this is targeting NEMOv4, in which case
-# array privatisation is disabled and some more files excluded
-NEMOV4 = os.environ.get('NEMOV4', False)
-
 # Whether to chase the imported modules to improve symbol information (it can
 # also be a list of module filenames to limit the chasing to only specific
 # modules). This has to be used in combination with '-I' command flag in order
@@ -71,36 +67,34 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = []
 
-NEMOV5_EXCLUSIONS = []
-
-NEMOV4_EXCLUSIONS = [
-    "dynspg_ts.f90",
-    "tranxt.f90",
-]
-
 SKIP_FOR_PERFORMANCE = [
     "iom.f90",
     "iom_nf90.f90",
     "iom_def.f90",
     "timing.f90",
+    "lbclnk.f90",
 ]
 
 OFFLOADING_ISSUES = [
-    # Produces different output results
-    "zdftke.f90",
-    # The following issues only affect BENCH (because ice is enabled?)
-    # Runtime Error: Illegal address during kernel execution
-    "trcrad.f90",
-    # Signal 11 issues
-    "trcbbl.f90",
-    "bdyice.f90",
-    "sedfunc.f90",
-    "stpmlf.f90",
-    "trddyn.f90",
-    "trczdf.f90",
+    # Nemov5: Signal 11
     "trcice_pisces.f90",
-    "dtatsd.f90",
-    "trcatf.f90",
+    "trcice_c14.f90",
+    "trddyn.f90",
+    "trcrad.f90",
+    "icerst.f90",
+    "sedfunc.f90",
+    "icesbc.f90",
+    "trcbbl.f90",
+    "stpmlf.90",
+    "isfpar.f90",
+    "trcdta.f90",
+    "trcbdy.f90",
+    "icedyn_rdgrft.f90",
+    "bdyice.f90",
+    "trcais.f90",
+    "zdfiwm.f90",
+    # NEMOv4: Compilation issue
+    "icbdia.f90",
 ]
 
 
@@ -123,13 +117,8 @@ def trans(psyir):
         return
 
     omp_target_trans = OMPTargetTrans()
-    if NEMOV4:
-        # TODO #2895: Explore why loop/teams loop diverge for NEMOv4
-        omp_gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
-        omp_gpu_loop_trans.omp_directive = "loop"
-    else:
-        omp_gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
-        omp_gpu_loop_trans.omp_directive = "teamsloop"
+    omp_gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
+    omp_gpu_loop_trans.omp_directive = "teamsloop"
     omp_cpu_loop_trans = OMPLoopTrans(omp_schedule="static")
     omp_cpu_loop_trans.omp_directive = "paralleldo"
 
@@ -143,12 +132,8 @@ def trans(psyir):
         # insert profiling hooks later on.
         if psyir.name in SKIP_FOR_PERFORMANCE:
             continue
-        if NEMOV4 and psyir.name in NEMOV4_EXCLUSIONS:
-            continue
-        if not NEMOV4 and psyir.name in NEMOV5_EXCLUSIONS:
-            continue
-        # ICE routines do not perform well on GPU, so we skip them
-        if psyir.name.startswith("ice"):
+        # ICETHD routines do not perform well on GPU, so we skip them
+        if psyir.name.startswith("icethd"):
             continue
         # Many of the obs_ files have problems to be offloaded to the GPU
         if psyir.name.startswith("obs_"):
@@ -158,19 +143,18 @@ def trans(psyir):
                 subroutine.name.endswith('_init') or
                 subroutine.name.startswith('Agrif') or
                 subroutine.name.startswith('dia_') or
-                subroutine.name == 'dom_msk' or
-                subroutine.name == 'dom_zgr' or
-                subroutine.name == 'dom_ngb'):
+                psyir.name.startswith('dom')):
             continue
 
         enhance_tree_information(subroutine)
         normalise_loops(
                 subroutine,
                 hoist_local_arrays=False,
-                convert_array_notation=True,
+                # TODO #2951 NEMOV5 fldread has problem with StructuresRefs
+                convert_array_notation=psyir.name != "fldread.f90",
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
-                hoist_expressions=True
+                hoist_expressions=True,
         )
         # Perform module-inlining of called routines.
         if INLINING_ENABLED:
@@ -181,8 +165,7 @@ def trans(psyir):
         if (
             subroutine.name.lower().startswith("sign_")
             or subroutine.name.lower() == "solfrac"
-            # Important for performance but causes SIGNAL 11 in some cases
-            # or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
+            or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
         ):
             try:
                 OMPDeclareTargetTrans().apply(subroutine)
@@ -194,25 +177,13 @@ def trans(psyir):
             # nestable, in that case we could add a 'continue' here
             disable_profiling_for.append(subroutine.name)
 
-        if NEMOV4:
-            # For nemo4 always offload but without privatisation
+        if psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES:
             print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
             insert_explicit_loop_parallelism(
                     subroutine,
                     region_directive_trans=omp_target_trans,
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
-                    privatise_arrays=False,
-                    uniform_intrinsics_only=REPRODUCIBLE,
-            )
-        elif psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES:
-            print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
-            insert_explicit_loop_parallelism(
-                    subroutine,
-                    region_directive_trans=omp_target_trans,
-                    loop_directive_trans=omp_gpu_loop_trans,
-                    collapse=True,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
                     uniform_intrinsics_only=REPRODUCIBLE,
             )
         elif psyir.name not in PARALLELISATION_ISSUES:
@@ -221,7 +192,6 @@ def trans(psyir):
             insert_explicit_loop_parallelism(
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
             )
 
     # Iterate again and add profiling hooks when needed

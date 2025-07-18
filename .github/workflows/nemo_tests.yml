@@ -111,7 +111,6 @@ jobs:
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
         make clean
-        export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
         make -j 4 openmp_gpu
         make -j 4 compile-openmp_gpu
         export NV_ACC_POOL_THRESHOLD=75
@@ -199,7 +198,6 @@ jobs:
         module load oneapi/${ONEAPI_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
-        export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMOGCM_V40
         export COMPILER_ARCH=linux_intel

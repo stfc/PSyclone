@@ -319,7 +319,11 @@ class Call(Statement, DataNode):
 
         # The RoutineSymbol has a CALL access.
         sig, indices_list = self.routine.get_signature_and_indices()
-        var_accesses.add_access(sig, AccessType.CALL, self.routine)
+        # pylint: disable=unidiomatic-typecheck
+        if type(self.symbol) is Symbol:
+            var_accesses.add_access(sig, AccessType.UNKNOWN, self.routine)
+        else:
+            var_accesses.add_access(sig, AccessType.CALL, self.routine)
         # Continue processing references in any index expressions.
         for indices in indices_list:
             for idx in indices:
@@ -341,6 +345,16 @@ class Call(Statement, DataNode):
                 # will have READWRITE access.)
                 var_accesses.update(arg.reference_accesses())
         return var_accesses
+
+    @property
+    def symbol(self):
+        '''
+        :returns: the routine symbol that this call calls.
+        :rtype: Optional[py:class:`psyclone.psyir.symbol.Symbol`]
+        '''
+        if self.routine and self.routine.symbol:
+            return self.routine.symbol
+        return None
 
     @property
     def routine(self):
@@ -371,8 +385,8 @@ class Call(Statement, DataNode):
             information is not known then it returns None.
         :rtype: NoneType | bool
         '''
-        if self.routine and self.routine.symbol:
-            return self.routine.symbol.is_elemental
+        if (self.symbol and isinstance(self.symbol, RoutineSymbol)):
+            return self.symbol.is_elemental
         return None
 
     @property
