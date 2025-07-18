@@ -37,6 +37,8 @@
 This module contains the InlineTrans transformation.
 
 '''
+
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.nodes import (
@@ -46,12 +48,23 @@ from psyclone.psyir.nodes import (
     StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
-    ArrayType, UnresolvedType, INTEGER_TYPE,
-    StructureType, SymbolError, UnsupportedType)
+    ArrayType,
+    BOOLEAN_TYPE,
+    DataSymbol,
+    INTEGER_TYPE,
+    ScalarType,
+    StructureType,
+    SymbolError,
+    UnresolvedType,
+    UnsupportedType,
+    UnsupportedFortranType,
+)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
+
+from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
 
 
 _ONE = Literal("1", INTEGER_TYPE)
@@ -122,28 +135,58 @@ class InlineTrans(Transformation):
         Some of these restrictions will be lifted by #924.
 
     '''
-    def apply(self, node, options=None):
+    def apply(
+        self,
+        node: Call,
+        orig_routine: Routine = None,
+        options: Optional[Dict[str, Any]] = None,
+    ):
         '''
         Takes the body of the routine that is the target of the supplied
         call and replaces the call with it.
 
-        :param node: target PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["force"]: whether or not to permit the inlining
-            of Routines containing CodeBlocks. Default is False.
+        :param call_node: Target PSyIR node.
+        :param routine_node: Routine to be inlined.
+        :param options:
+            A dictionary with options for transformations.
+            - `force`: whether or not to permit the inlining
+                of Routines containing CodeBlocks. Default is False.
+            - `check_argument_strict_array_datatype`:
+                If `True`, make strict checks for matching arguments of
+                array data types.
+                If `False`, it's sufficient that both arguments are of
+                ArrayType. Then, no further checks are performed, defaults
+                to None
+            - `check_matching_arguments`: If `True`, check for all arguments
+                to match. If `False`, if no matching argument was found, take
+                1st one in list. Defaults to `True`
+            - `check_codeblocks`: If `True`, raise Exception
+                if encountering code blocks, defaults to None
+            - `check_unsupported_type`: If `True`,
+                also perform checks (fail inlining) on arguments of
+                unsupported type, defaults to None
 
         :raises InternalError: if the merge of the symbol tables fails.
             In theory this should never happen because validate() should
             catch such a situation.
 
         '''
-        self.validate(node, options)
+
+        options = {} if options is None else options
+        option_use_first_callee_and_no_arg_check = options.get(
+            "use_first_callee_and_no_arg_check", False
+        )
+
+        (orig_routine, arg_index_list) = self.validate(
+            node, routine=orig_routine, options=options
+        )
+
         # The table associated with the scoping region holding the Call.
         table = node.ancestor(Routine).symbol_table
-        # Find the routine to be inlined.
-        orig_routine = node.get_callees()[0]
+
+        if orig_routine is None:
+            # Find the routine to be inlined.
+            orig_routine = node.get_callees()[0]
 
         if not orig_routine.children or isinstance(orig_routine.children[0],
                                                    Return):
@@ -153,10 +196,39 @@ class InlineTrans(Transformation):
 
         # Ensure we don't modify the original Routine by working with a
         # copy of it.
-        container = orig_routine.ancestor(Container).copy()
-        routine = container.find_routine_psyir(orig_routine.name,
-                                               allow_private=True)
+        container: Container = orig_routine.ancestor(Container).copy()
+        routine: Routine = container.find_routine_psyir(
+            orig_routine.name, allow_private=True
+        )
         routine_table = routine.symbol_table
+
+        if not option_use_first_callee_and_no_arg_check:
+            arg_match_list = node._get_argument_routine_match(
+                routine=orig_routine,
+                options=options
+            )
+
+            # Next, we remove all optional arguments which are not used.
+
+            # Step 1)
+            # - Build lookup dictionary for all optional arguments:
+            # - For all `PRESENT(...)`:
+            #   - Lookup variable in dictionary
+            #   - Replace with `True` or `False`, depending on whether
+            #     it's provided or not.
+            self._optional_arg_resolve_present_intrinsics(
+                routine, arg_match_list
+            )
+
+            # Step 2)
+            # - For all If-Statements, handle constant conditions:
+            #   - `True`: Replace If-Block with If-Body
+            #   - `False`: Replace If-Block with Else-Body. If it doesn't exist
+            #     just delete the if statement.
+            self._optional_arg_eliminate_ifblock_if_const_condition(routine)
+
+        else:
+            arg_match_list = range(len(routine_table.argument_list))
 
         # Construct lists of the nodes that will be inserted and all of the
         # References that they contain.
@@ -195,7 +267,9 @@ class InlineTrans(Transformation):
         # actual arguments.
         formal_args = routine_table.argument_list
         for ref in refs[:]:
-            self._replace_formal_arg(ref, node, formal_args)
+            self._replace_formal_arg(
+                ref, node, formal_args, routine_node=routine, options=options
+            )
 
         # Ensure any references to Symbols within the shape-specification of
         # other Symbols are updated. Note, we don't have to worry about
@@ -208,10 +282,20 @@ class InlineTrans(Transformation):
                     if isinstance(dim, ArrayType.Extent):
                         new_shape.append(dim)
                     else:
-                        lower = self._replace_formal_arg(dim.lower, node,
-                                                         formal_args)
-                        upper = self._replace_formal_arg(dim.upper, node,
-                                                         formal_args)
+                        lower = self._replace_formal_arg(
+                            dim.lower,
+                            node,
+                            formal_args,
+                            routine_node=routine,
+                            options=options,
+                        )
+                        upper = self._replace_formal_arg(
+                            dim.upper,
+                            node,
+                            formal_args,
+                            routine_node=routine,
+                            options=options,
+                        )
                         new_shape.append(ArrayType.ArrayBounds(lower, upper))
                 sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
 
@@ -222,10 +306,20 @@ class InlineTrans(Transformation):
                 if isinstance(ctype.datatype, ArrayType):
                     new_shape = []
                     for dim in ctype.datatype.shape:
-                        lower = self._replace_formal_arg(dim.lower, node,
-                                                         formal_args)
-                        upper = self._replace_formal_arg(dim.upper, node,
-                                                         formal_args)
+                        lower = self._replace_formal_arg(
+                            dim.lower,
+                            node,
+                            formal_args,
+                            routine_node=routine,
+                            options=options,
+                        )
+                        upper = self._replace_formal_arg(
+                            dim.upper,
+                            node,
+                            formal_args,
+                            routine_node=routine,
+                            options=options,
+                        )
                         new_shape.append(ArrayType.ArrayBounds(lower, upper))
                     sym.datatype.components[name] = (
                         StructureType.ComponentType(
@@ -261,7 +355,135 @@ class InlineTrans(Transformation):
                 idx += 1
                 parent.addchild(child, idx)
 
-    def _replace_formal_arg(self, ref, call_node, formal_args):
+    def _optional_arg_resolve_present_intrinsics(
+        self, routine_node: Routine, arg_match_list: List = []
+    ):
+        """Replace PRESENT(some_argument) intrinsics in routine with constant
+        booleans depending on whether `some_argument` has been provided
+        (`True`) or not (`False`).
+
+        :param routine_node: Routine to be inlined.
+        :arg_match_list: List of indices of arguments that match.
+        """
+        # We first build a lookup table of all optional arguments
+        # to see whether it's present or not.
+        optional_sym_present_dict: Dict[str, bool] = dict()
+        for optional_arg_idx, datasymbol in enumerate(
+            routine_node.symbol_table.datasymbols
+        ):
+            if not isinstance(datasymbol.datatype, UnsupportedFortranType):
+                continue
+
+            if ", OPTIONAL" not in str(datasymbol.datatype):
+                continue
+
+            sym_name = datasymbol.name.lower()
+
+            if optional_arg_idx not in arg_match_list:
+                optional_sym_present_dict[sym_name] = False
+            else:
+                optional_sym_present_dict[sym_name] = True
+
+        # Check if we have any optional arguments at all and if not, return
+        if len(optional_sym_present_dict) == 0:
+            return
+
+        # Find all "PRESENT()" calls
+        for intrinsic_call in routine_node.walk(IntrinsicCall):
+            intrinsic_call: IntrinsicCall
+            if intrinsic_call.routine.name.lower() == "present":
+
+                # The argument is in the 2nd child
+                present_arg: Reference = intrinsic_call.children[1]
+                present_arg_name = present_arg.name.lower()
+
+                assert present_arg_name in optional_sym_present_dict
+
+                if optional_sym_present_dict[present_arg_name]:
+                    # The argument is present.
+                    intrinsic_call.replace_with(Literal("true", BOOLEAN_TYPE))
+                else:
+                    intrinsic_call.replace_with(Literal("false", BOOLEAN_TYPE))
+
+    def _optional_arg_eliminate_ifblock_if_const_condition(
+        self, routine_node: Routine
+    ):
+        """Eliminate if-block if conditions are constant booleans.
+
+        TODO: This also requires support of conditions containing logical
+        expressions such as `(.true. .or. .false.)`
+        TODO: This could also become a Psyclone transformation.
+
+        :rtype: None
+        """
+
+        def if_else_replace(main_schedule, if_block, if_body_schedule):
+            """Little helper routine to eliminate one branch of an IfBlock
+
+            :param main_schedule: Schedule where if-branch is used
+            :type main_schedule: Schedule
+            :param if_block: If-else block itself
+            :type if_block: IfBlock
+            :param if_body_schedule: The body of the if or else block
+            :type if_body_schedule: Schedule
+            """
+
+            from psyclone.psyir.nodes import Schedule
+
+            assert isinstance(main_schedule, Schedule)
+            assert isinstance(if_body_schedule, Schedule)
+
+            # Obtain index in main schedule
+            idx = main_schedule.children.index(if_block)
+
+            # Detach it
+            if_block.detach()
+
+            # Insert childreen of if-body schedule
+            for child in if_body_schedule.children:
+                main_schedule.addchild(child.copy(), idx)
+                idx += 1
+
+        from psyclone.psyir.nodes import IfBlock
+
+        for if_block in routine_node.walk(IfBlock):
+            if_block: IfBlock
+
+            condition = if_block.condition
+
+            # Make sure we only handle a BooleanLiteral as a condition
+            # TODO #2802
+            if not isinstance(condition, Literal):
+                continue
+
+            # Check that it's a boolean Literal
+            assert (
+                condition.datatype.intrinsic
+                is ScalarType.Intrinsic.BOOLEAN
+            ), "Found non-boolean expression in conditional of if branch"
+
+            if condition.value == "true":
+                # Only keep if_block
+                if_else_replace(if_block.parent, if_block, if_block.if_body)
+
+            else:
+                # If there's an else block, replace if-condition with
+                # else-block
+                if not if_block.else_body:
+                    if_block.detach()
+                    continue
+
+                # Only keep else block
+                if_else_replace(if_block.parent, if_block, if_block.else_body)
+
+    def _replace_formal_arg(
+        self,
+        ref,
+        call_node: Call,
+        formal_args,
+        routine_node: Routine,
+        options: Optional[Dict[str, Any]] = {},
+    ):
         '''
         Recursively combines any References to formal arguments in the supplied
         PSyIR expression with the corresponding Reference (actual argument)
@@ -280,18 +502,56 @@ class InlineTrans(Transformation):
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
 
         '''
+
+        option_use_first_callee_and_no_arg_check = options.get(
+            "use_first_callee_and_no_arg_check", False
+        )
+
         if not isinstance(ref, Reference):
             # Recurse down in case this is e.g. an Operation or Range.
             for child in ref.children[:]:
-                self._replace_formal_arg(child, call_node, formal_args)
+                self._replace_formal_arg(
+                    child,
+                    call_node,
+                    formal_args,
+                    routine_node,
+                    options=options,
+                )
             return ref
 
         if ref.symbol not in formal_args:
             # The supplied reference is not to a formal argument.
             return ref
 
-        # Lookup the actual argument that corresponds to this formal argument.
-        actual_arg = call_node.arguments[formal_args.index(ref.symbol)]
+        # Lookup index in routine argument
+        routine_arg_idx = formal_args.index(ref.symbol)
+
+        if option_use_first_callee_and_no_arg_check:
+            actual_arg = call_node.arguments[formal_args.index(ref.symbol)]
+
+        else:
+            # Lookup index of actual argument
+            # If this is an optional argument, but not used, this index lookup
+            # shouldn't fail
+            try:
+                arg_match_list = call_node._get_argument_routine_match(
+                    routine=routine_node,
+                    options=options
+                )
+                actual_arg_idx = arg_match_list.index(routine_arg_idx)
+            except ValueError as err:
+                arg_list = routine_node.symbol_table.argument_list
+                arg_name = arg_list[routine_arg_idx].name
+                raise TransformationError(
+                    f"Subroutine argument '{arg_name}' is not provided by"
+                    " call, but used in the subroutine."
+                    " If this is correct code, this is likely due to"
+                    " some non-eliminated if-branches using `PRESENT(...)` as"
+                    " conditional (TODO #2802).") from err
+
+            # Lookup the actual argument that corresponds to this formal
+            # argument.
+            actual_arg = call_node.arguments[actual_arg_idx]
 
         # If the local reference is a simple Reference then we can just
         # replace it with a copy of the actual argument, e.g.
@@ -327,8 +587,14 @@ class InlineTrans(Transformation):
 
         # Neither the actual or local references are simple, i.e. they
         # include array accesses and/or structure accesses.
-        new_ref = self._replace_formal_struc_arg(actual_arg, ref, call_node,
-                                                 formal_args)
+        new_ref = self._replace_formal_struc_arg(
+            actual_arg,
+            ref,
+            call_node,
+            formal_args,
+            routine_node=routine_node,
+            options=options,
+        )
         # If the local reference we are replacing has a parent then we must
         # ensure the parent's child list is updated. (It may not have a parent
         # if we are in the process of constructing a brand new reference.)
@@ -336,8 +602,16 @@ class InlineTrans(Transformation):
             ref.replace_with(new_ref)
         return new_ref
 
-    def _create_inlined_idx(self, call_node, formal_args,
-                            local_idx, decln_start, actual_start):
+    def _create_inlined_idx(
+        self,
+        call_node,
+        formal_args,
+        local_idx,
+        decln_start,
+        actual_start,
+        routine_node: Routine,
+        options,
+    ):
         '''
         Utility that creates the PSyIR for an inlined array-index access
         expression. This is not trivial since a formal argument may be
@@ -374,30 +648,66 @@ class InlineTrans(Transformation):
 
         '''
         if isinstance(local_idx, Range):
-            lower = self._create_inlined_idx(call_node, formal_args,
-                                             local_idx.start, decln_start,
-                                             actual_start)
-            upper = self._create_inlined_idx(call_node, formal_args,
-                                             local_idx.stop, decln_start,
-                                             actual_start)
-            step = self._replace_formal_arg(local_idx.step, call_node,
-                                            formal_args)
+            lower = self._create_inlined_idx(
+                call_node,
+                formal_args,
+                local_idx.start,
+                decln_start,
+                actual_start,
+                routine_node=routine_node,
+                options=options,
+            )
+            upper = self._create_inlined_idx(
+                call_node,
+                formal_args,
+                local_idx.stop,
+                decln_start,
+                actual_start,
+                routine_node=routine_node,
+                options=options,
+            )
+            step = self._replace_formal_arg(
+                local_idx.step,
+                call_node,
+                formal_args,
+                routine_node=routine_node,
+                options=options,
+            )
             return Range.create(lower.copy(), upper.copy(), step.copy())
 
-        uidx = self._replace_formal_arg(local_idx, call_node, formal_args)
+        uidx = self._replace_formal_arg(
+            local_idx,
+            call_node,
+            formal_args,
+            routine_node=routine_node,
+            options=options,
+        )
         if decln_start == actual_start:
             # If the starting indices in the actual and formal arguments are
             # the same then we don't need to shift the index.
             return uidx
 
-        ustart = self._replace_formal_arg(decln_start, call_node, formal_args)
+        ustart = self._replace_formal_arg(
+            decln_start,
+            call_node,
+            formal_args,
+            routine_node=routine_node,
+            options=options,
+        )
         start_sub = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                            uidx.copy(), ustart.copy())
         return BinaryOperation.create(BinaryOperation.Operator.ADD,
                                       start_sub, actual_start.copy())
 
-    def _update_actual_indices(self, actual_arg, local_ref,
-                               call_node, formal_args):
+    def _update_actual_indices(
+        self,
+        actual_arg,
+        local_ref,
+        call_node,
+        formal_args,
+        routine_node: Routine,
+        options,
+    ):
         '''
         Create a new list of indices for the supplied actual argument
         (ArrayMixin) by replacing any Ranges with the appropriate expressions
@@ -451,7 +761,12 @@ class InlineTrans(Transformation):
                         # Ensure any references to formal arguments within
                         # the declared array lower bound are updated.
                         local_decln_start = self._replace_formal_arg(
-                            local_decln_start, call_node, formal_args)
+                            local_decln_start,
+                            call_node,
+                            formal_args,
+                            routine_node=routine_node,
+                            options=options,
+                        )
                 elif (local_decln_shape[local_idx_posn] ==
                       ArrayType.Extent.DEFERRED):
                     # The formal argument is declared to be allocatable and
@@ -474,20 +789,38 @@ class InlineTrans(Transformation):
                     new = Range.create(local_shape.lower.copy(),
                                        local_shape.upper.copy())
                     new_indices[pos] = self._create_inlined_idx(
-                        call_node, formal_args,
-                        new, local_decln_start, actual_start)
+                        call_node,
+                        formal_args,
+                        new,
+                        local_decln_start,
+                        actual_start,
+                        routine_node=routine_node,
+                        options=options,
+                    )
             else:
                 # Otherwise, the local index expression replaces the Range.
                 new_indices[pos] = self._create_inlined_idx(
-                    call_node, formal_args,
+                    call_node,
+                    formal_args,
                     local_indices[local_idx_posn],
-                    local_decln_start, actual_start)
+                    local_decln_start,
+                    actual_start,
+                    routine_node=routine_node,
+                    options=options,
+                )
             # Each Range corresponds to one dimension of the formal argument.
             local_idx_posn += 1
         return new_indices
 
-    def _replace_formal_struc_arg(self, actual_arg, ref, call_node,
-                                  formal_args):
+    def _replace_formal_struc_arg(
+        self,
+        actual_arg,
+        ref,
+        call_node,
+        formal_args,
+        routine_node: Routine,
+        options: Optional[Dict[str, Any]],
+    ):
         '''
         Called by _replace_formal_arg() whenever a formal or actual argument
         involves an array or structure access that can't be handled with a
@@ -551,7 +884,13 @@ class InlineTrans(Transformation):
         while True:
             if isinstance(cursor, ArrayMixin):
                 new_indices = self._update_actual_indices(
-                    cursor, ref, call_node, formal_args)
+                    cursor,
+                    ref,
+                    call_node,
+                    formal_args,
+                    routine_node=routine_node,
+                    options=options,
+                )
                 members.append((cursor.name, new_indices))
             else:
                 members.append(cursor.name)
@@ -571,7 +910,13 @@ class InlineTrans(Transformation):
             for idx in local_indices:
                 new_indices.append(
                     self._replace_formal_arg(
-                        idx.copy(), call_node, formal_args))
+                        idx.copy(),
+                        call_node,
+                        formal_args,
+                        routine_node,
+                        options=options,
+                    )
+                )
             # Replace the last entry in the `members` list with a new array
             # access.
             members[-1] = (cursor.name, new_indices)
@@ -590,7 +935,13 @@ class InlineTrans(Transformation):
                     # formal arguments.
                     new_indices.append(
                         self._replace_formal_arg(
-                            idx.copy(), call_node, formal_args))
+                            idx.copy(),
+                            call_node,
+                            formal_args,
+                            routine_node=routine_node,
+                            options=options,
+                        )
+                    )
                 members.append((cursor.name, new_indices))
             else:
                 members.append(cursor.name)
@@ -609,7 +960,177 @@ class InlineTrans(Transformation):
         # Just an array reference.
         return ArrayReference.create(actual_arg.symbol, members[0][1])
 
-    def validate(self, node, options=None):
+    def _validate_inline_of_call_and_routine_argument_pairs(
+        self,
+        call_node: Call,
+        call_arg: DataSymbol,
+        routine_node: Routine,
+        routine_arg: DataSymbol
+    ):
+        """This function performs tests to see whether the
+        inlining can cope with it.
+
+        :param call_arg: The argument of a call
+        :type call_arg: DataSymbol
+        :param routine_arg: The argument of a routine
+        :type routine_arg: DataSymbol
+
+        :raises TransformationError: Raised if transformation can't be done
+        """
+
+        # If the formal argument is an array with non-default bounds then
+        # we also need to know the bounds of that array at the call site.
+        if not isinstance(routine_arg.datatype, ArrayType):
+            # Formal argument is not an array so we don't need to do any
+            # further checks.
+            return
+
+        if not isinstance(call_arg, (Reference, Literal)):
+            # TODO #1799 this really needs the `datatype` method to be
+            # extended to support all nodes. For now we have to abort
+            # if we encounter an argument that is not a scalar (according
+            # to the corresponding formal argument) but is not a
+            # Reference or a Literal as we don't know whether the result
+            # of any general expression is or is not an array.
+            # pylint: disable=cell-var-from-loop
+            raise TransformationError(LazyString(
+                lambda: f"The call '{call_node.debug_string()}' cannot be "
+                        f"inlined because actual argument "
+                        f"'{call_arg.debug_string()}' corresponds to a "
+                        f"formal argument with array type but is not a "
+                        f"Reference or a Literal."))
+
+        # We have an array argument. We are only able to check that the
+        # argument is not re-shaped in the called routine if we have full
+        # type information on the actual argument.
+        # TODO #924. It would be useful if the `datatype` property was
+        # a method that took an optional 'resolve' argument to indicate
+        # that it should attempt to resolve any UnresolvedTypes.
+        if isinstance(
+            call_arg.datatype, (UnresolvedType, UnsupportedType)
+        ) or (
+            isinstance(call_arg.datatype, ArrayType)
+            and isinstance(
+                call_arg.datatype.intrinsic, (UnresolvedType, UnsupportedType)
+            )
+        ):
+            raise TransformationError(
+                f"Routine '{routine_node.name}' cannot be inlined because "
+                f"the type of the actual argument "
+                f"'{call_arg.debug_string()}' corresponding to an array"
+                f" formal argument ('{routine_arg.name}') is unknown.")
+
+        formal_rank = 0
+        actual_rank = 0
+        if isinstance(routine_arg.datatype, ArrayType):
+            formal_shape = routine_arg.datatype.shape
+            formal_rank = len(formal_shape)
+        if isinstance(call_arg.datatype, ArrayType):
+            actual_rank = len(call_arg.datatype.shape)
+        if formal_rank != actual_rank:
+            # It's OK to use the loop variable in the lambda definition
+            # because if we get to this point then we're going to quit
+            # the loop.
+            # pylint: disable=cell-var-from-loop
+            raise TransformationError(LazyString(
+                    lambda: f"Cannot inline routine '{routine_node.name}' "
+                    f"because it reshapes an argument: actual argument "
+                    f"'{call_arg.debug_string()}' has rank {actual_rank}"
+                    f" but the corresponding formal argument, "
+                    f"'{routine_arg.name}', has rank {formal_rank}"))
+        if actual_rank:
+            ranges = call_arg.walk(Range)
+            for rge in ranges:
+                ancestor_ref = rge.ancestor(Reference)
+                if ancestor_ref is not call_arg:
+                    # Have a range in an indirect access.
+                    # pylint: disable=cell-var-from-loop
+                    raise TransformationError(LazyString(
+                        lambda: f"Cannot inline routine '{routine_node.name}' "
+                        f"because argument '{call_arg.debug_string()}' "
+                        f"has an array range in an indirect access (TODO "
+                        f"#924)."))
+                if rge.step != _ONE:
+                    # TODO #1646. We could resolve this problem by making
+                    # a new array and copying the necessary values into it.
+                    # pylint: disable=cell-var-from-loop
+                    raise TransformationError(LazyString(
+                        lambda: f"Cannot inline routine '{routine_node.name}' "
+                        f"because one of its arguments is an array slice "
+                        f"with a non-unit stride: "
+                        f"'{call_arg.debug_string()}' (TODO #1646)"))
+
+    def get_callee(
+        self, call_node: Call, options
+    ) -> Set[Union[Routine, List[int]]]:
+        '''
+        Searches for the implementation(s) of the target routine for this Call
+        including argument checks.
+
+        :returns: A tuple of two elements. The first element is the routine
+            that this call targets. The second one a list of arguments
+            providing the information on matching argument indices.
+
+        :raises CallMatchingArgumentsNotFound: if the routine is not local
+            and not found in any containers in scope at the call site or if
+            the arguments don't match.
+        '''
+
+        option_check_matching_arguments = options.get(
+            "check_matching_arguments", True
+        )
+        option_use_first_callee_and_no_arg_check = options.get(
+            "use_first_callee_and_no_arg_check", False
+        )
+        routine_list = call_node.get_callees(options=options)
+
+        if option_use_first_callee_and_no_arg_check:
+            arg_match_list = range(
+                len(routine_list[0].symbol_table.argument_list)
+            )
+            return (routine_list[0], arg_match_list)
+
+        err_info_list = []
+
+        # Search for the routine matching the right arguments
+        for routine_node in routine_list:
+            routine_node: Routine
+
+            try:
+                arg_match_list = call_node._get_argument_routine_match(
+                    routine=routine_node, options=options
+                )
+            except CallMatchingArgumentsNotFound as err:
+                err_info_list.append(err.value)
+                continue
+
+            return (routine_node, arg_match_list)
+
+        # If we didn't find any routine, return some routine if no matching
+        # arguments have been found.
+        # This is handy for the transition phase until optional argument
+        # matching is supported.
+        if not option_check_matching_arguments:
+            # Also return a list of dummy argument indices
+            routine_node = routine_list[0]
+            arg_match_list = list(range(len(call_node.arguments)))
+            return (routine_node, arg_match_list)
+
+        error_msg = "\n".join(err_info_list)
+
+        s = call_node.debug_string().replace("\n", "")
+        raise CallMatchingArgumentsNotFound(
+            "Found routines, but no routine with matching arguments found "
+            f"for '{s}':\n"
+            + error_msg
+        )
+
+    def validate(
+                self,
+                node: Call,
+                routine: Routine = None,
+                options: Dict[str, str] = None,
+            ) -> Tuple[Routine, List]:
         '''
         Checks that the supplied node is a valid target for inlining.
 
@@ -657,7 +1178,9 @@ class InlineTrans(Transformation):
         super().validate(node, options=options)
 
         options = {} if options is None else options
+        check_unsupported_type = options.get("check_unsupported_type", True)
         forced = options.get("force", False)
+        check_codeblocks = options.get("check_codeblocks", not forced)
 
         # The node should be a Call.
         if not isinstance(node, Call):
@@ -677,18 +1200,31 @@ class InlineTrans(Transformation):
                 f"Routine '{name}' cannot be inlined because the call site "
                 f"('{node.debug_string().strip()}') is not inside a Routine.")
 
-        # Check that we can find the source of the routine being inlined.
-        # TODO #924 allow for multiple routines (interfaces).
-        try:
-            routine = node.get_callees()[0]
-        except (NotImplementedError, FileNotFoundError, SymbolError) as err:
-            raise TransformationError(
-                f"Cannot inline routine '{name}' because its source cannot be "
-                f"found: {err}") from err
+        if routine is None:
+            try:
+                (routine, arg_match_list) = \
+                    self.get_callee(call_node=node, options=options)
+            except (
+                CallMatchingArgumentsNotFound,
+                NotImplementedError,
+                FileNotFoundError,
+                SymbolError,
+                TransformationError,
+            ) as err:
+                raise TransformationError(
+                    f"Cannot inline routine '{name}' because its source"
+                    f" cannot be found:\n{str(err)}"
+                ) from err
+
+        else:
+            arg_match_list = node._get_argument_routine_match(
+                routine=routine,
+                options=options
+            )
 
         if not routine.children or isinstance(routine.children[0], Return):
             # An empty routine is fine.
-            return
+            return (routine, range(len(routine.symbol_table.argument_list)))
 
         if node.is_elemental:
             raise TransformationError(
@@ -720,7 +1256,7 @@ class InlineTrans(Transformation):
                     f"Routine '{name}' contains one or more "
                     f"Return statements and therefore cannot be inlined.")
 
-        if routine.walk(CodeBlock) and not forced:
+        if routine.walk(CodeBlock) and check_codeblocks:
             # N.B. we permit the user to specify the "force" option to allow
             # CodeBlocks to be included.
             raise TransformationError(
@@ -747,45 +1283,42 @@ class InlineTrans(Transformation):
                         f"variable '{sym.name}'. Inlining such a routine is "
                         f"not supported.")
 
-        # Support for routines with named arguments is not yet implemented.
-        # TODO #924.
-        for arg in node.argument_names:
-            if arg:
-                raise TransformationError(
-                    f"Routine '{routine.name}' cannot be inlined because it "
-                    f"has a named argument '{arg}' (TODO #924).")
-
-        for scope in routine.walk(ScopingNode):
-            routine_table = scope.symbol_table
-            for sym in routine_table.symbols:
-                # We don't inline symbols that have an UnsupportedType and are
-                # arguments since we don't know if a simple assignment if
-                # enough (e.g. pointers)
-                if sym.is_argument and isinstance(sym.datatype,
-                                                  UnsupportedType):
-                    raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined "
-                        f"because it contains a Symbol '{sym.name}' which "
-                        f"is an Argument of UnsupportedType: "
-                        f"'{sym.datatype.declaration}'")
-                # We don't inline symbols that have an UnknownInterface, as we
-                # don't know how they are brought into this scope.
-                if sym.is_unknown_interface:
-                    raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
-                        f"it contains a Symbol '{sym.name}' with an "
-                        f"UnknownInterface: '{sym.datatype.declaration}'. You "
-                        f"may be able to work around this limitation by "
-                        f"adding the name of the module containing this Symbol"
-                        f" to RESOLVE_IMPORTS in the transformation script.")
-                # Check that there are no static variables in the routine
-                # (because we don't know whether the routine is called from
-                # other places).
-                if sym.is_static and not sym.is_constant:
-                    raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
-                        f"it has a static (Fortran SAVE) interface for Symbol "
-                        f"'{sym.name}'.")
+        if check_unsupported_type:
+            for scope in routine.walk(ScopingNode):
+                routine_table2 = scope.symbol_table
+                for sym in routine_table2.symbols:
+                    # We don't inline symbols that have an UnsupportedType and
+                    # are arguments since we don't know if a simple assignment
+                    # if enough (e.g. pointers)
+                    if sym.is_argument and isinstance(
+                        sym.datatype, UnsupportedType
+                    ):
+                        if ", OPTIONAL" not in sym.datatype.declaration:
+                            raise TransformationError(
+                                f"Routine '{routine.name}' cannot be inlined "
+                                f"because it contains a Symbol '{sym.name}' "
+                                f"which is an Argument of UnsupportedType: "
+                                f"'{sym.datatype.declaration}'")
+                    # We don't inline symbols that have an UnknownInterface, as
+                    # we don't know how they are brought into this scope.
+                    if sym.is_unknown_interface:
+                        raise TransformationError(
+                            f"Routine '{routine.name}' cannot be inlined "
+                            f"because it contains a Symbol '{sym.name}' with "
+                            f"an UnknownInterface: "
+                            f"'{sym.datatype.declaration}'. You may be able "
+                            "to work around this limitation "
+                            "by adding the name of the module containing this "
+                            "Symbol to RESOLVE_IMPORTS in the transformation "
+                            "script.")
+                    # Check that there are no static variables in the routine
+                    # (because we don't know whether the routine is called from
+                    # other places).
+                    if sym.is_static and not sym.is_constant:
+                        raise TransformationError(
+                            f"Routine '{routine.name}' cannot be inlined "
+                            f"because it has a static (Fortran SAVE) "
+                            f"interface for Symbol '{sym.name}'.")
 
         # Check for unresolved symbols or for any accessed from the Container
         # containing the target routine.
@@ -797,97 +1330,21 @@ class InlineTrans(Transformation):
                 f"Cannot inline '{routine.name}' because it accesses data "
                 f"from its outer scope: {err.value}") from err
 
-        # Check that the shapes of any formal array arguments are the same as
-        # those at the call site.
         routine_table = routine.symbol_table
-        if len(routine_table.argument_list) != len(node.arguments):
-            raise TransformationError(LazyString(
-                lambda: f"Cannot inline '{node.debug_string().strip()}' "
-                f"because the number of arguments supplied to the call "
-                f"({len(node.arguments)}) does not match the number of "
-                f"arguments the routine is declared to have "
-                f"({len(routine_table.argument_list)})."))
+        # Create a list of routine arguments that is actually used
+        routine_arg_list = [
+            routine_table.argument_list[i] for i in arg_match_list
+        ]
 
-        for formal_arg, actual_arg in zip(routine_table.argument_list,
-                                          node.arguments):
-            # If the formal argument is an array with non-default bounds then
-            # we also need to know the bounds of that array at the call site.
-            if not isinstance(formal_arg.datatype, ArrayType):
-                # Formal argument is not an array so we don't need to do any
-                # further checks.
-                continue
-
-            if not isinstance(actual_arg, (Reference, Literal)):
-                # TODO #1799 this really needs the `datatype` method to be
-                # extended to support all nodes. For now we have to abort
-                # if we encounter an argument that is not a scalar (according
-                # to the corresponding formal argument) but is not a
-                # Reference or a Literal as we don't know whether the result
-                # of any general expression is or is not an array.
-                # pylint: disable=cell-var-from-loop
-                raise TransformationError(LazyString(
-                    lambda: f"The call '{node.debug_string()}' cannot be "
-                            f"inlined because actual argument "
-                            f"'{actual_arg.debug_string()}' corresponds to a "
-                            f"formal argument with array type but is not a "
-                            f"Reference or a Literal."))
-
-            # We have an array argument. We are only able to check that the
-            # argument is not re-shaped in the called routine if we have full
-            # type information on the actual argument.
-            # TODO #924. It would be useful if the `datatype` property was
-            # a method that took an optional 'resolve' argument to indicate
-            # that it should attempt to resolve any UnresolvedTypes.
-            if (isinstance(actual_arg.datatype,
-                           (UnresolvedType, UnsupportedType)) or
-                (isinstance(actual_arg.datatype, ArrayType) and
-                 isinstance(actual_arg.datatype.intrinsic,
-                            (UnresolvedType, UnsupportedType)))):
-                raise TransformationError(
-                    f"Routine '{routine.name}' cannot be inlined because "
-                    f"the type of the actual argument "
-                    f"'{actual_arg.debug_string()}' corresponding to an array"
-                    f" formal argument ('{formal_arg.name}') is unknown.")
-
-            formal_rank = 0
-            actual_rank = 0
-            if isinstance(formal_arg.datatype, ArrayType):
-                formal_shape = formal_arg.datatype.shape
-                formal_rank = len(formal_shape)
-            if isinstance(actual_arg.datatype, ArrayType):
-                actual_rank = len(actual_arg.datatype.shape)
-            if formal_rank != actual_rank:
-                # It's OK to use the loop variable in the lambda definition
-                # because if we get to this point then we're going to quit
-                # the loop.
-                # pylint: disable=cell-var-from-loop
-                raise TransformationError(LazyString(
-                        lambda: f"Cannot inline routine '{routine.name}' "
-                        f"because it reshapes an argument: actual argument "
-                        f"'{actual_arg.debug_string()}' has rank {actual_rank}"
-                        f" but the corresponding formal argument, "
-                        f"'{formal_arg.name}', has rank {formal_rank}"))
-            if actual_rank:
-                ranges = actual_arg.walk(Range)
-                for rge in ranges:
-                    ancestor_ref = rge.ancestor(Reference)
-                    if ancestor_ref is not actual_arg:
-                        # Have a range in an indirect access.
-                        # pylint: disable=cell-var-from-loop
-                        raise TransformationError(LazyString(
-                            lambda: f"Cannot inline routine '{routine.name}' "
-                            f"because argument '{actual_arg.debug_string()}' "
-                            f"has an array range in an indirect access (TODO "
-                            f"#924)."))
-                    if rge.step != _ONE:
-                        # TODO #1646. We could resolve this problem by making
-                        # a new array and copying the necessary values into it.
-                        # pylint: disable=cell-var-from-loop
-                        raise TransformationError(LazyString(
-                            lambda: f"Cannot inline routine '{routine.name}' "
-                            f"because one of its arguments is an array slice "
-                            f"with a non-unit stride: "
-                            f"'{actual_arg.debug_string()}' (TODO #1646)"))
+        for routine_arg, actual_arg in zip(
+            routine_arg_list, node.arguments
+        ):
+            self._validate_inline_of_call_and_routine_argument_pairs(
+                call_node=node,
+                call_arg=actual_arg,
+                routine_node=routine,
+                routine_arg=routine_arg
+            )
 
         # Check for dependencies within the SymbolTable of the target
         # routine. If any of these are used to dimension a local
@@ -936,6 +1393,8 @@ class InlineTrans(Transformation):
                         f"returned from Reference.previous_accesses(). "
                         f"Expected a Call, CodeBlock, Kern, Loop or "
                         f"Reference.")
+
+        return (routine, arg_match_list)
 
 
 # For AutoAPI auto-documentation generation.

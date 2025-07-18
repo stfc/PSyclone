@@ -112,17 +112,18 @@ class OMPTaskTrans(ParallelLoopTrans):
         kintrans = KernelModuleInlineTrans()
         cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()
+        options = {"check_matching_arguments": False}
 
         for kern in kerns:
-            kintrans.validate(kern)
+            kintrans.validate(kern, options)
             routines = kern.get_callees()
             for routine in routines:
-                cond_trans.validate(routine)
+                cond_trans.validate(routine, options)
             # We need to apply these transformations to ensure we can
             # validate the InlineTrans
             kintrans.apply(kern)
             for routine in routines:
-                cond_trans.apply(routine)
+                cond_trans.apply(routine, options)
             kern.lower_to_language_level()
 
         calls = node_copy.walk(Call)
