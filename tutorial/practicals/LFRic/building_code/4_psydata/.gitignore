@@ -6,4 +6,6 @@
 time_evolution
 time_evolution*.nc
 time_evolution*.binary
+time_evolution*.ascii
 main-update.nc
+driver-*

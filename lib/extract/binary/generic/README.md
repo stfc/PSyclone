@@ -1,9 +1,9 @@
-# Kernel Extraction Library Using NetCDF for generic Fortran code
+# Stand-alone Kernel Extraction Library for generic Fortran code
 
 This wrapper library is used to [write (extract)](
 https://psyclone.readthedocs.io/en/stable/psyke.html)
-input and output parameters of instrumented code regions to a [NetCDF file](
-https://psyclone.readthedocs.io/en/stable/psyke.html#netcdf-extraction-example).
+input and output parameters of instrumented code regions to a [binary file](
+https://psyclone.readthedocs.io/en/stable/psyke.html#extraction_libraries).
 A stand-alone driver can then be used to rerun this specific code region and
 verify the results (or compare performance).
 
@@ -17,22 +17,14 @@ This library uses the [PSyData API](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
 the application. The following dependencies must be available:
 
-- This library uses NetCDF to store the data, so NetCDF must
-  be available on the system. NetCDF development packages are available via
-  the Linux package manager. Otherwise they can be built from source that
-  can be downloaded from the [UCAR NetCDF website](
-  https://www.unidata.ucar.edu/software/netcdf). For more information please
-  refer to the [hands-on practicals documentation](
-  https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples).
-
-- The ExtractNetcdf (``extract_netcdf_base.jinja``) and PSyData
+- The ExtractBinary (``extract_binary_base.jinja``) and PSyData
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
   installation. These Jinja templates are processed to create the
   code to write 32- and 64-bit ``integer``, 32- and 64-bit ``real`` scalars,
   and 1- to 4-dimensional ``real`` and ``integer`` arrays. The generated
-  Fortran modules, ``extract_netcdf_base.f90`` and ``psy_data_base.f90``,
-  are then used by the supplied NetCDF-kernel-extraction module,
-  ``kernel_data_netcdf.f90``, to create the wrapper library.
+  Fortran modules, ``extract_binary_base.f90`` and ``psy_data_base.f90``,
+  are then used by the supplied kernel-extraction module,
+  ``kernel_data_binary.f90``, to create the wrapper library.
 
 ## Compilation
 
@@ -41,13 +33,10 @@ environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 [Fortran compiler](./../../../README.md#compilation) and flags to use. They
 default to ``gfortran`` and the empty string.
 
-The NetCDF helper program ``nf-config`` is used to get the NetCDF-specific
-include paths. 
-
-The locations of the ExtractNetcdf and PSyData base classes are
+The locations of the ExtractBinary and PSyData base classes are
 specified using the environment variables ``$LIB_TMPLT_DIR`` and
 ``$PSYDATA_LIB_DIR``, respectively. They default to the relative paths to
-the [``lib/extract/netcdf``](./../) and top-level [``lib``](./../../../)
+the [``lib/extract/binary``](./../) and top-level [``lib``](./../../../)
 directories.
 
 In order to support MPI in extraction (which means each process will write
@@ -59,25 +48,18 @@ The compilation process will create the wrapper library
 
 Similar to compilation of the [examples](
 https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/examples_intro.html#compilation), the
-compiled wrapper library can be removed by running ``make clean``.
+compiled wrapper library can be removed by running ``make clean``. 
 
 ### Linking the wrapper library
 
-The application needs to provide the parameters to link in this
-NetCDF-kernel-extraction library, ``_kernel_data_netcdf``, and the required
-NetCDF parameters when compiling and linking. For instance:
+At link time, the path to the stand-alone-kernel-extraction library,
+``_kernel_data_binary``, needs to be specified when compiling and linking.
+For instance:
 
 ```shell
-$(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/netcdf/dl_esm_inf -l_kernel_data_netcdf \
-         $(nf-config --flibs)
+$(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/binary/dl_esm_inf -l_kernel_data_binary
 ```
 
-### Note
-
-Certain versions of Fedora have a broken ``nf-config`` script. In
-this case the ``Makefile`` has to be modified to provide the required
-information (you can try to see if ``nc-config`` can be used,
-or you have to explicitly provide the required paths and options).
 
 <!--
 ## Licence

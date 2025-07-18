@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Australian Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
 
 # This Makefile just creates the Fortran base class for all extraction
 # libraries from the jinja template. The compile functionality it offers is
@@ -55,15 +54,15 @@ endif
 PSYDATA_LIB_DIR ?= ./../..
 # -----------------------------------------------------------------------------
 
-# The extract library is implemented for int, real and
-# double scalars and 1- to 4-dimensional arrays
+# The extract library is implemented for character, int, long, logical, real,
+# and double scalars and 1- to 4-dimensional arrays
 PROCESS_ARGS = -prefix=extract_ -types=char,int,long,logical,real,double \
 		       -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-default: extract_standalone_base.o psy_data_base.o read_kernel_data_mod.o
+default: extract_ascii_base.o psy_data_base.o read_kernel_data_mod.o
 
-process: extract_standalone_base.F90
+process: extract_ascii_base.F90
 
 .PHONY: default process all clean allclean
 
@@ -74,16 +73,16 @@ all:
 
 # The dependencies
 # ----------------
-extract_standalone_base.o: psy_data_base.o
+extract_ascii_base.o: psy_data_base.o
 
 # Jinja rules for creating the base class, and the
-# standalone extraction class
+# ascii extraction class
 # ------------------------------------------------
 psy_data_base.f90:	$(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
-extract_standalone_base.F90:	extract_standalone_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_standalone_base.F90
+extract_ascii_base.F90:	extract_ascii_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_ascii_base.F90
 
 read_kernel_data_mod.f90:	read_kernel_data_mod.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > read_kernel_data_mod.f90
@@ -97,7 +96,7 @@ read_kernel_data_mod.f90:	read_kernel_data_mod.jinja Makefile
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f extract_standalone_base.F90 psy_data_base.f90
+	rm -f extract_ascii_base.F90 psy_data_base.f90 read_kernel_data_mod.f90
 	rm -f *.o *.mod
 
 allclean:

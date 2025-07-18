@@ -1,8 +1,10 @@
 alg.f90
 psy.f90
 test.x90
-extract_test.standalone
+extract_test.binary
+extract_test.ascii
 extract_test.netcdf
 *.nc
 *.binary
+*.ascii
 driver-main*

@@ -78,7 +78,7 @@
 !! a binary file that contains all scalar values, and the dimensions
 !! and content for each array.
 
-module extract_standalone_base_mod
+module extract_ascii_base_mod
 
     use psy_data_base_mod, only : PSyDataBaseType, is_enabled
 
@@ -93,10 +93,10 @@ module extract_standalone_base_mod
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, extends(PSyDataBaseType), public :: ExtractStandaloneBaseType
+    type, extends(PSyDataBaseType), public :: ExtractAsciiBaseType
 
         !> The unit number to use for output
-        integer                            :: unit_number
+        integer                            :: unit_number = -1
 
     contains
 
@@ -124,7 +124,7 @@ module extract_standalone_base_mod
             {{all_provides|join(", &\n"+indent) }}
         {% endif %}
 
-    end type ExtractStandaloneBaseType
+    end type ExtractAsciiBaseType
 
 contains
 
@@ -163,11 +163,11 @@ contains
 
         implicit none
 
-        class(ExtractStandaloneBaseType), intent(inout), target :: this
-        character(*), intent(in)                            :: module_name, &
-                                                               region_name
-        integer, intent(in)                                 :: num_pre_vars, &
-                                                               num_post_vars
+        class(ExtractAsciiBaseType), intent(inout), target :: this
+        character(*), intent(in)                           :: module_name, &
+                                                              region_name
+        integer, intent(in)                                :: num_pre_vars, &
+                                                              num_post_vars
 #ifndef NO_MPI
         integer :: rank, size, ierr, num_digits
         character(7) :: rank_format, rank_string
@@ -179,7 +179,7 @@ contains
 
 #ifdef NO_MPI
         open(newunit=this%unit_number, access='sequential',  &
-             form="unformatted", file=module_name//"-"//region_name//".binary")
+             form="formatted", file=module_name//"-"//region_name//".ascii")
 #else
         ! Add the rank to the file name:
         call MPI_Comm_size(MPI_COMM_WORLD, size, ierr)
@@ -188,9 +188,9 @@ contains
         write(rank_format, "('(I',I0,'.',I0,')')") num_digits, num_digits
         write(rank_string, rank_format) rank
         open(newunit=this%unit_number, access='sequential',  &
-             form="unformatted",                             &
+             form="formatted",                               &
              file=module_name//"-"//region_name//"-"//       &
-                  trim(rank_string)//".binary")
+                  trim(rank_string)//".ascii")
 #endif
 
     end subroutine PreStart
@@ -204,7 +204,7 @@ contains
 
         implicit none
 
-        class(ExtractStandaloneBaseType), intent(inout), target :: this
+        class(ExtractAsciiBaseType), intent(inout), target :: this
 
         close(this%unit_number)
         call this%PSyDataBaseType%PostEnd()
@@ -223,12 +223,12 @@ contains
 
         implicit none
 
-        class(ExtractStandaloneBaseType), intent(inout), target :: this
-        character(*), intent(in)                                :: name
-        {{type}}, intent(in)                                    :: value
-        integer                                                 :: retval
+        class(ExtractAsciiBaseType), intent(inout), target :: this
+        character(*), intent(in)                           :: name
+        {{type}}, intent(in)                               :: value
+        integer                                            :: retval
 
-        write(this%unit_number) value
+        write(this%unit_number, '(g0)') value
         call this%PSyDataBaseType%ProvideScalar{{name}}(name, value)
 
     end subroutine WriteScalar{{name}}
@@ -253,17 +253,17 @@ contains
 
         implicit none
 
-        class(ExtractStandaloneBaseType), intent(inout), target :: this
-        character(*), intent(in)                                :: name
-        {{type}}, dimension({{DIMENSION}}), intent(in)          :: value
+        class(ExtractAsciiBaseType), intent(inout), target :: this
+        character(*), intent(in)                           :: name
+        {{type}}, dimension({{DIMENSION}}), intent(in)     :: value
 
         integer :: retval
 
         if (.not. is_enabled) return
         {% for i in range(1, dim+1) %}
-        write(this%unit_number) size(value, {{i}})
+        write(this%unit_number, '(g0)') size(value, {{i}})
         {% endfor %}
-        write(this%unit_number) value
+        write(this%unit_number, '(g0)') value
 
         call this%PSyDataBaseType%ProvideArray{{dim}}d{{name}}(name, value)
 
@@ -273,4 +273,4 @@ contains
 
 {%- endfor -%}  {# for name, type in ALL_TYPES #}
 
-end module extract_standalone_base_mod
+end module extract_ascii_base_mod

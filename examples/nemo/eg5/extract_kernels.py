@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2025 Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: S. Siso, STFC Daresbury Lab
 
 '''A transformation script that applies kernel data extraction to a
 stand-alone version of one of the tracer-advection routines from the
@@ -68,28 +67,33 @@ been preprocessed (if required).
 
 '''
 
+from psyclone.psyGen import PSy
+from psyclone.psyir.nodes import Loop
 from psyclone.transformations import TransformationError
 from psyclone.psyir.transformations import ExtractTrans
-from psyclone.psyir.nodes import Loop, Routine
 
 
-def trans(psyir):
-    '''Applies the kernel extraction to every subroutine in the file.
+def trans(psyir: PSy):
+    '''A PSyclone-script compliant transformation function. Applies
+    the kernel extraction to any invoke identified in the PSy layer object.
 
     :param psyir: the PSyIR of the provided file.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 
     extract = ExtractTrans()
 
-    for subroutine in psyir.walk(Routine):
-        print(f"Transforming subroutine: {subroutine.name}")
-        for kern in subroutine.children:
-            if not isinstance(kern, Loop):
-                continue
+    for loop in psyir.walk(Loop):
+        # Don't extract the content of an iteration loop:
+        if loop.variable.name == "jt":
+            continue
+        ancestor = loop.ancestor(Loop)
+        # Extract any loop that either has no outer loop, or only
+        # an iteration loop as outer.
+        if ancestor is None or ancestor.variable.name == "jt":
             try:
-                extract.apply(kern)
+                # Note that driver creation is not yet supported.
+                extract.apply(loop)
             except TransformationError as err:
                 # Typically that's caused by a kernel having a CodeBlock
-                # inside.
-                print("Ignoring: ", str(err.value))
+                # inside. In this example there is a write statement
+                print(f"Ignoring error '{err.value}'.")

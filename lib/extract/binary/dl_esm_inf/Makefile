@@ -26,8 +26,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #------------------------------------------------------------------------------
 # Author: J. Henrichs, Australian Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
-#           A. R. Porter, STFC Daresbury Lab
 
 # This Makefile picks up the compiler to use plus any flags from
 # environment variables. e.g.:
@@ -36,65 +34,53 @@
 # export F90FLAGS="-O3"
 # export AR=ar
 #
+
 # ----------- Default "make" values, can be overwritten by the user -----------
 # Compiler and compiler flags
 
 F90FLAGS ?=
 ifeq ($(MPI), yes)
-	F90 ?= mpif90
+       F90 ?= mpif90
 else
-	F90 ?= gfortran
-	F90FLAGS += -DNO_MPI
+       F90 ?= gfortran
+       F90FLAGS += -DNO_MPI
 endif
 
-# Path to the LFRic infrastructure library. It defaults to the pared-down
-# version of the LFRic infrastructure distributed with PSyclone.
-# Overwrite for a different infrastructure version.
-LFRIC_PATH ?= ./../../../../src/psyclone/tests/test_files/lfric/infrastructure
+
+# Path to the 'dl_esm_inf' infrastructure library. It defaults to the version
+# distributed with PSyclone. Overwrite for a different infrastructure version.
+GOCEAN_INF_DIR ?= ./../../../../external/dl_esm_inf/finite_difference
 # Paths to the PSyclone wrapper libraries and required templates. They default
-# to the relative paths to the top-level 'lib' and 'lib/extract/standalone'
+# to the relative paths to the top-level 'lib' and 'lib/extract/binary'
 # directories. Overwrite for a custom location.
 PSYDATA_LIB_DIR ?= ./../../..
 LIB_TMPLT_DIR ?= ./..
 # -----------------------------------------------------------------------------
 
-INF_INC = $(LFRIC_PATH)
-INF_LIB_NAME = lfric
-INF_LIB = $(LFRIC_PATH)/lib$(INF_LIB_NAME).a
+INF_INC = $(GOCEAN_INF_DIR)/src
+INF_LIB_NAME = _fd
+INF_LIB = $(GOCEAN_INF_DIR)/src/lib$(INF_LIB_NAME).a
 
-# This will setup the required include flags in $(LFRIC_INCLUDE_FLAGS)
-include $(LFRIC_PATH)/lfric_include_flags.inc
-
+F90FLAGS += -I$(INF_INC)
 PSYDATA_LIB_NAME = _extract
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
-PROCESS_ARGS = -prefix=extract_ -types=char,int,logical,real,double \
-                       -dims=1,2,3,4
+PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
+                       -dims=2
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-OBJS = psy_data_base.o kernel_data_standalone.o extract_standalone_base.o \
-	   compare_variables_mod.o
+OBJS = psy_data_base.o kernel_data_binary.o extract_binary_base.o \
+	   compare_variables_mod.o read_kernel_data_mod.o
 
 default: $(PSYDATA_LIB)
 
 .PHONY: default clean allclean
 
-# We add read_kernel_data_mod as a convenience for using this
-# in LFRic: all required file for kernel extractions and drivers
-# are then in this directory. That file does not need to be compiled,
-# it will be included in the created driver programs.
-$(PSYDATA_LIB): $(INF_LIB) $(OBJS) read_kernel_data_mod.f90
-	${AR} ${ARFLAGS} ${PSYDATA_LIB} $(OBJS)
+$(PSYDATA_LIB): $(INF_LIB) $(OBJS)
+	${AR} ${ARFLAGS} ${PSYDATA_LIB} $^
 
-# Create LFRic infrastructure library
-$(INF_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
-
-kernel_data_standalone.o:	extract_standalone_base.o
-extract_standalone_base.o:	psy_data_base.o
-
-kernel_data_standalone.f90: kernel_data_standalone.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) $< > kernel_data_standalone.f90
+kernel_data_binary.o:	extract_binary_base.o $(INF_LIB)
+extract_binary_base.o:	psy_data_base.o
 
 psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
@@ -102,20 +88,25 @@ psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 read_kernel_data_mod.f90: $(LIB_TMPLT_DIR)/read_kernel_data_mod.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) $< > read_kernel_data_mod.f90
 
-extract_standalone_base.F90: $(LIB_TMPLT_DIR)/extract_standalone_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_standalone_base.F90
+extract_binary_base.F90: $(LIB_TMPLT_DIR)/extract_binary_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_binary_base.F90
 
 compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > compare_variables_mod.F90
 
+# The dl_esm_inf library
+$(INF_LIB):
+	$(MAKE) -C $(GOCEAN_INF_DIR)
+
 %.o: %.f90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.F90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_binary_base.f90 \
+		compare_variables_mod.F90 read_kernel_data_mod.f90
 
 allclean: clean
-	$(MAKE) -C $(LFRIC_PATH) allclean
+	$(MAKE) -C $(GOCEAN_INF_DIR) clean

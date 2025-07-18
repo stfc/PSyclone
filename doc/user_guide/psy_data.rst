@@ -341,8 +341,9 @@ build environment is:
 - In the LFRic source tree create a new directory under ``infrastructure/source``,
   e.g. ``infrastructure/source/psydata``.
 - Build the PSyData wrapper stand-alone in ``lib/extract/netcdf/lfric`` (which
-  will use NetCDF as output format) or ``lib/extract/standalone/lfric`` (which
-  uses standard Fortran binary output format) by executing ``make``. The compiled
+  will use NetCDF as output format), ``lib/extract/binary/lfric`` (which
+  uses standard Fortran binary output format), or ``lib/extract/ascii/lfric``
+  (which uses ASCII as output format), by executing ``make``. The compiled
   files will actually not be used, but this step will create all source
   files (some of which are created by jinja). Do not copy
   the compiled files into your LFRic build tree, since these files might be

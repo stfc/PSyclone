@@ -34,8 +34,7 @@ variable ``MPI=yes``.
 ## [``dl_esm_inf``](./dl_esm_inf) directory
 
 Contains the NetCDF-extract, PSyData-API-based, wrapper library for the
-``dl_esm_inf`` [GOcean API](
-https://psyclone.readthedocs.io/en/latest/gocean1p0.html).
+``dl_esm_inf`` [GOcean API](https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html).
 
 ## [``lfric``](./lfric) directory
 

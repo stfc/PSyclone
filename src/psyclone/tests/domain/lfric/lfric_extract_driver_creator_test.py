@@ -69,7 +69,7 @@ def init_module_manager():
     psyclone_root = os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.dirname(os.path.dirname(infrastructure_path)))))
     read_mod_path = os.path.join(psyclone_root, "lib", "extract",
-                                 "standalone", "lfric")
+                                 "binary", "lfric")
     # Enforce loading of the default ModuleManager
     ModuleManager._instance = None
 
