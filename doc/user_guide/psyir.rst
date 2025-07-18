@@ -336,6 +336,10 @@ For example:
 
     >>> array_type = ArrayType(BOOLEAN_TYPE, [ArrayType.Extent.DEFERRED])
 
+Note that Fortran "assumed-size" arrays (which have the last dimension
+specified with a ``*``) are not supported in the PSyIR and any such
+declaration will result in a ``DataSymbol`` of ``UnsupportedFortranType``.
+
 Structure Datatype
 ------------------
 
