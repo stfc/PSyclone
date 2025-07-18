@@ -488,6 +488,16 @@ def insert_explicit_loop_parallelism(
                 " 'nlay_i' or 'nlay_s' and is not collapsed.")
             continue
 
+        if routine_name == "ice_thd_zdf_BL99":
+            if isinstance(loop.stop_expr, Reference):
+                if loop.stop_expr.symbol.name == "npti":
+                    for variable in ['zdiagbis', 'zindtbis', 'zindterm',
+                                     'ztib', 'ztrid', 'ztsb']:
+                        st = loop.scope.symbol_table
+                        sym = st.lookup(variable, otherwise=None)
+                        if sym is not None:
+                            loop.explicitly_private_symbols.add(sym)
+
         try:
             # First check that the region_directive is feasible for this region
             if region_directive_trans:

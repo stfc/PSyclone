@@ -780,6 +780,10 @@ class IntrinsicCall(Call):
             supported values.
 
         '''
+        if self.intrinsic in REDUCTION_INTRINSICS:
+            if len(self.arguments) > 1:
+                return False
+
         if not device_string:
             return self.intrinsic in DEFAULT_DEVICE_INTRINISCS
         if device_string == "nvfortran-all":

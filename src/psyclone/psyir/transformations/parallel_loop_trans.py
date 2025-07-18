@@ -118,6 +118,9 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             # privatising these
             return False
 
+        if sym in loop.explicitly_private_symbols:
+            return True
+
         # Check that the symbol is not referenced following this loop (before
         # the loop is fine because we can use OpenMP/OpenACC first-private or
         # Fortran do concurrent local_init())
