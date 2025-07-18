@@ -1,3 +1,6 @@
+   53) #3065 for #3064 - adds a pytest.ini to ensure that pytest doesn't look
+   in the 'external' directory if run from the project root directory.
+
    52) PR #3014 towards #2384. Adds flags to keep comments and have directives
    turned into codeblocks.
 
