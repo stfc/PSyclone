@@ -45,7 +45,7 @@ import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.core import (Signature, SingleVariableAccessInfo,
-                           VariablesAccessMap)
+                           VariablesAccessMap, AccessType)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
@@ -426,7 +426,10 @@ class SymPyWriter(FortranWriter):
                 else:
                     orig_sym = None
 
-            is_fn_call = isinstance(orig_sym, RoutineSymbol)
+            is_fn_call = (
+                isinstance(orig_sym, RoutineSymbol) or
+                any(x.access_type in [AccessType.CALL, AccessType.UNKNOWN]
+                    for x in sva.all_accesses))
 
             if (sva.is_array() or
                     (orig_sym and (orig_sym.is_array or is_fn_call))):
