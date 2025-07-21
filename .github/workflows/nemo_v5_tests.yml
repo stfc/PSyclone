@@ -343,3 +343,148 @@ jobs:
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "NEMOv5 OpenMP for GPU (ORCA2)", nemo_version: "NEMOv5", system: "GlaDos",
           compiler:"nvhpc-24.11" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
+
+
+    - name: NEMO 5.0 nvidia Async OpenMP for GPUs (BENCH - managed memory)
+      run: |
+        # Set up environment
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%nvhpc@24.11
+        source .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export PSYCLONE_HOME=${PWD}/.runner_venv
+        export NEMO_DIR=${HOME}/${NEMODIR_NAME}
+        export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC
+
+        # Make sure the profiling wrapper is compiled with the same compiler
+        export PROFILING_DIR=${GITHUB_WORKSPACE}/lib/profiling/nvidia/
+        cd $PROFILING_DIR
+        make clean
+        F90=$MPIF90 make
+                
+        # First do a debug-build: set the environemnt variables to use flags and intrinsics
+        # with numerically reproducible results and enable PROFILING hooks
+        cd $NEMO_DIR
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack_profile.fcm arch/arch-linux_spack_profile.fcm
+        export ENABLE_PROFILING=1
+        # We compile with "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
+        export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export REPRODUCIBLE=1
+        export ASYNC_PARALLEL=1
+        # Clean up and compile
+        rm -rf tests/${TEST_DIR}
+        ./makenemo -r BENCH -m linux_spack_profile -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
+          -j 4 -v 1
+
+        # Run reproducible test
+        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
+        # We can compare all digits for this build
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
+
+        # Now do a fast-build (without reproducible or profiling options, which have a
+        # big impact for BENCH due to some inner-loop REAL intrinsics)
+        cd $NEMO_DIR
+        unset REPRODUCIBLE
+        unset ENABLE_PROFILING
+        export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
+        rm -rf tests/${TEST_DIR}
+        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
+          -j 4 -v 1
+
+        # Run non-reproducible test
+        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
+        export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "NEMOv5 OpenMP for GPU (BENCH)", nemo_version: "NEMOv5", system: "GlaDos",
+          compiler:"nvhpc-24.11" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
+
+    - name: NEMO 5.0 nvidia Async OpenMP for GPUs (UKMO ORCA1 - managed memory)
+      run: |
+        # Set up environment
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%nvhpc@24.11
+        source .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export PSYCLONE_HOME=${PWD}/.runner_venv
+        export NEMO_DIR=${HOME}/${NEMODIR_NAME}
+        export TEST_DIR=ORCA1_OMP_OFFLOAD_NVHPC
+
+        # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
+        # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
+        cd $NEMO_DIR
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export REPRODUCIBLE=1
+        export ASYNC_PARALLEL=1
+
+        # Clean up and compile
+        rm -rf cfgs/${TEST_DIR}
+        ./makenemo -r GOSI10p0.0_like_eORCA1 -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
+          -j 4 -v 1
+
+        # Run test
+        cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
+        ln -sf /archive/NEMO_INPUTS/NEMOv5_MO_original_files/ancil/eORCA1/link/* .
+        # Make sure mpi has been built with cuda support
+        ompi_info --parsable --all | grep mpi_built_with_cuda_support:value
+        # Run with round robin allocations of GPUs to MPI ranks
+        mpirun -n 2 sh -c 'CUDA_VISIBLE_DEVICES=$OMPI_COMM_WORLD_LOCAL_RANK ./nemo'
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca1.nvhpc.10steps run.stat
+        export TIME_sec=$(grep "local MPI proces" timing.output | head -n 1 | awk '{print $5}' | tr -d s)
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "NEMOv5 OpenMP for GPU (ORCA1)", nemo_version: "NEMOv5", system: "GlaDos",
+          compiler:"nvhpc-24.11" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
+
+    - name: NEMO 5.0 nvidia Async OpenMP for GPUs (UKMO ORCA2 - managed memory)
+      run: |
+        # Set up environment
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%nvhpc@24.11
+        source .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export PSYCLONE_HOME=${PWD}/.runner_venv
+        export NEMO_DIR=${HOME}/${NEMODIR_NAME}
+        export TEST_DIR=ORCA2_OMP_OFFLOAD_NVHPC
+
+        # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
+        # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
+        cd $NEMO_DIR
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export REPRODUCIBLE=1
+        export ASYNC_PARALLEL=1
+
+        # Clean up and compile
+        rm -rf cfgs/${TEST_DIR}
+        ./makenemo -r ORCA2_ICE_PISCES -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
+          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
+
+        # Run test
+        cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
+        ln -sf ../../../ORCA2_ICE_v4.2.0/* .
+        # Uses both, threading and offloading
+        OMP_NUM_THREADS=4 ./nemo
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
+        export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "NEMOv5 OpenMP for GPU (ORCA2)", nemo_version: "NEMOv5", system: "GlaDos",
+          compiler:"nvhpc-24.11" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'

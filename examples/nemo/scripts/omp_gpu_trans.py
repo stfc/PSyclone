@@ -63,7 +63,7 @@ NEMOV4 = os.environ.get('NEMOV4', False)
 
 # This environment variable informs if we're enabling asynchronous
 # parallelism.
-ASYNC_PARALLEL = os.environ.get('ASYNC_PARALLEL', True)
+ASYNC_PARALLEL = os.environ.get('ASYNC_PARALLEL', False)
 
 # Whether to chase the imported modules to improve symbol information (it can
 # also be a list of module filenames to limit the chasing to only specific
