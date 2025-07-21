@@ -326,8 +326,8 @@ and then as an invalid output value.
 ### Stand-alone Kernel Extraction
 PSyclone provides three different kernel extraction libraries. Besides the
 NetCDF based one, which was used above, there is also a stand-alone library
-which only uses Fortran binary IO and one that uses ASCII format. Bot of these
-do not have any other external dependencies. These
+which only uses Fortran binary IO and one that uses ASCII format. Both of these
+do not have any other external dependencies. For these
 libraries is ideal if your application does not already have a NetCDF dependency,
 or you are copying the data files to a platform where you don't have NetCDF.
 
