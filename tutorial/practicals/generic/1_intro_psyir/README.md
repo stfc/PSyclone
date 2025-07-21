@@ -10,7 +10,7 @@ this mini-app was kindly provided by Silvia Mocavero of CMCC.
 ## Prerequisites ##
 
 The requirements for this section are as described in the practicals
-[README.md](../../README.md#Requirements).
+[README.md](../../README.md##Requirements).
 
 Check that PSyclone is installed and configured correctly by doing:
 

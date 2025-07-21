@@ -1,10 +1,11 @@
 dirs:
   - .
 useGitIgnore: true
+# This sometimes fail due to timeouts on slow responses, or unauthorised access
 ignorePatterns:
   - pattern: '^https://mybinder.org/v2/gh/stfc/psyclone'
   - pattern: '^https://codecov.io/gh/stfc/PSyclone'
-  - pattern: '^\.'
+  - pattern: '^https://code.metoffice.gov.uk/svn'
 replacementPatterns:
   - pattern: '^https:\/\/(psyclone.*\.readthedocs\.io\/en)\/stable$'
     replacement: 'https://$1/latest'

@@ -263,7 +263,7 @@ the LFRic repository).
 We will now run `make` to create the executable `simple_kernels_part1`
 using the provided [`simple_kernels_driver.f90`](simple_kernels_driver.f90)
 and the LFRic infrastructure [code support](
-../README.md#lfric-code-support). If the build is successful we can
+../../README.md#lfric-code-support). If the build is successful we can
 run the executable
 
 ```shell

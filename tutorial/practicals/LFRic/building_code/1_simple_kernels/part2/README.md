@@ -249,7 +249,7 @@ The completed algorithm can be found in the
 We will now run `make` to create the executable `simple_kernels_part2`
 using the provided [`simple_kernels_driver.f90`](simple_kernels_driver.f90)
 and the LFRic infrastructure [code support](
-../README.md#lfric-code-support). If the build is successful we can
+../../README.md#lfric-code-support). If the build is successful we can
 run the executable
 
 ```shell

@@ -51,11 +51,6 @@ rely on a file compiled in this directory.
 Contains code for extracting kernel data - i.e. all input and output
 parameters of a kernel invocation.
 
-### [``nan_test``](./nan_test) directory
-
-Contains PSyData-API-based libraries for checking that input and output
-parameters of kernels are valid numbers (i.e. not ``NaN`` or infinity).
-
 ### [``profiling``](./profiling) directory
 
 Contains PSyData-API-based wrapper libraries for various profiling libraries
