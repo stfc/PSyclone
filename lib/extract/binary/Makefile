@@ -30,48 +30,77 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-#------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author: J. Henrichs, Australian Bureau of Meteorology
 # Modified: I. Kavcic, Met Office
 
-# This Makefile just creates the Fortran base class for the compare_variables_mod
-# from the jinja template `compare_variables_mod.jinja`. The compile functionality
-# it offers is only meant for testing, each domain=specific library should compile
-# its own version (with therefore consistent preprocessing and compiler settings).
+# This Makefile just creates the Fortran base class for all extraction
+# libraries from the jinja template. The compile functionality it offers is
+# only meant for testing, each library should create and compile its own
+# version of the base class (with therefore consistent compiler and
+# jinja settings).
 
 # ----------- Default "make" values, can be overwritten by the user -----------
 # Compiler and compiler flags
-F90 ?= gfortran
 F90FLAGS ?=
+ifeq ($(MPI), yes)
+       F90 ?= mpif90
+else
+       F90 ?= gfortran
+       F90FLAGS += -DNO_MPI
+endif
+
 # Path to the PSyclone wrapper libraries. It defaults to the relative path to
 # the top-level 'lib' directory. Overwrite for a custom location.
-PSYDATA_LIB_DIR ?= ./..
+PSYDATA_LIB_DIR ?= ./../..
+# -----------------------------------------------------------------------------
 
-# These arguments are responsible for creating the Fortran
-# `compare_variables_mod` file based on the jinja template. It will support
-# the listed data types and scalar and 2-dimensional arrays. Note that
-# domain-specific implementation will create their own version with different
-# number of dimensions if required.
-PROCESS_ARGS = -types=char,int,long,logical,real,double -dims=2
+# The extract library is implemented for int, real and
+# double scalars and 1- to 4-dimensional arrays
+PROCESS_ARGS = -prefix=extract_ -types=char,int,long,logical,real,double \
+		       -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-.PHONY: all compare
-	
-compare: compare_variables_mod.o
+default: extract_binary_base.o psy_data_base.o read_kernel_data_mod.o
+
+process: extract_binary_base.F90
+
+.PHONY: default process all clean allclean
+
+all:
+	$(MAKE) -C dl_esm_inf
+	$(MAKE) -C lfric
+	$(MAKE) -C generic
+
+# The dependencies
+# ----------------
+extract_binary_base.o: psy_data_base.o
+
+# Jinja rules for creating the base class, and the
+# binary extraction class
+# ------------------------------------------------
+psy_data_base.f90:	$(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
+
+extract_binary_base.F90:	extract_binary_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_binary_base.F90
+
+read_kernel_data_mod.f90:	read_kernel_data_mod.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > read_kernel_data_mod.f90
+
+# Compilation
+# -----------
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
 
 %.o: %.F90
-	$(F90) -c $(F90FLAGS) $<
-
-# ------------------------------------------------
-compare_variables_mod.F90:      compare_variables_mod.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) $< > compare_variables_mod.F90
-
-# Handy shortcut to trigger compilation of all libraries
-all: compare
-	$(MAKE) -C netcdf all
-	$(MAKE) -C binary all
-	$(MAKE) -C ascii all
+	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f compare_variables_mod.mod compare_variables_mod.o \
-		  compare_variables_mod.F90
+	rm -f extract_binary_base.F90 psy_data_base.f90
+	rm -f *.o *.mod
+
+allclean:
+	$(MAKE) -C dl_esm_inf allclean
+	$(MAKE) -C lfric allclean
+	$(MAKE) -C generic allclean
