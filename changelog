@@ -1,3 +1,5 @@
+   56) PR #3055. Fixes duplicated async statements in OpenACC.
+
    55) PR #2941 for #2925. Add support for ASCII extraction and rename standalone
    extraction to binary extraction.
 
