@@ -44,6 +44,7 @@ TODO #2341 - tests need to be added for all of the supported intrinsics.
 
 import pytest
 
+from psyclone.core import Signature
 from psyclone.psyir.nodes import (
     ArrayReference, Literal, Reference, Schedule, Assignment)
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall, IAttr
@@ -455,6 +456,25 @@ def test_reference_accesses_bounds(operator, fortran_reader):
     # actual data is not accessed.
     vam = schedule.reference_accesses()
     assert str(vam) == "a: NO_DATA_ACCESS, b: READ, n: WRITE"
+
+
+def test_reference_accesses_kind_arg(fortran_reader):
+    '''
+    Test that a kind argument to an intrinsic is marked as a TYPE_INFO
+    access.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    program my_prog
+      use kinds_mod, only: wp
+      real(kind=wp) :: a, c
+      real :: b
+      a = real(b/c, wp)
+      c = 1.0_wp
+    end program my_prog''')
+    assign = psyir.walk(Assignment)[0]
+    vam = assign.reference_accesses()
+    assert not vam[Signature("wp")].has_data_access
 
 
 def test_enumerator_name_matches_name_field():
