@@ -1,12 +1,15 @@
-# Kernel Extraction Library Using NetCDF for LFRic
+# Kernel Extraction Library for LFRic
 
 This wrapper library [writes (extracts)](
 https://psyclone.readthedocs.io/en/stable/psyke.html) input and output
-parameters of instrumented code regions to a [NetCDF file](
-https://psyclone.readthedocs.io/en/stable/psyke.html#netcdf-extraction-example)
+parameters of instrumented code regions to a stand-alone
+[binary file](https://psyclone.readthedocs.io/en/stable/psyke.html#extraction_libraries)
 using the LFRic infrastructure library. A stand-alone driver can then be
 used to rerun this specific code region and verify the results (or
 compare performance).
+
+Note that the processed file ``read_kernel_data_mod.f90`` is required for
+compilation tests.
 
 ## Dependencies
 
@@ -23,22 +26,14 @@ the application. The following dependencies must be available:
   https://psyclone.readthedocs.io/en/latest/lfric.html) documentation
   for information on how to obtain access to the LFRic code.
 
-- This library uses NetCDF to store the data, so NetCDF must
-  be available on the system. NetCDF development packages are available via
-  the Linux package manager. Otherwise they can be built from source that
-  can be downloaded from the [UCAR NetCDF website](
-  https://www.unidata.ucar.edu/software/netcdf). For more information please
-  refer to the [hands-on practicals documentation](
-  https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#netcdf-library-lfric-examples).
-
-- The ExtractNetcdf (``extract_netcdf_base.jinja``) and PSyData
+- The ExtractBinary (``extract_binary_base.jinja``) and PSyData
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
   installation. These Jinja templates are processed to create the
   code to write ``integer``, 32- and 64-bit ``real`` scalars, and 1, 2, 3,
   and 4-dimensional ``real`` and ``integer`` arrays. The generated Fortran
-  modules, ``extract_netcdf_base.f90`` and ``psy_data_base.f90``, are then
-  used by the supplied NetCDF-kernel-extraction module,
-  ``kernel_data_netcdf.f90``, to create the wrapper library.
+  modules, ``extract_binary_base.f90`` and ``psy_data_base.f90``, are then
+  used by the supplied binary-kernel-extraction module,
+  ``kernel_data_binary.f90``, to create the wrapper library.
 
 ## Compilation
 
@@ -62,31 +57,30 @@ its own output data by appending its rank to the filename), set the environment
 variable ``MPI=yes`` before starting the build process (which will make sure
 that ``NO_MPI`` is not set).
 
-The NetCDF helper program ``nf-config`` is used to get the NetCDF-specific
-include paths. By default it is set to the relative path to the pared-down
+By default the ``Makefile`` links with the pared-down
 LFRic infrastructure located in a clone of PSyclone repository,
 ``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
 This is not available in the PSyclone [installation](
 ./../../../README.md#installation) so the exact path
-**must be specified** using the environment variable ``LFRIC_INF_DIR``, e.g.
+**must be specified** using the environment variable ``LFRIC_PATH``, e.g.
 
 ```shell
-F90=ifort F90FLAGS="-g -check bounds" LFRIC_INF_DIR=<path/to/LFRic/code> make
+F90=ifort F90FLAGS="-g -check bounds" LFRIC_PATH=<path/to/LFRic/code> make
 ```
 
 It is the responsibility of the user to make sure that the module files
 used when compiling the LFRic extraction library are identical to the ones
 used when running an LFRic application.
 
-The locations of the ExtractNetcdf and PSyData base classes are
+The locations of the ExtractBinary and PSyData base classes are
 specified using the environment variables ``$LIB_TMPLT_DIR`` and
 ``$PSYDATA_LIB_DIR``, respectively. They default to the relative paths to
-the [``lib/extract/netcdf``](./../) and top-level [``lib``](./../../../)
+the [``lib/extract/binary``](./../) and top-level [``lib``](./../../../)
 directories.
 
 The compilation process will create the wrapper library
 ``lib_extract.a``. The ``Makefile`` will compile the LFRic
-infrastructure library, ``liblfric_netcdf.a``, if required, with the
+infrastructure library, ``liblfric.a``, if required, with the
 previously selected compiler flags.
 
 Similar to compilation of the [examples](
@@ -99,22 +93,14 @@ or compiler flags).
 ### Linking the wrapper library
 
 The application needs to provide the parameters to link in this
-NetCDF-kernel-extraction library, ``_kernel_data_netcdf``, the LFRic
-infrastructure library, ``lfric_netcdf``, and the required NetCDF
+binary-kernel-extraction library, ``_extract``, the LFRic
+infrastructure library, ``lfric``, and any required
 parameters when compiling and linking. For instance:
 
 ```shell
-$(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/netcdf/lfric -l_kernel_data_netcdf \
-        -L$(LFRIC_INF_DIR) -llfric_netcdf $(LFRIC_SPECIFIC_LINKING_PARAMETERS) \
-        $(nf-config --flibs)
+$(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/binary/lfric -l_extract \
+        -L$(LFRIC_PATH) -llfric $(LFRIC_SPECIFIC_LINKING_PARAMETERS)
 ```
-
-### Note
-
-Certain versions of Fedora have a broken ``nf-config`` script. In
-this case the ``Makefile`` has to be modified to provide the required
-information (you can try to see if ``nc-config`` can be used,
-or you have to explicitly provide the required paths and options).
 
 <!--
 ## Licence
