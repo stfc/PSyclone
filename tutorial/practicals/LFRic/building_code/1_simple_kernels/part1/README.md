@@ -2,7 +2,7 @@
 
 In this part of the [first tutorial](../README.md), we will use the
 [stub-generation](
-https://psyclone.readthedocs.io/en/stable/psyclone_kern.html) functionality
+https://psyclone.readthedocs.io/en/latest/user_guide/psyclone_kern.html) functionality
 of the PSyclone kernel tool to create the argument list and declarations
 for two kernels, one that assigns a value to a field on a continuous
 `W0` function space and another on a discontinuous `W3` function space.
@@ -169,7 +169,7 @@ The name of the generated `invoke` subroutine in this case is just the
 `invoke` keyword with the appended numerical index. If there was a separate
 `invoke` call for each kernel, the subroutine name would also contain the
 name of the called kernel (see [PSyclone Algorithm-layer](
-https://psyclone.readthedocs.io/en/stable/introduction_to_psykal.html#algorithm-layer)
+https://psyclone.readthedocs.io/en/latest/user_guide/introduction_to_psykal.html#algorithm-layer)
 documentation for more information).
 
 The generated `invoke_0` subroutine code is located in the generated PSy-layer

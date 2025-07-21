@@ -1,7 +1,7 @@
 # Tutorial 1, Part 2: Update fields on a generic function space
 
 In this part of the [first tutorial](../README.md), we will use the
-[stub-generation](https://psyclone.readthedocs.io/en/stable/psyclone_kern.html)
+[stub-generation](https://psyclone.readthedocs.io/en/latest/user_guide/psyclone_kern.html)
 functionality of the PSyclone kernel tool to
 create the argument list and declarations for a generic kernel that
 assigns a value to a field on any function space. For this we will use
@@ -86,7 +86,7 @@ The argument list and declarations are generated in one line per
 statement each, so in this case of long argument names they may overrun
 the free-form Fortran line-length limit of 132 characters and PSyclone
 will complain when building the code (see e.g. [here](
-https://psyclone.readthedocs.io/en/stable/line_length.html)). To wrap
+https://psyclone.readthedocs.io/en/latest/user_guide/psyclone_command.html#fortran-line-length)). To wrap
 long lines just use the `-l output` flag when running the kernel tool, e.g.
 
 ```shell

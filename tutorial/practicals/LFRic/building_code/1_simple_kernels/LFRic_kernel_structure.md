@@ -146,7 +146,7 @@ object. As a rule, object data are `private` as illustrated in the
 
 ### Argument list and declarations
 
-Running the PSyclone [kernel tool](https://psyclone.readthedocs.io/en/stable/psyclone_kern.html) 
+Running the PSyclone [kernel tool](https://psyclone.readthedocs.io/en/latest/user_guide/psyclone_kern.html) 
 on `setval_field_w0_kernel_mod.f90` produces the argument list and
 declarations for the `setval_field_w0_code`, enclosed in a module:
 

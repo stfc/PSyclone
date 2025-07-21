@@ -15,7 +15,7 @@ wrapper libraries.
 The file ``value_range_check_base.jinja`` contains a Jinja template that is used
 by the [GOcean ``dl_esm_inf``-](./dl_esm_inf/README.md) and [LFRic-specific](
 ./lfric/README.md) wrapper libraries. It implements the required [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) calls for
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) calls for
 Fortran base types (scalar and arrays).
 Full documentation to the Jinja implementation of a PSyData base class is
 in the PSyclone [Developer Guide](

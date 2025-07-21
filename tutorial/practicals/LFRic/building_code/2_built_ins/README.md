@@ -202,7 +202,7 @@ below).
 As each `invoke` call generates a PSy-layer subroutine (see the
 *Step 3* below for the algorithm code processing), it can be
 easier to specify a [label (name) for an `invoke`](
-https://psyclone.readthedocs.io/en/stable/introduction_to_psykal.html#algorithm-layer)
+https://psyclone.readthedocs.io/en/latest/user_guide/introduction_to_psykal.html#algorithm-layer)
 (and hence the subroutine) call to make it easier to search for in the
 generated code. To do this here modify the completed `invoke` by adding a
 name in the first line of the `invoke` call, e.g.

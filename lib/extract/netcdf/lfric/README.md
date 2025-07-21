@@ -1,9 +1,9 @@
 # Kernel Extraction Library Using NetCDF for LFRic
 
 This wrapper library [writes (extracts)](
-https://psyclone.readthedocs.io/en/stable/psyke.html) input and output
+https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html) input and output
 parameters of instrumented code regions to a [NetCDF file](
-https://psyclone.readthedocs.io/en/stable/psyke.html#netcdf-extraction-example)
+https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html#netcdf-extraction-example)
 using the LFRic infrastructure library. A stand-alone driver can then be
 used to rerun this specific code region and verify the results (or
 compare performance).
@@ -11,7 +11,7 @@ compare performance).
 ## Dependencies
 
 This library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface with
 the application. The following dependencies must be available:
 
 - The LFRic infrastructure library. A pared-down version of LFRic

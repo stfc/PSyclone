@@ -132,7 +132,7 @@ in all tutorials. See, for instance, this code from the
 ```
 
 and [here](
-https://psyclone.readthedocs.io/en/stable/psyclone_command.html) for more
+https://psyclone.readthedocs.io/en/latest/user_guide/psyclone_command.html) for more
 information on running the `psyclone` script.
 
 As in LFRic, the generated algorithm and PSy-layer source is not kept in
@@ -154,6 +154,6 @@ have the support for [distributed memory](../distributed_memory) (done
 via the [YAXT library](
 https://dkrz-sw.gitlab-pages.dkrz.de/yaxt) in LFRic). Also, none of
 the [PSyclone transformations](
-https://psyclone.readthedocs.io/en/stable/transformations.html) for
+https://psyclone.readthedocs.io/en/latest/user_guide/transformations.html) for
 the [shared memory](../single_node) support are applied here so the
 code is generated and run in serial.

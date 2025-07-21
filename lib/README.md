@@ -1,7 +1,7 @@
 # Wrapper Libraries for Use with PSyclone
 
 This directory contains [PSyData-API-based](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) wrapper libraries.
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) wrapper libraries.
 They enable PSyclone to provide transformations that will insert callbacks
 to an external library at runtime. These callbacks allow third-party libraries
 to access data structures at specified locations in the code for different
@@ -13,11 +13,11 @@ The wrapper libraries for the supported use cases are listed
 
 Wrapper libraries can be accessed from a clone of PSyclone repository
 or a PSyclone [installation](
-https://psyclone.readthedocs.io/en/stable/getting_going.html). In a
+https://psyclone.readthedocs.io/en/latest/user_guide/getting_going.html). In a
 PSyclone installation the libraries may be found in ``share/psyclone/lib``
 under your Python (or PSyclone, depending on the ``pip install`` options)
 installation, see ["Getting Going"](
-https://psyclone.readthedocs.io/en/stable/getting_going.html)
+https://psyclone.readthedocs.io/en/latest/user_guide/getting_going.html)
 for possible locations.
 
 If working with wrapper libraries from a PSyclone installation, it
@@ -32,7 +32,7 @@ dependencies, see [below](#compilation) for more information.
 
 The file ``psy_data_base.jinja`` contains a Jinja template that can be used
 by the [PSyData-API-based](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) wrapper libraries.
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) wrapper libraries.
 Full documentation on using this template is provided in the PSyclone
 [Developer Guide](
 https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#jinja). The
@@ -115,7 +115,7 @@ libraries are compiled in a clone of PSyclone repository or in a PSyclone
 Compilation of ``extract``, ``nan_test``, ``read_only`` and some of the
 profiling wrapper libraries depends on infrastructure libraries relevant
 to the API they are used for. [GOcean API](
-https://psyclone.readthedocs.io/en/stable/gocean1p0.html) uses the
+https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html) uses the
 [``dl_esm_inf`` library](https://github.com/stfc/dl_esm_inf) and
 [LFRic API](
 https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html)
