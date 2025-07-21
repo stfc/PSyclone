@@ -1,7 +1,8 @@
 dirs:
   - .
 useGitIgnore: true
-# This sometimes fail due to timeouts on slow responses, or unauthorised access
+# Ignore URLs that sometimes fail due to timeouts on slow responses or
+# unauthorised accesses
 ignorePatterns:
   - pattern: '^https://mybinder.org/v2/gh/stfc/psyclone'
   - pattern: '^https://codecov.io/gh/stfc/PSyclone'
