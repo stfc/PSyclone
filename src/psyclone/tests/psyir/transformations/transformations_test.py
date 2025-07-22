@@ -47,18 +47,20 @@ from psyclone.psyir.nodes import (
     CodeBlock, Literal, Loop, Node, Reference, Schedule, Statement,
     ACCLoopDirective, OMPMasterDirective,
     OMPDoDirective, OMPLoopDirective, Routine)
-from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE,
-                                    ImportInterface, ContainerSymbol)
-from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
-    TransformationError
+from psyclone.psyir.symbols import (
+    DataSymbol, INTEGER_TYPE,
+    ImportInterface, ContainerSymbol)
+from psyclone.psyir.transformations import (
+    ProfileTrans, RegionTrans, TransformationError)
 from psyclone.tests.utilities import get_invoke, Compile
-from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
-    ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans
+from psyclone.transformations import (
+    ACCEnterDataTrans, ACCLoopTrans,
+    ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans,
+    OMPSingleTrans, OMPMasterTrans)
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.transformations import OMPTaskloopTrans, \
-    OMPDeclareTargetTrans
+from psyclone.psyir.transformations import (
+    OMPTaskloopTrans, OMPDeclareTargetTrans)
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",

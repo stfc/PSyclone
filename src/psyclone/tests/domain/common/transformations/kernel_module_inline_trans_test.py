@@ -50,8 +50,8 @@ from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, GenericInterfaceSymbol, ImportInterface,
     RoutineSymbol, REAL_TYPE, Symbol, SymbolError, SymbolTable,
     UnresolvedInterface)
-from psyclone.psyir.transformations import TransformationError, \
-    OMPDeclareTargetTrans
+from psyclone.psyir.transformations import (
+    TransformationError, OMPDeclareTargetTrans)
 from psyclone.transformations import ACCRoutineTrans
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
