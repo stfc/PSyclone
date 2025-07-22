@@ -1,7 +1,7 @@
 # Read-only Verification Library for Generic Fortran Code
 
 This library implements the [PSyData API](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification-library-for-generic-fortran)
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html#read-only-verification-library-for-generic-fortran)
 to verify that variables declared read-only are not modified (overwritten) in
 a kernel.
 
@@ -11,7 +11,7 @@ https://github.com/stfc/PSyclone/tree/master/examples/nemo/eg6).
 ## Dependencies
 
 This library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface
 with the application. It needs the ReadOnly (``read_only_base.jinja``) and
 PSyData (``psy_data_base.jinja``) base classes, which are included in PSyclone
 installation. These Jinja templates are processed to create
@@ -36,7 +36,7 @@ respectively. They default to the relative paths to the
 The compilation process will create the wrapper library ``lib_read_only.a``.
 
 Similar to compilation of the [examples](
-https://psyclone.readthedocs.io/en/latest/tutorials_and_examples.html#compilation), the
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/examples_intro.html#compilation), the
 compiled wrapper library can be removed by running ``make clean``. 
 
 ### Linking the wrapper library

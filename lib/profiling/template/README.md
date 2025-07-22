@@ -1,11 +1,10 @@
 # PSyclone Wrapper Library Template
 
 This is a simple example to help writing your own PSyclone [PSyData-API-based](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) profile library (see
-the ["Profiling"](
-https://psyclone.readthedocs.io/en/stable/profiling.html#profiling) section
-in the PSyclone [User Guide](https://psyclone.readthedocs.io/en/stable/) for
-more information). It only prints out the function called at runtime and does
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) profile library (see
+the [User Guide Profiling](
+https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling) section
+for more information). It only prints out the function called at runtime and does
 not do any actual measurements.
 
 ## Dependencies

@@ -7,14 +7,14 @@ directory ``../full_example``.
 This example applies the PSyData extraction transformations to the
 two invoke statements, the first initialising two fields, the second
 doing some computations.
-See the [PSyKE](https://psyclone.readthedocs.io/en/stable/psyke.html)
+See the [PSyKE](https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html)
 chapter of the PSyclone documentation for details about this transformation.
 
 ## Compilation
 
 A simple makefile is provided to compile the example. It can use one of
 three extraction libraries, as outlined in the
-[PSyKE extraction libraries](https://psyclone.readthedocs.io/en/stable/psyke.html#extraction-libraries) section.
+[PSyKE extraction libraries](https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html#extraction-libraries) section.
 
 By default, the stand-alone binary version will be used,
 but you can set the ``TYPE`` environment variable to either ``ascii``

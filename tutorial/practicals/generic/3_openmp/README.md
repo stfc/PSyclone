@@ -7,7 +7,7 @@ uses PSyclone to parallelise the tracer-advection mini-app to make
 use of a multi-core CPU by adding appropriate OpenMP directives.
 
 You can find information on the various transformations supported by
-PSyclone in the [User Guide](https://psyclone.readthedocs.io/en/latest/transformations.html).
+PSyclone in the [User Guide](https://psyclone.readthedocs.io/en/latest/user_guide/transformations.html#openmp).
 
 ## Prerequisites ##
 

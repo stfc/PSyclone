@@ -885,11 +885,8 @@ class GOceanKernelMetadata():
         @stencil.setter
         def stencil(self, value_list):
             '''
-            :param value_list: set the new stencil value, encoded as \
-                three strings, each of three digits (0 or 1), see the \
-                `psyclone user guide <https://psyclone.readthedocs.io/en/\
-stable/gocean1p0.html#argument-metadata-meta-args>` \
-                for more details.
+            :param value_list: set the new stencil value, encoded as
+                three strings, each of three digits (0 or 1).
             :type value_list: List[str]
 
             '''

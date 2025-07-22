@@ -2,9 +2,9 @@
 
 This directory contains wrapper libraries that can be used with [PSyclone
 profiling API](
-https://psyclone.readthedocs.io/en/stable/profiling.html#profiling). All
+https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling). All
 profiling-library interfaces use the the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html). The profiling
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html). The profiling
 wrappers included in PSyclone are: ``template``,
 ``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia``, ``tau`` and
 ``lfric_timer``. The overview is given below (for more information please
@@ -50,7 +50,7 @@ Example output:
 ### [``dl_timer``](./dl_timer)
 
 This is a wrapper library that maps the [PSyclone profiling API](
-https://psyclone.readthedocs.io/en/stable/profiling.html#profiling) to the
+https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling) to the
 dl_timer API. A copy of dl_timer can be downloaded from
 https://bitbucket.org/apeg/dl_timer.
 

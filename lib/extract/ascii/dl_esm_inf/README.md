@@ -1,9 +1,9 @@
 # Stand-alone ASCII Kernel Extraction Library for GOcean
 
 This wrapper library is used to [write (extract)](
-https://psyclone.readthedocs.io/en/stable/psyke.html)
+https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html)
 input and output parameters of instrumented code regions to an [ASCII file](
-https://psyclone.readthedocs.io/en/stable/psyke.html#extraction_libraries)
+https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html#extraction_libraries)
 using the [``dl_esm_inf`` library](https://github.com/stfc/dl_esm_inf).
 A stand-alone driver can then be used to rerun this specific code region and
 verify the results (or compare performance). This version of the extraction
@@ -19,7 +19,7 @@ https://github.com/stfc/PSyclone/tree/master/examples/gocean/eg5/extract).
 ## Dependencies
 
 This library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface with
 the application. The following dependencies must be available:
 
 - The [GOcean](https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html)

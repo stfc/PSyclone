@@ -17,7 +17,7 @@ linked as needed in each tutorial.
 This tutorial shows how to create and use simple LFRic kernels to
 perform mathematical operations on the LFRic field data. It starts with
 different kernels for different LFRic finite-element [function spaces](
-https://psyclone.readthedocs.io/en/latest/lfric.html#supported-function-spaces)
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#lfric-function-space)
 and uses them as a template to write generic kernels that can
 operate on any function space.
 
@@ -29,7 +29,7 @@ subroutine argument list and loops that update an LFRic field.
 ### [Tutorial 2: Built-ins](2_built_ins)
 
 This tutorial shows how to use the [PSyclone LFRic API built-ins](
-https://psyclone.readthedocs.io/en/latest/lfric.html#built-ins)
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#built-ins)
 instead of kernels for simple linear algebra operations on fields.
 
 ### [Tutorial 3: Time evolution](3_time_evolution)
@@ -46,12 +46,11 @@ algorithms that need to be completed to propagate the field.
 This tutorial uses the previous [Time Evolution](#tutorial-3-time-evolution)
 example to show the usage of various
 PSyData transformations. [Kernel Extraction](
-https://psyclone.readthedocs.io/en/latest/psyke.html)
+https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html)
 is the first transformation
-introduced, followed by [NAN verification](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#psydata-nan-test)
+introduced, followed by NAN verification
 and [read-only-variable verification](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification).
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html#value-range-check).
 All these examples are executable, and incorrect code can be uncommented to
 trigger the error checks enabled by some PSyData transformations.
 
@@ -64,7 +63,7 @@ that calls one or more [algorithms](
 background/LFRic_structure.md#algorithm-layer). The
 algorithms, in turn, contain `invoke` calls to one or more [kernels](
 background/LFRic_structure.md#kernel-layer) and/or [PSyclone built-ins](
-https://psyclone.readthedocs.io/en/latest/lfric.html#built-ins).
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#built-ins).
 
 The driver in each tutorial provides the framework to build an executable
 program through the set-up of the LFRic infrastructure objects and calls
@@ -102,7 +101,7 @@ It is advisable to run `make transform` whilst completing the kernel and
 and algorithm code to ensure that the code is correct. PSyclone checks
 that the source is syntactically correct and that it abides by the
 PSyclone [LFRIC API](
-https://psyclone.readthedocs.io/en/latest/lfric.html) rules.
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html) rules.
 
 ---
 
@@ -133,7 +132,7 @@ in all tutorials. See, for instance, this code from the
 ```
 
 and [here](
-https://psyclone.readthedocs.io/en/stable/psyclone_command.html) for more
+https://psyclone.readthedocs.io/en/latest/user_guide/psyclone_command.html) for more
 information on running the `psyclone` script.
 
 As in LFRic, the generated algorithm and PSy-layer source is not kept in
@@ -155,6 +154,6 @@ have the support for [distributed memory](../distributed_memory) (done
 via the [YAXT library](
 https://dkrz-sw.gitlab-pages.dkrz.de/yaxt) in LFRic). Also, none of
 the [PSyclone transformations](
-https://psyclone.readthedocs.io/en/stable/transformations.html) for
+https://psyclone.readthedocs.io/en/latest/user_guide/transformations.html) for
 the [shared memory](../single_node) support are applied here so the
 code is generated and run in serial.

@@ -1,14 +1,14 @@
 # Read-only Verification Library for LFRic
 
 This library implements the [PSyData API](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification-library-for-lfric)
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html#read-only-verification-library-for-lfric)
 to verify that variables declared read-only are not modified (overwritten) in
 a kernel call for an application using the LFRic infrastructure library.
 
 ## Dependencies
 
 This library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface with
 the application. The following dependencies must be available:
 
 - The LFRic infrastructure library. A pared-down version of LFRic
@@ -17,7 +17,7 @@ the application. The following dependencies must be available:
   https://github.com/stfc/PSyclone/tree/master/examples/lfric/eg17), however
   it is not included in the PSyclone [installation](
   ./../../README.md#installation). See the [LFRic API](
-  https://psyclone.readthedocs.io/en/latest/lfric.html) documentation
+  https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html) documentation
   for information on how to obtain access to the LFRic code.
 
 - The ReadOnly (``read_only_base.jinja``) and PSyData
@@ -63,7 +63,7 @@ The ``Makefile`` will compile the LFRic infrastructure library,
 ``liblfric.a``, if required, with the previously selected compiler flags.
 
 Similar to compilation of the [examples](
-https://psyclone.readthedocs.io/en/latest/tutorials_and_examples.html#compilation), the
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/examples_intro.html#compilation), the
 compiled wrapper library can be removed by running ``make clean``. To also
 remove the compiled infrastructure library it is necessary to run
 ``make allclean`` (this is especially important if changing compilers

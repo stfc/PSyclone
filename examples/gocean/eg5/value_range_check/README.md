@@ -29,7 +29,7 @@ invalid numbers (Infinity).
 ## Running
 In order to activate the value range checking, you need to
 specify the value range for variables as outlined here:
-https://psyclone.readthedocs.io/en/latest/psy_data.html#value-range-check
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html#value-range-check
 
 ```
 $ PSYVERIFY__main__init__b_fld=2:3    ./value_range_check
