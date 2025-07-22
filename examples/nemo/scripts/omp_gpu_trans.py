@@ -100,6 +100,7 @@ OFFLOADING_ISSUES = [
     "dtatsd.f90",
     "trcatf.f90",
     "zdfiwm.f90",
+    "zdfsh2.f90",
 ]
 
 
