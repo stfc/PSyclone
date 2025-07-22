@@ -246,6 +246,8 @@ class FortranReader():
         :returns: PSyIR representing the provided Fortran file.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises ValueError: if the parser fails to parse the contents of
+                            the supplied file.
         '''
         SYMBOL_TABLES.clear()
 
@@ -260,7 +262,13 @@ class FortranReader():
                                    include_dirs=Config.get().include_paths,
                                    ignore_comments=self._ignore_comments)
         reader.set_format(FortranFormat(self._free_form, False))
-        parse_tree = self._parser(reader)
+        try:
+            parse_tree = self._parser(reader)
+        except (FortranSyntaxError, NoMatchError) as err:
+            raise ValueError(
+                f"Failed to parse source in file '{file_path}'.\n"
+                f"Error was: {err}\nIs the input valid Fortran (note that CPP "
+                f"directives must be handled by a pre-processor)?") from err
         _, filename = os.path.split(file_path)
 
         psyir = self._processor.generate_psyir(parse_tree, filename)

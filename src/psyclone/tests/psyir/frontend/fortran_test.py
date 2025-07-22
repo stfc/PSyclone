@@ -264,6 +264,14 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
     assert isinstance(file_container, FileContainer)
     assert file_container.name == "empty.f90"
 
+    # Check with a file containing invalid Fortran
+    filename = str(tmpdir_factory.mktemp('frontend_test').join("wrong.f90"))
+    with open(filename, "w", encoding='utf-8') as wfile:
+        wfile.write("this is not Fortran")
+    with pytest.raises(ValueError) as err:
+        file_container = fortran_reader.psyir_from_file(filename)
+    assert "Failed to parse source in file" in str(err.value)
+
     # Check with a file that doesn't exist
     filename = str(tmpdir_factory.mktemp('frontend_test').join("Idontexist"))
     with pytest.raises(IOError) as err:
