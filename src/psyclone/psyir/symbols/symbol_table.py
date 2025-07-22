@@ -694,10 +694,7 @@ class SymbolTable():
                         f"table imports it via '{other_sym.interface}'.")
                 continue
 
-            if (
-                and other_sym.is_unresolved
-                and this_sym.is_unresolved
-            ):
+            if other_sym.is_unresolved and this_sym.is_unresolved:
                 # Both Symbols are unresolved.
                 if shared_wildcard_imports and not unique_wildcard_imports:
                     # The tables have one or more wildcard imports in common
