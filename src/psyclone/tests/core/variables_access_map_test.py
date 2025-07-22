@@ -57,10 +57,8 @@ def test_variables_access_map():
     var_accesses.add_access(Signature("written"), AccessType.WRITE, node2)
     assert str(var_accesses) == "read: READ, written: WRITE"
 
-    var_accesses.next_location()
     node = Node()
     var_accesses.add_access(Signature("written"), AccessType.WRITE, node)
-    var_accesses.next_location()
     var_accesses.add_access(Signature("read_written"), AccessType.WRITE, node)
     var_accesses.add_access(Signature("read_written"), AccessType.READ, node)
     assert str(var_accesses) == "read: READ, read_written: READ+WRITE, "\
@@ -70,11 +68,6 @@ def test_variables_access_map():
                                                     Signature("read_written")])
     all_accesses = var_accesses[Signature("read")].all_accesses
     assert all_accesses[0].node == node1
-    written_accesses = var_accesses[Signature("written")].all_accesses
-    assert written_accesses[0].location == 0
-    assert written_accesses[1].location == 1
-    # Check that the location pointer is pointing to the next statement:
-    assert var_accesses.location == 2
 
     # Create a new instance
     var_accesses2 = VariablesAccessMap()
@@ -121,7 +114,7 @@ def test_variables_access_map_errors():
 # -----------------------------------------------------------------------------
 def test_component_indices_auto_extension():
     '''To make it more convenient for the user certain combinations of
-    signature and component_indices in the add_location call will
+    signature and component_indices in the add_access call will
     automatically add empty indices to the component_indices. For example.
     adding "ssh_fld%grid%tmask" with indices ["i", "j"] will automatically
     create component_indices like [[], [], ["i", "j"]].
@@ -159,7 +152,6 @@ def test_variables_access_map_update():
     node = Node()
     var_accesses1.add_access(Signature("b"), AccessType.READ, node)
     var_accesses1.add_access(Signature("a"), AccessType.WRITE, node)
-    var_accesses1.next_location()
     var_accesses1.add_access(Signature("d"), AccessType.READ, node)
     var_accesses1.add_access(Signature("c"), AccessType.WRITE, node)
     c_accesses = var_accesses1[Signature("c")]
@@ -171,37 +163,11 @@ def test_variables_access_map_update():
     var_accesses2 = VariablesAccessMap()
     var_accesses2.add_access(Signature("f"), AccessType.READ, node)
     var_accesses2.add_access(Signature("e"), AccessType.WRITE, node)
-    var_accesses2.next_location()
     var_accesses2.add_access(Signature("h"), AccessType.READ, node)
     var_accesses2.add_access(Signature("g"), AccessType.WRITE, node)
 
     # Now merge the second instance into the first one
     var_accesses1.update(var_accesses2)
-
-    # The e=f access pattern should have the same location
-    # as the c=d (since there is no next_location after
-    # adding the b=a access):
-    c_accesses = var_accesses1[Signature("c")]
-    e_accesses = var_accesses1[Signature("e")]
-    assert c_accesses[0].access_type == AccessType.WRITE
-    assert e_accesses[0].access_type == AccessType.WRITE
-    assert c_accesses[0].location == e_accesses[0].location
-
-    # Test that the g=h part has a higher location than the
-    # c=d data. This makes sure that update() increases the
-    # location number of accesses when merging.
-    c_accesses = var_accesses1[Signature("c")]
-    g_accesses = var_accesses1[Signature("g")]
-    h_accesses = var_accesses1[Signature("h")]
-    assert c_accesses[0].location < g_accesses[0].location
-    assert g_accesses[0].location == h_accesses[0].location
-
-    # Also make sure that the access location was properly increased
-    # Originally we had locations 0,1. Then we merged accesses with
-    # location 0,1 in - the one at 0 is merged with the current 1,
-    # and the new location 1 increases the current location from
-    # 1 to 2:
-    assert var_accesses1.location == 2
 
 
 # -----------------------------------------------------------------------------
