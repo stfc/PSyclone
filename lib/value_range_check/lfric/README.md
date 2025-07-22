@@ -77,7 +77,7 @@ The application needs to provide the parameters to link in this
 ``lfric``. For instance:
 
 ```shell
-$(F90)  ... -L$(PSYDATA_LIB_DIR)/nan_test/lfric -l_value_range_check \
+$(F90)  ... -L$(PSYDATA_LIB_DIR)/value_range_check/lfric -l_value_range_check \
         -L$(LFRIC_INF_DIR) -llfric $(LFRIC_SPECIFIC_LINKING_PARAMETERS)
 ```
 

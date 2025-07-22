@@ -51,6 +51,11 @@ rely on a file compiled in this directory.
 Contains code for extracting kernel data - i.e. all input and output
 parameters of a kernel invocation.
 
+### [``value_range_check``](./value_range_check) directory
+
+Contains PSyData-API-based libraries for checking that input and output
+values of kernels are within valid ranges (i.e. not ``NaN`` or infinity).
+
 ### [``profiling``](./profiling) directory
 
 Contains PSyData-API-based wrapper libraries for various profiling libraries
@@ -107,7 +112,7 @@ is by default set to the relative path to the top-level `lib` directory.
 libraries are compiled in a clone of PSyclone repository or in a PSyclone
 [installation](#installation).
 
-Compilation of ``extract``, ``nan_test``, ``read_only`` and some of the
+Compilation of ``extract``, ``values_ragne_check``, ``read_only`` and some of the
 profiling wrapper libraries depends on infrastructure libraries relevant
 to the API they are used for. [GOcean API](
 https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html) uses the
