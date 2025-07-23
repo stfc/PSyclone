@@ -39,7 +39,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Dict, Tuple, Union, List
+from typing import List, Tuple
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap
@@ -689,32 +689,27 @@ class Call(Statement, DataNode):
                     f"'{routine_arg_str}' ({routine_arg.datatype})"
                 )
 
-    def _get_argument_routine_match(
-        self,
-        routine: Call,
-        check_matching_arguments: bool = True
-    ) -> Union[None, List[int]]:
-        '''Return a list of integers giving for each argument of the call
-        the index of the corresponding entry in the argument list of the
+    def get_argument_map(self, routine: Routine) -> List[int]:
+        '''Return a list of indices mapping from each argument of this
+        call to the corresponding entry in the argument list of the
         supplied routine.
 
-        :param routine: TODO
+        :param routine: the target of this Call.
 
-        :return: `None` if no match was found, otherwise list of integers
-            referring to matching arguments.
+        :return: list of integers referring to matching arguments of the
+                 supplied routine.
 
         :raises CallMatchingArgumentsNotFound: If there was some problem in
             finding matching arguments.
-        '''
 
+        '''
         # Create a copy of the list of actual arguments to the routine.
         # Once an argument has been successfully matched, set it to 'None'
         routine_argument_list: List[DataSymbol] = (
             routine.symbol_table.argument_list[:]
         )
 
-        if (check_matching_arguments and
-                len(self.arguments) > len(routine.symbol_table.argument_list)):
+        if len(self.arguments) > len(routine.symbol_table.argument_list):
             call_str = self.debug_string().replace("\n", "")
             raise CallMatchingArgumentsNotFound(
                 f"More arguments in call ('{call_str}')"
@@ -725,7 +720,7 @@ class Call(Statement, DataNode):
         # Iterate over all arguments to the call
         for call_arg_idx, call_arg in enumerate(self.arguments):
             call_arg_idx: int
-            call_arg: DataSymbol
+            call_arg: DataNode
 
             # If the associated name is None, it's a positional argument
             # => Just return the index if the types match
@@ -733,12 +728,7 @@ class Call(Statement, DataNode):
                 routine_arg = routine_argument_list[call_arg_idx]
                 routine_arg: DataSymbol
 
-                if check_matching_arguments:
-                    self._check_argument_type_matches(
-                        call_arg, routine_arg,
-                        #check_argument_strict_array_datatype=check_argument_strict_array_datatype,
-                        #check_argument_ignore_unresolved_types=check_argument_ignore_unresolved_types
-                    )
+                self._check_argument_type_matches(call_arg, routine_arg)
 
                 ret_arg_idx_list.append(call_arg_idx)
                 routine_argument_list[call_arg_idx] = None
@@ -760,12 +750,9 @@ class Call(Statement, DataNode):
                     continue
 
                 if arg_name.lower() == routine_arg.name.lower():
-                    if check_matching_arguments:
-                        self._check_argument_type_matches(
-                            call_arg,
-                            routine_arg,
-                            #check_argument_strict_array_datatype=check_argument_strict_array_datatype,
-                            #check_argument_ignore_unresolved_types=check_argument_ignore_unresolved_types
+                    self._check_argument_type_matches(
+                        call_arg,
+                        routine_arg,
                     )
                     ret_arg_idx_list.append(routine_arg_idx)
                     break
@@ -843,7 +830,7 @@ class Call(Statement, DataNode):
             routine: Routine
 
             try:
-                arg_match_list = self._get_argument_routine_match(routine)
+                arg_match_list = self.get_argument_map(routine)
 
             except CallMatchingArgumentsNotFound as err:
                 err_info_list.append(err.value)

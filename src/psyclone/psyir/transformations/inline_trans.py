@@ -38,7 +38,7 @@ This module contains the InlineTrans transformation.
 
 '''
 
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional
 from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.nodes import (
@@ -186,8 +186,7 @@ class InlineTrans(Transformation):
         if not routine:
             (routine, arg_match_list) = node.get_callee(use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check)
         else:
-            arg_match_list = node._get_argument_routine_match(
-                routine=routine)
+            arg_match_list = node.get_argument_map(routine)
 
         if not routine.children or isinstance(routine.children[0], Return):
             # Called routine is empty so just remove the call.
@@ -523,11 +522,7 @@ class InlineTrans(Transformation):
             # If this is an optional argument, but not used, this index lookup
             # shouldn't fail
             try:
-                arg_match_list = call_node._get_argument_routine_match(
-                    routine=routine_node,
-                    #check_argument_strict_array_datatype,
-                    #check_argument_ignore_unresolved_types,
-                )
+                arg_match_list = call_node.get_argument_map(routine_node)
                 actual_arg_idx = arg_match_list.index(routine_arg_idx)
             except ValueError as err:
                 arg_list = routine_node.symbol_table.argument_list
@@ -1136,8 +1131,7 @@ class InlineTrans(Transformation):
                 ) from err
 
         else:
-            arg_match_list = node._get_argument_routine_match(
-                routine=routine)
+            arg_match_list = node.get_argument_map(routine)
 
         if not routine.children or isinstance(routine.children[0], Return):
             # An empty routine is fine.

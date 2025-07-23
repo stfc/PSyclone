@@ -1939,7 +1939,6 @@ def test_validate_unknowninterface(fortran_reader, fortran_writer, tmpdir):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(routine)
-    print(str(err.value))
     assert ("Routine 'sub' cannot be inlined because it contains a Symbol "
             "'x' with an UnknownInterface: 'REAL, POINTER :: x'"
             in str(err.value))
