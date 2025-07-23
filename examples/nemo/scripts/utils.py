@@ -482,8 +482,8 @@ def insert_explicit_loop_parallelism(
                     "reasons")
                 continue
 
-            # Skip if looping over ice categories, ice or snow layers as these have
-            # small trip counts if they are not collapsed
+            # Skip if looping over ice categories, ice or snow layers as these
+            # have small trip counts if they are not collapsed
             if not collapse and any(
                     ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
                     for ref in loop.stop_expr.walk(Reference)
