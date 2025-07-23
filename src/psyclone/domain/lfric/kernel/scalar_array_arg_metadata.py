@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author L. Turner, Met Office
+# Modified A. Pirrie, Met Office
 
 '''Module containing the ScalarArrayArgMetadata class which captures the
 metadata associated with a ScalarArray argument. Supports the creation,
@@ -51,7 +52,7 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
     :param str datatype: the datatype of this ScalarArray (GH_INTEGER, ...).
     :param str access: the way the kernel accesses this Scalar Array (GH_READ).
     :param str array_ndims: the rank (number of dimensions) of this
-                            ScalaArray.
+                            ScalarArray.
 
     '''
     # The name used to specify a ScalarArray argument in LFRic metadata.
@@ -77,7 +78,7 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
     @classmethod
     def _get_metadata(cls, fparser2_tree: Union[Fortran2003.Part_Ref,
                       Fortran2003.Structure_Constructor]
-                      ) -> tuple[str, str, str]:
+                      ) -> tuple[str, str, int]:
 
         '''Extract the required metadata from the fparser2 tree and return it
         as strings. Also check that the metadata is in the expected
@@ -95,16 +96,15 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
         array_ndims = cls.get_array_ndims(fparser2_tree)
         return (datatype, access, array_ndims)
 
-    def fortran_string(self):
+    def fortran_string(self) -> str:
         '''
         :returns: the metadata represented by this class as Fortran.
-        :rtype: str
         '''
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
                 f"{self.array_ndims})")
 
     @property
-    def array_ndims(self) -> str:
+    def array_ndims(self) -> int:
         '''
         :returns: the number of dimensions for this ScalarArray argument.
         '''
@@ -115,41 +115,33 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
         '''
         :param str value: set the number of dimensions to the specified value.
 
-        :raises TypeError: if value is not a string type.
-        :raises ValueError: if value is not an integer.
+        :raises TypeError: if value is not an integer type.
         :raises ValueError: if value is less than 1.
 
         '''
-        if not isinstance(value, str):
-            raise TypeError(f"The type of value must be a string, but "
+        if not isinstance(value, int):
+            raise TypeError(f"The type of value must be an integer, but "
                             f"found input of type {type(value)}.")
 
-        try:
-            int_value = int(value)
-        except ValueError as info:
-            raise ValueError(f"The number of dimensions of a ScalarArray "
-                             f"should be a string containing an integer, "
-                             f"but found '{value}'.") from info
-
-        if int_value < 1:
+        if value < 1:
             raise ValueError(f"The number of dimensions of a ScalarArray "
                              f"should be an integer greater than or "
-                             f"equal to 1 but found '{value}'.")
+                             f"equal to 1 but found {value}.")
 
         self._array_ndims = value
 
     @classmethod
-    def get_array_ndims(cls, fparser2_tree):
+    def get_array_ndims(cls, fparser2_tree) -> int:
         '''Retrieves the array ndims metadata value found within the
         supplied fparser2 tree and checks that it is valid.
 
         :param fparser2_tree: fparser2 tree capturing the required metadata.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
-        :returns: the array ndims value extracted from the fparser2 tree.
-        :rtype: str
+        :returns: the array ndims value extracted from the fparser2 tree,
+            converted to an int.
 
-        :raises ValueError: if the array ndims is not an integer.
+        :raises ValueError: if the array ndims is not a string.
         :raises ValueError: if the array ndims is less than 1.
 
         '''
@@ -166,8 +158,8 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
         if int_value < 1:
             raise ValueError(f"The number of dimensions of a ScalarArray "
                              f"should be an integer greater than or "
-                             f"equal to 1 but found {array_ndims}.")
-        return array_ndims
+                             f"equal to 1 but found {int_value}.")
+        return int_value
 
 
 __all__ = ["ScalarArrayArgMetadata"]

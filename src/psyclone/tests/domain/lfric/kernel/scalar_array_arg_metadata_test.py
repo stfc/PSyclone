@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: L. Turner, Met Office
+# Author L. Turner, Met Office
+# Modified A. Pirrie, Met Office
 
 '''Module containing tests for the ScalarArrayArgMetadata class.
 
@@ -44,7 +45,7 @@ from psyclone.domain.lfric.kernel import ScalarArrayArgMetadata
 
 
 @pytest.mark.parametrize("datatype, access, array_ndims", [
-    ("GH_REAL", "GH_READ", "1"), ("gh_real", "gh_read", "1")])
+    ("GH_REAL", "GH_READ", 1), ("gh_real", "gh_read", 1)])
 def test_create(datatype, access, array_ndims):
     '''Test that an instance of ScalarArrayArgMetadata can be created
     successfully. Also test that the arguments are case insensitive.
@@ -55,7 +56,7 @@ def test_create(datatype, access, array_ndims):
     assert array_arg.form == "gh_scalar_array"
     assert array_arg.datatype == "gh_real"
     assert array_arg.access == "gh_read"
-    assert array_arg.array_ndims == "1"
+    assert array_arg.array_ndims == 1
 
 
 @pytest.mark.parametrize("metadata",
@@ -68,7 +69,7 @@ def test_get_metadata(metadata):
         fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
-    assert array_ndims == "2"
+    assert array_ndims == 2
 
 
 @pytest.mark.parametrize("fortran_string", [
@@ -125,8 +126,8 @@ def test_get_array_ndims():
 
     fparser_tree = ScalarArrayArgMetadata.create_fparser2(
       "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 3)", Fortran2003.Part_Ref)
-    vector_length = ScalarArrayArgMetadata.get_array_ndims(fparser_tree)
-    assert vector_length == "3"
+    array_length = ScalarArrayArgMetadata.get_array_ndims(fparser_tree)
+    assert array_length == 3
 
 
 def test_array_ndims_setter_getter():
@@ -134,22 +135,17 @@ def test_array_ndims_setter_getter():
     including raising an exception if the value is invalid.
 
     '''
-    array_arg = ScalarArrayArgMetadata("GH_REAL", "GH_READ", "1")
+    array_arg = ScalarArrayArgMetadata("GH_REAL", "GH_READ", 1)
+
     with pytest.raises(TypeError) as info:
-        test_value = int(2)
+        test_value = float(1.5)
         array_arg.array_ndims = test_value
-    assert ("The type of value must be a string, but found input of type "
-            "<class 'int'>." in str(info.value))
+    assert ("The type of value must be an int, but found input of type "
+            "<class 'float'>." in str(info.value))
 
     with pytest.raises(ValueError) as info:
-        test_value = "1.5"
+        test_value = -1
         array_arg.array_ndims = test_value
-    assert ("The number of dimensions of a ScalarArray should be a string "
-            "containing an integer, but found '1.5'." in str(info.value))
-
-    with pytest.raises(ValueError) as info:
-        test_value = "-1"
-        array_arg.array_ndims = test_value
-    assert ("The number of dimensions of a ScalarArray should be an "
-            "integer greater than or equal to 1 but found '-1'."
+    assert ("The number of dimensions of a ScalarArray should be an"
+            " integer greater than or equal to 1 but found -1."
             in str(info.value))
