@@ -604,6 +604,61 @@ def test_validate_tagged_symbol_clash(fortran_reader):
             str(err.value))
 
 
+def test_apply_with_hoist_with_unresolved_kind(fortran_reader, fortran_writer):
+    ''' Check that we host declarations with kind symbols. '''
+
+    # If the kind symbol can only come from the module anyway
+    code = (
+        "module my_mod\n"
+        " use other_mod\n"
+        " integer, parameter :: mk = wp\n"
+        "contains\n"
+        "subroutine test\n"
+        "  use unrelated, only: unrelated_symbol\n"
+        "  integer :: i\n"
+        "  real(kind=wp) :: a(10)\n"
+        "  real(kind=mk) :: b(10)\n"
+        "  real :: c(N)\n"
+        "  do i=1,10\n"
+        "    a(i) = 1.0\n"
+        "  end do\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    hoist_trans.apply(routine)
+    assert ("real(kind=wp), allocatable, dimension(:), private :: a"
+            in fortran_writer(psyir))
+    assert ("real(kind=mk), allocatable, dimension(:), private :: b"
+            in fortran_writer(psyir))
+    assert ("real, allocatable, dimension(:), private :: c"
+            in fortran_writer(psyir))
+
+    # If it can also come from the local scope, e.g. the inner wp can come
+    # from other_mod2 in the example below, then it  cannot be hoisted.
+    code = (
+        "module my_mod\n"
+        "  use other_mod\n"
+        "contains\n"
+        "subroutine test\n"
+        "  use other_mod2\n"
+        "  integer :: i\n"
+        "  real(kind=wp) :: a(10)\n"
+        "  real :: b(N)\n"
+        "  do i=1,10\n"
+        "    a(i) = 1.0\n"
+        "  end do\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    hoist_trans.apply(routine)
+    assert "real(kind=wp), dimension(10) :: a" in fortran_writer(psyir)
+    # assert "real(kind=wp), dimension(N) :: c" in fortran_writer(psyir)
+
+
 def test_apply_with_allocatables(fortran_reader, fortran_writer, tmpdir):
     ''' Test the apply method correctly handles an automatic arrays with
     allocatable attributes and simple allocatable statements. '''
