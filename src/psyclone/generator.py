@@ -235,6 +235,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     >>> alg, psy = generate("algspec.f90", distributed_memory=False)
 
     '''
+    logger = logging.getLogger(__name__)
+
     if kernel_paths is None:
         kernel_paths = []
 
@@ -296,7 +298,15 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             # Check that there is only one module/program per file.
             check_psyir(psyir, filename)
         else:
-            psyir = reader.psyir_from_file(filename)
+            try:
+                psyir = reader.psyir_from_file(filename)
+            except (InternalError, ValueError) as err:
+                print(f"Failed to create PSyIR from file '{filename}'",
+                      file=sys.stderr)
+                logger.error(
+                    "Failed to create PSyIR from file '%s'. Error was:\n%s",
+                    filename, str(err.value))
+                sys.exit(1)
 
         # Raise to Algorithm PSyIR
         if api in GOCEAN_API_NAMES:
@@ -359,9 +369,12 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                 try:
                     # Create language-level PSyIR from the kernel file
                     kernel_psyir = reader.psyir_from_file(filepath)
-                except InternalError as info:
-                    print(f"In kernel file '{filepath}':\n{str(info.value)}",
-                          file=sys.stderr)
+                except (InternalError, ValueError) as info:
+                    print(f"Failed to create PSyIR from kernel file "
+                          f"'{filepath}'", file=sys.stderr)
+                    logger.error(
+                        "Failed to create PSyIR from kernel file '%s'. Error "
+                        "was:\n%s", filepath, str(info.value))
                     sys.exit(1)
 
                 # Raise to Kernel PSyIR
@@ -542,7 +555,8 @@ def main(arguments):
     else:
         logging.basicConfig(level=loglevel)
     logger = logging.getLogger(__name__)
-    logger.debug("Logging system initialised.")
+    logger.debug("Logging system initialised. Default level is %s.",
+                 args.log_level)
 
     # Validate that the given arguments are for the right operation mode
     if not args.psykal_dsl:
@@ -799,10 +813,18 @@ def code_transformation_mode(input_file, recipe_file, output_file,
                     sys.exit(1)
 
         # Parse file
-        psyir = FortranReader(resolve_modules=resolve_mods,
-                              ignore_comments=not keep_comments,
-                              ignore_directives=not keep_directives)\
-            .psyir_from_file(input_file)
+        reader = FortranReader(resolve_modules=resolve_mods,
+                               ignore_comments=not keep_comments,
+                               ignore_directives=not keep_directives)
+        try:
+            psyir = reader.psyir_from_file(input_file)
+        except (InternalError, ValueError) as err:
+            print(f"Failed to create PSyIR from file '{input_file}'",
+                  file=sys.stderr)
+            logger.error(
+                "Failed to create PSyIR from file '%s'. Error was:\n%s",
+                input_file, str(err.value))
+            sys.exit(1)
 
         # Modify file
         if trans_recipe:

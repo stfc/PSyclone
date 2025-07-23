@@ -379,7 +379,7 @@ def test_recurse_correct_kernel_paths():
         kernel_paths=[os.path.join(BASE_PATH, "lfric", "kernels")])
 
 
-def test_kernel_parsing_internalerror(capsys):
+def test_kernel_parsing_internalerror(capsys, caplog):
     '''Checks that the expected output is provided if an internal error is
     caught when parsing a kernel using fparser2.
 
@@ -390,18 +390,25 @@ def test_kernel_parsing_internalerror(capsys):
         main([kern_filename, "-api", "gocean"])
     out, err = capsys.readouterr()
     assert out == ""
-    assert "In kernel file " in str(err)
-    assert (
-        "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
-        "'u'] for routine 'compute_code' does not match the variable "
-        "declarations:\n"
-        "IMPLICIT NONE\n"
-        "INTEGER, INTENT(IN) :: I, J\n"
-        "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
-        "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
-        "(Note that PSyclone does not support implicit declarations.) Specific"
-        " PSyIR error is \"Could not find 'u' in the Symbol Table.\".\n"
-        in str(err))
+    assert "Failed to create PSyIR from kernel file '" in str(err)
+    caplog.clear()
+    #logger = logging.getLogger("psyclone.generator.generate")
+    #logger.propagate = True
+    with caplog.at_level(logging.ERROR, "psyclone.generator"):
+        with pytest.raises(SystemExit):
+            main([kern_filename, "-api", "gocean", "--log-level", "ERROR"])
+        #assert caplog.records[0].levelname == "DEBUG"
+        assert (
+            "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
+            "'u'] for routine 'compute_code' does not match the variable "
+            "declarations:\n"
+            "IMPLICIT NONE\n"
+            "INTEGER, INTENT(IN) :: I, J\n"
+            "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
+            "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
+            "(Note that PSyclone does not support implicit declarations.) Specific"
+            " PSyIR error is \"Could not find 'u' in the Symbol Table.\".\n"
+            in caplog.text)
 
 
 def test_script_file_too_short():
