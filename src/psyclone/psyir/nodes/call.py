@@ -52,6 +52,7 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
     DataSymbol,
+    DefaultModuleInterface,
     GenericInterfaceSymbol,
     RoutineSymbol,
     Symbol,
@@ -500,6 +501,7 @@ class Call(Statement, DataNode):
                         if psyir:
                             routines.append(psyir)
                     if routines:
+                        rsym.interface = DefaultModuleInterface()
                         return routines
                 if not have_codeblock:
                     have_codeblock = any(isinstance(child, CodeBlock) for
