@@ -81,7 +81,8 @@ Ongoing Changes to the options parameter
 PSyclone has supported an ``options`` dictionary to provide options to both
 validate and apply functions on Transformation classes. This behaviour
 is now deprecated, and we are in the process of adding an alternative
-way to pass options to Transformations.
+way to pass options to Transformations. (If you are a developer, see
+these :ref:`instructions<updating_transformation_options>`.)
 
 In the future, each option will have its own argument, for example::
     
@@ -450,7 +451,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPTaskloopTrans
+.. autoclass:: psyclone.psyir.transformations.OMPTaskloopTrans
     :members: apply, omp_grainsize, omp_num_tasks
     :no-index:
 

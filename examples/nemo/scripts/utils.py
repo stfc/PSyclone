@@ -35,10 +35,13 @@
 
 ''' Utilities file to parallelise Nemo code. '''
 
+from typing import List, Union
+
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Assignment, Loop, Directive, Reference, CodeBlock, ArrayReference,
-    Call, Return, IfBlock, Routine, IntrinsicCall, StructureReference)
+    Assignment, Loop, Directive, Node, Reference, CodeBlock, ArrayReference,
+    Call, Return, IfBlock, Routine, Schedule, IntrinsicCall,
+    StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
 from psyclone.psyir.transformations import (
@@ -502,17 +505,26 @@ def insert_explicit_loop_parallelism(
             continue
 
 
-def add_profiling(children):
+def add_profiling(children: Union[List[Node], Schedule]):
     '''
-    Walks down the PSyIR and inserts the largest possible profiling regions.
-    Code that contains directives is excluded.
+    Walks down the PSyIR and inserts the largest possible profiling regions
+    in place. Code inside functions or that contains directives is excluded.
 
-    :param children: sibling nodes in the PSyIR to which to attempt to add \
-                     profiling regions.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+    :param children: a Schedule or sibling nodes in the PSyIR to which to
+        attempt to add profiling regions.
 
     '''
+    if children and isinstance(children, Schedule):
+        # If we are given a Schedule, we look at its children.
+        children = children.children
+
     if not children:
+        return
+
+    # We do not want profiling calipers inside functions (such as the
+    # PSyclone-generated comparison functions).
+    parent_routine = children[0].ancestor(Routine)
+    if parent_routine and parent_routine.return_symbol:
         return
 
     node_list = []

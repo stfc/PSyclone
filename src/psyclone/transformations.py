@@ -46,7 +46,6 @@
 
 # pylint: disable=too-many-lines
 
-import abc
 from typing import Any, Dict, Optional
 
 from psyclone import psyGen
@@ -62,11 +61,11 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Container, Directive, Literal, Loop, Node,
+    Call, CodeBlock, Directive, Literal, Loop, Node,
     OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
-    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Return,
-    Routine, Schedule, IntrinsicCall)
+    Return, Routine, Schedule,
+    OMPSingleDirective, PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
@@ -81,6 +80,7 @@ from psyclone.psyir.transformations.parallel_loop_trans import (
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
+from psyclone.psyir.transformations import ParallelRegionTrans
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -111,253 +111,6 @@ def check_intergrid(node):
                 f" is such a kernel.")
 
 
-class OMPTaskloopTrans(ParallelLoopTrans):
-    '''
-    Adds an OpenMP taskloop directive to a loop. Only one of grainsize or
-    num_tasks must be specified.
-
-    TODO: #1364 Taskloops do not yet support reduction clauses.
-
-    :param grainsize: the grainsize to use in for this transformation.
-    :type grainsize: int or None
-    :param num_tasks: the num_tasks to use for this transformation.
-    :type num_tasks: int or None
-    :param bool nogroup: whether or not to use a nogroup clause for this
-                         transformation. Default is False.
-
-    For example:
-
-    >>> from pysclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>>
-    >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
-    >>> from psyclone.transformations import OMPTaskloopTrans
-    >>> from psyclone.psyir.transformations import OMPTaskwaitTrans
-    >>> singletrans = OMPSingleTrans()
-    >>> paralleltrans = OMPParallelTrans()
-    >>> tasklooptrans = OMPTaskloopTrans()
-    >>> taskwaittrans = OMPTaskwaitTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> # Apply the OpenMP Taskloop transformation to *every* loop
-    >>> # in the schedule.
-    >>> # This ignores loop dependencies. These can be handled
-    >>> # by the OMPTaskwaitTrans
-    >>> for child in schedule.children:
-    >>>     tasklooptrans.apply(child)
-    >>> # Enclose all of these loops within a single OpenMP
-    >>> # SINGLE region
-    >>> singletrans.apply(schedule.children)
-    >>> # Enclose all of these loops within a single OpenMP
-    >>> # PARALLEL region
-    >>> paralleltrans.apply(schedule.children)
-    >>> # Ensure loop dependencies are satisfied
-    >>> taskwaittrans.apply(schedule.children)
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-
-    '''
-    def __init__(self, grainsize=None, num_tasks=None, nogroup=False):
-        self._grainsize = None
-        self._num_tasks = None
-        self.omp_grainsize = grainsize
-        self.omp_num_tasks = num_tasks
-        self.omp_nogroup = nogroup
-        super().__init__()
-
-    def __str__(self):
-        return "Adds an 'OpenMP TASKLOOP' directive to a loop"
-
-    @property
-    def omp_nogroup(self):
-        '''
-        Returns whether the nogroup clause should be specified for
-        this transformation. By default the nogroup clause is applied.
-
-        :returns: whether the nogroup clause should be specified by
-                  this transformation.
-        :rtype: bool
-        '''
-        return self._nogroup
-
-    @omp_nogroup.setter
-    def omp_nogroup(self, nogroup):
-        '''
-        Sets whether the nogroup clause should be specified for this
-        transformation.
-
-        :param bool nogroup: value to set whether the nogroup clause should be
-                             used for this transformation.
-
-        raises TypeError: if the nogroup parameter is not a bool.
-        '''
-        if not isinstance(nogroup, bool):
-            raise TypeError(f"Expected nogroup to be a bool "
-                            f"but got a {type(nogroup).__name__}")
-        self._nogroup = nogroup
-
-    @property
-    def omp_grainsize(self):
-        '''
-        Returns the grainsize that will be specified by
-        this transformation. By default the grainsize
-        clause is not applied, so grainsize is None.
-
-        :returns: The grainsize specified by this transformation.
-        :rtype: int or None
-        '''
-        return self._grainsize
-
-    @omp_grainsize.setter
-    def omp_grainsize(self, value):
-        '''
-        Sets the grainsize that will be specified by
-        this transformation. Checks the grainsize is
-        a positive integer value or None.
-
-        :param value: integer value to use in the grainsize clause.
-        :type value: int or None
-
-        :raises TransformationError: if value is not an int and is not None.
-        :raises TransformationError: if value is negative.
-        :raises TransformationError: if grainsize and num_tasks are \
-                                     both specified.
-        '''
-        if (not isinstance(value, int)) and (value is not None):
-            raise TransformationError(f"grainsize must be an integer or None, "
-                                      f"got {type(value).__name__}")
-
-        if (value is not None) and (value <= 0):
-            raise TransformationError(f"grainsize must be a positive "
-                                      f"integer, got {value}")
-
-        if value is not None and self.omp_num_tasks is not None:
-            raise TransformationError(
-                "The grainsize and num_tasks clauses would both "
-                "be specified for this Taskloop transformation")
-        self._grainsize = value
-
-    @property
-    def omp_num_tasks(self):
-        '''
-        Returns the num_tasks that will be specified
-        by this transformation. By default the num_tasks
-        clause is not applied so num_tasks is None.
-
-        :returns: The grainsize specified by this transformation.
-        :rtype: int or None
-        '''
-        return self._num_tasks
-
-    @omp_num_tasks.setter
-    def omp_num_tasks(self, value):
-        '''
-        Sets the num_tasks that will be specified by
-        this transformation. Checks that num_tasks is
-        a positive integer value or None.
-
-        :param value: integer value to use in the num_tasks clause.
-        :type value: int or None
-
-        :raises TransformationError: if value is not an int and is not None.
-        :raises TransformationError: if value is negative.
-        :raises TransformationError: if grainsize and num_tasks are \
-                                     both specified.
-
-        '''
-        if (not isinstance(value, int)) and (value is not None):
-            raise TransformationError(f"num_tasks must be an integer or None,"
-                                      f" got {type(value).__name__}")
-
-        if (value is not None) and (value <= 0):
-            raise TransformationError(f"num_tasks must be a positive "
-                                      f"integer, got {value}")
-
-        if value is not None and self.omp_grainsize is not None:
-            raise TransformationError(
-                "The grainsize and num_tasks clauses would both "
-                "be specified for this Taskloop transformation")
-        self._num_tasks = value
-
-    def _directive(self, children, collapse=None):
-        '''
-        Creates the type of directive needed for this sub-class of
-        transformation.
-
-        :param children: list of Nodes that will be the children of
-                         the created directive.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param int collapse: currently un-used but required to keep
-                             interface the same as in base class.
-        :returns: the new node representing the directive in the AST.
-        :rtype: :py:class:`psyclone.psyir.nodes.OMPTaskloopDirective`
-
-        :raises NotImplementedError: if a collapse argument is supplied
-        '''
-        # TODO 2672: OpenMP loop functions don't support collapse
-        if collapse:
-            raise NotImplementedError(
-                "The COLLAPSE clause is not yet supported for "
-                "'!$omp taskloop' directives (#2672).")
-        _directive = OMPTaskloopDirective(children=children,
-                                          grainsize=self.omp_grainsize,
-                                          num_tasks=self.omp_num_tasks,
-                                          nogroup=self.omp_nogroup)
-        return _directive
-
-    def apply(self, node, options=None, **kwargs):
-        '''Apply the OMPTaskloopTrans transformation to the specified node in
-        a Schedule. This node must be a Loop since this transformation
-        corresponds to wrapping the generated code with directives like so:
-
-        .. code-block:: fortran
-
-          !$OMP TASKLOOP
-          do ...
-             ...
-          end do
-          !$OMP END TASKLOOP
-
-        At code-generation time (when lowering is called), this node must be
-        within (i.e. a child of) an OpenMP SERIAL region.
-
-        If the keyword "nogroup" is specified in the options, it will cause a
-        nogroup clause be generated if it is set to True. This will override
-        the value supplied to the constructor, but will only apply to the
-        apply call to which the value is supplied.
-
-        :param node: the supplied node to which we will apply the \
-                     OMPTaskloopTrans transformation
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations\
-                        and validation.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["nogroup"]:
-                indicating whether a nogroup clause should be applied to
-                this taskloop.
-
-        '''
-        if not options:
-            options = {}
-        current_nogroup = self.omp_nogroup
-        # If nogroup is specified it overrides that supplied to the
-        # constructor of the Transformation, but will be reset at the
-        # end of this function
-        self.omp_nogroup = options.get("nogroup", current_nogroup)
-
-        try:
-            super().apply(node, options, **kwargs)
-        finally:
-            # Reset the nogroup value to the original value
-            self.omp_nogroup = current_nogroup
-
-
 class MarkRoutineForGPUMixin:
     ''' This Mixin provides the "validate_it_can_run_on_gpu" method that
     given a routine or kernel node, it checks that the callee code is valid
@@ -385,8 +138,6 @@ class MarkRoutineForGPUMixin:
         :raises TransformationError: if the target is a built-in kernel.
         :raises TransformationError: if it is a kernel but without an
                                      associated PSyIR.
-        :raises TransformationError: if it is a Kernel that has multiple
-                                     implementations (mixed precision).
         :raises TransformationError: if any of the symbols in the kernel are
                                      accessed via a module use statement (and
                                      are not compile-time constants).
@@ -415,100 +166,89 @@ class MarkRoutineForGPUMixin:
             # or that the frontend failed to convert it into PSyIR) reraise it
             # as a TransformationError
             try:
-                kernel_schedule = node.get_kernel_schedule()
+                kernel_schedules = node.get_callees()
             except Exception as error:
                 raise TransformationError(
                     f"Failed to create PSyIR for kernel '{node.name}'. "
                     f"Cannot transform such a kernel.") from error
 
-            if not node.ancestor(Container, shared_with=kernel_schedule):
-                # The KernelSchedule to be transformed has not been inlined
-                # into the Container of the call-site. Therefore we can
-                # Check that it's not a mixed-precision kernel (which will have
-                # more than one Routine implementing it). We can't transform
-                # these at the moment because we can't correctly manipulate
-                # their metadata - TODO #1946.
-                if len(kernel_schedule.root.walk(Routine)) > 1:
-                    raise TransformationError(
-                        f"Cannot apply {self.name} to kernel '{node.name}' as "
-                        f"it has multiple implementations - TODO #1946")
-
             k_or_r = "Kernel"
         else:
             # Supplied node is a PSyIR Routine which *is* a Schedule.
-            kernel_schedule = node
+            kernel_schedules = [node]
             k_or_r = "routine"
 
-        # Check that the routine does not access any data that is imported via
-        # a 'use' statement.
-        vam = kernel_schedule.reference_accesses()
-        ktable = kernel_schedule.symbol_table
-        for sig in vam.all_signatures:
-            name = sig.var_name
-            first = vam[sig].all_accesses[0].node
-            if isinstance(first, (Symbol, DataType)):
-                table = ktable
-            else:
-                try:
-                    table = first.scope.symbol_table
-                except SymbolError:
-                    # The node associated with this access is not within a
-                    # scoping region.
+        # Check that the routine(s) do(oes) not access any data that is
+        # imported via a 'use' statement.
+        for sched in kernel_schedules:
+            vam = sched.reference_accesses()
+            ktable = sched.symbol_table
+            for sig in vam.all_signatures:
+                name = sig.var_name
+                first = vam[sig].all_accesses[0].node
+                if isinstance(first, (Symbol, DataType)):
                     table = ktable
-            symbol = table.lookup(name)
-            if symbol.is_import:
-                # resolve_type does nothing if the Symbol type is known.
-                try:
-                    symbol.resolve_type()
-                except (SymbolError, FileNotFoundError):
-                    # TODO #11 - log that we failed to resolve this Symbol.
-                    pass
-                if (isinstance(symbol, DataSymbol) and symbol.is_constant):
-                    # An import of a compile-time constant is fine.
-                    continue
-                raise TransformationError(
-                    f"{k_or_r} '{node.name}' accesses the symbol "
-                    f"'{symbol}' which is imported. If this symbol "
-                    f"represents data then it must first be converted to a "
-                    f"{k_or_r} argument using the KernelImportsToArguments "
-                    f"transformation.")
-
-        # We forbid CodeBlocks because we can't be certain that what they
-        # contain can be executed on a GPU. However, we do permit the user
-        # to override this check.
-        cblocks = kernel_schedule.walk(CodeBlock)
-        if not force:
-            if cblocks:
-                cblock_txt = ("\n  " + "\n  ".join(str(node) for node in
-                                                   cblocks[0].get_ast_nodes)
-                              + "\n")
-                option_txt = "options={'force': True}"
-                raise TransformationError(
-                    f"Cannot safely apply {type(self).__name__} to {k_or_r} "
-                    f"'{node.name}' because its PSyIR contains one or more "
-                    f"CodeBlocks:{cblock_txt}You may use '{option_txt}' to "
-                    f"override this check.")
-
-        calls = kernel_schedule.walk(Call)
-        for call in calls:
-            if not call.is_available_on_device(device_string):
-                if isinstance(call, IntrinsicCall):
-                    if device_string:
-                        device_str = f"on the '{device_string}' device"
-                    else:
-                        device_str = "on the default accelerator device"
+                else:
+                    try:
+                        table = first.scope.symbol_table
+                    except SymbolError:
+                        # The node associated with this access is not within a
+                        # scoping region.
+                        table = ktable
+                symbol = table.lookup(name)
+                if symbol.is_import:
+                    # resolve_type does nothing if the Symbol type is known.
+                    try:
+                        symbol.resolve_type()
+                    except (SymbolError, FileNotFoundError):
+                        # TODO #11 - log that we failed to resolve this Symbol.
+                        pass
+                    if (isinstance(symbol, DataSymbol) and symbol.is_constant):
+                        # An import of a compile-time constant is fine.
+                        continue
                     raise TransformationError(
-                        f"{k_or_r} '{node.name}' calls intrinsic "
-                        f"'{call.intrinsic.name}' which is not available "
-                        f"{device_str}. Use the 'device_string' option to "
-                        f"specify a different device."
-                    )
-                call_str = call.debug_string().rstrip("\n")
-                raise TransformationError(
-                    f"{k_or_r} '{node.name}' calls another routine "
-                    f"'{call_str}' which is not available on the "
-                    f"accelerator device and therefore cannot have "
-                    f"{type(self).__name__} applied to it (TODO #342).")
+                        f"{k_or_r} '{node.name}' accesses the symbol "
+                        f"'{symbol}' which is imported. If this symbol "
+                        f"represents data then it must first be converted to a"
+                        f" {k_or_r} argument using the "
+                        f"KernelImportsToArguments transformation.")
+
+            # We forbid CodeBlocks because we can't be certain that what they
+            # contain can be executed on a GPU. However, we do permit the user
+            # to override this check.
+            cblocks = sched.walk(CodeBlock)
+            if not force:
+                if cblocks:
+                    cblock_txt = ("\n  " + "\n  ".join(
+                        str(node) for node in cblocks[0].get_ast_nodes)
+                                  + "\n")
+                    option_txt = "options={'force': True}"
+                    raise TransformationError(
+                        f"Cannot safely apply {type(self).__name__} to "
+                        f"{k_or_r} '{node.name}' because its PSyIR contains "
+                        f"one or more CodeBlocks:{cblock_txt}You may use "
+                        f"'{option_txt}' to override this check.")
+
+            for call in sched.walk(Call):
+                if not call.is_available_on_device(device_string):
+                    if isinstance(call, IntrinsicCall):
+                        if device_string:
+                            device_str = (f"on the '{device_string}' "
+                                          f"accelerator device")
+                        else:
+                            device_str = "on the default accelerator device"
+                        raise TransformationError(
+                            f"{k_or_r} '{node.name}' calls intrinsic "
+                            f"'{call.intrinsic.name}' which is not available "
+                            f"{device_str}. Use the 'device_string' option to "
+                            f"specify a different device."
+                        )
+                    call_str = call.debug_string().rstrip("\n")
+                    raise TransformationError(
+                        f"{k_or_r} '{node.name}' calls another routine "
+                        f"'{call_str}' which is not available on the "
+                        f"accelerator device and therefore cannot have "
+                        f"{type(self).__name__} applied to it (TODO #342).")
 
 
 class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
@@ -576,15 +316,14 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
             node.modified = True
 
             # Get the schedule representing the kernel subroutine
-            routine = node.get_kernel_schedule()
+            routines = node.get_callees()
         else:
-            routine = node
+            routines = [node]
 
-        for child in routine.children:
-            if isinstance(child, OMPDeclareTargetDirective):
-                return  # The routine is already marked with OMPDeclareTarget
-
-        routine.children.insert(0, OMPDeclareTargetDirective())
+        for routine in routines:
+            if not any(isinstance(child, OMPDeclareTargetDirective) for
+                       child in routine.children):
+                routine.children.insert(0, OMPDeclareTargetDirective())
 
     def validate(self, node, options=None):
         ''' Check that an OMPDeclareTargetDirective can be inserted.
@@ -1344,103 +1083,6 @@ class LFRicColourTrans(ColourTrans):
         return colours_loop
 
 
-class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
-    '''
-    Base class for transformations that create a parallel region.
-
-    '''
-    # The types of node that must be excluded from the section of PSyIR
-    # being transformed.
-    excluded_node_types = (CodeBlock, Return, psyGen.HaloExchange)
-
-    def __init__(self):
-        # Holds the class instance or create call for the type of
-        # parallel region to generate
-        self._directive_factory = None
-        super().__init__()
-
-    @abc.abstractmethod
-    def __str__(self):
-        pass  # pragma: no cover
-
-    def validate(self, node_list, options=None):
-        # pylint: disable=arguments-renamed
-        '''
-        Check that the supplied list of Nodes are eligible to be
-        put inside a parallel region.
-
-        :param list node_list: list of nodes to put into a parallel region
-        :param options: a dictionary with options for transformations.\
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["node-type-check"]: this flag controls whether \
-            or not the type of the nodes enclosed in the region should be \
-            tested to avoid using unsupported nodes inside a region.
-
-        :raises TransformationError: if the supplied node is an \
-            InvokeSchedule rather than being within an InvokeSchedule.
-        :raises TransformationError: if the supplied nodes are not all \
-            children of the same parent (siblings).
-
-        '''
-        node_list = self.get_node_list(node_list)
-        if isinstance(node_list[0], InvokeSchedule):
-            raise TransformationError(
-                f"A {self.name} transformation cannot be applied to an "
-                f"InvokeSchedule but only to one or more nodes from within an "
-                f"InvokeSchedule.")
-
-        node_parent = node_list[0].parent
-
-        for child in node_list:
-            if child.parent is not node_parent:
-                raise TransformationError(
-                    f"Error in {self.name} transformation: supplied nodes are "
-                    f"not children of the same parent.")
-        super().validate(node_list, options)
-
-    def apply(self, target_nodes, options=None):
-        # pylint: disable=arguments-renamed
-        '''
-        Apply this transformation to a subset of the nodes within a
-        schedule - i.e. enclose the specified Loops in the
-        schedule within a single parallel region.
-
-        :param target_nodes: a single Node or a list of Nodes.
-        :type target_nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["node-type-check"]: this flag controls if the \
-                type of the nodes enclosed in the region should be tested \
-                to avoid using unsupported nodes inside a region.
-
-        '''
-
-        # Check whether we've been passed a list of nodes or just a
-        # single node. If the latter then we create ourselves a
-        # list containing just that node.
-        node_list = self.get_node_list(target_nodes)
-        self.validate(node_list, options)
-
-        # Keep a reference to the parent of the nodes that are to be
-        # enclosed within a parallel region. Also keep the index of
-        # the first child to be enclosed as that will become the
-        # position of the new !$omp parallel directive.
-        node_parent = node_list[0].parent
-        node_position = node_list[0].position
-
-        # Create the parallel directive as a child of the
-        # parent of the nodes being enclosed and with those nodes
-        # as its children.
-        # pylint: disable=not-callable
-        directive = self._directive_factory(
-            children=[node.detach() for node in node_list])
-
-        # Add the region directive as a child of the parent
-        # of the nodes being enclosed and at the original location
-        # of the first of these nodes
-        node_parent.addchild(directive, index=node_position)
-
-
 class OMPSingleTrans(ParallelRegionTrans):
     '''
     Create an OpenMP SINGLE region by inserting directives. The most
@@ -1790,7 +1432,8 @@ class ACCParallelTrans(ParallelRegionTrans):
                 if not call.is_available_on_device(device_string):
                     if isinstance(call, IntrinsicCall):
                         if device_string:
-                            device_str = f"on the '{device_string}' device"
+                            device_str = (f"on the '{device_string}' "
+                                          f"accelerator device")
                         else:
                             device_str = "on the default accelerator device"
                         raise TransformationError(
@@ -2286,7 +1929,7 @@ class LFRicKernelConstTrans(Transformation):
     >>> trans = LFRicKernelConstTrans()
     >>> for kernel in schedule.coded_kernels():
     >>>     trans.apply(kernel, number_of_layers=150)
-    >>>     kernel_schedule = kernel.get_kernel_schedule()
+    >>>     kernel_schedule = kernel.get_callees()[0]
     >>>     # Uncomment the following line to see a text view of the
     >>>     # symbol table
     >>>     # print(kernel_schedule.symbol_table.view())
@@ -2457,16 +2100,17 @@ class LFRicKernelConstTrans(Transformation):
         arg_list_info = KernCallArgList(kernel)
         arg_list_info.generate()
         try:
-            kernel_schedule = kernel.get_kernel_schedule()
+            kernel_schedules = kernel.get_callees()
         except NotImplementedError as excinfo:
             raise TransformationError(
                 f"Failed to parse kernel '{kernel.name}'. Error reported was "
                 f"'{excinfo}'.") from excinfo
 
-        symbol_table = kernel_schedule.symbol_table
-        if number_of_layers:
-            make_constant(symbol_table, arg_list_info.nlayers_positions[0],
-                          number_of_layers)
+        for kernel_schedule in kernel_schedules:
+            symbol_table = kernel_schedule.symbol_table
+            if number_of_layers:
+                make_constant(symbol_table, arg_list_info.nlayers_positions[0],
+                              number_of_layers)
 
         if quadrature and arg_list_info.nqp_positions:
             # TODO #705 - support the transformation of kernels requiring
@@ -2808,19 +2452,20 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
             # Flag that the kernel has been modified
             node.modified = True
 
-            # Get the schedule representing the kernel subroutine
-            routine = node.get_kernel_schedule()
+            # Get the schedule(s) representing the kernel subroutine
+            routines = node.get_callees()
         else:
-            routine = node
-
-        # Insert the directive to the routine if it doesn't already exist
-        for child in routine.children:
-            if isinstance(child, ACCRoutineDirective):
-                return  # The routine is already marked with ACCRoutine
+            routines = [node]
 
         para = options.get("parallelism", "seq") if options else "seq"
+        for routine in routines:
+            # Insert the directive to the routine if it doesn't already exist
+            for child in routine.children:
+                if isinstance(child, ACCRoutineDirective):
+                    return  # The routine is already marked with ACCRoutine
 
-        routine.children.insert(0, ACCRoutineDirective(parallelism=para))
+            routine.children.insert(
+                0, ACCRoutineDirective(parallelism=para))
 
     def validate(self, node, options=None):
         '''
@@ -3031,10 +2676,12 @@ class KernelImportsToArguments(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a CodedKern.
-        :raises TransformationError: if this transformation is not applied to \
+        :raises TransformationError: if this transformation is not applied to
             a Gocean API Invoke.
-        :raises TransformationError: if the supplied kernel contains wildcard \
-            imports of symbols from one or more containers (e.g. a USE without\
+        :raises TransformationError: if the supplied node is a polymorphic
+            Kernel.
+        :raises TransformationError: if the supplied kernel contains wildcard
+            imports of symbols from one or more containers (e.g. a USE without
             an ONLY clause in Fortran).
         '''
         if not isinstance(node, CodedKern):
@@ -3051,20 +2698,23 @@ class KernelImportsToArguments(Transformation):
 
         # Check that there are no unqualified imports or undeclared symbols
         try:
-            kernel = node.get_kernel_schedule()
+            kernels = node.get_callees()
         except SymbolError as err:
             raise TransformationError(
                 f"Kernel '{node.name}' contains undeclared symbol: "
                 f"{err.value}") from err
 
-        try:
-            kernel.check_outer_scope_accesses(node, "Kernel",
-                                              permit_unresolved=False,
-                                              ignore_non_data_accesses=True)
-        except SymbolError as err:
-            raise TransformationError(
-                f"Cannot apply {self.name} to Kernel '{node.name}' because it "
-                f"accesses data from its outer scope: {err.value}") from err
+        for kernel in kernels:
+            try:
+                kernel.check_outer_scope_accesses(
+                    node, "Kernel",
+                    permit_unresolved=False,
+                    ignore_non_data_accesses=True)
+            except SymbolError as err:
+                raise TransformationError(
+                    f"Cannot apply {self.name} to Kernel '{node.name}' "
+                    f"because it accesses data from its outer scope: "
+                    f"{err.value}") from err
 
     def apply(self, node, options=None):
         '''
@@ -3080,7 +2730,9 @@ class KernelImportsToArguments(Transformation):
         '''
         self.validate(node, options)
 
-        kernel = node.get_kernel_schedule()
+        kernels = node.get_callees()
+        # validate() has ensured that there is only one kernel routine.
+        kernel = kernels[0]
         symtab = kernel.symbol_table
         invoke_symtab = node.ancestor(InvokeSchedule).symbol_table
         count_imported_vars_removed = 0
@@ -3206,5 +2858,4 @@ __all__ = [
    "OMPParallelLoopTrans",
    "OMPParallelTrans",
    "OMPSingleTrans",
-   "ParallelRegionTrans",
 ]

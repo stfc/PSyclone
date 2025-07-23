@@ -40,6 +40,7 @@
 
 import pytest
 from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import CodeBlock
 from psyclone.psyir.nodes.node import colored
 from psyclone.errors import GenerationError
@@ -133,6 +134,37 @@ def test_codeblock_get_symbol_names(parser):
     assert "that_is_true" in sym_names
 
 
+def test_codeblock_get_symbol_names_comments_and_directives():
+    '''
+    Test that Codeblock.get_symbol_names returns any symbols in directives.
+    '''
+    code = """
+    subroutine mytest
+    integer :: i, is
+
+    !$omp dir private(i)
+    i = i + 1
+    ! Here is a comment
+    end subroutine"""
+
+    reader = FortranReader(ignore_comments=False,
+                           ignore_directives=False,
+                           last_comments_as_codeblocks=True)
+    psyir = reader.psyir_from_source(code)
+    block = psyir.walk(CodeBlock)[0]
+    sym_names = block.get_symbol_names()
+    assert "i" in sym_names
+    assert "omp" not in sym_names
+    assert "dir" not in sym_names
+    assert "private" not in sym_names
+    block = psyir.walk(CodeBlock)[1]
+    sym_names = block.get_symbol_names()
+    assert "Here" not in sym_names
+    assert "is" not in sym_names
+    assert "a" not in sym_names
+    assert "comment" not in sym_names
+
+
 def test_codeblock_ref_accesses(parser):
     '''Test that the reference_accesses() method works as expected.
 
@@ -197,3 +229,30 @@ def test_codeblock_equality(parser):
     prog = parser(reader)
     block4 = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
     assert block != block4
+
+
+def test_codeblock_has_potential_control_flow_jump(fortran_reader):
+    """Test the has_potential_control_flow_jump function of the CodeBlock
+    class."""
+
+    code = """subroutine test()
+    integer :: i
+    GOTO 1234
+    i = 1
+    write(*,*) "Hello"
+    do i = 1, 100
+        EXIT
+    end do
+1234 i = 3
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    codeblocks = psyir.walk(CodeBlock)
+
+    # GOTO statement
+    assert codeblocks[0].has_potential_control_flow_jump()
+    # Write statement
+    assert not codeblocks[1].has_potential_control_flow_jump()
+    # Exit statement
+    assert codeblocks[2].has_potential_control_flow_jump()
+    # labelled statement
+    assert codeblocks[3].has_potential_control_flow_jump()

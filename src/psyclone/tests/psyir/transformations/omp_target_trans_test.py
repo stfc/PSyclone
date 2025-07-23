@@ -147,10 +147,10 @@ def test_omptargettrans_validate(fortran_reader):
 
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[1])
-    assert ("'myfunc' is not available on the default accelerator device, and "
-            "therefore it cannot be called from within an OMP Target region. "
-            "Use the 'device_string' option to specify a different device."
-            in str(err.value))
+    assert ("'myfunc' is not available on the 'default' accelerator device, "
+            "and therefore it cannot be called from within an OMP Target "
+            "region. Use the 'device_string' option to specify a different "
+            "device." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[2])
@@ -163,10 +163,10 @@ def test_omptargettrans_validate(fortran_reader):
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[3], options={'device_string':
                                                    'nvfortran-uniform'})
-    assert ("'LOG10' is not available on the default accelerator device, and "
-            "therefore it cannot be called from within an OMP Target region. "
-            "Use the 'device_string' option to specify a different device."
-            in str(err.value))
+    assert ("'LOG10' is not available on the 'nvfortran-uniform' accelerator "
+            "device, and therefore it cannot be called from within an OMP "
+            "Target region. Use the 'device_string' option to specify a "
+            "different device." in str(err.value))
     with pytest.raises(ValueError) as err:
         omptargettrans.validate(loops[3], options={'device_string':
                                                    'unknown-device'})

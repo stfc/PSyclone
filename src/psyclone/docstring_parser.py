@@ -472,14 +472,8 @@ def create_docstring_data(args: List[str], desc: str,
         # pylint: disable=import-outside-toplevel
         from sphinx.util.typing import stringify_annotation
     except ImportError:
-        # Fix for Python-3.7 where sphinx didn't yet rename this.
-        # TODO 2837: Can remove this 3.7 sphinx import
-        try:
-            # pylint: disable=import-outside-toplevel
-            from sphinx.util.typing import stringify as stringify_annotation
-        except ImportError:
-            # pylint: disable=import-outside-toplevel
-            from psyclone.utils import stringify_annotation
+        # pylint: disable=import-outside-toplevel
+        from psyclone.utils import stringify_annotation
     # If its a param then we can create an ArgumentData for this.
     if args[0] == "param":
         if len(args) == 2:
