@@ -636,7 +636,7 @@ class Call(Statement, DataNode):
 
     def _check_argument_type_matches(
                 self,
-                call_arg: DataSymbol,
+                call_arg: DataNode,
                 routine_arg: DataSymbol,
                 check_argument_strict_array_datatype: bool = True,
                 check_argument_ignore_unresolved_types: bool = False
