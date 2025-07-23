@@ -151,9 +151,6 @@ class LFRicKern(CodedKern):
         create_arg_list.generate(var_accesses)
 
         var_accesses.update(super().reference_accesses())
-        # Set the current location index to the next location, since after
-        # this kernel a new statement starts.
-        var_accesses.next_location()
         return var_accesses
 
     def load(self, call, parent=None):
@@ -1002,7 +999,8 @@ class LFRicKern(CodedKern):
                         f"All array arguments to LFRic kernels must have lower"
                         f" bounds of 1 for all dimensions. However, array "
                         f"'{kern_code_arg.name}' has a lower bound of "
-                        f"'{kern_code_arg_dim.lower}' for dimension {dim_idx}")
+                        f"'{kern_code_arg_dim.lower.debug_string()}' for "
+                        f"dimension {dim_idx}")
                 kern_code_arg_upper_dim = kern_code_arg_dim.upper
                 interface_arg_upper_dim = interface_arg.shape[dim_idx].upper
                 if (isinstance(kern_code_arg_upper_dim, Reference) and
