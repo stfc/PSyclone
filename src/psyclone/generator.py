@@ -792,6 +792,8 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         of 123 chars, and to "all", to additionally check the input code.
 
     '''
+    logger = logging.getLogger(__name__)
+
     # Load recipe file
     if recipe_file:
         trans_recipe, files_to_skip, resolve_mods = load_script(recipe_file)

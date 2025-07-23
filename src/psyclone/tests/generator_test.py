@@ -392,12 +392,10 @@ def test_kernel_parsing_internalerror(capsys, caplog):
     assert out == ""
     assert "Failed to create PSyIR from kernel file '" in str(err)
     caplog.clear()
-    #logger = logging.getLogger("psyclone.generator.generate")
-    #logger.propagate = True
     with caplog.at_level(logging.ERROR, "psyclone.generator"):
         with pytest.raises(SystemExit):
             main([kern_filename, "-api", "gocean", "--log-level", "ERROR"])
-        #assert caplog.records[0].levelname == "DEBUG"
+        # assert caplog.records[0].levelname == "DEBUG"
         assert (
             "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
             "'u'] for routine 'compute_code' does not match the variable "
@@ -406,7 +404,8 @@ def test_kernel_parsing_internalerror(capsys, caplog):
             "INTEGER, INTENT(IN) :: I, J\n"
             "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
             "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
-            "(Note that PSyclone does not support implicit declarations.) Specific"
+            "(Note that PSyclone does not support implicit declarations.) "
+            "Specific"
             " PSyIR error is \"Could not find 'u' in the Symbol Table.\".\n"
             in caplog.text)
 
