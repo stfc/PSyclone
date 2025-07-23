@@ -43,7 +43,7 @@
 
 module extract_psy_data_mod
 
-    use extract_standalone_base_mod, only : ExtractStandaloneBaseType
+    use extract_binary_base_mod, only : ExtractBinaryBaseType
 
     implicit none
 
@@ -52,7 +52,7 @@ module extract_psy_data_mod
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
-    type, extends(ExtractStandaloneBaseType), public :: extract_PsyDataType
+    type, extends(ExtractBinaryBaseType), public :: extract_PsyDataType
 
     end type extract_PSyDataType
 
