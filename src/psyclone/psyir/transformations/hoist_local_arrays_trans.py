@@ -43,7 +43,7 @@ import copy
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
-                                  FileContainer, IfBlock, UnaryOperation, Node,
+                                  FileContainer, IfBlock, UnaryOperation,
                                   CodeBlock, ACCRoutineDirective, Literal,
                                   IntrinsicCall, BinaryOperation, Reference)
 from psyclone.psyir.symbols import (
@@ -359,23 +359,15 @@ then
                     sym.is_constant):
                 continue
             # Skip declarations that have dependent symbols which are not
-            # guarenteed to be available in the outer scope
+            # guarenteed to be available in the outer scope. Shape symbols
+            # are find because this will end up the allocate statement, not
+            # the declaration
             if (isinstance(sym.datatype.intrinsic, DataTypeSymbol) and
                     dependent_symbol_could_be_local(sym.datatype.intrinsic)):
                 continue
             if (isinstance(sym.datatype.precision, DataSymbol) and
                     dependent_symbol_could_be_local(sym.datatype.precision)):
                 continue
-            for dim in sym.shape:
-                if isinstance(dim, ArrayType.ArrayBounds):
-                    if isinstance(dim.lower, Node):
-                        for ref in dim.lower.walk(Reference):
-                            if dependent_symbol_could_be_local(ref.symbol):
-                                continue
-                    if isinstance(dim.upper, Node):
-                        for ref in dim.upper.walk(Reference):
-                            if dependent_symbol_could_be_local(ref.symbol):
-                                continue
             # Check whether all of the bounds of the array are defined - an
             # allocatable array will have array dimensions of
             # ArrayType.Extent.DEFERRED

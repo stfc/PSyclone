@@ -604,10 +604,13 @@ def test_validate_tagged_symbol_clash(fortran_reader):
             str(err.value))
 
 
-def test_apply_with_hoist_with_unresolved_kind(fortran_reader, fortran_writer):
-    ''' Check that we host declarations with kind symbols. '''
+def test_apply_with_hoist_with_dependent_symbols(fortran_reader,
+                                                 fortran_writer):
+    ''' Check that we host declarations with dependent symbols succeeds
+    if the symbols can only come from the module scope, but fails otherwise.
+    '''
 
-    # If the kind symbol can only come from the module anyway
+    # In this example the dependent symbols can only come form the module
     code = (
         "module my_mod\n"
         " use other_mod\n"
@@ -636,7 +639,7 @@ def test_apply_with_hoist_with_unresolved_kind(fortran_reader, fortran_writer):
             in fortran_writer(psyir))
 
     # If it can also come from the local scope, e.g. the inner wp can come
-    # from other_mod2 in the example below, then it  cannot be hoisted.
+    # from other_mod2 in the example below, then it cannot be hoisted.
     code = (
         "module my_mod\n"
         "  use other_mod\n"
@@ -645,7 +648,7 @@ def test_apply_with_hoist_with_unresolved_kind(fortran_reader, fortran_writer):
         "  use other_mod2\n"
         "  integer :: i\n"
         "  real(kind=wp) :: a(10)\n"
-        "  real :: b(N)\n"
+        "  type(my_type) :: b(N)\n"
         "  do i=1,10\n"
         "    a(i) = 1.0\n"
         "  end do\n"
@@ -656,7 +659,7 @@ def test_apply_with_hoist_with_unresolved_kind(fortran_reader, fortran_writer):
     hoist_trans = HoistLocalArraysTrans()
     hoist_trans.apply(routine)
     assert "real(kind=wp), dimension(10) :: a" in fortran_writer(psyir)
-    # assert "real(kind=wp), dimension(N) :: c" in fortran_writer(psyir)
+    assert "type(my_type), dimension(N) :: b" in fortran_writer(psyir)
 
 
 def test_apply_with_allocatables(fortran_reader, fortran_writer, tmpdir):
