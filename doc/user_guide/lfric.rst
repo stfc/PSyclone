@@ -1432,7 +1432,11 @@ Array sizes
 
 The size of a :ref:`scalar array <lfric-array>` is described by ``<n>``,
 where *n > 0* is the number of Fortran ranks representing the dimension of the
-array.
+array, e.g. a logical, scalar array of rank three would be specified as:
+
+::
+
+  arg_type(GH_SCALAR_ARRAY, GH_LOGICAL, GH_READ, 3)
 
 .. _lfric-function-space:
 
@@ -2062,9 +2066,13 @@ conventions, are:
       freedom for the ``to`` and ``from`` function spaces,
       respectively. Again the intent is determined
       from the metadata (see :ref:`lfric-api-meta-args`).
-   5) If the current entry is a ScalarArray then include the Fortran
-      variable in the argument list. The ScalarArray must be denoted
-      with intent ``in`` to match its read-only nature.
+   5) If the current entry is a ScalarArray then first include a rank-1
+      ``integer`` array of kind ``i_def`` and size ``nranks_<array_name>``
+      containing the upper bounds for each rank, ``dims_<array_name>``
+      (the lower bound is assumed to be 1 as this is how Fortran passes
+      array slices to subroutines by default). Then pass the array of
+      the data type and kind specifed in the metadata. The ScalarArray
+      must be denoted with intent ``in`` to match its read-only nature.
 
 4) For each function space in the order they appear in the metadata arguments
    (the ``to`` function space of an operator is considered to be before the
