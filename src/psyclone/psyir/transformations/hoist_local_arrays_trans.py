@@ -47,8 +47,7 @@ from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   CodeBlock, ACCRoutineDirective, Literal,
                                   IntrinsicCall, BinaryOperation, Reference)
 from psyclone.psyir.symbols import (
-    ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol,
-    UnresolvedInterface)
+    ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol)
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -337,20 +336,6 @@ then
         :rtype: list[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         '''
-        def dependent_symbol_could_be_local(symbol: Symbol) -> bool:
-            ''' The symbol exists in the local scope, or it is an Unresolved
-            interface symbol but there are no wildcard import that could make
-            it local.
-
-            '''
-            if symbol.name not in node.symbol_table:
-                return False
-            if isinstance(symbol.interface, UnresolvedInterface):
-                if all(container.wildcard_import is False
-                       for container in node.symbol_table.containersymbols):
-                    return False
-            return True
-
         local_arrays = {}
         for sym in node.symbol_table.automatic_datasymbols:
             # Check that the array is not the functions return symbol, or
@@ -359,15 +344,16 @@ then
                     sym.is_constant):
                 continue
             # Skip declarations that have dependent symbols which are not
-            # guarenteed to be available in the outer scope. Shape symbols
-            # are find because this will end up the allocate statement, not
-            # the declaration
-            if (isinstance(sym.datatype.intrinsic, DataTypeSymbol) and
-                    dependent_symbol_could_be_local(sym.datatype.intrinsic)):
-                continue
-            if (isinstance(sym.datatype.precision, DataSymbol) and
-                    dependent_symbol_could_be_local(sym.datatype.precision)):
-                continue
+            # local (the frontend already declares unclear symbols as local
+            # when there is wildcard imports that could have brought them)
+            # Shape symbols are fine because they will end up the allocate
+            # statement, not the hoisted declaration
+            if isinstance(sym.datatype.intrinsic, DataTypeSymbol):
+                if sym.datatype.intrinsic.name in node.symbol_table:
+                    continue
+            if isinstance(sym.datatype.precision, DataSymbol):
+                if sym.datatype.precision.name in node.symbol_table:
+                    continue
             # Check whether all of the bounds of the array are defined - an
             # allocatable array will have array dimensions of
             # ArrayType.Extent.DEFERRED
