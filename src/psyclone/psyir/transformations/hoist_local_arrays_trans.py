@@ -54,7 +54,7 @@ from psyclone.psyir.transformations.transformation_error \
 
 class HoistLocalArraysTrans(Transformation):
     '''This transformation takes a Routine and promotes any local arrays to
-    Container scope:
+    the Container scope:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
