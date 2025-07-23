@@ -257,18 +257,21 @@ class Reference(DataNode):
         chain = DefinitionUseChain(self)
         return chain.find_forward_accesses()
 
-    def escapes_scope(self, scope, _stop_recursion=None) -> bool:
+    def escapes_scope(self, scope, visited_nodes=None) -> bool:
         '''
         :param scope: the given scope that we evaluate.
+        :param visited_nodes: a set of nodes already visited, this is necessary
+            because the dependency chains may contain cycles. Defaults to an
+            empty set.
         :returns: whether the symbol lifetime expands after the given scope.
         '''
 
-        # Make _stop_recursion a set with visited ids
-        if _stop_recursion is None:
-            _stop_recursion = set()
-        if id(self) in _stop_recursion:
+        # Populate visited_nodes, and stop recursion when appropriate
+        if visited_nodes is None:
+            visited_nodes = set()
+        if id(self) in visited_nodes:
             return False
-        _stop_recursion.add(id(self))
+        visited_nodes.add(id(self))
 
         # If it's not a local symbol, we cannot guarantee its lifetime
         if not isinstance(self.symbol.interface, AutomaticInterface):
@@ -280,7 +283,7 @@ class Reference(DataNode):
 
         # Now check all possible next accesses
         for ref in self.next_accesses():
-            if ref.escapes_scope(scope, _stop_recursion):
+            if ref.escapes_scope(scope, visited_nodes):
                 return True
 
         return False
