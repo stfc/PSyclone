@@ -460,17 +460,51 @@ def insert_explicit_loop_parallelism(
                 "and is not the inner loop")
             continue
 
-        # Add the necessary explicit private symbols in icethd in order to
-        # parallelise the outer loop
-        if not nemo_v4 and routine_name == "ice_thd_zdf_BL99":
-            if isinstance(loop.stop_expr, Reference):
-                if loop.stop_expr.symbol.name == "npti":
-                    for variable in ['zdiagbis', 'zindtbis', 'zindterm',
-                                     'ztib', 'ztrid', 'ztsb']:
-                        st = loop.scope.symbol_table
-                        sym = st.lookup(variable, otherwise=None)
-                        if sym is not None:
-                            loop.explicitly_private_symbols.add(sym)
+        if nemo_v4:
+            # Skip if it is an array operation loop on an ice routine if along
+            # the third dim or higher or if the loop nests a loop over ice
+            # points (npti) or if the loop and array dims do not match.
+            # In addition, they often nest ice linearised loops (npti)
+            # which we'd rather parallelise
+            if ('ice' in routine_name
+                and isinstance(loop.stop_expr, IntrinsicCall)
+                and (loop.stop_expr.intrinsic in (
+                        IntrinsicCall.Intrinsic.UBOUND,
+                        IntrinsicCall.Intrinsic.SIZE))
+                and (len(loop.walk(Loop)) > 2
+                     or any(ref.symbol.name in ('npti',)
+                            for lp in loop.loop_body.walk(Loop)
+                            for ref in lp.stop_expr.walk(Reference))
+                     or (str(len(loop.walk(Loop))) !=
+                         loop.stop_expr.arguments[1].value))):
+                loop.append_preceding_comment(
+                    "PSyclone: ICE Loop not parallelised for performance"
+                    "reasons")
+                continue
+
+            # Skip if looping over ice categories, ice or snow layers as these have
+            # small trip counts if they are not collapsed
+            if not collapse and any(
+                    ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
+                    for ref in loop.stop_expr.walk(Reference)
+            ):
+                loop.append_preceding_comment(
+                    "PSyclone: Loop not parallelised because stops at 'jpl',"
+                    " 'nlay_i' or 'nlay_s' and is not collapsed.")
+                continue
+
+        else:
+            # In NEMOv5 add the necessary explicit private symbols in icethd
+            # in order to parallelise the outer loop
+            if routine_name == "ice_thd_zdf_BL99":
+                if isinstance(loop.stop_expr, Reference):
+                    if loop.stop_expr.symbol.name == "npti":
+                        for variable in ['zdiagbis', 'zindtbis', 'zindterm',
+                                         'ztib', 'ztrid', 'ztsb']:
+                            st = loop.scope.symbol_table
+                            sym = st.lookup(variable, otherwise=None)
+                            if sym is not None:
+                                loop.explicitly_private_symbols.add(sym)
 
         try:
             # First check that the region_directive is feasible for this region
