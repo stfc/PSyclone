@@ -140,8 +140,8 @@ def test_array_ndims_setter_getter():
     with pytest.raises(TypeError) as info:
         test_value = float(1.5)
         array_arg.array_ndims = test_value
-    assert ("The type of value must be an int, but found input of type "
-            "<class 'float'>." in str(info.value))
+    assert ("The type of value must be an integer, but found "
+            "input of type <class 'float'>." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         test_value = -1
