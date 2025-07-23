@@ -237,7 +237,7 @@ jobs:
         export REPRODUCIBLE=1
         # Clean up and compile
         rm -rf tests/${TEST_DIR}
-        ./makenemo -r BENCH -m linux_spack_profile -n ${TEST_DIR} -j 4 -v 1
+        ./makenemo -r BENCH -m linux_spack_profile -e ${PSYCLONE_NEMO_DIR}/modified_source_files -n ${TEST_DIR} -j 4 -v 1
 
         # Run reproducible test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
@@ -254,7 +254,7 @@ jobs:
         unset ENABLE_PROFILING
         export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
         rm -rf tests/${TEST_DIR}
-        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -j 4 -v 1
+        ./makenemo -r BENCH -m linux_spack -e ${PSYCLONE_NEMO_DIR}/modified_source_files -n ${TEST_DIR} -j 4 -v 1
 
         # Run non-reproducible test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
@@ -263,6 +263,7 @@ jobs:
         # This is not expected to succeed, but we still print the diff to monitor the divergence
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat || true
 
+        # The fast build time is the number we care about
         export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
@@ -278,7 +279,7 @@ jobs:
         export NEMO_DIR=${PWD}/nemo_upstream
         cd $NEMO_DIR
         rm -rf tests/${TEST_DIR}
-        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -j 4 -v 1
+        ./makenemo -r BENCH -m linux_spack -e ${PSYCLONE_NEMO_DIR}/modified_source_files -n ${TEST_DIR} -j 4 -v 1
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         # We cannot compare the results because it is a moving target, but it is an early warning

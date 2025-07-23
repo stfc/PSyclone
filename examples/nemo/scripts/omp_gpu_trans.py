@@ -183,7 +183,7 @@ def trans(psyir):
         # annotate them with 'omp declare target'
         if (
             subroutine.name.lower().startswith("sign_")
-            # or subroutine.name.lower() == "solfrac"
+            or subroutine.name.lower() == "solfrac"
             # Important for performance but causes SIGNAL 11 in some cases
             # or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
         ):

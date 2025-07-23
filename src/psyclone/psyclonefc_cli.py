@@ -106,18 +106,16 @@ def compiler_wrapper(arguments):
             if not mod_path:
                 mod_path = arguments[idx + 1]
             output_dir = Path(output_dir, mod_path)
-    # TODO: output_dir is currently ignored, this is not a problem for NEMO
-    # because it all goes to the same directory (BLD/tmp), following psyclone
-    # command will find the modules due to the implied "-I ."
+    # TODO #3012: output_dir is currently ignored, this is not a problem for
+    # NEMO because it all goes to the same directory (BLD/tmp), the following
+    # psyclone commands will find the modules due to the implied "-I ."
 
     for argument in arguments:
         if argument.endswith(FORTRAN_EXTENSIONS):
             # 1) Run the preprocessor
-            # TODO: preprocessing is currently ignored, this is not a problem
-            # for NEMO because the build system already splits the step and the
-            # compiler command already gets preprocessed files
-            # result = subprocess.run(new_compiler_command, check=False)
-            # sys.exit(result.returncode)
+            # TODO #3012: preprocessing is currently ignored, this is not a
+            # problem for NEMO because the build system does the proprocessor
+            # in a separate step
 
             # 2) Run psyclone
             stem = Path(argument).stem
