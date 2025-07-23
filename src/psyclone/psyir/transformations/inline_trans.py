@@ -63,13 +63,14 @@ from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
-
 from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
+from psyclone.utils import transformation_documentation_wrapper
 
 
 _ONE = Literal("1", INTEGER_TYPE)
 
 
+@transformation_documentation_wrapper
 class InlineTrans(Transformation):
     '''
     This transformation takes a Call (which may have a return value)
@@ -135,77 +136,73 @@ class InlineTrans(Transformation):
         Some of these restrictions will be lifted by #924.
 
     '''
-    def apply(
-        self,
-        node: Call,
-        orig_routine: Routine = None,
-        options: Optional[Dict[str, Any]] = None,
-    ):
+    def apply(self,
+              node: Call,
+              routine: Optional[Routine] = None,
+              use_first_callee_and_no_arg_check: bool = False,
+              check_argument_strict_array_datatype: bool = True,
+              check_matching_arguments: bool = True,
+              check_codeblocks: bool = True,
+              check_unsupported_type: bool = True,
+              **kwargs
+              ):
         '''
         Takes the body of the routine that is the target of the supplied
         call and replaces the call with it.
 
-        :param call_node: Target PSyIR node.
-        :param routine_node: Routine to be inlined.
-        :param options: A dictionary with options for transformations.
-        :param bool options["force"]:
-            whether or not to permit the inlining
-            of Routines containing CodeBlocks. Default is False.
-        :param bool options["check_argument_strict_array_datatype"]:
+        :param node: the Call node to inline.
+        :param routine: Optional Routine to be inlined (in case it is not
+            possible for PSyclone to determine the target).
+        :param check_argument_strict_array_datatype:
             If `True`, make strict checks for matching arguments of
             array data types.
             If `False`, it's sufficient that both arguments are of
-            ArrayType. Then, no further checks are performed, defaults
-            to None
-        :param bool options["check_matching_arguments"]:
+            ArrayType. Then, no further checks are performed.
+        :param check_matching_arguments:
             If `True`, check for all arguments
             to match. If `False`, if no matching argument was found, take
             1st one in list. Defaults to `True`
-        :param bool options["check_codeblocks"]:
-            If `True`, raise Exception
-            if encountering code blocks, defaults to None
-        :param bool options["check_unsupported_type"]:
+        :param check_codeblocks:
+            If `True`, raise Exception if encountering code blocks.
+        :param check_unsupported_type:
             If `True`, also perform checks (fail inlining) on arguments of
-            unsupported type, defaults to None
+            unsupported type.
 
         :raises InternalError: if the merge of the symbol tables fails.
             In theory this should never happen because validate() should
             catch such a situation.
 
         '''
-
-        options = {} if options is None else options
-        option_use_first_callee_and_no_arg_check = options.get(
-            "use_first_callee_and_no_arg_check", False
-        )
-
-        (orig_routine, arg_index_list) = self.validate(
-            node, routine=orig_routine, options=options
-        )
+        self.validate(
+            node, routine=routine,
+            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
+            check_argument_strict_array_datatype=check_argument_strict_array_datatype,
+            check_matching_arguments=check_matching_arguments,
+            check_codeblocks=check_codeblocks,
+            check_unsupported_type=check_unsupported_type)
 
         # The table associated with the scoping region holding the Call.
         table = node.ancestor(Routine).symbol_table
+        if not routine:
+            (routine, arg_match_list) = node.get_callee(use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check)
+        else:
+            arg_match_list = node._get_argument_routine_match(
+                routine=routine)
 
-        if not orig_routine.children or isinstance(orig_routine.children[0],
-                                                   Return):
+        if not routine.children or isinstance(routine.children[0], Return):
             # Called routine is empty so just remove the call.
             node.detach()
             return
 
         # Ensure we don't modify the original Routine by working with a
         # copy of it.
-        container: Container = orig_routine.ancestor(Container).copy()
+        container: Container = routine.ancestor(Container).copy()
         routine: Routine = container.find_routine_psyir(
-            orig_routine.name, allow_private=True
+            routine.name, allow_private=True
         )
         routine_table = routine.symbol_table
 
-        if not option_use_first_callee_and_no_arg_check:
-            arg_match_list = node._get_argument_routine_match(
-                routine=orig_routine,
-                options=options
-            )
-
+        if not use_first_callee_and_no_arg_check:
             # Next, we remove all optional arguments which are not used.
 
             # Step 1)
@@ -226,7 +223,8 @@ class InlineTrans(Transformation):
             self._optional_arg_eliminate_ifblock_if_const_condition(routine)
 
         else:
-            arg_match_list = range(len(routine_table.argument_list))
+            arg_match_list = list(
+                i for i in range(len(routine_table.argument_list)))
 
         # Construct lists of the nodes that will be inserted and all of the
         # References that they contain.
@@ -266,7 +264,8 @@ class InlineTrans(Transformation):
         formal_args = routine_table.argument_list
         for ref in refs[:]:
             self._replace_formal_arg(
-                ref, node, formal_args, routine_node=routine, options=options
+                ref, node, formal_args, routine_node=routine,
+                use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check
             )
 
         # Ensure any references to Symbols within the shape-specification of
@@ -285,14 +284,14 @@ class InlineTrans(Transformation):
                             node,
                             formal_args,
                             routine_node=routine,
-                            options=options,
+                            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
                         )
                         upper = self._replace_formal_arg(
                             dim.upper,
                             node,
                             formal_args,
                             routine_node=routine,
-                            options=options,
+                            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
                         )
                         new_shape.append(ArrayType.ArrayBounds(lower, upper))
                 sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
@@ -309,14 +308,14 @@ class InlineTrans(Transformation):
                             node,
                             formal_args,
                             routine_node=routine,
-                            options=options,
+                            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
                         )
                         upper = self._replace_formal_arg(
                             dim.upper,
                             node,
                             formal_args,
                             routine_node=routine,
-                            options=options,
+                            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
                         )
                         new_shape.append(ArrayType.ArrayBounds(lower, upper))
                     sym.datatype.components[name] = (
@@ -477,7 +476,7 @@ class InlineTrans(Transformation):
         call_node: Call,
         formal_args,
         routine_node: Routine,
-        options: Optional[Dict[str, Any]] = {},
+        use_first_callee_and_no_arg_check: bool = False,
     ):
         '''
         Recursively combines any References to formal arguments in the supplied
@@ -497,11 +496,6 @@ class InlineTrans(Transformation):
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
 
         '''
-
-        option_use_first_callee_and_no_arg_check = options.get(
-            "use_first_callee_and_no_arg_check", False
-        )
-
         if not isinstance(ref, Reference):
             # Recurse down in case this is e.g. an Operation or Range.
             for child in ref.children[:]:
@@ -510,7 +504,7 @@ class InlineTrans(Transformation):
                     call_node,
                     formal_args,
                     routine_node,
-                    options=options,
+                    use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check
                 )
             return ref
 
@@ -521,7 +515,7 @@ class InlineTrans(Transformation):
         # Lookup index in routine argument
         routine_arg_idx = formal_args.index(ref.symbol)
 
-        if option_use_first_callee_and_no_arg_check:
+        if use_first_callee_and_no_arg_check:
             actual_arg = call_node.arguments[formal_args.index(ref.symbol)]
 
         else:
@@ -531,7 +525,8 @@ class InlineTrans(Transformation):
             try:
                 arg_match_list = call_node._get_argument_routine_match(
                     routine=routine_node,
-                    options=options
+                    #check_argument_strict_array_datatype,
+                    #check_argument_ignore_unresolved_types,
                 )
                 actual_arg_idx = arg_match_list.index(routine_arg_idx)
             except ValueError as err:
@@ -588,7 +583,7 @@ class InlineTrans(Transformation):
             call_node,
             formal_args,
             routine_node=routine_node,
-            options=options,
+            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
         )
         # If the local reference we are replacing has a parent then we must
         # ensure the parent's child list is updated. (It may not have a parent
@@ -605,7 +600,7 @@ class InlineTrans(Transformation):
         decln_start,
         actual_start,
         routine_node: Routine,
-        options,
+        use_first_callee_and_no_arg_check: bool = False,
     ):
         '''
         Utility that creates the PSyIR for an inlined array-index access
@@ -650,7 +645,7 @@ class InlineTrans(Transformation):
                 decln_start,
                 actual_start,
                 routine_node=routine_node,
-                options=options,
+                use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check
             )
             upper = self._create_inlined_idx(
                 call_node,
@@ -659,14 +654,14 @@ class InlineTrans(Transformation):
                 decln_start,
                 actual_start,
                 routine_node=routine_node,
-                options=options,
+                use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check
             )
             step = self._replace_formal_arg(
                 local_idx.step,
                 call_node,
                 formal_args,
                 routine_node=routine_node,
-                options=options,
+                use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check
             )
             return Range.create(lower.copy(), upper.copy(), step.copy())
 
@@ -675,7 +670,7 @@ class InlineTrans(Transformation):
             call_node,
             formal_args,
             routine_node=routine_node,
-            options=options,
+            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check
         )
         if decln_start == actual_start:
             # If the starting indices in the actual and formal arguments are
@@ -687,7 +682,7 @@ class InlineTrans(Transformation):
             call_node,
             formal_args,
             routine_node=routine_node,
-            options=options,
+            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check
         )
         start_sub = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                            uidx.copy(), ustart.copy())
@@ -701,7 +696,7 @@ class InlineTrans(Transformation):
         call_node,
         formal_args,
         routine_node: Routine,
-        options,
+        use_first_callee_and_no_arg_check: bool = False,
     ):
         '''
         Create a new list of indices for the supplied actual argument
@@ -760,7 +755,7 @@ class InlineTrans(Transformation):
                             call_node,
                             formal_args,
                             routine_node=routine_node,
-                            options=options,
+                            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
                         )
                 elif (local_decln_shape[local_idx_posn] ==
                       ArrayType.Extent.DEFERRED):
@@ -790,7 +785,7 @@ class InlineTrans(Transformation):
                         local_decln_start,
                         actual_start,
                         routine_node=routine_node,
-                        options=options,
+                        use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
                     )
             else:
                 # Otherwise, the local index expression replaces the Range.
@@ -801,7 +796,7 @@ class InlineTrans(Transformation):
                     local_decln_start,
                     actual_start,
                     routine_node=routine_node,
-                    options=options,
+                    use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
                 )
             # Each Range corresponds to one dimension of the formal argument.
             local_idx_posn += 1
@@ -809,12 +804,12 @@ class InlineTrans(Transformation):
 
     def _replace_formal_struc_arg(
         self,
-        actual_arg,
-        ref,
-        call_node,
-        formal_args,
+        actual_arg: Reference,
+        ref: Reference,
+        call_node: Call,
+        formal_args: List[DataSymbol],
         routine_node: Routine,
-        options: Optional[Dict[str, Any]],
+        use_first_callee_and_no_arg_check: bool = False,
     ):
         '''
         Called by _replace_formal_arg() whenever a formal or actual argument
@@ -845,15 +840,10 @@ class InlineTrans(Transformation):
         from the call site to make a new Reference for use in the inlined code.
 
         :param actual_arg: an actual argument to the routine being inlined.
-        :type actual_arg: :py:class:`psyclone.psyir.nodes.Reference`
         :param ref: the corresponding reference to a formal argument.
-        :type ref: :py:class:`psyclone.psyir.nodes.Reference`
         :param call_node: the call site.
-        :type call_node: :py:class:`psyclone.psyir.nodes.Call`
         :param formal_args: the formal arguments of the called routine.
-        :type formal_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         :param routine_node: Routine node to be inlined.
-        :param options: A dictionary with options for transformations.
 
         :returns: the replacement reference.
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
@@ -886,7 +876,7 @@ class InlineTrans(Transformation):
                     call_node,
                     formal_args,
                     routine_node=routine_node,
-                    options=options,
+                    use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
                 )
                 members.append((cursor.name, new_indices))
             else:
@@ -911,7 +901,7 @@ class InlineTrans(Transformation):
                         call_node,
                         formal_args,
                         routine_node,
-                        options=options,
+                        use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
                     )
                 )
             # Replace the last entry in the `members` list with a new array
@@ -936,7 +926,7 @@ class InlineTrans(Transformation):
                             call_node,
                             formal_args,
                             routine_node=routine_node,
-                            options=options,
+                            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
                         )
                     )
                 members.append((cursor.name, new_indices))
@@ -1057,89 +1047,15 @@ class InlineTrans(Transformation):
                         f"with a non-unit stride: "
                         f"'{call_arg.debug_string()}' (TODO #1646)"))
 
-    def get_callee(
-        self, call_node: Call, options
-    ) -> Set[Union[Routine, List[int]]]:
-        '''
-        Searches for the implementation(s) of the target routine for this Call
-        including argument checks.
-
-        :option call_node: Get callee from this call node with matching
-            arguments.
-
-        :returns: A tuple of two elements. The first element is the routine
-            that this call targets. The second one a list of arguments
-            providing the information on matching argument indices.
-
-        :raises CallMatchingArgumentsNotFound: if the routine is not local
-            and not found in any containers in scope at the call site or if
-            the arguments don't match.
-        '''
-
-        option_check_matching_arguments = options.get(
-            "check_matching_arguments", True
-        )
-        option_use_first_callee_and_no_arg_check = options.get(
-            "use_first_callee_and_no_arg_check", False
-        )
-        routine_list = call_node.get_callees(options=options)
-
-        if option_use_first_callee_and_no_arg_check:
-            arg_match_list = range(
-                len(routine_list[0].symbol_table.argument_list)
-            )
-            return (routine_list[0], arg_match_list)
-
-        err_info_list = []
-
-        # Search for the routine matching the right arguments
-        for routine_node in routine_list:
-            routine_node: Routine
-
-            try:
-                arg_match_list = call_node._get_argument_routine_match(
-                    routine=routine_node, options=options
-                )
-            except CallMatchingArgumentsNotFound as err:
-                err_info_list.append(err.value)
-                continue
-
-            return (routine_node, arg_match_list)
-
-        # If we didn't find any routine, return some routine if no matching
-        # arguments have been found.
-        # This is handy for the transition phase until optional argument
-        # matching is supported.
-        if not option_check_matching_arguments:
-            # Also return a list of dummy argument indices
-            routine_node = routine_list[0]
-            arg_match_list = list(range(len(call_node.arguments)))
-            return (routine_node, arg_match_list)
-
-        error_msg = "\n".join(err_info_list)
-
-        s = call_node.debug_string().replace("\n", "")
-        raise CallMatchingArgumentsNotFound(
-            "Found routines, but no routine with matching arguments found "
-            f"for '{s}':\n"
-            + error_msg
-        )
-
     def validate(
                 self,
                 node: Call,
-                routine: Routine = None,
-                options: Dict[str, str] = None,
-            ) -> Tuple[Routine, List]:
+                **kwargs
+            ):
         '''
         Checks that the supplied node is a valid target for inlining.
 
-        :param node: target PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyir.nodes.Call`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["force"]: whether or not to ignore any CodeBlocks
-            in the candidate routine. Default is False.
+        :param node: the target PSyIR Call to inline.
 
         :raises TransformationError: if the supplied node is not a Call, is
             an IntrinsicCall or a call to a PSyclone-generated or ELEMENTAL
@@ -1175,12 +1091,14 @@ class InlineTrans(Transformation):
             Reference.previous_accesses().
 
         '''
-        super().validate(node, options=options)
-
-        options = {} if options is None else options
-        check_unsupported_type = options.get("check_unsupported_type", True)
-        forced = options.get("force", False)
-        check_codeblocks = options.get("check_codeblocks", not forced)
+        self.validate_options(**kwargs)
+        super().validate(node, **kwargs)
+        use_first_callee_and_no_arg_check = self.get_option(
+            "use_first_callee_and_no_arg_check", **kwargs)
+        check_unsupported_type = self.get_option("check_unsupported_type",
+                                                 **kwargs)
+        check_codeblocks = self.get_option("check_codeblocks", **kwargs)
+        routine = self.get_option("routine", **kwargs)
 
         # The node should be a Call.
         if not isinstance(node, Call):
@@ -1201,9 +1119,10 @@ class InlineTrans(Transformation):
                 f"('{node.debug_string().strip()}') is not inside a Routine.")
 
         if routine is None:
+            # No target routine has been supplied so we must identify it.
             try:
-                (routine, arg_match_list) = \
-                    self.get_callee(call_node=node, options=options)
+                (routine, arg_match_list) = node.get_callee(
+                    use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check)
             except (
                 CallMatchingArgumentsNotFound,
                 NotImplementedError,
@@ -1218,9 +1137,7 @@ class InlineTrans(Transformation):
 
         else:
             arg_match_list = node._get_argument_routine_match(
-                routine=routine,
-                options=options
-            )
+                routine=routine)
 
         if not routine.children or isinstance(routine.children[0], Return):
             # An empty routine is fine.

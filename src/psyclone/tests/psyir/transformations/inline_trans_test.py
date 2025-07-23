@@ -245,7 +245,7 @@ def test_apply_gocean_kern(fortran_reader, fortran_writer, monkeypatch):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(
-            psyir.walk(Call)[0], options={"check_matching_arguments": False}
+            psyir.walk(Call)[0], use_first_callee_and_no_arg_check=True
         )
     if ("actual argument 'cu_fld%data' corresponding to an array formal "
             "argument ('cu') is unknown" in str(err.value)):
@@ -305,10 +305,8 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
     for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(
             routine,
-            options={
-                "check_matching_arguments": False,
-                "use_first_callee_and_no_arg_check": True,
-            },
+            #check_matching_arguments": False,
+            use_first_callee_and_no_arg_check=True
         )
 
     output = fortran_writer(psyir)
@@ -386,30 +384,27 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
     # Second one should fail.
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(calls[1])
-    assert ("Found routines, but no routine with matching arguments found"
-            " for 'call sub3(mystery)':" in str(err.value))
+    assert ("No matching routine found for 'call sub3(mystery)':"
+            in str(err.value))
     assert ("Argument type mismatch of call argument"
-            " 'Reference[name:'mystery']' and routine argument 'x:"
+            " 'mystery' (UnresolvedType) and routine argument 'x' (Array"
             in str(err.value))
     # Third one should be fine because it is a scalar argument.
     inline_trans.apply(
         calls[2],
-        options={
-            "check_matching_arguments": False,
-            "use_first_callee_and_no_arg_check": True,
-        },
+        #check_matching_arguments": False,
+        use_first_callee_and_no_arg_check=True,
     )
     # We can't do the fourth one.
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(calls[3])
     assert (
-        "Found routines, but no routine with matching arguments found for"
-        " 'call sub4(mystery)':"
+        "No matching routine found for 'call sub4(mystery)':"
         in str(err.value)
     )
     assert (
-        "Argument type mismatch of call argument"
-        " 'Reference[name:'mystery']' and routine argument 'x:"
+        "Argument type mismatch of call argument 'mystery' (UnresolvedType) "
+        "and routine argument 'x' (Array"
         in str(err.value)
     )
     output = fortran_writer(psyir)
@@ -1883,9 +1878,7 @@ def test_validate_codeblock(fortran_reader):
         inline_trans.validate(call)
     assert ("Routine 'sub' contains one or more CodeBlocks and therefore "
             "cannot be inlined. (If you are confident " in str(err.value))
-    inline_trans.validate(
-        call, options={"force": True, "check_codeblocks": False}
-    )
+    inline_trans.validate(call, check_codeblocks=False)
 
 
 def test_validate_unsupportedtype_argument(fortran_reader):
@@ -1915,12 +1908,11 @@ def test_validate_unsupportedtype_argument(fortran_reader):
         inline_trans.validate(routine)
 
     assert (
-        "Found routines, but no routine with matching arguments found"
-        " for 'call sub(ptr)':" in str(err.value)
+        "No matching routine found for 'call sub(ptr)':" in str(err.value)
     )
     assert (
-        "Argument partial type mismatch of call argument"
-        " 'Reference[name:'ptr']' and routine argument" in str(err.value)
+        "Argument partial type mismatch of call argument 'ptr' "
+        "(UnsupportedFortranType" in str(err.value)
     )
 
 
@@ -2146,8 +2138,8 @@ def test_validate_wrong_number_args(fortran_reader):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert (
-        "Found routines, but no routine with matching arguments found "
-        "for 'call sub(i, trouble)':" in str(err.value)
+        "No matching routine found for 'call sub(i, trouble)':"
+        in str(err.value)
     )
     assert (
         "More arguments in call ('call sub(i, trouble)') than callee "
@@ -2269,12 +2261,9 @@ def test_validate_array_arg_expression(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.validate(
-            call, options={"check_matching_arguments": False}
-        )
-    assert ("The call 'call s(a + b, 10)\n' cannot be inlined because actual "
-            "argument 'a + b' corresponds to a formal argument with array "
-            "type but is not a Reference or a Literal" in str(err.value))
+        inline_trans.validate(call)
+    assert ("Argument type mismatch of call argument 'a + b' (UnresolvedType) "
+            "and routine argument 'x' (Array" in str(err.value))
 
 
 def test_validate_indirect_range(fortran_reader):
@@ -2521,7 +2510,7 @@ def test_apply_optional_and_named_arg_2(fortran_reader):
 
 
 def test_apply_provide_routine(fortran_reader):
-    '''Test that works with specific `routine` provided
+    '''Test that apply() works when a specific Routine is provided
     to be inlined.'''
 
     code = (

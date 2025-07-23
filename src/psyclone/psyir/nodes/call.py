@@ -467,13 +467,11 @@ class Call(Statement, DataNode):
 
         return new_copy
 
-    def get_callees(self, options=Dict[str, str]) -> List[Routine]:
+    def get_callees(self) -> List[Routine]:
         '''
         Searches for the implementation(s) of all potential target routines
         for this Call without resolving static polymorphism by checking the
         argument types.
-
-        :param options: Dictionary with some additional options.
 
         :returns: A list of the routine(s) that this call targets.
 
@@ -638,7 +636,8 @@ class Call(Statement, DataNode):
                 self,
                 call_arg: DataSymbol,
                 routine_arg: DataSymbol,
-                options: Dict[str, str] = {},
+                check_argument_strict_array_datatype: bool = True,
+                check_argument_ignore_unresolved_types: bool = False
             ):
         """Return information whether argument types are matching.
         This also supports 'optional' arguments by using
@@ -657,63 +656,53 @@ class Call(Statement, DataNode):
             was found.
 
         """
-        options = {} if options is None else options
-        option_check_argument_strict_array_datatype = options.get(
-            "check_argument_strict_array_datatype", True
-        )
-        option_check_argument_ignore_unresolved_types = options.get(
-            "check_argument_ignore_unresolved_types", False
-        )
-        if option_check_argument_strict_array_datatype:
+        if check_argument_strict_array_datatype:
             # No strict array checks have to be performed, just accept it
             if isinstance(call_arg.datatype, ArrayType) and isinstance(
                 routine_arg.datatype, ArrayType
             ):
                 return
 
-        if option_check_argument_ignore_unresolved_types:
+        if check_argument_ignore_unresolved_types:
             if isinstance(call_arg.datatype, UnresolvedType):
                 return
 
-        if isinstance(
-            routine_arg.datatype, UnsupportedFortranType
-        ):
+        if isinstance(routine_arg.datatype, UnsupportedFortranType):
             # This could be an 'optional' argument.
             # This has at least a partial data type
-            if (
-                call_arg.datatype
-                != routine_arg.datatype.partial_datatype
-            ):
-                call_arg_str = str(call_arg).replace("\n", "")
-                routine_arg_str = str(routine_arg).replace("\n", "")
+            if call_arg.datatype != routine_arg.datatype.partial_datatype:
+                call_arg_str = call_arg.debug_string().replace("\n", "")
+                routine_arg_str = routine_arg.name
                 raise CallMatchingArgumentsNotFound(
-                    f"Argument partial type mismatch of call "
-                    f"argument '{call_arg_str}' and routine argument "
-                    f"'{routine_arg_str}'"
+                    f"Argument partial type mismatch of call argument "
+                    f"'{call_arg_str}' ({call_arg.datatype}) and routine "
+                    f"argument '{routine_arg_str}' ("
+                    f"{routine_arg.datatype.partial_datatype})"
                 )
         else:
             if call_arg.datatype != routine_arg.datatype:
-                call_arg_str = str(call_arg).replace("\n", "")
-                routine_arg_str = str(routine_arg).replace("\n", "")
+                call_arg_str = call_arg.debug_string().replace("\n", "")
+                routine_arg_str = routine_arg.name
                 raise CallMatchingArgumentsNotFound(
-                    f"Argument type mismatch of call argument "
-                    f"'{call_arg_str}' and routine argument "
-                    f"'{routine_arg_str}'"
+                    f"Argument type mismatch of call argument '{call_arg_str}'"
+                    f" ({call_arg.datatype}) and routine argument "
+                    f"'{routine_arg_str}' ({routine_arg.datatype})"
                 )
 
     def _get_argument_routine_match(
         self,
         routine: Call,
-        options: Dict[str, str] = {},
+        check_matching_arguments: bool = True
     ) -> Union[None, List[int]]:
         '''Return a list of integers giving for each argument of the call
         the index of the corresponding entry in the argument list of the
         supplied routine.
 
-        :param options: a dictionary of options.
+        :param routine: TODO
 
         :return: `None` if no match was found, otherwise list of integers
             referring to matching arguments.
+
         :raises CallMatchingArgumentsNotFound: If there was some problem in
             finding matching arguments.
         '''
@@ -724,7 +713,8 @@ class Call(Statement, DataNode):
             routine.symbol_table.argument_list[:]
         )
 
-        if len(self.arguments) > len(routine.symbol_table.argument_list):
+        if (check_matching_arguments and
+                len(self.arguments) > len(routine.symbol_table.argument_list)):
             call_str = self.debug_string().replace("\n", "")
             raise CallMatchingArgumentsNotFound(
                 f"More arguments in call ('{call_str}')"
@@ -743,9 +733,12 @@ class Call(Statement, DataNode):
                 routine_arg = routine_argument_list[call_arg_idx]
                 routine_arg: DataSymbol
 
-                self._check_argument_type_matches(
-                    call_arg, routine_arg, options=options
-                )
+                if check_matching_arguments:
+                    self._check_argument_type_matches(
+                        call_arg, routine_arg,
+                        #check_argument_strict_array_datatype=check_argument_strict_array_datatype,
+                        #check_argument_ignore_unresolved_types=check_argument_ignore_unresolved_types
+                    )
 
                 ret_arg_idx_list.append(call_arg_idx)
                 routine_argument_list[call_arg_idx] = None
@@ -767,10 +760,12 @@ class Call(Statement, DataNode):
                     continue
 
                 if arg_name.lower() == routine_arg.name.lower():
-                    self._check_argument_type_matches(
-                        call_arg,
-                        routine_arg,
-                        options=options
+                    if check_matching_arguments:
+                        self._check_argument_type_matches(
+                            call_arg,
+                            routine_arg,
+                            #check_argument_strict_array_datatype=check_argument_strict_array_datatype,
+                            #check_argument_ignore_unresolved_types=check_argument_ignore_unresolved_types
                     )
                     ret_arg_idx_list.append(routine_arg_idx)
                     break
@@ -808,15 +803,15 @@ class Call(Statement, DataNode):
         return ret_arg_idx_list
 
     def get_callee(
-        self,
-        options: Dict[str, str] = None,
-    ):
+            self,
+            use_first_callee_and_no_arg_check: bool = False
+    ) -> Tuple[Routine, List[int]]:
         '''
         Searches for the implementation(s) of the target routine for this Call
         including argument checks.
 
-        :param options: a dictionary of options.
-        :param bool options["check_matching_arguments"]:
+        :param use_first_callee_and_no_arg_check: TODO
+        :param check_matching_arguments:
             Also check argument types to match.
             If set to `False` and in case it doesn't find matching arguments,
             the very first implementation of the matching routine will be
@@ -829,18 +824,18 @@ class Call(Statement, DataNode):
         :returns: A tuple of two elements. The first element is the routine
             that this call targets. The second one a list of arguments
             providing the information on matching argument indices.
-        :rtype: Set[psyclone.psyir.nodes.Routine, List[int]]
 
         :raises NotImplementedError: if the routine is not local and not found
             in any containers in scope at the call site.
+
         '''
-
-        options = {} if options is None else options
-        option_check_matching_arguments = options.get(
-            "check_matching_arguments", True
-        )
-
         routine_list = self.get_callees()
+
+        if use_first_callee_and_no_arg_check:
+            arg_match_list = list(i for i in range(
+                len(routine_list[0].symbol_table.argument_list)))
+            return (routine_list[0], arg_match_list)
+
         err_info_list = []
 
         # Search for the routine matching the right arguments
@@ -848,23 +843,13 @@ class Call(Statement, DataNode):
             routine: Routine
 
             try:
-                arg_match_list = self._get_argument_routine_match(
-                    routine, options
-                )
+                arg_match_list = self._get_argument_routine_match(routine)
 
             except CallMatchingArgumentsNotFound as err:
                 err_info_list.append(err.value)
                 continue
 
             return (routine, arg_match_list)
-
-        # If we didn't find any routine, return some routine if no matching
-        # arguments have been found.
-        # This is handy for the transition phase until optional argument
-        # matching is supported.
-        if not option_check_matching_arguments:
-            # Also return a list of dummy argument indices
-            return list(range(len(self.arguments)))
 
         error_msg = "\n".join(err_info_list)
 

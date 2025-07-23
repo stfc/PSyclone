@@ -191,7 +191,7 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     assert len(my_test.walk(Call, Kern)) == 0
 
 
-def test_omptask_inline_kernels(monkeypatch):
+def test_omptask_inline_kernels():
     '''Test the _inline_kernels functionality up to inlining of Call nodes.'''
     _, invoke = get_invoke("single_invoke.f90", "gocean",
                            dist_mem=False, idx=0)
@@ -205,7 +205,8 @@ def test_omptask_inline_kernels(monkeypatch):
 
     assert (
         "CallMatchingArgumentsNotFound: Argument type mismatch of call"
-        " argument 'StructureReference[name:'cu_fld'" in str(err.value)
+        " argument 'cu_fld%data' (UnresolvedType) and routine argument 'cu' "
+        "(Array" in str(err.value)
     )
 
 
