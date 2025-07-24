@@ -976,6 +976,9 @@ NVFORTRAN_UNIFORM = (
     IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.MINVAL,
     IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE
 )
+# MATMUL can fail at link time depending on the precision of
+# its arguments.
+# IntrinsicCall.Intrinsic.MATMUL,
 
 # All nvfortran intrinsics available on GPUs
 NVFORTRAN_ALL = NVFORTRAN_UNIFORM + (

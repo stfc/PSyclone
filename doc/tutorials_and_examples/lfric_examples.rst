@@ -238,8 +238,9 @@ Example 17.3: Kernel Data Extraction
 The example in the subdirectory ``full_example_extract`` shows the
 use of :ref:`kernel extraction <psyke>`. The code can be compiled with
 ``make compile``, and the binary executed with either ``make run`` or
-``./extract.standalone``. By default, it will be using
-a stand-alone extraction library (see :ref:`extraction_libraries`).
+``./extract.binary``. By default, it will be using
+a stand-alone extraction library using a Fortran binary format
+(see :ref:`extraction_libraries`).
 If you want to use the NetCDF version, set the environment variable
 ``TYPE`` to be ``netcdf``:
 
@@ -253,8 +254,11 @@ This requires the installation of a NetCDF development environment
 for installing NetCDF). The binary will be called ``extract.netcdf``,
 and the output files will have the ``.nc`` extension.
 
-Running the compiled binary will create two Fortran binary files or
-two NetCDF files if the NetCDF library was used. They contain
+Similarly, you can use ``TYPE==ascii`` to use an ASCII output format.
+
+Running the compiled binary will create two Fortran binary files (or
+two NetCDF files if the NetCDF library was used, or ASCII files if
+ASCII output was used). They contain
 the input and output parameters for the two invokes in this example:
 
 .. code-block:: bash
