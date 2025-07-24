@@ -40,7 +40,6 @@ import abc
 from typing import Set, Tuple
 
 from psyclone.core import AccessType
-from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.reference import Reference
@@ -85,30 +84,6 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                   SYNCHRONISATION.
         '''
 
-        def symbol_guaranteed_uninitialised(symbol: Symbol) -> bool:
-            ''' Check if we can guarantee that the symbol is uninitialised by
-            checking that it is a local-automatic symbol that has not been used
-            before the directive.
-
-            :param symbol: the symbol to check.
-            :param loop: the loop of interest.
-            '''
-            if not symbol.is_automatic:
-                return False
-            if self.ancestor((Loop, WhileLoop)):
-                # If there is looping, looking at preceding is not enough
-                return False
-            for node in self.preceding():
-                if isinstance(node, CodeBlock):
-                    lname = symbol.name.lower()
-                    names = [n.lower() for n in node.get_symbol_names()]
-                    if lname in names:
-                        return False
-                if isinstance(node, Reference):
-                    if node.symbol is symbol:
-                        return False
-            return True
-
         # TODO #598: Improve the handling of scalar variables, there are
         # remaining issues when we have accesses after the parallel region
         # of variables that we currently declare as private. We could use
@@ -146,10 +121,11 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             if (isinstance(symbol, DataSymbol) and
                     isinstance(self.dir_body[0], Loop) and
                     symbol in self.dir_body[0].explicitly_private_symbols):
-                if symbol_guaranteed_uninitialised(symbol):
-                    private.add(symbol)
-                else:
+                if (not isinstance(accesses[0].node, Reference)
+                        or accesses[0].node.enters_scope(self.dir_body)):
                     fprivate.add(symbol)
+                else:
+                    private.add(symbol)
                 continue
 
             # All arrays not explicitly marked as threadprivate are shared
@@ -227,8 +203,9 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                         limit=loop_ancestor,
                         include_self=True)
                     if conditional_write:
-                        if not symbol_guaranteed_uninitialised(symbol):
-                            # If it is not uninitialised make it firstprivate
+
+                        # If it is not uninitialised make it firstprivate
+                        if accesses[0].node.enters_scope(self.dir_body):
                             fprivate.add(symbol)
                             break
 

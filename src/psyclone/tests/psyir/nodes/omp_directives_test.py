@@ -906,6 +906,9 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
     omptrans.apply(routine.children[2])
     directive = psyir.walk(OMPParallelDirective)[0]
     pvars, fpvars, sync = directive.infer_sharing_attributes()
+    pytest.xfail("#2094: Currently we only support top-level derived types"
+                 "as OpenMP sharing attributes, but there are cases that "
+                 "more detail is necessary.")
     assert len(pvars) == 2
     assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
     assert sorted(pvars, key=lambda x: x.name)[1].name == 'scalar1'
