@@ -43,13 +43,15 @@
 '''
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import (Range, Reference, ArrayReference, Literal,
-                                  IntrinsicCall, Assignment)
-from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+from psyclone.psyir.nodes import (ArrayReference, Assignment, Call,
+                                  IntrinsicCall, Literal, Range, Reference)
+from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType, Symbol
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class Reference2ArrayRangeTrans(Transformation):
     '''Provides a transformation from PSyIR Array Notation (a reference to
     an Array) to a PSyIR Range. For example:
@@ -124,22 +126,28 @@ class Reference2ArrayRangeTrans(Transformation):
         step = Literal("1", INTEGER_TYPE)
         return (lower_bound, upper_bound, step)
 
-    def validate(self, node, options=None):
+    def validate(self, node, **kwargs):
         '''Check that the node is a Reference node and that the symbol it
         references is an array.
 
         :param node: a Reference node.
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
-        :param options: a dict with options for transformations.
-        :type options: Optional[Dict[str, Any]]
+        :param allow_call_arguments: by default, any references that may be
+            arguments to non-elemental routines are not transformed. However,
+            this transformation is sometimes used in other transformations
+            where this restriction does not apply.
 
         :raises TransformationError: if the node is not a Reference
             node or the Reference node not does not reference an array
             symbol.
-        :raises TransformationError: if the Reference node is within an
-            inquiry or DEALLOCATE intrinsic.
+        :raises TransformationError: if the Reference node is (or may be)
+            passed as an argument to a call that is not elemental and
+            `allow_call_arguments` is False.
 
         '''
+        self.validate_options(**kwargs)
+        allow_call_arguments = self.get_option("allow_call_arguments",
+                                               **kwargs)
         # TODO issue #1858. Add support for structures containing arrays.
         # pylint: disable=unidiomatic-typecheck
         if not type(node) is Reference:
@@ -150,17 +158,22 @@ class Reference2ArrayRangeTrans(Transformation):
             raise TransformationError(
                 f"The supplied node should be a Reference to a symbol "
                 f"that is an array, but '{node.symbol.name}' is not.")
-        if isinstance(node.parent, IntrinsicCall) and node.parent.is_inquiry:
-            raise TransformationError(
-                f"References to arrays passed as arguments to intrinsic "
-                f"enquiry routine '{node.parent.routine.name}' should not be "
-                f"transformed.")
-        if (isinstance(node.parent, IntrinsicCall) and
-                node.parent.routine.name in ["DEALLOCATE"]):
+        if not allow_call_arguments and (isinstance(node.parent, Call) and
+                                         not node.parent.is_elemental):
             raise TransformationError(LazyString(
-                lambda: f"References to arrays passed to "
-                f"'{node.parent.routine.name}' intrinsics should not be "
-                f"transformed, but found:\n {node.parent.debug_string()}"))
+                lambda: f"The supplied node is passed as an argument to a "
+                f"Call to a non-elemental routine ("
+                f"{node.parent.debug_string().strip()}) and should not be "
+                f"transformed."))
+        if (isinstance(node.parent, Reference) and (
+                type(node.parent.symbol) is Symbol
+                or not isinstance(node.parent.symbol.datatype, ArrayType))):
+            raise TransformationError(LazyString(
+                lambda: f"References to arrays that *may* be routine arguments"
+                f" should not be transformed but found:\n "
+                f"{node.parent.debug_string()} and {node.parent.symbol.name} "
+                f"is not known to be of ArrayType (and therefore may be a "
+                f"call)."))
         assignment = node.ancestor(Assignment)
         if assignment and assignment.is_pointer:
             raise TransformationError(
@@ -168,7 +181,7 @@ class Reference2ArrayRangeTrans(Transformation):
                 f" inside pointer assignments, but found '{node.name}' in"
                 f" {assignment.debug_string()}")
 
-    def apply(self, node, options=None):
+    def apply(self, node, allow_call_arguments: bool = False, **kwargs):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified
         node. The node must be a Reference to an array. The Reference
         is replaced by an ArrayReference with appropriate explicit
@@ -176,17 +189,19 @@ class Reference2ArrayRangeTrans(Transformation):
 
         :param node: a Reference node.
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
-        :param options: a dict with options for transformations.
-        :type options: Optional[Dict[str, Any]]
+        :param allow_call_arguments: by default, any references that may be
+            arguments to non-elemental routines are not transformed. However,
+            this transformation is sometimes used in other transformations
+            where this restriction does not apply.
 
         '''
-        self.validate(node, options=None)
+        self.validate(node, allow_call_arguments=allow_call_arguments)
 
         symbol = node.symbol
         indices = []
         for idx, _ in enumerate(symbol.shape):
-            lbound, ubound, step = \
-                Reference2ArrayRangeTrans._get_array_bound(symbol, idx)
-            indices.append(Range.create(lbound, ubound, step))
+            lbound, ubound = symbol.get_bounds(idx)
+            indices.append(Range.create(lbound, ubound,
+                                        Literal("1", INTEGER_TYPE)))
         array_ref = ArrayReference.create(symbol, indices)
         node.replace_with(array_ref)

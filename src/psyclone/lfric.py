@@ -433,10 +433,10 @@ class LFRicMeshProperties(LFRicCollection):
 
         :param bool stub: whether or not we are generating code for a \
                           kernel stub.
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessMap`
         :param kern_call_arg_list: an optional KernCallArgList instance \
             used to store PSyIR representation of the arguments.
         :type kern_call_arg_list: \

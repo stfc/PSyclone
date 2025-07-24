@@ -1,6 +1,6 @@
 
-Integration tests Results
-#########################
+Integration Tests: Timing Results
+#################################
 
 
 Comparison against baseline (last 10 entries)

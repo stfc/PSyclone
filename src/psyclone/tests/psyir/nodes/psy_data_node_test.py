@@ -480,7 +480,7 @@ def test_psy_data_node_lower_to_language_level_with_options():
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
-def test_psy_data_node_name_clash(fortran_writer):
+def test_psy_data_node_name_clash():
     '''Test the handling of symbols imported from other modules, or calls to
     external functions that use module variables. In this example the external
     module uses a variable with the same name as the user code, which causes
@@ -493,21 +493,21 @@ def test_psy_data_node_name_clash(fortran_writer):
     # to read extracted data from a file) relative to the infrastructure path:
     psyclone_root = os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.dirname(os.path.dirname(infrastructure_path)))))
-    read_mod_path = os.path.join(psyclone_root, "lib", "extract", "standalone")
+    read_mod_path = os.path.join(psyclone_root, "lib", "extract", "binary")
 
     module_manager = ModuleManager.get()
     module_manager.add_search_path(infrastructure_path)
     module_manager.add_search_path(read_mod_path)
 
-    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
-                           "symbols.f90", api, dist_mem=False, idx=1)
+    psy, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                             "symbols.f90", api, dist_mem=False, idx=1)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
 
-    code = fortran_writer(invoke.schedule)
+    code = psy.gen
 
     assert ('CALL extract_psy_data % PreDeclareVariable("f1_data_post", '
             'f1_data)' in code)

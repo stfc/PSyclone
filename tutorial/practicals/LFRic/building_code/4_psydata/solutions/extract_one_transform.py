@@ -57,6 +57,7 @@ def trans(psyir):
     subroutine = [x for x in psyir.children[0].children if x.name == name][0]
 
     # Enclose everything in a extract region
-    extract.apply(subroutine, {"region_name": ("time_evolution", "propagate")})
+    extract.apply(subroutine, {"region_name": ("time_evolution", "propagate"),
+                               "create_driver": True})
 
     print(subroutine.view())

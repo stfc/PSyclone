@@ -1,3 +1,82 @@
+   59) PR #2137 towards #1312: adds metadata support for read-only ScalarArrays
+   in the LFRic DSL.
+
+   58) PR #3057 for 3056. Demote OpenMP lowering error to warning.
+
+   57) PR #3018 for #3017. Fix ArrayType with defined lower bounds, but no upper
+   bound.
+
+   56) PR #3055. Fixes duplicated async statements in OpenACC.
+
+   55) PR #2941 for #2925. Add support for ASCII extraction and rename standalone
+   extraction to binary extraction.
+
+   54) PR #3053 for #3052. Fix missing psylayer openmp symbols (for LFRic with
+   OpenMP and profiling).
+
+   53) #3065 for #3064 - adds a pytest.ini to ensure that pytest doesn't look
+   in the 'external' directory if run from the project root directory.
+
+   52) PR #3014 towards #2384. Adds flags to keep comments and have directives
+   turned into codeblocks.
+
+   51) PR #3046 for #3045. Replace eval call with getattr in visitor.
+
+   50) PR #3037 for #3036. Remove AccessType location and is_accessed_before method.
+
+   49) PR #3043. Bring back python 3.9 in the integration tests
+
+   48) PR #2977 for #2971. Move the OMPTaskLoopTrans from transformations.py
+   to psyir/transformations.
+
+   47) PR #2997 for #223. Add support for logical operators in the SymPy
+   comparisons.
+
+   46) PR #3033 for #3031 and #3032. Prevent inserting profiling callipers to
+   NEMO functions and any elemental function. Also remove pure attribute when
+   inserting psy_data wrappers.
+
+   45) PR #2948 for #2950. Update extraction transformation to perform
+   extraction and driver creation at lowering
+
+   44) PR #2972 for #2971. Move the ParallelRegionTrans from transformations.py
+   into psyir/transformations.
+
+   43) PR #2732 for #2716. Add support for module-inlining polymorphic kernels
+   and rename get_kernel_schedule to get_callees (to match the Call method).
+ 
+   42) PR #3034 for #2837. Updates the supported versions of Python used in
+   the test suite to 3.10 and 3.13.
+
+   41) PR #3013 for #2856. Makes 'intrinsics available on device'
+   configurable.
+
+   40) PR #2962 for #2935. Errors in use of LBOUND and looping in generated
+   adjoint kernel.
+
+   39) PR #3021. Remove hoisted reference from chunking/tiling
+   transformations.
+
+   38) PR #3009 for #2981. Prevent ProfilingTrans to add callipers in regions
+   with potential control flow jumps.
+
+   37) PR #3029 for #3026. Fixes a bug with RegionTrans.get_node_list if a
+   list containing a single Schedule was provided.
+
+   35) PR #3025 for #2928. Removes commas between clauses on directives.
+
+   34) pr #3016 for #3015. Apply doxygen -u to update doxygen config file.
+
+   33) PR #3019. Adds deprecated classes for old-style Dynamo0p3 transformation
+   names.
+
+   32) PR #3011 for #2968. Add semantic navigation methods to Operations and
+   update indices/arguments/clauses methods to return tuples.
+
+   31) PR #2998 for #2620. Refactor reference_accesses method.
+
+   30) PR #2959. Update spack and enable NEMO multi-gpu.
+
    29) PR #3000 for #2973. Improves handling of pure subroutines in definition
    use chains.
 

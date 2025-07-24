@@ -178,13 +178,13 @@ def test_multi_data(fortran_reader, fortran_writer):
     code = fortran_writer(psyir)
 
     assert ("  do jk = 1, jpkm1, 1\n"
-            "    !$acc data copyin(ptb,wmask), copyout(zdk1t,zdkt)\n"
+            "    !$acc data copyin(ptb,wmask) copyout(zdk1t,zdkt)\n"
             "    do jj = 1, jpj, 1") in code
 
     assert ("    end if\n"
             "    !$acc end data\n"
             "    !$acc data copyin(e2_e1u,e2u,e3t_n,e3u_n,pahu,r1_e1e2t,"
-            "umask,uslp,wmask,zdit,zdk1t,zdkt,zftv), copyout(zftu), "
+            "umask,uslp,wmask,zdit,zdk1t,zdkt,zftv) copyout(zftu) "
             "copy(pta)\n"
             "    do jj = 1, jpjm1, 1") in code
 
@@ -239,7 +239,7 @@ def test_data_ref(fortran_reader, fortran_writer):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
     code = fortran_writer(psyir)
-    assert "!$acc data copyin(a), copyout(prof,prof%npind)" in code
+    assert "!$acc data copyin(a) copyout(prof,prof%npind)" in code
 
 
 def test_data_ref_read(fortran_reader, fortran_writer):
@@ -282,7 +282,7 @@ def test_multi_array_derived_type(fortran_reader, fortran_writer):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
     code = fortran_writer(psyir)
-    assert ("!$acc data copyin(small_holding,small_holding(2)%data), "
+    assert ("!$acc data copyin(small_holding,small_holding(2)%data) "
             "copyout(sto_tmp)" in code)
 
 
@@ -337,7 +337,7 @@ def test_array_section(fortran_reader, fortran_writer):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
     code = fortran_writer(psyir)
-    assert "!$acc data copyin(b,c), copyout(a)" in code
+    assert "!$acc data copyin(b,c) copyout(a)" in code
 
 
 def test_kind_parameter(fortran_reader, fortran_writer):

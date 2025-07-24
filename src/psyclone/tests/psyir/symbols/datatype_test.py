@@ -39,7 +39,7 @@
 ''' Perform py.test tests on the psyclone.psyir.symbols.datatype module. '''
 
 import pytest
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     BinaryOperation, Container, KernelSchedule,
@@ -323,12 +323,10 @@ def test_scalartype_reference_accesses():
     rdef = DataSymbol("rdef", INTEGER_TYPE)
     stype2 = ScalarType(ScalarType.Intrinsic.INTEGER,
                         rdef)
-    var = DataSymbol("var", stype2)
-    vai = VariablesAccessInfo()
-    stype2.reference_accesses(var, vai)
-    svaccess = vai[Signature("rdef")]
+    vam = stype2.reference_accesses()
+    svaccess = vam[Signature("rdef")]
     assert svaccess.has_data_access() is False
-    assert svaccess[0].node is var
+    assert svaccess[0].node is stype2
 
 
 # ArrayType class
@@ -339,9 +337,31 @@ def test_arraytype_extent():
     xtent = ArrayType.Extent.ATTRIBUTE
     ytent = xtent.copy()
     assert isinstance(ytent, ArrayType.Extent)
-    vai = VariablesAccessInfo()
-    ytent.reference_accesses(vai)
-    assert not vai.all_signatures
+    vam = ytent.reference_accesses()
+    assert not vam.all_signatures
+
+
+def test_arraytype_arraybounds():
+    '''
+    Test the ArrayType.ArrayBounds class. This is a dataclass with
+    type checking.
+    '''
+    two = Literal("2", INTEGER_TYPE)
+    bounds = ArrayType.ArrayBounds(lower=two,
+                                   upper=ArrayType.Extent.ATTRIBUTE)
+    assert bounds.lower is two
+    assert bounds.upper == ArrayType.Extent.ATTRIBUTE
+    with pytest.raises(TypeError) as err:
+        _ = ArrayType.ArrayBounds(lower=2,
+                                  upper=ArrayType.Extent.ATTRIBUTE)
+    assert ("The lower bound provided when constructing an ArrayBounds must "
+            "be an instance of DataNode but got 'int'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        _ = ArrayType.ArrayBounds(lower=two,
+                                  upper=ArrayType.Extent.DEFERRED)
+    assert ("The upper bound provided when constructing an ArrayBounds must "
+            "be either ArrayType.Extent.ATTRIBUTE or an instance of "
+            "DataNode but got 'Extent'" in str(err.value))
 
 
 def test_arraytype():
@@ -770,9 +790,8 @@ def test_arraytype_reference_accesses():
                       [Literal("10", ScalarType(ScalarType.Intrinsic.INTEGER,
                                                 idef)),
                        Reference(DataSymbol("ndim", INTEGER_TYPE))])
-    vai = VariablesAccessInfo()
-    etype.reference_accesses(Symbol("test"), vai)
-    all_names = [sig.var_name for sig in vai.all_signatures]
+    vam = etype.reference_accesses()
+    all_names = [sig.var_name for sig in vam.all_signatures]
     assert "rdef" in all_names
     assert "idef" in all_names
     assert "ndim" in all_names
@@ -1000,16 +1019,14 @@ def test_unsupported_fortran_type_reference_accesses():
     nelem = DataSymbol("nelem", INTEGER_TYPE)
     ptype = ArrayType(stype, [Reference(nelem)])
     utype = UnsupportedFortranType(decl, partial_datatype=ptype)
-    vai = VariablesAccessInfo()
-    utype.reference_accesses(Symbol("test"), vai)
-    all_names = [sig.var_name for sig in vai.all_signatures]
+    vam = utype.reference_accesses()
+    all_names = [sig.var_name for sig in vam.all_signatures]
     assert "nelem" in all_names
     assert "some_type" in all_names
     decl2 = "type(some_type), pointer :: var"
     u2type = UnsupportedFortranType(decl2, partial_datatype=stype)
-    vai2 = VariablesAccessInfo()
-    u2type.reference_accesses(Symbol("test"), vai2)
-    assert "some_type" in [sig.var_name for sig in vai.all_signatures]
+    vai2 = u2type.reference_accesses()
+    assert "some_type" in [sig.var_name for sig in vai2.all_signatures]
 
 
 # StructureType tests
@@ -1173,7 +1190,6 @@ def test_structuretype_replace_symbols(table):
 
 def test_structuretype_reference_accesses():
     '''Tests for the reference_accesses() method of StructureType.'''
-    vai = VariablesAccessInfo()
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
     atype = ArrayType(REAL_TYPE, [Reference(Symbol("ndim"))])
     stype = StructureType.create([
@@ -1181,10 +1197,9 @@ def test_structuretype_reference_accesses():
         ("george", atype, Symbol.Visibility.PRIVATE,
          Literal("1.0", REAL_TYPE)),
         ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
-    my_var = DataTypeSymbol("my_var", stype)
-    stype.reference_accesses(my_var, vai)
-    assert Signature("my_type") in vai.all_signatures
-    assert Signature("ndim") in vai.all_signatures
+    vam = stype.reference_accesses()
+    assert Signature("my_type") in vam.all_signatures
+    assert Signature("ndim") in vam.all_signatures
 
 
 def test_structuretype_componenttype_eq():

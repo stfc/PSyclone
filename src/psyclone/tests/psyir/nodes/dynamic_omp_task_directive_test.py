@@ -89,7 +89,7 @@ def test_omp_task_directive_basic_full_array_test(
     strans.apply(parent.children)
     ptrans.apply(parent.children)
     correct = '''\
-!$omp task private(i,j), shared(a,b), depend(in: b(:,:)), depend(out: a(:,:))
+!$omp task private(i,j) shared(a,b) depend(in: b(:,:)) depend(out: a(:,:))
   do i = 1, 10, 1
     do j = 1, 10, 1
       a(i,j) = b(i,j) + 1
@@ -177,7 +177,7 @@ def test_omp_task_directive_firstprivate_clause(
     strans.apply(parent.children[1])
     ptrans.apply(parent.children)
     correct = '''\
-!$omp task private(i,j), firstprivate(k), shared(a,b), depend(in: b(:,:)), \
+!$omp task private(i,j) firstprivate(k) shared(a,b) depend(in: b(:,:)) \
 depend(out: a(:,:))
   do i = 1, 10, 1
     do j = 1, 10, 1
@@ -222,8 +222,8 @@ def test_omp_task_directive_full_step_input_access(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(j), firstprivate(i), shared(a,b), \
-depend(in: k,b(:,i + 1)), depend(out: a(:,i))
+    correct = '''!$omp task private(j) firstprivate(i) shared(a,b) \
+depend(in: k,b(:,i + 1)) depend(out: a(:,i))
     do j = 1, 10, 1
       a(j,i) = k
       a(j,i) = b(j,i + 1) + k
@@ -268,11 +268,11 @@ def test_omp_task_directive_sub_step_input_access(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp parallel default(shared), private(i,j)
+    correct = '''!$omp parallel default(shared) private(i,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j), firstprivate(i), shared(a,b), \
-depend(in: k,b(:,i + 32),b(:,i)), depend(out: a(:,i))
+    !$omp task private(j) firstprivate(i) shared(a,b) \
+depend(in: k,b(:,i + 32),b(:,i)) depend(out: a(:,i))
     do j = 1, 32, 1
       a(j,i) = k
       a(j,i) = b(j,i + 1) + k
@@ -320,8 +320,8 @@ def test_omp_task_directive_sub_step_access_chunked_loop(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-    !$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: b(:,i + 32),b(:,i),k), depend(out: a(:,i))
+    !$omp task private(ii,j) firstprivate(i) shared(a,b) \
+depend(in: b(:,i + 32),b(:,i),k) depend(out: a(:,i))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         a(j,ii) = b(j,ii + 1) + k
@@ -369,12 +369,12 @@ def test_omp_task_directive_sub_step_access_double_chunked_loop(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp parallel default(shared), private(i,ii,j,jj)
+    correct = '''!$omp parallel default(shared) private(i,ii,j,jj)
   !$omp single
   do i = 1, 320, 32
     do j = 1, 320, 32
-      !$omp task private(ii,jj), firstprivate(i,j), shared(a,b), \
-depend(in: b(i + 32,j + 32),b(i + 32,j),b(i,j + 32),b(i,j),k), \
+      !$omp task private(ii,jj) firstprivate(i,j) shared(a,b) \
+depend(in: b(i + 32,j + 32),b(i + 32,j),b(i,j + 32),b(i,j),k) \
 depend(out: a(i,j))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
@@ -428,9 +428,9 @@ def test_omp_task_directive_multi_step_access_chunked_loops(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''
-      !$omp task private(ii,jj), firstprivate(i,j), shared(a,b), \
+      !$omp task private(ii,jj) firstprivate(i,j) shared(a,b) \
 depend(in: b(i + 32,j + 2 * 32),b(i + 32,j + 32),b(i,j + 2 * 32),\
-b(i,j + 32),k), depend(out: a(i,j))
+b(i,j + 32),k) depend(out: a(i,j))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           a(ii,jj) = b(ii + 1,jj + 33) * k
@@ -475,8 +475,8 @@ def test_omp_task_directive_output_sub_step_access_chunked_loop(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: b(:,i),k), depend(out: a(:,i + 32),a(:,i))
+    correct = '''!$omp task private(ii,j) firstprivate(i) shared(a,b) \
+depend(in: b(:,i),k) depend(out: a(:,i + 32),a(:,i))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         a(j,ii + 1) = b(j,ii) + k
@@ -524,8 +524,8 @@ def test_omp_task_directive_output_sub_step_access_double_chunked_loop(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(ii,jj), firstprivate(i,j), shared(a,b), \
-depend(in: b(i,j),k), depend(out: a(i + 32,j + 32),a(i + 32,j),\
+    correct = '''!$omp task private(ii,jj) firstprivate(i,j) shared(a,b) \
+depend(in: b(i,j),k) depend(out: a(i + 32,j + 32),a(i + 32,j),\
 a(i,j + 32),a(i,j))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
@@ -575,8 +575,8 @@ def test_omp_task_directive_output_multi_step_access_double_chunked_loop(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(ii,jj), firstprivate(i,j), shared(a,b), \
-depend(in: b(i,j),k), depend(out: a(i + 32,j + 2 * 32),a(i + 32,j + 32),\
+    correct = '''!$omp task private(ii,jj) firstprivate(i,j) shared(a,b) \
+depend(in: b(i,j),k) depend(out: a(i + 32,j + 2 * 32),a(i + 32,j + 32),\
 a(i,j + 2 * 32),a(i,j + 32),a(i + 32,j + 3 * 32),a(i,j + 3 * 32))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
@@ -626,8 +626,8 @@ def test_omp_task_directive_input_shift_loop_reference_expressions(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(j), firstprivate(l,m,n,i), shared(a,b), \
-depend(in: k,b(:,i + 1)), depend(out: a(:,i))
+    correct = '''!$omp task private(j) firstprivate(l,m,n,i) shared(a,b) \
+depend(in: k,b(:,i + 1)) depend(out: a(:,i))
     do j = l, m, n
       a(j,i) = k
       a(j,i) = b(j,i + 1) + k
@@ -637,7 +637,7 @@ depend(in: k,b(:,i + 1)), depend(out: a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_input_shift_loop_strucutre_reference_expressions(
+def test_omp_task_directive_input_shift_loop_structure_reference_expressions(
         fortran_reader, fortran_writer, tmpdir
         ):
     ''' Test the code generation makes the depend clause when
@@ -678,8 +678,8 @@ def test_omp_task_directive_input_shift_loop_strucutre_reference_expressions(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(j), firstprivate(i), shared(l,m,n,a,b), \
-depend(in: l,m,n,k,b(:,i + 1)), depend(out: a(:,i))
+    correct = '''!$omp task private(j) firstprivate(i) shared(l,m,n,a,b) \
+depend(in: l,m,n,k,b(:,i + 1)) depend(out: a(:,i))
     do j = l%k, m%k, n%k
       a(j,i) = k
       a(j,i) = b(j,i + 1) + k
@@ -724,8 +724,8 @@ def test_omp_task_directive_input_sub_step_access_parameter_ignored(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: b(:,i + 32),b(:,i)), depend(out: a(:,i))
+    correct = '''!$omp task private(ii,j) firstprivate(i) shared(a,b) \
+depend(in: b(:,i + 32),b(:,i)) depend(out: a(:,i))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         a(j,ii) = b(j,ii + 1) + k
@@ -773,8 +773,8 @@ def test_omp_task_directive_if_statement(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(ii,jj), firstprivate(i,j), shared(a,b), \
-depend(in: a(i,j),b(i,j),k), depend(out: a(i + 32,j),a(i,j))
+    correct = '''!$omp task private(ii,jj) firstprivate(i,j) shared(a,b) \
+depend(in: a(i,j),b(i,j),k) depend(out: a(i + 32,j),a(i,j))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           if (a(ii,jj) > 0.0) then
@@ -907,8 +907,8 @@ def test_omp_task_directive_lit_sum_ref_array_index(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(j), firstprivate(i), shared(a,b), \
-depend(in: k,b(:,32 + i),b(:,i),b(:,2 * 32 + i)), depend(out: a(:,i))
+    correct = '''!$omp task private(j) firstprivate(i) shared(a,b) \
+depend(in: k,b(:,32 + i),b(:,i),b(:,2 * 32 + i)) depend(out: a(:,i))
     do j = 1, 32, 1
       a(j,i) = k
       a(j,i) = b(j,1 + i) + k
@@ -1125,12 +1125,12 @@ def test_omp_task_directive_first_access_read_firstprivate(
     parent.addchild(tdir, index=1)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp parallel default(shared), private(i,ii,j,k)
+    correct = '''!$omp parallel default(shared) private(i,ii,j,k)
   !$omp single
   do i = 1, 320, 32
     k = 9
-    !$omp task private(ii,j), firstprivate(i,k), shared(a,b), \
-depend(in: b(k,i + 32),b(k,i)), depend(out: a(:,i))
+    !$omp task private(ii,j) firstprivate(i,k) shared(a,b) \
+depend(in: b(k,i + 32),b(k,i)) depend(out: a(:,i))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         a(j,ii) = b(k,ii + 1) + k
@@ -1178,8 +1178,8 @@ def test_omp_task_directive_shared_nonarray(
     parent.addchild(tdir, index=1)
     strans.apply(loops[0])
     ptrans.apply(tree.children[0].children[:])
-    correct = '''!$omp task private(ii,j), firstprivate(i), shared(k,b), \
-depend(in: k,b(:,i + 32),b(:,i)), depend(out: k)
+    correct = '''!$omp task private(ii,j) firstprivate(i) shared(k,b) \
+depend(in: k,b(:,i + 32),b(:,i)) depend(out: k)
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         k = k + b(j,ii + 1) + 1
@@ -1229,8 +1229,8 @@ def test_omp_task_directive_else_statement(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(ii,jj), firstprivate(i,j), shared(a,b), \
-depend(in: a(i,j),b(i,j),k), depend(out: a(i + 32,j),a(i,j),a(i - 32,j))
+    correct = '''!$omp task private(ii,jj) firstprivate(i,j) shared(a,b) \
+depend(in: a(i,j),b(i,j),k) depend(out: a(i + 32,j),a(i,j),a(i - 32,j))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           if (a(ii,jj) > 0.0) then
@@ -1279,8 +1279,8 @@ def test_omp_task_directive_output_nonarray_shared_var(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(ii,jj), firstprivate(i,j), shared(k), \
-depend(in: k), depend(out: k)
+    correct = '''!$omp task private(ii,jj) firstprivate(i,j) shared(k) \
+depend(in: k) depend(out: k)
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           k = k + ii
@@ -1326,8 +1326,8 @@ def test_omp_task_directive_stepval_not_yet_firstprivate(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(ii,jj), firstprivate(i,kk,j), shared(k), \
-depend(in: k), depend(out: k)
+    correct = '''!$omp task private(ii,jj) firstprivate(i,kk,j) shared(k) \
+depend(in: k) depend(out: k)
       do ii = i, i + 32, kk
         do jj = j, j + 32, 1
           k = k + ii
@@ -1377,8 +1377,8 @@ def test_omp_task_directive_steval_not_yet_firsprivate_structureref(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(ii,jj), firstprivate(i,j), shared(k,ty), \
-depend(in: k,ty), depend(out: k,ty)
+    correct = '''!$omp task private(ii,jj) firstprivate(i,j) shared(k,ty) \
+depend(in: k,ty) depend(out: k,ty)
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           k = k + ty%jp + ii
@@ -1423,8 +1423,8 @@ def test_omp_task_directive_literal_index_to_read_array(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(tree.children[0].children[:])
-    correct = '''!$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: b(:,1)), depend(out: a(:,i))
+    correct = '''!$omp task private(ii,j) firstprivate(i) shared(a,b) \
+depend(in: b(:,1)) depend(out: a(:,i))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         a(j,ii) = b(j,1) + 1
@@ -1468,8 +1468,8 @@ def test_omp_task_directive_literal_index_to_write_array(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(tree.children[0].children[:])
-    correct = '''!$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: b(:,i)), depend(out: a(1,i))
+    correct = '''!$omp task private(ii,j) firstprivate(i) shared(a,b) \
+depend(in: b(:,i)) depend(out: a(1,i))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         a(1,ii) = b(j,ii) + 1
@@ -1707,8 +1707,8 @@ def test_omp_task_directive_literal_add_reference_proxy_var(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: k,b(:,32 + i),b(:,i),b(:,2 * 32 + i)), depend(out: a(:,i))
+    correct = '''!$omp task private(ii,j) firstprivate(i) shared(a,b) \
+depend(in: k,b(:,32 + i),b(:,i),b(:,2 * 32 + i)) depend(out: a(:,i))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         a(j,i) = k
@@ -1758,10 +1758,10 @@ def test_omp_task_directive_private_variable_in_array_index(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp parallel default(shared), private(i,ii,j,k)
+    correct = '''!$omp parallel default(shared) private(i,ii,j,k)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(ii,k,j), firstprivate(i), shared(a), depend(out: a(:,i))
+    !$omp task private(ii,k,j) firstprivate(i) shared(a) depend(out: a(:,i))
     do ii = i, i + 32, 1
       k = 3
       do j = 1, 32, 1
@@ -1808,8 +1808,8 @@ def test_omp_task_directive_parent_loop_array_index(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(ii), firstprivate(i,j), shared(a), \
-depend(in: k), depend(out: a(i,j + 3 * 32),a(i,j + 2 * 32))
+    correct = '''!$omp task private(ii) firstprivate(i,j) shared(a) \
+depend(in: k) depend(out: a(i,j + 3 * 32),a(i,j + 2 * 32))
       do ii = i, i + 32, 1
         a(i,j + 65) = k
       enddo
@@ -1853,11 +1853,11 @@ def test_omp_task_directive_firstprivate_constant(
     strans.apply(tree.children[0].children[1:])
     ptrans.apply(tree.children[0].children[1:])
     correct = '''k = 32
-  !$omp parallel default(shared), private(i,ii), firstprivate(k)
+  !$omp parallel default(shared) private(i,ii) firstprivate(k)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(ii), firstprivate(i,k), shared(a), \
-depend(in: statement), depend(out: a(:,i))
+    !$omp task private(ii) firstprivate(i,k) shared(a) \
+depend(in: statement) depend(out: a(:,i))
     do ii = i, i + 32, 1
       if (statement) then
         k = 30
@@ -1981,11 +1981,11 @@ def test_omp_task_directive_temporary_variable_shift_input(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp parallel default(shared), private(i,iu,j)
+    correct = '''!$omp parallel default(shared) private(i,iu,j)
   !$omp single
   do i = 1, 10, 1
-    !$omp task private(j,iu), firstprivate(i), shared(a,b), \
-depend(in: k,b(:,i + 1)), depend(out: a(:,i))
+    !$omp task private(j,iu) firstprivate(i) shared(a,b) \
+depend(in: k,b(:,i + 1)) depend(out: a(:,i))
     do j = 1, 10, 1
       iu = i + 1
       a(j,i) = k
@@ -2045,15 +2045,15 @@ ty%y%jp(index+1))
     parent.addchild(tdir, index=0)
     strans.apply(tree.children[0].children[:])
     ptrans.apply(tree.children[0].children[:])
-    correct = '''!$omp parallel default(shared), private(i,ii,index,j,jj)
+    correct = '''!$omp parallel default(shared) private(i,ii,index,j,jj)
   !$omp single
   do i = 1, 10, 1
     index = i
   enddo
   index = 1
   do i = 1, 320, 32
-    !$omp task private(j,ii,jj), firstprivate(i,index), shared(k,ty), depend(\
-in: k,ty%y%jp(index),ty%y%jp(index + 1)), depend(out: k,ty%y%jp(index + 1))
+    !$omp task private(j,ii,jj) firstprivate(i,index) shared(k,ty) depend(\
+in: k,ty%y%jp(index),ty%y%jp(index + 1)) depend(out: k,ty%y%jp(index + 1))
     do j = 1, 320, 32
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
@@ -2111,8 +2111,8 @@ def test_omp_task_directive_subtype_loop_index(
     strans.apply(tree.children[0].children[:])
     ptrans.apply(tree.children[0].children[:])
     correct = '''\
-      !$omp task private(ii,jj), firstprivate(i,j), shared(k,ty), depend(in: \
-k,ty%y%jp(j),ty%y%jp(j + 32)), depend(out: k,ty%y%jp(j + 32),ty%y%jp(j))
+      !$omp task private(ii,jj) firstprivate(i,j) shared(k,ty) depend(in: \
+k,ty%y%jp(j),ty%y%jp(j + 32)) depend(out: k,ty%y%jp(j + 32),ty%y%jp(j))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
           k = k + ty%y%jp(j) + ii
@@ -2169,8 +2169,8 @@ def test_omp_task_directive_subtype_literal_index(
     strans.apply(tree.children[0].children[:])
     ptrans.apply(tree.children[0].children[:])
     correct = '''\
-    !$omp task private(j,ii,jj), firstprivate(i), shared(k,ty), depend(in: \
-k,ty%y%jp(i),ty%y%jp(i + 32),ty%y%jp(1)), depend(out: k,ty%y%jp(i + 32),\
+    !$omp task private(j,ii,jj) firstprivate(i) shared(k,ty) depend(in: \
+k,ty%y%jp(i),ty%y%jp(i + 32),ty%y%jp(1)) depend(out: k,ty%y%jp(i + 32),\
 ty%y%jp(i),ty%y%jp(1))
     do j = 1, 320, 32
       do ii = i, i + 32, 1
@@ -2377,8 +2377,8 @@ def test_omp_task_directive_array_member_ref_and_literal_index(
     strans.apply(tree.children[0].children[:])
     ptrans.apply(tree.children[0].children[:])
     correct = '''\
-    !$omp task private(j,ii,jj), firstprivate(i), shared(k,ty), depend(in: \
-k,ty%y%jp(i),ty%y%jp(1)), depend(out: k,ty%y%jp(i),ty%y%jp(1))
+    !$omp task private(j,ii,jj) firstprivate(i) shared(k,ty) depend(in: \
+k,ty%y%jp(i),ty%y%jp(1)) depend(out: k,ty%y%jp(i),ty%y%jp(1))
     do j = 1, 320, 32
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
@@ -2428,7 +2428,7 @@ def test_omp_task_directive_array_member_child_loop_index(
     strans.apply(parent.children)
     ptrans.apply(parent.children)
     correct = '''\
-!$omp task private(i,j), shared(b,aa), depend(in: aa%A(1:320,1:10)), \
+!$omp task private(i,j) shared(b,aa) depend(in: aa%A(1:320,1:10)) \
 depend(out: b(:,:))
   do i = 1, 10, 1
     do j = 1, 10, 1
@@ -2475,11 +2475,11 @@ def test_omp_task_directive_sub_shift_indirection_input(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp parallel default(shared), private(i,iplusone,j)
+    correct = '''!$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j,iplusone), firstprivate(i), shared(a,b), \
-depend(in: k,b(:,i + 32),b(:,i)), depend(out: a(:,i))
+    !$omp task private(j,iplusone) firstprivate(i) shared(a,b) \
+depend(in: k,b(:,i + 32),b(:,i)) depend(out: a(:,i))
     do j = 1, 32, 1
       iplusone = i + 1
       a(j,i) = k
@@ -2533,11 +2533,11 @@ def test_omp_task_directive_sub_shift_indirection_if(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared), private(i,j), firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j), firstprivate(i,iplusone), shared(boundary,a,b), \
-depend(in: boundary(:,i),b(:,i),k), depend(out: a(:,i + 32),a(:,i),a(:,i - 32))
+    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,a,b) \
+depend(in: boundary(:,i),b(:,i),k) depend(out: a(:,i + 32),a(:,i),a(:,i - 32))
     do j = 1, 32, 1
       if (boundary(j,i) > 1) then
         iplusone = i + 1
@@ -2595,11 +2595,11 @@ def test_omp_task_directive_sub_shift_indirection_if_readonly(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared), private(i,j), firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j), firstprivate(i,iplusone), shared(boundary,a,b), \
-depend(in: boundary(:,i),k,b(:,i + 32),b(:,i),b(:,i - 32)), depend(out: a(:,i))
+    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,a,b) \
+depend(in: boundary(:,i),k,b(:,i + 32),b(:,i),b(:,i - 32)) depend(out: a(:,i))
     do j = 1, 32, 1
       if (boundary(j,i) > 1) then
         iplusone = i + 1
@@ -2656,12 +2656,12 @@ def test_omp_task_directive_array_member_if_indirection_readonly(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared), private(i,j), firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j), firstprivate(i,iplusone), shared(boundary,b,aa), \
+    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,b,aa) \
 depend(in: boundary(:,i),aa%A(1:10,i + 32),aa%A(1:10,i - 32),aa%A(1:10,i))\
-, depend(out: b(:,i))
+ depend(out: b(:,i))
     do j = 1, 10, 1
       if (boundary(j,i) > 1) then
         iplusone = i + 32
@@ -2717,11 +2717,11 @@ def test_omp_task_directive_array_member_if_indirection_write(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared), private(i,j), firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j), firstprivate(i,iplusone), shared(boundary,aa,b), \
-depend(in: boundary(:,i),b(:,i)), \
+    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,aa,b) \
+depend(in: boundary(:,i),b(:,i)) \
 depend(out: aa%A(1:10,i + 32),aa%A(1:10,i - 32),aa%A(1:10,i))
     do j = 1, 10, 1
       if (boundary(j,i) > 1) then
@@ -2803,15 +2803,15 @@ sshn_v(i,jiv))
     ptrans.apply(loops[0].parent.parent)
 
     correct = '''\
-  !$omp parallel default(shared), private(i,j,j_el_inner,j_out_var,jiv)
+  !$omp parallel default(shared) private(i,j,j_el_inner,j_out_var,jiv)
   !$omp single
   do j_out_var = ystart, ystop, 32
     j_el_inner = MIN(j_out_var + (32 - 1), ystop)
-    !$omp task private(j,i,jiv), firstprivate(j_out_var,j_el_inner,xstart,\
-xstop), shared(boundary,va,hv,sshn_v), depend(in: boundary(:,j_out_var),\
+    !$omp task private(j,i,jiv) firstprivate(j_out_var,j_el_inner,xstart,\
+xstop) shared(boundary,va,hv,sshn_v) depend(in: boundary(:,j_out_var),\
 boundary(:,j_out_var + 32),g,hv(:,j_out_var),va(:,j_out_var + 32),\
 va(:,j_out_var),sshn_v(:,j_out_var),sshn_v(:,j_out_var + 32),\
-va(:,j_out_var - 32),sshn_v(:,j_out_var - 32)), depend(out: va(:,j_out_var))
+va(:,j_out_var - 32),sshn_v(:,j_out_var - 32)) depend(out: va(:,j_out_var))
     do j = j_out_var, j_el_inner, 1
       do i = xstart, xstop, 1
         if (.NOT.boundary(i,j) + boundary(i,j + 1) <= (-1)) then
@@ -2833,8 +2833,8 @@ sshn_v(i,jiv))
   enddo
   do j_out_var = ystart, ystop, 32
     j_el_inner = MIN(j_out_var + (32 - 1), ystop)
-    !$omp task private(j,i), firstprivate(j_out_var,j_el_inner,xstart,xstop), \
-shared(va,sshn_v), depend(in: sshn_v(:,j_out_var)), depend(out: \
+    !$omp task private(j,i) firstprivate(j_out_var,j_el_inner,xstart,xstop) \
+shared(va,sshn_v) depend(in: sshn_v(:,j_out_var)) depend(out: \
 va(:,j_out_var))
     do j = j_out_var, j_el_inner, 1
       do i = xstart, xstop, 1
@@ -2888,11 +2888,11 @@ def test_omp_task_directive_multi_step_if_indirection(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-!$omp parallel default(shared), private(i,j), firstprivate(iplusone)
+!$omp parallel default(shared) private(i,j) firstprivate(iplusone)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j), firstprivate(i,iplusone), shared(boundary,a,b), \
-depend(in: boundary(:,i),b(:,i),k), depend(out: a(:,i + 32),a(:,i))
+    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,a,b) \
+depend(in: boundary(:,i),b(:,i),k) depend(out: a(:,i + 32),a(:,i))
     do j = 1, 32, 1
       if (boundary(j,i) > 1) then
         iplusone = i + 32
@@ -2947,8 +2947,8 @@ def test_omp_task_directive_binop_index_array_member(
     strans.apply(tree.children[0].children[:])
     ptrans.apply(tree.children[0].children[:])
     correct = '''\
-  !$omp task private(i,j), shared(k,ty), depend(in: k,ty%y%jp(1:321),\
-ty%y%jp(1)), depend(out: k,ty%y%jp(1:321),ty%y%jp(1))
+  !$omp task private(i,j) shared(k,ty) depend(in: k,ty%y%jp(1:321),\
+ty%y%jp(1)) depend(out: k,ty%y%jp(1:321),ty%y%jp(1))
   do i = 1, 320, 32
     do j = 1, 320, 32
       k = k + ty%y%jp(i) + i
@@ -3037,8 +3037,8 @@ def test_omp_task_external_constant(fortran_reader, fortran_writer):
     # For some reason this locks it in, test fails
     # without it.
     psyir.lower_to_language_level()
-    correct = '''!$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: b(i + 32,:),b(i,:)), depend(out: a(i,:))
+    correct = '''!$omp task private(ii,j) firstprivate(i) shared(a,b) \
+depend(in: b(i + 32,:),b(i,:)) depend(out: a(i,:))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         a(ii,j) = b(ii + 1,j) + constant
@@ -3093,11 +3093,11 @@ def test_omp_task_directive_xfail_indirection_test(fortran_reader,
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp parallel default(shared), private(i,iplusone,j)
+    correct = '''!$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j,iplusone), firstprivate(i), shared(boundary,a,b), \
-depend(in: boundary(i,:),k,b(i + 32,:),b(i,:)), depend(out: a(i,:))
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,a,b) \
+depend(in: boundary(i,:),k,b(i + 32,:),b(i,:)) depend(out: a(i,:))
     do j = 1, 32, 1
       iplusone = i + 1
       a(i,j) = k
@@ -3144,8 +3144,8 @@ def test_omp_task_directive_48(fortran_reader, fortran_writer, tmpdir):
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: b(:,i)), depend(out: a(:,i),a(:,3))
+    correct = '''!$omp task private(ii,j) firstprivate(i) shared(a,b) \
+depend(in: b(:,i)) depend(out: a(:,i),a(:,3))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
         a(j,ii) = b(j,ii) + k
@@ -3190,7 +3190,7 @@ def test_omp_task_directive_inquiry_intrinsic(fortran_reader, fortran_writer):
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp task private(ii,j), firstprivate(i), shared(a),\
+    correct = '''!$omp task private(ii,j) firstprivate(i) shared(a)\
  depend(out: a(:,i))
     do ii = i, i + 32, 1'''
     assert correct in fortran_writer(tree)
@@ -3270,7 +3270,7 @@ def test_omp_task_directive_intrinsic_loop_bound(fortran_reader,
     strans.apply(parent.children)
     ptrans.apply(parent.children)
     correct = '''\
-!$omp task private(i,j), shared(a,b), depend(in: b(:,:)), depend(out: a(:,:))
+!$omp task private(i,j) shared(a,b) depend(in: b(:,:)) depend(out: a(:,:))
   do i = LBOUND(a, 2), UBOUND(a, 2), 1
     do j = LBOUND(a, 1), UBOUND(a, 1), 1
       a(i,j) = b(i,j) + 1

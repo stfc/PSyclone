@@ -63,7 +63,7 @@ def test_sympy_reader_constructor():
                                          ("c(i,j)", "c(i,j)"),
                                          ("b(2:3:4)", "b(2:3:4)"),
                                          ("b(2:3:1)", "b(2:3)"),
-                                         ("b", "b(:)"),
+                                         ("b", "b"),
                                          ("b(:)", "b(:)"),
                                          ("b(::)", "b(:)"),
                                          ("b(::1)", "b(:)"),
@@ -73,6 +73,18 @@ def test_sympy_reader_constructor():
                                          ("b(:5:2)", "b(:5:2)"),
                                          ("b(2:5:1)", "b(2:5)"),
                                          ("b(2:5:2)", "b(2:5:2)"),
+                                         ("i .and. j", "i .AND. j"),
+                                         ("i .and. j .and. k",
+                                          "i .AND. j .AND. k"),
+                                         ("i .or. j", "i .OR. j"),
+                                         # Precedence requires the ()
+                                         ("i .and. (i .or. j)",
+                                          "i .AND. (i .OR. j)"),
+                                         # Precedence rules discard the ()
+                                         ("i .or. (i .and. j)",
+                                          "i .OR. i .AND. j"),
+                                         ("i .eqv. j", "i .EQV. j"),
+                                         ("i .neqv. j", "i .NEQV. j"),
                                          ])
 def test_sympy_psyir_from_expression(fortran_reader, fortran_writer,
                                      expressions):
@@ -87,7 +99,7 @@ def test_sympy_psyir_from_expression(fortran_reader, fortran_writer,
     '''
     source = f'''program test_prog
                 use my_mod
-                integer :: i, j
+                integer :: i, j, k
                 integer :: a, b(10), c(10, 10)
                 type(my_mod_type) :: d, e(10)
                 x = {expressions[0]}

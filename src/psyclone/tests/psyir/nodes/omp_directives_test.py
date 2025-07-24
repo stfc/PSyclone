@@ -41,6 +41,7 @@
 
 import os
 import pytest
+import logging
 from psyclone.errors import UnresolvedDependencyError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -65,10 +66,11 @@ from psyclone.psyir.symbols import (
     REAL_TYPE, DataTypeSymbol)
 from psyclone.psyir.transformations import ChunkLoopTrans, OMPTaskTrans
 from psyclone.errors import InternalError, GenerationError
+from psyclone.psyir.transformations.omp_taskloop_trans import OMPTaskloopTrans
 from psyclone.transformations import (
     LFRicOMPLoopTrans, OMPParallelTrans,
     OMPParallelLoopTrans, LFRicOMPParallelLoopTrans, OMPSingleTrans,
-    OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans)
+    OMPMasterTrans, OMPLoopTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "lfric")
@@ -77,7 +79,7 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "gocean1p0")
 
 
-def test_ompparallel_lowering(fortran_reader, monkeypatch):
+def test_ompparallel_lowering(fortran_reader, monkeypatch, caplog):
     ''' Check that lowering an OMP Parallel region leaves it with the
     appropriate begin_string and clauses for the backend to generate
     the right code'''
@@ -140,11 +142,12 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch):
     a_sym = Symbol("a")
     monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({}, {}, {a_sym}))
-    with pytest.raises(GenerationError) as err:
+    with caplog.at_level(logging.WARNING):
         pdir.lower_to_language_level()
-    assert ("Lowering 'OMPParallelDirective' does not support symbols that "
-            "need synchronisation unless they are in a depend clause, but "
-            "found: 'a' which is not in a depend clause." in str(err.value))
+    assert ("Lowering 'OMPParallelDirective' detected a possible race "
+            "condition for symbol 'a'. Make sure this is a false WaW "
+            "dependency or the code includes the necessary synchronisations."
+            "\n" in caplog.text)
 
     # Also a case which contains the symbol in an input dependency clause.
     task_dir = OMPTaskDirective()
@@ -157,14 +160,15 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch):
     task_dir.addchild(in_clause)
     pdir.children[0].addchild(task_dir)
 
-    with pytest.raises(GenerationError) as err:
+    with caplog.at_level(logging.WARNING):
         pdir.lower_to_language_level()
-    assert ("Lowering 'OMPParallelDirective' does not support symbols that "
-            "need synchronisation unless they are in a depend clause, but "
-            "found: 'a' which is not in a depend clause." in str(err.value))
+    assert ("Lowering 'OMPParallelDirective' detected a possible race "
+            "condition for symbol 'a'. Make sure this is a false WaW "
+            "dependency or the code includes the necessary synchronisations."
+            "\n" in caplog.text)
 
 
-def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
+def test_omp_parallel_do_lowering(fortran_reader, monkeypatch, caplog):
     ''' Check that lowering an OMP Parallel Do leaves it with the
     appropriate begin_string and clauses for the backend to generate
     the right code'''
@@ -230,11 +234,12 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
     # Monkeypatch a case with shared variables that need synchronisation
     monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({}, {}, {Symbol("a")}))
-    with pytest.raises(GenerationError) as err:
+    with caplog.at_level(logging.WARNING):
         pdir.lower_to_language_level()
-    assert ("Lowering 'OMPParallelDoDirective' does not support symbols that "
-            "need synchronisation unless they are in a depend clause, but "
-            "found: 'a' which is not in a depend clause." in str(err.value))
+    assert ("Lowering 'OMPParallelDoDirective' detected a possible race "
+            "condition for symbol 'a'. Make sure this is a false WaW "
+            "dependency or the code includes the necessary synchronisations."
+            "\n" in caplog.text)
 
 
 def test_omp_teams_distribute_parallel_do_strings(
@@ -1281,7 +1286,7 @@ def test_omp_taskloop_strings():
 def test_omp_taskloop_clauses():
     ''' Test the clauses property of the OMPTaskloop directive. '''
     omp_taskloop = OMPTaskloopDirective()
-    assert omp_taskloop.clauses == []
+    assert omp_taskloop.clauses == ()
 
 
 def test_omp_taskloop_init():

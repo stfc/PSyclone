@@ -51,14 +51,17 @@ module perturbation_bell_config_mod
   public :: read_perturbation_bell_namelist, postprocess_perturbation_bell_namelist, &
             perturbation_bell_is_loadable, perturbation_bell_is_loaded, perturbation_bell_final
 
-  real(r_def), public, protected :: half_width_x
-  real(r_def), public, protected :: half_width_y
-  real(r_def), public, protected :: perturbation_scale
-  real(r_def), public, protected :: perturbation_height
-  real(r_def), public, protected :: x_centre
-  real(r_def), public, protected :: y_centre
-  real(r_def), public, protected :: u_vel
-  real(r_def), public, protected :: v_vel
+  ! These variables should be protected, but then the driver for the kernel
+  ! extraction exercise cannot initialise them. To simplify the build process
+  ! they are just declared public
+  real(r_def), public :: half_width_x
+  real(r_def), public :: half_width_y
+  real(r_def), public :: perturbation_scale
+  real(r_def), public :: perturbation_height
+  real(r_def), public :: x_centre
+  real(r_def), public :: y_centre
+  real(r_def), public :: u_vel
+  real(r_def), public :: v_vel
 
   logical :: namelist_loaded = .false.
 
