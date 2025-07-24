@@ -391,11 +391,12 @@ def test_kernel_parsing_internalerror(capsys, caplog):
     out, err = capsys.readouterr()
     assert out == ""
     assert "Failed to create PSyIR from kernel file '" in str(err)
+    # Clear previous logging messages (primarily from fparser)
     caplog.clear()
     with caplog.at_level(logging.ERROR, "psyclone.generator"):
         with pytest.raises(SystemExit):
-            main([kern_filename, "-api", "gocean", "--log-level", "ERROR"])
-        # assert caplog.records[0].levelname == "DEBUG"
+            main([kern_filename, "-api", "gocean"])
+        assert caplog.records[0].levelname == "ERROR"
         assert (
             "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
             "'u'] for routine 'compute_code' does not match the variable "
@@ -467,6 +468,27 @@ def test_profile_gocean():
     assert "CALL profile_psy_data" in str(psy)
     # Reset the stored options.
     Profiler._options = []
+
+
+def test_invalid_gocean_alg(monkeypatch, caplog):
+    '''
+    Test that an error creating PSyIR for a GOcean algorithm layer is
+    handled correctly.
+
+    '''
+    # It's easiest to monkeypatch the psyir_from_file() method so that it
+    # raises an error.
+    def _broken(_1, _2):
+        raise ValueError("This is a test")
+
+    monkeypatch.setattr(FortranReader, "psyir_from_file", _broken)
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit):
+            _ = generate(
+                os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
+                api="gocean")
+        assert "Failed to create PSyIR from file '" in caplog.text
+        assert "This is a test" in caplog.text
 
 
 def test_script_attr_error(script_factory):

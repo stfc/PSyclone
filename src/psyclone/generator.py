@@ -305,7 +305,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                       file=sys.stderr)
                 logger.error(
                     "Failed to create PSyIR from file '%s'. Error was:\n%s",
-                    filename, str(err.value))
+                    filename, str(err))
                 sys.exit(1)
 
         # Raise to Algorithm PSyIR
