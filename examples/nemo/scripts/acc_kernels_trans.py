@@ -63,6 +63,7 @@ from utils import (
     enhance_tree_information,
     NOT_PERFORMANT,
     NEMO_MODULES_TO_IMPORT,
+    DEBUGCHECKSUM_IGNORE,
 )
 from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
@@ -117,7 +118,7 @@ CHECKSUM_TRANS = DebugChecksumTrans()
 
 # Whether or not to add profiling calls around unaccelerated regions
 # N.B. this can inhibit PSyclone's ability to inline!
-PROFILE_NONACC = True
+PROFILE_NONACC = False
 
 # Whether or not to add OpenACC enter data and update directives to explicitly
 # move data between host and device memory
@@ -386,7 +387,6 @@ def try_kernels_trans(nodes):
                 break
     if not have_loop:
         return False
-
     try:
         ACC_KERN_TRANS.apply(nodes, {"default_present": False})
 
@@ -449,14 +449,14 @@ def trans(psyir):
             enhance_tree_information(subroutine)
             # inline_calls(subroutine)
             have_kernels = add_kernels(subroutine.children)
-            if have_kernels:
-                # if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
+            if have_kernels and subroutine.name.lower() not in DEBUGCHECKSUM_IGNORE:
+                #if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
                 directives = subroutine.walk(ACCKernelsDirective)
                 for directive in directives:
-                    # ACC_DATA_TRANS.apply([directive])
+                    #ACC_DATA_TRANS.apply([directive])
                     CHECKSUM_TRANS.apply([directive])
                 print(f"Transforming {subroutine.name} with acc checksum")
-                # ACC_EDATA_TRANS.apply(subroutine)
+                #ACC_EDATA_TRANS.apply(subroutine)
         else:
             print(
                 f"Addition of OpenACC to routine {subroutine.name} "
