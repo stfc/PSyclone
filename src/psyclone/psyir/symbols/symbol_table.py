@@ -1865,9 +1865,8 @@ class SymbolTable():
         :raises TypeError: if the provided container_symbols is not an Iterable
             of ContainerSymbols.
         :raises TypeError: if the provided symbol_target is not a Symbol.
-        :raises KeyError: if a container_symbol or symbol_target has been
-            specified but this has not been found in any of the searched
-            directories.
+        :raises KeyError: if a symbol_target has been specified but this has
+            not been found in any of the searched containers.
 
         '''
         if container_symbols is not None:
@@ -1883,11 +1882,9 @@ class SymbolTable():
                         f"resolve_imports() must be an Iterable containing "
                         f"ContainerSymbols, but found a "
                         f"'{type(item).__name__}' instead.")
-            container_specified = True
         else:
             # If no container_symbol is given, search in all the containers
             container_symbols = self.containersymbols
-            container_specified = False
 
         if symbol_target and not isinstance(symbol_target, Symbol):
             raise TypeError(
@@ -1904,9 +1901,6 @@ class SymbolTable():
 
             if not external_container:
                 message = f"Module '{c_symbol.name}' not found"
-                if container_specified:
-                    raise KeyError(message)
-                # Otherwise just log the message and continue
                 logger = logging.getLogger(__name__)
                 logger.info(message)
                 continue

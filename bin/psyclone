@@ -33,7 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 
-''' Entry point for the psyclone command. '''
+''' Top-level driver script for PSyclone. '''
 
 import sys
 from psyclone.generator import main
