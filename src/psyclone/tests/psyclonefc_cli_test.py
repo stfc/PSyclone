@@ -47,6 +47,7 @@ def test_psyclonefc_errors(monkeypatch):
     assert ("psyclonefc error: PSYCLONE_COMPILER environment variable not "
             "found!" in str(err.value))
 
+
 def test_psyclonefc(monkeypatch, capsys):
     ''' Test the cli with different arguments provided. '''
 
