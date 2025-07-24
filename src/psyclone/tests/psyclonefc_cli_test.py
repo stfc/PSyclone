@@ -1,4 +1,3 @@
-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -42,15 +41,53 @@ from psyclone.psyclonefc_cli import compiler_wrapper
 
 
 def test_psyclonefc_errors(monkeypatch):
-    ''' '''
+    ''' Test the cli error exits. '''
     with pytest.raises(SystemExit) as err:
         compiler_wrapper([])
     assert ("psyclonefc error: PSYCLONE_COMPILER environment variable not "
             "found!" in str(err.value))
 
-    # This will work, 'true' always returns a successful errcode 0
+def test_psyclonefc(monkeypatch, capsys):
+    ''' Test the cli with different arguments provided. '''
+
+    # Use the true command as compiler, this will always return a successful
+    # errcode 0 and accepts any flag. Also monkeypatch the psyclone main to
+    # don't do anything. The tests use the companion print statements
     monkeypatch.setattr(os, 'environ', {'PSYCLONE_COMPILER': 'true'})
+    monkeypatch.setattr('psyclone.psyclonefc_cli.main', lambda x: None)
+
+    # If we provide not argument it goes through without failing
     with pytest.raises(SystemExit) as err:
         compiler_wrapper([])
     # This is a successful exit
     assert err.value.code == 0
+
+    # Same for flags not related to a Fortan file
+    with pytest.raises(SystemExit) as err:
+        compiler_wrapper(['--version'])
+    # This is a successful exit
+    assert err.value.code == 0
+
+    # Now provide more typical compilation arguments
+    with pytest.raises(SystemExit) as err:
+        compiler_wrapper(['source.f90', '-c', '-o' 'source.o'])
+    assert err.value.code == 0
+    stdout, _ = capsys.readouterr()
+    # This will execute:
+    assert "psyclone -o source.psycloned.f90 source.f90" in stdout
+    assert "true source.psycloned.f90 -c -o source.o" in stdout
+
+    # Now with PSYCONE_OPTS and multiple files
+    monkeypatch.setattr(os, 'environ', {
+        'PSYCLONE_COMPILER': 'true',
+        'PSYCLONE_OPTS': '-l output',
+    })
+    with pytest.raises(SystemExit) as err:
+        compiler_wrapper(['source1.f90', 'source2.f90', '-c', '-o', 'app.exe'])
+    assert err.value.code == 0
+    stdout, _ = capsys.readouterr()
+    # This will execute:
+    assert "psyclone -l output -o source1.psycloned.f90 source1.f90" in stdout
+    assert "psyclone -l output -o source2.psycloned.f90 source2.f90" in stdout
+    assert ("true source1.psycloned.f90 source2.psycloned.f90 -c -o app.exe"
+            in stdout)

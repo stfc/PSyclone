@@ -99,13 +99,13 @@ def compiler_wrapper(arguments):
     # Capture the dirctory where the .mod files are written because this is
     # also where we want to place the output psyclone file (so following
     # -I search_path finds them).
-    output_dir = Path.cwd()
-    for idx, argument in enumerate(arguments):
-        if argument.endswith("-J"):
-            mod_path = argument[2:]
-            if not mod_path:
-                mod_path = arguments[idx + 1]
-            output_dir = Path(output_dir, mod_path)
+    # output_dir = Path.cwd()
+    # for idx, argument in enumerate(arguments):
+    #     if argument.endswith("-J"):
+    #         mod_path = argument[2:]
+    #         if not mod_path:
+    #             mod_path = arguments[idx + 1]
+    #         output_dir = Path(output_dir, mod_path)
     # TODO #3012: output_dir is currently ignored, this is not a problem for
     # NEMO because it all goes to the same directory (BLD/tmp), the following
     # psyclone commands will find the modules due to the implied "-I ."
