@@ -313,7 +313,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.psyir.transformations.LoopTiling2DTrans
+.. autoclass:: psyclone.psyir.transformations.LoopTilingTrans
     :members: apply
     :no-index:
 
