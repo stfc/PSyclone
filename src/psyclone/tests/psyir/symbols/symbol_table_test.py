@@ -41,6 +41,7 @@
 
 import re
 import os
+import logging
 from collections import OrderedDict
 import pytest
 
@@ -2842,7 +2843,7 @@ def test_import_symbol_from_specific(fortran_reader):
 # resolve_imports
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
+def test_resolve_imports(fortran_reader, tmpdir, monkeypatch, caplog):
     ''' Tests that the SymbolTable resolve_imports method works as expected
     when importing symbol information from external containers and respects
     the method optional keywords. '''
@@ -2990,8 +2991,10 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     assert not isinstance(b_1, symbols.DataSymbol)
 
     # Now resolve all found containers (this will not fail for the
-    # unavailable c_mod)
-    subroutine.symbol_table.resolve_imports()
+    # unavailable c_mod, but it will be loged)
+    with caplog.at_level(logging.WARNING):
+        subroutine.symbol_table.resolve_imports()
+    assert "Module 'c_mod' not found" in caplog.text
 
     # b_1 have all relevant info now
     assert isinstance(b_1, symbols.DataSymbol)
@@ -3018,9 +3021,10 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     assert a_2.visibility == symbols.Symbol.Visibility.PRIVATE
 
 
-def test_resolve_imports_missing_container(monkeypatch):
+def test_resolve_imports_missing_container(monkeypatch, caplog):
     '''
-    Test that a clean failure to get Container PSyIR does not cause problems.
+    Test that a clean failure to get Container PSyIR does not raise an error,
+    but it is logged.
     '''
     table = symbols.SymbolTable()
     csym = symbols.ContainerSymbol("a_mod")
@@ -3028,8 +3032,10 @@ def test_resolve_imports_missing_container(monkeypatch):
     # so that it returns None.
     monkeypatch.setattr(csym, "find_container_psyir", lambda local_node: None)
     table.add(csym)
-    # Resolving imports should run without problems.
-    table.resolve_imports()
+    # Resolving imports should run without problems, but log a Warning.
+    with caplog.at_level(logging.WARNING):
+        table.resolve_imports()
+    assert "Module 'a_mod' not found" in caplog.text
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")

@@ -40,7 +40,7 @@ import subprocess
 from pathlib import Path
 from psyclone.generator import main
 
-FORTRAN_EXTENSIONS = ('.f90', '.f')
+FORTRAN_EXTENSIONS = ('.f90', '.f', '.F90', '.F')
 
 
 def compiler_wrapper(arguments):

@@ -1902,7 +1902,7 @@ class SymbolTable():
             if not external_container:
                 message = f"Module '{c_symbol.name}' not found"
                 logger = logging.getLogger(__name__)
-                logger.info(message)
+                logger.warning(message)
                 continue
 
             imported_symbols = self._import_symbols_from(
