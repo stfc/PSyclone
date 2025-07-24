@@ -226,7 +226,7 @@ jobs:
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack_profile.fcm arch/arch-linux_spack_profile.fcm
         export ENABLE_PROFILING=1
         # We compile with "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
-        export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export FCFLAGS="-i4 -Mr8 -O2 -Mcray=pointer -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
         export REPRODUCIBLE=1
         # Clean up and compile
         rm -rf tests/${TEST_DIR}
@@ -245,7 +245,7 @@ jobs:
         cd $NEMO_DIR
         unset REPRODUCIBLE
         unset ENABLE_PROFILING
-        export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
+        export FCFLAGS="-i4 -Mr8 -O3 -Mcray=pointer -mp=gpu -gpu=mem:managed"
         rm -rf tests/${TEST_DIR}
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
           -j 4 -v 1
@@ -279,7 +279,7 @@ jobs:
         # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export FCFLAGS="-i4 -Mr8 -O2 -Mcray=pointer -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
         export REPRODUCIBLE=1
 
         # Clean up and compile
@@ -320,7 +320,7 @@ jobs:
         # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export FCFLAGS="-i4 -Mr8 -O2 -Mcray=pointer -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
         export REPRODUCIBLE=1
 
         # Clean up and compile

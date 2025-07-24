@@ -40,18 +40,33 @@
 '''
 import pytest
 
-from psyclone.psyir.nodes import DataNode, Reference, BinaryOperation
-from psyclone.psyir.symbols import (CHARACTER_TYPE, DataSymbol, UnresolvedType,
-                                    INTEGER_SINGLE_TYPE, REAL_TYPE)
+from psyclone.psyir.nodes import (
+    DataNode, Reference, BinaryOperation, Loop, Call)
+from psyclone.psyir.symbols import (
+    CHARACTER_TYPE, DataSymbol, UnresolvedType, INTEGER_SINGLE_TYPE, REAL_TYPE,
+    RoutineSymbol, INTEGER_TYPE)
 
 
 def test_datanode_datatype():
     '''
-    Test that the base implementation of datatype just returns UnresolvedType.
+    Test that the base implementation of datatype returns UnresolvedType,
+    unless it is in a place where we can infer the type from its context.
 
     '''
     dnode = DataNode()
     assert isinstance(dnode.datatype, UnresolvedType)
+
+    loop = Loop.create(
+                    DataSymbol("a", INTEGER_SINGLE_TYPE),
+                    Call.create(RoutineSymbol("get_start")),
+                    Call.create(RoutineSymbol("get_stop")),
+                    Call.create(RoutineSymbol("get_step")),
+                    []
+    )
+
+    assert loop.start_expr.datatype == INTEGER_TYPE
+    assert loop.stop_expr.datatype == INTEGER_TYPE
+    assert loop.step_expr.datatype == INTEGER_TYPE
 
 
 def test_datanode_is_character():
