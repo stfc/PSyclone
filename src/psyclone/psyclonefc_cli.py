@@ -87,14 +87,10 @@ def compiler_wrapper(arguments):
         sys.exit(
             'psyclonefc error: PSYCLONE_COMPILER environment variable not '
             'found!')
-    new_compiler_command = [fortran_compiler]
-
-    # Allow PSYCLONE_OPTS to be an empty string, and remove any other empty
-    # strings cause by multi-spaces gaps.
-    try:
+    # Remove empty strings from the list (caused by the default empty envvar or
+    # multi-spaces gaps)
+    if "" in psyclone_options:
         psyclone_options.remove("")
-    except ValueError:
-        pass
 
     # Capture the dirctory where the .mod files are written because this is
     # also where we want to place the output psyclone file (so following
@@ -110,7 +106,12 @@ def compiler_wrapper(arguments):
     # NEMO because it all goes to the same directory (BLD/tmp), the following
     # psyclone commands will find the modules due to the implied "-I ."
 
+    # The new compiler command will start with the selected compiler
+    new_compiler_command = [fortran_compiler]
+
+    # And it will be followed by each of the original arguments ...
     for argument in arguments:
+        # ... but for each fortran file:
         if argument.endswith(FORTRAN_EXTENSIONS):
             # 1) Run the preprocessor
             # TODO #3012: preprocessing is currently ignored, this is not a
@@ -131,7 +132,7 @@ def compiler_wrapper(arguments):
         else:
             new_compiler_command.append(argument)
 
-    # Run the compiler and propagate error code
+    # Run the new compiler command and propagate error code
     print(' '.join(new_compiler_command))
     result = subprocess.run(new_compiler_command, check=False)
     sys.exit(result.returncode)
