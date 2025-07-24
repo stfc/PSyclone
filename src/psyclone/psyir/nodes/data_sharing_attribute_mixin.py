@@ -85,8 +85,8 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         '''
 
         # TODO #598: Improve the handling of scalar variables, there are
-        # remaining issues when we have accesses of variables after the
-        # parallel region that we currently declare as private. We could use
+        # remaining issues when we have accesses after the parallel region
+        # of variables that we currently declare as private. We could use
         # the DefinitionUseChain to prove that there are no more uses after
         # the loop.
         # e.g:
@@ -121,9 +121,8 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             if (isinstance(symbol, DataSymbol) and
                     isinstance(self.dir_body[0], Loop) and
                     symbol in self.dir_body[0].explicitly_private_symbols):
-                if any(ref.symbol is symbol for ref in self.preceding()
-                       if isinstance(ref, Reference)):
-                    # If it's used before the loop, make it firstprivate
+                if (not isinstance(accesses[0].node, Reference)
+                        or accesses[0].node.enters_scope(self.dir_body)):
                     fprivate.add(symbol)
                 else:
                     private.add(symbol)
@@ -150,7 +149,6 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             # in every iteration of a loop.
             # If one such scalar is potentially read before it is written, it
             # will be considered firstprivate.
-
             has_been_read = False
             last_read_position = 0
             for access in accesses:
@@ -159,6 +157,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                     last_read_position = access.node.abs_position
 
                 if access.access_type == AccessType.WRITE:
+
                     # Check if the write access is outside a loop. In this case
                     # it will be marked as shared. This is done because it is
                     # likely to be re-used later. e.g:
@@ -204,8 +203,11 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                         limit=loop_ancestor,
                         include_self=True)
                     if conditional_write:
-                        fprivate.add(symbol)
-                        break
+
+                        # If it is not uninitialised make it firstprivate
+                        if accesses[0].node.enters_scope(self.dir_body):
+                            fprivate.add(symbol)
+                            break
 
                     # Already found the first write and decided if it is
                     # shared, private or firstprivate. We can stop looking.
