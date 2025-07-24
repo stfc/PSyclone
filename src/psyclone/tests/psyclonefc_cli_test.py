@@ -71,7 +71,7 @@ def test_psyclonefc(monkeypatch, capsys):
 
     # Now provide more typical compilation arguments
     with pytest.raises(SystemExit) as err:
-        compiler_wrapper(['source.f90', '-c', '-o' 'source.o'])
+        compiler_wrapper(['source.f90', '-c', '-o', 'source.o'])
     assert err.value.code == 0
     stdout, _ = capsys.readouterr()
     # This will execute:
