@@ -519,13 +519,13 @@ def test_module_info_generic_interfaces():
     # be reported once (even though it is used in both functions), and
     # each variable specific to the two functions:
     expected = set([("reference", "g_mod", Signature("module_var_1"),
-                     'module_var_1:READ(0)'),
+                     'module_var_1:[READ]'),
                     ("reference", "g_mod", Signature("module_var_2"),
-                     'module_var_2:READ(0)'),
+                     'module_var_2:[READ]'),
                     ("reference", "g_mod", Signature("module_var"),
-                     'module_var:READ(0)'),
+                     'module_var:[READ]'),
                     ("reference", "g_mod", Signature("module_var"),
-                     'module_var:WRITE(0)')])
+                     'module_var:[WRITE]')])
     # Convert the access info to a string for easy comparison:
     assert (set((i[0], i[1], i[2], str(i[3])) for i in all_non_locals) ==
             expected)
@@ -575,7 +575,7 @@ def test_call_tree_utils_inout_parameters_generic(fortran_reader):
     read_write_info = ReadWriteInfo()
     ctu.get_input_parameters(read_write_info, loops,
                              include_non_data_accesses=True)
-    input_set = set(sig for _, sig in read_write_info.set_of_all_used_vars)
+    input_set = set(sig for _, sig in read_write_info.all_used_vars_list)
     assert input_set == set([Signature("b"), Signature("c"),
                              Signature("jpj"), Signature("dummy")])
 

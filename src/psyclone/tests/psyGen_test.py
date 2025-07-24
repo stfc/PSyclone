@@ -591,16 +591,17 @@ def test_invokeschedule_lowering_with_preexisting_globals():
 
 # Kern class test
 
-def test_kern_get_kernel_schedule():
-    ''' Tests the get_kernel_schedule method in the Kern class.
+def test_kern_get_callees():
+    ''' Tests the get_callees method in the Kern class.
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="lfric")
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
-    kern_schedule = kern.get_kernel_schedule()
-    assert isinstance(kern_schedule, KernelSchedule)
+    kern_schedules = kern.get_callees()
+    assert len(kern_schedules) == 1
+    assert isinstance(kern_schedules[0], KernelSchedule)
 
 
 def test_codedkern_node_str():
@@ -832,6 +833,25 @@ def test_kern_children_validation():
         kern.addchild(Literal("2", INTEGER_TYPE))
     assert ("Item 'Literal' can't be child 0 of 'CodedKern'. CodedKern "
             "is a LeafNode and doesn't accept children.") in str(excinfo.value)
+
+
+def test_codedkern_get_callees(monkeypatch):
+    '''
+    Check that CodedKern.get_callees() raises a NotImplementedError
+    (as it must be implemented by sub-classes). Also check that
+    get_interface_symbol() returns None.
+
+    '''
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
+    metadata = LFRicKernMetadata(ast)
+    kern = LFRicKern()
+    kern.load_meta(metadata)
+    monkeypatch.setattr(kern, "__class__", CodedKern)
+    with pytest.raises(NotImplementedError) as err:
+        kern.get_callees()
+    assert ("get_callees() must be overridden in class "
+            in str(err.value))
+    assert kern.get_interface_symbol() is None
 
 
 def test_inlinedkern_children_validation():

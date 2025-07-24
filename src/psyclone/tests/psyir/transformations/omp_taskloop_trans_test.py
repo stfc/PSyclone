@@ -46,9 +46,8 @@ from psyclone.psyir.nodes import Loop, Node, OMPTaskwaitDirective, \
     OMPDoDirective, OMPSingleDirective
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, MoveTrans
-from psyclone.psyir.transformations import OMPTaskwaitTrans
-
+    OMPSingleTrans, OMPMasterTrans, MoveTrans
+from psyclone.psyir.transformations import OMPTaskwaitTrans, OMPTaskloopTrans
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
                                 "gocean1p0")
@@ -138,7 +137,7 @@ def test_omptaskloop_apply(monkeypatch):
 
     clauses = " nogroup"
     assert (
-        "  !$omp parallel default(shared), private(i,j)\n" +
+        "  !$omp parallel default(shared) private(i,j)\n" +
         "    !$omp master\n" +
         f"    !$omp taskloop{clauses}\n" +
         "    do" in code)

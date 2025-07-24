@@ -43,7 +43,7 @@ import copy
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -109,7 +109,7 @@ class DataType(metaclass=abc.ABCMeta):
         return VariablesAccessMap()
 
     @property
-    def is_allocatable(self) -> Union[bool, None]:
+    def is_allocatable(self) -> Optional[bool]:
         '''
         :returns: whether this DataType is allocatable. In the base class
             set this to be always False.'''
@@ -124,7 +124,7 @@ class UnresolvedType(DataType):
         return "UnresolvedType"
 
     @property
-    def is_allocatable(self) -> Union[bool, None]:
+    def is_allocatable(self) -> Optional[bool]:
         '''
         :returns: whether this DataType is allocatable. In case of an
             UnresolvedType we don't know.'''
@@ -354,7 +354,7 @@ class UnsupportedFortranType(UnsupportedType):
         return access_info
 
     @property
-    def is_allocatable(self) -> Union[bool, None]:
+    def is_allocatable(self) -> Optional[bool]:
         '''If we have enough information in the partial_datatype,
         determines whether this data type is allocatable or not.
         If it is unknown, it will return None. Note that atm PSyclone
@@ -1126,7 +1126,6 @@ class StructureType(DataType):
         :type initial_value: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         name: str
-        # Use Union for compatibility with Python < 3.10
         datatype: Union[DataType, DataTypeSymbol]
         visibility: Symbol.Visibility
         initial_value: Any

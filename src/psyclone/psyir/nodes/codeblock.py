@@ -38,10 +38,11 @@
 
 ''' This module contains the CodeBlock node implementation.'''
 
+import re
 from enum import Enum
 from typing import List
 
-from fparser.two import Fortran2003
+from fparser.two import Fortran2003, pattern_tools
 from fparser.two.utils import walk
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.psyir.nodes.statement import Statement
@@ -207,6 +208,23 @@ class CodeBlock(Statement, DataNode):
             for part in node.items:
                 if part.items[1]:
                     result.append(part.items[1])
+        # For directives, we need to analyse all alphanumeric* parts of the
+        # comment string and return any names that match a symbol in the
+        # symbol table.
+        for node in walk(parse_tree, Fortran2003.Comment):
+            string_rep = node.tostr()
+            # Directives start with a $
+            if string_rep.lstrip()[0:2] != "!$":
+                continue
+            string_rep = string_rep[2:]
+            pattern = pattern_tools.name.get_compiled()
+            matches = re.findall(pattern, string_rep)
+            scope = self.scope
+            for match in matches:
+                sym = scope.symbol_table.lookup(match, otherwise=None)
+                if sym:
+                    result.append(sym.name)
+
         return result
 
     def reference_accesses(self) -> VariablesAccessMap:
@@ -238,3 +256,26 @@ class CodeBlock(Statement, DataNode):
 
     def __str__(self):
         return f"CodeBlock[{len(self._fp2_nodes)} nodes]"
+
+    def has_potential_control_flow_jump(self) -> bool:
+        '''
+        :returns: whether this CodeBlock contains a potential control flow
+                  jump, e.g. GOTO, EXIT or a labeled statement.
+        '''
+        # Loop over the fp2_nodes and check if any are GOTO, EXIT or
+        # labelled statements
+        for node in self._fp2_nodes:
+            for child in walk(node, (Fortran2003.Goto_Stmt,
+                                     Fortran2003.Exit_Stmt,
+                                     Fortran2003.Cycle_Stmt,
+                                     Fortran2003.StmtBase)):
+                if isinstance(child,
+                              (Fortran2003.Goto_Stmt,
+                               Fortran2003.Exit_Stmt,
+                               Fortran2003.Cycle_Stmt)):
+                    return True
+                # Also can't support Labelled statements.
+                if isinstance(child, Fortran2003.StmtBase):
+                    if child.item and child.item.label:
+                        return True
+        return False

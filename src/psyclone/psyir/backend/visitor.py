@@ -253,8 +253,7 @@ class PSyIRVisitor():
         # the class hierarchy (starting from the current class name).
         for method_name in possible_method_names:
             try:
-                # pylint: disable=eval-used
-                node_result = eval(f"self.{method_name}(node)")
+                node_result = getattr(self, method_name)(node)
 
                 # We can only proceed to add comments if the Visitor
                 # returned a string, otherwise we just return
