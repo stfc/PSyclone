@@ -41,25 +41,27 @@
 
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
+from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
-from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.psyGen import InvokeSchedule, CodedKern, args_filter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import (Loop, Literal, Reference,
-                                  KernelSchedule)
-from psyclone.psyir.symbols import (DataSymbol, ScalarType, ArrayType,
-                                    INTEGER_TYPE)
+from psyclone.psyir.nodes import (
+    Loop, Literal, Reference, KernelSchedule, Container, Routine)
+from psyclone.psyir.symbols import (
+    DataSymbol, GenericInterfaceSymbol, ScalarType, ArrayType, DataTypeSymbol,
+    UnresolvedType, ContainerSymbol, INTEGER_TYPE, UnresolvedInterface,
+    UnsupportedFortranType)
 
 
 class LFRicKern(CodedKern):
@@ -91,12 +93,8 @@ class LFRicKern(CodedKern):
         # The super-init is called from the _setup() method which in turn
         # is called from load().
         # pylint: disable=super-init-not-called
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        if False:  # pylint: disable=using-constant-test
-            from psyclone.dynamo0p3 import DynKernelArguments
-            self._arguments = DynKernelArguments(None, None)  # for pyreverse
         self._parent = None
+        self._stub_symbol_table = LFRicSymbolTable()
         self._base_name = ""
         self._func_descriptors = None
         self._fs_descriptors = None
@@ -115,7 +113,7 @@ class LFRicKern(CodedKern):
         # because we must preserve the ordering specified in the metadata.
         self._qr_rules = OrderedDict()
         self._cma_operation = None
-        # Reference to the DynInterGrid object holding any inter-grid aspects
+        # Reference to the LFRicInterGrid object holding any inter-grid aspects
         # of this kernel or None if it is not an intergrid kernel
         self._intergrid_ref = None  # Reference to this kernel inter-grid
         # The reference-element properties required by this kernel
@@ -132,25 +130,28 @@ class LFRicKern(CodedKern):
         self._argument_kinds = {api_config.default_kind["real"],
                                 api_config.default_kind["integer"]}
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. All accesses are marked
-        according to the kernel metadata
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         '''
+        var_accesses = VariablesAccessMap()
         # Use the KernelCallArgList class, which can also provide variable
         # access information:
         create_arg_list = KernCallArgList(self)
+        # KernCallArgList creates symbols (sometimes with wrong type), we don't
+        # want those to be kept in the SymbolTable, so we copy the symbol table
+        # TODO #2874: The design could be improved so that only the right
+        # symbols are created
+        tmp_symtab = self.ancestor(InvokeSchedule).symbol_table.deep_copy()
+        create_arg_list._forced_symtab = tmp_symtab
         create_arg_list.generate(var_accesses)
 
-        super().reference_accesses(var_accesses)
-        # Set the current location index to the next location, since after
-        # this kernel a new statement starts.
-        var_accesses.next_location()
+        var_accesses.update(super().reference_accesses())
+        return var_accesses
 
     def load(self, call, parent=None):
         '''
@@ -276,8 +277,8 @@ class LFRicKern(CodedKern):
         '''
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynKernelArguments, FSDescriptors
-        super().__init__(DynKernelArguments,
+        from psyclone.lfric import LFRicKernelArguments, FSDescriptors
+        super().__init__(LFRicKernelArguments,
                          KernelCall(module_name, ktype, args),
                          parent, check)
 
@@ -297,7 +298,7 @@ class LFRicKern(CodedKern):
         self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
 
         # If the kernel metadata specifies that this is an inter-grid kernel
-        # create the associated DynInterGrid
+        # create the associated LFRicInterGrid
         if ktype.is_intergrid:
             if not self.ancestor(InvokeSchedule):
                 raise NotImplementedError(
@@ -308,8 +309,8 @@ class LFRicKern(CodedKern):
             coarse_args = args_filter(self.arguments.args,
                                       arg_meshes=["gh_coarse"])
 
-            from psyclone.dynamo0p3 import DynInterGrid
-            intergrid = DynInterGrid(fine_args[0], coarse_args[0])
+            from psyclone.lfric import LFRicInterGrid
+            intergrid = LFRicInterGrid(fine_args[0], coarse_args[0])
             self._intergrid_ref = intergrid
 
         const = LFRicConstants()
@@ -326,10 +327,10 @@ class LFRicKern(CodedKern):
         # variable name or a literal value.
         freader = FortranReader()
         invoke_schedule = self.ancestor(InvokeSchedule)
-        table = invoke_schedule.symbol_table if invoke_schedule else None
+        symtab = invoke_schedule.symbol_table if invoke_schedule else None
         if "halo" in ktype.iterates_over:
             self._halo_depth = freader.psyir_from_expression(
-                args[-1].text.lower(), symbol_table=table)
+                args[-1].text.lower(), symbol_table=symtab)
             if isinstance(self._halo_depth, Reference):
                 # If we got a Reference, check whether we need to specialise
                 # the associated Symbol.
@@ -346,25 +347,15 @@ class LFRicKern(CodedKern):
 
         # The quadrature-related arguments to a kernel always come last so
         # construct an enumerator with start value -<no. of qr rules>
+        if self.ancestor(Routine):
+            symtab = self.ancestor(Routine).symbol_table
+        else:
+            symtab = self._stub_symbol_table
+
         start_value = -len(qr_shapes)
         if self._halo_depth:
             start_value -= 1
         for idx, shape in enumerate(qr_shapes, start_value):
-
-            qr_arg = args[idx]
-
-            # Use the InvokeSchedule symbol_table to create a unique symbol
-            # name for the whole Invoke.
-            if qr_arg.varname:
-                tag = "AlgArgs_" + qr_arg.text
-                qr_name = table.find_or_create_integer_symbol(qr_arg.varname,
-                                                              tag=tag).name
-            else:
-                # If we don't have a name then we must be doing kernel-stub
-                # generation so create a suitable name.
-                # TODO #719 we don't yet have a symbol table to prevent
-                # clashes.
-                qr_name = "qr_"+shape.split("_")[-1]
 
             # LFRic api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
@@ -384,10 +375,31 @@ class LFRicKern(CodedKern):
                 raise InternalError(f"Unsupported quadrature shape "
                                     f"('{shape}') found in LFRicKern._setup")
 
+            qr_arg = args[idx]
+            quad_map = const.QUADRATURE_TYPE_MAP[shape]
+
+            # Use the InvokeSchedule or Stub symbol_table that we obtained
+            # earlier to create a unique symbol name
+            if qr_arg.varname:
+                # If we have a name for the qr argument, we are dealing with
+                # an Invoke
+                tag = "AlgArgs_" + qr_arg.text
+                qr_sym = symtab.find_or_create(
+                    qr_arg.varname, tag=tag, symbol_type=DataSymbol,
+                    datatype=symtab.find_or_create(
+                        quad_map["type"], symbol_type=DataTypeSymbol,
+                        datatype=UnresolvedType(),
+                        interface=UnresolvedInterface())
+                )
+                qr_name = qr_sym.name
+            else:
+                # If we don't have a name then we must be doing kernel-stub
+                # generation so create a suitable name.
+                qr_name = "qr_"+shape.split("_")[-1]
+
             # Append the name of the qr argument to the names of the qr-related
             # variables.
             qr_args = [arg + "_" + qr_name for arg in qr_args]
-
             self._qr_rules[shape] = self.QRRule(qr_arg.text, qr_name, qr_args)
 
         if "gh_evaluator" in self._eval_shapes:
@@ -451,14 +463,12 @@ class LFRicKern(CodedKern):
         return self._intergrid_ref is not None
 
     @property
-    def colourmap(self):
+    def colourmap(self) -> DataSymbol:
         '''
-        Getter for the name of the colourmap associated with this kernel call.
+        :returns: the symbol representing the colourmap for this kernel call.
 
-        :returns: name of the colourmap (Fortran array).
-        :rtype: str
-
-        :raises InternalError: if this kernel is not coloured.
+        :raises InternalError: if this kernel is not coloured or the dictionary
+            of inter-grid kernels and colourmaps has not been constructed.
 
         '''
         if not self.is_coloured():
@@ -466,18 +476,52 @@ class LFRicKern(CodedKern):
                                 f"coloured loop.")
         sched = self.ancestor(InvokeSchedule)
         if self.is_intergrid:
-            cmap = self._intergrid_ref.colourmap_symbol.name
+            cmap = self._intergrid_ref.colourmap_symbol
         else:
             try:
-                cmap = sched.symbol_table.lookup_with_tag("cmap").name
+                cmap = sched.symbol_table.lookup_with_tag("cmap")
             except KeyError:
-                # We have to do this here as _init_colourmap (which calls this
-                # method) is only called at code-generation time.
-                cmap = sched.symbol_table.find_or_create_array(
-                    "cmap", 2, ScalarType.Intrinsic.INTEGER,
-                    tag="cmap").name
+                # Declare array holding map from a given colour-cell to
+                # the index of the cell (this is not initialised until code
+                # lowering)
+                cmap = sched.symbol_table.find_or_create_tag(
+                    "cmap", symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(
+                        "integer(kind=i_def), pointer :: cmap(:,:)"))
 
         return cmap
+
+    @property
+    def tilecolourmap(self) -> DataSymbol:
+        '''
+        Getter for the name of the tilecolourmap associated with this
+        kernel call.
+
+        :returns: the symbol representing the tilecolourmap.
+
+        :raises InternalError: if this kernel is not coloured or the dictionary
+            of inter-grid kernels and colourmaps has not been constructed.
+
+        '''
+        if not self.is_coloured():
+            raise InternalError(f"Kernel '{self.name}' is not inside a "
+                                f"coloured loop.")
+        sched = self.ancestor(InvokeSchedule)
+        if self.is_intergrid:
+            tmap = self._intergrid_ref.tilecolourmap_symbol.name
+        else:
+            try:
+                tmap = sched.symbol_table.lookup_with_tag("tilecolourmap").name
+            except KeyError:
+                # Declare array holding map from a given tile-colour-cell to
+                # the index of the cell (this is not initialised until code
+                # lowering)
+                tmap = sched.symbol_table.find_or_create_tag(
+                    "tilecolourmap", root_name="tmap", symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(
+                        "integer(kind=i_def), pointer :: tmap(:,:,:)")).name
+
+        return tmap
 
     @property
     def last_cell_all_colours_symbol(self):
@@ -527,11 +571,37 @@ class LFRicKern(CodedKern):
                                 f"coloured loop.")
         if self.is_intergrid:
             ncols_sym = self._intergrid_ref.ncolours_var_symbol
-            if not ncols_sym:
-                return None
-            return ncols_sym.name
+            return ncols_sym.name if ncols_sym is not None else None
 
-        return self.scope.symbol_table.lookup_with_tag("ncolour").name
+        try:
+            symbol = self.scope.symbol_table.lookup_with_tag("ncolour")
+        except KeyError:
+            return None
+        return symbol.name
+
+    @property
+    def ntilecolours_var(self) -> Optional[str]:
+        '''
+        Getter for the name of the variable holding the number of colours
+        (over tiled cells) associated with this kernel call.
+
+        :return: name of the variable holding the number of colours
+
+        :raises InternalError: if this kernel is not coloured or the
+            colour-map information has not been initialised.
+        '''
+        if not self.is_coloured():
+            raise InternalError(f"Kernel '{self.name}' is not inside a "
+                                f"coloured loop.")
+        if self.is_intergrid:
+            ncols_sym = self._intergrid_ref.ntilecolours_var_symbol
+            return ncols_sym.name if ncols_sym is not None else None
+
+        try:
+            symbol = self.scope.symbol_table.lookup_with_tag("ntilecolours")
+        except KeyError:
+            return None
+        return symbol.name
 
     @property
     def fs_descriptors(self):
@@ -569,7 +639,7 @@ class LFRicKern(CodedKern):
         :return: the function spaces upon which basis/diff-basis functions \
                  are to be evaluated for this kernel.
         :rtype: dict of (:py:class:`psyclone.domain.lfric.FunctionSpace`, \
-                :py:class`psyclone.dynamo0p3.DynKernelArgument`), indexed by \
+                :py:class`psyclone.lfric.LFRicKernelArgument`), indexed by \
                 the names of the target function spaces.
         '''
         return self._eval_targets
@@ -578,7 +648,7 @@ class LFRicKern(CodedKern):
     def reference_element(self):
         '''
         :returns: the reference-element properties required by this kernel.
-        :rtype: :py:class:`psyclone.dynamo0p3.RefElementMetaData`
+        :rtype: :py:class:`psyclone.lfric.RefElementMetaData`
         '''
         return self._reference_element
 
@@ -586,17 +656,15 @@ class LFRicKern(CodedKern):
     def mesh(self):
         '''
         :returns: the mesh properties required by this kernel.
-        :rtype: :py:class`psyclone.dynamo0p3.MeshPropertiesMetaData`
+        :rtype: :py:class`psyclone.lfric.MeshPropertiesMetaData`
         '''
         return self._mesh_properties
 
     @property
-    def all_updates_are_writes(self):
+    def all_updates_are_writes(self) -> bool:
         '''
-        :returns: True if all of the arguments updated by this kernel have \
+        :returns: True if all arguments updated by this kernel have
                   'GH_WRITE' access, False otherwise.
-        :rtype: bool
-
         '''
         accesses = set(arg.access for arg in self.args)
         all_writes = AccessType.all_write_accesses()
@@ -634,12 +702,11 @@ class LFRicKern(CodedKern):
         return self._argument_kinds
 
     @property
-    def gen_stub(self):
+    def gen_stub(self) -> Container:
         '''
-        Create the fparser1 AST for a kernel stub.
+        Create the PSyIR for a kernel stub.
 
-        :returns: root of fparser1 AST for the stub routine.
-        :rtype: :py:class:`fparser.one.block_statements.Module`
+        :returns: the kernel stub root Container.
 
         :raises GenerationError: if the supplied kernel stub does not operate
             on a supported subset of the domain (currently only those that
@@ -661,12 +728,25 @@ class LFRicKern(CodedKern):
                 f"operate on one of {supported_operates_on} but found "
                 f"'{self.iterates_over}' in kernel '{self.name}'.")
 
-        # Create an empty PSy layer module
-        psy_module = ModuleGen(self._base_name+"_mod")
+        # Create an empty Stub module
+        stub_module = Container(self._base_name+"_mod")
 
         # Create the subroutine
-        sub_stub = SubroutineGen(psy_module, name=self._base_name+"_code",
-                                 implicitnone=True)
+        stub_routine = Routine.create(self._base_name+"_code")
+        stub_module.addchild(stub_routine)
+        self._stub_symbol_table = stub_routine.symbol_table
+
+        # Add wildcard "use" statement for all supported argument
+        # kinds (precisions)
+        # TODO #2905: LFRic coding standards don't allow wilcard imports
+        # so maybe this can be improved when we change the stage where
+        # symbols are declared.
+        stub_routine.symbol_table.add(
+            ContainerSymbol(
+                const.UTILITIES_MOD_MAP["constants"]["module"],
+                wildcard_import=True
+            )
+        )
 
         # Add all the declarations
         # Import here to avoid circular dependency
@@ -674,112 +754,106 @@ class LFRicKern(CodedKern):
         from psyclone.domain.lfric import (
             LFRicCellIterators, LFRicScalarArgs, LFRicFields,
             LFRicDofmaps, LFRicStencils)
-        from psyclone.dynamo0p3 import (
-            DynFunctionSpaces, DynCMAOperators, DynBoundaryConditions,
-            DynLMAOperators, LFRicMeshProperties, DynBasisFunctions,
-            DynReferenceElement)
-        for entities in [LFRicCellIterators, LFRicDofmaps, DynFunctionSpaces,
-                         DynCMAOperators, LFRicScalarArgs, LFRicFields,
-                         DynLMAOperators, LFRicStencils, DynBasisFunctions,
-                         DynBoundaryConditions, DynReferenceElement,
+        from psyclone.lfric import (
+            LFRicFunctionSpaces, LFRicCMAOperators, LFRicBoundaryConditions,
+            LFRicLMAOperators, LFRicMeshProperties, LFRicBasisFunctions,
+            LFRicReferenceElement)
+        for entities in [LFRicCellIterators, LFRicDofmaps, LFRicFunctionSpaces,
+                         LFRicCMAOperators, LFRicScalarArgs, LFRicFields,
+                         LFRicLMAOperators, LFRicStencils, LFRicBasisFunctions,
+                         LFRicBoundaryConditions, LFRicReferenceElement,
                          LFRicMeshProperties]:
-            entities(self).declarations(sub_stub)
+            entities(self).stub_declarations()
 
-        # Add wildcard "use" statement for all supported argument
-        # kinds (precisions)
-        sub_stub.add(
-            UseGen(sub_stub,
-                   name=const.UTILITIES_MOD_MAP["constants"]["module"]))
-
-        # Create the arglist
+        # TODO #2874: The declarations above are not in order, we need to use
+        # the KernStubArgList to generate a list of strings with the correct
+        # order
         create_arg_list = KernStubArgList(self)
+        create_arg_list._forced_symtab = stub_routine.symbol_table
         create_arg_list.generate()
+        arg_list = []
+        for argument_name in create_arg_list.arglist:
+            arg_list.append(stub_routine.symbol_table.lookup(argument_name))
+        stub_routine.symbol_table.specify_argument_list(arg_list)
 
-        # Add the arglist
-        sub_stub.args = create_arg_list.arglist
+        return stub_module
 
-        # Add the subroutine to the parent module
-        psy_module.add(sub_stub)
-        return psy_module.root
+    def get_interface_symbol(self) -> Optional[GenericInterfaceSymbol]:
+        '''
+        :returns: the interface symbol for this kernel if it is polymorphic,
+                  None otherwise.
+        '''
+        kscheds = self.get_callees()
+        if len(kscheds) == 1:
+            return None
+        cntr = kscheds[0].ancestor(Container)
+        return cntr.symbol_table.lookup(self.name)
 
-    def get_kernel_schedule(self):
-        '''Returns a PSyIR Schedule representing the kernel code. The base
-        class creates the PSyIR schedule on first invocation which is
-        then checked for consistency with the kernel metadata
-        here. The Schedule is just generated on first invocation, this
-        allows us to retain transformations that may subsequently be
-        applied to the Schedule.
+    def get_callees(self) -> List[KernelSchedule]:
+        '''Returns the PSyIR Schedule(s) representing the kernel code. The base
+        class creates the PSyIR schedule(s) on first invocation which is then
+        checked for consistency with the kernel metadata here. The Schedule is
+        just generated on first invocation, this allows us to retain
+        transformations that may subsequently be applied to the Schedule(s).
 
         Once issue #935 is implemented, this routine will return the
         PSyIR Schedule using LFRic-specific PSyIR where possible.
 
-        :returns: Schedule representing the kernel code.
-        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+        :returns: the Schedule(s) representing the kernel implementation.
 
-        :raises GenerationError: if no subroutine matching this kernel can \
-            be found in the parse tree of the associated source code.
+        :raises InternalError: if no subroutines matching this kernel
+            can be found in the parse tree of the associated source code.
+
         '''
-        if self._kern_schedule:
-            return self._kern_schedule
+        if self._schedules:
+            return self._schedules
 
-        # Get the PSyIR Kernel Schedule(s)
-        routines = Fparser2Reader().get_routine_schedules(self.name, self.ast)
-        for routine in routines:
-            # If one of the symbols is not declared in a routine then
-            # this is only picked up when writing out the routine
-            # (raising a VisitorError), so we check here so that
-            # invalid code is not inlined. We use debug_string() to
-            # minimise the overhead.
+        # Check for a local implementation of this kernel first.
+        container = self.ancestor(Container)
+        if container:
+            names = container.resolve_routine(self.name)
+            routines = []
+            for name in names:
+                rt_psyir = container.find_routine_psyir(name,
+                                                        allow_private=True)
+                routines.append(rt_psyir)
 
-            # TODO #2271 could potentially avoid the need for
-            # debug_string() within. Sergi suggests that we may be
-            # missing the traversal of the declaration init
-            # expressions and that might solve the problem. I'm not so
-            # sure as we are talking about unknown symbols that will
-            # only be resolved in the back-end (or not). If I am right
-            # then one option would be to use the FortranWriter, but
-            # that would be bigger overhead, or perhaps just the
-            # declarations part of FortranWriter if that is possible.
-            # Also see TODO issue #2336 which captures the specific
-            # problem in LFRic that this fixes.
-            routine.debug_string()
-
-        if len(routines) == 1:
-            sched = routines[0]
-            # TODO #928: We don't validate the arguments yet because the
-            # validation has many false negatives.
-            # self.validate_kernel_code_args(sched.symbol_table)
-        else:
-            # The kernel name corresponds to an interface block. Find which
-            # of the routines matches the precision of the arguments.
-            for routine in routines:
-                try:
-                    # The validity check for the kernel arguments will raise
-                    # an exception if the precisions don't match.
-                    self.validate_kernel_code_args(routine.symbol_table)
-                    sched = routine
+        # Otherwise, get the PSyIR Kernel Schedule(s) from the original
+        # parse tree.
+        if not routines:
+            orig_psyir = Fparser2Reader().generate_psyir(self.ast)
+            for container in orig_psyir.walk(Container):
+                names = container.resolve_routine(self.name)
+                routines = []
+                can_be_private = len(names) > 1
+                for name in names:
+                    rt_psyir = container.find_routine_psyir(
+                        name, allow_private=can_be_private)
+                    if rt_psyir:
+                        routines.append(rt_psyir)
+                if routines:
                     break
-                except GenerationError:
-                    pass
             else:
-                raise GenerationError(
-                    f"Failed to find a kernel implementation with an interface"
-                    f" that matches the invoke of '{self.name}'. (Tried "
-                    f"routines {[item.name for item in routines]}.)")
+                raise InternalError(
+                    f"Failed to find any routines for Kernel '{self.name}'. "
+                    f"Source of Kernel is:\n{self.ast}")
 
-        # TODO #935 - replace the PSyIR argument data symbols with LFRic data
-        # symbols. For the moment we just return the unmodified PSyIR schedule
-        # but this should use RaisePSyIR2LFRicKernTrans once KernelInterface
-        # is fully functional (#928).
-        ksched = KernelSchedule(sched.symbol,
-                                symbol_table=sched.symbol_table.detach())
-        for child in sched.pop_all_children():
-            ksched.addchild(child)
-        sched.replace_with(ksched)
+        new_schedules = []
+        for routine in routines[:]:
+            # TODO #935 - replace the PSyIR argument data symbols with LFRic
+            # data symbols. For the moment we just return the  unmodified PSyIR
+            # schedule but this should use RaisePSyIR2LFRicKernTrans once
+            # KernelInterface is fully functional (#928).
+            ksched = KernelSchedule(
+                routine.symbol, symbol_table=routine.symbol_table.detach())
+            for child in routine.pop_all_children():
+                ksched.addchild(child)
+            routine.replace_with(ksched)
+            new_schedules.append(ksched)
 
-        self._kern_schedule = ksched
+        self._schedules = new_schedules
 
-        return self._kern_schedule
+        return self._schedules
 
     def validate_kernel_code_args(self, table):
         '''Check that the arguments in the kernel code match the expected
@@ -840,7 +914,7 @@ class LFRicKern(CodedKern):
             scalar, field and operator arguments directly correspond to \
             arguments that appear in the Algorithm layer.
         :type alg_arg: \
-            Optional[:py:class`psyclone.dynamo0p3.DynKernelArgument`]
+            Optional[:py:class`psyclone.lfric.LFRicKernelArgument`]
 
         :raises GenerationError: if the contents of the arguments do \
             not match.
@@ -925,7 +999,8 @@ class LFRicKern(CodedKern):
                         f"All array arguments to LFRic kernels must have lower"
                         f" bounds of 1 for all dimensions. However, array "
                         f"'{kern_code_arg.name}' has a lower bound of "
-                        f"'{kern_code_arg_dim.lower}' for dimension {dim_idx}")
+                        f"'{kern_code_arg_dim.lower.debug_string()}' for "
+                        f"dimension {dim_idx}")
                 kern_code_arg_upper_dim = kern_code_arg_dim.upper
                 interface_arg_upper_dim = interface_arg.shape[dim_idx].upper
                 if (isinstance(kern_code_arg_upper_dim, Reference) and
@@ -1016,5 +1091,5 @@ class LFRicKern(CodedKern):
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for.
 __all__ = ['LFRicKern']

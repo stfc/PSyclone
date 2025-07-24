@@ -223,7 +223,7 @@ def test_find_routine_psyir_routine_not_found(fortran_reader):
     assert result is None
 
 
-def test_get_routine_missing_container(fortran_reader):
+def test_find_routine_psyir_missing_container(fortran_reader):
     '''Test that None is returned when we cannot find the container from which
     the required Routine is imported.
 
@@ -238,7 +238,7 @@ def test_get_routine_missing_container(fortran_reader):
     assert result is None
 
 
-def test_get_routine_missing_container_wildcard(fortran_reader):
+def test_find_routine_psyir_missing_container_wildcard(fortran_reader):
     '''Test that None is returned when we cannot find the container from which
     a wildcard import is performed.
 
@@ -253,119 +253,10 @@ def test_get_routine_missing_container_wildcard(fortran_reader):
     assert result is None
 
 
-def test_get_routine_recurse_named(fortran_reader):
-    '''Test that when a container does not contain the required routine,
-    any imported containers within this container are also
-    searched. In this case the test is for a container within the
-    original container that explicitly names the routine. The PSyIR of
-    the routine is returned when it is found in the second container.
-
-    '''
-    code = (
-        f"{CALL_IN_SUB_USE}"
-        f"module inline_mod\n"
-        f"use inline_mod2, only : sub\n"
-        f"end module inline_mod\n"
-        f"module inline_mod2\n"
-        f"contains\n"
-        f"{SUB}\n"
-        f"end module inline_mod2\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    container = psyir.walk(Container)[1]
-    result = container.find_routine_psyir("sub")
-    assert isinstance(result, Routine)
-    assert result.name == "sub"
-    # Check that if an imported Routine is private then we don't
-    # return it.
-    code = (
-        f"{CALL_IN_SUB_USE}"
-        f"module inline_mod\n"
-        f"use inline_mod2, only : sub\n"
-        f"private\n"
-        f"end module inline_mod\n"
-        f"module inline_mod2\n"
-        f"contains\n"
-        f"{SUB}\n"
-        f"end module inline_mod2\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    container = psyir.walk(Container)[1]
-    result = container.find_routine_psyir("sub")
-    assert result is None
-
-
-def test_get_routine_recurse_wildcard(fortran_reader):
-    '''Test that when a container does not contain the required routine,
-    any imported containers within this container are also
-    searched. In this case, test when the import is from a container that
-    then has a wildcard import. The PSyIR of the routine is returned when
-    it is found in the second container.
-
-    '''
-    code = (
-        f"{CALL_IN_SUB_USE}"
-        f"module inline_mod\n"
-        f"use inline_mod2\n"
-        f"end module inline_mod\n"
-        f"module inline_mod2\n"
-        f"contains\n"
-        f"{SUB}\n"
-        f"end module inline_mod2\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    call_node = psyir.walk(Call)[0]
-    csym = call_node.routine.symbol.interface.container_symbol
-    container = csym.find_container_psyir(local_node=call_node)
-    # By default we don't follow wildcard imports and thus don't find
-    # the routine.
-    result = container.find_routine_psyir(call_node.routine.name)
-    assert result is None
-    # Repeat but include wildcard imports.
-    result = container.find_routine_psyir(call_node.routine.name,
-                                          check_wildcard_imports=True)
-    assert isinstance(result, Routine)
-    assert result.name == "sub"
-    # Repeat test but alter intermediate module so that it has a default
-    # visibility of PRIVATE. Consequently, any Symbols imported into
-    # it are not visible outside.
-    code = (
-        f"{CALL_IN_SUB_USE}"
-        f"module inline_mod\n"
-        f"use inline_mod2\n"
-        f"private\n"
-        f"end module inline_mod\n"
-        f"module inline_mod2\n"
-        f"contains\n"
-        f"{SUB}\n"
-        f"end module inline_mod2\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    call_node = psyir.walk(Call)[0]
-    csym = call_node.routine.symbol.interface.container_symbol
-    container = csym.find_container_psyir(local_node=call_node)
-    result = container.find_routine_psyir(call_node.routine.name,
-                                          check_wildcard_imports=True)
-    assert result is None
-    # Test when we follow an import chain but ultimately fail to find
-    # a Container along the way. In this case, we have no source for
-    # module 'inline_mod3'.
-    code = (
-        f"{CALL_IN_SUB_USE}"
-        f"module inline_mod\n"
-        f"use inline_mod3\n"
-        f"end module inline_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    call_node = psyir.walk(Call)[0]
-    csym = call_node.routine.symbol.interface.container_symbol
-    container = csym.find_container_psyir(local_node=call_node)
-    result = container.find_routine_psyir(call_node.routine.name,
-                                          check_wildcard_imports=True)
-    assert result is None
-
-
 def test_find_routine_in_container_private_routine_not_found(fortran_reader):
     '''Test that None is returned when the required Routine is not found
     in the Container associated with the supplied container symbol, as
-    it is private. This situation should not arise as it is invalid to
-    try to import a private routine. However, there are currrently no
-    checks for this when creating PSyIR.
+    it is private.
 
     '''
     private_sub_in_module = SUB_IN_MODULE.replace(
@@ -377,6 +268,10 @@ def test_find_routine_in_container_private_routine_not_found(fortran_reader):
     container = csym.find_container_psyir(local_node=call_node)
     result = container.find_routine_psyir(call_node.routine.name)
     assert result is None
+    # If we permit the Routine to be private then it is returned.
+    result = container.find_routine_psyir(call_node.routine.name,
+                                          allow_private=True)
+    assert isinstance(result, Routine)
     assert container.find_routine_psyir("doesnotexist") is None
 
 

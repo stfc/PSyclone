@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Laboratory
+# Modifications: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
 # The compiler to use may be specified via the F90 environment
 #
@@ -53,12 +53,14 @@ endif
 PSYROOT=../../../..
 
 # Set it to 'netcdf' to use the NetCDF writer
-TYPE?=standalone
+TYPE?=binary
 
 include $(PSYROOT)/examples/common.mk
 
 ifeq ($(TYPE), netcdf)
 	GENERATED_FILES += main-update.nc main-init.nc
+else ifeq ($(TYPE), ascii)
+	GENERATED_FILES += main-update.ascii main-init.ascii
 else
 	GENERATED_FILES += main-update.binary main-init.binary
 endif
@@ -76,14 +78,16 @@ ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/lfric
 	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 	F90FLAGS += $$(nf-config --fflags)
+else ifeq ($(TYPE), ascii)
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/ascii/lfric
 else
-	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/lfric
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/binary/lfric
 endif
 
 EXEC = extract.$(TYPE)
 EXTRACT_NAME ?= _extract
 EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
-LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/lfric/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
@@ -94,10 +98,18 @@ LFRIC_INCLUDE_FLAGS += -I$(EXTRACT_DIR)
 
 transform: main_psy.f90 main_alg.f90
 
+	
 compile: transform $(EXEC)
 
 run: compile
+	# Run application and extract data into files
 	./$(EXEC)
+	# Compile drivers
+	make driver-main-init
+	make driver-main-update
+	# Run drivers with extracted data
+	./driver-main-init
+	./driver-main-update
 
 $(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(EXTRACT_DIR) -l$(EXTRACT_NAME) \

@@ -41,12 +41,12 @@ transformation.'''
 import pytest
 
 from psyclone.psyir.nodes import (
-    Literal, BinaryOperation, Range, ArrayReference, Assignment,
-    Node, DataNode, CodeBlock, Schedule, Loop)
+    BinaryOperation, ArrayReference, Assignment, Literal, Loop,
+    Node, DataNode, CodeBlock, Range, Reference, Schedule)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, INTEGER_TYPE, UnresolvedType)
-from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans, \
-    TransformationError
+from psyclone.psyir.transformations import (
+    ArrayAssignment2LoopsTrans, Reference2ArrayRangeTrans, TransformationError)
 from psyclone.tests.utilities import Compile
 
 
@@ -147,8 +147,16 @@ def test_str():
           "  do idx = 2, 8, 4\n"
           "    x(idx) = 0\n"),
 
-         # Explicitly declared dimension values (L/UBOUND are correct)
+         # Explicitly declared dimension values (but generated code still
+         # uses L/UBOUND which si correct).
          ("integer, dimension(2:4) :: x, y, z, t\n"
+          "x(:) = 0",
+          "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+          "    x(idx) = 0\n"),
+
+         # Explicit lower bound value (assumed-shape array) - still just
+         # uses LBOUND.
+         ("integer, dimension(2:) :: x, y, z, t\n"
           "x(:) = 0",
           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = 0\n"),
@@ -355,6 +363,31 @@ def test_apply_outside_routine(fortran_reader, fortran_writer):
     trans.apply(assignment)
     result = fortran_writer(loop)
     assert "a(idx) = a(idx) + b(idx +" in result
+
+
+def test_apply_assumed_shape(fortran_reader, fortran_writer, tmpdir):
+    '''Test when the underlying arrays are of assumed shape and have
+    different lower bounds.'''
+    code = ('''\
+    subroutine sub(var, var2, istart, istart2)
+      integer, intent(in) :: istart, istart2
+      integer, dimension(istart:) :: var
+      integer, dimension(istart2:) :: var2
+      var = 2*var2
+    end subroutine sub
+    ''')
+    psyir = fortran_reader.psyir_from_source(code)
+    r2array = Reference2ArrayRangeTrans()
+    assign = psyir.walk(Assignment)[0]
+    for ref in assign.walk(Reference):
+        r2array.apply(ref)
+    trans = ArrayAssignment2LoopsTrans()
+    trans.apply(assign)
+    result = fortran_writer(psyir)
+    assert '''do idx = istart, UBOUND(var, dim=1), 1
+    var(idx) = 2 * var2(idx + (istart2 - istart))
+  enddo''' in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_apply_calls_validate():
@@ -679,17 +712,17 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
         "  enddo\n"
         "  do idx_1 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
         "    x(idx_1) = array(idx_1)\n"
-        "  enddo\n"
+        "  enddo\n\n"
         "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "
         "contains the access 'unresolved' which is not a DataSymbol and "
         "therefore cannot be guaranteed to be ScalarType. Resolving the import"
         " that brings this variable into scope may help.\n"
-        "  x(:) = unresolved\n"
+        "  x(:) = unresolved\n\n"
         "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "
         "contains the access 'unsupported' which is an UnsupportedFortran"
         "Type('INTEGER, DIMENSION(:), OPTIONAL :: unsupported') and therefore "
         "cannot be guaranteed to be ScalarType.\n"
-        "  x(:) = unsupported\n"
+        "  x(:) = unsupported\n\n"
         "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "
         "contains the access 'ishtsi(map,scalar)' which is an UnresolvedType "
         "and therefore cannot be guaranteed to be ScalarType.\n"

@@ -47,8 +47,8 @@ from psyclone import psyGen
 from psyclone.core import AccessType
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
 from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
-from psyclone.dynamo0p3 import (DynFuncDescriptor03, MeshPropertiesMetaData,
-                                RefElementMetaData)
+from psyclone.lfric import (LFRicFuncDescriptor, MeshPropertiesMetaData,
+                            RefElementMetaData)
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import getkerneldescriptors, KernelType
 from psyclone.parse.utils import ParseError
@@ -125,7 +125,7 @@ class LFRicKernMetadata(KernelType):
         used_fs_names = []
         need_evaluator = False
         for func_type in func_types:
-            descriptor = DynFuncDescriptor03(func_type)
+            descriptor = LFRicFuncDescriptor(func_type)
             fs_name = descriptor.function_space_name
             # Check that function space names in 'meta_funcs' are specified in
             # 'meta_args'.
@@ -715,7 +715,7 @@ class LFRicKernMetadata(KernelType):
         Returns metadata about the function spaces within a
         Kernel. This metadata is provided within Kernel code via the
         meta_funcs variable. Information is returned as a list of
-        DynFuncDescriptor03 objects, one for each function space. '''
+        LFRicFuncDescriptor objects, one for each function space. '''
         return self._func_descriptors
 
     @property
@@ -767,5 +767,5 @@ class LFRicKernMetadata(KernelType):
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for.
 __all__ = ['LFRicKernMetadata']

@@ -129,6 +129,11 @@ def test_omptargettrans_validate(fortran_reader):
                 char = 'a' // 'b'
             end do
         end do
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = LOG10(3)
+            end do
+        end do
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
@@ -142,11 +147,214 @@ def test_omptargettrans_validate(fortran_reader):
 
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[1])
-    assert ("'myfunc' is not available on the accelerator device, and "
-            "therefore it cannot be called from within an OMP Target region."
-            in str(err.value))
+    assert ("'myfunc' is not available on the 'default' accelerator device, "
+            "and therefore it cannot be called from within an OMP Target "
+            "region. Use the 'device_string' option to specify a different "
+            "device." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[2])
     assert ("Nodes of type 'CodeBlock' cannot be enclosed by a OMPTarget"
             "Trans transformation" in str(err.value))
+
+    # The last loop is valid
+    omptargettrans.validate(loops[3])
+    # But not if we are targeting "nvidia-repr" or an invalid device
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[3], options={'device_string':
+                                                   'nvfortran-uniform'})
+    assert ("'LOG10' is not available on the 'nvfortran-uniform' accelerator "
+            "device, and therefore it cannot be called from within an OMP "
+            "Target region. Use the 'device_string' option to specify a "
+            "different device." in str(err.value))
+    with pytest.raises(ValueError) as err:
+        omptargettrans.validate(loops[3], options={'device_string':
+                                                   'unknown-device'})
+    assert ("Unsupported device_string value 'unknown-device', the supported "
+            "values are '' (default), 'nvfortran-all', 'nvfortran-uniform'"
+            in str(err.value))
+
+
+def test_omptargetrans_apply_nowait(fortran_reader, fortran_writer):
+    '''Test the behaviour of the OMPTargetTrans apply function is as
+    expected when requesting the nowait option.'''
+    code = """
+    subroutine x()
+        integer :: i
+        integer, dimension(100) :: arr
+        do i = 1, 100
+            arr(i) = i
+        end do
+        do i = 1, 100
+            arr(i) = i
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    targettrans = OMPTargetTrans()
+    targettrans.apply(loops[0], options={"nowait": True})
+    targettrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    correct = """subroutine x()
+  integer :: i
+  integer, dimension(100) :: arr
+
+  !$omp target nowait
+  do i = 1, 100, 1
+    arr(i) = i
+  enddo
+  !$omp end target
+  !$omp taskwait
+  !$omp target nowait
+  do i = 1, 100, 1
+    arr(i) = i
+  enddo
+  !$omp end target
+  !$omp taskwait
+
+end subroutine x
+"""
+    assert correct == out
+
+    code = """
+    subroutine x()
+        integer :: i, j
+        integer, dimension(100) :: arr, arr2
+        do i = 1, 100
+           j = i + i
+            arr(i) = j
+        end do
+        do i = 1, 100
+            j = i + i
+            arr2(i) = j
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    targettrans = OMPTargetTrans()
+    loops = psyir.walk(Loop)
+    targettrans.apply(loops[0], options={"nowait": True})
+    targettrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    correct = """subroutine x()
+  integer :: i
+  integer :: j
+  integer, dimension(100) :: arr
+  integer, dimension(100) :: arr2
+
+  !$omp target nowait
+  do i = 1, 100, 1
+    j = i + i
+    arr(i) = j
+  enddo
+  !$omp end target
+  !$omp target nowait
+  do i = 1, 100, 1
+    j = i + i
+    arr2(i) = j
+  enddo
+  !$omp end target
+  !$omp taskwait
+
+end subroutine x
+"""
+    assert out == correct
+
+    # Check nowait is ignored when loop is its own dependency
+    code = """
+    subroutine x()
+        integer :: i, j
+        integer, dimension(100) :: arr
+        do j = 1, 5
+        do i = 1, 100
+            arr(i) = i
+        end do
+        end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    targettrans = OMPTargetTrans()
+    targettrans.apply(loops[1], options={"nowait": True})
+    out = fortran_writer(psyir)
+    assert "nowait" not in out
+
+    # Check private symbols are ignored
+    code = """
+    subroutine X()
+    integer :: i, j
+    integer, dimension(100) :: arr
+
+    do i = 1, 100
+        j = i*i
+        arr(i) = j
+    end do
+
+    do i = 1, 100
+        j = i
+    end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    targettrans = OMPTargetTrans()
+    targettrans.apply(loops[0], options={"nowait": True})
+    out = fortran_writer(psyir)
+
+    correct = """subroutine X()
+  integer :: i
+  integer :: j
+  integer, dimension(100) :: arr
+
+  !$omp target nowait
+  do i = 1, 100, 1
+    j = i * i
+    arr(i) = j
+  enddo
+  !$omp end target
+  do i = 1, 100, 1
+    j = i
+  enddo
+  !$omp taskwait
+
+end subroutine X
+"""
+    assert correct == out
+
+    # Check we can add nowait around some none-loop code
+    code = """subroutine x()
+    integer :: i
+    integer :: j
+    integer, dimension(100) :: arr
+
+    arr(1) = 1
+
+    do i = 1, 100
+       j = i * i
+       arr(i) = arr(i) + j
+    end do
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    targettrans = OMPTargetTrans()
+    assign = psyir.children[0].children[0]
+    targettrans.apply(assign, options={"nowait": True})
+    targettrans.apply(loops[0], options={"nowait": True})
+    out = fortran_writer(psyir)
+    correct = """subroutine x()
+  integer :: i
+  integer :: j
+  integer, dimension(100) :: arr
+
+  !$omp target nowait
+  arr(1) = 1
+  !$omp end target
+  !$omp taskwait
+  !$omp target nowait
+  do i = 1, 100, 1
+    j = i * i
+    arr(i) = arr(i) + j
+  enddo
+  !$omp end target
+  !$omp taskwait
+
+end subroutine x
+"""
+    assert out == correct

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: J. Henrichs, Bureau of Meteorology
-#          A. R. Porter, STFC Daresbury Laboratory
+#          A. R. Porter and S. Siso, STFC Daresbury Laboratory
 # Modified: M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean-Kuntzmann
 
 '''This module contains the ModuleInfo class, which is used to store
@@ -47,7 +47,7 @@ from typing import Dict, List, Union
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
-from psyclone.errors import InternalError, PSycloneError, GenerationError
+from psyclone.errors import InternalError, PSycloneError
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import Symbol
 from psyclone.parse import FileInfo, FileInfoFParserError
@@ -87,7 +87,8 @@ class ModuleInfo:
     def __init__(
         self,
         module_name: str,
-        file_info: FileInfo
+        file_info: FileInfo,
+        psyir_container_node: Container = None
     ):
         if not isinstance(module_name, str):
             raise TypeError("Expected type 'str' for argument 'module_name'")
@@ -102,7 +103,7 @@ class ModuleInfo:
         self._file_info: FileInfo = file_info
 
         # The PSyIR representation
-        self._psyir_container_node: Container = None
+        self._psyir_container_node: Container = psyir_container_node
 
         # A cache for the module dependencies: this is just a set
         # of all modules USEd by this module.
@@ -205,7 +206,7 @@ class ModuleInfo:
             self._map_module_name_to_used_symbols[mod_name] = all_symbols
 
     # ------------------------------------------------------------------------
-    def get_used_modules(self) -> List[str]:
+    def get_used_module_names(self) -> List[str]:
         '''This function returns a set of all modules `used` in this
         module. Fortran `intrinsic` modules will be ignored. The information
         is based on the fparser parse tree of the module (since fparser can
@@ -213,7 +214,6 @@ class ModuleInfo:
         pre-processor directives).
 
         :returns: a set with all imported module names.
-        :rtype: set[str]
 
         '''
         if self._used_module_names is None:
@@ -265,7 +265,7 @@ class ModuleInfo:
             try:
                 self._psyir_container_node = self._file_info.get_psyir()
             except (
-                    GenerationError,
+                    PSycloneError,
                     FileInfoFParserError) as err:
                 # TODO #11: Add proper logging
                 print(f"Error trying to create PSyIR for '{self.filename}': "
@@ -316,7 +316,7 @@ class ModuleInfo:
                 # PSyIR could not be obtained so cannot search for Symbol
                 return None
 
-        except (FileNotFoundError, FileInfoFParserError, GenerationError):
+        except (FileNotFoundError, FileInfoFParserError, PSycloneError):
             return None
 
         try:
@@ -334,5 +334,5 @@ class ModuleInfo:
         retstr = ""
         retstr += f"{indent}- name: '{self.name}'\n"
         retstr += (f"{indent}- used_module_names:"
-                   f" {self.get_used_modules()}\n")
+                   f" {self.get_used_module_names()}\n")
         return retstr

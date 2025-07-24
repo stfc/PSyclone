@@ -53,6 +53,8 @@ from psyclone.psyir.transformations.arrayaccess2loop_trans import \
     ArrayAccess2LoopTrans
 from psyclone.psyir.transformations.arrayassignment2loops_trans import \
     ArrayAssignment2LoopsTrans
+from psyclone.psyir.transformations.debug_checksum_trans import \
+    DebugChecksumTrans
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
@@ -112,7 +114,10 @@ from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
 from psyclone.psyir.transformations.scalarisation_trans import \
     ScalarisationTrans
-
+from psyclone.psyir.transformations.parallel_region_trans import \
+    ParallelRegionTrans
+from psyclone.psyir.transformations.omp_taskloop_trans import \
+    OMPTaskloopTrans
 
 # For AutoAPI documentation generation
 __all__ = [
@@ -121,6 +126,7 @@ __all__ = [
     "AllArrayAccess2LoopTrans",
     "ArrayAccess2LoopTrans",
     "ArrayAssignment2LoopsTrans",
+    "DebugChecksumTrans",
     "ChunkLoopTrans",
     "ExtractTrans",
     "FoldConditionalReturnExpressionsTrans",
@@ -156,4 +162,6 @@ __all__ = [
     "ReplaceReferenceByLiteralTrans",
     "TransformationError",
     "ValueRangeCheckTrans",
+    "ParallelRegionTrans",
+    "OMPTaskloopTrans",
 ]

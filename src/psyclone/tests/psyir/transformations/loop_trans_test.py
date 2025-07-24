@@ -33,11 +33,11 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified: L. Turner, Met Office
+# Modified: A. B. G. Chalk, STFC Darebury Lab
 
 ''' Module containing tests for the LoopTrans class. Since it is abstract we
 have to test it using various sub-classes. '''
 
-from __future__ import absolute_import
 import inspect
 import pytest
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
@@ -183,3 +183,37 @@ def test_all_loop_trans_base_validate(monkeypatch):
                         trans.validate(target)
                 assert "validate test exception" in str(err.value), \
                     f"{name}.validate() does not call LoopTrans.validate()"
+
+
+def test_loop_trans_base_apply(fortran_reader, fortran_writer):
+    '''Test the new base apply method for loop_trans. This now exists as we
+    need to specify the new options.'''
+    class fake_class(LoopTrans):
+        pass
+
+    psyir_test = fortran_reader.psyir_from_source('''
+       subroutine test()
+           integer :: i
+           integer, target :: a
+           integer, pointer :: b
+           do i = 1, 10
+               b => a
+           enddo
+       end subroutine test
+    ''')
+    loop = psyir_test.walk(Loop)[0]
+    fake_class().apply(loop)
+    # Check that base apply hasn't modified the code.
+    out = fortran_writer(psyir_test)
+    correct = """subroutine test()
+  integer :: i
+  INTEGER, TARGET :: a
+  INTEGER, POINTER :: b
+
+  do i = 1, 10, 1
+    b => a
+  enddo
+
+end subroutine test
+"""
+    assert correct == out

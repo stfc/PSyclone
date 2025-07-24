@@ -50,7 +50,7 @@ F90FLAGS ?= -Wall -g -fcheck=bound
 OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 
 EXEC = example
-LFRIC_PATH = ../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH = ../../../../src/psyclone/tests/test_files/lfric/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
@@ -87,7 +87,7 @@ main_alg.f90: main_psy.f90
 transform: main_psy.f90
 
 %_psy.f90:	%.x90
-	${PSYCLONE} -api lfric -opsy $*_psy.f90 -oalg $*_alg.f90 $<
+	${PSYCLONE} -api lfric --keep-comments --keep-directives -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 allclean: clean
 	make -C $(LFRIC_PATH) allclean

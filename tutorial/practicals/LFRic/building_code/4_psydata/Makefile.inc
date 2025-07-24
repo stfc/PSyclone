@@ -62,7 +62,7 @@ F90FLAGS += -I $(PSYDATA_PATH)
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../..
-LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/lfric/infrastructure
 LFRIC_NAME = lfric_netcdf
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
@@ -109,6 +109,9 @@ time_evolution_alg_mod_psy.o: init_perturbation_kernel_mod.o \
 %.o: %.mod
 
 %.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
+
+%.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
 
 %.f90 %_psy.f90: %.x90

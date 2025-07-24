@@ -37,7 +37,6 @@
 assignment node with its adjoint form.
 
 '''
-from __future__ import absolute_import
 
 from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
@@ -408,5 +407,5 @@ class AssignmentTrans(AdjointTransformation):
 
 # =============================================================================
 # Documentation utils: The list of module members that we wish AutoAPI to
-# generate documentation for (see https://psyclone-ref.readthedocs.io).
+# generate documentation for.
 __all__ = ["AssignmentTrans"]

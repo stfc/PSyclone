@@ -42,8 +42,6 @@ import pytest
 
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError, GenerationError
-from psyclone.f2pygen import ModuleGen
-from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import (
     CodeBlock, PSyDataNode, Schedule, Return, Routine)
 from psyclone.parse import ModuleManager
@@ -52,6 +50,7 @@ from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyir.symbols import (
     ContainerSymbol, ImportInterface, SymbolTable, DataTypeSymbol,
     UnresolvedType, DataSymbol, UnsupportedFortranType)
+from psyclone.psyGen import Kern
 from psyclone.tests.utilities import get_base_path, get_invoke
 
 
@@ -311,7 +310,7 @@ def test_psy_data_node_incorrect_container():
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_node_invokes_gocean1p0():
+def test_psy_data_node_invokes_gocean1p0(fortran_writer):
     '''Check that an invoke is instrumented correctly
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
@@ -323,7 +322,7 @@ def test_psy_data_node_invokes_gocean1p0():
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
-    code = str(invoke.gen()).replace("\n", "")
+    code = fortran_writer(invoke.schedule).replace("\n", "")
     # First a simple test that the nesting is correct - the
     # PSyData regions include both loops. Note that indeed
     # the function 'compute_cv_code' is in the module file
@@ -331,9 +330,9 @@ def test_psy_data_node_invokes_gocean1p0():
     # Since this is only PSyData, which by default does not supply
     # variable information, the parameters to PreStart are both 0.
     correct_re = ("subroutine invoke.*"
-                  "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
-                  r"call psy_data%PreStart\(\"psy_single_invoke_different"
+                  "use psy_data_mod, only : PSyDataType.*"
+                  r"type\(PSyDataType\), save, target :: psy_data.*"
+                  r"CALL psy_data % PreStart\(\"psy_single_invoke_different"
                   r"_iterates_over\", \"invoke_0-compute_cv_code-r0\","
                   r" 0, 0\).*"
                   "do j.*"
@@ -341,74 +340,14 @@ def test_psy_data_node_invokes_gocean1p0():
                   "call.*"
                   "end.*"
                   "end.*"
-                  r"call psy_data%PostEnd")
+                  r"call psy_data % PostEnd")
 
     assert re.search(correct_re, code, re.I) is not None
 
     # Check that if gen() is called more than once the same PSyDataNode
     # variables and region names are created:
-    code_again = str(invoke.gen()).replace("\n", "")
+    code_again = fortran_writer(invoke.schedule).replace("\n", "")
     assert code == code_again
-
-
-# -----------------------------------------------------------------------------
-def test_psy_data_node_options():
-    '''Check that the options for PSyData work as expected.
-    '''
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean", idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    data_trans = PSyDataTrans()
-
-    data_trans.apply(schedule[0].loop_body)
-    data_node = schedule[0].loop_body[0]
-    assert isinstance(data_node, PSyDataNode)
-
-    # 1) Test that the listed variables will appear in the list
-    # ---------------------------------------------------------
-    mod = ModuleGen(None, "test")
-    data_node.gen_code(mod, options={"pre_var_list": [("", "a")],
-                                     "post_var_list": [("", "b")]})
-
-    out = "\n".join([str(i.root) for i in mod.children])
-    expected = ['CALL psy_data%PreDeclareVariable("a", a)',
-                'CALL psy_data%PreDeclareVariable("b", b)',
-                'CALL psy_data%ProvideVariable("a", a)',
-                'CALL psy_data%PostStart',
-                'CALL psy_data%ProvideVariable("b", b)']
-    for line in expected:
-        assert line in out
-
-    # 2) Test that variables suffixes are added as expected
-    # -----------------------------------------------------
-    mod = ModuleGen(None, "test")
-    data_node.gen_code(mod, options={"pre_var_list": [("", "a")],
-                                     "post_var_list": [("", "b")],
-                                     "pre_var_postfix": "_pre",
-                                     "post_var_postfix": "_post"})
-
-    out = "\n".join([str(i.root) for i in mod.children])
-    expected = ['CALL psy_data%PreDeclareVariable("a_pre", a)',
-                'CALL psy_data%PreDeclareVariable("b_post", b)',
-                'CALL psy_data%ProvideVariable("a_pre", a)',
-                'CALL psy_data%PostStart',
-                'CALL psy_data%ProvideVariable("b_post", b)']
-    for line in expected:
-        assert line in out
-
-    # 3) Check that we don't get any declaration if there are no variables:
-    # ---------------------------------------------------------------------
-    mod = ModuleGen(None, "test")
-    data_node.gen_code(mod, options={})
-
-    out = "\n".join([str(i.root) for i in mod.children])
-    # Only PreStart and PostEnd should appear
-    assert "PreStart" in out
-    assert "PreDeclareVariable" not in out
-    assert "ProvideVariable" not in out
-    assert "PreEnd" not in out
-    assert "PostStart" not in out
-    assert "PostEnd" in out
 
 
 def test_psy_data_node_children_validation():
@@ -497,7 +436,7 @@ def test_psy_data_node_lower_to_language_level_with_options():
 
     codeblocks = schedule.walk(CodeBlock)
     expected = ['CALL psy_data % PreStart("psy_single_invoke_different_'
-                'iterates_over", "invoke_0-r0", 1, 1)',
+                'iterates_over", "invoke_0-compute_cv_code-r0", 1, 1)',
                 'CALL psy_data % PreDeclareVariable("a", a)',
                 'CALL psy_data % PreDeclareVariable("b", b)',
                 'CALL psy_data % PreEndDeclaration',
@@ -526,7 +465,7 @@ def test_psy_data_node_lower_to_language_level_with_options():
 
     codeblocks = schedule.walk(CodeBlock)
     expected = ['CALL psy_data % PreStart("psy_single_invoke_different_'
-                'iterates_over", "invoke_0-r0", 1, 1)',
+                'iterates_over", "invoke_0-compute_cv_code-r0", 1, 1)',
                 'CALL psy_data % PreDeclareVariable("a_pre", a)',
                 'CALL psy_data % PreDeclareVariable("b_post", b)',
                 'CALL psy_data % PreEndDeclaration',
@@ -541,7 +480,7 @@ def test_psy_data_node_lower_to_language_level_with_options():
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
-def test_psy_data_node_name_clash(fortran_writer):
+def test_psy_data_node_name_clash():
     '''Test the handling of symbols imported from other modules, or calls to
     external functions that use module variables. In this example the external
     module uses a variable with the same name as the user code, which causes
@@ -554,47 +493,21 @@ def test_psy_data_node_name_clash(fortran_writer):
     # to read extracted data from a file) relative to the infrastructure path:
     psyclone_root = os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.dirname(os.path.dirname(infrastructure_path)))))
-    read_mod_path = os.path.join(psyclone_root, "lib", "extract", "standalone")
+    read_mod_path = os.path.join(psyclone_root, "lib", "extract", "binary")
 
     module_manager = ModuleManager.get()
     module_manager.add_search_path(infrastructure_path)
     module_manager.add_search_path(read_mod_path)
 
-    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
-                           "symbols.f90", api, dist_mem=False, idx=1)
+    psy, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                             "symbols.f90", api, dist_mem=False, idx=1)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
 
-    # First test, use the old-style gen_code way:
-    # -------------------------------------------
-    code = str(invoke.gen())
-
-    # Make sure the imported, clashing symbols 'f1' and 'f2' are renamed:
-    assert "USE module_with_name_clash_mod, ONLY: f1_data_1=>f1_data" in code
-    assert "USE module_with_name_clash_mod, ONLY: f2_data_1=>f2_data" in code
-    assert ('CALL extract_psy_data%PreDeclareVariable("f1_data@'
-            'module_with_name_clash_mod", f1_data_1)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("f1_data@'
-            'module_with_name_clash_mod", f1_data_1)' in code)
-    assert ('CALL extract_psy_data%PreDeclareVariable("f2_data@'
-            'module_with_name_clash_mod", f2_data_1)' in code)
-    assert ('CALL extract_psy_data%PreDeclareVariable("f2_data_post@'
-            'module_with_name_clash_mod", f2_data_1)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("f2_data@'
-            'module_with_name_clash_mod", f2_data_1)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("f2_data_post@'
-            'module_with_name_clash_mod", f2_data_1)' in code)
-
-    # Second test, use lower_to_language_level:
-    # -----------------------------------------
-    invoke.schedule.children[0].lower_to_language_level()
-
-    # Note that atm we cannot fortran_writer() the schedule, LFRic does not
-    # yet fully support this. So we just lower each line individually:
-    code = "".join([fortran_writer(i) for i in invoke.schedule.children])
+    code = psy.gen
 
     assert ('CALL extract_psy_data % PreDeclareVariable("f1_data_post", '
             'f1_data)' in code)
@@ -602,25 +515,21 @@ def test_psy_data_node_name_clash(fortran_writer):
             'module_with_name_clash_mod", f1_data_1)' in code)
     assert ('CALL extract_psy_data % PreDeclareVariable("f2_data@'
             'module_with_name_clash_mod", f2_data_1)' in code)
-    assert ('CALL extract_psy_data % PreDeclareVariable("f2_data@'
-            'module_with_name_clash_mod_post", f2_data_1)' in code)
+    assert ('CALL extract_psy_data % PreDeclareVariable("f2_data_post@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
 
     assert ('CALL extract_psy_data % ProvideVariable("f1_data@'
             'module_with_name_clash_mod", f1_data_1)' in code)
     assert ('CALL extract_psy_data % ProvideVariable("f2_data@'
             'module_with_name_clash_mod", f2_data_1)' in code)
-    assert ('CALL extract_psy_data % ProvideVariable("f2_data@'
-            'module_with_name_clash_mod_post", f2_data_1)' in code)
+    assert ('CALL extract_psy_data % ProvideVariable("f2_data_post@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
 
 
 # ----------------------------------------------------------------------------
 def test_psy_data_node_lfric_inside_of_loop():
     '''Test that if a PSyData node is inside a loop (which means the code will
     already be generated by PSyIR), the required psydata variable is declared.
-    ATM (TODO #1010) LFRicLoop.gen_code calls a fix_gen_code function in the
-    PSyData node to add the declaration (which the PSyData node added to the
-    symbol table, but since the symbol table is not used by gen_code, it
-    would otherwise be missing).
 
     '''
     psy, invoke = get_invoke("1.0.1_single_named_invoke.f90",
@@ -634,13 +543,13 @@ def test_psy_data_node_lfric_inside_of_loop():
 
     # This regex checks that the type is imported, the variable is declared,
     # and that the psydata area is indeed inside of the loop
-    correct_re = (r"USE psy_data_mod, ONLY: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
-                  r"DO cell = .*"
-                  r"CALL psy_data % PreStart.*"
-                  r"CALL testkern_code.*"
-                  r"CALL psy_data % PostEnd.*"
-                  r"END DO")
+    correct_re = (r"use psy_data_mod, only : PSyDataType.*"
+                  r"type\(PSyDataType\), save, target :: psy_data.*"
+                  r"do cell = .*"
+                  r"call psy_data % PreStart.*"
+                  r"call testkern_code.*"
+                  r"call psy_data % PostEnd.*"
+                  r"enddo")
     assert re.search(correct_re, code, re.I) is not None
 
 

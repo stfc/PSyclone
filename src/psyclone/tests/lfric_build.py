@@ -48,7 +48,7 @@ from psyclone.tests.utilities import change_dir, CompileError, Compile
 
 class LFRicBuild(Compile):
     '''Build class for compilation of test files for the LFRic api.
-    It uses the wrapper library from test_files/dynamo0p3/infrastructure.
+    It uses the wrapper library from test_files/lfric/infrastructure.
     The very first time the constructor is called it will automatically
     compile the infrastructure library in a temporary, process-specific
     location. These files will be used by all test compilations of this
@@ -74,7 +74,7 @@ class LFRicBuild(Compile):
         super().__init__(tmpdir)
 
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3")
+                                 "test_files", "lfric")
         self.base_path = base_path
         self._infrastructure_path = os.path.join(base_path, "infrastructure")
         # On first instantiation (triggered by conftest.infra_compile)
@@ -84,7 +84,7 @@ class LFRicBuild(Compile):
 
     def get_infrastructure_flags(self):
         '''Returns the required flag to use the infrastructure wrapper
-        files for dynamo0p3. Each parameter must be a separate entry
+        files for LFRic. Each parameter must be a separate entry
         in the list, e.g.: ["-I", "/some/path"] and not ["-I /some/path"].
 
         :returns: the required compiler flags.

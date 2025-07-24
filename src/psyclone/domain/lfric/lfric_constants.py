@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L, Turner, Met Office
 #           A. R. Porter, STFC Daresbury Laboratory
 #           R. W. Ford, STFC Daresbury Laboratory
 
@@ -78,12 +78,14 @@ class LFRicConstants():
 
         # Supported LFRic API argument types (scalars, fields, operators)
         LFRicConstants.VALID_SCALAR_NAMES = ["gh_scalar"]
+        LFRicConstants.VALID_ARRAY_NAMES = ["gh_scalar_array"]
         LFRicConstants.VALID_FIELD_NAMES = ["gh_field"]
         LFRicConstants.VALID_OPERATOR_NAMES = ["gh_operator",
                                                "gh_columnwise_operator"]
         LFRicConstants.VALID_ARG_TYPE_NAMES = \
             LFRicConstants.VALID_FIELD_NAMES + \
             LFRicConstants.VALID_OPERATOR_NAMES + \
+            LFRicConstants.VALID_ARRAY_NAMES + \
             LFRicConstants.VALID_SCALAR_NAMES
 
         # Mapping from argument type to the suffix used when creating
@@ -100,6 +102,8 @@ class LFRicConstants():
             ["gh_real", "gh_integer", "gh_logical"]
         LFRicConstants.VALID_SCALAR_DATA_TYPES = \
             LFRicConstants.VALID_ARG_DATA_TYPES
+        LFRicConstants.VALID_ARRAY_DATA_TYPES = \
+            LFRicConstants.VALID_ARG_DATA_TYPES
         LFRicConstants.VALID_FIELD_DATA_TYPES = ["gh_real", "gh_integer"]
         LFRicConstants.VALID_OPERATOR_DATA_TYPES = ["gh_real"]
 
@@ -108,6 +112,7 @@ class LFRicConstants():
         # Supported access types
         # gh_sum for scalars is restricted to iterates_over == 'dof'
         LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read", "gh_sum"]
+        LFRicConstants.VALID_ARRAY_ACCESS_TYPES = ["gh_read"]
         LFRicConstants.VALID_FIELD_ACCESS_TYPES = [
             "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
         LFRicConstants.VALID_OPERATOR_ACCESS_TYPES = [
@@ -153,6 +158,9 @@ class LFRicConstants():
         LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = ["real", "integer",
                                                       "logical"]
 
+        LFRicConstants.VALID_ARRAY_INTRINSIC_TYPES = ["real", "integer",
+                                                      "logical"]
+
         # ---------- Mapping from metadata data_type to Fortran intrinsic type
         LFRicConstants.MAPPING_DATA_TYPES = \
             OrderedDict(zip(LFRicConstants.VALID_ARG_DATA_TYPES,
@@ -168,44 +176,65 @@ class LFRicConstants():
         # halo. It is useful to group these together as we often need to
         # determine whether an access to a field or other object includes
         # access to the halo, or not.
-        LFRicConstants.HALO_ACCESS_LOOP_BOUNDS = ["cell_halo", "dof_halo",
-                                                  "colour_halo"]
+        LFRicConstants.HALO_ACCESS_LOOP_BOUNDS = [
+            "cell_halo",
+            "dof_halo",
+            # Like ncolour but with halos
+            "colour_halo",
+            # Like ntiles_per_colour but with halos
+            "ntiles_per_colour_halo",
+            # Like ncells_per_colour_and_tile but with halos
+            "ncells_per_colour_and_tile_halo",
+        ]
 
-        LFRicConstants.VALID_LOOP_BOUNDS_NAMES = (
-            ["start",     # the starting
-                          # index. Currently this is
-                          # always 1
-             "cell_halo_start",  # the first cell in the halo region.
-             "inner",     # a placeholder for when we
-                          # support loop splitting into
-                          # work that does not access
-                          # the halo and work that does.
-                          # This will be used to help
-                          # overlap computation and
-                          # communication
-             "ncolour",   # the number of cells with
-                          # the current colour
-             "ncolours",  # the number of colours in a
-                          # coloured loop
-             "ncells",    # the number of owned cells
-             "ndofs",     # the number of owned dofs
-             "nannexed"]  # the number of owned dofs
-                          # plus the number of annexed
-                          # dofs. As the indices of
-                          # dofs are arranged that
-                          # owned dofs have lower
-                          # indices than annexed dofs,
-                          # having this value as an
-                          # upper bound will compute
-                          # both owned and annexed
-                          # dofs.
-            + LFRicConstants.HALO_ACCESS_LOOP_BOUNDS)
+        LFRicConstants.VALID_LOOP_BOUNDS_NAMES = ([
+            # The field starting index, set to 1.
+            "start",
+            # The first cell in the halo region.
+            "cell_halo_start",
+            # A placeholder for when we support loop splitting into work that
+            # does not access the halo and work that does. This will be used
+            # to help overlap computation and communication.
+            "inner",
+            # The number of colours in a coloured loop
+            "ncolours",
+            # The number of tiles in a tile-coloured loop
+            "ntilecolours",
+            # The number of cells in the outerloop colour
+            "ncolour",
+            # The number of tiles in the outerloop colour
+            "ntiles_per_colour",
+            # The number of cells in the outerloop coloured-tile
+            "ncells_per_colour_and_tile",
+            # The number of owned cells
+            "ncells",
+            # The number of owned dofs
+            "ndofs",
+            # The number of owned dofs plus the number of annexed dofs. As the
+            # indices of dofs are arranged such as owned dofs have lower
+            # indices than annexed dofs, having this value as an upper bound
+            # will compute both owned and annexed dofs.
+            "nannexed"
+         ] + LFRicConstants.HALO_ACCESS_LOOP_BOUNDS)
 
-        # Valid LFRic loop types. The default is "" which is over cell columns
-        # (in the horizontal plane). A "null" loop doesn't iterate over
-        # anything but is required for the halo-exchange logic.
-        LFRicConstants.VALID_LOOP_TYPES = ["dof", "colours", "colour", "",
-                                           "null"]
+        # Valid LFRic loop types
+        LFRicConstants.VALID_LOOP_TYPES = [
+            # The default is "" which is over cell columns (in the horizontal
+            # plane).
+            "",
+            # A "null" loop doesn't iterate over anything but is required for
+            # the halo-exchange logic.
+            "null",
+            # Iterate over dofs
+            "dof",
+            # Iterate over the number of distinct colours
+            "colours",
+            # Iterate over the cells of a given colour
+            "cells_in_colour",
+            # Iterate over the tiles of a given colour (of tiled cells)
+            "tiles_in_colour",
+            # Iterate over the cells of a given colour and tile
+            "cells_in_tile"]
 
         # Valid LFRic iteration spaces for built-in kernels
         LFRicConstants.BUILTIN_ITERATION_SPACES = ["dof"]
@@ -536,5 +565,5 @@ class LFRicConstants():
 
 # =============================================================================
 # Documentation utils: The list of module members that we wish AutoAPI to
-# generate documentation for (see https://psyclone-ref.readthedocs.io).
+# generate documentation for.
 __all__ = ['LFRicConstants']

@@ -41,11 +41,11 @@
 import os
 import pytest
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Assignment, IfBlock, Loop
+from psyclone.psyir.nodes import Assignment, CodeBlock, IfBlock, Loop
 from psyclone.tests.utilities import get_invoke, get_ast
 
 # Constants
@@ -74,7 +74,7 @@ def test_assignment(fortran_reader):
     # Simple scalar assignment:  a = b
     scalar_assignment = schedule.children[0]
     assert isinstance(scalar_assignment, Assignment)
-    var_accesses = VariablesAccessInfo(scalar_assignment)
+    var_accesses = scalar_assignment.reference_accesses()
     # Test some test functions explicitly:
     assert var_accesses.is_written(Signature("a"))
     assert not var_accesses.is_read(Signature("a"))
@@ -84,19 +84,19 @@ def test_assignment(fortran_reader):
     # Array element assignment: c(i,j) = d(i,j+1)+e+f(x,y)
     array_assignment = schedule.children[1]
     assert isinstance(array_assignment, Assignment)
-    var_accesses = VariablesAccessInfo(array_assignment)
+    var_accesses = array_assignment.reference_accesses()
     assert (str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "
                                  "i: READ, j: READ, x: READ, y: READ")
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)
-    var_accesses = VariablesAccessInfo(increment_access)
+    var_accesses = increment_access.reference_accesses()
     assert str(var_accesses) == "c: READ+WRITE, i: READ"
 
     # Using an intrinsic:
     sqrt_access = schedule.children[3]
     assert isinstance(sqrt_access, Assignment)
-    var_accesses = VariablesAccessInfo(sqrt_access)
+    var_accesses = sqrt_access.reference_accesses()
     assert str(var_accesses) == "d: WRITE, e: READ, i: READ, j: READ"
 
 
@@ -112,7 +112,7 @@ def test_indirect_addressing(fortran_reader):
 
     indirect_addressing = psyir.children[0].children[0]
     assert isinstance(indirect_addressing, Assignment)
-    var_accesses = VariablesAccessInfo(indirect_addressing)
+    var_accesses = indirect_addressing.reference_accesses()
     assert str(var_accesses) == "a: READ, g: WRITE, h: READ, i: READ"
 
 
@@ -126,14 +126,9 @@ def test_double_variable_lhs(fortran_reader):
              integer :: g(10)
              g(g(1)) = 1
            end program test_prog''')
-
-    indirect_addressing = psyir.children[0].children[0]
-    assert isinstance(indirect_addressing, Assignment)
-    var_accesses = VariablesAccessInfo()
-    with pytest.raises(NotImplementedError) as err:
-        indirect_addressing.reference_accesses(var_accesses)
+    assert isinstance(psyir, CodeBlock)
     assert ("The variable 'g' appears more than once on the left-hand side "
-            "of an assignment." in str(err.value))
+            "of an assignment." in psyir.preceding_comment)
 
 
 def test_if_statement(fortran_reader):
@@ -153,7 +148,7 @@ def test_if_statement(fortran_reader):
 
     if_stmt = schedule.children[0]
     assert isinstance(if_stmt, IfBlock)
-    var_accesses = VariablesAccessInfo(if_stmt)
+    var_accesses = if_stmt.reference_accesses()
     assert (str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "
                                  "q: READ+WRITE, r: READ")
     # Test that the two accesses to 'q' indeed show up as
@@ -161,23 +156,6 @@ def test_if_statement(fortran_reader):
     assert len(q_accesses) == 2
     assert q_accesses[0].access_type == AccessType.READ
     assert q_accesses[1].access_type == AccessType.WRITE
-    assert q_accesses[0].location < q_accesses[1].location
-
-
-@pytest.mark.xfail(reason="Calls in the NEMO API are not yet supported #446")
-def test_call(fortran_reader):
-    ''' Check that we correctly handle a call in a program '''
-    psyir = fortran_reader.psyir_from_source(
-        '''program test_prog
-             real :: a, b
-             call sub(a,b)
-           end program test_prog''')
-    schedule = psyir.children[0]
-
-    code_block = schedule.children[0]
-    call_stmt = code_block.statements[0]
-    var_accesses = VariablesAccessInfo(call_stmt)
-    assert str(var_accesses) == "a: UNKNOWN, b: UNKNOWN"
 
 
 def test_do_loop(fortran_reader):
@@ -197,7 +175,7 @@ def test_do_loop(fortran_reader):
 
     do_loop = schedule.children[0]
     assert isinstance(do_loop, Loop)
-    var_accesses = VariablesAccessInfo(do_loop)
+    var_accesses = do_loop.reference_accesses()
     assert (str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, n: READ, "
                                  "s: WRITE, t: READ")
 
@@ -219,7 +197,7 @@ def test_nemo_array_range(fortran_reader):
 
     do_loop = schedule.children[0]
     assert isinstance(do_loop, Loop)
-    var_accesses = VariablesAccessInfo(do_loop)
+    var_accesses = do_loop.reference_accesses()
     assert (str(var_accesses) == "a: READ, jj: READ+WRITE, n: READ, "
             "s: WRITE, t: READ")
 
@@ -228,7 +206,7 @@ def test_nemo_array_range(fortran_reader):
 def test_goloop():
     ''' Check the handling of non-NEMO do loops.
     TODO #440: Does not work atm, GOLoops also have start/stop as
-    strings, which are even not defined. Only after gen_code() is called will
+    strings, which are even not defined. Only after lowering is called will
     they be defined.
     '''
 
@@ -236,7 +214,7 @@ def test_goloop():
                            "gocean", name="invoke_0")
     do_loop = invoke.schedule.children[0]
     assert isinstance(do_loop, Loop)
-    var_accesses = VariablesAccessInfo(do_loop)
+    var_accesses = do_loop.reference_accesses()
     assert (str(var_accesses) == ": READ, a_scalar: READ, i: READ+WRITE, "
                                  "j: READ+WRITE, " "ssh_fld: READ+WRITE, "
                                  "tmask: READ")
@@ -261,7 +239,7 @@ def test_goloop_partially():
     # The fourth argument is GO_GRID_MASK_T, which is an array
     assert not do_loop.args[3].is_scalar
 
-    var_accesses = VariablesAccessInfo(do_loop)
+    var_accesses = do_loop.reference_accesses()
     assert ("a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "
             "ssh_fld: READWRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "
             "ssh_fld%grid%tmask: READ" in str(var_accesses))
@@ -276,26 +254,21 @@ def test_lfric():
 
     '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+                                 "test_files", "lfric",
                                  "1_single_invoke.f90"),
                     api="lfric")
     psy = PSyFactory("lfric", distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
-    # TODO #1010 In the LFRic API, the loop bounds are created at code-
-    # generation time and therefore we cannot look at dependencies until that
-    # is under way. Ultimately this will be replaced by a
-    # `lower_to_language_level` call.
-    # pylint: disable=pointless-statement
-    psy.gen
-    var_accesses = VariablesAccessInfo(schedule)
+    var_accesses = schedule.reference_accesses()
     assert str(var_accesses) == (
         "a: READ, cell: READ+WRITE, f1_data: READ+WRITE, f2_data: READ, "
-        "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, loop0_start: "
-        "READ, loop0_stop: READ, m1_data: READ, m2_data: READ, map_w1: READ, "
+        "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, m1_data: READ, "
+        "m2_data: READ, map_w1: READ, "
         "map_w2: READ, map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ,"
         " nlayers_f1: READ, r_def: NO_DATA_ACCESS, undf_w1: READ, undf_w2: "
-        "READ, undf_w3: READ")
+        "READ, undf_w3: READ, uninitialised_loop0_start: READ, "
+        "uninitialised_loop0_stop: READ")
 
 
 def test_lfric_kern_cma_args():
@@ -303,20 +276,20 @@ def test_lfric_kern_cma_args():
 
     '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
+                                 "test_files", "lfric",
                                  "27.access_tests.f90"),
                     api="lfric")
     psy = PSyFactory("lfric", distributed_memory=False).create(info)
-    # TODO #1010 In the LFRic API, the loop bounds are created at code-
-    # generation time and therefore we cannot look at dependencies until that
-    # is under way. Ultimately this will be replaced by a
-    # `lower_to_language_level` call.
-    # pylint: disable=pointless-statement
-    psy.gen
     invoke_read = psy.invokes.get('invoke_read')
     invoke_write = psy.invokes.get('invoke_write')
-    var_accesses_read = VariablesAccessInfo(invoke_read.schedule)
-    var_accesses_write = VariablesAccessInfo(invoke_write.schedule)
+    invoke_read.setup_psy_layer_symbols()
+    invoke_write.setup_psy_layer_symbols()
+    var_accesses_read = VariablesAccessMap()
+    for kernel in invoke_read.schedule.coded_kernels():
+        var_accesses_read.update(kernel.reference_accesses())
+    var_accesses_write = VariablesAccessMap()
+    for kernel in invoke_write.schedule.coded_kernels():
+        var_accesses_write.update(kernel.reference_accesses())
 
     # Check the parameters that will change access type according to read or
     # write declaration of the argument:
@@ -335,72 +308,6 @@ def test_lfric_kern_cma_args():
                 == AccessType.READ)
 
 
-def test_location(fortran_reader):
-    '''Test if the location assignment is working, esp. if each new statement
-    gets a new location, but accesses in the same statement have the same
-    location.
-    '''
-
-    psyir = fortran_reader.psyir_from_source(
-        '''program test_prog
-             integer :: a, b, i, ji, jj, n, x
-             real :: p(5), q(5), r(5), s(5,5), t(5,5)
-             a = b
-             if (a .eq. b) then
-                p(i) = q(i)
-             else
-               q(i) = r(i)
-             endif
-             a = b
-             do jj=1, n
-                do ji=1, 10
-                   s(ji, jj)=t(ji, jj)+1
-                enddo
-             enddo
-             a = b
-             x = x + 1
-          end program test_prog''')
-    schedule = psyir.children[0]
-
-    var_accesses = VariablesAccessInfo(schedule)
-    # Test accesses for a:
-    a_accesses = var_accesses[Signature("a")].all_accesses
-    assert a_accesses[0].location == 0
-    assert a_accesses[1].location == 1
-    assert a_accesses[2].location == 6
-    assert a_accesses[3].location == 12
-
-    # b should have the same locations as a:
-    b_accesses = var_accesses[Signature("b")].all_accesses
-    assert len(a_accesses) == len(b_accesses)
-    for (index, access) in enumerate(a_accesses):
-        assert b_accesses[index].location == access.location
-
-    q_accesses = var_accesses[Signature("q")].all_accesses
-    assert q_accesses[0].location == 2
-    assert q_accesses[1].location == 4
-
-    # Test jj for the loop statement. Note that 'jj' has one read and
-    # one write access for the DO statement
-    jj_accesses = var_accesses[Signature("jj")].all_accesses
-    assert jj_accesses[0].location == 7
-    assert jj_accesses[1].location == 7
-    assert jj_accesses[2].location == 9
-    assert jj_accesses[3].location == 9
-
-    ji_accesses = var_accesses[Signature("ji")].all_accesses
-    assert ji_accesses[0].location == 8
-    assert ji_accesses[1].location == 8
-    assert ji_accesses[2].location == 9
-    assert ji_accesses[3].location == 9
-
-    # Verify that x=x+1 shows the READ access before the write access
-    x_accesses = var_accesses[Signature("x")].all_accesses    # x=x+1
-    assert x_accesses[0].access_type == AccessType.READ
-    assert x_accesses[1].access_type == AccessType.WRITE
-    assert x_accesses[0].location == x_accesses[1].location
-
-
 def test_user_defined_variables(fortran_reader):
     ''' Test reading and writing to user defined variables.
     '''
@@ -413,7 +320,7 @@ def test_user_defined_variables(fortran_reader):
              e%f = d
            end program test_prog''')
     loops = psyir.children[0]
-    var_accesses = VariablesAccessInfo(loops)
+    var_accesses = loops.reference_accesses()
     assert var_accesses[Signature(("a", "b", "c"))].is_written
     assert var_accesses[Signature(("e", "f"))].is_written
 
@@ -424,13 +331,7 @@ def test_lfric_ref_element():
     '''
     psy, invoke_info = get_invoke("23.4_ref_elem_all_faces_invoke.f90",
                                   "lfric", idx=0)
-    # TODO #1010 In the LFRic API, the loop bounds are created at code-
-    # generation time and therefore we cannot look at dependencies until that
-    # is under way. Ultimately this will be replaced by a
-    # `lower_to_language_level` call.
-    # pylint: disable=pointless-statement
-    psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "normals_to_faces: READ" in var_info
     assert "out_normals_to_faces: READ" in var_info
     assert "nfaces_re: READ" in var_info
@@ -442,32 +343,21 @@ def test_lfric_operator():
 
     '''
     psy, invoke_info = get_invoke("6.1_eval_invoke.f90", "lfric", idx=0)
-    # TODO #1010 In the LFRic API, the loop bounds are created at code-
-    # generation time and therefore we cannot look at dependencies until that
-    # is under way. Ultimately this will be replaced by a
-    # `lower_to_language_level` call.
-    # pylint: disable=pointless-statement
-    psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "f0_data: READ+WRITE" in var_info
     assert "cmap_data: READ" in var_info
     assert "basis_w0_on_w0: READ" in var_info
     assert "diff_basis_w1_on_w0: READ" in var_info
 
 
-def test_lfric_cma():
+def test_lfric_cma(fortran_writer):
     '''Test that parameters related to CMA operators are handled
     correctly in the variable usage analysis.
 
     '''
-    psy, invoke_info = get_invoke("20.0_cma_assembly.f90", "lfric", idx=0)
-    # TODO #1010 In the LFRic API, the loop bounds are created at code-
-    # generation time and therefore we cannot look at dependencies until that
-    # is under way. Ultimately this will be replaced by a
-    # `lower_to_language_level` call.
-    # pylint: disable=pointless-statement
-    psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    _, invoke_info = get_invoke("20.0_cma_assembly.f90", "lfric", idx=0)
+    invoke_info.setup_psy_layer_symbols()
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "ncell_2d: READ" in var_info
     assert "cma_op1_alpha: READ" in var_info
     assert "cma_op1_bandwidth: READ" in var_info
@@ -476,7 +366,7 @@ def test_lfric_cma():
     assert "cma_op1_gamma_p: READ" in var_info
     assert "cma_op1_cma_matrix: WRITE" in var_info
     assert "cma_op1_ncol: READ" in var_info
-    assert "cma_op1_nrow: READ," in var_info
+    assert "cma_op1_nrow: READ" in var_info
     assert "cbanded_map_adspc1_lma_op1: READ" in var_info
     assert "cbanded_map_adspc2_lma_op1: READ" in var_info
     assert "lma_op1_local_stencil: READ" in var_info
@@ -489,13 +379,7 @@ def test_lfric_cma2():
 
     '''
     psy, invoke_info = get_invoke("20.1_cma_apply.f90", "lfric", idx=0)
-    # TODO #1010 In the LFRic API, the loop bounds are created at code-
-    # generation time and therefore we cannot look at dependencies until that
-    # is under way. Ultimately this will be replaced by a
-    # `lower_to_language_level` call.
-    # pylint: disable=pointless-statement
-    psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "cma_indirection_map_aspc1_field_a: READ" in var_info
     assert "cma_indirection_map_aspc2_field_b: READ" in var_info
 
@@ -505,13 +389,7 @@ def test_lfric_stencils():
 
     '''
     psy, invoke_info = get_invoke("14.4_halo_vector.f90", "lfric", idx=0)
-    # TODO #1010 In the LFRic API, the loop bounds are created at code-
-    # generation time and therefore we cannot look at dependencies until that
-    # is under way. Ultimately this will be replaced by a
-    # `lower_to_language_level` call.
-    # pylint: disable=pointless-statement
-    psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "f2_stencil_size: READ" in var_info
     assert "f2_stencil_dofmap: READ" in var_info
 
@@ -523,13 +401,7 @@ def test_lfric_various_basis():
     '''
     psy, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
                                   "lfric", idx=0)
-    # TODO #1010 In the LFRic API, the loop bounds are created at code-
-    # generation time and therefore we cannot look at dependencies until that
-    # is under way. Ultimately this will be replaced by a
-    # `lower_to_language_level` call.
-    # pylint: disable=pointless-statement
-    psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "basis_w3_qr: READ" in var_info
     assert "diff_basis_w0_qr: READ" in var_info
     assert "diff_basis_w2_qr: READ" in var_info
@@ -546,13 +418,7 @@ def test_lfric_field_bc_kernel():
     '''
     psy, invoke_info = get_invoke("12.2_enforce_bc_kernel.f90",
                                   "lfric", idx=0)
-    # TODO #1010 In the LFRic API, the loop bounds are created at code-
-    # generation time and therefore we cannot look at dependencies until that
-    # is under way. Ultimately this will be replaced by a
-    # `lower_to_language_level` call.
-    # pylint: disable=pointless-statement
-    psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "boundary_dofs_a: READ" in var_info
 
 
@@ -563,13 +429,7 @@ def test_lfric_stencil_xory_vector():
     '''
     psy, invoke_info = get_invoke("14.4.2_halo_vector_xory.f90",
                                   "lfric", idx=0)
-    # TODO #1010 In the LFRic API, the loop bounds are created at code-
-    # generation time and therefore we cannot look at dependencies until that
-    # is under way. Ultimately this will be replaced by a
-    # `lower_to_language_level` call.
-    # pylint: disable=pointless-statement
-    psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "f2_direction: READ" in var_info
 
 
@@ -580,13 +440,7 @@ def test_lfric_operator_bc_kernel():
     '''
     psy, invoke_info = get_invoke("12.4_enforce_op_bc_kernel.f90",
                                   "lfric", idx=0)
-    # TODO #1010 In the LFRic API, the loop bounds are created at code-
-    # generation time and therefore we cannot look at dependencies until that
-    # is under way. Ultimately this will be replaced by a
-    # `lower_to_language_level` call.
-    # pylint: disable=pointless-statement
-    psy.gen
-    var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    var_info = str(invoke_info.schedule.reference_accesses())
     assert "boundary_dofs_op_a: READ" in var_info
 
 
@@ -599,7 +453,7 @@ def test_lfric_stub_args():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -635,7 +489,7 @@ def test_lfric_stub_args2():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -655,7 +509,7 @@ def test_lfric_stub_args3():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -674,7 +528,7 @@ def test_lfric_stub_boundary_dofs():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     assert "boundary_dofs_field_1: READ" in str(var_accesses)
@@ -688,7 +542,7 @@ def test_lfric_stub_field_vector():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -709,7 +563,7 @@ def test_lfric_stub_basis():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -730,7 +584,7 @@ def test_lfric_stub_cma_operators():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -754,7 +608,7 @@ def test_lfric_stub_banded_dofmap():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -769,7 +623,7 @@ def test_lfric_stub_indirection_dofmap():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
@@ -786,7 +640,7 @@ def test_lfric_stub_boundary_dofmap():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    var_accesses = VariablesAccessInfo()
+    var_accesses = VariablesAccessMap()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     assert "boundary_dofs_op_1: READ" in str(var_accesses)

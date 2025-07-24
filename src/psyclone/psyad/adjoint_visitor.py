@@ -232,11 +232,11 @@ class AdjointVisitor(PSyIRVisitor):
         :param node: an Assignment PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
 
-        :returns: a list of PSyIR nodes containing the adjoint \
+        :returns: a list of PSyIR nodes containing the adjoint
             of this node.
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises VisitorError: if the schedule_node method has not been \
+        :raises VisitorError: if the schedule_node method has not been
             called previously.
 
         '''
@@ -247,8 +247,9 @@ class AdjointVisitor(PSyIRVisitor):
                 "as the latter sets up the active variables.")
         assign_trans = AssignmentTrans(self._active_variables)
         new_node = node.copy()
-        # Temporary parent schedule required by the transformation.
-        dummy_schedule = Schedule()
+        # Temporary parent schedule required by the transformation. Needs
+        # access to the ancestor scoping region in order to resolve symbols.
+        dummy_schedule = Schedule(parent=node.scope)
         dummy_schedule.children.append(new_node)
         assign_trans.apply(new_node)
         return dummy_schedule.pop_all_children()
@@ -463,5 +464,5 @@ class AdjointVisitor(PSyIRVisitor):
 
 # =============================================================================
 # Documentation utils: The list of module members that we wish AutoAPI to
-# generate documentation for (see https://psyclone-ref.readthedocs.io).
+# generate documentation for.
 __all__ = ["AdjointVisitor"]

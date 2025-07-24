@@ -38,7 +38,6 @@ in the class Fparser2Reader. This handler deals with the translation
 of the fparser2 Main_Program construct to PSyIR.
 
 '''
-from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader

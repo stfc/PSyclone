@@ -5,7 +5,7 @@ https://psyclone.readthedocs.io/en/stable/psyke.html) input and output
 parameters of instrumented code regions to a [NetCDF file](
 https://psyclone.readthedocs.io/en/stable/psyke.html#netcdf-extraction-example).
 There is a [PSyData base class](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-base-class)
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#psydata-base-class)
 as a Jinja template that can be used to simplify the creation of API-specific
 wrapper libraries.
 
@@ -14,11 +14,11 @@ wrapper libraries.
 The file ``extract_netcdf_base.jinja`` contains a Jinja template that is used
 by the [GOcean ``dl_esm_inf``-](./dl_esm_inf/README.md) and [LFRic-specific](
 ./lfric/README.md) wrapper libraries. It implements the required [PSyData API](
-https://psyclone-dev.readthedocs.io/en/stable/psy_data.html) calls for
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html) calls for
 Fortran base types (scalar and arrays).
 Full documentation to the Jinja implementation of a PSyData base class is
 in the PSyclone [Developer Guide](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja).
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#jinja).
 The script [``process.py``](./../../README.md#psydata-base-class) is used by
 the derived classes to process this template. There is a simple ``Makefile``
 contained here for compilation tests, but each API-specific implementation
@@ -34,14 +34,13 @@ variable ``MPI=yes``.
 ## [``dl_esm_inf``](./dl_esm_inf) directory
 
 Contains the NetCDF-extract, PSyData-API-based, wrapper library for the
-``dl_esm_inf`` [GOcean API](
-https://psyclone.readthedocs.io/en/latest/gocean1p0.html).
+``dl_esm_inf`` [GOcean API](https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html).
 
 ## [``lfric``](./lfric) directory
 
 Contains the NetCDF-extract, PSyData-API-based, wrapper library for the
-[LFRic (Dynamo 0.3) API](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
+[LFRic API](
+https://psyclone.readthedocs.io/en/latest/lfric.html).
 
 <!--
 ## Licence

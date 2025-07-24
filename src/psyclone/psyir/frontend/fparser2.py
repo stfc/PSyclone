@@ -44,7 +44,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 import os
 import sys
-from typing import Optional, List, Iterable
+from typing import Iterable, Optional
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
@@ -380,14 +380,18 @@ def _find_or_create_psyclone_internal_cmp(node):
         if container and not isinstance(container, FileContainer):
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.frontend.fortran import FortranReader
+            # Giving them the same name in different modules causes issues with
+            # the nvidia compiler when offloading, so we use the module name as
+            # prefix
+            root = container.name + "_psyclone_internal_cmp"
             name_interface = node.scope.symbol_table.next_available_name(
-                "psyclone_internal_cmp")
+                root)
             name_f_int = node.scope.symbol_table.next_available_name(
-                "psyclone_cmp_int")
+                root + "_int")
             name_f_logical = node.scope.symbol_table.next_available_name(
-                "psyclone_cmp_logical")
+                root + "_logical")
             name_f_char = node.scope.symbol_table.next_available_name(
-                "psyclone_cmp_char")
+                root + "_char")
             fortran_reader = FortranReader()
             dummymod = fortran_reader.psyir_from_source(f'''
             module dummy
@@ -424,14 +428,17 @@ def _find_or_create_psyclone_internal_cmp(node):
             # manually.
             sym = dummymod.symbol_table.lookup(name_interface)
             routine_symbol1 = container.symbol_table.lookup(name_f_int)
+            routine_symbol1.visibitity = Symbol.Visibility.PRIVATE
             routine_symbol2 = container.symbol_table.lookup(name_f_logical)
+            routine_symbol2.visibitity = Symbol.Visibility.PRIVATE
             routine_symbol3 = container.symbol_table.lookup(name_f_char)
+            routine_symbol3.visibitity = Symbol.Visibility.PRIVATE
             symbol = GenericInterfaceSymbol(
                     sym.name,
                     [(routine_symbol1, sym.routines[0].from_container),
                      (routine_symbol2, sym.routines[1].from_container),
                      (routine_symbol3, sym.routines[2].from_container)],
-                    visibility=sym.visibility
+                    visibility=Symbol.Visibility.PRIVATE
                     )
             container.symbol_table.add(symbol)
             symbol = container.symbol_table.lookup(name_interface)
@@ -967,14 +974,11 @@ class Fparser2Reader():
             'class default' clauses, or -1 if no default clause is found.
 
         """
-        # 'str | None' syntax is only supported in Python >=3.10 so use
-        # 'typing.Optional[]'. Similarly, 'list[str]' is only valid in
-        # Python >=3.9 so use 'typing.List[str]'.
-        guard_type: List[Optional[str]] = field(default_factory=list)
-        guard_type_name: List[Optional[str]] = field(default_factory=list)
-        intrinsic_type_name: List[Optional[str]] = field(default_factory=list)
-        clause_type: List[str] = field(default_factory=list)
-        stmts: List[List[StmtBase]] = field(default_factory=list)
+        guard_type: list[Optional[str]] = field(default_factory=list)
+        guard_type_name: list[Optional[str]] = field(default_factory=list)
+        intrinsic_type_name: list[Optional[str]] = field(default_factory=list)
+        clause_type: list[str] = field(default_factory=list)
+        stmts: list[list[StmtBase]] = field(default_factory=list)
         selector: str = ""
         num_clauses: int = -1
         default_idx: int = -1
@@ -1604,6 +1608,13 @@ class Fparser2Reader():
             if (self._resolve_all_modules or
                     container.name.lower() in self._modules_to_resolve):
                 parent.symbol_table.resolve_imports([container])
+
+            if visibility_map:
+                # Some of the imported symbols could have explicit visibility
+                # statements, so set the visibilities of all existing symbols
+                for symbol in parent.symbol_table.symbols_dict.values():
+                    if symbol.name.lower() in visibility_map:
+                        symbol.visibility = visibility_map[symbol.name.lower()]
 
     def _process_type_spec(self, parent, type_spec):
         '''
@@ -2517,7 +2528,9 @@ class Fparser2Reader():
                                      visibility=vis,
                                      initial_value=init)
                             new_symbol.preceding_comment \
-                                = '\n'.join(preceding_comments)
+                                = self._comments_list_to_string(
+                                        preceding_comments)
+                            preceding_comments = []
                             self._last_psyir_parsed_and_span\
                                 = (new_symbol,
                                    node.item.span)
@@ -2836,6 +2849,43 @@ class Fparser2Reader():
 
         return _kind_find_or_create(str(kind_names[0]), symbol_table)
 
+    def _add_comments_to_tree(self, parent: Node, preceding_comments,
+                              psy_child: Node) -> None:
+        '''
+        Add the provided fparser2 comments to the PsyIR tree.
+
+        If we are not ignoring directives, then these are placed into their
+        own CodeBlock nodes. All comments are attached to the appropriate
+        PSyIR node.
+
+        :param parent: Parent node in the PSyIR we are constructing.
+        :param preceding_comments: List of comment nodes to add to the tree.
+        :type preceding_comments: list[:py:class:`fparser.two.utils.Base`]
+        :param psy_child: The current PSyIR node being constructed.
+        '''
+        for comment in preceding_comments[:]:
+            # If the comment is a directive and we
+            # keep_directives then create a CodeBlock for
+            # the directive.
+
+            # TODO: fparser #469. This only captures some free-form
+            # directives.
+            if (not self._ignore_directives and
+                    comment.tostr().startswith("!$")):
+                block = self.nodes_to_code_block(parent, [comment])
+                # Attach any comments that came before this directive to this
+                # CodeBlock node.
+                if comment is not preceding_comments[0]:
+                    index = preceding_comments.index(comment)
+                    block.preceding_comment += self._comments_list_to_string(
+                        preceding_comments[0:index])
+                    preceding_comments = preceding_comments[index:]
+                preceding_comments.remove(comment)
+        # Leftover comments are added to the provided PSyIR node.
+        psy_child.preceding_comment += self._comments_list_to_string(
+            preceding_comments
+        )
+
     def process_nodes(self, parent, nodes):
         '''
         Create the PSyIR of the supplied list of nodes in the
@@ -2878,9 +2928,8 @@ class Fparser2Reader():
                     # Add the comments to nodes that support it and reset the
                     # list of comments
                     if isinstance(psy_child, CommentableMixin):
-                        psy_child.preceding_comment\
-                            += self._comments_list_to_string(
-                                preceding_comments)
+                        self._add_comments_to_tree(parent, preceding_comments,
+                                                   psy_child)
                         preceding_comments = []
                     if isinstance(psy_child, CommentableMixin):
                         if child.item is not None:
@@ -2901,9 +2950,18 @@ class Fparser2Reader():
                     parent.addchild(psy_child)
                 # If psy_child is not initialised but it didn't produce a
                 # NotImplementedError, it means it is safe to ignore it.
-
         # Complete any unfinished code-block
         self.nodes_to_code_block(parent, code_block_nodes, message)
+
+        # If there are any directives at the end we create code blocks for
+        # them.
+        if not self._ignore_directives and len(preceding_comments) != 0:
+            for comment in preceding_comments[:]:
+                # TODO: fparser #469. This only captures some free-form
+                # directives.
+                if comment.tostr().startswith("!$"):
+                    self.nodes_to_code_block(parent, [comment])
+                    preceding_comments.remove(comment)
 
         if self._last_comments_as_codeblocks and len(preceding_comments) != 0:
             self.nodes_to_code_block(parent, preceding_comments)
@@ -4442,10 +4500,12 @@ class Fparser2Reader():
             # TODO 2884: We should be able to handle this imported symbol
             # better. If we can, we need to handle a case where is_elemental
             # can be None.
-            if isinstance(ref.symbol.interface, ImportInterface):
+            if isinstance(ref.symbol.interface, (ImportInterface,
+                                                 UnresolvedInterface)):
                 raise NotImplementedError(
-                        "PSyclone doesn't yet support reference to imported "
-                        "symbols inside WHERE clauses.")
+                        f"PSyclone doesn't yet support references to imported/"
+                        f"unresolved symbols inside WHERE clauses: "
+                        f"'{ref.symbol.name}' is unresolved.")
             if (isinstance(ref.symbol, DataSymbol) and
                     elemental_ancestor):
                 try:
@@ -4463,7 +4523,7 @@ class Fparser2Reader():
             raise NotImplementedError(
                 f"Only WHERE constructs using explicit array notation "
                 f"including ranges (e.g. 'my_array(1,:)') are supported but "
-                f"found '{logical_expr}'")
+                f"found '{logical_expr[0]}'")
 
         array_ref = first_array.ancestor(Reference, include_self=True)
         if not isinstance(array_ref.datatype, ArrayType):
@@ -4647,7 +4707,18 @@ class Fparser2Reader():
         :return: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Return`
 
+        :raises NotImplementedError: if the parse tree contains an
+            alternate return statement.
         '''
+        # Fortran Alternate Return statements are not supported
+        if node.children != (None, ):
+            raise NotImplementedError(
+                "Fortran alternate returns are not supported.")
+        # Ignore redundant Returns at the end of Execution sections
+        if isinstance(node.parent, Fortran2003.Execution_Part):
+            if node is node.parent.children[-1]:
+                return None
+        # Everything else is a valid PSyIR Return
         rtn = Return(parent=parent)
         rtn.ast = node
         return rtn
@@ -5295,6 +5366,49 @@ class Fparser2Reader():
 
         return call
 
+    def _get_lost_declaration_comments(self, decl_list,
+                                       attach_trailing_symbol: bool = True)\
+            -> list[Fortran2003.Comment]:
+        '''Finds comments from the variable declaration that the default
+        declaration handler doesn't keep. Any comments that appear after
+        the final declaration but before the first PSyIR node created are
+        lost by the declaration handler so are returned from this function.
+        If the function finds a comment that should be an inline comment on
+        the last declaration, it attaches that comment to the declaration.
+
+        :param decl_list: The declaration list being processed.
+        :type decl_list: List[:py:class:`Fortran2003.Specification_Part`]
+        :param attach_trailing_symbol: whether to attach the inline comment on
+                                       the last symbol to the tree or not.
+                                       Defaults to True
+
+        :returns: a list of comments that have been missed.
+        '''
+        lost_comments = []
+        if len(decl_list) != 0 and isinstance(decl_list[-1],
+                                              Fortran2003.Implicit_Part):
+            # fparser puts all comments after the end of the last declaration
+            # in the tree of the last declaration.
+            for comment in walk(decl_list[-1], Fortran2003.Comment):
+                if len(comment.tostr()) == 0:
+                    continue
+                if self._last_psyir_parsed_and_span is not None:
+                    last_symbol, last_span \
+                        = self._last_psyir_parsed_and_span
+                    # If the last node parsed is the last symbol declaration
+                    # and the comment is attached to the declaration in the
+                    # fparser tree we add the comment to the declaration.
+                    if (last_span is not None
+                            and last_span[1] == comment.item.span[0]):
+                        if attach_trailing_symbol:
+                            last_symbol.inline_comment\
+                                = self._comment_to_string(comment)
+                        continue
+                # Otherwise the comment is not an inline comment, so we append
+                # it to the lost comments list.
+                lost_comments.append(comment)
+        return lost_comments
+
     def _subroutine_handler(self, node, parent):
         '''Transforms an fparser2 Subroutine_Subprogram or Function_Subprogram
         statement into a PSyIR Routine node.
@@ -5406,24 +5520,11 @@ class Fparser2Reader():
                 arg_list = []
             self.process_declarations(routine, decl_list, arg_list)
 
-            # fparser puts comments at the end of the declarations
-            # whereas as preceding comments they belong in the execution part
-            # except if it's an inline comment on the last declaration.
-            lost_comments = []
-            if len(decl_list) != 0 and isinstance(decl_list[-1],
-                                                  Fortran2003.Implicit_Part):
-                for comment in walk(decl_list[-1], Fortran2003.Comment):
-                    if len(comment.tostr()) == 0:
-                        continue
-                    if self._last_psyir_parsed_and_span is not None:
-                        last_symbol, last_span \
-                            = self._last_psyir_parsed_and_span
-                        if (last_span is not None
-                                and last_span[1] == comment.item.span[0]):
-                            last_symbol.inline_comment\
-                                = self._comment_to_string(comment)
-                            continue
-                    lost_comments.append(comment)
+            # fparser puts comments that occur immediately after the
+            # declarations as part of the declarations, but in PSyclone
+            # they need to be a preceding_comment unless it's an inline
+            # comment on the last declaration.
+            lost_comments = self._get_lost_declaration_comments(decl_list)
 
             # Check whether the function-stmt has a prefix specifying the
             # return type (other prefixes are handled in
@@ -5575,6 +5676,11 @@ class Fparser2Reader():
             decl_list = []
         self.process_declarations(routine, decl_list, [])
 
+        # fparser puts comments at the end of the declarations
+        # whereas as preceding comments they belong in the execution part
+        # except if it's an inline comment on the last declaration.
+        lost_comments = self._get_lost_declaration_comments(decl_list, False)
+
         try:
             prog_exec = _first_type_match(node.content,
                                           Fortran2003.Execution_Part)
@@ -5583,7 +5689,7 @@ class Fparser2Reader():
             # valid.
             pass
         else:
-            self.process_nodes(routine, prog_exec.content)
+            self.process_nodes(routine, lost_comments + prog_exec.content)
 
         return routine
 

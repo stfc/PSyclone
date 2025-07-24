@@ -35,7 +35,7 @@ by the [PSyData-API-based](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) wrapper libraries.
 Full documentation on using this template is provided in the PSyclone
 [Developer Guide](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja). The
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#jinja). The
 script ``process.py`` is used by the derived classes to process this
 template. This script is processed with the help of the Shell script
 ``get_python.sh`` that finds an executable Python command.
@@ -117,8 +117,8 @@ profiling wrapper libraries depends on infrastructure libraries relevant
 to the API they are used for. [GOcean API](
 https://psyclone.readthedocs.io/en/stable/gocean1p0.html) uses the
 [``dl_esm_inf`` library](https://github.com/stfc/dl_esm_inf) and
-[LFRic (Dynamo 0.3) API](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html)
+[LFRic API](
+https://psyclone.readthedocs.io/en/latest/lfric.html)
 uses the LFRic infrastructure (see the linked documentation on how to
 access and use the LFRic code). The locations of the respective
 infrastructure libraries can be configured with the variables

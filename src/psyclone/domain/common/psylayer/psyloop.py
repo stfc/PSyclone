@@ -275,7 +275,7 @@ class PSyLoop(Loop):
                              operator) to search for.
         :returns: all unique arguments of the given type from kernels inside \
             this loop that are modified.
-        :rtype: List[:py:class:`psyclone.psyGen.DynKernelArgument`]
+        :rtype: List[:py:class:`psyclone.psyGen.LFRicKernelArgument`]
         '''
         arg_names = []
         args = []
@@ -329,20 +329,6 @@ class PSyLoop(Loop):
             else:
                 all_args.extend(call_args)
         return all_args
-
-    def gen_mark_halos_clean_dirty(self, parent):
-        '''
-        Generates the necessary code to mark halo regions as clean or dirty
-        following execution of this loop. This default implementation does
-        nothing.
-
-        TODO #1648 - this method should be removed when the corresponding
-        one in LFRicLoop is removed.
-
-        :param parent: the node in the f2pygen AST to which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
 
     def _halo_read_access(self, arg):
         '''Determines whether the supplied argument has (or might have) its

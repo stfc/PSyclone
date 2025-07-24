@@ -248,10 +248,17 @@ class Symbol(CommentableMixin):
                   examining the Container from which it is imported.
         :rtype: subclass of :py:class:`psyclone.psyir.symbols.Symbol`
 
+        :raises SymbolError: if the type could not be resolved.
         '''
         if self.is_import:
             extern_symbol = self.get_external_symbol()
-            from psyclone.psyir.symbols import RoutineSymbol
+            # pylint: disable-next=import-outside-toplevel
+            from psyclone.psyir.symbols import RoutineSymbol, TypedSymbol
+            if not isinstance(extern_symbol, TypedSymbol):
+                raise SymbolError(
+                    f"The external symbol '{extern_symbol.name}' was found "
+                    f"but it does not have a type. Maybe it is a transitive "
+                    f"(indirect) import which is currently not resolvable.")
             if isinstance(extern_symbol, RoutineSymbol):
                 # Specialise the existing Symbol in-place so that all
                 # References to it remain valid.
@@ -426,6 +433,7 @@ class Symbol(CommentableMixin):
             current = node.scope.symbol_table
             while current:
                 if self.name in current:
+                    # TODO #2949: Add: and current.lookup(self.name) is self:
                     return current
                 if current.node.parent:
                     current = current.node.parent.scope.symbol_table
@@ -526,23 +534,44 @@ class Symbol(CommentableMixin):
         # TODO #1213: check for wildcard imports
         return self.is_array
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         if not isinstance(self.interface, ImportInterface):
             return
         name = self.interface.container_symbol.name
         orig_name = self.interface.orig_name
-        try:
-            new_container = table.lookup(name)
-            self.interface = ImportInterface(new_container,
-                                             orig_name=orig_name)
-        except KeyError:
-            pass
+        if isinstance(table_or_symbol, Symbol):
+            if name.lower() == table_or_symbol.name.lower():
+                self.interface = ImportInterface(table_or_symbol,
+                                                 orig_name=orig_name)
+        else:
+            try:
+                new_container = table_or_symbol.lookup(name)
+                self.interface = ImportInterface(new_container,
+                                                 orig_name=orig_name)
+            except KeyError:
+                pass
+
+    def reference_accesses(self):
+        '''
+        :returns: a map of all the symbol accessed inside this Symbol, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
+
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.core import VariablesAccessMap
+        return VariablesAccessMap()

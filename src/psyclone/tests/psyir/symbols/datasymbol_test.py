@@ -43,14 +43,16 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
+from psyclone.core import Signature
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, Symbol, DataTypeSymbol, AutomaticInterface,
     ImportInterface, ArgumentInterface, StaticInterface, UnresolvedInterface,
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE,
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE,
-    BOOLEAN_TYPE, CHARACTER_TYPE, UnresolvedType, UnsupportedFortranType)
-from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation, Return,
-                                  CodeBlock)
+    BOOLEAN_TYPE, CHARACTER_TYPE, SymbolTable, UnresolvedType,
+    UnsupportedFortranType)
+from psyclone.psyir.nodes import (BinaryOperation, CodeBlock, IntrinsicCall,
+                                  Literal, Reference, Return)
 
 
 def test_datasymbol_initialisation():
@@ -528,3 +530,125 @@ def test_datasymbol_str():
     assert (data_symbol.__str__() ==
             "a: DataSymbol<Scalar<INTEGER, 4>, Automatic, initial_value="
             "Literal[value:'3', Scalar<INTEGER, 4>]>")
+
+
+def test_datasymbol_replace_symbols_using():
+    '''
+    Test that replace_symbols_using() updates symbols within the definition
+    of a DataSymbol.
+
+    '''
+    kind = DataSymbol("i_def", INTEGER_SINGLE_TYPE)
+    rkind = DataSymbol("r_def", INTEGER_SINGLE_TYPE)
+    int_kind_type = ScalarType(ScalarType.Intrinsic.INTEGER, kind)
+    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, rkind)
+    istart = DataSymbol("start", INTEGER_SINGLE_TYPE)
+    istop = DataSymbol("stop", INTEGER_SINGLE_TYPE)
+    atype = ArrayType(real_kind_type, [(Reference(istart), Reference(istop)),
+                                       (Reference(istart), Reference(istop)),
+                                       (Literal("2", int_kind_type),
+                                        ArrayType.Extent.ATTRIBUTE)])
+    sym3 = DataSymbol("c", atype,
+                      initial_value=Literal("1", int_kind_type))
+    table = SymbolTable()
+    new_kind = kind.copy()
+    table.add(new_kind)
+    new_rkind = rkind.copy()
+    table.add(new_rkind)
+    new_start = istart.copy()
+    table.add(new_start)
+    new_stop = istop.copy()
+    table.add(new_stop)
+    sym3.replace_symbols_using(table)
+    assert sym3.datatype.precision is new_rkind
+    assert sym3.initial_value.datatype.precision is new_kind
+    for dim in sym3.datatype.shape[:-1]:
+        assert dim.lower.symbol is new_start
+        assert dim.upper.symbol is new_stop
+    # Check when the array shape is an Extent rather than a Node.
+    atype2 = ArrayType(int_kind_type, [ArrayType.Extent.ATTRIBUTE])
+    sym4 = DataSymbol("d", atype2)
+    sym4.replace_symbols_using(table)
+    assert sym4.datatype.precision is new_kind
+
+
+def test_datasymbol_reference_accesses():
+    '''
+    Test that the reference_accesses() specialisation for this class checks
+    the initialisation expression.
+
+    '''
+    kind = DataSymbol("i_def", INTEGER_SINGLE_TYPE)
+    int_kind_type = ScalarType(ScalarType.Intrinsic.INTEGER, kind)
+    sym3 = DataSymbol("c", REAL_SINGLE_TYPE,
+                      initial_value=Literal("1", int_kind_type))
+    vai3 = sym3.reference_accesses()
+    assert vai3.all_signatures == [Signature("i_def")]
+
+
+def test_datasymbol_get_bounds():
+    '''
+    Tests for the get_bounds() method.
+    '''
+    one = Literal("1", INTEGER_SINGLE_TYPE)
+    istart = DataSymbol("start", INTEGER_SINGLE_TYPE)
+    istop = DataSymbol("stop", INTEGER_SINGLE_TYPE)
+    atype = ArrayType(INTEGER_SINGLE_TYPE,
+                      [(Reference(istart), Reference(istop)),
+                       Reference(istop),
+                       ArrayType.ArrayBounds(
+                           lower=one.copy(),
+                           upper=ArrayType.Extent.ATTRIBUTE)])
+    sym3 = DataSymbol("c", atype, initial_value=one)
+    # Lower and upper bounds are references.
+    lbnd, ubnd = sym3.get_bounds(0)
+    assert isinstance(lbnd, Reference)
+    assert isinstance(ubnd, Reference)
+    assert lbnd.symbol is istart
+    assert ubnd.symbol is istop
+    # Only upper bound specified; lower defaults to unity.
+    lbnd1, ubnd1 = sym3.get_bounds(1)
+    assert isinstance(lbnd1, Literal)
+    assert lbnd1.value == "1"
+    assert ubnd1.symbol is istop
+    # No upper bound information (assumed-size)
+    lbnd2, ubnd2 = sym3.get_bounds(2)
+    assert isinstance(lbnd2, Literal)
+    assert isinstance(ubnd2, IntrinsicCall)
+    with pytest.raises(IndexError) as err:
+        sym3.get_bounds(3)
+    assert ("DataSymbol 'c' has 3 dimensions but bounds for (0-indexed) "
+            "dimension 3 requested" in str(err.value))
+
+
+def test_datasymbol_get_bounds_assumed_size():
+    '''
+    Test get_bounds when we don't have bounds information.
+
+    '''
+    atype = ArrayType(INTEGER_SINGLE_TYPE,
+                      [ArrayType.Extent.ATTRIBUTE])
+    sym = DataSymbol("c", atype)
+    lbnd, ubnd = sym.get_bounds(0)
+    assert isinstance(lbnd, IntrinsicCall)
+    assert lbnd.intrinsic == IntrinsicCall.Intrinsic.LBOUND
+    assert isinstance(ubnd, IntrinsicCall)
+    assert ubnd.intrinsic == IntrinsicCall.Intrinsic.UBOUND
+
+
+def test_datasymbol_get_bounds_unsupported_type():
+    '''
+    Test get_bounds for a symbol of UnsupportedFortranType but with a
+    partial datatype.
+
+    '''
+    atype = ArrayType(INTEGER_SINGLE_TYPE,
+                      [ArrayType.Extent.ATTRIBUTE])
+    utype = UnsupportedFortranType("integer, dimension(:), pointer :: var",
+                                   partial_datatype=atype)
+    sym = DataSymbol("c", utype)
+    lbnd, ubnd = sym.get_bounds(0)
+    assert isinstance(lbnd, IntrinsicCall)
+    assert lbnd.intrinsic == IntrinsicCall.Intrinsic.LBOUND
+    assert isinstance(ubnd, IntrinsicCall)
+    assert ubnd.intrinsic == IntrinsicCall.Intrinsic.UBOUND
