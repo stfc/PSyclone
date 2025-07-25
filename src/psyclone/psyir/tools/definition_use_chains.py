@@ -630,6 +630,13 @@ class DefinitionUseChain:
                 # No control for the condition - we always check that.
                 control_flow_nodes.append(None)
                 basic_blocks.append([node.condition])
+                if node.ancestor((Loop, WhileLoop)):
+                    control_flow_nodes.append(node)
+                    basic_blocks.append(node.if_body.children[:])
+                    if node.else_body:
+                        control_flow_nodes.append(node)
+                        basic_blocks.append(node.else_body.children[:])
+                    continue
                 # Check if the node is in the else_body
                 in_else_body = False
                 if node.else_body:
