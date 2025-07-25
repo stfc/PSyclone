@@ -112,7 +112,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
         :raises TransformationError: if the node is not a Loop.
         :raises TransformationError: if the node is not inside a Routine.
         :raises TransformationError: the array option has not been provided.
-        :raises TransformationError: the given array name is not found, or the
+        :raises TransformationError: the given array name  or the
             symbol is not local or not an array.
         :raises TransformationError: the array is references inside a
             CodeBlock.
@@ -149,8 +149,10 @@ class IncreaseRankLoopArraysTrans(Transformation):
         for array in array_list:
             if isinstance(array, str):
                 array = node.scope.symbol_table.lookup(array, otherwise=None)
+            if array is None:
+                continue
 
-            if array is None or not array.is_automatic or not array.is_array:
+            if not array.is_automatic or not array.is_array:
                 raise TransformationError(
                     f"{self.name} provided 'arrays' must be a local array "
                     f"symbols, but '{array}' is not")
@@ -177,7 +179,9 @@ class IncreaseRankLoopArraysTrans(Transformation):
 
         for array in array_list:
             if isinstance(array, str):
-                array = node.scope.symbol_table.lookup(array)
+                array = node.scope.symbol_table.lookup(array, otherwise=None)
+            if array is None:
+                continue
 
             # TODO: check that the bound expressions are valid as static
             # expressions in the declarations.

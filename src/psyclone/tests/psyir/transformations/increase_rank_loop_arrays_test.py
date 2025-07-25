@@ -90,6 +90,11 @@ def test_irla_validate(fortran_reader):
             "referenced inside a Codeblock, but 'a' is inside one."
             in str(err.value))
 
+    # Referencing non-existan arrays is fine, they are just ignored, this
+    # is useful to apply the transformation to several routines without an
+    # exact match of symbols
+    trans.apply(routine.children[1], options={'arrays': ['non_existant']})
+
 
 def test_irla_apply(fortran_reader, fortran_writer):
     ''' Check that the array rank is increased by the bounds of the loop. '''

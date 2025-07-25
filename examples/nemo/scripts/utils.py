@@ -391,19 +391,29 @@ def normalise_loops(
 
     if increase_array_ranks:
         irlatrans = IncreaseRankLoopArraysTrans()
-        if schedule.name == "dyn_zdf":
+        if schedule.name in ("dyn_zdf", "tra_zdf_imp"):
             for outer_loop in schedule.walk(Loop, stop_type=Loop):
                 if outer_loop.variable.name == "jj":
+                    # Increase the rank of the temporary arrays in this loop
                     irlatrans.apply(
                         outer_loop,
-                        options={'arrays': ['zwd', 'zwi', 'zws']})
-                    # Now reorder the outer jj loop by:
+                        options={'arrays': ['zwd', 'zwi', 'zws', 'zwt']})
+                    # Now reorder the code
                     for child in outer_loop.loop_body[:]:
-                        # moving all its contents where the loop was
+                        # Move the contents of the jj loop outside
                         outer_loop.parent.addchild(child.detach(),
                                                    index=outer_loop.position)
-                        # and add a copy of the jj loop above each inner loop
+                        # And add a new jj loop around each inner loop
+                        # that is not 'jn'
+                        target_loop = []
                         for inner_loop in child.walk(Loop, stop_type=Loop):
+                            if inner_loop.variable.name != "jn":
+                                target_loop.append(inner_loop)
+                            else:
+                                for next_loop in inner_loop.loop_body.walk(
+                                                    Loop, stop_type=Loop):
+                                    target_loop.append(next_loop)
+                        for inner_loop in target_loop:
                             if isinstance(inner_loop.loop_body[0], Loop):
                                 inner_loop = inner_loop.loop_body[0]
                             inner_loop.replace_with(
@@ -415,6 +425,7 @@ def normalise_loops(
                                     children=[inner_loop.copy()]
                                 )
                             )
+                    # Remove the now empty jj loop
                     outer_loop.detach()
 
     if hoist_expressions:
