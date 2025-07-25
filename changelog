@@ -1,3 +1,13 @@
+   59) PR #2137 towards #1312: adds metadata support for read-only ScalarArrays
+   in the LFRic DSL.
+
+   58) PR #3057 for 3056. Demote OpenMP lowering error to warning.
+
+   57) PR #3018 for #3017. Fix ArrayType with defined lower bounds, but no upper
+   bound.
+
+   56) PR #3055. Fixes duplicated async statements in OpenACC.
+
    55) PR #2941 for #2925. Add support for ASCII extraction and rename standalone
    extraction to binary extraction.
 
