@@ -95,6 +95,11 @@ def test_irla_validate(fortran_reader):
     # exact match of symbols
     trans.apply(routine.children[1], options={'arrays': ['non_existant']})
 
+    with pytest.raises(TransformationError) as err:
+        trans.apply(routine.children[1].detach(), options={'arrays': ['a']})
+    assert ("The target of the IncreaseRankLoopArraysTrans transformation "
+            "should be a Loop inside a Routine." in str(err.value))
+
 
 def test_irla_apply(fortran_reader, fortran_writer):
     ''' Check that the array rank is increased by the bounds of the loop. '''
