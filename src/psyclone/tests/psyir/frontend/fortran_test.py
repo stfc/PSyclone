@@ -97,10 +97,9 @@ def test_fortran_reader_constructor():
     freader.psyir_from_source(ONLY_2008_CODE)
 
 
-def test_fortran_psyir_from_source():
+def test_fortran_psyir_from_source(fortran_reader):
     ''' Test that the psyir_from_source method parses to PSyIR
     the specified source code. '''
-    fortran_reader = FortranReader()
     file_container = fortran_reader.psyir_from_source(CODE)
     assert isinstance(file_container, FileContainer)
     subroutine = file_container.children[0]
@@ -117,6 +116,38 @@ def test_fortran_psyir_from_source_fixed_form():
     assert isinstance(file_container, FileContainer)
     subroutine = file_container.children[0]
     assert isinstance(subroutine, Routine)
+
+
+def test_fortran_psyir_from_source_invalid_cpp_directives(fortran_reader):
+    '''
+    Test that we cleanly catch and report the problem when the provided
+    source contains CPP directives which result in fparser failing.
+
+    '''
+    code = '''\
+    program problems
+      integer i, n_tracers, nmodes
+      logical :: mode_names(20)
+    DO i=1,n_tracers
+    #if defined(NAG_FORTRAN) && (NAG_FORTRAN == 7000000)
+    tracer_belongs = .FALSE.
+    DO j=1,nmodes
+      IF ( mode_names(j) ) THEN
+        tracer_belongs = .TRUE.
+      END IF
+    END DO
+    IF ( tracer_belongs ) THEN
+    #else
+    IF ( ANY(mode_names(:) == all_tracers_names(i)(1:7)) ) THEN
+    #endif
+    END IF
+    END DO
+    end program problems
+    '''
+    with pytest.raises(ValueError) as err:
+        _ = fortran_reader.psyir_from_source(code)
+    assert ("Is the input valid Fortran (note that CPP directives must be "
+            "handled by a pre-processor)?" in str(err.value))
 
 
 def test_fortran_psyir_from_expression(fortran_reader):
@@ -232,6 +263,14 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
     file_container = fortran_reader.psyir_from_file(filename)
     assert isinstance(file_container, FileContainer)
     assert file_container.name == "empty.f90"
+
+    # Check with a file containing invalid Fortran
+    filename = str(tmpdir_factory.mktemp('frontend_test').join("wrong.f90"))
+    with open(filename, "w", encoding='utf-8') as wfile:
+        wfile.write("this is not Fortran")
+    with pytest.raises(ValueError) as err:
+        file_container = fortran_reader.psyir_from_file(filename)
+    assert "Failed to parse source in file" in str(err.value)
 
     # Check with a file that doesn't exist
     filename = str(tmpdir_factory.mktemp('frontend_test').join("Idontexist"))

@@ -97,18 +97,13 @@ def test_generate_adjoint_str(caplog, tmpdir):
 
     with caplog.at_level(logging.INFO):
         result, test_harness = generate_adjoint_str(tl_code, ["a", "b"])
-
-    assert caplog.text == ""
+        assert caplog.text == ""
     assert expected in result
     assert test_harness == ""
 
     with caplog.at_level(logging.DEBUG):
         result, test_harness = generate_adjoint_str(tl_code, ["a", "b"])
 
-    if not caplog.text:
-        pytest.xfail(reason="#1235: caplog returns an empty string in "
-                     "github actions.")
-    else:
         assert tl_code in caplog.text
         assert ("PSyIR\n"
                 "FileContainer[]\n"
