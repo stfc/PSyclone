@@ -1,4 +1,5 @@
 psy.f90
-tra_adv-r*.nc
-tra_adv-r*.binary
+tra_adv-tra_adv-r*.nc
+tra_adv-tra_adv-r*.ascii
+tra_adv-tra_adv-r*.binary
 output.dat

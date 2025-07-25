@@ -51,15 +51,13 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, Symbol
 def test_access_info():
     '''Test the AccessInfo class.
     '''
-    location = 12
-    access_info = AccessInfo(AccessType.READ, location, Node())
+    access_info = AccessInfo(AccessType.READ, Node())
     assert access_info.access_type == AccessType.READ
-    assert access_info.location == location
     assert access_info.component_indices.indices_lists == [[]]
     assert not access_info.is_array()
-    assert str(access_info) == "READ(12)"
+    assert str(access_info) == "READ"
     access_info.change_read_to_write()
-    assert str(access_info) == "WRITE(12)"
+    assert str(access_info) == "WRITE"
     assert access_info.access_type == AccessType.WRITE
     with pytest.raises(InternalError) as err:
         access_info.change_read_to_write()
@@ -72,21 +70,18 @@ def test_access_info():
     assert access_info.component_indices == component_indices
     assert access_info.is_array()
 
-    access_info = AccessInfo(AccessType.UNKNOWN, location, Node())
+    access_info = AccessInfo(AccessType.UNKNOWN, Node())
     assert access_info.access_type == AccessType.UNKNOWN
-    assert access_info.location == location
     assert access_info.component_indices.indices_lists == [[]]
 
-    access_info = AccessInfo(AccessType.UNKNOWN, location, Node(),
+    access_info = AccessInfo(AccessType.UNKNOWN, Node(),
                              [["i", "j"]])
     assert access_info.access_type == AccessType.UNKNOWN
-    assert access_info.location == location
     assert access_info.component_indices.indices_lists == [["i", "j"]]
 
-    access_info = AccessInfo(AccessType.UNKNOWN, location, Node(),
+    access_info = AccessInfo(AccessType.UNKNOWN, Node(),
                              ComponentIndices([["i", "j"]]))
     assert access_info.access_type == AccessType.UNKNOWN
-    assert access_info.location == location
     assert access_info.component_indices.indices_lists == [["i", "j"]]
 
 
@@ -94,21 +89,17 @@ def test_access_info():
 def test_access_info_exceptions():
     '''Test that the right exceptions are raised.
     '''
-    location = 12
     with pytest.raises(InternalError) as err:
-        _ = AccessInfo(AccessType.READ, location, Node(),
-                       component_indices=123)
+        _ = AccessInfo(AccessType.READ, Node(), component_indices=123)
     assert "Index object in ComponentIndices constructor must be None, " \
            "a list or list of lists, got '123'" in str(err.value)
 
     with pytest.raises(InternalError) as err:
-        _ = AccessInfo(AccessType.READ, location, Node(),
-                       component_indices=[[], 123])
+        _ = AccessInfo(AccessType.READ, Node(), component_indices=[[], 123])
     assert "ComponentIndices: Invalid list parameter '[[], 123]'" \
         in str(err.value)
 
-    location = 1
-    access_info = AccessInfo(AccessType.READ, location, Node())
+    access_info = AccessInfo(AccessType.READ, Node())
     with pytest.raises(InternalError) as err:
         access_info.component_indices = 123
     assert "The component_indices object in the setter of AccessInfo must " \
@@ -119,17 +110,16 @@ def test_access_info_description():
     '''
     Test for the description() method of AccessInfo.
     '''
-    location = 12
-    # When associated location is not a Statement.
-    ainfo = AccessInfo(AccessType.READ, location, Node())
+    # When associated node is not a Statement.
+    ainfo = AccessInfo(AccessType.READ, Node())
     assert "< node[] >" in ainfo.description.lower()
     # When it is a Statement.
-    ainfo = AccessInfo(AccessType.READ, location, Return())
+    ainfo = AccessInfo(AccessType.READ, Return())
     assert "return" in ainfo.description.lower()
     # When it is a Symbol.
     osym = Symbol("something")
     asym = DataSymbol("test", INTEGER_TYPE, initial_value=Reference(osym))
-    ainfo = AccessInfo(AccessType.INQUIRY, location, asym)
+    ainfo = AccessInfo(AccessType.INQUIRY, asym)
     assert ("definition of symbol 'test: datasymbol<scalar" in
             ainfo.description.lower())
 
@@ -142,7 +132,7 @@ def test_variable_access_info():
 
     vam = SingleVariableAccessInfo(Signature("var_name"))
     assert vam.var_name == "var_name"
-    assert str(vam) == "var_name:"
+    assert str(vam) == "var_name:[]"
     assert vam.is_written() is False
     assert vam.is_written_first() is False
     assert vam.is_read() is False
@@ -152,11 +142,9 @@ def test_variable_access_info():
     assert vam.all_write_accesses == []
     assert vam.signature == Signature("var_name")
 
-    vam.add_access_with_location(AccessType.INQUIRY, 3, Node(),
-                                 component_indices=None)
-    vam.add_access_with_location(AccessType.READ, 2, Node(),
-                                 component_indices=None)
-    assert str(vam) == "var_name:INQUIRY(3),READ(2)"
+    vam.add_access(AccessType.INQUIRY, Node(), component_indices=None)
+    vam.add_access(AccessType.READ, Node(), component_indices=None)
+    assert str(vam) == "var_name:[INQUIRY,READ]"
     assert vam.is_read()
     assert vam.is_read_only()
     assert vam.all_read_accesses == [vam[1]]
@@ -185,16 +173,14 @@ def test_variable_access_info():
 
     # Add a READ access - we should not be able to
     # change this read to write as there's already a WRITE access.
-    vam.add_access_with_location(AccessType.READ, 1, Node(),
-                                 component_indices=None)
+    vam.add_access(AccessType.READ, Node(), component_indices=None)
     with pytest.raises(InternalError) as err:
         vam.change_read_to_write()
     assert ("Variable 'var_name' has a 'WRITE' access. change_read_to_write() "
             "expects only inquiry accesses and a single 'READ' access."
             in str(err.value))
     # And make sure the variable is not read_only if a write is added
-    vam.add_access_with_location(AccessType.WRITE, 3, Node(),
-                                 component_indices=None)
+    vam.add_access(AccessType.WRITE, Node(), component_indices=None)
     assert vam.is_read_only() is False
     assert vam.all_read_accesses == [vam[2]]
     assert vam.all_write_accesses == [vam[1], vam[3]]
@@ -212,11 +198,10 @@ def test_variable_access_info_is_array(fortran_reader):
     '''
     vam = SingleVariableAccessInfo(Signature("var_name"))
     # Add non array-like access:
-    vam.add_access_with_location(AccessType.READ, 1, Node,
-                                 component_indices=None)
+    vam.add_access(AccessType.READ, Node(), component_indices=None)
     assert not vam.is_array()
     # Add array access:
-    vam.add_access_with_location(AccessType.READ, 1, Node(), [[Node()]])
+    vam.add_access(AccessType.READ, Node(), [[Node()]])
     assert vam.is_array()
 
     # Get some real nodes:
@@ -233,8 +218,7 @@ def test_variable_access_info_is_array(fortran_reader):
     ref_i = rhs.children[0]
 
     vam = SingleVariableAccessInfo(Signature("b"))
-    vam.add_access_with_location(AccessType.READ, 1, rhs,
-                                 ComponentIndices([ref_i]))
+    vam.add_access(AccessType.READ, rhs, ComponentIndices([ref_i]))
 
     # Check that the access to "b[i]" is considered an array
     # when testing for access using "i"
@@ -256,107 +240,24 @@ def test_variable_access_info_read_write():
     assert vam.has_read_write() is False
     assert vam.is_written_first() is False
 
-    # Add a READ and WRITE access at the same location, and make sure it
-    # is not reported as READWRITE access
+    # Add a READ and WRITE access and make sure it is not reported as
+    # READWRITE access
     node = Node()
-    vam.add_access_with_location(AccessType.READ, 2, node,
-                                 component_indices=None)
+    vam.add_access(AccessType.READ, node, component_indices=None)
     assert vam[0].node == node
-    assert vam[0].location == 2
     # Test a single read access:
     assert vam.is_written_first() is False
-    vam.add_access_with_location(AccessType.WRITE, 2, Node(),
-                                 component_indices=None)
+    vam.add_access(AccessType.WRITE, Node(), component_indices=None)
     assert vam.has_read_write() is False
     # This tests a read-then-write access:
     assert vam.is_written_first() is False
 
-    vam.add_access_with_location(AccessType.READWRITE, 2, Node(),
-                                 component_indices=None)
+    vam.add_access(AccessType.READWRITE, Node(), component_indices=None)
     assert vam.has_read_write()
 
     # Create a new instance, and add only one READWRITE access:
     vam = SingleVariableAccessInfo(Signature("var_name"))
-    vam.add_access_with_location(AccessType.READWRITE, 2, Node(),
-                                 component_indices=None)
+    vam.add_access(AccessType.READWRITE, Node(), component_indices=None)
     assert vam.has_read_write()
     assert vam.is_read()
     assert vam.is_written()
-
-
-# -----------------------------------------------------------------------------
-def test_is_written_before():
-    '''Tests that the 'is_written_before' function works as expected.
-
-    '''
-    var_sig = Signature("a")
-    accesses = SingleVariableAccessInfo(var_sig)
-    node1 = Node()
-    accesses.add_access_with_location(AccessType.READ, 1, node1, None)
-    node2 = Node()
-    accesses.add_access_with_location(AccessType.WRITE, 2, node2, None)
-    node3 = Node()
-    accesses.add_access_with_location(AccessType.WRITE, 3, node3, None)
-
-    assert accesses.is_written_before(node1) is False
-    assert accesses.is_written_before(node2) is False
-    assert accesses.is_written_before(node3) is True
-
-    with pytest.raises(ValueError) as err:
-        accesses.is_written_before(Node())
-    assert ("Reference not found in 'is_written_before' for variable "
-            "'a'" in str(err.value))
-
-
-# -----------------------------------------------------------------------------
-def test_is_read_before():
-    '''Tests that the 'is_read_before' function works as expected.
-
-    '''
-    var_sig = Signature("a")
-    accesses = SingleVariableAccessInfo(var_sig)
-    node1 = Node()
-    accesses.add_access_with_location(AccessType.WRITE, 1, node1, None)
-    node2 = Node()
-    accesses.add_access_with_location(AccessType.READ, 1, node2, None)
-    node3 = Node()
-    accesses.add_access_with_location(AccessType.WRITE, 1, node3, None)
-
-    assert accesses.is_read_before(node1) is False
-    assert accesses.is_read_before(node2) is False
-    assert accesses.is_read_before(node3) is True
-
-    with pytest.raises(ValueError) as err:
-        accesses.is_read_before(Node())
-    assert ("Reference not found in 'is_read_before' for variable 'a'."
-            in str(err.value))
-
-
-# -----------------------------------------------------------------------------
-def test_is_accessed_before():
-    '''Tests that the 'is_accessed_before' function works as expected.
-
-    '''
-    # First check a write access before the specified node:
-    var_sig = Signature("a")
-    accesses = SingleVariableAccessInfo(var_sig)
-    node1 = Node()
-    accesses.add_access_with_location(AccessType.WRITE, 1, node1, None)
-    node2 = Node()
-    accesses.add_access_with_location(AccessType.READ, 2, node2, None)
-
-    assert accesses.is_accessed_before(node1) is False
-    assert accesses.is_accessed_before(node2) is True
-
-    # Now test a read access before the specified node:
-    accesses = SingleVariableAccessInfo(var_sig)
-    accesses.add_access_with_location(AccessType.READ, 1, node1, None)
-    accesses.add_access_with_location(AccessType.READ, 2, node2, None)
-
-    assert accesses.is_accessed_before(node1) is False
-    assert accesses.is_accessed_before(node2) is True
-
-    with pytest.raises(ValueError) as err:
-        accesses.is_accessed_before(Node())
-    assert ("Reference not found in 'is_accessed_before' for variable 'a'."
-            in str(err.value))

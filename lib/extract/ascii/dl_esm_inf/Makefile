@@ -51,7 +51,7 @@ endif
 # distributed with PSyclone. Overwrite for a different infrastructure version.
 GOCEAN_INF_DIR ?= ./../../../../external/dl_esm_inf/finite_difference
 # Paths to the PSyclone wrapper libraries and required templates. They default
-# to the relative paths to the top-level 'lib' and 'lib/extract/standalone'
+# to the relative paths to the top-level 'lib' and 'lib/extract/ascii'
 # directories. Overwrite for a custom location.
 PSYDATA_LIB_DIR ?= ./../../..
 LIB_TMPLT_DIR ?= ./..
@@ -69,7 +69,7 @@ PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=2
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-OBJS = psy_data_base.o kernel_data_standalone.o extract_standalone_base.o \
+OBJS = psy_data_base.o kernel_data_ascii.o extract_ascii_base.o \
 	   compare_variables_mod.o read_kernel_data_mod.o
 
 default: $(PSYDATA_LIB)
@@ -79,8 +79,8 @@ default: $(PSYDATA_LIB)
 $(PSYDATA_LIB): $(INF_LIB) $(OBJS)
 	${AR} ${ARFLAGS} ${PSYDATA_LIB} $^
 
-kernel_data_standalone.o:	extract_standalone_base.o $(INF_LIB)
-extract_standalone_base.o:	psy_data_base.o
+kernel_data_ascii.o:	extract_ascii_base.o $(INF_LIB)
+extract_ascii_base.o:	psy_data_base.o
 
 psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
@@ -88,8 +88,8 @@ psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 read_kernel_data_mod.f90: $(LIB_TMPLT_DIR)/read_kernel_data_mod.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) $< > read_kernel_data_mod.f90
 
-extract_standalone_base.F90: $(LIB_TMPLT_DIR)/extract_standalone_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_standalone_base.F90
+extract_ascii_base.F90: $(LIB_TMPLT_DIR)/extract_ascii_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_ascii_base.F90
 
 compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > compare_variables_mod.F90
@@ -105,7 +105,7 @@ $(INF_LIB):
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.f90 \
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_ascii_base.f90 \
 		compare_variables_mod.F90 read_kernel_data_mod.f90
 
 allclean: clean

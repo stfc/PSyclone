@@ -344,7 +344,7 @@ AccessInfo
 The class `SingleVariableAccessInfo` uses a list of
 `psyclone.core.AccessInfo` instances to store all
 accesses to a single variable. A new instance of `AccessInfo`
-is appended to the list whenever `add_access_with_location()`
+is appended to the list whenever `add_access()`
 is called.
 
 .. autoclass:: psyclone.core.AccessInfo
@@ -445,51 +445,6 @@ wrapped in an outer loop over all accesses.
     :hide:
 
     Index 'i' is used.
-
-Access Location
----------------
-
-Variable accesses are stored in the order in which they happen. For example,
-an assignment `a=a+1` will store two access for the variable `a`, the
-first one being a READ access, followed by a WRITE access, since this is the
-order in which the accesses are executed.
-Additionally, the function `reference_accesses()` keeps track of the location
-at which the accesses happen. A location is an integer number, starting with 0,
-which is increased for each new statement. This makes it possible to
-compare accesses to variables: if two accesses have the same location value,
-it means the accesses happen in the same statement, for example `a=a+1`:
-the READ and WRITE access to `a` will have the same location number. If on the
-other hand the accesses happen in two separate statements, e.g. `a=b+1; c=a+1`
-then the first access to `a` (and the access to `b`) will have a smaller
-location number than the second access to `a` (and the access to `c`).
-If two statements have consecutive locations, this does not necessarily mean
-that the statements are executed one after another. For example in if-statements
-the statements in the if-body are counted first, then the statements in the
-else-body. It is the responsibility of the user to handle these cases - for
-example by creating separate `VariablesAccessMap` for statements in the if-body
-and for the else-body.
-
-.. note:: When using different instances for an if- and else-body, the first
-    statement of the if-body will
-    have the same location number as the first statement of the else-body. So
-    you can only compare location numbers from the same `VariablesAccessMap`
-    instance. If you merge two instances together, the locations of the merged-in
-    instance will be appropriately increased to follow the locations of the
-    instance to which it is merged.
-
-
-The location number is not exactly a line number - several statements can be
-on one line, which will get different location numbers. And certain lines
-will not have a location number (e.g. comment lines).
-
-As stated above, one instance of `VariablesAccessMap` can be extended by adding
-additional variable information. It is the responsibility of the user to make
-sure the accesses are added in the right order - the `VariablesAccessMap` object
-will always assume accesses happen at the current location, and a call to 
-`next_location()` is required (internally) to increase the location number.
-
-.. note:: It is not possible to add access information about an earlier
-     usage to an existing `VariablesAccessMap` object. 
 
 
 Access Examples
