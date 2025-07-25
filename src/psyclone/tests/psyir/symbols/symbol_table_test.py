@@ -2991,7 +2991,7 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch, caplog):
     assert not isinstance(b_1, symbols.DataSymbol)
 
     # Now resolve all found containers (this will not fail for the
-    # unavailable c_mod, but it will be loged)
+    # unavailable c_mod, but it will be logged)
     with caplog.at_level(logging.WARNING):
         subroutine.symbol_table.resolve_imports()
     assert "Module 'c_mod' not found" in caplog.text

@@ -33,7 +33,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 
-''' Entry point for the psyclonefc command. '''
+'''
+Entry point for the psyclonefc command (PSyclone's compiler wrapper script).
+'''
 
 import sys
 from psyclone.psyclonefc_cli import compiler_wrapper

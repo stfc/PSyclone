@@ -50,7 +50,7 @@ def compiler_wrapper(arguments):
     This utility intercepts compilation commands and applies the psyclone
     transformation tool to any encountered Fortran file before passing them
     to the target compiler. The goal is to provide an easy way to inject
-    psyclone to build systems without needed to modify them.
+    psyclone into build systems without needing to modify them.
 
     The target compiler can be selected with the PSYCLONE_COMPILER environment
     variable. Setting it is mandatory.
@@ -86,7 +86,8 @@ def compiler_wrapper(arguments):
     if fortran_compiler is None:
         sys.exit(
             'psyclonefc error: PSYCLONE_COMPILER environment variable not '
-            'found!')
+            'found! This environment variable must be set to the Fortran '
+            'compiler to use.')
     # Remove empty strings from the list (caused by the default empty envvar or
     # multi-spaces gaps)
     if "" in psyclone_options:
