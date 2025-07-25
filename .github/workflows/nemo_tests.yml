@@ -229,3 +229,32 @@ jobs:
           ci_test: "NEMOv4 OpenMP for CPU", nemo_version: "NEMO ECMWF 4.0 V40 with mpp", system: "GlaDos",
           compiler:"intel-'"$ONEAPI_VERSION"'" , date: new Date(),
           num_omp_threads: '"$OMP_NUM_THREADS"', elapsed_time: '"$VAR_TIME"'})'
+
+    # PSyclone, compile and run MetOffice NEMO with OpenMP for GPUs with Asynchronous directives
+    - name: NEMO MetOffice OpenMP for GPU
+      run: |
+        . .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export NEMO_DIR=${HOME}/NEMO
+        cd $PSYCLONE_NEMO_DIR
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
+        module load perl/${PERL_VERSION}
+        make clean
+        export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
+        export ASYNC_PARALLEL=1
+        make -j 4 openmp_gpu
+        make -j 4 compile-openmp_gpu
+        export NV_ACC_POOL_THRESHOLD=75
+        make run-openmp_gpu
+        # Check for full numerical reproducibility with KGO results
+        diff <(make -s output-openmp_gpu)  KGOs/run.stat.nemo4.splitz12.nvhpc.10steps
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" <(make -s time-openmp_gpu) | head -n 2 | tail -n 1 | awk '{print $1}')
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "NEMOv4 OpenMP for GPU", nemo_version: "NEMO MO 4.0.2", system: "GlaDos",
+          compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
