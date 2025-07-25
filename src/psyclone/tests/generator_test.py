@@ -416,13 +416,15 @@ def test_script_file_too_short():
     file name is too short to contain the '.py' extension.
 
     '''
-    with pytest.raises(GenerationError):
+    with pytest.raises(GenerationError) as err:
         _, _ = generate(os.path.join(BASE_PATH, "lfric",
                                      "1_single_invoke.f90"),
                         api="lfric",
                         script_name=os.path.join(
                             BASE_PATH,
                             "lfric", "testkern_xyz_mod.f90"))
+    assert ("expected the script file 'testkern_xyz_mod.f90' to have the "
+            "'.py' extension" in str(err.value))
 
 
 def test_no_script_gocean():
@@ -470,7 +472,7 @@ def test_profile_gocean():
     Profiler._options = []
 
 
-def test_invalid_gocean_alg(monkeypatch, caplog):
+def test_invalid_gocean_alg(monkeypatch, caplog, capsys):
     '''
     Test that an error creating PSyIR for a GOcean algorithm layer is
     handled correctly.
@@ -487,8 +489,10 @@ def test_invalid_gocean_alg(monkeypatch, caplog):
             _ = generate(
                 os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
                 api="gocean")
-        assert "Failed to create PSyIR from file '" in caplog.text
         assert "This is a test" in caplog.text
+        assert "Traceback" in caplog.text
+        _, err = capsys.readouterr()
+        assert "Failed to create PSyIR from file '" in err
 
 
 def test_script_attr_error(script_factory):
@@ -832,7 +836,8 @@ def test_main_api(capsys, caplog):
               "--log-file", "test.out"])
         assert Config.get().api == "lfric"
         assert caplog.records[0].levelname == "DEBUG"
-        assert "Logging system initialised" in caplog.record_tuples[0][2]
+        assert ("Logging system initialised. Level is DEBUG." in
+                caplog.record_tuples[0][2])
 
 
 def test_keep_comments_and_keep_directives(capsys, caplog, tmpdir_factory,

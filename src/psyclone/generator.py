@@ -300,12 +300,10 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         else:
             try:
                 psyir = reader.psyir_from_file(filename)
-            except (InternalError, ValueError) as err:
+            except (InternalError, ValueError, IOError) as err:
                 print(f"Failed to create PSyIR from file '{filename}'",
                       file=sys.stderr)
-                logger.error(
-                    "Failed to create PSyIR from file '%s'. Error was:\n%s",
-                    filename, str(err))
+                logger.error(err, exc_info=True)
                 sys.exit(1)
 
         # Raise to Algorithm PSyIR
@@ -369,12 +367,10 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                 try:
                     # Create language-level PSyIR from the kernel file
                     kernel_psyir = reader.psyir_from_file(filepath)
-                except (InternalError, ValueError) as info:
+                except (InternalError, ValueError, IOError) as info:
                     print(f"Failed to create PSyIR from kernel file "
                           f"'{filepath}'", file=sys.stderr)
-                    logger.error(
-                        "Failed to create PSyIR from kernel file '%s'. Error "
-                        "was:\n%s", filepath, str(info.value))
+                    logger.error(info, exc_info=True)
                     sys.exit(1)
 
                 # Raise to Kernel PSyIR
@@ -555,8 +551,7 @@ def main(arguments):
     else:
         logging.basicConfig(level=loglevel)
     logger = logging.getLogger(__name__)
-    logger.debug("Logging system initialised. Default level is %s.",
-                 args.log_level)
+    logger.debug("Logging system initialised. Level is %s.", args.log_level)
 
     # Validate that the given arguments are for the right operation mode
     if not args.psykal_dsl:
@@ -820,12 +815,10 @@ def code_transformation_mode(input_file, recipe_file, output_file,
                                ignore_directives=not keep_directives)
         try:
             psyir = reader.psyir_from_file(input_file)
-        except (InternalError, ValueError) as err:
-            print(f"Failed to create PSyIR from file '{input_file}'",
-                  file=sys.stderr)
-            logger.error(
-                "Failed to create PSyIR from file '%s'. Error was:\n%s",
-                input_file, str(err))
+        except (InternalError, ValueError, IOError) as err:
+            print(f"Failed to create PSyIR from file '{input_file}' due "
+                  f"to:\n{str(err)}", file=sys.stderr)
+            logger.error(err, exc_info=True)
             sys.exit(1)
 
         # Modify file
