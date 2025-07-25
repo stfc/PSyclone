@@ -45,7 +45,7 @@
 # pylint: disable=too-many-lines
 import abc
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
@@ -215,22 +215,21 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         return (f"Built-in: {self._case_name} ("
                 f"{self._datatype}-valued field{plural})")
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information from this node. The assigned-to
-        variable will be set to 'WRITE'.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are SingleVariableAccessInfo
+            (a sequence of AccessTypes).
 
         :raises InternalError: if an unsupported argument type is encountered.
 
         '''
+        var_accesses = VariablesAccessMap()
         table = self.scope.symbol_table
         # Collect all write access in a separate object, so they can be added
         # after all read access (which must happen before something is written)
-        written = VariablesAccessInfo()
+        written = VariablesAccessMap()
         suffix_map = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
 
         for arg in self.args:
@@ -251,10 +250,8 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 else:
                     var_accesses.add_access(Signature(name), arg.access, self)
         # Now merge the write access to the end of all other accesses:
-        var_accesses.merge(written)
-        # Forward location pointer to next index, since this built-in kernel
-        # finishes a statement
-        var_accesses.next_location()
+        var_accesses.update(written)
+        return var_accesses
 
     def load(self, call, parent=None):
         '''

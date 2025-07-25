@@ -46,6 +46,7 @@ nodes.'''
 import abc
 import itertools
 import sympy
+import logging
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
@@ -1384,11 +1385,12 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
                                     clause.children]:
                         break
                 else:
-                    raise GenerationError(
-                        f"Lowering '{type(self).__name__}' does not support "
-                        f"symbols that need synchronisation unless they are "
-                        f"in a depend clause, but found: "
-                        f"'{sym.name}' which is not in a depend clause.")
+                    logger = logging.getLogger(__name__)
+                    logger.warning(
+                        "Lowering '%s' detected a possible race condition for "
+                        "symbol '%s'. Make sure this is a false WaW dependency"
+                        " or the code includes the necessary "
+                        "synchronisations.", type(self).__name__, sym.name)
 
         self.addchild(private_clause)
         self.addchild(fprivate_clause)
@@ -1921,7 +1923,7 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         if self._collapse:
             string += f" collapse({self._collapse})"
         if self._lowered_reduction_string:
-            string += f", {self._lowered_reduction_string}"
+            string += f" {self._lowered_reduction_string}"
         return string
 
     def end_string(self):

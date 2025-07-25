@@ -36,6 +36,7 @@
 # Modified by A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
 # Modified by S. Siso, STFC Daresbury Lab
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Module containing tests for generating monitoring hooks'''
 
@@ -47,15 +48,16 @@ from psyclone.domain.lfric import LFRicKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.profiler import Profiler
-from psyclone.psyir.nodes import (colored, ProfileNode, Loop, Literal,
-                                  Assignment, Return, Reference,
-                                  KernelSchedule, Routine, Schedule)
-from psyclone.psyir.symbols import (SymbolTable, REAL_TYPE, DataSymbol)
-from psyclone.psyir.transformations import (ACCKernelsTrans, ProfileTrans,
-                                            TransformationError)
+from psyclone.psyir.nodes import (
+    colored, ProfileNode, Loop, Literal, Assignment, Return, Reference,
+    OMPDoDirective, KernelSchedule, Routine, Schedule)
+from psyclone.psyir.symbols import (
+    SymbolTable, REAL_TYPE, DataSymbol, INTEGER_TYPE)
+from psyclone.psyir.transformations import (
+    ACCKernelsTrans, ProfileTrans, TransformationError)
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (GOceanOMPLoopTrans,
-                                      OMPParallelTrans)
+from psyclone.transformations import (
+    GOceanOMPLoopTrans, OMPParallelTrans, LFRicOMPLoopTrans)
 
 
 # -----------------------------------------------------------------------------
@@ -364,6 +366,35 @@ def test_profile_invokes_lfric(fortran_writer):
     assert "CALL profile_psy_data % PostEnd" in code
 
     Profiler._options = []
+
+
+def test_profile_with_symbols_declared_in_the_profiler_scope(tmpdir):
+    ''' Test that Symbols that are declared in the Profiler schedule node end
+    up in the output code. For example, LFRic OpenMP with reprod reductions
+    declares symbols in there. '''
+    file_name = "15.19.1_three_builtins_two_reductions.f90"
+    psy, invoke = get_invoke(file_name, "lfric", idx=0)
+    schedule = invoke.schedule
+    rtrans = OMPParallelTrans()
+    otrans = LFRicOMPLoopTrans()
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            otrans.apply(child, {"reprod": True})
+    for child in schedule.children:
+        if isinstance(child, OMPDoDirective):
+            rtrans.apply(child)
+    profile_trans = ProfileTrans()
+    options = {"region_name": (psy.name, invoke.name)}
+    profile_trans.apply(schedule.children, options=options)
+    # In addition to the OpenMP symbols, manually add one in that scope
+    schedule.children[0].psy_data_body.symbol_table.new_symbol(
+        "profiler_scoped_symbol", symbol_type=DataSymbol,
+        datatype=INTEGER_TYPE)
+    code = str(psy.gen)
+
+    assert "omp_lib, only : omp_get_max_threads, omp_get_thread_num" in code
+    assert "integer :: th_idx" in code
+    assert "integer :: profiler_scoped_symbol" in code
 
 
 # -----------------------------------------------------------------------------
@@ -696,7 +727,7 @@ def test_omp_transform(fortran_writer):
     correct = (
         "  CALL profile_psy_data % PreStart(\"psy_test27_loop_swap\", "
         "\"invoke_loop1-bc_ssh_code-r0\", 0, 0)\n"
-        "  !$omp parallel default(shared), private(i,j)\n"
+        "  !$omp parallel default(shared) private(i,j)\n"
         "  !$omp do schedule(static)\n"
         "  do j = t%internal%ystart, t%internal%ystop, 1\n"
         "    do i = t%internal%xstart, t%internal%xstop, 1\n"
@@ -718,7 +749,7 @@ def test_omp_transform(fortran_writer):
     correct = '''
   CALL profile_psy_data % PreStart(\"psy_test27_loop_swap\", \
 "invoke_loop1-bc_ssh_code-r0", 0, 0)
-  !$omp parallel default(shared), private(i,j)
+  !$omp parallel default(shared) private(i,j)
   CALL profile_psy_data_1 % PreStart("psy_test27_loop_swap", \
 "invoke_loop1-bc_ssh_code-r1", 0, 0)
   !$omp do schedule(static)
@@ -815,3 +846,160 @@ def test_auto_invoke_empty_schedule(capsys):
     _, err = capsys.readouterr()
     assert ("Not adding profiling to routine 'work1' because it does not "
             "contain any statements." in err)
+
+
+def test_profiling_exit_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    EXIT block in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+        do i = 1, 100
+          EXIT
+        end do
+        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Cannot apply the ProfileTrans to a code region containing a "
+            "potential control flow jump, as these could skip the end of "
+            "profiling caliper. Found:\n'! PSyclone CodeBlock "
+            "(unsupported code) reason:\n!  - Unsupported statement: "
+            "Exit_Stmt\nEXIT\n'"
+            in str(excinfo.value))
+
+
+def test_profiling_goto_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    GOTO block in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+          a = a + i
+          GOTO 123
+        end do
+123        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Cannot apply the ProfileTrans to a code region containing a "
+            "potential control flow jump, as these could skip the end of "
+            "profiling caliper. Found:\n'\n! PSyclone CodeBlock "
+            "(unsupported code) reason:\n!  - Unsupported statement: "
+            "Goto_Stmt\nGO TO 123\n'"
+            in str(excinfo.value))
+
+
+def test_profiling_cycle_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    CYCLE block in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+          a = a + i
+          CYCLE
+        end do
+        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Cannot apply the ProfileTrans to a code region containing a "
+            "potential control flow jump, as these could skip the end of "
+            "profiling caliper. Found:\n'\n! PSyclone CodeBlock "
+            "(unsupported code) reason:\n!  - Unsupported statement: "
+            "Cycle_Stmt\nCYCLE\n'"
+            in str(excinfo.value))
+
+
+def test_profiling_labelled_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    labelled statement in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          a = a + 1
+        end do
+        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Transformation Error: Cannot apply the ProfileTrans to a code "
+            "region containing a potential control flow jump, as these could "
+            "skip the end of profiling caliper. Found:\n"
+            "'! PSyclone CodeBlock (unsupported code) reason:\n!  - "
+            "Unsupported labelled statement\n123 a = a + 1\n"
+            in str(excinfo.value))
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          do a= 1, 100
+             end do
+        end do
+        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Transformation Error: Cannot apply the ProfileTrans to a code "
+            "region containing a potential control flow jump, as these could "
+            "skip the end of profiling caliper. Found:\n"
+            "'! PSyclone CodeBlock (unsupported code) reason:\n!  - "
+            "Unsupported labelled statement\n123 DO a = 1, 100\nEND DO\n"
+            in str(excinfo.value))
+
+
+def test_profiling_force(fortran_reader):
+    ''' Check the profiling transformation validation doesn't fail if we
+    enable the force option.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          a = a + 1
+        end do
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    ptrans.validate(psyir.children[0].children[0], {"force": True})
+
+
+def test_profiling_full_routine(fortran_reader):
+    ''' Check the profiling transformation validation doesn't fail if we
+    give the full routine as an input.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          a = a + 1
+        end do
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    ptrans.validate(psyir.children[0])

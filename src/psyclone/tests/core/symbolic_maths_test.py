@@ -42,6 +42,7 @@ from sympy import solvers, Symbol
 
 from psyclone.core.symbolic_maths import SymbolicMaths
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
+from psyclone.psyir.nodes import Assignment
 
 
 def test_sym_maths_get():
@@ -122,7 +123,6 @@ def test_symbolic_math_equal(fortran_reader, expressions):
 
 
 @pytest.mark.parametrize("expressions", [("a%b", "a%b"),
-                                         ("c", "c(::,::)"),
                                          ("a%b(i)", "a%b(i)"),
                                          ("a%b(2*i)", "a%b(3*i-i)"),
                                          ("a%b(i-1)%c(j+1)",
@@ -475,7 +475,12 @@ def test_symbolic_math_use_range(fortran_reader, expressions):
     ("a*(b+c)", "a * b + a * c"),
     ("a*((b+c)/d)", "a * b / d + a * c / d"),
     ("a(i)*((b(i,j)+c(j))/d)",
-     "a(i) * b(i,j) / d + a(i) * c(j) / d")])
+     "a(i) * b(i,j) / d + a(i) * c(j) / d"),
+    # 'a' is unresolved so we don't know from the first occurrence whether or
+    # not it is a scalar.
+    ("a / a(i)", "a / a(i)"),
+    ("norm_u(idx+iw2) * u_e(idx + (LBOUND(u_e,dim=1)-iw2v), df2)",
+     "norm_u(idx + iw2) * u_e(idx - iw2v + LBOUND(u_e, 1),df2)")])
 def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     '''Test the expand method works as expected.'''
     # A dummy program to easily create the PSyIR for the
@@ -492,6 +497,93 @@ def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     assert result == expected
 
 
+def test_expand_with_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test that calling the `expand` method does not alter array accesses
+    that are passed as arguments to other routines - in this case the
+    LBOUND intrinsic.
+
+    '''
+    source = '''
+  subroutine apply_mixed_operator_code(ncell1, nlayers, ndf_w2, ndf_w2h, &
+                                  undf_w2v, undf_w2, lhs_w, norm_u, mu_cd)
+    use kinds_mod, only: i_def, r_solver
+    integer, intent(in) :: nlayers, ndf_w2, ndf_w2h, ncell1
+    integer, intent(in) :: undf_w2v, undf_w2
+    real(kind=r_solver), dimension(undf_w2v), intent(inout) :: lhs_w
+    real(kind=r_solver), dimension(undf_w2), intent(in) :: norm_u
+    real(kind=r_solver), dimension(ncell1,ndf_w2,ndf_w2), intent(in) :: mu_cd
+    real(kind=r_solver), dimension(0:nlayers - 1,ndf_w2) :: u_e
+    real(kind=r_solver), dimension(0:nlayers) :: t_col
+    integer(kind=i_def) :: idx_10, df, df2, ij, iwt, iw2, iw2h, iw2v
+    lhs_w(idx_10) = norm_u(idx_10 + (iw2 - iw2v)) * &
+        mu_cd(idx_10 + (ij - iw2v), ndf_w2h + df ,df2) * &
+        u_e(idx_10 + (LBOUND(u_e, dim=1) - iw2v), df2)
+  end subroutine apply_mixed_operator_code'''
+    psyir = fortran_reader.psyir_from_source(source)
+    sym_maths = SymbolicMaths.get()
+    rhs = psyir.walk(Assignment)[0].rhs
+    sym_maths.expand(rhs)
+    result = fortran_writer(psyir).lower()
+    # Check that the 'u_e' argument remains unchanged.
+    assert "lbound(u_e, 1),df2)" in result
+
+
+def test_symbolic_maths_expand_function(fortran_reader, fortran_writer):
+    '''Test the expand method works as expected when one of the
+    Symbols in the expression corresponds to an actual function.
+
+    '''
+    source = (
+        "module test\n"
+        "  implicit none\n"
+        "  contains\n"
+        "  subroutine use_a\n"
+        "    use some_mod, only: b, c, d\n"
+        "    integer :: i, j, x\n"
+        "    x = a(i)*((b(i,j)+c(j))/d)\n"
+        "  end subroutine\n"
+        "  function a(i)\n"
+        "     integer, intent(in) :: i\n"
+        "     integer :: a\n"
+        "     a = i\n"
+        "  end function\n"
+        "end module\n")
+    psyir = fortran_reader.psyir_from_source(source)
+    sym_maths = SymbolicMaths.get()
+    assigns = psyir.walk(Assignment)
+    sym_maths.expand(assigns[0].rhs)
+    result = fortran_writer(psyir).lower()
+    assert "a(i) * b(i,j) / d +" in result
+
+
+def test_symbolic_maths_expand_function_no_arg(fortran_reader, fortran_writer):
+    '''Test the expand method works as expected when one of the Symbols in the
+    expression corresponds to a function call with no arguments.
+
+    '''
+    source = (
+        "module test\n"
+        "  implicit none\n"
+        "  contains\n"
+        "  subroutine use_a\n"
+        "    use some_mod, only: b, c, d\n"
+        "    integer :: x, i, j\n"
+        "    x = a()*((b(i,j)+c(j))/d)\n"
+        "  end subroutine\n"
+        "  function a()\n"
+        "     integer :: a\n"
+        "     a = 10\n"
+        "  end function\n"
+        "end module\n")
+    psyir = fortran_reader.psyir_from_source(source)
+    sym_maths = SymbolicMaths.get()
+    assigns = psyir.walk(Assignment)
+    sym_maths.expand(assigns[0].rhs)
+    result = fortran_writer(psyir).lower()
+    assert "x = a() * b(i,j) / d + a() *" in result
+
+
 def test_symbolic_maths_array_and_array_index(fortran_reader):
     '''Test having an expression that uses a whole array and
     the same array with an index, e.g. : `a(i) + a`.
@@ -503,12 +595,80 @@ def test_symbolic_maths_array_and_array_index(fortran_reader):
           y = a
         end program test_prog'''
     psyir = fortran_reader.psyir_from_source(source)
+    assigns = psyir.walk(Assignment)
     sym_maths = SymbolicMaths.get()
-    assert not sym_maths.equal(psyir.children[0][0].rhs,
-                               psyir.children[0][1].rhs)
+    assert not sym_maths.equal(assigns[0].rhs, assigns[1].rhs)
 
-    assert sym_maths.equal(psyir.children[0][0].rhs,
-                           psyir.children[0][0].rhs)
+    assert sym_maths.equal(assigns[0].rhs, assigns[0].rhs)
 
-    assert sym_maths.equal(psyir.children[0][1].rhs,
-                           psyir.children[0][1].rhs)
+    assert sym_maths.equal(assigns[1].rhs, assigns[1].rhs)
+
+
+@pytest.mark.parametrize(
+    "expressions",
+    [(".false. .and. .false.", "False"),
+     (".false. .and. .true.", "False"),
+     (".true. .and. .false.", "False"),
+     (".true. .and. .true.", "True"),
+     (".false. .or. .false.", "False"),
+     (".false. .or. .true.", "True"),
+     (".true. .or. .false.", "True"),
+     (".true. .or. .true.", "True"),
+     (".false. .eqv. .false.", "True"),
+     (".false. .eqv. .true.", "False"),
+     (".true. .eqv. .false.", "False"),
+     (".true. .eqv. .true.", "True"),
+     (".false. .neqv. .false.", "False"),
+     (".false. .neqv. .true.", "True"),
+     (".true. .neqv. .false.", "True"),
+     (".true. .neqv. .true.", "False"),
+     (" .false. .and. ((3 -2 + 4 - 5) .eq. 0 .and. .false.)", False),
+     ])
+def test_sym_writer_boolean_expr(fortran_reader, expressions):
+    '''Test that booleans are written in the way that SymPy accepts.
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                logical :: bool_expr
+                bool_expr = {expressions[0]}
+                bool_expr = {expressions[1]}
+                end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    lit0 = psyir.children[0].children[0].rhs
+    lit1 = psyir.children[0].children[1].rhs
+    sympy_writer = SymPyWriter()
+
+    sympy_expr = sympy_writer(lit0)
+    assert sympy_expr == sympy_writer(lit1)
+
+
+@pytest.mark.parametrize(
+    "expressions",
+    [(".true. .and. .false.", False),
+     (".true. .and. .true.", True),
+     (".false. .or. .true.", True),
+     ("3 .eq. 3", True),
+     (" ((3 -2 + 4 - 5) .eq. 0 .and. .false.) .or. .true.", True),
+     (" ((3 -2 + 4 - 5) .eq. 0 .and. .true.)", True),
+     (" (3 -2 + 4 - 5) .eq. 0 .and. .false. .and. .true.", False),
+     (" ((3 -2 + 4 - 5) .eq. 0 .and. .false.) .and. .true.", False),
+     (" .false. .and. ((3 -2 + 4 - 5) .eq. 0 .and. .false.)", False),
+     ("  (((3 -2 + 4 - 5) .eq. 0) .and. .false.)", False),
+     ])
+def test_sym_writer_boolean_expr_add_test(fortran_reader, expressions):
+    '''Test that booleans are written in the way that SymPy accepts.
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+    logical :: bool_expr
+    bool_expr = {expressions[0]}
+    end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    lit = psyir.children[0].children[0].rhs
+    sympy_writer = SymPyWriter()
+    sympy_expr = sympy_writer(lit)
+    assert sympy_expr == expressions[1]

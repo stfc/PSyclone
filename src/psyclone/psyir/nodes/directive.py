@@ -43,9 +43,9 @@
 
 import abc
 from collections import OrderedDict
-from typing import List
+from typing import Tuple
 
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes.array_of_structures_reference import (
     ArrayOfStructuresReference)
@@ -96,8 +96,7 @@ class Directive(Statement, metaclass=abc.ABCMeta):
         write_only = OrderedDict()
         table = self.scope.symbol_table
 
-        var_info = VariablesAccessInfo()
-        self.reference_accesses(var_info)
+        var_info = self.reference_accesses()
 
         for sig in var_info.all_signatures:
             vinfo = var_info[sig]
@@ -234,14 +233,14 @@ class RegionDirective(Directive):
         return self.children[0]
 
     @property
-    def clauses(self):
+    def clauses(self) -> Tuple[Clause]:
         '''
         :returns: the Clauses associated with this directive.
         :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
         '''
         if len(self.children) > 1:
-            return self.children[1:]
-        return []
+            return tuple(self.children[1:])
+        return ()
 
 
 class StandaloneDirective(Directive):
@@ -273,11 +272,11 @@ class StandaloneDirective(Directive):
         return isinstance(child, Clause)
 
     @property
-    def clauses(self) -> List[Clause]:
+    def clauses(self) -> Tuple[Clause]:
         '''
         :returns: the Clauses associated with this directive.
         '''
-        return self.children
+        return tuple(self.children)
 
 
 # For automatic API documentation generation

@@ -880,7 +880,7 @@ class FortranWriter(LanguageWriter):
             decln_inputs[symbol.name] = set()
             read_write_info = ReadWriteInfo()
             self._call_tree_utils.get_input_parameters(read_write_info,
-                                                       symbol.initial_value)
+                                                       [symbol.initial_value])
             # The dependence analysis tools do not include symbols used to
             # define precision so check for those here.
             for lit in symbol.initial_value.walk(Literal):
@@ -1653,7 +1653,7 @@ class FortranWriter(LanguageWriter):
         # Add a space only if there are clauses
         if len(clause_list) > 0:
             result = result + " "
-        result = result + ", ".join(clause_list)
+        result = result + " ".join(clause_list)
         result = result + "\n"
 
         for child in node.dir_body:
@@ -1683,7 +1683,7 @@ class FortranWriter(LanguageWriter):
         # Add a space only if there are clauses
         if len(clause_list) > 0:
             result = result + " "
-        result = result + ", ".join(clause_list)
+        result = result + " ".join(clause_list)
         result = result + "\n"
 
         return result
@@ -1729,21 +1729,24 @@ class FortranWriter(LanguageWriter):
                 result_list.append(self._visit(child))
         return ", ".join(result_list)
 
-    def call_node(self, node):
+    def call_node(self, node) -> str:
         '''Translate the PSyIR call node to Fortran.
 
         :param node: a Call PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Call`
 
         :returns: the equivalent Fortran code.
-        :rtype: str
 
         '''
         args = self._gen_arguments(node)
-        if isinstance(node, IntrinsicCall) and node.routine.name in [
-                "ALLOCATE", "DEALLOCATE"]:
-            # An allocate/deallocate doesn't have 'call'.
-            return f"{self._nindent}{node.routine.name}({args})\n"
+        if isinstance(node, IntrinsicCall) and node.routine.name not in [
+                "DATE_AND_TIME", "SYSTEM_CLOCK", "MVBITS", "RANDOM_NUMBER",
+                "RANDOM_SEED"]:
+            # Most intrinsics are functions and so don't have 'call'.
+            if not node.parent or isinstance(node.parent, Schedule):
+                return f"{self._nindent}{node.routine.name}({args})\n"
+            return f"{node.routine.name}({args})"
+
         if not node.parent or isinstance(node.parent, Schedule):
             return f"{self._nindent}call {self._visit(node.routine)}({args})\n"
 

@@ -116,7 +116,7 @@ def test_omp_parallel_loop(tmpdir, fortran_writer):
 
     gen = fortran_writer(psy.container)
     expected = (
-        "    !$omp parallel do default(shared), private(i,j), "
+        "    !$omp parallel do default(shared) private(i,j) "
         "schedule(static)\n"
         "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
         "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
@@ -129,7 +129,7 @@ def test_omp_parallel_loop(tmpdir, fortran_writer):
 
     cbtrans.apply(schedule)
     gen = fortran_writer(psy.container)
-    expected = ("!$omp parallel do default(shared), private(i,j), "
+    expected = ("!$omp parallel do default(shared) private(i,j) "
                 "schedule(static)\n"
                 "    do j = 2, jstop, 1\n"
                 "      do i = 2, istop + 1, 1\n"
@@ -1494,14 +1494,15 @@ def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     assert rtrans.name == "ACCRoutineTrans"
     rtrans.apply(kern)
     # Check that there is a acc routine directive in the kernel
-    code = fortran_writer(kern.get_kernel_schedule())
+    schedules = kern.get_callees()
+    code = fortran_writer(schedules[0])
     assert "!$acc routine seq\n" in code
 
     # If the kernel schedule is not accessible, the transformation fails
     def raise_gen_error():
         '''Simple function that raises GenerationError.'''
         raise GenerationError("error")
-    monkeypatch.setattr(kern, "get_kernel_schedule", raise_gen_error)
+    monkeypatch.setattr(kern, "get_callees", raise_gen_error)
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kern)
     assert ("Failed to create PSyIR for kernel 'continuity_code'. Cannot "
@@ -1517,16 +1518,16 @@ def test_accroutinetrans_with_routine(fortran_writer):
     assert isinstance(kern, GOKern)
     rtrans = ACCRoutineTrans()
     assert rtrans.name == "ACCRoutineTrans"
-    routine = kern.get_kernel_schedule()
-    rtrans.apply(routine)
+    routines = kern.get_callees()
+    rtrans.apply(routines[0])
     # Check that there is a acc routine directive in the routine
-    code = fortran_writer(routine)
+    code = fortran_writer(routines[0])
     assert "!$acc routine seq\n" in code
 
     # Even if applied multiple times the Directive is only there once
-    previous_num_children = len(routine.children)
-    rtrans.apply(routine)
-    assert previous_num_children == len(routine.children)
+    previous_num_children = len(routines[0].children)
+    rtrans.apply(routines[0])
+    assert previous_num_children == len(routines[0].children)
 
 
 def test_accroutinetrans_with_invalid_node():
