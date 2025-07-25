@@ -43,12 +43,13 @@ from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
     ArrayReference, BinaryOperation, Call, Literal,
-    Node, Reference, Routine, Schedule)
-from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
+    Node, Reference, Routine, Schedule, CallMatchingArgumentsNotFound)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
     ArrayType, INTEGER_TYPE, ContainerSymbol, DataSymbol, NoType,
     RoutineSymbol, REAL_TYPE, SymbolError, UnresolvedInterface)
+from psyclone.psyir.transformations import InlineTrans
+from psyclone.tests.utilities import Compile
 
 
 class SpecialCall(Call):
@@ -668,7 +669,7 @@ contains
   end subroutine bottom
 end module some_mod'''
     psyir = fortran_reader.psyir_from_source(code)
-    call = psyir.walk(Call)[0]
+    call: Call = psyir.walk(Call)[0]
     result = call.get_callees()
     assert result == [psyir.walk(Routine)[1]]
 
@@ -862,7 +863,9 @@ end module some_mod'''
 def test_call_get_callee_3c_trigger_error(fortran_reader):
     '''
     Test which is supposed to trigger an error when no matching routine
-    is found, but we use the special option check_matching_arguments=False
+    is found, but we use the special option
+    TODO - UPDATE
+    options={"check_matching_arguments": False}
     to find one.
     '''
     code = '''
@@ -890,7 +893,10 @@ end module some_mod'''
     call_foo: Call = routine_main.walk(Call)[0]
     assert call_foo.routine.name == "foo"
 
-    call_foo.get_callee(check_matching_arguments=False)
+    result = call_foo.get_callee(use_first_callee_and_no_arg_check=True)
+    assert isinstance(result[0], Routine)
+    assert result[0].name == "foo"
+    assert result[1] == [0, 1]
 
 
 def test_call_get_callee_4_named_arguments(fortran_reader):
@@ -1749,3 +1755,109 @@ end module some_mod'''
             "but that Container defines a private Symbol of the same name. "
             "Searching for the Container that defines a public Routine with "
             "that name is not yet supported - TODO #924" in str(err.value))
+
+
+def test_call_get_callee_matching_arguments_not_found(fortran_reader):
+    """
+    Trigger error that matching arguments were not found.
+    In this test, this is caused by omitting the required third non-optional
+    argument.
+    """
+    code = """
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f
+    ! Omit the 3rd required argument
+    call foo(e, f)
+  end subroutine
+
+  ! Routine matching by 'name', but not by argument matching
+  subroutine foo(a, b, c)
+    integer :: a, b, c
+  end subroutine
+
+end module some_mod"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = psyir.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call_foo.get_callee()
+
+    assert (
+        "No matching routine found for 'call foo(e, f)':" in str(err.value)
+    )
+
+    assert (
+        "Argument 'c' in subroutine 'foo' does not match any in the call"
+        " 'call foo(e, f)' and is not OPTIONAL." in str(err.value)
+    )
+
+
+def test_apply_empty_routine_coverage_option_check_argument_strict_array_data(
+    fortran_reader, fortran_writer, tmpdir
+):
+    """For coverage of particular branch in `inline_trans.py`."""
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    integer, dimension(6) :: i\n"
+        "    i = 10\n"
+        "    call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    integer, dimension(:) :: idx\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(
+        routine,
+        options={
+            "check_argument_strict_array_datatype": False,
+            "use_first_callee_and_no_arg_check": True,
+        },
+    )
+    output = fortran_writer(psyir)
+    assert "    i = 10\n\n" "  end subroutine run_it\n" in output
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_array_access_check_unresolved_override_option(
+    fortran_reader, fortran_writer, tmpdir
+):
+    """
+    This check solely exists for the coverage report to catch
+    the case where the override option to ignore unresolved
+    types is used.
+
+    """
+    code = (
+        "module test_mod\n"
+        "use does_not_exist\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    type(unknown_type) :: a\n"
+        "    call sub(a%unresolved_type)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(a)\n"
+        "    type(unresolved) :: a\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call: Call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(
+        call, use_first_callee_and_no_arg_check=True)
+    # TODO check results
