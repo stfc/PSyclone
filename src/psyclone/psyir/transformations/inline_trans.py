@@ -43,9 +43,9 @@ from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
-    CodeBlock, Container, FileContainer, IntrinsicCall, Literal, Loop, Node,
-    Range, Routine, Reference, Return, ScopingNode, Statement, StructureMember,
-    StructureReference)
+    CodeBlock, Container, DataNode, FileContainer, IntrinsicCall, Literal,
+    Loop, Node, Range, Routine, Reference, Return, ScopingNode, Statement,
+    StructureMember, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArrayType,
@@ -116,11 +116,14 @@ class InlineTrans(Transformation):
     end subroutine run_it
     <BLANKLINE>
 
+    The target of the call must already be present in the same Container
+    (module) as the call site. This may be achieved using
+    KernelModuleInlineTrans.
+
     .. warning::
         Routines/calls with any of the following characteristics are not
         supported and will result in a TransformationError:
 
-        * the routine is not in the same file as the call;
         * the routine contains an early Return statement;
         * the routine contains a variable with UnknownInterface;
         * the routine contains a variable with StaticInterface;
@@ -140,10 +143,8 @@ class InlineTrans(Transformation):
               node: Call,
               routine: Optional[Routine] = None,
               use_first_callee_and_no_arg_check: bool = False,
-              check_argument_strict_array_datatype: bool = True,
-              check_matching_arguments: bool = True,
-              check_codeblocks: bool = True,
-              check_unsupported_type: bool = True,
+              permit_codeblocks: bool = False,
+              permit_unsupported_type_args: bool = False,
               **kwargs
               ):
         '''
@@ -153,20 +154,13 @@ class InlineTrans(Transformation):
         :param node: the Call node to inline.
         :param routine: Optional Routine to be inlined (in case it is not
             possible for PSyclone to determine the target).
-        :param check_argument_strict_array_datatype:
-            If `True`, make strict checks for matching arguments of
-            array data types.
-            If `False`, it's sufficient that both arguments are of
-            ArrayType. Then, no further checks are performed.
-        :param check_matching_arguments:
-            If `True`, check for all arguments
-            to match. If `False`, if no matching argument was found, take
-            1st one in list. Defaults to `True`
-        :param check_codeblocks:
-            If `True`, raise Exception if encountering code blocks.
-        :param check_unsupported_type:
-            If `True`, also perform checks (fail inlining) on arguments of
-            unsupported type.
+        :param use_first_callee_and_no_arg_check: if True, simply use the
+            first potential callee routine. No argument type-checking is
+            performed.
+        :param permit_codeblocks: If `False` (the default), raise an Exception
+            if the target routine contains a CodeBlock.
+        :param permit_unsupported_type_args: If `True` then the target routine
+            is permitted to have arguments ofUnsupportedType.
 
         :raises InternalError: if the merge of the symbol tables fails.
             In theory this should never happen because validate() should
@@ -175,16 +169,17 @@ class InlineTrans(Transformation):
         '''
         self.validate(
             node, routine=routine,
-            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
-            check_argument_strict_array_datatype=check_argument_strict_array_datatype,
-            check_matching_arguments=check_matching_arguments,
-            check_codeblocks=check_codeblocks,
-            check_unsupported_type=check_unsupported_type)
+            use_first_callee_and_no_arg_check=(
+                use_first_callee_and_no_arg_check),
+            permit_codeblocks=permit_codeblocks,
+            permit_unsupported_type_args=permit_unsupported_type_args)
 
         # The table associated with the scoping region holding the Call.
         table = node.ancestor(Routine).symbol_table
         if not routine:
-            (routine, arg_match_list) = node.get_callee(use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check)
+            (routine, arg_match_list) = node.get_callee(
+                use_first_callee_and_no_arg_check=(
+                    use_first_callee_and_no_arg_check))
         else:
             arg_match_list = node.get_argument_map(routine)
 
@@ -264,7 +259,8 @@ class InlineTrans(Transformation):
         for ref in refs[:]:
             self._replace_formal_arg(
                 ref, node, formal_args, routine_node=routine,
-                use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check
+                use_first_callee_and_no_arg_check=(
+                    use_first_callee_and_no_arg_check)
             )
 
         # Ensure any references to Symbols within the shape-specification of
@@ -283,14 +279,16 @@ class InlineTrans(Transformation):
                             node,
                             formal_args,
                             routine_node=routine,
-                            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
+                            use_first_callee_and_no_arg_check=(
+                                use_first_callee_and_no_arg_check),
                         )
                         upper = self._replace_formal_arg(
                             dim.upper,
                             node,
                             formal_args,
                             routine_node=routine,
-                            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
+                            use_first_callee_and_no_arg_check=(
+                                use_first_callee_and_no_arg_check),
                         )
                         new_shape.append(ArrayType.ArrayBounds(lower, upper))
                 sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
@@ -307,14 +305,16 @@ class InlineTrans(Transformation):
                             node,
                             formal_args,
                             routine_node=routine,
-                            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
+                            use_first_callee_and_no_arg_check=(
+                                use_first_callee_and_no_arg_check),
                         )
                         upper = self._replace_formal_arg(
                             dim.upper,
                             node,
                             formal_args,
                             routine_node=routine,
-                            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
+                            use_first_callee_and_no_arg_check=(
+                                use_first_callee_and_no_arg_check),
                         )
                         new_shape.append(ArrayType.ArrayBounds(lower, upper))
                     sym.datatype.components[name] = (
@@ -503,7 +503,8 @@ class InlineTrans(Transformation):
                     call_node,
                     formal_args,
                     routine_node,
-                    use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check
+                    use_first_callee_and_no_arg_check=(
+                        use_first_callee_and_no_arg_check)
                 )
             return ref
 
@@ -578,7 +579,8 @@ class InlineTrans(Transformation):
             call_node,
             formal_args,
             routine_node=routine_node,
-            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
+            use_first_callee_and_no_arg_check=(
+                use_first_callee_and_no_arg_check),
         )
         # If the local reference we are replacing has a parent then we must
         # ensure the parent's child list is updated. (It may not have a parent
@@ -589,11 +591,11 @@ class InlineTrans(Transformation):
 
     def _create_inlined_idx(
         self,
-        call_node,
-        formal_args,
-        local_idx,
-        decln_start,
-        actual_start,
+        call_node: Call,
+        formal_args: List[DataSymbol],
+        local_idx: DataNode,
+        decln_start: DataNode,
+        actual_start: DataNode,
         routine_node: Routine,
         use_first_callee_and_no_arg_check: bool = False,
     ):
@@ -615,18 +617,13 @@ class InlineTrans(Transformation):
                         = local_idx - local_decln_start + actual_start
 
         :param call_node: the Call that we are inlining.
-        :type call_node: :py:class:`psyclone.psyir.nodes.Call`
         :param formal_args: the formal arguments of the routine being called.
-        :type formal_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-        :param local_idx: a local array-index expression (i.e. appearing \
+        :param local_idx: a local array-index expression (i.e. appearing
             within the routine being inlined).
-        :type local_idx: :py:class:`psyclone.psyir.nodes.Node`
-        :param decln_start: the lower bound of the corresponding array \
+        :param decln_start: the lower bound of the corresponding array
             dimension, as declared inside the routine being inlined.
-        :type decln_start: :py:class:`psyclone.psyir.nodes.Node`
-        :param actual_start: the lower bound of the corresponding array \
+        :param actual_start: the lower bound of the corresponding array
             dimension, as defined at the call site.
-        :type actual_start: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR for the corresponding inlined array index.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -640,7 +637,8 @@ class InlineTrans(Transformation):
                 decln_start,
                 actual_start,
                 routine_node=routine_node,
-                use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check
+                use_first_callee_and_no_arg_check=(
+                    use_first_callee_and_no_arg_check)
             )
             upper = self._create_inlined_idx(
                 call_node,
@@ -649,14 +647,16 @@ class InlineTrans(Transformation):
                 decln_start,
                 actual_start,
                 routine_node=routine_node,
-                use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check
+                use_first_callee_and_no_arg_check=(
+                    use_first_callee_and_no_arg_check)
             )
             step = self._replace_formal_arg(
                 local_idx.step,
                 call_node,
                 formal_args,
                 routine_node=routine_node,
-                use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check
+                use_first_callee_and_no_arg_check=(
+                    use_first_callee_and_no_arg_check)
             )
             return Range.create(lower.copy(), upper.copy(), step.copy())
 
@@ -750,7 +750,8 @@ class InlineTrans(Transformation):
                             call_node,
                             formal_args,
                             routine_node=routine_node,
-                            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
+                            use_first_callee_and_no_arg_check=(
+                                use_first_callee_and_no_arg_check),
                         )
                 elif (local_decln_shape[local_idx_posn] ==
                       ArrayType.Extent.DEFERRED):
@@ -780,7 +781,8 @@ class InlineTrans(Transformation):
                         local_decln_start,
                         actual_start,
                         routine_node=routine_node,
-                        use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
+                        use_first_callee_and_no_arg_check=(
+                            use_first_callee_and_no_arg_check),
                     )
             else:
                 # Otherwise, the local index expression replaces the Range.
@@ -791,7 +793,8 @@ class InlineTrans(Transformation):
                     local_decln_start,
                     actual_start,
                     routine_node=routine_node,
-                    use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
+                    use_first_callee_and_no_arg_check=(
+                        use_first_callee_and_no_arg_check),
                 )
             # Each Range corresponds to one dimension of the formal argument.
             local_idx_posn += 1
@@ -871,7 +874,8 @@ class InlineTrans(Transformation):
                     call_node,
                     formal_args,
                     routine_node=routine_node,
-                    use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
+                    use_first_callee_and_no_arg_check=(
+                        use_first_callee_and_no_arg_check),
                 )
                 members.append((cursor.name, new_indices))
             else:
@@ -896,7 +900,8 @@ class InlineTrans(Transformation):
                         call_node,
                         formal_args,
                         routine_node,
-                        use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
+                        use_first_callee_and_no_arg_check=(
+                            use_first_callee_and_no_arg_check),
                     )
                 )
             # Replace the last entry in the `members` list with a new array
@@ -921,7 +926,8 @@ class InlineTrans(Transformation):
                             call_node,
                             formal_args,
                             routine_node=routine_node,
-                            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check,
+                            use_first_callee_and_no_arg_check=(
+                                use_first_callee_and_no_arg_check),
                         )
                     )
                 members.append((cursor.name, new_indices))
@@ -1090,9 +1096,9 @@ class InlineTrans(Transformation):
         super().validate(node, **kwargs)
         use_first_callee_and_no_arg_check = self.get_option(
             "use_first_callee_and_no_arg_check", **kwargs)
-        check_unsupported_type = self.get_option("check_unsupported_type",
-                                                 **kwargs)
-        check_codeblocks = self.get_option("check_codeblocks", **kwargs)
+        permit_unsupported_type_args = self.get_option(
+            "permit_unsupported_type_args", **kwargs)
+        permit_codeblocks = self.get_option("permit_codeblocks", **kwargs)
         routine = self.get_option("routine", **kwargs)
 
         # The node should be a Call.
@@ -1117,7 +1123,8 @@ class InlineTrans(Transformation):
             # No target routine has been supplied so we must identify it.
             try:
                 (routine, arg_match_list) = node.get_callee(
-                    use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check)
+                    use_first_callee_and_no_arg_check=(
+                        use_first_callee_and_no_arg_check))
             except (
                 CallMatchingArgumentsNotFound,
                 NotImplementedError,
@@ -1167,9 +1174,9 @@ class InlineTrans(Transformation):
                     f"Routine '{name}' contains one or more "
                     f"Return statements and therefore cannot be inlined.")
 
-        if routine.walk(CodeBlock) and check_codeblocks:
-            # N.B. we permit the user to specify the "force" option to allow
-            # CodeBlocks to be included.
+        if not permit_codeblocks and routine.walk(CodeBlock):
+            # N.B. we allow the user to specify the "permit_codeblocks" option
+            # to allow CodeBlocks to be included.
             raise TransformationError(
                 f"Routine '{name}' contains one or more CodeBlocks and "
                 f"therefore cannot be inlined. (If you are confident that "
@@ -1194,7 +1201,7 @@ class InlineTrans(Transformation):
                         f"variable '{sym.name}'. Inlining such a routine is "
                         f"not supported.")
 
-        if check_unsupported_type:
+        if not permit_unsupported_type_args:
             for scope in routine.walk(ScopingNode):
                 routine_table2 = scope.symbol_table
                 for sym in routine_table2.symbols:

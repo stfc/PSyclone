@@ -1883,7 +1883,7 @@ def test_validate_return_stmt(fortran_reader):
 
 def test_validate_codeblock(fortran_reader):
     '''Test that validate() raises the expected error for a routine that
-    contains a CodeBlock. Also test that using the "check_codeblocks" option
+    contains a CodeBlock. Also test that using the "permit_codeblocks" option
     overrides this check.'''
     code = (
         "module test_mod\n"
@@ -1905,7 +1905,7 @@ def test_validate_codeblock(fortran_reader):
         inline_trans.validate(call)
     assert ("Routine 'sub' contains one or more CodeBlocks and therefore "
             "cannot be inlined. (If you are confident " in str(err.value))
-    inline_trans.validate(call, check_codeblocks=False)
+    inline_trans.validate(call, permit_codeblocks=True)
 
 
 def test_validate_unsupportedtype_argument(fortran_reader):
