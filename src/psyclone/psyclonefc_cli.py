@@ -90,7 +90,7 @@ def compiler_wrapper(arguments):
             'compiler to use.')
     # Remove empty strings from the list (caused by the default empty envvar or
     # multi-spaces gaps)
-    if "" in psyclone_options:
+    while "" in psyclone_options:
         psyclone_options.remove("")
 
     # Capture the dirctory where the .mod files are written because this is
@@ -125,7 +125,7 @@ def compiler_wrapper(arguments):
             output = f"{stem}.psycloned{suffix}"
             psyclone_args = psyclone_options + ['-o', output, argument]
             print("psyclone " + ' '.join(psyclone_args))
-            main(psyclone_options + ['-o', output, argument])
+            main(psyclone_args)
 
             # 3) Replace the fortran file in the compiler command with the
             # fortran file produced by psyclone

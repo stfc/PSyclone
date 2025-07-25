@@ -82,7 +82,8 @@ def test_psyclonefc(monkeypatch, capsys):
     # Now with PSYCONE_OPTS and multiple files
     monkeypatch.setattr(os, 'environ', {
         'PSYCLONE_COMPILER': 'true',
-        'PSYCLONE_OPTS': '-l output',
+        # Also check that multi-spaces are fine
+        'PSYCLONE_OPTS': '  -l   output  ',
     })
     with pytest.raises(SystemExit) as err:
         compiler_wrapper(['source1.f90', 'source2.f90', '-c', '-o', 'app.exe'])
