@@ -217,6 +217,9 @@ class HoistTrans(Transformation):
             else:
                 read_only_sigs.append(sig)
 
+        # Make sure abs_positions are caches, otherwise this will be extremely
+        # slow
+        parent_loop.compute_cached_abs_positions()
         for written_sig in write_sigs:
             accesses_in_statement = all_statement_vars[written_sig]
             # If this written variable is also read in the statement to be
