@@ -1833,50 +1833,6 @@ def test_apply_empty_routine_coverage_option_check_argument_strict_array_data(
     assert Compile(tmpdir).string_compiles(output)
 
 
-def test_apply_array_access_check_unresolved_symbols_error(
-    fortran_reader, fortran_writer, tmpdir
-):
-    """
-    This check solely exists for the coverage report to
-    catch the simple case `if not check_unresolved_symbols:`
-    in `symbol_table.py`
-
-    """
-    return # ARPDBG -test might not be needed any more
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "    integer :: i\n"
-        "    real :: a(10)\n"
-        "    do i=1,10\n"
-        "      call sub(a, i)\n"
-        "    end do\n"
-        "  end subroutine run_it\n"
-        "  subroutine sub(x, ivar)\n"
-        "    real, intent(inout), dimension(10) :: x\n"
-        "    integer, intent(in) :: ivar\n"
-        "    integer :: i\n"
-        "    do i = 1, 10\n"
-        "      x(i) = 2.0*ivar\n"
-        "    end do\n"
-        "  end subroutine sub\n"
-        "end module test_mod\n"
-    )
-    psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Call)[0]
-    inline_trans = InlineTrans()
-    inline_trans.apply(routine, options={"check_unresolved_symbols": False})
-    output = fortran_writer(psyir)
-    assert (
-        "    do i = 1, 10, 1\n"
-        "      do i_1 = 1, 10, 1\n"
-        "        a(i_1) = 2.0 * i\n"
-        "      enddo\n" in output
-    )
-    assert Compile(tmpdir).string_compiles(output)
-
-
 def test_apply_array_access_check_unresolved_override_option(
     fortran_reader, fortran_writer, tmpdir
 ):

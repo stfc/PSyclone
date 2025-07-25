@@ -305,7 +305,6 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
     for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(
             routine,
-            #check_matching_arguments": False,
             use_first_callee_and_no_arg_check=True
         )
 
@@ -392,7 +391,6 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
     # Third one should be fine because it is a scalar argument.
     inline_trans.apply(
         calls[2],
-        #check_matching_arguments": False,
         use_first_callee_and_no_arg_check=True,
     )
     # We can't do the fourth one.
