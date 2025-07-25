@@ -56,28 +56,39 @@ def test_irla_validate(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source("""
         program test
-            use other
-            goto 3
+            real, dimension(10) :: a
+            integer :: i = 3
+            a(i) = 3
             do i = 1, 10
-                a = 3
+               a(i) = 3
             end do
+            associate(x => a(i))
+            end associate
         end program
     """)
 
+    routine = psyir.children[0]
     with pytest.raises(TransformationError) as err:
-        trans.apply(psyir.walk(Assignment)[0])
+        trans.apply(routine.children[0])
     assert ("The target of the IncreaseRankLoopArraysTrans transformation "
             "should be a Loop, but found 'Assignment'." in str(err.value))
 
-    # with pytest.raises(TransformationError) as err:
-    #     trans.apply(psyir.walk(Loop)[0])
-    # assert ("The supplied loop should be inside a routine, and the whole "
-    #         "routine should have no CodeBlocks." in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        trans.apply(routine.children[1])
+    assert ("IncreaseRankLoopArraysTrans has a mandatory 'arrays' option "
+            "that needs to be provided to inform what arrays needs their "
+            "rank increased." in str(err.value))
 
-    # with pytest.raises(TransformationError) as err:
-    #     trans.apply(psyir.walk(Loop)[0].detach())
-    # assert ("The supplied loop should be inside a routine, and the whole "
-    #         "routine should have no CodeBlocks." in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        trans.apply(routine.children[1], options={'arrays': ['i']})
+    assert ("IncreaseRankLoopArraysTrans provided 'arrays' must be a local "
+            "array symbols, but 'i: " in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        trans.apply(routine.children[1], options={'arrays': ['a']})
+    assert ("IncreaseRankLoopArraysTrans does not support arrays that are "
+            "referenced inside a Codeblock, but 'a' is inside one."
+            in str(err.value))
 
 
 def test_irla_apply(fortran_reader, fortran_writer):

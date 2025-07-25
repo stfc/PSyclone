@@ -43,7 +43,7 @@ Effectively it provides an alternative to array privatisation.
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    Loop, Reference, ArrayReference)
+    Loop, Reference, ArrayReference, Routine, CodeBlock)
 from psyclone.psyir.symbols import ArrayType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -109,25 +109,31 @@ class IncreaseRankLoopArraysTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the supplied node is not a Loop.
+        :raises TransformationError: if the node is not a Loop.
+        :raises TransformationError: if the node is not inside a Routine.
+        :raises TransformationError: the array option has not been provided.
+        :raises TransformationError: a given array is not found.
 
         '''
         if options is None:
             options = {}
 
-        # The node should be an assignment
         if not isinstance(node, Loop):
             raise TransformationError(
                 f"The target of the {self.name} transformation should be a "
                 f"Loop, but found '{type(node).__name__}'.")
 
-        # Check that the whole routine has no CodeBlocks (we need to see each
-        # access to the target arrays)
-        # routine = node.ancestor(Routine)
-        # if not routine or routine.walk(CodeBlock):
-        #     raise TransformationError(
-        #         "The supplied loop should be inside a routine, and the whole"
-        #         " routine should have no CodeBlocks.")
+        routine = node.ancestor(Routine)
+        if routine is None:
+            raise TransformationError(
+                f"The target of the {self.name} transformation should be a "
+                f"Loop inside a Routine.")
+
+        # Capture all symbols used inside codeblocks, this are not permited
+        codeblock_symbols = set()
+        for cb in routine.walk(CodeBlock):
+            for name in cb.get_symbol_names():
+                codeblock_symbols.add(name.lower())
 
         # Each item listed in the array list must be a local Array Symbol or a
         # string that resolves to it
@@ -139,13 +145,17 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 f"rank increased.")
         for array in array_list:
             if isinstance(array, str):
-                array = node.scope.symbol_table.lookup(array)
+                array = node.scope.symbol_table.lookup(array, otherwise=None)
 
-            if not array.is_automatic or not array.is_array:
+            if array is None or not array.is_automatic or not array.is_array:
                 raise TransformationError(
                     f"{self.name} provided 'arrays' must be a local array "
-                    f"symbol, but {array.name} is declared as '"
-                    "'{array.debug_string()}'. ")
+                    f"symbols, but '{array}' is not")
+
+            if array.name.lower() in codeblock_symbols:
+                raise TransformationError(
+                    f"{self.name} does not support arrays that are referenced "
+                    f"inside a Codeblock, but '{array.name}' is inside one.")
 
             # TODO: What should happen with references outside the loop?
 
