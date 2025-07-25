@@ -36,7 +36,7 @@
 ''' Module containing tests for the IncreaseRankLoopArraysTrans class. '''
 
 import pytest
-from psyclone.psyir.nodes import Assignment, Loop
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import IncreaseRankLoopArraysTrans
 from psyclone.transformations import TransformationError
 
