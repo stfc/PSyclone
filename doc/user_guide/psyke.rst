@@ -544,10 +544,10 @@ Therefore, compilation for a created driver, e.g. the one created in
 
    $ gfortran -g -O0 driver-main-update.F90 -o driver-main-update
    $ ./driver-main-update
-       Variable      max_abs      max_rel      l2_diff       l2_cos    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3
-           cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
-    field1_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .5390000E+03 .0000000E+00 .0000000E+00 .0000000E+00
-     dummy_var1 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
+     Variable        count    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3   #rel>=1E-3      max_abs      max_rel      l2_diff       l2_cos
+         cell            1            1            0            0            0            0 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01
+  field1_data          539          539            0            0            0            0 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01
+   dummy_var1            1            1            0            0            0            0 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01
 
 (see :ref:`driver_summary_statistics` for details about the statistics`).
 Note that the Makefile in the example will actually provide additional include
@@ -588,10 +588,10 @@ by changing the compilation options, or compiler version. Example output:
 
 .. code-block:: output
 
-       Variable      max_abs      max_rel      l2_diff       l2_cos    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3
-           cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
-    field1_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .5390000E+03 .0000000E+00 .0000000E+00 .0000000E+00
-     dummy_var1 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
+     Variable        count    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3   #rel>=1E-3      max_abs      max_rel      l2_diff       l2_cos
+         cell            1            1            0            0            0            0 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01
+  field1_data          539          539            0            0            0            0 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01
+   dummy_var1            1            1            0            0            0            0 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01
 
 The columns from left to right are:
 
@@ -607,28 +607,33 @@ The columns from left to right are:
 .. only:: latex or has_dvipng
 
   * The variable name.
+  * The number of elements for this variable (i.e. 1 for scalar).
+  * How many values are identical.
+  * How many values have a relative error of less than 10\ :sup:`-9` but are not identical. Note that
+    single precision variables typically do not have enough significant digits to have an error of 10\ :sup:`-9`.
+  * How many values have a relative error of less than 10\ :sup:`-6` but more than 10\ :sup:`-9`.
+  * How many values have a relative error of less than 10\ :sup:`-3` but more than 10\ :sup:`-6`.
+  * How many values have a relative error of more than 10\ :sup:`-3`.
   * The maximum absolute error of all elements.
   * The maximum relative error of all elements. If an element has the value
     0, the relative error for this element is considered to be 1.0.
   * The L2 difference: :math:`\sqrt{\sum{(original-new)^2}}`.
   * The cosine of the angle between the two vectors: :math:`\frac{\sum{original*new}}{\sqrt{\sum{original*original}}*\sqrt{\sum{new*new}}}`.
-  * How many values are identical.
-  * How many values have a relative error of less than 10\ :sup:`-9` but are not identical.
-  * How many values have a relative error of less than 10\ :sup:`-6` but more than 10\ :sup:`-9`.
-  * How many values have a relative error of less than 10\ :sup:`-3` but more than 10\ :sup:`-6`.
 
 .. only:: html and not has_dvipng
 
   * The variable name.
+  * The number of elements for this variable (i.e. 1 for scalar).
+  * How many values are identical.
+  * How many values have a relative error of less than 10\ :sup:`-9` but are not identical. Note that
+    single precision variables typically do not have enough significant digits to have an error of 10\ :sup:`-9`.
+  * How many values have a relative error of less than 10\ :sup:`-6` but more than 10\ :sup:`-9`.
+  * How many values have a relative error of less than 10\ :sup:`-3` but more than 10\ :sup:`-6`.
   * The maximum absolute error of all elements.
   * The maximum relative error of all elements. If an element has the value
     0, the relative error for this element is considered to be 1.0.
   * The L2 difference: `sqrt(sum((original-new)`\ :sup:`2` `))`.
   * The cosine of the angle between the two vectors: `sum(original*new)/(sqrt(sum(original*original))*sqrt(sum(new*new)))`.
-  * How many values are identical.
-  * How many values have a relative error of less than 10\ :sup:`-9` but are not identical.
-  * How many values have a relative error of less than 10\ :sup:`-6` but more than 10\ :sup:`-9`.
-  * How many values have a relative error of less than 10\ :sup:`-3` but more than 10\ :sup:`-6`.
 
 .. note:: The usefulness of the columns printed is still being evaluated. Early
     indications are that the cosine of the angle between the two vectors,

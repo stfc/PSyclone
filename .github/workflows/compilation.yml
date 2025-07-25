@@ -100,6 +100,18 @@ jobs:
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         pytest -n 4 --f90=nvfortran --compile --compileopencl src/psyclone/tests
+    - name: Libraries compilation - gfortran
+      run: |
+        . .runner_venv/bin/activate
+        make -C lib/extract clean
+        module load gcc/${GFORTRAN_VERSION}
+        make -C lib/extract test
+    - name: Libraries compilation - nvfortran
+      run: |
+        . .runner_venv/bin/activate
+        make -C lib/extract clean
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        F90=nvfortran make -C lib/extract test
     - name: Examples with compilation - gfortran
       run: |
         . .runner_venv/bin/activate
