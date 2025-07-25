@@ -177,15 +177,17 @@ jobs:
         export NEMO_DIR=${HOME}/${NEMODIR_NAME}
         export TEST_DIR=BENCH_OMP_THREADING_GCC
 
-        # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
+        # Set up FCM envvars to use psyclonefc and compile with OpenMP for CPU
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export PSYCLONE_COMPILER=$MPIF90
+        export MPIF90=psyclonefc
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py"
         export FCFLAGS="-fdefault-real-8 -O2 -fcray-pointer -ffree-line-length-none -g -fopenmp"
 
         # Clean up and compile
         rm -rf tests/${TEST_DIR}
-        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py \
-          add_key "key_nosignedzero" -j 4 -v 1
+        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} add_key "key_nosignedzero" -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
@@ -220,7 +222,7 @@ jobs:
         make clean
         F90=$MPIF90 make
                 
-        # First do a debug-build: set the environemnt variables to use flags and intrinsics
+        # First do a debug-build: set the FCM environemnt variables to use flags and intrinsics
         # with numerically reproducible results and enable PROFILING hooks
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack_profile.fcm arch/arch-linux_spack_profile.fcm
@@ -228,10 +230,12 @@ jobs:
         # We compile with "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
         export REPRODUCIBLE=1
+        export PSYCLONE_COMPILER=$MPIF90
+        export MPIF90=psyclonefc
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py"
         # Clean up and compile
         rm -rf tests/${TEST_DIR}
-        ./makenemo -r BENCH -m linux_spack_profile -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
-          -j 4 -v 1
+        ./makenemo -r BENCH -m linux_spack_profile -n ${TEST_DIR} -j 4 -v 1
 
         # Run reproducible test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
@@ -247,8 +251,7 @@ jobs:
         unset ENABLE_PROFILING
         export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
         rm -rf tests/${TEST_DIR}
-        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
-          -j 4 -v 1
+        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -j 4 -v 1
 
         # Run non-reproducible test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00

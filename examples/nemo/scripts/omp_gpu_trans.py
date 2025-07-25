@@ -69,7 +69,9 @@ NEMOV4 = os.environ.get('NEMOV4', False)
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = []
+FILES_TO_SKIP = [
+    "vremap.f90",  # TODO #2772
+]
 
 NEMOV5_EXCLUSIONS = []
 
@@ -168,7 +170,8 @@ def trans(psyir):
                 subroutine,
                 hoist_local_arrays=False,
                 convert_array_notation=True,
-                loopify_array_intrinsics=True,
+                # See issue #3022
+                loopify_array_intrinsics=psyir.name != "getincom.f90",
                 convert_range_loops=True,
                 hoist_expressions=True
         )
