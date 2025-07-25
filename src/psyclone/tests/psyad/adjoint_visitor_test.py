@@ -168,8 +168,6 @@ def test_create_error_active():
 
 # AdjointVisitor.container_node()
 
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_create_container_logger(caplog):
     '''Test that the logger writes the expected output if the
     container_node method is called.
@@ -179,10 +177,10 @@ def test_create_container_logger(caplog):
     adj_visitor = AdjointVisitor(["dummy"])
     with caplog.at_level(logging.INFO):
         _ = adj_visitor.container_node(tangent_linear)
-    assert caplog.text == ""
+        assert caplog.text == ""
     with caplog.at_level(logging.DEBUG):
         _ = adj_visitor._visit(tangent_linear)
-    assert "Copying Container" in caplog.text
+        assert "Copying Container" in caplog.text
 
 
 def test_create_container_node():
@@ -227,16 +225,16 @@ def test_create_schedule_logger(caplog, fortran_reader):
     adj_visitor = AdjointVisitor(["a", "b", "c"])
     with caplog.at_level(logging.INFO):
         _ = adj_visitor.schedule_node(tl_schedule)
-    assert caplog.text == ""
+        assert caplog.text == ""
     with caplog.at_level(logging.DEBUG):
         _ = adj_visitor._visit(tl_schedule)
-    assert "Transforming Schedule" in caplog.text
-    assert "Zero-ing any local active variables" in caplog.text
-    assert "Adding passive code into new schedule" in caplog.text
-    assert "Reversing order of active code" in caplog.text
-    assert ("Processing active code and adding results into new schedule"
-            in caplog.text)
-    assert "Transforming active assignment" in caplog.text
+        assert "Transforming Schedule" in caplog.text
+        assert "Zero-ing any local active variables" in caplog.text
+        assert "Adding passive code into new schedule" in caplog.text
+        assert "Reversing order of active code" in caplog.text
+        assert ("Processing active code and adding results into new schedule"
+                in caplog.text)
+        assert "Transforming active assignment" in caplog.text
 
 
 def test_create_schedule_active_variables(fortran_reader):
