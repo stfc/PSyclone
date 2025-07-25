@@ -825,7 +825,7 @@ def code_transformation_mode(input_file, recipe_file, output_file,
                   file=sys.stderr)
             logger.error(
                 "Failed to create PSyIR from file '%s'. Error was:\n%s",
-                input_file, str(err.value))
+                input_file, str(err))
             sys.exit(1)
 
         # Modify file

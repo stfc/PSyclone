@@ -63,7 +63,7 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.generator import (
-    generate, main, check_psyir, add_builtins_use)
+    generate, main, check_psyir, add_builtins_use, code_transformation_mode)
 from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -1154,6 +1154,28 @@ def trans(psyir):
     with open(outputfile, "r", encoding='utf-8') as my_file:
         new_code = my_file.read()
     assert "module newname\n" in new_code
+
+
+def test_code_transformation_parse_failure(tmpdir, caplog, capsys):
+    '''
+    Test the error handling in the code_transformation_mode() method when
+    there is invalid Fortran in the supplied file.
+
+    '''
+    code = '''
+    prog invalid
+      ! This is not valid Fortran
+    end prog invalid
+    '''
+    inputfile = str(tmpdir.join("funny_syntax.f90"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit):
+            code_transformation_mode(inputfile, None, None, False, False)
+        out, err = capsys.readouterr()
+        assert "Failed to create PSyIR from file '" in err
+        assert "Is the input valid Fortran" in caplog.text
 
 
 def test_generate_trans_error(tmpdir, capsys, monkeypatch):
