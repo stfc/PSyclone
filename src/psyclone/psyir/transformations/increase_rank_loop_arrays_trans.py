@@ -112,7 +112,10 @@ class IncreaseRankLoopArraysTrans(Transformation):
         :raises TransformationError: if the node is not a Loop.
         :raises TransformationError: if the node is not inside a Routine.
         :raises TransformationError: the array option has not been provided.
-        :raises TransformationError: a given array is not found.
+        :raises TransformationError: the given array name is not found, or the
+            symbol is not local or not an array.
+        :raises TransformationError: the array is references inside a
+            CodeBlock.
 
         '''
         if options is None:

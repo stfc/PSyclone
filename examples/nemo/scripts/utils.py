@@ -315,7 +315,7 @@ def normalise_loops(
         loopify_array_intrinsics: bool = True,
         convert_range_loops: bool = True,
         scalarise_loops: bool = False,
-        increase_array_ranks: bool = True,
+        increase_array_ranks: bool = False,
         hoist_expressions: bool = True,
         ):
     ''' Normalise all loops in the given schedule so that they are in an
