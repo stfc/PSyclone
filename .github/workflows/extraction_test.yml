@@ -92,6 +92,7 @@ jobs:
         export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
+        export COMPILER_PROFILE=fast-debug
 
         # Set the directory names for the extraction runs:
         # -----------------------------------------------
@@ -133,28 +134,37 @@ jobs:
         export PATH="$(spack location -i rose-picker):$PATH"
         # Run the Fab build script
         ${LFRIC_CORE}/build.sh ./fab_gungho_model_extract.py   \
-          --profile fast-debug --nproc 4 -fc $LDMPI -ld $LDMPI  -cc $CC
+          --profile ${COMPILER_PROFILE} --nproc 4 -fc $LDMPI -ld $LDMPI  -cc $CC
 
         # Run gungho (which will create the NetCDF kernel data files)
         # -----------------------------------------------------------
         # Modify number of timesteps to reduce impact on system
         cd example
         sed -i "s/timestep_end='10'/timestep_end='1'/" configuration.nml
-        
-        mpirun -n 6 ../fab_workspace/gungho_model_extract-mpif90-gfortran/gungho_model configuration.nml
+        mpirun -n 6 ../fab_workspace/gungho_model_extract-${COMPILER_PROFILE}-mpif90-gfortran/gungho_model configuration.nml
 
-        # Now compile one driver
-        # ----------------------
+        # Now compile a subset of the drivers
+        # -----------------------------------
 
         cd ..
-        # FILE is the 'basic' name. A driver file is then called driver-$FILE.F90, and
+
+        count=0
+
+        # `name` is the 'basic' name. A driver file is then called driver-$FILE.F90, and
         # the kernel data files are called $FILE-$RANK.nc
-        FILE=sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0
+        for name in sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0; do
 
-        # We link with yaxt, since a few drivers inline a module that contains yaxt
-        # functions (though these functions and therefore yaxt are not actually used)
-        mpif90 driver-${FILE}.F90 $FFLAGS $LDFLAGS -l yaxt_c -o driver-${FILE}
+          # We link with yaxt, since a few drivers inline a module that contains yaxt
+          # functions (though these functions and therefore yaxt are not actually used
+          # during the execution of the driver)
+          mpif90 driver-${name}.F90 $FFLAGS $LDFLAGS -l yaxt_c -o driver-${name}
+          count=$((count+=1 ))
+        done
 
-        # Execute the driver, which will print results to the screen
-        # -----------------------------------------------------------
-        ./driver-${FILE} ./example/${FILE}-0.nc
+        echo "${count} drivers compiled. Execution results:"
+
+        for name in sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0; do
+          # Execute the driver, which will print results to the screen
+          # -----------------------------------------------------------
+          ./driver-${name} ./example/${name}-0.nc)
+        done
