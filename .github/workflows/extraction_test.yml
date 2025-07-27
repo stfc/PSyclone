@@ -171,7 +171,7 @@ jobs:
           # ---------------------------------------------
           for proc in $(seq 0 $MAX_PROC); do
             echo "Executing driver-${name} for ${proc}"
-            ./driver-${name} ./example/${name}-{$proc}.nc
+            ./driver-${name} ./example/${name}-${proc}.nc
             run_count=$((run_count+1))
           done
         done
