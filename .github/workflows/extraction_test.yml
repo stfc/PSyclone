@@ -166,5 +166,5 @@ jobs:
         for name in sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0; do
           # Execute the driver, which will print results to the screen
           # -----------------------------------------------------------
-          ./driver-${name} ./example/${name}-0.nc)
+          ./driver-${name} ./example/${name}-0.nc
         done
