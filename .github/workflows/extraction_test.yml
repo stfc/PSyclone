@@ -93,6 +93,8 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export COMPILER_PROFILE=fast-debug
+        export NUM_PROCS=6
+        export MAX_PROC=$((NUM_PROCS-1))
 
         # Set the directory names for the extraction runs:
         # -----------------------------------------------
@@ -141,14 +143,14 @@ jobs:
         # Modify number of timesteps to reduce impact on system
         cd example
         sed -i "s/timestep_end='10'/timestep_end='1'/" configuration.nml
-        mpirun -n 6 ../fab_workspace/gungho_model_extract-${COMPILER_PROFILE}-mpif90-gfortran/gungho_model configuration.nml
+        mpirun -n ${NUM_PROCS} ${FAB_WORKSPACE}/gungho_model_extract-${COMPILER_PROFILE}-mpif90-gfortran/gungho_model configuration.nml
 
         # Now compile a subset of the drivers
         # -----------------------------------
 
         cd ..
 
-        count=0
+        compile_count=0
 
         # `name` is the 'basic' name. A driver file is then called driver-$FILE.F90, and
         # the kernel data files are called $FILE-$RANK.nc
@@ -158,13 +160,26 @@ jobs:
           # functions (though these functions and therefore yaxt are not actually used
           # during the execution of the driver)
           mpif90 driver-${name}.F90 $FFLAGS $LDFLAGS -l yaxt_c -o driver-${name}
-          count=$((count+=1 ))
+          compile_count=$((compile_count+1 ))
         done
 
-        echo "${count} drivers compiled. Execution results:"
-
-        for name in sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0; do
-          # Execute the driver, which will print results to the screen
-          # -----------------------------------------------------------
-          ./driver-${name} ./example/${name}-0.nc
+        run_count=0
+        all_files="sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0"
+        for name in $all_files; do
+          # Execute the driver for each kernel data file,
+          # which will print results to the screen
+          # ---------------------------------------------
+          for proc in $(seq 0 $MAX_PROC); do
+            echo "Executing driver-${name} for ${proc}"
+            ./driver-${name} ./example/${name}-{$proc}.nc
+            run_count=$((run_count+1))
+          done
         done
+
+        NUM_NC_FILES=$(ls example/*-[0-${MAX_PROC}].nc|wc -w)
+        KERNEL_DATA=$((NUM_NC_FILES / NUM_PROCS))
+        echo "Drivers created:   $(ls driver*F90|wc -w)"
+        echo "Kernel data files: $NUM_NC_FILES"
+        echo "Unique Kernels:    $((NUM_NC_FILES/NUM_PROCS))"
+        echo "Drivers compiled:  ${compile_count}"
+        echo "Drivers executed:  ${run_count}"
