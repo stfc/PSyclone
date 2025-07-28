@@ -1,24 +1,35 @@
-# Kernel Extraction Library
+# PSyclone NEMO Example 7
 
-This directory contains files related to [writing (extracting)](
-https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html) input and output
-parameters of instrumented code regions.
+**Authors:** A. B. G. Chalk, STFC Daresbury Lab
 
-For now the parameter extraction is only implemented to write out the
-parameters to a [NetCDF file](./netcdf/README.md) (see the
-[``netcdf`` directory](./netcdf) for implementation). There is a simple
-``Makefile`` contained here for testing purposes, but each API-specific
-implementation (in any of the subdirectories here) should compile its
-own version of this extract wrapper library.
+This directory contains the PSyclone example scripts:
+`openmp_cpu_nowait_trans.py` and `openmp_gpu_nowait_trans.py`,
+that demonstrates the use of PSyclone to parallelise all loops over
+levels for the `tra_adv.F90` code, using OpenMP with `nowait` and
+minimisation of the number of introduced barriers. It also contains
+Makefile rules to generate parallel versions of the file with the
+../scripts/ OpenMP scripts.
 
-<!--
+Once you have installed PSyclone, these scripts may be run by doing:
+
+```sh
+psyclone -s ./openmp_[cpu|gpu]_nowait_trans.py ../code/traadv.f90
+```
+
+This will output the generated Fortran code with the OpenMP directives added.
+
+`tra_adv.F90` - is a stand-alone version of one of the tracer-advection
+routines from the NEMO ocean model. It was originally extracted by
+Silvia Mocavero of CMCC. The code can be found in the `../code`
+directory.
+
 ## Licence
 
--------------------------------------------------------------------------------
+-----------------------------------------------------------------------------
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2025, Science and Technology Facilities Council.
+Copyright (c) 2018-2025, Science and Technology Facilities Council
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,7 +59,4 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
--------------------------------------------------------------------------------
-Authors: J. Henrichs, Bureau of Meteorology,
-         I. Kavcic, Met Office
--->
+-----------------------------------------------------------------------------
