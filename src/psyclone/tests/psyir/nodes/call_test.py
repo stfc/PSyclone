@@ -48,8 +48,6 @@ from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
     ArrayType, INTEGER_TYPE, ContainerSymbol, DataSymbol, NoType,
     RoutineSymbol, REAL_TYPE, SymbolError, UnresolvedInterface)
-from psyclone.psyir.transformations import InlineTrans
-from psyclone.tests.utilities import Compile
 
 
 class SpecialCall(Call):
