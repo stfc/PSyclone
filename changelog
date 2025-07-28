@@ -1,3 +1,6 @@
+   62) PR #3058 for #3059. Update linkcheck parameters, fix links in docs
+   and READMEs, update mentions of nan_check with value_range_check.
+
    61) PR #3040 for #3038. Improves the frontend error reporting of the
    psyclone command.
 
