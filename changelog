@@ -1,3 +1,22 @@
+   60) PR #2967 towards #2551. Adds a barrier minimisation step on the Async
+   workflow to improve its performance and adds integration tests.
+
+   59) PR #2137 towards #1312. Adds metadata support for read-only ScalarArrays
+   in the LFRic DSL.
+
+   58) PR #3057 for 3056. Demote OpenMP lowering error to warning.
+
+   57) PR #3018 for #3017. Fix ArrayType with defined lower bounds, but no upper
+   bound.
+
+   56) PR #3055. Fixes duplicated async statements in OpenACC.
+
+   55) PR #2941 for #2925. Add support for ASCII extraction and rename standalone
+   extraction to binary extraction.
+
+   54) PR #3053 for #3052. Fix missing psylayer openmp symbols (for LFRic with
+   OpenMP and profiling).
+
    53) #3065 for #3064 - adds a pytest.ini to ensure that pytest doesn't look
    in the 'external' directory if run from the project root directory.
 

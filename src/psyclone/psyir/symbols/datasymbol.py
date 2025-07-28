@@ -392,3 +392,49 @@ class DataSymbol(TypedSymbol):
         if self.initial_value:
             access_info.update(self.initial_value.reference_accesses())
         return access_info
+
+    def get_bounds(self, idx: int):
+        '''
+        :returns: the lower and upper bounds of the specified (0-indexed)
+                  array dimension.
+        :rtype: Tuple[:py:class:`psyclone.psyir.nodes.DataNode`,
+                      :py:class:`psyclone.psyir.nodes.DataNode`]
+
+        :raises IndexError: if the requested array dimension is invalid.
+
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import IntrinsicCall, Literal, Reference
+        from psyclone.psyir.symbols.datatypes import (ArrayType, INTEGER_TYPE,
+                                                      UnsupportedFortranType)
+        shape = None
+        if isinstance(self.datatype, ArrayType):
+            shape = self.datatype.shape
+        elif (isinstance(self.datatype, UnsupportedFortranType) and
+              self.datatype.partial_datatype):
+            shape = self.datatype.partial_datatype.shape
+
+        if shape and idx >= len(shape):
+            raise IndexError(
+                f"DataSymbol '{self.name}' has {len(shape)} dimensions but "
+                f"bounds for (0-indexed) dimension {idx} requested.")
+
+        if not shape or shape[idx] in [ArrayType.Extent.DEFERRED,
+                                       ArrayType.Extent.ATTRIBUTE]:
+            # We have no information on the bounds of this dimension.
+            bounds = []
+            for intrinsic in [IntrinsicCall.Intrinsic.LBOUND,
+                              IntrinsicCall.Intrinsic.UBOUND]:
+                bounds.append(IntrinsicCall.create(
+                    intrinsic, [Reference(self),
+                                ("dim", Literal(str(idx+1), INTEGER_TYPE))]))
+            return tuple(bounds)
+
+        lower = self.shape[idx].lower.copy()
+        if not isinstance(self.shape[idx].upper, ArrayType.Extent):
+            return lower, self.shape[idx].upper.copy()
+
+        upper = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(self), ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+        return lower, upper
