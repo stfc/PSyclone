@@ -1,3 +1,6 @@
+   61) PR #3040 for #3038. Improves the frontend error reporting of the
+   psyclone command.
+
    60) PR #2967 towards #2551. Adds a barrier minimisation step on the Async
    workflow to improve its performance and adds integration tests.
 

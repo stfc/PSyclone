@@ -60,7 +60,9 @@ def test_config_loaded_before_constants_created(monkeypatch):
     # If the psyclone command is executed, the flag should be set. The
     # parameters specified here will immediately abort, but still the
     # flag must be set at the end, since the command has to set this flag:
-    with pytest.raises(FileNotFoundError) as err:
+    # (We check for two different exceptions as this behaviour seems to
+    # change between Python 3.9 and more recent versions.)
+    with pytest.raises((FileNotFoundError, SystemExit)) as err:
         generator.main(["some_file.f90"])
     assert Config.has_config_been_initialised() is True
 
