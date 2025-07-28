@@ -44,7 +44,7 @@ from typing import List
 
 from psyclone.core.component_indices import ComponentIndices
 from psyclone.core.signature import Signature
-from psyclone.core.single_variable_access_info import AccessSequence
+from psyclone.core.access_sequence import AccessSequence
 from psyclone.errors import InternalError
 
 

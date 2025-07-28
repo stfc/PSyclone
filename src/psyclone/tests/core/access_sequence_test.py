@@ -34,8 +34,7 @@
 # Author: Joerg Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter, R. W. Ford and S. Siso, STFC Daresbury Laboratory
 
-'''This module tests the various classes in the single_variable_access_info
-module.'''
+'''This module tests the various classes in the access_sequence module.'''
 
 
 import pytest
@@ -125,8 +124,8 @@ def test_access_info_description():
 
 
 # -----------------------------------------------------------------------------
-def test_variable_access_info():
-    '''Test the SingleVariableAccesInfo class, i.e. the class that manages a
+def test_variable_access_sequence():
+    '''Test the AccessSequence class, i.e. the class that manages a
     list of VariableInfo instances for one variable
     '''
 
@@ -191,8 +190,8 @@ def test_variable_access_info():
 
 
 # -----------------------------------------------------------------------------
-def test_variable_access_info_is_array(fortran_reader):
-    '''Test that the SingleVariableAccesInfo class handles arrays as expected.
+def test_variable_access_sequence_is_array(fortran_reader):
+    '''Test that the AccessSequence class handles arrays as expected.
 
     '''
     vam = AccessSequence(Signature("var_name"))
@@ -228,7 +227,7 @@ def test_variable_access_info_is_array(fortran_reader):
 
 
 # -----------------------------------------------------------------------------
-def test_variable_access_info_read_write():
+def test_variable_access_sequence_read_write():
     '''Test the handling of READWRITE accesses. A READWRITE indicates both
     a read and a write access, but if a variable has a READ and a WRITE
     access, this is not one READWRITE access. A READWRITE access is only

@@ -328,11 +328,11 @@ store them.
 
 
 AccessSequence
-------------------------
-The values of the `VariablesAccessMap` map are `AccessSequence`,
-which contain the sequence of accesses to a single variable. When a new variable
-is detected when adding access information to a `VariablesAccessMap` instance
-via `add_access()`, a new instance of `AccessSequence` is added,
+--------------
+The values of the `VariablesAccessMap` map are `AccessSequence`, which contain
+the sequence of accesses to a given variable. When a new variable is detected
+when adding access information to a `VariablesAccessMap` instance via the
+`add_access()` method, a new instance of `AccessSequence` is added,
 which in turn stores all access to the specified variable.
 
 .. autoclass:: psyclone.core.AccessSequence
@@ -341,11 +341,9 @@ which in turn stores all access to the specified variable.
 
 AccessInfo
 ----------
-The class `AccessSequence` uses a list of
-`psyclone.core.AccessInfo` instances to store all
-accesses to a single variable. A new instance of `AccessInfo`
-is appended to the list whenever `add_access()`
-is called.
+The class `AccessSequence` is an ordered list of `psyclone.core.AccessInfo`
+instances to store all accesses to a single variable. A new instance of
+`AccessInfo` is appended to the list whenever `add_access()` is called.
 
 .. autoclass:: psyclone.core.AccessInfo
     :no-index:
