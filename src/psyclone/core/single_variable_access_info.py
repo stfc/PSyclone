@@ -177,7 +177,7 @@ class AccessInfo():
 
 
 # =============================================================================
-class AccessSequence():
+class AccessSequence(list):
     ''' This class stores a list with all accesses to one variable.
 
     :param signature: signature of the variable.
@@ -186,27 +186,21 @@ class AccessSequence():
     '''
     def __init__(self, signature):
         self._signature = signature
-        # This is the list of AccessInfo instances for this variable.
-        self._accesses = []
 
     def __str__(self) -> str:
         '''
         :returns: a string representation of this object with the format:
             var_name:[WRITE,WRITE,READ]
         '''
-        all_accesses = ",".join([str(access) for access in self._accesses])
+        all_accesses = ",".join([str(access) for access in self])
 
         return f"{self._signature}:[{all_accesses}]"
-
-    def __repr__(self):
-        return ",".join([str(access) for access in self._accesses])
 
     def str_access_summary(self) -> str:
         '''
         :returns: a string of the accesstypes but removing duplicates.
         '''
-        access_set = "+".join(
-            OrderedSet(str(access) for access in self._accesses))
+        access_set = "+".join(OrderedSet(str(access) for access in self))
         return f"{access_set}"
 
     @property
@@ -228,8 +222,7 @@ class AccessSequence():
         :returns: whether or not any accesses of this variable
                   represent a call.
         '''
-        return any(info.access_type == AccessType.CALL for
-                   info in self._accesses)
+        return any(access.access_type == AccessType.CALL for access in self)
 
     def is_written(self) -> bool:
         '''
@@ -237,7 +230,7 @@ class AccessSequence():
         '''
         return any(access_info.access_type in
                    AccessType.all_write_accesses()
-                   for access_info in self._accesses)
+                   for access_info in self)
 
     def is_written_first(self) -> bool:
         '''
@@ -245,7 +238,7 @@ class AccessSequence():
             (which indicates that this variable is not an input variable
             for a kernel).
         '''
-        for acc in self._accesses:
+        for acc in self:
             if acc.access_type in AccessType.non_data_accesses():
                 continue
             if acc.access_type != AccessType.WRITE:
@@ -260,7 +253,7 @@ class AccessSequence():
         '''
         access_types = AccessType.non_data_accesses() + [AccessType.READ]
         return all(access_info.access_type in access_types
-                   for access_info in self._accesses)
+                   for access_info in self)
 
     def is_read(self) -> bool:
         '''
@@ -268,7 +261,7 @@ class AccessSequence():
         '''
         read_accesses = AccessType.all_read_accesses()
         return any(access_info.access_type in read_accesses
-                   for access_info in self._accesses)
+                   for access_info in self)
 
     def has_read_write(self):
         '''Checks if this variable has at least one READWRITE access.
@@ -277,32 +270,17 @@ class AccessSequence():
         :rtype: bool
         '''
         return any(access_info.access_type == AccessType.READWRITE
-                   for access_info in self._accesses)
+                   for access_info in self)
 
     def has_data_access(self) -> bool:
         '''
         :returns: True if there is an access of the data associated with this
             signature (as opposed to a call or an inquiry), False otherwise.
         '''
-        for info in self._accesses:
+        for info in self:
             if info.access_type not in AccessType.non_data_accesses():
                 return True
         return False
-
-    def __getitem__(self, index):
-        ''':return: the access information for the specified index.
-        :rtype: py:class:`psyclone.core.AccessInfo`
-
-        :raises IndexError: If there is no access with the specified index.
-        '''
-        return self._accesses[index]
-
-    @property
-    def all_accesses(self):
-        ''':returns: a list with all AccessInfo data for this variable.
-        :rtype: List[:py:class:`psyclone.core.AccessInfo`]
-        '''
-        return self._accesses
 
     @property
     def all_read_accesses(self):
@@ -310,7 +288,7 @@ class AccessSequence():
             that involve reading this variable.
         :rtype: List[:py:class:`psyclone.core.AccessInfo`]
         '''
-        return [access for access in self._accesses
+        return [access for access in self
                 if access.access_type in AccessType.all_read_accesses()]
 
     @property
@@ -319,7 +297,7 @@ class AccessSequence():
             that involve writing this variable.
         :rtype: List[:py:class:`psyclone.core.AccessInfo`]
         '''
-        return [access for access in self._accesses
+        return [access for access in self
                 if access.access_type in AccessType.all_write_accesses()]
 
     def add_access(
@@ -334,7 +312,7 @@ class AccessSequence():
         :param component_indices: indices used for each component of the \
             access.
         '''
-        self._accesses.append(AccessInfo(access_type, node, component_indices))
+        self.append(AccessInfo(access_type, node, component_indices))
 
     def change_read_to_write(self):
         '''This function is only used when analysing an assignment statement.
@@ -349,7 +327,7 @@ class AccessSequence():
                                INQUIRY or there is > 1 READ access.
         '''
         read_access = None
-        for acc in self._accesses:
+        for acc in self:
 
             if acc.access_type == AccessType.READ:
                 if read_access:
@@ -385,8 +363,7 @@ class AccessSequence():
         :rtype: bool
 
         '''
-        is_array = any(access_info.is_array() for
-                       access_info in self._accesses)
+        is_array = any(access_info.is_array() for access_info in self)
 
         # If there is no access information using an index, or there is no
         # index variable specified, return the current result:
@@ -397,7 +374,7 @@ class AccessSequence():
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Reference
 
-        for access_info in self._accesses:
+        for access_info in self:
             if any(ref.symbol.name == index_variable
                    for ref in access_info.node.walk(Reference)):
                 return True

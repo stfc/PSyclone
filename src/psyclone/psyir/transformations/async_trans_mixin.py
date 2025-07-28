@@ -109,7 +109,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         # For each of the reads and writes we want to find the closest
         # forward dependency.
         for signature in reads+writes:
-            accesses = var_accesses[signature].all_accesses
+            accesses = var_accesses[signature]
             sym_name = signature.var_name
             # TODO #3060: If any of the accesses are TYPE_INFO then this
             # is a kind parameter, which can currently sometimes appear as

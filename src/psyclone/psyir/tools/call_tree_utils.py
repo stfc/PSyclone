@@ -359,7 +359,6 @@ class CallTreeUtils():
         # pylint: disable=too-many-branches, too-many-locals
         # pylint: disable=too-many-statements
         mod_manager = ModuleManager.get()
-        done = set()
         # Using a set here means that duplicated entries will automatically
         # be filtered out.
         in_vars = set()
@@ -367,9 +366,6 @@ class CallTreeUtils():
         # pylint: disable=too-many-nested-blocks
         while outstanding_nonlocals:
             info = outstanding_nonlocals.pop()
-            if info in done:
-                continue
-            done.add(info)
             external_type, module_name, signature, access_info = info
             if module_name in mod_manager.ignores():
                 continue

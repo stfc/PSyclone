@@ -137,7 +137,7 @@ def test_variable_access_info():
     assert vam.is_written_first() is False
     assert vam.is_read() is False
 
-    assert vam.all_accesses == []
+    assert not vam  # In python and empty list is falsy
     assert vam.all_read_accesses == []
     assert vam.all_write_accesses == []
     assert vam.signature == Signature("var_name")
@@ -167,7 +167,6 @@ def test_variable_access_info():
             "expects only inquiry accesses and a single 'READ' access."
             in str(err.value))
 
-    assert vam.all_accesses[0] == vam[0]
     with pytest.raises(IndexError) as err:
         _ = vam[2]
 

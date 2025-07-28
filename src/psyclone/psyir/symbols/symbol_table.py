@@ -1225,7 +1225,7 @@ class SymbolTable():
         from psyclone.psyir.symbols.generic_interface_symbol import (
             GenericInterfaceSymbol)
         try:
-            for access in vam[sig].all_accesses:
+            for access in vam[sig]:
                 if isinstance(access.node, GenericInterfaceSymbol):
                     for rinfo in access.node.routines:
                         if rinfo.symbol is symbol:

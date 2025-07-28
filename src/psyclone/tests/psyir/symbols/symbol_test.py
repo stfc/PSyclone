@@ -48,9 +48,9 @@ is not tested here.
 
 import pytest
 
-from psyclone.core import Signature, AccessSequence
+from psyclone.core import Signature, AccessSequence, AccessType
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Container, Literal, KernelSchedule
+from psyclone.psyir.nodes import Container, Literal, KernelSchedule, Reference
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol,
     DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface,
@@ -450,7 +450,8 @@ def test_symbol_array_handling():
             in str(err.value))
     # Supply some access information.
     svinfo = AccessSequence(Signature("a"))
-    assert not asym.is_array_access("i", svinfo)
+    svinfo.add_access(AccessType.READ, Reference(asym))
+    assert not asym.is_array_access("a", svinfo)
 
 
 @pytest.mark.parametrize("table", [None, SymbolTable()])

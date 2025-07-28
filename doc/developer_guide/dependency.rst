@@ -481,20 +481,19 @@ thread-private. Note that this code does not handle the usage of
       # The `is_array_access` function will take information from
       # the access information as well as from the symbol table
       # into account.
-      access_info = var_accesses[signature]
+      access_sequence = var_accesses[signature]
       if symbol.is_array_access(access_info=access_info):
           # It's not a scalar variable, so it will not be private
           continue
 
       # If a scalar variable is only accessed once, it is either a coding
       # error or a shared variable - anyway it is not private
-      accesses = access_info.all_accesses
-      if len(accesses) == 1:
+      if len(access_sequence) == 1:
           continue
 
       # We have at least two accesses. If the first one is a write,
       # assume the variable should be private:
-      if accesses[0].access_type == AccessType.WRITE:
+      if access_sequence[0].access_type == AccessType.WRITE:
           print("Private variable", var_name)
           result.add(var_name.lower())
 

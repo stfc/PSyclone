@@ -66,7 +66,7 @@ def test_variables_access_map():
     assert set(var_accesses.all_signatures) == set([Signature("read"),
                                                     Signature("written"),
                                                     Signature("read_written")])
-    all_accesses = var_accesses[Signature("read")].all_accesses
+    all_accesses = var_accesses[Signature("read")]
     assert all_accesses[0].node == node1
 
     # Create a new instance
@@ -156,7 +156,7 @@ def test_variables_access_map_update():
     var_accesses1.add_access(Signature("d"), AccessType.READ, node)
     var_accesses1.add_access(Signature("c"), AccessType.WRITE, node)
     c_accesses = var_accesses1[Signature("c")]
-    assert len(c_accesses.all_accesses) == 1
+    assert len(c_accesses) == 1
     assert c_accesses[0].access_type == AccessType.WRITE
 
     # First create one instance representing for example:

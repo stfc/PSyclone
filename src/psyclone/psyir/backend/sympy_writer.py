@@ -289,7 +289,7 @@ class SymPyWriter(FortranWriter):
         # each component, one list per access, e.g.:
         #  a%b => [0,0] and  a(2)%b => [1,0]
         num_dims_for_access = []
-        for access in sva.all_accesses:
+        for access in sva:
             indices = access.component_indices
             # Create the list of number of indices on each component for
             # this access.
@@ -314,12 +314,12 @@ class SymPyWriter(FortranWriter):
         :param sva: information on the ways in which the Symbol is accessed.
 
         '''
-        if all(acs.is_array() for acs in sva.all_accesses):
+        if all(acs.is_array() for acs in sva):
             return
         if not sym or isinstance(sym, (DataSymbol, RoutineSymbol)):
             return
         # Find an access that has indices.
-        for acs in sva.all_accesses:
+        for acs in sva:
             if not acs.is_array():
                 continue
             ndims = None
@@ -418,11 +418,10 @@ class SymPyWriter(FortranWriter):
             try:
                 # Depending on the situation, we won't always
                 # have a scope, hence the try...except.
-                orig_sym = sva.all_accesses[0].node.scope.symbol_table.\
-                    lookup(sig.var_name)
+                orig_sym = sva[0].node.scope.symbol_table.lookup(sig.var_name)
             except SymbolError:
-                if isinstance(sva.all_accesses[0].node, Reference):
-                    orig_sym = sva.all_accesses[0].node.symbol
+                if isinstance(sva[0].node, Reference):
+                    orig_sym = sva[0].node.symbol
                 else:
                     orig_sym = None
 
