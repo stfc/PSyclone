@@ -112,7 +112,6 @@ class OMPTaskTrans(ParallelLoopTrans):
         kintrans = KernelModuleInlineTrans()
         cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()
-        options = {"check_matching_arguments": False}
 
         for kern in kerns:
             kintrans.validate(kern, options)

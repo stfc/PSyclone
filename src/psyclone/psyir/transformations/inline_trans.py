@@ -160,7 +160,7 @@ class InlineTrans(Transformation):
         :param permit_codeblocks: If `False` (the default), raise an Exception
             if the target routine contains a CodeBlock.
         :param permit_unsupported_type_args: If `True` then the target routine
-            is permitted to have arguments ofUnsupportedType.
+            is permitted to have arguments of UnsupportedType.
 
         :raises InternalError: if the merge of the symbol tables fails.
             In theory this should never happen because validate() should

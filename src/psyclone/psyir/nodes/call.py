@@ -36,6 +36,7 @@
 
 ''' This module contains the Call node implementation.'''
 
+# Support for *postponed* type annotations.
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -471,8 +472,8 @@ class Call(Statement, DataNode):
     def get_callees(self) -> List[Routine]:
         '''
         Searches for the implementation(s) of all potential target routines
-        for this Call without resolving static polymorphism by checking the
-        argument types.
+        for this Call. It does *not* attempt to resolve static polymorphism
+        by checking the argument types.
 
         :returns: A list of the routine(s) that this call targets.
 
