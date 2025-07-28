@@ -33,24 +33,16 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: S. Siso, STFC Daresbury Lab
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
+# Authors: A. B. G. Chalk, STFC Daresbury Lab
 
-''' PSyclone transformation script showing the introduction of OpenMP for GPU
-directives into Nemo code. '''
+''' PSyclone transformation script showing the introduction of
+asynchronous OpenMP GPU directives into Nemo code. '''
 
-from psyclone.psyir.nodes import Loop, Assignment
+from psyclone.psyir.nodes import Loop, Assignment, Directive, Routine
 from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans
 from psyclone.psyir.transformations import OMPTargetTrans, OMPLoopTrans
+from psyclone.psyir.transformations import OMPMinimiseSyncTrans
 from psyclone.transformations import TransformationError
-
-USE_GPU = True  # Enable for generating OpenMP target directives
-
-Loop.set_loop_type_inference_rules({
-        "lon": {"variable": "ji"},
-        "lat": {"variable": "jj"},
-        "levels": {"variable": "jk"},
-        "tracers": {"variable": "jt"}
-})
 
 
 def trans(psyir):
@@ -63,21 +55,24 @@ def trans(psyir):
     omp_target_trans = OMPTargetTrans()
     omp_loop_trans = OMPLoopTrans()
     omp_loop_trans.omp_directive = "loop"
+    opts = {"nowait": True}
 
-    # Convert all array implicit loops to explicit loops
-    explicit_loops = ArrayAssignment2LoopsTrans()
+    # First convert assignments to loops whenever possible
     for assignment in psyir.walk(Assignment):
         try:
-            explicit_loops.apply(assignment)
+            ArrayAssignment2LoopsTrans().apply(assignment)
         except TransformationError:
             pass
 
+    # Apply loop_trans to all the loops possible.
     for loop in psyir.walk(Loop):
-        if loop.loop_type == "levels":
+        if not loop.ancestor(Directive):
             try:
-                if USE_GPU:
-                    omp_target_trans.apply(loop)
-                omp_loop_trans.apply(loop)
+                omp_target_trans.apply(loop, options=opts)
+                omp_loop_trans.apply(loop, nowait=True)
             except TransformationError:
                 # Not all of the loops in the example can be parallelised.
                 pass
+
+    for routine in psyir.walk(Routine):
+        OMPMinimiseSyncTrans().apply(routine)
