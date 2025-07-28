@@ -42,7 +42,6 @@
 
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
-from ordered_set import OrderedSet
 
 from psyclone.core.access_type import AccessType
 from psyclone.core.component_indices import ComponentIndices
@@ -200,7 +199,8 @@ class AccessSequence(list):
         '''
         :returns: a string of the accesstypes but removing duplicates.
         '''
-        access_set = "+".join(OrderedSet(str(access) for access in self))
+        # Use a dict comprehension to get non-duplicated ordered results
+        access_set = "+".join({str(access): None for access in self}.keys())
         return f"{access_set}"
 
     @property
