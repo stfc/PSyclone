@@ -58,24 +58,9 @@ class VariablesAccessMap(dict):
         '''Gives a shortened visual representation of all variables
         and their access mode '''
 
-        all_signatures = self.all_signatures
         output_list = []
-        for signature in all_signatures:
-            mode = ""
-            if self.has_read_write(signature):
-                mode = "READWRITE"
-            else:
-                if self.is_read(signature):
-                    if self.is_written(signature):
-                        mode = "READ+WRITE"
-                    else:
-                        mode = "READ"
-                elif self.is_written(signature):
-                    mode = "WRITE"
-                else:
-                    # The data associated with this signature is not accessed.
-                    mode = "NO_DATA_ACCESS"
-            output_list.append(f"{signature}: {mode}")
+        for key, value in self.items():
+            output_list.append(f"{key}: {value.str_access_summary()}")
         return ", ".join(output_list)
 
     def add_access(self, signature, access_type, node, component_indices=None):

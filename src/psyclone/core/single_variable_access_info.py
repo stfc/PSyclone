@@ -42,6 +42,7 @@
 
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
+from ordered_set import OrderedSet
 
 from psyclone.core.access_type import AccessType
 from psyclone.core.component_indices import ComponentIndices
@@ -188,9 +189,10 @@ class AccessSequence():
         # This is the list of AccessInfo instances for this variable.
         self._accesses = []
 
-    def __str__(self):
-        '''Returns a string representation of this object with the format:
-        var_name:[WRITE,WRITE,READ]
+    def __str__(self) -> str:
+        '''
+        :returns: a string representation of this object with the format:
+            var_name:[WRITE,WRITE,READ]
         '''
         all_accesses = ",".join([str(access) for access in self._accesses])
 
@@ -198,6 +200,14 @@ class AccessSequence():
 
     def __repr__(self):
         return ",".join([str(access) for access in self._accesses])
+
+    def str_access_summary(self) -> str:
+        '''
+        :returns: a string of the accesstypes but removing duplicates.
+        '''
+        access_set = "+".join(
+            OrderedSet(str(access) for access in self._accesses))
+        return f"{access_set}"
 
     @property
     def signature(self):

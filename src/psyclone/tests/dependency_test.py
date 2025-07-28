@@ -85,8 +85,9 @@ def test_assignment(fortran_reader):
     array_assignment = schedule.children[1]
     assert isinstance(array_assignment, Assignment)
     var_accesses = array_assignment.reference_accesses()
-    assert (str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "
-                                 "i: READ, j: READ, x: READ, y: READ")
+    assert (str(var_accesses) ==
+            "d: READ, e: READ, i: READ, j: READ, f: READ, x: READ, "
+            "y: READ, c: WRITE")
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)
@@ -97,7 +98,7 @@ def test_assignment(fortran_reader):
     sqrt_access = schedule.children[3]
     assert isinstance(sqrt_access, Assignment)
     var_accesses = sqrt_access.reference_accesses()
-    assert str(var_accesses) == "d: WRITE, e: READ, i: READ, j: READ"
+    assert str(var_accesses) == "e: READ, i: READ, j: READ, d: WRITE"
 
 
 def test_indirect_addressing(fortran_reader):
@@ -176,8 +177,8 @@ def test_do_loop(fortran_reader):
     do_loop = schedule.children[0]
     assert isinstance(do_loop, Loop)
     var_accesses = do_loop.reference_accesses()
-    assert (str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, n: READ, "
-                                 "s: WRITE, t: READ")
+    assert (str(var_accesses) ==
+            "jj: WRITE+READ, n: READ, ji: WRITE+READ, s: WRITE, t: READ")
 
 
 def test_nemo_array_range(fortran_reader):
@@ -198,8 +199,9 @@ def test_nemo_array_range(fortran_reader):
     do_loop = schedule.children[0]
     assert isinstance(do_loop, Loop)
     var_accesses = do_loop.reference_accesses()
-    assert (str(var_accesses) == "a: READ, jj: READ+WRITE, n: READ, "
-            "s: WRITE, t: READ")
+    assert (str(var_accesses) ==
+            "jj: WRITE+READ, n: READ, a: READ, s: INQUIRY+WRITE, "
+            "t: INQUIRY+READ")
 
 
 @pytest.mark.xfail(reason="Gocean loops boundaries are strings #440")
@@ -240,9 +242,11 @@ def test_goloop_partially():
     assert not do_loop.args[3].is_scalar
 
     var_accesses = do_loop.reference_accesses()
-    assert ("a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "
-            "ssh_fld: READWRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "
-            "ssh_fld%grid%tmask: READ" in str(var_accesses))
+    assert ("j: WRITE+READ, ssh_fld%whole%ystart: READ, ssh_fld%whole%ystop: "
+            "READ, a_scalar: READ, i: WRITE+READ, ssh_fld: READWRITE, "
+            "ssh_fld%grid%subdomain%internal%xstop: READ, ssh_fld%grid%tmask: "
+            "READ, ssh_fld%whole%xstart: READ, ssh_fld%whole%xstop: READ"
+            == str(var_accesses))
 
 
 def test_lfric():
@@ -262,12 +266,11 @@ def test_lfric():
     schedule = invoke.schedule
     var_accesses = schedule.reference_accesses()
     assert str(var_accesses) == (
-        "a: READ, cell: READ+WRITE, f1_data: READ+WRITE, f2_data: READ, "
-        "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, m1_data: READ, "
-        "m2_data: READ, map_w1: READ, "
-        "map_w2: READ, map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ,"
-        " nlayers_f1: READ, r_def: NO_DATA_ACCESS, undf_w1: READ, undf_w2: "
-        "READ, undf_w3: READ, uninitialised_loop0_start: READ, "
+        "field_type: TYPE_INFO, i_def: TYPE_INFO, r_def: TYPE_INFO, a: READ, "
+        "cell: WRITE+READ, f1_data: INC, f2_data: READ, m1_data: READ, "
+        "m2_data: READ, map_w1: READ, map_w2: READ, map_w3: READ, ndf_w1: "
+        "READ, ndf_w2: READ, ndf_w3: READ, nlayers_f1: READ, undf_w1: READ, "
+        "undf_w2: READ, undf_w3: READ, uninitialised_loop0_start: READ, "
         "uninitialised_loop0_stop: READ")
 
 
@@ -344,7 +347,7 @@ def test_lfric_operator():
     '''
     psy, invoke_info = get_invoke("6.1_eval_invoke.f90", "lfric", idx=0)
     var_info = str(invoke_info.schedule.reference_accesses())
-    assert "f0_data: READ+WRITE" in var_info
+    assert "f0_data: INC" in var_info
     assert "cmap_data: READ" in var_info
     assert "basis_w0_on_w0: READ" in var_info
     assert "diff_basis_w1_on_w0: READ" in var_info
@@ -358,18 +361,18 @@ def test_lfric_cma(fortran_writer):
     _, invoke_info = get_invoke("20.0_cma_assembly.f90", "lfric", idx=0)
     invoke_info.setup_psy_layer_symbols()
     var_info = str(invoke_info.schedule.reference_accesses())
-    assert "ncell_2d: READ" in var_info
-    assert "cma_op1_alpha: READ" in var_info
-    assert "cma_op1_bandwidth: READ" in var_info
-    assert "cma_op1_beta: READ" in var_info
-    assert "cma_op1_gamma_m: READ" in var_info
-    assert "cma_op1_gamma_p: READ" in var_info
+    assert "ncell_2d: WRITE+READ" in var_info
+    assert "cma_op1_alpha: WRITE+READ" in var_info
+    assert "cma_op1_bandwidth: WRITE+READ" in var_info
+    assert "cma_op1_beta: WRITE+READ" in var_info
+    assert "cma_op1_gamma_m: WRITE+READ" in var_info
+    assert "cma_op1_gamma_p: WRITE+READ" in var_info
     assert "cma_op1_cma_matrix: WRITE" in var_info
-    assert "cma_op1_ncol: READ" in var_info
-    assert "cma_op1_nrow: READ" in var_info
-    assert "cbanded_map_adspc1_lma_op1: READ" in var_info
-    assert "cbanded_map_adspc2_lma_op1: READ" in var_info
-    assert "lma_op1_local_stencil: READ" in var_info
+    assert "cma_op1_ncol: WRITE+READ" in var_info
+    assert "cma_op1_nrow: WRITE+READ" in var_info
+    assert "cbanded_map_adspc1_lma_op1: WRITE+READ" in var_info
+    assert "cbanded_map_adspc2_lma_op1: WRITE+READ" in var_info
+    assert "lma_op1_local_stencil: WRITE+READ" in var_info
     assert "lma_op1_proxy%ncell_3d: READ" in var_info
 
 
@@ -457,7 +460,7 @@ def test_lfric_stub_args():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "field_1_w1: READ+WRITE" in var_info
+    assert "field_1_w1: INC" in var_info
     assert "field_2_stencil_dofmap: READ" in var_info
     assert "field_2_stencil_size: READ" in var_info
     assert "field_2_w2: READ" in var_info
