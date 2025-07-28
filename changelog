@@ -1,4 +1,7 @@
-   59) PR #2137 towards #1312: adds metadata support for read-only ScalarArrays
+   60) PR #2967 towards #2551. Adds a barrier minimisation step on the Async
+   workflow to improve its performance and adds integration tests.
+
+   59) PR #2137 towards #1312. Adds metadata support for read-only ScalarArrays
    in the LFRic DSL.
 
    58) PR #3057 for 3056. Demote OpenMP lowering error to warning.

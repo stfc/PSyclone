@@ -231,7 +231,7 @@ jobs:
           num_omp_threads: '"$OMP_NUM_THREADS"', elapsed_time: '"$VAR_TIME"'})'
 
     # PSyclone, compile and run MetOffice NEMO with OpenMP for GPUs with Asynchronous directives
-    - name: NEMO MetOffice OpenMP for GPU
+    - name: NEMO MetOffice OpenMP for GPU with async
       run: |
         . .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
@@ -256,5 +256,5 @@ jobs:
           --password ${{ secrets.MONGODB_PASSWORD }} \
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-          ci_test: "NEMOv4 OpenMP for GPU", nemo_version: "NEMO MO 4.0.2", system: "GlaDos",
+          ci_test: "NEMOv4 OpenMP for GPU Async", nemo_version: "NEMO MO 4.0.2", system: "GlaDos",
           compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'

@@ -108,6 +108,7 @@ OFFLOADING_ISSUES = [
     # asynchronicity.
     "fldread.f90",
     "trcatf.f90",
+    "zdfsh2.f90",
 ]
 
 if ASYNC_PARALLEL:

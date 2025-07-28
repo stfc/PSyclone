@@ -67,8 +67,8 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                               directive: Directive) -> Union[List[Statement],
                                                              bool]:
         '''
-        Finds the statement with the closest following dependency of
-        any symbol in the supplied nodes. It can be multiple due to branching,
+        Finds the statement with the closest following dependency of any symbol
+        in the supplied nodes. It can be multiple locations due to branching,
         and be before the supplied nodes if they are contained inside a
         looping construct.
 
