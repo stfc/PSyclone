@@ -32,11 +32,11 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. B. G. Chalk, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 ''' This module provides the OMPTaskTrans transformation.'''
 
 from psyclone.errors import GenerationError
-from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyGen import Kern
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
         import FoldConditionalReturnExpressionsTrans
@@ -106,6 +106,9 @@ class OMPTaskTrans(ParallelLoopTrans):
             node_copy = node_copy.children[index]
 
         kerns = node_copy.walk(Kern)
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.transformations import \
+            KernelModuleInlineTrans
         kintrans = KernelModuleInlineTrans()
         cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()
@@ -170,6 +173,9 @@ class OMPTaskTrans(ParallelLoopTrans):
         '''
 
         kerns = node.walk(Kern)
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.transformations import \
+            KernelModuleInlineTrans
         kintrans = KernelModuleInlineTrans()
         cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()

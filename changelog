@@ -1,4 +1,51 @@
-   44) PR #2972 for 2971. Move the ParallelRegionTrans from transformations.py
+   61) PR #3040 for #3038. Improves the frontend error reporting of the
+   psyclone command.
+
+   60) PR #2967 towards #2551. Adds a barrier minimisation step on the Async
+   workflow to improve its performance and adds integration tests.
+
+   59) PR #2137 towards #1312. Adds metadata support for read-only ScalarArrays
+   in the LFRic DSL.
+
+   58) PR #3057 for 3056. Demote OpenMP lowering error to warning.
+
+   57) PR #3018 for #3017. Fix ArrayType with defined lower bounds, but no upper
+   bound.
+
+   56) PR #3055. Fixes duplicated async statements in OpenACC.
+
+   55) PR #2941 for #2925. Add support for ASCII extraction and rename standalone
+   extraction to binary extraction.
+
+   54) PR #3053 for #3052. Fix missing psylayer openmp symbols (for LFRic with
+   OpenMP and profiling).
+
+   53) #3065 for #3064 - adds a pytest.ini to ensure that pytest doesn't look
+   in the 'external' directory if run from the project root directory.
+
+   52) PR #3014 towards #2384. Adds flags to keep comments and have directives
+   turned into codeblocks.
+
+   51) PR #3046 for #3045. Replace eval call with getattr in visitor.
+
+   50) PR #3037 for #3036. Remove AccessType location and is_accessed_before method.
+
+   49) PR #3043. Bring back python 3.9 in the integration tests
+
+   48) PR #2977 for #2971. Move the OMPTaskLoopTrans from transformations.py
+   to psyir/transformations.
+
+   47) PR #2997 for #223. Add support for logical operators in the SymPy
+   comparisons.
+
+   46) PR #3033 for #3031 and #3032. Prevent inserting profiling callipers to
+   NEMO functions and any elemental function. Also remove pure attribute when
+   inserting psy_data wrappers.
+
+   45) PR #2948 for #2950. Update extraction transformation to perform
+   extraction and driver creation at lowering
+
+   44) PR #2972 for #2971. Move the ParallelRegionTrans from transformations.py
    into psyir/transformations.
 
    43) PR #2732 for #2716. Add support for module-inlining polymorphic kernels

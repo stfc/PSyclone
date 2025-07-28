@@ -18,7 +18,7 @@ This library uses the [PSyData API](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
 the application. The following dependencies must be available:
 
-- The [GOcean](https://psyclone.readthedocs.io/en/latest/gocean1p0.html)
+- The [GOcean](https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html)
   infrastructure library ``dl_esm_inf``. A stable version of this is included
   in the PSyclone repository as a Git submodule (see ["Installation"](
   https://psyclone.readthedocs.io/en/latest/developer_guide/working_practises.html#dev-installation)
@@ -86,7 +86,7 @@ The compilation process will create the wrapper library
 previously selected compiler flags.
 
 Similar to compilation of the [examples](
-https://psyclone.readthedocs.io/en/latest/tutorials_and_examples.html#compilation), the
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/examples_intro.html#compilation), the
 compiled wrapper library can be removed by running ``make clean``. To also
 remove the compiled infrastructure library it is necessary to run
 ``make allclean`` (this is especially important if changing compilers

@@ -62,6 +62,10 @@ REPRODUCIBLE = os.environ.get('REPRODUCIBLE', False)
 # array privatisation is disabled and some more files excluded
 NEMOV4 = os.environ.get('NEMOV4', False)
 
+# This environment variable informs if we're enabling asynchronous
+# parallelism.
+ASYNC_PARALLEL = os.environ.get('ASYNC_PARALLEL', False)
+
 # Whether to chase the imported modules to improve symbol information (it can
 # also be a list of module filenames to limit the chasing to only specific
 # modules). This has to be used in combination with '-I' command flag in order
@@ -101,8 +105,17 @@ OFFLOADING_ISSUES = [
     "trczdf.f90",
     "trcice_pisces.f90",
     "dtatsd.f90",
+    # Runtime Error: Illegal address during kernel execution with
+    # asynchronicity.
+    "fldread.f90",
     "trcatf.f90",
+    "zdfsh2.f90",
 ]
+
+if ASYNC_PARALLEL:
+    # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
+    # (often invalid pointer dereference) in get_cstrgsurf
+    OFFLOADING_ISSUES.append("sbcclo.f90")
 
 
 def trans(psyir):
@@ -204,6 +217,7 @@ def trans(psyir):
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
                     privatise_arrays=False,
+                    asynchronous_parallelism=ASYNC_PARALLEL,
                     uniform_intrinsics_only=REPRODUCIBLE,
             )
         elif psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES:
@@ -214,15 +228,22 @@ def trans(psyir):
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
                     privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
+                    asynchronous_parallelism=ASYNC_PARALLEL,
                     uniform_intrinsics_only=REPRODUCIBLE,
             )
         elif psyir.name not in PARALLELISATION_ISSUES:
             # This have issues offloading, but we can still do OpenMP threading
             print(f"Adding OpenMP threading to subroutine: {subroutine.name}")
+            # If asynchronous parallelism is enabled, these subroutines in
+            # sbcclo.f90 fail if they're parallelised on the CPU.
+            if (ASYNC_PARALLEL and subroutine.name in
+                    ("get_cssrcsurf", "get_cstrgsurf")):
+                continue
             insert_explicit_loop_parallelism(
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
+                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
+                    asynchronous_parallelism=True
             )
 
     # Iterate again and add profiling hooks when needed

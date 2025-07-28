@@ -40,38 +40,31 @@
 '''This module provides management of variable access information.'''
 
 
+from __future__ import annotations
+from typing import TYPE_CHECKING, Optional
+
 from psyclone.core.access_type import AccessType
 from psyclone.core.component_indices import ComponentIndices
 from psyclone.errors import InternalError
+if TYPE_CHECKING:  # pragma: no cover
+    from psyclone.psyir.nodes import Node
 
 
 class AccessInfo():
-    '''This class stores information about a single access
-    pattern of one variable (e.g. variable is read at a certain location).
-    A location is a number which can be used to compare different accesses
-    (i.e. if one access happens before another). Each consecutive
-    location will have an increasing location number, but read and write
-    accesses in the same statement will have the same location number.
-    If the variable accessed is an array, this class will also store
-    the indices used in the access.
-    Note that the name of the variable is not stored in this class.
-    It is a helper class used in the `SingleVariableAccessInfo` class,
-    which stores all `AccessInfo` objects for a variable, and it stores
-    the name of the variable.
+    ''' This class stores information about an access to a variable (the node
+    where it happens and the type of access, and the index accessed if
+    available).
 
     :param access: the access type.
-    :type access_type: :py:class:`psyclone.core.access_type.AccessType`
-    :param int location: a number used in ordering the accesses.
     :param node: Node in PSyIR in which the access happens.
-    :type node: :py:class:`psyclone.psyir.nodes.Node`
     :param component_indices: indices used in the access, defaults to None.
-    :type component_indices: None, [], a list or a list of lists of \
-        :py:class:`psyclone.psyir.nodes.Node` objects, or an object of type \
-        :py:class:`psyclone.core.component_indices.ComponentIndices`
 
     '''
-    def __init__(self, access_type, location, node, component_indices=None):
-        self._location = location
+    def __init__(
+        self, access_type: AccessType, node: 'Node',
+        component_indices: Optional[list[list['Node']] |
+                                    ComponentIndices] = None
+    ):
         self._access_type = access_type
         self._node = node
         if not isinstance(component_indices, ComponentIndices):
@@ -80,9 +73,7 @@ class AccessInfo():
             self.component_indices = component_indices
 
     def __str__(self):
-        '''Returns a string representation showing the access mode
-        and location, e.g.: WRITE(5).'''
-        return f"{self._access_type}({self._location})"
+        return f"{self._access_type}"
 
     def change_read_to_write(self):
         '''This changes the access mode from READ to WRITE.
@@ -114,7 +105,7 @@ class AccessInfo():
         return self._component_indices
 
     @component_indices.setter
-    def component_indices(self, component_indices):
+    def component_indices(self, component_indices: ComponentIndices):
         '''Sets the indices for this AccessInfo instance. The component_indices
         contains a list of indices for each component of the signature,
         e.g. for `a(i)%b(j,k)%c` the component_indices will be
@@ -122,8 +113,6 @@ class AccessInfo():
         index expression).
 
         :param component_indices: indices used in the access.
-        :type component_indices: \
-            :py:class:`psyclone.core.component_indices.ComponentIndices`
 
         :raises InternalError: if component_indices is not an instance \
             of :py:class:`psyclone.core.component_indices.ComponentIndices`.
@@ -159,14 +148,6 @@ class AccessInfo():
                   a signature (i.e. is not just an inquiry-type access).
         '''
         return self._access_type not in AccessType.non_data_accesses()
-
-    @property
-    def location(self):
-        ''':returns: the location information for this access.\
-        Please see the Developers' Guide for more information.
-        :rtype: int
-        '''
-        return self._location
 
     @property
     def node(self):
@@ -205,21 +186,15 @@ class SingleVariableAccessInfo():
     def __init__(self, signature):
         self._signature = signature
         # This is the list of AccessInfo instances for this variable.
-
         self._accesses = []
 
     def __str__(self):
         '''Returns a string representation of this object with the format:
-        var_name:WRITE(2),WRITE(3),READ(5) where the numbers indicate
-        the 'location' of the corresponding access. The location is an
-        integer number that enumerates each statement in a program unit,
-        and can be used to compare if an access is earlier, later or in
-        the same statement as another access.
-
+        var_name:[WRITE,WRITE,READ]
         '''
         all_accesses = ",".join([str(access) for access in self._accesses])
 
-        return f"{self._signature}:{all_accesses}"
+        return f"{self._signature}:[{all_accesses}]"
 
     def __repr__(self):
         return ",".join([str(access) for access in self._accesses])
@@ -337,24 +312,19 @@ class SingleVariableAccessInfo():
         return [access for access in self._accesses
                 if access.access_type in AccessType.all_write_accesses()]
 
-    def add_access_with_location(self, access_type, location, node,
-                                 component_indices):
+    def add_access(
+        self, access_type: AccessType, node: 'Node',
+        component_indices: Optional[list[list['Node']] |
+                                    ComponentIndices] = None
+    ):
         '''Adds access information to this variable.
 
         :param access_type: the type of access (READ, WRITE, ....)
-        :type access_type: \
-            :py:class:`psyclone.core.access_type.AccessType`
-        :param location: location information
-        :type location: int
         :param node: Node in PSyIR in which the access happens.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param component_indices: indices used for each component of the \
             access.
-        :type component_indices:  \
-            :py:class:`psyclone.core.component_indices.ComponentIndices`
         '''
-        self._accesses.append(AccessInfo(access_type, location, node,
-                                         component_indices))
+        self._accesses.append(AccessInfo(access_type, node, component_indices))
 
     def change_read_to_write(self):
         '''This function is only used when analysing an assignment statement.
@@ -424,83 +394,6 @@ class SingleVariableAccessInfo():
 
         # The index variable is not used in any index in any access:
         return False
-
-    def is_written_before(self, reference):
-        '''Returns True if this variable is written before the specified
-        reference, and False if not.
-
-        :param reference: the reference at which to stop for access checks.
-        :type reference: :py:class:`psyclone.psyir.nodes.Reference`
-
-        :returns: True if this variable is written before the specified \
-            reference, and False if not.
-        :rtype: bool
-
-        :raises ValueError: if the specified reference is not in the list of \
-            all accesses.
-
-        '''
-        result = False
-
-        for access in self._accesses:
-            if access.node is reference:
-                return result
-            if access.access_type == AccessType.WRITE:
-                result = True
-        raise ValueError(f"Reference not found in 'is_written_before' for "
-                         f"variable '{self.var_name}'.")
-
-    def is_read_before(self, reference):
-        '''Returns True if this variable is read before the specified
-        reference, and False if not.
-
-        :param reference: the reference at which to stop for access checks.
-        :type reference: :py:class:`psyclone.psyir.nodes.Reference`
-
-        :returns: True if this variable is read before the specified \
-            reference, and False if not.
-        :rtype: bool
-
-        :raises ValueError: if the specified reference is not in the list of \
-            all accesses.
-
-        '''
-        result = False
-
-        for access in self._accesses:
-            if access.node is reference:
-                return result
-            if access.access_type == AccessType.READ:
-                result = True
-        raise ValueError(f"Reference not found in 'is_read_before' for "
-                         f"variable '{self.var_name}'.")
-
-    def is_accessed_before(self, reference):
-        '''Returns True if this variable is accessed before the specified
-        reference, and False if not. This is equivalent to testing that
-        'reference' is the very first access, but this function will also
-        verify that 'reference' is indeed in the list of accesses.
-
-        :param reference: the reference at which to stop for access checks.
-        :type reference: :py:class:`psyclone.psyir.nodes.Reference`
-
-        :returns: True if this variable is read before the specified \
-            reference, and False if not.
-        :rtype: bool
-
-        :raises ValueError: if the specified reference is not in the list of \
-            all accesses.
-
-        '''
-
-        result = False
-
-        for access in self._accesses:
-            if access.node is reference:
-                return result
-            result = True
-        raise ValueError(f"Reference not found in 'is_accessed_before' for "
-                         f"variable '{self.var_name}'.")
 
 
 # ---------- Documentation utils -------------------------------------------- #

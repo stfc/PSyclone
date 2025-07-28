@@ -12,13 +12,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#         A. B. G. Chalk, V. K. Atkinson, STFC Daresbury Lab
-#         J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
-#          S. Valat, Inria / Laboratoire Jean Kuntzmann
-#          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
-#          J. Dendy, Met Office
+# Authors A. B. G. Chalk, A. R. Porter, STFC Daresbury Lab
 
 '''
 This module provides the implementation of OMPTaskloopTrans
