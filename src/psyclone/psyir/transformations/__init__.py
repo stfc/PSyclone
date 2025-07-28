@@ -91,6 +91,8 @@ from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.value_range_check_trans import (
     ValueRangeCheckTrans)
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
+from psyclone.psyir.transformations.omp_minimise_sync_trans import \
+    OMPMinimiseSyncTrans
 from psyclone.psyir.transformations.omp_target_trans import OMPTargetTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
 from psyclone.psyir.transformations.omp_task_trans import OMPTaskTrans
@@ -146,6 +148,7 @@ __all__ = [
     "Maxval2LoopTrans",
     "Minval2LoopTrans",
     "OMPLoopTrans",
+    "OMPMinimiseSyncTrans",
     "OMPTargetTrans",
     "OMPTaskTrans",
     "OMPTaskwaitTrans",
