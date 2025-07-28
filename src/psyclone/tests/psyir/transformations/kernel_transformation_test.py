@@ -49,8 +49,8 @@ from psyclone.generator import GenerationError
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Routine, FileContainer, IntrinsicCall, Call
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-from psyclone.psyir.transformations import TransformationError, \
-    OMPDeclareTargetTrans
+from psyclone.psyir.transformations import (
+    TransformationError, OMPDeclareTargetTrans)
 from psyclone.transformations import ACCRoutineTrans, LFRicKernelConstTrans
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
