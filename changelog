@@ -1,5 +1,14 @@
-   60) PR #2907 for #2878. Improves Extraction library output stats. 
+   63) PR #2907 for #2878. Improves Extraction library output stats. 
    
+   62) PR #3058 for #3059. Update linkcheck parameters, fix links in docs
+   and READMEs, update mentions of nan_check with value_range_check.
+
+   61) PR #3040 for #3038. Improves the frontend error reporting of the
+   psyclone command.
+
+   60) PR #2967 towards #2551. Adds a barrier minimisation step on the Async
+   workflow to improve its performance and adds integration tests.
+
    59) PR #2137 towards #1312. Adds metadata support for read-only ScalarArrays
    in the LFRic DSL.
 
