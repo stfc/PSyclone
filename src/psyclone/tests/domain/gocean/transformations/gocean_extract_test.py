@@ -47,9 +47,10 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.psyir.nodes import ExtractNode, Loop, OMPDirective
-from psyclone.psyir.transformations import PSyDataTrans, TransformationError
+from psyclone.psyir.transformations import (PSyDataTrans, TransformationError,
+                                            ACCLoopTrans)
 from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
-                                      ACCLoopTrans, GOceanOMPLoopTrans,
+                                      GOceanOMPLoopTrans,
                                       GOceanOMPParallelLoopTrans,
                                       OMPParallelTrans)
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
