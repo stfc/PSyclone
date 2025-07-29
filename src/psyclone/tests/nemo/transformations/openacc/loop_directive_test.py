@@ -41,10 +41,11 @@
 
 import pytest
 from psyclone.psyGen import TransInfo
-from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.psyir.transformations import (
+    ACCKernelsTrans, ACCLoopTrans)
 from psyclone.psyir.nodes import Loop
 from psyclone.errors import GenerationError
-from psyclone.psyir.transformations import ACCLoopTrans 
+
 
 def test_missing_enclosing_region(fortran_reader):
     ''' Check that applying the loop transformation to code without

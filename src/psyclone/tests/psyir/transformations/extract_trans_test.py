@@ -47,8 +47,9 @@ from psyclone.psyir.nodes import Loop
 from psyclone.psyir.tools import ReadWriteInfo
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (ACCParallelTrans, ACCLoopTrans,
+from psyclone.transformations import (ACCParallelTrans,
                                       LFRicOMPParallelLoopTrans)
+from psyclone.psyir.transformations import ACCLoopTrans
 
 
 # --------------------------------------------------------------------------- #

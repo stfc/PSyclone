@@ -40,7 +40,6 @@
    psyclone.psyir.backend.fortran and c modules. '''
 
 import pytest
-from psyclone.psyGen import TransInfo
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Assignment, Reference, Loop, Directive,
