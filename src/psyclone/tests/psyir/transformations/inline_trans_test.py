@@ -1325,7 +1325,7 @@ def test_apply_callsite_rename_container(fortran_reader, fortran_writer):
             "    i = i * a_mod_1\n" in output)
 
 
-def test_apply_transformation_error(fortran_reader):
+def test_apply_internal_error(fortran_reader, monkeypatch):
     '''
     Test that we raise the expected error in apply if we find a situation that
     should have been caught by validate.
@@ -1348,12 +1348,15 @@ def test_apply_transformation_error(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    with pytest.raises(TransformationError) as err:
+    # Monkeypatch validate() so that it appears to pass.
+    monkeypatch.setattr(inline_trans, "validate", lambda _a, routine=None,
+                        use_first_callee_and_no_arg_check=False,
+                        permit_codeblocks=False,
+                        permit_unsupported_type_args=False: None)
+    with pytest.raises(InternalError) as err:
         inline_trans.apply(call)
-    assert (
-        "Transformation Error: Cannot inline 'sub' because it accesses"
-        " data from its outer scope:" in str(err.value)
-    )
+    assert ("Error copying routine symbols to call site. This should have "
+            "been caught" in str(err.value))
 
 
 def test_validate_non_local_import(fortran_reader):

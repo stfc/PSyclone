@@ -1027,7 +1027,7 @@ class InlineTrans(Transformation):
         :raises TransformationError: if the routine body contains a Return
             that is not the first or last statement.
         :raises TransformationError: if the routine body contains a CodeBlock
-            and the 'force' option is not True.
+            and `permit_codeblocks` is not True.
         :raises TransformationError: if the routine contains an ALLOCATE (as we
             don't support adding the required DEALLOCATE).
         :raises TransformationError: if the called routine has a named
@@ -1208,8 +1208,9 @@ class InlineTrans(Transformation):
                                                permit_unresolved=False)
         except SymbolError as err:
             raise TransformationError(
-                f"Cannot inline '{routine.name}' because it accesses data "
-                f"from its outer scope: {err.value}") from err
+                f"Cannot inline '{routine.name}' because it accesses a "
+                f"variable that is unresolved or declared in an outer scope: "
+                f"{err.value}") from err
 
         routine_table = routine.symbol_table
         # Create a list of routine arguments that is actually used
