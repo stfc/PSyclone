@@ -800,16 +800,9 @@ class Call(Statement, DataNode):
         Searches for the implementation(s) of the target routine for this Call
         including argument checks.
 
-        :param use_first_callee_and_no_arg_check: TODO
-        :param check_matching_arguments:
-            Also check argument types to match.
-            If set to `False` and in case it doesn't find matching arguments,
-            the very first implementation of the matching routine will be
-            returned (even if the argument type check failed). The argument
-            types and number of arguments might therefore mismatch!
-            This argument exists for backwards compatibility.
-        :param bool options["check_argument_strict_array_datatype"]:
-            Make strict checks for the array data types.
+        :param use_first_callee_and_no_arg_check: whether or not (the default)
+            to just find the first potential callee without checking its
+            arguments.
 
         :returns: A tuple of two elements. The first element is the routine
             that this call targets. The second one a list of arguments

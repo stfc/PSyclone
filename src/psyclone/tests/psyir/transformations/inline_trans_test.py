@@ -245,7 +245,8 @@ def test_apply_gocean_kern(fortran_reader, fortran_writer, monkeypatch):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(
-            psyir.walk(Call)[0], use_first_callee_and_no_arg_check=True
+            psyir.walk(Call)[0],
+            use_first_callee_and_no_arg_check=True
         )
     if ("actual argument 'cu_fld%data' corresponding to an array formal "
             "argument ('cu') is unknown" in str(err.value)):
@@ -2434,7 +2435,7 @@ def test_apply_optional_arg_error(fortran_reader):
     with pytest.raises(TransformationError) as einfo:
         inline_trans.apply(call)
 
-    assert ("Subroutine argument 'opt' is not provided by call,"
+    assert ("Subroutine argument 'opt' is not provided by 'call sub(var)',"
             " but used in the subroutine." in str(einfo.value))
 
 
