@@ -41,8 +41,10 @@
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.symbols.datatypes import ScalarType
 
 
 class IfBlock(Statement):
@@ -89,20 +91,31 @@ class IfBlock(Statement):
             position in (1, 2) and isinstance(child, Schedule))
 
     @property
-    def condition(self):
+    def condition(self) -> DataNode:
         ''' Return the PSyIR Node representing the conditional expression
         of this IfBlock.
 
-        :returns: IfBlock conditional expression.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
-        :raises InternalError: If the IfBlock node does not have the correct \
+        :returns: The conditional expression of this IfBlock.
+
+        :raises InternalError: If the IfBlock node does not have the correct
             number of children.
+        :raises InternalError: If the conditional expression is known to be of
+            the wrong type.
+
         '''
         if len(self.children) < 2:
             raise InternalError(
                 f"IfBlock malformed or incomplete. It should have at least 2 "
                 f"children, but found {len(self.children)}.")
-        return self._children[0]
+
+        cond = self._children[0]
+        if isinstance(cond, Literal) and (cond.datatype.intrinsic
+                                          is not ScalarType.Intrinsic.BOOLEAN):
+            raise InternalError(
+                f"IfBlock malformed - the conditional expression must be a "
+                f"boolean but found '{cond.datatype}'")
+
+        return cond
 
     @property
     def if_body(self):

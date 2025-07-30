@@ -39,8 +39,8 @@
 ''' Performs py.test tests on the IfBlock PSyIR node. '''
 
 import pytest
-from psyclone.psyir.nodes import IfBlock, Literal, Reference, Schedule, \
-    Return, Assignment
+from psyclone.psyir.nodes import (IfBlock, Literal, Reference, Schedule,
+                                  Return, Assignment)
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, BOOLEAN_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -109,6 +109,15 @@ def test_ifblock_properties():
     assert ("IfBlock malformed or incomplete. It should have "
             "at least 2 children, but found 0." in str(err.value))
 
+    # Condition must be a boolean if it is a Literal.
+    ifblock.addchild(Literal("0.0", REAL_SINGLE_TYPE))
+    ifblock.addchild(Schedule())
+    with pytest.raises(InternalError) as err:
+        _ = ifblock.condition
+    assert ("IfBlock malformed - the conditional expression must be a "
+            "boolean but found 'Scalar<REAL" in str(err.value))
+
+    ifblock = IfBlock()
     ref1 = Reference(DataSymbol('condition1', BOOLEAN_TYPE),
                      parent=ifblock)
     ifblock.addchild(ref1)
