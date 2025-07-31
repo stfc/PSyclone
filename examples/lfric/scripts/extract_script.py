@@ -1,9 +1,10 @@
 ##############################################################################
-# Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+# Copyright (c) 2025,  Met Office, on behalf of HMSO and Queen's Printer
 # For further details please refer to the file LICENCE.original which you
 # should have received as part of this distribution.
 ##############################################################################
 
+# Author: J. Henrichs, Bureau of Meteorology
 
 '''
 PSyclone transformation script for the LFRic (Dynamo0p3) API to apply
@@ -51,5 +52,7 @@ def trans(psy):
         for kern in schedule.walk(LFRicLoop):
             try:
                 extract.apply(kern, {"create_driver": True})
-            except NotImplementedError:
-                pass
+            except NotImplementedError as err:
+                # Print the error details, but ignore otherwise:
+                print(f"Error creating the extraction code or driver in "
+                      f"kernel '{kern.name}' - error: {err}")
