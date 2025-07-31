@@ -14,3 +14,5 @@ jobs:
           reporter: github-pr-check
           fail_on_error: true
           config_file: '.github/linkspector.yml'
+          filter_mode: nofilter
+          show_stats: true
