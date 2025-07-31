@@ -173,52 +173,6 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
         super().validate(node, options=local_options)
 
 
-class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
-
-    '''GOcean specific OpenMP Do loop transformation. Adds GOcean
-       specific validity checks (that supplied Loop is an inner or outer
-       loop). Actual transformation is done by
-       :py:class:`base class <OMPParallelLoopTrans>`.
-
-        :param str omp_directive: choose which OpenMP loop directive to use. \
-            Defaults to "do".
-        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
-            'static'.
-
-    '''
-    def __init__(self, omp_directive="do", omp_schedule="static"):
-        super().__init__(omp_directive=omp_directive,
-                         omp_schedule=omp_schedule)
-
-    def __str__(self):
-        return "Add an OpenMP Parallel Do directive to a GOcean loop"
-
-    def apply(self, node, options=None):
-        ''' Perform GOcean-specific loop validity checks then call
-        :py:meth:`OMPParallelLoopTrans.apply`.
-
-        :param node: a Loop node from an AST.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations\
-                        and validation.
-        :type options: Optional[Dict[str, Any]]
-
-        :raises TransformationError: if the supplied node is not an inner or\
-            outer loop.
-
-        '''
-        self.validate(node, options=options)
-
-        # Check we are either an inner or outer loop
-        if node.loop_type not in ["inner", "outer"]:
-            raise TransformationError(
-                "Error in "+self.name+" transformation.  The requested loop"
-                " is not of type inner or outer.")
-
-        OMPParallelLoopTrans.apply(self, node)
-
-
 class LFRicOMPLoopTrans(OMPLoopTrans):
 
     ''' LFRic specific orphan OpenMP loop transformation. Adds
@@ -301,49 +255,6 @@ class LFRicOMPLoopTrans(OMPLoopTrans):
         options["force"] = True
 
         super().apply(node, options)
-
-
-class GOceanOMPLoopTrans(OMPLoopTrans):
-
-    ''' GOcean-specific orphan OpenMP loop transformation. Adds GOcean
-        specific validity checks (that the node is either an inner or outer
-        Loop).
-
-        :param str omp_directive: choose which OpenMP loop directive to use. \
-            Defaults to "do".
-        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
-            'static'.
-
-        '''
-    def __init__(self, omp_directive="do", omp_schedule="static"):
-        super().__init__(omp_directive=omp_directive,
-                         omp_schedule=omp_schedule)
-
-    def __str__(self):
-        return "Add the selected OpenMP loop directive to a GOcean loop"
-
-    def validate(self, node, options=None, **kwargs):
-        '''
-        Checks that the supplied node is a valid target for parallelisation
-        using OMP directives.
-
-        :param node: the candidate loop for parallelising using OMP Do.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-
-        :raises TransformationError: if the loop_type of the supplied Loop is \
-                                     not "inner" or "outer".
-
-        '''
-        super().validate(node, options=options)
-
-        # Check we are either an inner or outer loop
-        if node.loop_type not in ["inner", "outer"]:
-            raise TransformationError("Error in "+self.name+" transformation."
-                                      " The requested loop is not of type "
-                                      "inner or outer.")
 
 
 class ColourTrans(LoopTrans):
@@ -2435,8 +2346,6 @@ __all__ = [
    "LFRicOMPLoopTrans",
    "LFRicRedundantComputationTrans",
    "LFRicOMPParallelLoopTrans",
-   "GOceanOMPLoopTrans",
-   "GOceanOMPParallelLoopTrans",
    "KernelImportsToArguments",
    "MoveTrans",
    "OMPMasterTrans",
