@@ -486,10 +486,9 @@ class KernCallArgList(ArgOrdering):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional AccessSequence instance \
-            to store the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.AccessSequence`
+        :param var_accesses: optional AccessSequence instance to store the
+            information about variable accesses.
+        :type var_accesses: :py:class:`psyclone.core.AccessSequence`
 
         '''
         # The maximum branch extent is not specified in the metadata so pass

@@ -476,18 +476,17 @@ class KernStubArgList(ArgOrdering):
         '''Add indirection dofmap required when applying a CMA operator. If
         supplied it also stores this access in var_accesses.
 
-        :param function_space: the function space for which the indirect \
+        :param function_space: the function space for which the indirect
             dofmap is required.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param operator: the CMA operator.
         :type operator: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises InternalError: if no kernel argument is supplied.
-        :raises InternalError: if the supplied kernel argument is not a \
+        :raises InternalError: if the supplied kernel argument is not a
             CMA operator.
 
         '''
