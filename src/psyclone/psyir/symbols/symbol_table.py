@@ -46,6 +46,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 import inspect
 import copy
+import logging
 from typing import Any, List, Optional, Set, Union
 
 from psyclone.configuration import Config
@@ -1896,15 +1897,12 @@ class SymbolTable():
                     local_node=self.node)
             # pylint: disable-next=broad-except
             except Exception:
-                # Ignore this container if the associated module file has not
-                # been found in the given include_path or any issue has arisen
-                # during parsing.
-                # TODO #11: It would be useful to log this.
-                continue
+                external_container = None
 
             if not external_container:
-                # Failed to get a Container (possibly due to parsing or raising
-                # errors).
+                message = f"Module '{c_symbol.name}' not found"
+                logger = logging.getLogger(__name__)
+                logger.warning(message)
                 continue
 
             imported_symbols = self._import_symbols_from(

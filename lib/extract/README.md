@@ -1,7 +1,7 @@
 # Kernel Extraction Library
 
 This directory contains files related to [writing (extracting)](
-https://psyclone.readthedocs.io/en/stable/psyke.html) input and output
+https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html) input and output
 parameters of instrumented code regions.
 
 For now the parameter extraction is only implemented to write out the
