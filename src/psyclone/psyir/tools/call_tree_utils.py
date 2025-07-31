@@ -350,7 +350,7 @@ class CallTreeUtils():
             module_name, symbol_name, signature and access information.
         :type outstanding_nonlocals: list[tuple[
             str, str, str, :py:class:`psyclone.core.Signature`,
-            :py:class:`psyclone.core.SingleVariableAccessInfo`]]
+            :py:class:`psyclone.core.AccessSequence`]]
         :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
@@ -359,7 +359,6 @@ class CallTreeUtils():
         # pylint: disable=too-many-branches, too-many-locals
         # pylint: disable=too-many-statements
         mod_manager = ModuleManager.get()
-        done = set()
         # Using a set here means that duplicated entries will automatically
         # be filtered out.
         in_vars = set()
@@ -367,9 +366,6 @@ class CallTreeUtils():
         # pylint: disable=too-many-nested-blocks
         while outstanding_nonlocals:
             info = outstanding_nonlocals.pop()
-            if info in done:
-                continue
-            done.add(info)
             external_type, module_name, signature, access_info = info
             if module_name in mod_manager.ignores():
                 continue
@@ -516,7 +512,7 @@ class CallTreeUtils():
 
         :returns: the non-local accesses in this routine.
         :rtype: list[tuple[str, str, :py:class:`psyclone.core.Signature`,
-            :py:class:`psyclone.core.SingleVariableAccessInfo`]]
+            :py:class:`psyclone.core.AccessSequence`]]
 
         '''
         non_locals = self._compute_all_non_locals(routine)
