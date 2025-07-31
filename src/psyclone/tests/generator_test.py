@@ -63,7 +63,7 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.generator import (
-    generate, main, check_psyir, add_builtins_use)
+    generate, main, check_psyir, add_builtins_use, code_transformation_mode)
 from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -379,7 +379,7 @@ def test_recurse_correct_kernel_paths():
         kernel_paths=[os.path.join(BASE_PATH, "lfric", "kernels")])
 
 
-def test_kernel_parsing_internalerror(capsys):
+def test_kernel_parsing_internalerror(capsys, caplog):
     '''Checks that the expected output is provided if an internal error is
     caught when parsing a kernel using fparser2.
 
@@ -390,18 +390,25 @@ def test_kernel_parsing_internalerror(capsys):
         main([kern_filename, "-api", "gocean"])
     out, err = capsys.readouterr()
     assert out == ""
-    assert "In kernel file " in str(err)
-    assert (
-        "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
-        "'u'] for routine 'compute_code' does not match the variable "
-        "declarations:\n"
-        "IMPLICIT NONE\n"
-        "INTEGER, INTENT(IN) :: I, J\n"
-        "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
-        "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
-        "(Note that PSyclone does not support implicit declarations.) Specific"
-        " PSyIR error is \"Could not find 'u' in the Symbol Table.\".\n"
-        in str(err))
+    assert "Failed to create PSyIR from kernel file '" in str(err)
+    # Clear previous logging messages (primarily from fparser)
+    caplog.clear()
+    with caplog.at_level(logging.ERROR, "psyclone.generator"):
+        with pytest.raises(SystemExit):
+            main([kern_filename, "-api", "gocean"])
+        assert caplog.records[0].levelname == "ERROR"
+        assert (
+            "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
+            "'u'] for routine 'compute_code' does not match the variable "
+            "declarations:\n"
+            "IMPLICIT NONE\n"
+            "INTEGER, INTENT(IN) :: I, J\n"
+            "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
+            "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
+            "(Note that PSyclone does not support implicit declarations.) "
+            "Specific"
+            " PSyIR error is \"Could not find 'u' in the Symbol Table.\".\n"
+            in caplog.text)
 
 
 def test_script_file_too_short():
@@ -409,13 +416,15 @@ def test_script_file_too_short():
     file name is too short to contain the '.py' extension.
 
     '''
-    with pytest.raises(GenerationError):
+    with pytest.raises(GenerationError) as err:
         _, _ = generate(os.path.join(BASE_PATH, "lfric",
                                      "1_single_invoke.f90"),
                         api="lfric",
                         script_name=os.path.join(
                             BASE_PATH,
                             "lfric", "testkern_xyz_mod.f90"))
+    assert ("expected the script file 'testkern_xyz_mod.f90' to have the "
+            "'.py' extension" in str(err.value))
 
 
 def test_no_script_gocean():
@@ -461,6 +470,29 @@ def test_profile_gocean():
     assert "CALL profile_psy_data" in str(psy)
     # Reset the stored options.
     Profiler._options = []
+
+
+def test_invalid_gocean_alg(monkeypatch, caplog, capsys):
+    '''
+    Test that an error creating PSyIR for a GOcean algorithm layer is
+    handled correctly.
+
+    '''
+    # It's easiest to monkeypatch the psyir_from_file() method so that it
+    # raises an error.
+    def _broken(_1, _2):
+        raise ValueError("This is a test")
+
+    monkeypatch.setattr(FortranReader, "psyir_from_file", _broken)
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit):
+            _ = generate(
+                os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
+                api="gocean")
+        assert "This is a test" in caplog.text
+        assert "Traceback" in caplog.text
+        _, err = capsys.readouterr()
+        assert "Failed to create PSyIR from file '" in err
 
 
 def test_script_attr_error(script_factory):
@@ -804,7 +836,109 @@ def test_main_api(capsys, caplog):
               "--log-file", "test.out"])
         assert Config.get().api == "lfric"
         assert caplog.records[0].levelname == "DEBUG"
-        assert "Logging system initialised" in caplog.record_tuples[0][2]
+        assert ("Logging system initialised. Level is DEBUG." in
+                caplog.record_tuples[0][2])
+
+
+def test_keep_comments_and_keep_directives(capsys, caplog, tmpdir_factory,
+                                           monkeypatch):
+    ''' Test the keep comments and keep directives arguments to main. '''
+    filename = str(tmpdir_factory.mktemp('psyclone_test').join("test.f90"))
+    code = """subroutine a()
+    ! Here is a comment
+    integer :: a
+
+    !comment 1
+    !$omp parallel
+    !$omp do
+    !comment 2
+    do a = 1, 100
+    end do
+    !$omp end do
+    !$omp end parallel
+    end subroutine"""
+    with open(filename, "w", encoding='utf-8') as wfile:
+        wfile.write(code)
+
+    main([filename, "--keep-comments"])
+    output, _ = capsys.readouterr()
+
+    correct = """subroutine a()
+  ! Here is a comment
+  integer :: a
+
+  ! comment 1
+  ! comment 2
+  do a = 1, 100, 1
+  enddo
+
+end subroutine a
+
+"""
+    assert output == correct
+
+    main([filename, "--keep-comments", "--keep-directives"])
+    output, _ = capsys.readouterr()
+
+    correct = """subroutine a()
+  ! Here is a comment
+  integer :: a
+
+  ! comment 1
+  !$omp parallel
+  !$omp do
+
+  ! comment 2
+  do a = 1, 100, 1
+  enddo
+  !$omp end do
+  !$omp end parallel
+
+end subroutine a
+
+"""
+    assert output == correct
+
+    with caplog.at_level(logging.WARNING):
+        main([filename, "--keep-directives"])
+        assert caplog.records[0].levelname == "WARNING"
+        assert ("keep_directives requires keep_comments so "
+                "PSyclone enabled keep_comments."
+                in caplog.record_tuples[0][2])
+    output, _ = capsys.readouterr()
+
+
+def test_keep_comments_lfric(capsys, monkeypatch):
+    '''Test that the LFRic API correctly keeps comments and directives
+    when applied the appropriate arguments.'''
+    # Test this for LFRIC algorithm domain.
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    filename = os.path.join(LFRIC_BASE_PATH,
+                            "1_single_invoke_with_omp_dir.f90")
+    main([filename, "-api", "lfric", "--keep-comments"])
+    output, _ = capsys.readouterr()
+    assert "! Here is a comment" in output
+    assert "!$omp barrier" not in output
+
+    filename = os.path.join(LFRIC_BASE_PATH,
+                            "1_single_invoke_with_omp_dir.f90")
+    main([filename, "-api", "lfric", "--keep-comments", "--keep-directives"])
+    output, _ = capsys.readouterr()
+    assert "! Here is a comment" in output
+    assert "!$omp barrier" in output
+
+
+def test_keep_comments_gocean(capsys, monkeypatch):
+    '''Test that the GOcean API correctly keeps comments and directives
+    when applied the appropriate arguments.'''
+    filename = os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90")
+    main([filename, "-api", "gocean"])
+    output, _ = capsys.readouterr()
+    assert "! Create fields on this grid" not in output
+
+    main([filename, "-api", "gocean", "--keep-comments"])
+    output, _ = capsys.readouterr()
+    assert "! Create fields on this grid" in output
 
 
 def test_config_flag():
@@ -1025,6 +1159,28 @@ def trans(psyir):
     with open(outputfile, "r", encoding='utf-8') as my_file:
         new_code = my_file.read()
     assert "module newname\n" in new_code
+
+
+def test_code_transformation_parse_failure(tmpdir, caplog, capsys):
+    '''
+    Test the error handling in the code_transformation_mode() method when
+    there is invalid Fortran in the supplied file.
+
+    '''
+    code = '''
+    prog invalid
+      ! This is not valid Fortran
+    end prog invalid
+    '''
+    inputfile = str(tmpdir.join("funny_syntax.f90"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit):
+            code_transformation_mode(inputfile, None, None, False, False)
+        out, err = capsys.readouterr()
+        assert "Failed to create PSyIR from file '" in err
+        assert "Is the input valid Fortran" in caplog.text
 
 
 def test_generate_trans_error(tmpdir, capsys, monkeypatch):

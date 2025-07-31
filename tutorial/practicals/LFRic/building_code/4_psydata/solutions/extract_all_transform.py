@@ -59,7 +59,8 @@ def trans(psyir):
 
         # Apply the transformation
         extract.apply(subroutine, {"region_name": ("time_evolution",
-                                                   subroutine.name)})
+                                                   subroutine.name),
+                                   "create_driver": True})
 
         # Just as feedback: show the modified PSyIR, which should have
         # a new node at the top:

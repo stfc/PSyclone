@@ -35,16 +35,19 @@
 
 ''' Utilities file to parallelise Nemo code. '''
 
+from typing import List, Union
+
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Assignment, Loop, Directive, Reference, CodeBlock, ArrayReference,
-    Call, Return, IfBlock, Routine, IntrinsicCall, StructureReference)
+    Assignment, Loop, Directive, Node, Reference, CodeBlock, ArrayReference,
+    Call, Return, IfBlock, Routine, Schedule, IntrinsicCall,
+    StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
-    HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
-    Reference2ArrayRangeTrans, ScalarisationTrans)
+    HoistTrans, InlineTrans, Maxval2LoopTrans, OMPMinimiseSyncTrans,
+    ProfileTrans, Reference2ArrayRangeTrans, ScalarisationTrans)
 from psyclone.transformations import TransformationError
 
 # USE statements to chase to gather additional symbol information.
@@ -141,7 +144,7 @@ NEMO_FUNCTIONS = [
     'visc_air', 'visc_air_sclr', 'visc_air_vctr', 'w1', 'w2', 'z0_from_Cd',
     'z0tq_LKB', 'zdf_gls_alloc', 'zdf_iwm_alloc', 'zdf_mfc_alloc',
     'zdf_mxl_alloc', 'zdf_oce_alloc', 'zdf_osm_alloc', 'zdf_phy_alloc',
-    'zdf_tke_alloc', 'zdf_tmx_alloc',
+    'zdf_tke_alloc', 'zdf_tmx_alloc', 'itau2date',
     # grep -rh "INTERFACE" src | grep -v "END" | awk '{print $2}' | uniq | sort
     'alpha_sw', 'bulk_formula', 'cp_air', 'debug', 'DECAL_FEEDBACK',
     'DECAL_FEEDBACK_2D', 'depth_to_e3', 'de_sat_dt_ice', 'dia_ar5_hst',
@@ -172,6 +175,7 @@ CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 PARALLELISATION_ISSUES = [
     "ldfc1d_c2d.f90",
     "tramle.f90",
+    "traqsr.f90",
 ]
 
 PRIVATISATION_ISSUES = [
@@ -411,6 +415,7 @@ def insert_explicit_loop_parallelism(
         loop_directive_trans=None,
         collapse: bool = True,
         privatise_arrays: bool = False,
+        asynchronous_parallelism: bool = False,
         uniform_intrinsics_only: bool = False,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
@@ -430,6 +435,8 @@ def insert_explicit_loop_parallelism(
         many nested loops as possible.
     :param privatise_arrays: whether to attempt to privatise arrays that cause
         write-write race conditions.
+    :param asynchronous_parallelism: whether to attempt to add asynchronocity
+    to the parallel sections.
     :param uniform_intrinsics_only: if True it prevent offloading loops
         with non-reproducible device intrinsics.
 
@@ -442,7 +449,7 @@ def insert_explicit_loop_parallelism(
             continue  # Skip if an outer loop is already parallelised
 
         opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
-                "verbose": True, "nowait": False}
+                "verbose": True, "nowait": asynchronous_parallelism}
 
         if uniform_intrinsics_only:
             opts["device_string"] = "nvfortran-uniform"
@@ -500,18 +507,33 @@ def insert_explicit_loop_parallelism(
             # associted to the loop in the generated output.
             continue
 
+    # If we are adding asynchronous parallelism then we now try to minimise
+    # the number of barriers.
+    if asynchronous_parallelism:
+        minsync_trans = OMPMinimiseSyncTrans()
+        minsync_trans.apply(schedule)
 
-def add_profiling(children):
+
+def add_profiling(children: Union[List[Node], Schedule]):
     '''
-    Walks down the PSyIR and inserts the largest possible profiling regions.
-    Code that contains directives is excluded.
+    Walks down the PSyIR and inserts the largest possible profiling regions
+    in place. Code inside functions or that contains directives is excluded.
 
-    :param children: sibling nodes in the PSyIR to which to attempt to add \
-                     profiling regions.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+    :param children: a Schedule or sibling nodes in the PSyIR to which to
+        attempt to add profiling regions.
 
     '''
+    if children and isinstance(children, Schedule):
+        # If we are given a Schedule, we look at its children.
+        children = children.children
+
     if not children:
+        return
+
+    # We do not want profiling calipers inside functions (such as the
+    # PSyclone-generated comparison functions).
+    parent_routine = children[0].ancestor(Routine)
+    if parent_routine and parent_routine.return_symbol:
         return
 
     node_list = []

@@ -55,7 +55,7 @@ Contains:
 ## Scripts
 
 Contains the scripts used to process the NEMO code base and to add profiling
-instrumentation (https://psyclone.readthedocs.io/en/stable/profiling.html)
+instrumentation (https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html)
 and OpenACC or OpenMP directives:
 
 1. `process_nemo.py` is a driver script that allows the user to specify
@@ -138,8 +138,11 @@ benchmark.
 
 ## Example 5
 
-Extraction of kernel data. Using the tra_adv benchmark, this example
-shows the extraction of kernel input- and output-data.
+A simple stand-alone example that shows how data can be extracted for
+each loop nest using PSyclone's kernel extraction feature PSyKE. Note
+that creation of a driver program (which reads the data files,
+execute the original loop and then compares the results) is not yet
+supported for generic transformations.
 
 ## Example 6
 

@@ -201,6 +201,8 @@ class PSyDataTrans(RegionTrans):
         :raises TransformationError: if there will be a name clash between \
             any existing symbols and those that must be imported from the \
             appropriate PSyData library.
+        :raises TransformationError: if the target nodes are within an
+                                     ELEMENTAL routine.
 
         '''
         # pylint: disable=too-many-branches
@@ -263,6 +265,13 @@ class PSyDataTrans(RegionTrans):
                 except KeyError:
                     pass
 
+        parent_routine = node_list[0].ancestor(Routine)
+        if parent_routine and parent_routine.symbol.is_elemental:
+            raise TransformationError(
+                f"Cannot add PSyData calls inside ELEMENTAL routine "
+                f"'{parent_routine.symbol.name}' because it would change its "
+                f"semantics.")
+
         super().validate(node_list, options)
 
     # ------------------------------------------------------------------------
@@ -271,6 +280,9 @@ class PSyDataTrans(RegionTrans):
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the
         schedule within a single PSyData region.
+
+        Note that if the nodes are within a routine that previously had the
+        `pure` attribute, this attribute is removed.
 
         :param nodes: can be a single node or a list of nodes.
         :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or list of \
@@ -313,6 +325,12 @@ class PSyDataTrans(RegionTrans):
         psy_data_node = self._node_class.create(
             node_list, symbol_table=table, options=options)
         parent.addchild(psy_data_node, position)
+
+        # If we've added PSyData calls to a pure routine then it is
+        # no longer pure.
+        parent_routine = node_list[0].ancestor(Routine)
+        if parent_routine and parent_routine.symbol.is_pure:
+            parent_routine.symbol.is_pure = False
 
 
 # =============================================================================

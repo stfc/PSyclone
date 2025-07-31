@@ -1,7 +1,7 @@
 # Read-Only Verification Libraries
 
 This directory contains files related to [read-only verification](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification),
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html#read-only-verification),
 i.e. checks at runtime that a read-only parameter of a subroutine is indeed
 not changed in a kernel. There is a
 [PSyData read-only verification base class](
@@ -30,13 +30,13 @@ this directory.
 
 Contains the read-only, PSyData-API-based, wrapper library for the
 ``dl_esm_inf`` [GOcean API](
-https://psyclone.readthedocs.io/en/latest/gocean1p0.html).
+https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html).
 
 ## [``lfric``](./lfric) directory
 
 Contains the read-only, PSyData-API-based, wrapper library for the
 [LFRic API](
-https://psyclone.readthedocs.io/en/latest/lfric.html).
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html).
 
 ## [``generic``](./generic) directory
 

@@ -1,4 +1,4 @@
-# Standalone LFRic Kernel Extraction Example
+# Binary LFRic Kernel Extraction Example
 
 This directory contains a runnable example of kernel extraction
 with LFRic. The main code is explained in more details in the
@@ -7,28 +7,32 @@ directory ``../full_example``.
 This example applies the PSyData extraction transformations to the
 two invoke statements, the first initialising two fields, the second
 doing some computations.
-See the [PSyKE](https://psyclone.readthedocs.io/en/stable/psyke.html)
+See the [PSyKE](https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html)
 chapter of the PSyclone documentation for details about this transformation.
 
 ## Compilation
 
 A simple makefile is provided to compile the example. It can use one of
-two extraction libraries: the stand-alone one, which only uses Fortran IO
-to create binary files with the kernel parameters, or the NetCDF version, which
-creates NetCDF files. By default, the stand-alone version will be used,
-but you can set the ``TYPE`` environment variable to ``netcdf`` when building to
-use the NetCDF library::
+three extraction libraries, as outlined in the
+[PSyKE extraction libraries](https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html#extraction-libraries) section.
+
+By default, the stand-alone binary version will be used,
+but you can set the ``TYPE`` environment variable to either ``ascii``
+or ``netcdf`` when compiling to use the other libraries::
 
     $ TYPE=netcdf make compile
+    $ TYPE=ascii make compile
 
  To compile the example, the following dependencies are needed:
 - the infrastructure library ``liblfric.a`` provided in
   ``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``
 - one of the LFRic PSyData wrapper libraries, either:
     - ``lib_kernel_data_netcdf`` from
-      ``<PSYCLONEHOME>/lib/extract/netcdf/lfric`` and NetCDF, or
-    - ``lib_kernel_data_standalone`` from
-      ``<PSYCLONEHOME>/lib/extract/standalone/lfric``
+      ``<PSYCLONEHOME>/lib/extract/netcdf/lfric`` and NetCDF,
+    - ``lib_kernel_data_binary`` from
+      ``<PSYCLONEHOME>/lib/extract/binary/lfric``, or
+    - ``lib_kernel_data_ascii`` from
+      ``<PSYCLONEHOME>/lib/extract/ascii/lfric``
 
 The infrastructure and PSyData wrapper libraries will be compiled
 if they are not available.
@@ -56,16 +60,17 @@ PSyclone.
 
 ## Running
 
-The binary can be executed using ``extract.standalone`` (or ``extract.netcdf``)
+The binary can be executed using ``extract.binary`` (or ``extract.netcdf``)
  without additional parameters:
 ```shell
-./extract.standalone
+./extract.binary
  Mesh has           5 layers.
 20210318131720.135+1100:INFO : Min/max minmax of field1 =   0.10000000E+01  0.80000000E+01
 ```
-This will produce two binary files ``main-update.binary`` and ``main-init.binary``.
-If you are using the NetCDF-based extraction library, instead two NetCDF files
-called ``main-update.nc`` and ``main-init.nc`` will be created, which can be
+
+This will produce two data dumps, by default these are the binary files ``main-update.binary``
+and ``main-init.binary``, or if you are using the NetCDF-based extraction library, the NetCDF
+files ``main-update.nc`` and ``main-init.nc``, which can be
 analysed using ``ncdump``:
 
 ```shell
@@ -91,4 +96,13 @@ data:
  field1 = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 ...
 ```
-Note that due to #1392 the driver cannot be created yet.
+
+The driver files can be compiled with `make driver-main-init` and `make driver-main-update`,
+which will generate executables with the same name. Finally, once the drivers are compiled
+and the data dumps generated, the kernel can be executed and compared with the original
+results with:
+
+```shell
+./driver-main-init
+./driver-main-update
+````

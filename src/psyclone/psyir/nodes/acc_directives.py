@@ -390,7 +390,7 @@ class ACCParallelDirective(ACCRegionDirective, ACCAsyncMixin):
             # on the device. If we've made a mistake and it isn't present
             # then we'll get a run-time error.
             options = " default(present)"
-        options += self._build_async_string()
+
         return f"acc parallel{options}"
 
     def end_string(self) -> str:
@@ -740,9 +740,6 @@ class ACCKernelsDirective(ACCRegionDirective, ACCAsyncMixin):
         if self._default_present:
             result += " default(present)"
 
-        # async
-        result += self._build_async_string()
-
         return result
 
     def end_string(self) -> str:
@@ -983,11 +980,7 @@ class ACCUpdateDirective(ACCStandaloneDirective, ACCAsyncMixin):
         condition = "if_present " if self._if_present else ""
         sym_list = _sig_set_to_string(self._sig_set)
 
-        # async
-        asyncvalue = self._build_async_string()
-
-        return \
-            f"acc update {condition}{self._direction}({sym_list}){asyncvalue}"
+        return f"acc update {condition}{self._direction}({sym_list})"
 
 
 def _sig_set_to_string(sig_set: Set[Signature]) -> str:
