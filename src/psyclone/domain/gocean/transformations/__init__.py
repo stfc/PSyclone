@@ -53,3 +53,7 @@ from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
     import RaisePSyIR2GOceanKernTrans
 from psyclone.domain.gocean.transformations.\
     gocean_alg_invoke_2_psy_call_trans import GOceanAlgInvoke2PSyCallTrans
+from psyclone.domain.gocean.transformations.gocean_omp_loop_trans import \
+    GOceanOMPLoopTrans
+from psyclone.domain.gocean.transformations.gocean_omp_parallel_loop_trans \
+    import GOceanOMPParallelLoopTrans

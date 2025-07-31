@@ -50,10 +50,9 @@ from psyclone.psyir.nodes import ExtractNode, Loop, OMPDirective
 from psyclone.psyir.transformations import (PSyDataTrans, TransformationError,
                                             ACCLoopTrans)
 from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
-                                      GOceanOMPLoopTrans,
-                                      GOceanOMPParallelLoopTrans,
                                       OMPParallelTrans)
-from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
+from psyclone.domain.gocean.transformations import (
+    GOConstLoopBoundsTrans, GOceanOMPLoopTrans, GOceanOMPParallelLoopTrans)
 from psyclone.tests.utilities import get_invoke
 
 # API names

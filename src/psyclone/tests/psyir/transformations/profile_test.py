@@ -55,8 +55,8 @@ from psyclone.psyir.symbols import (SymbolTable, REAL_TYPE, DataSymbol)
 from psyclone.psyir.transformations import (ACCKernelsTrans, ProfileTrans,
                                             TransformationError)
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (GOceanOMPLoopTrans,
-                                      OMPParallelTrans)
+from psyclone.transformations import OMPParallelTrans
+from psyclone.domain.gocean.transformations import GOceanOMPLoopTrans
 
 
 # -----------------------------------------------------------------------------
