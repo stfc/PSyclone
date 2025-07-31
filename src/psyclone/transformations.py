@@ -112,67 +112,6 @@ def check_intergrid(node):
                 f" is such a kernel.")
 
 
-class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
-
-    ''' LFRic-specific OpenMP loop transformation. Adds LFRic specific
-        validity checks. Actual transformation is done by the
-        :py:class:`base class <OMPParallelLoopTrans>`.
-
-        :param str omp_directive: choose which OpenMP loop directive to use.
-            Defaults to "do".
-        :param str omp_schedule: the OpenMP schedule to use. Must be one of
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to
-            'static'.
-
-    '''
-    def __init__(self, omp_directive="do", omp_schedule="static"):
-        super().__init__(omp_directive=omp_directive,
-                         omp_schedule=omp_schedule)
-
-    def __str__(self):
-        return "Add an OpenMP Parallel Do directive to an LFRic loop"
-
-    def validate(self, node, options=None):
-        '''
-        Perform LFRic-specific loop validity checks then call the `validate`
-        method of the base class.
-
-        :param node: the Node in the Schedule to check
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-
-        :raises TransformationError: if the supplied Node is not an LFRicLoop.
-        :raises TransformationError: if the associated loop requires
-            colouring.
-        '''
-        if not isinstance(node, LFRicLoop):
-            raise TransformationError(
-                f"Error in {self.name} transformation. The supplied node "
-                f"must be an LFRicLoop but got '{type(node).__name__}'")
-
-        # If the loop is not already coloured then check whether or not
-        # it should be. If the field space is discontinuous (including
-        # any_discontinuous_space) then we don't need to worry about
-        # colouring.
-        const = LFRicConstants()
-        if node.field_space.orig_name not in const.VALID_DISCONTINUOUS_NAMES:
-            if (node.loop_type not in ('cells_in_colour', 'tiles_in_colour')
-                    and node.has_inc_arg()):
-                raise TransformationError(
-                    f"Error in {self.name} transformation. The kernel has an "
-                    f"argument with INC access but the loop is of type "
-                    f"'{node.loop_type}'. Colouring is required.")
-        # As this is a domain-specific loop, we don't perform general
-        # dependence analysis because it is too conservative and doesn't
-        # account for the special steps taken for such a loop at code-
-        # generation time (e.g. the way we ensure variables are given the
-        # correct sharing attributes).
-        local_options = options.copy() if options else {}
-        local_options["force"] = True
-        super().validate(node, options=local_options)
-
-
 class LFRicOMPLoopTrans(OMPLoopTrans):
 
     ''' LFRic specific orphan OpenMP loop transformation. Adds
@@ -1323,91 +1262,6 @@ class LFRicRedundantComputationTrans(LoopTrans):
         loop.update_halo_exchanges()
 
 
-class LFRicAsyncHaloExchangeTrans(Transformation):
-    '''Splits a synchronous halo exchange into a halo exchange start and
-    halo exchange end. For example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "lfric"
-    >>> ast, invokeInfo = parse("file.f90", api=api)
-    >>> psy=PSyFactory(api).create(invokeInfo)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> from psyclone.transformations import LFRicAsyncHaloExchangeTrans
-    >>> trans = LFRicAsyncHaloExchangeTrans()
-    >>> trans.apply(schedule.children[0])
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-
-    '''
-
-    def __str__(self):
-        return "Changes a synchronous halo exchange into an asynchronous one."
-
-    @property
-    def name(self):
-        '''
-        :returns: the name of this transformation as a string.
-        :rtype: str
-        '''
-        return "LFRicAsyncHaloExchangeTrans"
-
-    def apply(self, node, options=None):
-        '''Transforms a synchronous halo exchange, represented by a
-        HaloExchange node, into an asynchronous halo exchange,
-        represented by HaloExchangeStart and HaloExchangeEnd nodes.
-
-        :param node: a synchronous haloexchange node.
-        :type node: :py:obj:`psyclone.psygen.HaloExchange`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-
-        '''
-        self.validate(node, options)
-
-        # add asynchronous start and end halo exchanges and initialise
-        # them using information from the existing synchronous halo
-        # exchange
-        # pylint: disable=protected-access
-        node.parent.addchild(
-            LFRicHaloExchangeStart(
-                node.field, check_dirty=node._check_dirty,
-                vector_index=node.vector_index, parent=node.parent),
-            index=node.position)
-        node.parent.addchild(
-            LFRicHaloExchangeEnd(
-                node.field, check_dirty=node._check_dirty,
-                vector_index=node.vector_index, parent=node.parent),
-            index=node.position)
-
-        # remove the existing synchronous halo exchange
-        node.detach()
-
-    def validate(self, node, options):
-        # pylint: disable=signature-differs
-        '''Internal method to check whether the node is valid for this
-        transformation.
-
-        :param node: a synchronous Halo Exchange node
-        :type node: :py:obj:`psyclone.psygen.HaloExchange`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-
-        :raises TransformationError: if the node argument is not a
-                         HaloExchange (or subclass thereof)
-
-        '''
-        if not isinstance(node, psyGen.HaloExchange) or \
-           isinstance(node, (LFRicHaloExchangeStart, LFRicHaloExchangeEnd)):
-            raise TransformationError(
-                f"Error in LFRicAsyncHaloExchange transformation. Supplied"
-                f" node must be a synchronous halo exchange but found "
-                f"'{type(node)}'.")
-
-
 class LFRicKernelConstTrans(Transformation):
     '''Modifies a kernel so that the number of dofs, number of layers and
     number of quadrature points are fixed in the kernel rather than
@@ -2340,12 +2194,10 @@ __all__ = [
    "ACCParallelTrans",
    "ACCRoutineTrans",
    "ColourTrans",
-   "LFRicAsyncHaloExchangeTrans",
    "LFRicColourTrans",
    "LFRicKernelConstTrans",
    "LFRicOMPLoopTrans",
    "LFRicRedundantComputationTrans",
-   "LFRicOMPParallelLoopTrans",
    "KernelImportsToArguments",
    "MoveTrans",
    "OMPMasterTrans",
