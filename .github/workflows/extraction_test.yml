@@ -79,8 +79,25 @@ jobs:
         # ------------------------------------
         git clone -b psyclone_ci_branch --recurse-submodules https://github.com/MetOffice/lfric-baf.git
         # First install Fab:
-        cd lfric-baf/fab
+        pushd lfric-baf/fab
         pip install .
+        popd
+
+        # Now procss the extraction library in PSyclone, and overwrite the PYTHON_VERSION
+        # included in Fab:
+        pushd lfric-baf/infrastructure/build/psyclone/psydata/extract
+        rm *90   # Delete the old files (in case that the names are changed)
+        popd
+
+        # Create the new Fortran files, i.e. processing with Jinja2
+        pushd lib/extract/netcdf/lfric
+        make read_kernel_data_mod.f90 compare_variables_mod.F90 extract_netcdf_base.F90 \
+             kernel_data_netcdf.f90 psy_data_base.f90 read_kernel_data_mod.f90
+        popd
+
+        # Copy the files into the LFRic Fab build system
+        cp lib/extract/netcdf/lfric/*90 lfric-baf/infrastructure/build/psyclone/psydata/extract
+
 
     # Compile GungHo with extraction
     - name: GungHo Extraction Compilation
