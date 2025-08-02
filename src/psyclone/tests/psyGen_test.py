@@ -66,7 +66,7 @@ from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
 from psyclone.parse.algorithm import parse, InvokeCall
-from psyclone.psyGen import (TransInfo, Transformation, PSyFactory,
+from psyclone.psyGen import (TransInfo, PSyFactory,
                              InlinedKern, object_index, HaloExchange, Invoke,
                              DataAccess, Kern, Arguments, CodedKern, Argument,
                              GlobalSum, InvokeSchedule)
