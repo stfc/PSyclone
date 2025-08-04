@@ -2821,35 +2821,6 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
-def test_apply_empty_routine_coverage_option_check_argument_strict_array_data(
-    fortran_reader, fortran_writer, tmpdir
-):
-    """For coverage of particular branch in `inline_trans.py`."""
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "    integer, dimension(6) :: i\n"
-        "    i = 10\n"
-        "    call sub(i)\n"
-        "  end subroutine run_it\n"
-        "  subroutine sub(idx)\n"
-        "    integer, dimension(:) :: idx\n"
-        "  end subroutine sub\n"
-        "end module test_mod\n"
-    )
-    psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Call)[0]
-    inline_trans = InlineTrans()
-    inline_trans.apply(
-        routine,
-        use_first_callee_and_no_arg_check=True
-    )
-    output = fortran_writer(psyir)
-    assert "    i = 10\n\n" "  end subroutine run_it\n" in output
-    assert Compile(tmpdir).string_compiles(output)
-
-
 def test_apply_array_access_check_unresolved_override_option(
     fortran_reader, fortran_writer, tmpdir
 ):

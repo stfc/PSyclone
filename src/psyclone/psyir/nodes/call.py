@@ -60,7 +60,7 @@ from psyclone.psyir.symbols import (
     SymbolError,
     UnsupportedFortranType,
 )
-from psyclone.psyir.symbols.datatypes import ArrayType, UnresolvedType
+from psyclone.psyir.symbols.datatypes import ArrayType
 
 
 class CallMatchingArgumentsNotFound(PSycloneError):
@@ -648,27 +648,14 @@ class Call(Statement, DataNode):
 
         :param call_arg: One argument of the call
         :param routine_arg: One argument of the routine
-        :param options: Dictionary with some additional options.
-            - `check_argument_strict_array_datatype`: If False, then
-              the array data types of the call and routine arguments
-              are not tested against each other.
-            - `check_argument_ignore_unresolved_types`: If True,
-              unresolved types are ignored.
 
         :raises CallMatchingArgumentsNotFound: Raised if no matching argument
             was found.
 
         """
-        if check_argument_strict_array_datatype:
-            # No strict array checks have to be performed, just accept it
-            if isinstance(call_arg.datatype, ArrayType) and isinstance(
-                routine_arg.datatype, ArrayType
-            ):
-                return
-
-        if check_argument_ignore_unresolved_types:
-            if isinstance(call_arg.datatype, UnresolvedType):
-                return
+        if isinstance(call_arg.datatype, ArrayType) and isinstance(
+                routine_arg.datatype, ArrayType):
+            return
 
         if isinstance(routine_arg.datatype, UnsupportedFortranType):
             # This could be an 'optional' argument.
