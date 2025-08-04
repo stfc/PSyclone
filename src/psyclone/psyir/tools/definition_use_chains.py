@@ -204,6 +204,11 @@ class DefinitionUseChain:
                   DefinitionUseChain
         :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
         """
+        # Compute the abs position caches as we'll use these a lot.
+        # The compute_cached_abs_position will only do this if needed
+        # so we don't need to check here.
+        self._reference.compute_cached_abs_positions()
+
         # Setup the start and stop positions
         save_start_position = self._start_point
         save_stop_position = self._stop_point
@@ -861,6 +866,11 @@ class DefinitionUseChain:
                   DefinitionUseChain
         :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
         """
+        # Compute the abs position caches as we'll use these a lot.
+        # The compute_cached_abs_position will only do this if needed
+        # so we don't need to check here.
+        self._reference.compute_cached_abs_positions()
+
         # Setup the start and stop positions
         save_start_position = self._start_point
         save_stop_position = self._stop_point

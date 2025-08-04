@@ -8,8 +8,8 @@ driver program. The reason for this will become clear as you work
 through the tutorial.
 
 You can find information on the various transformations supported by
-PSyclone in the [User Guide](https://psyclone.readthedocs.io/en/latest/transformations.html).
-There is a separate [section](https://psyclone.readthedocs.io/en/latest/profiling.html) on
+PSyclone in the [User Guide](https://psyclone.readthedocs.io/en/latest/user_guide/transformations.html).
+There is a separate [section](https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html) on
 PSyclone's support for profiling.
 
 ## Prerequisites ##
@@ -22,7 +22,7 @@ Make then you may need to edit the Makefile and replace the occurrences of
 ## 1. Automatic Profiling ##
 
 To begin, we will make use of PSyclone's support for the
-[automatic addition of profiling instrumentation](https://psyclone.readthedocs.io/en/latest/profiling.html). For
+[automatic addition of profiling instrumentation](https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html). For
 demonstration purposes we will be using the 'simple-timing' library
 distributed with PSyclone since that has no dependencies. (PSyclone
 currently provides wrapper libraries for profiling tools such as
