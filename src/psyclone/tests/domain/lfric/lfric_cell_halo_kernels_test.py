@@ -259,7 +259,7 @@ ndf_w2, undf_w2, map_w2(:,cell))
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_psy_gen_halo_kernel_discontinuous_space(dist_mem, tmpdir):
+def test_psy_gen_halo_kernel_with_stencil(dist_mem, tmpdir):
     '''
     Test that the correct kernel and set-clean/dirty calls are generated for
     kernels that operate on owned and halo cells for a field on a discontinuous
@@ -269,7 +269,7 @@ def test_psy_gen_halo_kernel_discontinuous_space(dist_mem, tmpdir):
     psy, _ = get_invoke("1.4.5_into_halos_with_stencil_invoke.f90",
                         TEST_API, dist_mem=dist_mem, idx=0)
     code = str(psy.gen).lower()
-    
+    assert "something" in code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
