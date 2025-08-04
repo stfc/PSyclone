@@ -484,7 +484,7 @@ def test_get_local_arrays_reshape(fortran_reader):
     assert len(symbols) == 0
 
 
-def test_get_local_arrays_with_other_symbols(fortran_reader):
+def test_get_local_arrays_with_other_symbols(fortran_reader, fortran_writer):
     '''Check that the _get_local_arrays() helper method ignores any local
     arrays that has references to other symbols in its type.
 
@@ -496,6 +496,7 @@ def test_get_local_arrays_with_other_symbols(fortran_reader):
         "  use other\n"
         "  type(myt), dimension(2) :: a\n"
         "  integer(kind=i_def), dimension(2) :: b\n"
+        "  integer(kind=2*i_def), dimension(2) :: c\n"
         "end subroutine test\n"
         "end module my_mod\n")
     psyir = fortran_reader.psyir_from_source(code)

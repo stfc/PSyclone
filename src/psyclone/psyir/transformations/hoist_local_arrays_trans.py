@@ -353,6 +353,7 @@ then
                         f"{sym.datatype.intrinsic.name}'"
                         f" is not guaranteed to be a global symbol")
                     continue
+            # TODO #3087: Precision could include multiple symbols
             if isinstance(sym.datatype.precision, DataSymbol):
                 if sym.datatype.precision.name in node.symbol_table:
                     sym.append_preceding_comment(
