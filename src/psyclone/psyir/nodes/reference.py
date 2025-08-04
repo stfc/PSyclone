@@ -263,7 +263,7 @@ class Reference(DataNode):
         :param visited_nodes: a set of nodes already visited, this is necessary
             because the dependency chains may contain cycles. Defaults to an
             empty set.
-        :returns: whether the symbol lifetime expands after the given scope.
+        :returns: whether the symbol lifetime continues after the given scope.
         '''
 
         # Populate visited_nodes, and stop recursion when appropriate

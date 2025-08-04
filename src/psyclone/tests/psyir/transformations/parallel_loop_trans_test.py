@@ -707,7 +707,7 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
     assert ("ztmp(jj)\' causes a write-write race condition."
             in str(err.value))
 
-    # If should succeed if we enable array privatisation
+    # It should succeed if we enable array privatisation
     trans.validate(loop, {"privatise_arrays": True})
 
     # Doing the same but with an outer loop around, it must fails because now

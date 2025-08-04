@@ -630,6 +630,8 @@ class DefinitionUseChain:
                 # No control for the condition - we always check that.
                 control_flow_nodes.append(None)
                 basic_blocks.append([node.condition])
+                # If it is inside a loop, the condition can loop back to itself
+                # or the other branch in the IfBlock
                 if node.ancestor((Loop, WhileLoop)):
                     control_flow_nodes.append(node)
                     basic_blocks.append(node.if_body.children[:])

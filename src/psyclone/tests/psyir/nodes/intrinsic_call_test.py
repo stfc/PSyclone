@@ -166,7 +166,8 @@ def test_intrinsiccall_reductions_is_available_on_device():
     intrinsic_call.addchild(Reference(DataSymbol("result", REAL_TYPE)))
     # This is avaliabe on the device
     assert intrinsic_call.is_available_on_device()
-    # But not when it has more arguments
+    # But not when it has more arguments as it sometimes fails for complex
+    # reductions with arguments
     intrinsic_call.addchild(Literal("1", INTEGER_TYPE))
     assert not intrinsic_call.is_available_on_device()
 
