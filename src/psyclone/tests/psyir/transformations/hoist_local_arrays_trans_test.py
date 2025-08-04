@@ -658,8 +658,13 @@ def test_apply_with_hoist_with_dependent_symbols(fortran_reader,
     routine = psyir.walk(Routine)[0]
     hoist_trans = HoistLocalArraysTrans()
     hoist_trans.apply(routine)
-    assert "real(kind=wp), dimension(10) :: a" in fortran_writer(psyir)
-    assert "type(my_type), dimension(N) :: b" in fortran_writer(psyir)
+    code = fortran_writer(psyir)
+    assert ("! PSyclone warning: 'a' cannot be hoisted to the global scope "
+            "as 'wp' is not guaranteed to be a global symbol" in code)
+    assert "real(kind=wp), dimension(10) :: a" in code
+    assert ("! PSyclone warning: 'b' cannot be hoisted to the global scope"
+            " as 'my_type' is not guaranteed to be a global symbol" in code)
+    assert "type(my_type), dimension(N) :: b" in code
 
 
 def test_apply_with_allocatables(fortran_reader, fortran_writer, tmpdir):

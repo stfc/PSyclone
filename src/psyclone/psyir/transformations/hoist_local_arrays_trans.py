@@ -290,20 +290,17 @@ then
 
             if already_allocatable:
                 # Find and remove any deallocate statements
-                for ref in node.walk(Reference):
-                    if (
-                        isinstance(ref.parent, IntrinsicCall) and
-                        (ref.parent.intrinsic ==
-                            IntrinsicCall.Intrinsic.DEALLOCATE) and
-                        ref.symbol is sym
-                    ):
-                        self._remove_allocation_reference(ref)
+                for ic in node.walk(IntrinsicCall):
+                    if ic.intrinsic == IntrinsicCall.Intrinsic.DEALLOCATE:
+                        for ar in ic.arguments:
+                            if isinstance(ar, Reference) and ar.symbol is sym:
+                                self._remove_allocation_reference(ar)
                 # Now insert a guarded allocate expression, and remove the
                 # original one.
                 original_allocate.parent.children.insert(
                         original_allocate.position, if_stmt)
                 for ref in original_allocate.arguments:
-                    if ref.symbol is sym:
+                    if isinstance(ref, Reference) and ref.symbol is sym:
                         self._remove_allocation_reference(ref)
 
             else:
@@ -350,9 +347,19 @@ then
             # statement, not the hoisted declaration
             if isinstance(sym.datatype.intrinsic, DataTypeSymbol):
                 if sym.datatype.intrinsic.name in node.symbol_table:
+                    sym.append_preceding_comment(
+                        f"PSyclone warning: '{sym.name}' cannot be hoisted "
+                        f"to the global scope as '"
+                        f"{sym.datatype.intrinsic.name}'"
+                        f" is not guaranteed to be a global symbol")
                     continue
             if isinstance(sym.datatype.precision, DataSymbol):
                 if sym.datatype.precision.name in node.symbol_table:
+                    sym.append_preceding_comment(
+                        f"PSyclone warning: '{sym.name}' cannot be hoisted "
+                        f"to the global scope as '"
+                        f"{sym.datatype.precision.name}'"
+                        f" is not guaranteed to be a global symbol")
                     continue
             # Check whether all of the bounds of the array are defined - an
             # allocatable array will have array dimensions of
