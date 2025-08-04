@@ -33,6 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: S. Siso, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
@@ -43,6 +44,13 @@ from psyclone.psyir.transformations import OMPTargetTrans, OMPLoopTrans
 from psyclone.transformations import TransformationError
 
 USE_GPU = True  # Enable for generating OpenMP target directives
+
+Loop.set_loop_type_inference_rules({
+        "lon": {"variable": "ji"},
+        "lat": {"variable": "jj"},
+        "levels": {"variable": "jk"},
+        "tracers": {"variable": "jt"}
+})
 
 
 def trans(psyir):
@@ -64,12 +72,12 @@ def trans(psyir):
         except TransformationError:
             pass
 
-    # Add the OpenMP directives in each outer-level loop
-    for loop in psyir.walk(Loop, stop_type=Loop):
-        try:
-            if USE_GPU:
-                omp_target_trans.apply(loop)
-            omp_loop_trans.apply(loop)
-        except TransformationError:
-            # This loop can not be transformed, proceed to next loop
-            continue
+    for loop in psyir.walk(Loop):
+        if loop.loop_type == "levels":
+            try:
+                if USE_GPU:
+                    omp_target_trans.apply(loop)
+                omp_loop_trans.apply(loop)
+            except TransformationError:
+                # Not all of the loops in the example can be parallelised.
+                pass
