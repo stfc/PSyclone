@@ -100,6 +100,43 @@ def test_irla_validate(fortran_reader):
     assert ("The target Loop of the IncreaseRankLoopArraysTrans transformation"
             " must be inside a Routine." in str(err.value))
 
+def test_irla_validate_bounds(fortran_reader):
+    ''' Check that the validate method checks if the loop bounds are static
+    when possible. '''
+    trans = IncreaseRankLoopArraysTrans()
+    psyir = fortran_reader.psyir_from_source(f"""
+        program test
+            use other
+            real, dimension(10) :: a
+            integer, parameter :: constant = 3
+            integer :: i, j
+            variable = 3
+
+            ! This loop has variable bounds
+            do j = 1, variable
+                do i = 1, 10
+                   a(i) = 3
+                end do
+            enddo
+
+            ! These could be static
+            do j = size(variable), constant + imported
+                do i = 1, 10
+                   a(i) = 3
+                end do
+            enddo
+        end program
+    """)
+    routine = psyir.children[0]
+    with pytest.raises(TransformationError) as err:
+        trans.apply(routine.walk(Loop)[0], arrays=['a'])
+    assert ("IncreaseRankLoopArraysTrans can only be applied to loops with "
+            "static loop bound expressions, but in has been attempted "
+            "in a loop with the variable 'variable'." in str(err.value))
+
+    # This is fine
+    trans.apply(routine.walk(Loop)[2], arrays=['a'])
+
 
 def test_irla_apply(fortran_reader, fortran_writer):
     ''' Check that the array rank is increased by the bounds of the loop. '''

@@ -39,7 +39,8 @@ from typing import Optional, Union
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    Loop, Reference, ArrayReference, Routine, CodeBlock, Range)
+    Loop, Reference, ArrayReference, Routine, CodeBlock, Range,
+    IntrinsicCall, Assignment)
 from psyclone.psyir.symbols import ArrayType, Symbol
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -112,6 +113,8 @@ class IncreaseRankLoopArraysTrans(Transformation):
 
         :raises TransformationError: if the node is not a Loop.
         :raises TransformationError: if the node is not inside a Routine.
+        :raises TransformationError: if the target node does not have static
+            loop bounds (which the dimension declaration needs).
         :raises TransformationError: if no array names are provided.
         :raises TransformationError: the given array name or the
             symbol is not local or not an array.
@@ -129,6 +132,28 @@ class IncreaseRankLoopArraysTrans(Transformation):
             raise TransformationError(
                 f"The target Loop of the {self.name} transformation must be "
                 f"inside a Routine.")
+
+        # Check if the loop bound expressions are static
+        values_to_check = set()
+        for ref in (node.start_expr.walk(Reference) +
+                    node.stop_expr.walk(Reference)):
+            if ref.symbol.is_static:
+                continue
+            if isinstance(ref.parent, IntrinsicCall):
+                # The routine name of a intrinsic, or the arguments of inquiry
+                # functions don't need to be check
+                if ref.parent.is_inquiry or ref.position == 0:
+                    continue
+            values_to_check.add(ref.symbol)
+        for assignment in routine.walk(Assignment):
+            if isinstance(assignment.lhs, Reference):
+                if assignment.lhs.symbol in values_to_check:
+                    raise TransformationError(
+                        f"{self.name} can only be applied to loops with static"
+                        f" loop bound expressions, but in has been attempted "
+                        f"in a loop with the variable "
+                        f"'{assignment.lhs.symbol.name}'."
+                    )
 
         # Capture all symbols used inside codeblocks, these are not permitted
         codeblock_symbols = set()
