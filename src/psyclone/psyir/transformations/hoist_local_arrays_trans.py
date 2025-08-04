@@ -161,7 +161,7 @@ then
             # the new memory allocation statement.
             if already_allocatable:
                 # If it was already an allocatable, we should be able to find
-                # it
+                # the allocate statement.
                 original_allocate = None
                 not_supported = False
                 for ref in node.walk(ArrayReference):
@@ -289,7 +289,7 @@ then
                 )
 
             if already_allocatable:
-                # Find and remove the deallocate statements
+                # Find and remove any deallocate statements
                 for ref in node.walk(Reference):
                     if (
                         isinstance(ref.parent, IntrinsicCall) and

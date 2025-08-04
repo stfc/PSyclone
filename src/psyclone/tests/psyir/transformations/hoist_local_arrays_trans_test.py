@@ -606,7 +606,7 @@ def test_validate_tagged_symbol_clash(fortran_reader):
 
 def test_apply_with_hoist_with_dependent_symbols(fortran_reader,
                                                  fortran_writer):
-    ''' Check that we host declarations with dependent symbols succeeds
+    ''' Check that the hoisting of declarations with dependent symbols succeeds
     if the symbols can only come from the module scope, but fails otherwise.
     '''
 
@@ -663,8 +663,8 @@ def test_apply_with_hoist_with_dependent_symbols(fortran_reader,
 
 
 def test_apply_with_allocatables(fortran_reader, fortran_writer, tmpdir):
-    ''' Test the apply method correctly handles an automatic arrays with
-    allocatable attributes and simple allocatable statements. '''
+    ''' Test the apply method correctly handles arrays with allocatable
+    attributes and simple allocatable statements. '''
     code = """
         module my_mod
         contains
@@ -674,6 +674,7 @@ def test_apply_with_allocatables(fortran_reader, fortran_writer, tmpdir):
           integer, intent(in) :: var
           real, allocatable, dimension(:) :: a, b, c  ! This will be hoisted
           real, allocatable, dimension(:) :: d, e  ! This won't be hoisted
+          real, allocatable, dimension(:) :: unused
 
           if (var == 3) then  ! Allocate is only done inside this condition
               ALLOCATE(a(10), b(10:var))
@@ -730,6 +731,7 @@ module my_mod
     integer :: i
     real, allocatable, dimension(:) :: d
     real, allocatable, dimension(:) :: e
+    real, allocatable, dimension(:) :: unused
 
     if (var == 3) then
       if (.NOT.ALLOCATED(a)) then

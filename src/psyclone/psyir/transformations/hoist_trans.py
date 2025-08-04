@@ -217,7 +217,7 @@ class HoistTrans(Transformation):
             else:
                 read_only_sigs.append(sig)
 
-        # Make sure abs_positions are caches, otherwise this will be extremely
+        # Make sure abs_positions are cached, otherwise this will be extremely
         # slow
         parent_loop.compute_cached_abs_positions()
         for written_sig in write_sigs:
