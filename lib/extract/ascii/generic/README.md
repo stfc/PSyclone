@@ -1,20 +1,20 @@
 # Stand-alone Kernel Extraction Library for generic Fortran code
 
 This wrapper library is used to [write (extract)](
-https://psyclone.readthedocs.io/en/stable/psyke.html)
+https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html)
 input and output parameters of instrumented code regions to an [ASCII file](
-https://psyclone.readthedocs.io/en/stable/psyke.html#extraction_libraries).
+https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html#extraction_libraries).
 A stand-alone driver can then be used to rerun this specific code region and
 verify the results (or compare performance).
 
 A full, stand-alone and runnable example can be found in
-[``examples/nemo/eg7/``](
-https://github.com/stfc/PSyclone/tree/master/examples/nemo/eg7).
+[``examples/nemo/eg5/``](
+https://github.com/stfc/PSyclone/tree/master/examples/nemo/eg5).
 
 ## Dependencies
 
 This library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface with
 the application. The following dependencies must be available:
 
 - The ExtractAsciiBase (``extract_ascii_base.jinja``)
