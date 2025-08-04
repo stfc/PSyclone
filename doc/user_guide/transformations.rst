@@ -313,7 +313,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.psyir.transformations.LoopTiling2DTrans
+.. autoclass:: psyclone.psyir.transformations.LoopTilingTrans
     :members: apply
     :no-index:
 
@@ -451,7 +451,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPTaskloopTrans
+.. autoclass:: psyclone.psyir.transformations.OMPTaskloopTrans
     :members: apply, omp_grainsize, omp_num_tasks
     :no-index:
 

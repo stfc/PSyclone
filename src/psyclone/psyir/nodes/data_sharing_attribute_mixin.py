@@ -83,6 +83,10 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                   the directive body as PRIVATE, FIRSTPRIVATE or SHARED NEEDING
                   SYNCHRONISATION.
         '''
+        # Compute the abs position caches as we'll use these a lot.
+        # The compute_cached_abs_position will only do this if needed
+        # so we don't need to check here.
+        self.compute_cached_abs_positions()
 
         # TODO #598: Improve the handling of scalar variables, there are
         # remaining issues when we have accesses of variables after the

@@ -520,13 +520,13 @@ def test_module_info_generic_interfaces():
     # be reported once (even though it is used in both functions), and
     # each variable specific to the two functions:
     expected = set([("reference", "g_mod", Signature("module_var_1"),
-                     'module_var_1:READ(0)'),
+                     'module_var_1:[READ]'),
                     ("reference", "g_mod", Signature("module_var_2"),
-                     'module_var_2:READ(0)'),
+                     'module_var_2:[READ]'),
                     ("reference", "g_mod", Signature("module_var"),
-                     'module_var:READ(0)'),
+                     'module_var:[READ]'),
                     ("reference", "g_mod", Signature("module_var"),
-                     'module_var:WRITE(0)')])
+                     'module_var:[WRITE]')])
     # Convert the access info to a string for easy comparison:
     assert (set((i[0], i[1], i[2], str(i[3])) for i in all_non_locals) ==
             expected)

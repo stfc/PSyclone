@@ -42,4 +42,4 @@ ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
 transform:
 	${PSYCLONE} -nodm -s ./backends_transform.py -api gocean alg.f90 \
-		-oalg /dev/null -opsy /dev/null
+		-oalg /dev/null -opsy /dev/null --keep-comments

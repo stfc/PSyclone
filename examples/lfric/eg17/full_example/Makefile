@@ -91,7 +91,7 @@ main_alg.f90: main_psy.f90
 transform: main_psy.f90
 
 %_psy.f90:	%.x90
-	${PSYCLONE} -api lfric -opsy $*_psy.f90 -oalg $*_alg.f90 $<
+	${PSYCLONE} -api lfric --keep-comments --keep-directives -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 allclean: clean
 	make -C $(LFRIC_PATH) -f ../Makefile allclean

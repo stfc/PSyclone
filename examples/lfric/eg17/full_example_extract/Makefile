@@ -53,12 +53,14 @@ endif
 PSYROOT=../../../..
 
 # Set it to 'netcdf' to use the NetCDF writer
-TYPE?=standalone
+TYPE?=binary
 
 include $(PSYROOT)/examples/common.mk
 
 ifeq ($(TYPE), netcdf)
 	GENERATED_FILES += main-update.nc main-init.nc
+else ifeq ($(TYPE), ascii)
+	GENERATED_FILES += main-update.ascii main-init.ascii
 else
 	GENERATED_FILES += main-update.binary main-init.binary
 endif
@@ -75,8 +77,10 @@ OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o dummy_mod.o
 ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/lfric
 	F90FLAGS += $$(nf-config --fflags)
+else ifeq ($(TYPE), ascii)
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/ascii/lfric
 else
-	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/lfric
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/binary/lfric
 endif
 
 # Even standalone now needs NetCDF because of the LFRic infrastructure

@@ -177,25 +177,6 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
                 # the new clause.
                 self.addchild(clause)
 
-    def _build_async_string(self) -> str:
-        '''
-        Build the async arg to concat to the acc directive when generating the
-        code in the old, 'gen_code' path.
-
-        :returns: The "async[(<queue_val>)]" option to add to the directive.
-
-        '''
-        result = ""
-
-        # async
-        clause = self.async_clause
-        if clause:
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.backend.fortran import FortranWriter
-            result = f" {FortranWriter()(clause)}"
-
-        return result
-
     def __eq__(self, other) -> bool:
         '''
         Checks whether two nodes are equal. Two ACCAsyncMixin are
