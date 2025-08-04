@@ -47,7 +47,7 @@ def test_trans_name_and_str():
     assert trans.name == "IncreaseRankLoopArraysTrans"
     assert str(trans) == (
         "Increases the Rank of the supplied arrays by the iteration space of "
-        "the given loop, and update all its references")
+        "the given loop, and update all references to those arrays.")
 
 
 def test_irla_validate(fortran_reader):
@@ -80,25 +80,25 @@ def test_irla_validate(fortran_reader):
             "rank increased." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        trans.apply(routine.children[1], options={'arrays': ['i']})
-    assert ("IncreaseRankLoopArraysTrans provided 'arrays' must be a local "
+        trans.apply(routine.children[1], arrays=['i'])
+    assert ("IncreaseRankLoopArraysTrans provided 'arrays' must be local "
             "array symbols, but 'i: " in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        trans.apply(routine.children[1], options={'arrays': ['a']})
+        trans.apply(routine.children[1], arrays=['a'])
     assert ("IncreaseRankLoopArraysTrans does not support arrays that are "
             "referenced inside a Codeblock, but 'a' is inside one."
             in str(err.value))
 
-    # Referencing non-existan arrays is fine, they are just ignored, this
-    # is useful to apply the transformation to several routines without an
-    # exact match of symbols
-    trans.apply(routine.children[1], options={'arrays': ['non_existant']})
+    with pytest.raises(TransformationError) as err:
+        trans.apply(routine.children[1], arrays=['non_existant'])
+    assert ("IncreaseRankLoopArraysTrans provided array 'non_existant' does "
+            "not existin this scope." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        trans.apply(routine.children[1].detach(), options={'arrays': ['a']})
-    assert ("The target of the IncreaseRankLoopArraysTrans transformation "
-            "should be a Loop inside a Routine." in str(err.value))
+        trans.apply(routine.children[1].detach(), arrays=['a'])
+    assert ("The target Loop of the IncreaseRankLoopArraysTrans transformation"
+            " must be inside a Routine." in str(err.value))
 
 
 def test_irla_apply(fortran_reader, fortran_writer):
@@ -121,10 +121,45 @@ def test_irla_apply(fortran_reader, fortran_writer):
      end program
     """)
 
-    trans.apply(psyir.walk(Loop)[0], options={'arrays': ['ztmp']})
+    trans.apply(psyir.walk(Loop)[0], arrays=['ztmp'])
     code = fortran_writer(psyir)
 
     # The declaration and references have been updated
     assert "real, dimension(n,-5:m + 3) :: ztmp" in code
     assert "ztmp(j,i) = 1" in code
     assert "ztmp(j,i) = ztmp(j,i) + 1" in code
+
+
+def test_irla_apply_accesses_outside_loop(fortran_reader, fortran_writer):
+    ''' Check that the accesses outside the loop are also populate the whole
+    array, this will imply duplicated computations for each value '''
+    psyir = fortran_reader.psyir_from_source("""
+     program test
+         integer :: N=10, M=10
+         integer :: i, j
+         real, dimension(N) :: ztmp
+         ! Implicit loops
+         ztmp = 1
+         ! Range loop
+         ztmp(:) = ztmp(:) + 2
+         ! Explit loop
+         do j = 1, N
+             ztmp(j) = ztmp(j) / 3
+         enddo
+
+         do i = 1, 10
+             do j = 1, N
+                 ztmp(j) = ztmp(j) + 4
+             end do
+         end do
+     end program
+    """)
+    trans = IncreaseRankLoopArraysTrans()
+    trans.apply(psyir.walk(Loop)[1], arrays=['ztmp'])
+    code = fortran_writer(psyir)
+    # Check the ztmp accesses outside the target loop
+    assert "ztmp = 1" in code  # This already indexes the whole array
+    assert "ztmp(:,:) = ztmp(:,:) + 2" in code
+    assert "ztmp(j,:) = ztmp(j,:) / 3" in code
+    # And the one inside the loop
+    assert "ztmp(j,i) = ztmp(j,i) + 4" in code

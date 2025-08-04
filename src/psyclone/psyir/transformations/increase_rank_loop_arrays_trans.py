@@ -33,18 +33,14 @@
 # -----------------------------------------------------------------------------
 # Authors: S. Siso, STFC Daresbury Lab
 
-'''This module contains the IncreaseRankLoopArrays transformation. This
-transformation increases the dimensionality of the selected arrays with
-the length of the loop iteration space, when it updates each array access
-with the variable loop, so that each access an independent element.
-Effectively it provides an alternative to array privatisation.
+'''This module contains the IncreaseRankLoopArrays transformation.'''
 
-'''
+from typing import Optional, Union
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    Loop, Reference, ArrayReference, Routine, CodeBlock)
-from psyclone.psyir.symbols import ArrayType
+    Loop, Reference, ArrayReference, Routine, CodeBlock, Range)
+from psyclone.psyir.symbols import ArrayType, Symbol
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -52,7 +48,9 @@ from psyclone.psyir.transformations.transformation_error \
 class IncreaseRankLoopArraysTrans(Transformation):
     ''' This transformation takes a loop and a list of arrays accessed inside
     the loop, and increases those arrays with an additional dimension with the
-    size of the interation space.
+    size of the interation space. Then it indexes all accesses with the loop
+    variable, so that each iteration accesses a unique location. Effectively
+    making the sub-array private for each iteration of the loop.
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
@@ -75,7 +73,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
     ... """)
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> irla = IncreaseRankLoopArraysTrans()
-    >>> irla.apply(psyir.walk(Loop)[0], options={'arrays':['ztmp']})
+    >>> irla.apply(psyir.walk(Loop)[0], arrays=['ztmp'])
     >>> print(FortranWriter()(psyir))
     program test
       integer, save :: n = 10
@@ -99,28 +97,28 @@ class IncreaseRankLoopArraysTrans(Transformation):
     '''
     def __str__(self):
         return ("Increases the Rank of the supplied arrays by the iteration "
-                "space of the given loop, and update all its references")
+                "space of the given loop, and update all references to those"
+                " arrays.")
 
-    def validate(self, node, options=None):
+    def validate(
+        self,
+        node: Loop,
+        arrays: Optional[list[Union[Symbol, str]]] = None
+    ):
         ''' Checks that the supplied node is a valid target.
 
-        :param node: target PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
+        :param node: target Loop node.
+        :param arrays: list of arrays that will have the rank increased.
 
         :raises TransformationError: if the node is not a Loop.
         :raises TransformationError: if the node is not inside a Routine.
-        :raises TransformationError: the array option has not been provided.
-        :raises TransformationError: the given array name  or the
+        :raises TransformationError: if no array names are provided.
+        :raises TransformationError: the given array name or the
             symbol is not local or not an array.
-        :raises TransformationError: the array is references inside a
-            CodeBlock.
+        :raises TransformationError: if any of the arrays are referenced inside
+            a CodeBlock.
 
         '''
-        if options is None:
-            options = {}
-
         if not isinstance(node, Loop):
             raise TransformationError(
                 f"The target of the {self.name} transformation should be a "
@@ -129,10 +127,10 @@ class IncreaseRankLoopArraysTrans(Transformation):
         routine = node.ancestor(Routine)
         if routine is None:
             raise TransformationError(
-                f"The target of the {self.name} transformation should be a "
-                f"Loop inside a Routine.")
+                f"The target Loop of the {self.name} transformation must be "
+                f"inside a Routine.")
 
-        # Capture all symbols used inside codeblocks, this are not permited
+        # Capture all symbols used inside codeblocks, these are not permitted
         codeblock_symbols = set()
         for cb in routine.walk(CodeBlock):
             for name in cb.get_symbol_names():
@@ -140,58 +138,68 @@ class IncreaseRankLoopArraysTrans(Transformation):
 
         # Each item listed in the array list must be a local Array Symbol or a
         # string that resolves to it
-        array_list = options.get("arrays", [])
-        if len(array_list) == 0:
+        if not isinstance(arrays, list) or len(arrays) == 0:
             raise TransformationError(
                 f"{self.name} has a mandatory 'arrays' option that "
                 f"needs to be provided to inform what arrays needs their "
                 f"rank increased.")
-        for array in array_list:
+        for array in arrays:
             if isinstance(array, str):
-                array = node.scope.symbol_table.lookup(array, otherwise=None)
-            if array is None:
-                continue
+                try:
+                    array = node.scope.symbol_table.lookup(array)
+                except KeyError as err:
+                    raise TransformationError(
+                        f"{self.name} provided array '{array}' does not exist"
+                        f"in this scope."
+                    ) from err
 
-            if not array.is_automatic or not array.is_array:
+            if (not isinstance(array, Symbol) or not array.is_automatic
+                    or not array.is_array):
                 raise TransformationError(
-                    f"{self.name} provided 'arrays' must be a local array "
+                    f"{self.name} provided 'arrays' must be local array "
                     f"symbols, but '{array}' is not")
 
             if array.name.lower() in codeblock_symbols:
                 raise TransformationError(
                     f"{self.name} does not support arrays that are referenced "
                     f"inside a Codeblock, but '{array.name}' is inside one.")
-
-            # TODO: What should happen with references outside the loop?
-
-    def apply(self, node, options=None):
-        '''Applies the transformation.
-
-        :param node: target PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-
-        '''
-        self.validate(node, options)
-
-        array_list = options.get("arrays", [])
-
-        for array in array_list:
-            if isinstance(array, str):
-                array = node.scope.symbol_table.lookup(array, otherwise=None)
-            if array is None:
-                continue
-
             # TODO: check that the bound expressions are valid as static
             # expressions in the declarations.
+
+    def apply(
+        self,
+        node: Loop,
+        arrays: Optional[list[Union[Symbol, str]]] = None,
+        **kwargs
+    ):
+        '''Applies the transformation.
+
+        :param node: target Loop node.
+        :param arrays: list of arrays that will have the rank increased.
+
+        '''
+        self.validate(node, arrays, **kwargs)
+
+        for array in arrays:
+            if isinstance(array, str):
+                array = node.scope.symbol_table.lookup(array, otherwise=None)
+
             array.shape.append(
                 ArrayType.ArrayBounds(node.start_expr, node.stop_expr)
             )
 
-            for ref in node.walk(ArrayReference):
+            for ref in array.find_symbol_table(node).node.walk(ArrayReference):
                 if ref.symbol is array:
-                    ref.addchild(Reference(node.variable))
+                    if ref.is_descendent_of(node):
+                        # Inside the target loop index the reference to the
+                        # loop variable
+                        ref.addchild(Reference(node.variable))
+                    else:
+                        # Outside the target loop index the whole range
+                        ref.addchild(Range.create(
+                                        node.start_expr.copy(),
+                                        node.stop_expr.copy(),
+                                        node.step_expr.copy()))
 
 
 _all__ = ["IncreaseRankLoopArraysTrans"]
