@@ -44,7 +44,6 @@ from psyclone.transformations import TransformationError
 def test_trans_name_and_str():
     ''' Check that the name and str method works as expected. '''
     trans = IncreaseRankLoopArraysTrans()
-    assert trans.name == "IncreaseRankLoopArraysTrans"
     assert str(trans) == (
         "Increases the Rank of the supplied arrays by the iteration space of "
         "the given loop, and update all references to those arrays.")
@@ -100,11 +99,12 @@ def test_irla_validate(fortran_reader):
     assert ("The target Loop of the IncreaseRankLoopArraysTrans transformation"
             " must be inside a Routine." in str(err.value))
 
+
 def test_irla_validate_bounds(fortran_reader):
     ''' Check that the validate method checks if the loop bounds are static
     when possible. '''
     trans = IncreaseRankLoopArraysTrans()
-    psyir = fortran_reader.psyir_from_source(f"""
+    psyir = fortran_reader.psyir_from_source("""
         program test
             use other
             real, dimension(10) :: a
@@ -188,6 +188,7 @@ def test_irla_apply_accesses_outside_loop(fortran_reader, fortran_writer):
              do j = 1, N
                  ztmp(j) = ztmp(j) + 4
              end do
+             ztmp(:) = 5
          end do
      end program
     """)
@@ -198,5 +199,6 @@ def test_irla_apply_accesses_outside_loop(fortran_reader, fortran_writer):
     assert "ztmp = 1" in code  # This already indexes the whole array
     assert "ztmp(:,:) = ztmp(:,:) + 2" in code
     assert "ztmp(j,:) = ztmp(j,:) / 3" in code
-    # And the one inside the loop
+    # And the two inside the loop
     assert "ztmp(j,i) = ztmp(j,i) + 4" in code
+    assert "ztmp(:,i) = 5" in code

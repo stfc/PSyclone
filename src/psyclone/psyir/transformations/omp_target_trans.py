@@ -155,11 +155,17 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         :type options: Optional[Dict[str, Any]]
         :param str options["device_string"]: provide a compiler-platform
             identifier.
+        :param str options["allow_strings"]: prermit OMP target regions
+            enclosing string operations.
+        :param str options["verbose"]: insert preceding comments with the
+            reason that made this validation fail.
 
         :raises TransformationError: if it contains calls to routines that
             are not available in the accelerator device.
         :raises TransformationError: if its a function and the target region
             attempts to enclose the assingment setting the return value.
+        :raises TransformationError: if the target region attempts to enclose
+            string operations and the 'allow_strings' option is not set.
         '''
         device_string = options.get("device_string", "") if options else ""
         strings = options.get("allow_strings", False) if options else False
