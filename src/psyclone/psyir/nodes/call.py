@@ -661,7 +661,7 @@ class Call(Statement, DataNode):
             # This could be an 'optional' argument.
             # This has at least a partial data type
             if call_arg.datatype != routine_arg.datatype.partial_datatype:
-                call_arg_str = call_arg.debug_string().replace("\n", "")
+                call_arg_str = call_arg.debug_string().strip()
                 routine_arg_str = routine_arg.name
                 raise CallMatchingArgumentsNotFound(
                     f"Argument partial type mismatch of call argument "
@@ -671,7 +671,7 @@ class Call(Statement, DataNode):
                 )
         else:
             if call_arg.datatype != routine_arg.datatype:
-                call_arg_str = call_arg.debug_string().replace("\n", "")
+                call_arg_str = call_arg.debug_string().strip()
                 routine_arg_str = routine_arg.name
                 raise CallMatchingArgumentsNotFound(
                     f"Argument type mismatch of call argument '{call_arg_str}'"
@@ -700,7 +700,7 @@ class Call(Statement, DataNode):
         )
 
         if len(self.arguments) > len(routine.symbol_table.argument_list):
-            call_str = self.debug_string().replace("\n", "")
+            call_str = self.debug_string().strip()
             raise CallMatchingArgumentsNotFound(
                 f"More arguments in call ('{call_str}')"
                 f" than callee (routine '{routine.name}')"

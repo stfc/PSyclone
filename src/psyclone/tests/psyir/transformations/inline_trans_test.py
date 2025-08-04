@@ -303,11 +303,9 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
+    for call in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(
-            routine,
-            use_first_callee_and_no_arg_check=True
-        )
+            call, use_first_callee_and_no_arg_check=True)
 
     output = fortran_writer(psyir)
     assert ("    do i = 1, 5, 1\n"

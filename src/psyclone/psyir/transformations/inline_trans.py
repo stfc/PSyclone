@@ -150,8 +150,8 @@ class InlineTrans(Transformation):
         call and replaces the call with it.
 
         :param node: the Call node to inline.
-        :param routine: Optional Routine to be inlined (in case it is not
-            possible for PSyclone to determine the target).
+        :param routine: Optional Routine to be inlined. (By default, PSyclone
+            will search for a target routine with a matching signature).
         :param use_first_callee_and_no_arg_check: if True, simply use the
             first potential callee routine. No argument type-checking is
             performed.
@@ -175,10 +175,13 @@ class InlineTrans(Transformation):
         # The table associated with the scoping region holding the Call.
         table = node.ancestor(Routine).symbol_table
         if not routine:
+            # No target Routine has been provided so we search for one with
+            # a matching signature.
             (routine, arg_match_list) = node.get_callee(
                 use_first_callee_and_no_arg_check=(
                     use_first_callee_and_no_arg_check))
         else:
+            # Target Routine supplied to this transformation directly.
             arg_match_list = node.get_argument_map(routine)
 
         if not routine.children or isinstance(routine.children[0], Return):
