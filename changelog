@@ -1,3 +1,6 @@
+   68) PR #2893 for #2561. Add support for allocatables in the
+   HoistLocalArraysTrans and check for kind/type dependent symbols.
+
    67) PR #3073 for #3072 and #1930. Move domain code out of
    PSyGen.Argument to fix test issues.
 
