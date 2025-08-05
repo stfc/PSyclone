@@ -43,11 +43,12 @@
     (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
     Argument). '''
 
+from __future__ import annotations
 import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, List, Optional
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -68,7 +69,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Reference, ACCEnterDataDirective, ArrayOfStructuresReference,
     StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall,
-    Assignment, ArrayReference, Loop, Container, Schedule, Node)
+    Assignment, ArrayReference, Loop, Container, DataNode, Schedule, Node)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, DataSymbol, DataType, DataTypeSymbol, ScalarType,
     UnresolvedType, ContainerSymbol, ImportInterface, StructureType,
@@ -4166,7 +4167,9 @@ class LFRicHaloExchange(HaloExchange):
         depth_info_list = _create_depth_list(halo_info_list, self)
         return depth_info_list
 
-    def _compute_halo_read_info(self, ignore_hex_dep=False):
+    def _compute_halo_read_info(self,
+                                ignore_hex_dep: bool = False
+                                ) -> List[HaloReadAccess]:
         '''Dynamically computes all halo read dependencies and returns the
         required halo information (i.e. halo depth and stencil type)
         in a list of HaloReadAccess objects. If the optional
@@ -4176,19 +4179,18 @@ class LFRicHaloExchange(HaloExchange):
         and only return non-halo exchange dependencies if and when
         required.
 
-        :param bool ignore_hex_dep: if True then ignore any read \
-            accesses contained in halo exchanges. This is an optional \
+        :param ignore_hex_dep: if True then ignore any read
+            accesses contained in halo exchanges. This is an optional
             argument that defaults to False.
 
-        :return: a list containing halo information for each read dependency.
-        :rtype: :func:`list` of :py:class:`psyclone.lfric.HaloReadAccess`
+        :return: halo information for each read dependency.
 
-        :raises InternalError: if there is more than one read \
+        :raises InternalError: if there is more than one read
             dependency associated with a halo exchange.
-        :raises InternalError: if there is a read dependency \
-            associated with a halo exchange and it is not the last \
+        :raises InternalError: if there is a read dependency
+            associated with a halo exchange and it is not the last
             entry in the read dependency list.
-        :raises GenerationError: if there is a read dependency \
+        :raises GenerationError: if there is a read dependency
             associated with an asynchronous halo exchange.
         :raises InternalError: if no read dependencies are found.
 
@@ -4715,20 +4717,22 @@ class HaloDepth():
         '''
         return self._var_depth
 
-    def set_by_value(self, max_depth, var_depth, annexed_only, max_depth_m1):
+    def set_by_value(self,
+                     max_depth: bool,
+                     var_depth: Optional[DataNode],
+                     annexed_only: bool,
+                     max_depth_m1: bool):
         # pylint: disable=too-many-arguments
-        '''Set halo depth information directly
+        '''Set halo depth information directly.
 
-        :param bool max_depth: True if the field accesses all of the
+        :param max_depth: True if the field accesses all of the
             halo and False otherwise
         :param var_depth: PSyIR expression specifying the halo
             access depth, if one exists, and None if not
-        :type var_depth: :py:class:`psyclone.psyir.nodes.Node`
-        :param bool annexed_only: True if only the halo's annexed dofs
+        :param annexed_only: True if only the halo's annexed dofs
             are accessed and False otherwise
-        :param bool max_depth_m1: True if the field accesses all of
-            the halo but does not require the outermost halo to be correct
-            and False otherwise
+        :param max_depth_m1: True if the field accesses all of the halo but
+            does not require the outermost halo to be correct, False otherwise
 
         '''
         self._max_depth = max_depth
@@ -5023,12 +5027,20 @@ class HaloReadAccess(HaloDepth):
             not (field.access == AccessType.INC
                  and loop.upper_bound_name in ["cell_halo",
                                                "colour_halo"]))
+
+        # Records whether the kernel is a special "halo" kernel that must
+        # iterate into the halo for correctness.
+        is_halo_kernel = False
+
         # now we have the parent loop we can work out what part of the
         # halo this field accesses
         if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
-            # this loop performs redundant computation
+            # This loop performs redundant computation or is a 'halo' kernel
+            # that iterates into the halo.
             if loop.upper_bound_halo_depth:
                 self._var_depth = loop.upper_bound_halo_depth
+                is_halo_kernel = (call.iterates_over in
+                                  const.HALO_KERNEL_ITERATION_SPACES)
             else:
                 # loop redundant computation is to the maximum depth
                 self._max_depth = True
@@ -5093,10 +5105,7 @@ class HaloReadAccess(HaloDepth):
             stencil_depth = field.descriptor.stencil['extent']
             if stencil_depth:
                 # stencil_depth is provided in the kernel metadata
-                self._var_depth = BinaryOperation.create(
-                    BinaryOperation.Operator.ADD,
-                    Literal(str(stencil_depth), INTEGER_TYPE),
-                    self._var_depth.copy())
+                st_depth = Literal(str(stencil_depth), INTEGER_TYPE)
             else:
                 # Stencil_depth is provided by the algorithm layer.
                 # It is currently not possible to specify kind for an
@@ -5105,17 +5114,29 @@ class HaloReadAccess(HaloDepth):
                 if field.stencil.extent_arg.is_literal():
                     # a literal is specified
                     value_str = field.stencil.extent_arg.text
-                    stencil_depth = Literal(value_str, INTEGER_TYPE)
+                    st_depth = Literal(value_str, INTEGER_TYPE)
                 else:
                     # a variable is specified
-                    stencil_depth = Reference(
+                    st_depth = Reference(
                         table.lookup(field.stencil.extent_arg.varname))
-                if self._var_depth:
+            if self._var_depth:
+                if is_halo_kernel:
+                    # 'halo' kernels (those that have halos included in their
+                    # iteration space in order to get correct results) are a
+                    # special case - the necessary halo depth is computed as
+                    # the MAX of the halo and stencil depths, rather than as
+                    # their sum.
+                    self._var_depth = IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.MAX,
+                        [st_depth, self._var_depth.copy()])
+                else:
+                    # Not a special case so the necessary depth is the sum of
+                    # the halo and stencil depths.
                     self._var_depth = BinaryOperation.create(
                         BinaryOperation.Operator.ADD,
-                        stencil_depth, self._var_depth.copy())
-                else:
-                    self._var_depth = stencil_depth
+                        st_depth, self._var_depth.copy())
+            else:
+                self._var_depth = st_depth
         # If this is an intergrid kernel and the field in question is on
         # the fine mesh then we must double the halo depth
         if call.is_intergrid and field.mesh == "gh_fine":

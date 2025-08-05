@@ -273,10 +273,12 @@ def test_psy_gen_halo_kernel_with_stencil(dist_mem, tmpdir):
         assert "loop2_start = 1" in code
         assert "loop2_stop = mesh%get_last_halo_cell(hdepth)" in code
         # Field with stencil access must be clean out to
-        # MAX(halo-depth, stencil-depth)
+        # MAX(halo-depth, stencil-depth). In this case, there is a subsequent
+        # kernel which loops out to a halo depth of other_depth and therefore
+        # the condition is MAX(2, other_depth, hdepth, stdepth).
         assert '''\
-    if (f2_proxy%is_dirty(depth=max(1, hdepth, stdepth))) then
-      call f2_proxy%halo_exchange(depth=max(1, hdepth, stdepth))
+    if (m1_proxy%is_dirty(depth=max(1, hdepth, other_depth, stdepth))) then
+      call m1_proxy%halo_exchange(depth=max(1, hdepth, other_depth, stdepth))
     end if''' in code
         assert '''\
     do cell = loop2_start, loop2_stop, 1
@@ -286,7 +288,7 @@ m2_data, ndf_w3, undf_w3, map_w3(:,cell), ndf_w2, undf_w2, map_w2(:,cell))
     enddo
 
     ! set halos dirty/clean for fields modified in the above loop(s)
-    call f1_proxy%set_dirt()
+    call f1_proxy%set_dirty()
     call f1_proxy%set_clean(hdepth)''' in code
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
