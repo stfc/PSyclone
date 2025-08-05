@@ -4604,17 +4604,16 @@ class LFRicHaloExchangeEnd(LFRicHaloExchange):
 
     :param field: the field that this halo exchange will act on
     :type field: :py:class:`psyclone.lfric.LFRicKernelArgument`
-    :param check_dirty: optional argument (default True) indicating \
-    whether this halo exchange should be subject to a run-time check \
-    for clean/dirty halos.
+    :param check_dirty: optional argument (default True) indicating
+        whether this halo exchange should be subject to a run-time check
+        for clean/dirty halos.
     :type check_dirty: bool
-    :param vector_index: optional vector index (default None) to \
-    identify which index of a vector field this halo exchange is \
-    responsible for
+    :param vector_index: optional vector index (default None) to
+        identify which index of a vector field this halo exchange is
+        responsible for.
     :type vector_index: int
-    :param parent: optional PSyIRe parent node (default None) of this \
-    object
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param parent: PSyIR parent node (default None) of this object.
+    :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
     '''
     # Textual description of the node.
@@ -4787,7 +4786,7 @@ def halo_check_arg(field, access_types):
     call object containing this argument.
 
     :param field: the argument object we are checking
-    :type field: :py:class:`psyclone.lfric.LFRicArgument`
+    :type field: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param access_types: List of allowed access types.
     :type access_types: List of :py:class:`psyclone.psyGen.AccessType`.
     :return: the call containing the argument object
@@ -4806,9 +4805,9 @@ def halo_check_arg(field, access_types):
         call = field.call
     except AttributeError as err:
         raise GenerationError(
-            f"HaloInfo class expects an argument of type LFRicArgument, or "
-            f"equivalent, on initialisation, but found, "
-            f"'{type(field)}'") from err
+            f"HaloInfo class expects an argument of type "
+            f"LFRicKernelArgument, or equivalent, on initialisation, but "
+            f"found, '{type(field)}'") from err
 
     if field.access not in access_types:
         api_strings = [access.api_specific_name() for access in access_types]
@@ -4828,7 +4827,7 @@ class HaloWriteAccess(HaloDepth):
     particular loop nest.
 
     :param field: the field that we are concerned with.
-    :type field: :py:class:`psyclone.lfric.LFRicArgument`
+    :type field: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param parent: the parent PSyIR node associated with the scoping region
                    that contains this halo access.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
@@ -4891,7 +4890,7 @@ class HaloWriteAccess(HaloDepth):
             return None
         return depth_expr
 
-    def _compute_from_field(self, field):
+    def _compute_from_field(self, field: LFRicKernelArgument):
         '''Internal method to compute what parts of a field's halo are written
         to in a certain kernel and loop. The information computed is the depth
         of access and validity of the data after writing. The depth of access
@@ -4900,7 +4899,6 @@ class HaloWriteAccess(HaloDepth):
         clean.
 
         :param field: the field that we are concerned with.
-        :type field: :py:class:`psyclone.lfric.LFRicArgument`
 
         '''
         const = LFRicConstants()
@@ -4991,7 +4989,7 @@ class HaloReadAccess(HaloDepth):
         '''
         return self._stencil_type
 
-    def _compute_from_field(self, field):
+    def _compute_from_field(self, field: LFRicKernelArgument):
         '''Internal method to compute which parts of a field's halo are read
         in a certain kernel and loop. The information computed is the
         depth of access and the access pattern. The depth of access
@@ -4999,8 +4997,22 @@ class HaloReadAccess(HaloDepth):
         depth. The access pattern will only be specified if the kernel code
         performs a stencil access on the field.
 
+        For a standard kernel that has been transformed to perform redundant
+        computation and has a field argument with a stencil access, the depth
+        of that field's halo that is read is computed as the *sum* of the
+        depth of the redundant computation and the stencil size. However, for
+        the special case of a Kernel which *must* iterate into the halo region
+        (has an ``OPERATES_ON`` of ``HALO_CELL_COLUMN`` or
+        ``OWNED_AND_HALO_CELL_COLUMN``) to a depth ``ndepth``, say, then the
+        depth of the halo that is read is computed as the *maximum* of
+        ``ndepth`` and the stencil size.
+
         :param field: the field that we are concerned with
-        :type field: :py:class:`psyclone.lfric.LFRicArgument`
+
+        :raises GenerationError: if an unsupported name for a loop
+            upper-bound is found.
+        :raises GenerationError: if a Kernel with a stencil access performs
+            redundant computation out to the maximum halo depth.
 
         '''
         # pylint: disable=too-many-branches
