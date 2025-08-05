@@ -269,7 +269,31 @@ def test_psy_gen_halo_kernel_with_stencil(dist_mem, tmpdir):
     psy, _ = get_invoke("1.4.5_into_halos_with_stencil_invoke.f90",
                         TEST_API, dist_mem=dist_mem, idx=0)
     code = str(psy.gen).lower()
-    assert "something" in code
+    if dist_mem:
+        assert "loop2_start = 1" in code
+        assert "loop2_stop = mesh%get_last_halo_cell(hdepth)" in code
+        # Field with stencil access must be clean out to
+        # MAX(halo-depth, stencil-depth)
+        assert '''\
+    if (f2_proxy%is_dirty(depth=max(1, hdepth, stdepth))) then
+      call f2_proxy%halo_exchange(depth=max(1, hdepth, stdepth))
+    end if''' in code
+        assert '''\
+    do cell = loop2_start, loop2_stop, 1
+      call testkern_halo_and_owned_stencil_code(nlayers_f1, a, f1_data, f2_data, m1_data, m1_stencil_size(cell), m1_stencil_dofmap(:,:,cell), m2_data, ndf_w3, undf_w3, map_w3(:,cell), ndf_w2, undf_w2, map_w2(:,cell))
+    enddo
+
+    ! set halos dirty/clean for fields modified in the above loop(s)
+    call f1_proxy%set_dirt()
+    call f1_proxy%set_clean(hdepth)''' in code
+    else:
+        assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
+        # => no halos so no need to call a kernel which only operates on
+        #    halo cells.
+        assert "call testkern_halo_only_code(" not in code
+        # However, a kernel that operates on owned *and* halo cells must still
+        # be called.
+        assert "call testkern_halo_and_owned_code(nlayers_f1, a" in code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
