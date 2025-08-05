@@ -66,7 +66,7 @@ program main
     use field_real64_mod,      only : field_real64_type
     use testkern_w0_kernel_mod, only: testkern_w0_kernel_type
     use constants_mod,          only: r_def, i_def, str_def, l_def
-    use log_mod,                only: LOG_LEVEL_ALWAYS
+    use log_mod,                only: initialise_logging
 
     implicit none
 
@@ -100,6 +100,12 @@ program main
 #endif
 
     call init_collections()
+
+    ! Enable logging
+    call initialise_logging(0,                        & ! communicator - ignored
+                            "log",                    & ! filename
+                            trace_on_warnings=.true., &
+                            log_to_rank_zero_only=.false.)
 
     ! Use the unit-testing constructor:
     global_mesh = global_mesh_type()
