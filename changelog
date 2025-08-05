@@ -1,3 +1,6 @@
+   69) PR #3042 for #2971. Moves OMPDeclareTargetTrans and
+   MarkRoutineForGPUMixin into psyir/transformations.
+
    68) PR #2893 for #2561. Add support for allocatables in the
    HoistLocalArraysTrans and check for kind/type dependent symbols.
 
