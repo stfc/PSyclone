@@ -8,7 +8,7 @@
 !>
 module io_utility_mod
 
-  use constants_mod, only : i_native, str_def
+  use constants_mod, only : i_def, str_def
   use log_mod,       only : log_event, log_scratch_space, LOG_LEVEL_ERROR
 
   implicit none
@@ -17,7 +17,7 @@ module io_utility_mod
   public :: claim_io_unit, release_io_unit, open_file, close_file, read_line
 
   ! Unit 10 is used for logging - so start giving out unit numbers from 11
-  integer(i_native), save :: next_unit = 11
+  integer(i_def), save :: next_unit = 11
 
 contains
 
@@ -31,7 +31,7 @@ contains
 
     implicit none
 
-    integer(i_native) :: unit
+    integer(i_def) :: unit
 
     unit = next_unit
     if (unit == 99) then
@@ -52,7 +52,7 @@ contains
 
     implicit none
 
-    integer(i_native), intent(inout) :: unit
+    integer(i_def), intent(inout) :: unit
 
     unit = -1
     ! We do not currently re-use unit numbers but we may in the future so this
@@ -77,11 +77,11 @@ contains
     implicit none
 
     character(*),                intent(in) :: filename
-    integer(i_native), optional, intent(in) :: use_unit
-    integer(i_native) :: open_file
+    integer(i_def), optional, intent(in) :: use_unit
+    integer(i_def) :: open_file
 
-    integer(i_native)  :: unit
-    integer(i_native)  :: rc
+    integer(i_def)  :: unit
+    integer(i_def)  :: rc
     character(str_def) :: error_message
 
     if (present(use_unit)) then
@@ -110,9 +110,9 @@ contains
 
     implicit none
 
-    integer(i_native), intent(inout) :: unit
+    integer(i_def), intent(inout) :: unit
 
-    integer(i_native)  :: rc
+    integer(i_def)  :: rc
     character(str_def) :: error_message
 
     close( unit, iostat=rc, iomsg=error_message )
@@ -137,11 +137,11 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in)  :: unit
+    integer(i_def), intent(in)  :: unit
     character(*),      intent(out) :: buffer
     logical                        :: read_line
 
-    integer(i_native)  :: rc
+    integer(i_def)  :: rc
     character(str_def) :: error_message
 
     read( unit, '(A)', iostat=rc, iomsg=error_message ) buffer
