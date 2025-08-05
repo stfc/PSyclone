@@ -46,8 +46,8 @@ from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
-    HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
-    Reference2ArrayRangeTrans, ScalarisationTrans)
+    HoistTrans, InlineTrans, Maxval2LoopTrans, OMPMinimiseSyncTrans,
+    ProfileTrans, Reference2ArrayRangeTrans, ScalarisationTrans)
 from psyclone.transformations import TransformationError
 
 # USE statements to chase to gather additional symbol information.
@@ -144,7 +144,7 @@ NEMO_FUNCTIONS = [
     'visc_air', 'visc_air_sclr', 'visc_air_vctr', 'w1', 'w2', 'z0_from_Cd',
     'z0tq_LKB', 'zdf_gls_alloc', 'zdf_iwm_alloc', 'zdf_mfc_alloc',
     'zdf_mxl_alloc', 'zdf_oce_alloc', 'zdf_osm_alloc', 'zdf_phy_alloc',
-    'zdf_tke_alloc', 'zdf_tmx_alloc',
+    'zdf_tke_alloc', 'zdf_tmx_alloc', 'itau2date',
     # grep -rh "INTERFACE" src | grep -v "END" | awk '{print $2}' | uniq | sort
     'alpha_sw', 'bulk_formula', 'cp_air', 'debug', 'DECAL_FEEDBACK',
     'DECAL_FEEDBACK_2D', 'depth_to_e3', 'de_sat_dt_ice', 'dia_ar5_hst',
@@ -175,6 +175,7 @@ CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 PARALLELISATION_ISSUES = [
     "ldfc1d_c2d.f90",
     "tramle.f90",
+    "traqsr.f90",
 ]
 
 PRIVATISATION_ISSUES = [
@@ -414,6 +415,7 @@ def insert_explicit_loop_parallelism(
         loop_directive_trans=None,
         collapse: bool = True,
         privatise_arrays: bool = False,
+        asynchronous_parallelism: bool = False,
         uniform_intrinsics_only: bool = False,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
@@ -433,6 +435,8 @@ def insert_explicit_loop_parallelism(
         many nested loops as possible.
     :param privatise_arrays: whether to attempt to privatise arrays that cause
         write-write race conditions.
+    :param asynchronous_parallelism: whether to attempt to add asynchronocity
+    to the parallel sections.
     :param uniform_intrinsics_only: if True it prevent offloading loops
         with non-reproducible device intrinsics.
 
@@ -445,7 +449,7 @@ def insert_explicit_loop_parallelism(
             continue  # Skip if an outer loop is already parallelised
 
         opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
-                "verbose": True, "nowait": False}
+                "verbose": True, "nowait": asynchronous_parallelism}
 
         if uniform_intrinsics_only:
             opts["device_string"] = "nvfortran-uniform"
@@ -502,6 +506,12 @@ def insert_explicit_loop_parallelism(
             # The parallelisation restrictions will be explained with a comment
             # associted to the loop in the generated output.
             continue
+
+    # If we are adding asynchronous parallelism then we now try to minimise
+    # the number of barriers.
+    if asynchronous_parallelism:
+        minsync_trans = OMPMinimiseSyncTrans()
+        minsync_trans.apply(schedule)
 
 
 def add_profiling(children: Union[List[Node], Schedule]):
