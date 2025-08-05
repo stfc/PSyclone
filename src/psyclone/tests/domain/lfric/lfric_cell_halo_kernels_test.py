@@ -280,7 +280,9 @@ def test_psy_gen_halo_kernel_with_stencil(dist_mem, tmpdir):
     end if''' in code
         assert '''\
     do cell = loop2_start, loop2_stop, 1
-      call testkern_halo_and_owned_stencil_code(nlayers_f1, a, f1_data, f2_data, m1_data, m1_stencil_size(cell), m1_stencil_dofmap(:,:,cell), m2_data, ndf_w3, undf_w3, map_w3(:,cell), ndf_w2, undf_w2, map_w2(:,cell))
+      call testkern_halo_and_owned_stencil_code(nlayers_f1, a, f1_data, \
+f2_data, m1_data, m1_stencil_size(cell), m1_stencil_dofmap(:,:,cell), \
+m2_data, ndf_w3, undf_w3, map_w3(:,cell), ndf_w2, undf_w2, map_w2(:,cell))
     enddo
 
     ! set halos dirty/clean for fields modified in the above loop(s)
