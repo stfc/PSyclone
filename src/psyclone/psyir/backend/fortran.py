@@ -48,7 +48,8 @@ from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
 from psyclone.psyir.nodes import (
     BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
-    Literal, Operation, Range, Routine, Schedule, UnaryOperation)
+    Literal, OMPDependClause, OMPReductionClause, Operation, Range, Routine,
+    Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
@@ -1614,12 +1615,30 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
+        # Map to convert operands to Fortran representations.
+        _operand_to_f_str = {
+            OMPDependClause.DependClauseTypes.IN: "in",
+            OMPDependClause.DependClauseTypes.OUT: "out",
+            OMPDependClause.DependClauseTypes.INOUT: "inout",
+            OMPReductionClause.ReductionClauseTypes.ADD: "+",
+            OMPReductionClause.ReductionClauseTypes.SUB: "-",
+            OMPReductionClause.ReductionClauseTypes.MUL: "*",
+            OMPReductionClause.ReductionClauseTypes.AND: ".AND.",
+            OMPReductionClause.ReductionClauseTypes.OR: ".OR.",
+            OMPReductionClause.ReductionClauseTypes.EQV: ".EQV.",
+            OMPReductionClause.ReductionClauseTypes.NEQV: ".NEQV.",
+            OMPReductionClause.ReductionClauseTypes.MAX: "MAX",
+            OMPReductionClause.ReductionClauseTypes.MIN: "MIN",
+            OMPReductionClause.ReductionClauseTypes.IAND: "IAND",
+            OMPReductionClause.ReductionClauseTypes.IOR: "IOR",
+            OMPReductionClause.ReductionClauseTypes.IEOR: "IEOR",
+        }
         if len(node.children) == 0:
             return ""
 
         result = node.clause_string
 
-        result = result + "(" + node.operand + ": "
+        result = result + "(" + _operand_to_f_str[node.operand] + ": "
 
         child_list = []
         for child in node.children:

@@ -39,10 +39,10 @@
 
 import pytest
 from psyclone.psyir.nodes.node import colored
-from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
-    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPSharedClause, \
-    OMPDependClause, OMPPrivateClause, OMPFirstprivateClause, \
-    OMPDefaultClause, OMPScheduleClause
+from psyclone.psyir.nodes.omp_clauses import (
+    OMPGrainsizeClause, OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause,
+    OMPSharedClause, OMPDependClause, OMPPrivateClause, OMPFirstprivateClause,
+    OMPDefaultClause, OMPScheduleClause, OMPReductionClause)
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
@@ -208,9 +208,9 @@ def test_depend_clause():
                     depend_type=OMPDependClause.DependClauseTypes.OUT)
     assert dependin != dependout
     # Check operand
-    assert dependin.operand == "in"
-    assert dependout.operand == "out"
-    assert depend1.operand == "inout"
+    assert dependin.operand == OMPDependClause.DependClauseTypes.IN
+    assert dependout.operand == OMPDependClause.DependClauseTypes.OUT
+    assert depend1.operand == OMPDependClause.DependClauseTypes.INOUT
     coloredtext = colored("OMPDependClause", OMPDependClause._colour)
     assert (coloredtext+"[operand=DependClauseTypes.INOUT]"
             in depend1.node_str())
@@ -223,3 +223,34 @@ def test_depend_validate_child():
     assert OMPDependClause._validate_child(0, ref1) is True
     assert OMPDependClause._validate_child(110, ref1) is True
     assert OMPDependClause._validate_child(0, "test") is False
+
+
+def test_omp_reduction_clause():
+    '''Test the OMPReductionClause functionality.'''
+
+    with pytest.raises(TypeError) as excinfo:
+        reduc = OMPReductionClause(operator="nope")
+    assert ("OMPReductionClause expected 'operator' argument of type "
+            "OMPReductionClause.ReductionClauseTypes but found 'str'" in
+            str(excinfo.value))
+
+    # Check .operand gives what is expected.
+    reduc = OMPReductionClause(
+            operator=OMPReductionClause.ReductionClauseTypes.ADD)
+    assert reduc.operand == OMPReductionClause.ReductionClauseTypes.ADD
+    # Check equality
+    reduc2 = OMPReductionClause(
+            operator=OMPReductionClause.ReductionClauseTypes.ADD)
+    assert reduc == reduc2
+
+    coloredtext = colored("OMPReductionClause", OMPReductionClause._colour)
+    assert (coloredtext + "[operand=add: []]" in reduc.node_str())
+
+
+def test_reduction_validate_child():
+    ''' Test the validate_child function of the OMPReductionClause. '''
+    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    ref1 = Reference(tmp)
+    assert OMPReductionClause._validate_child(0, ref1) is True
+    assert OMPReductionClause._validate_child(110, ref1) is True
+    assert OMPReductionClause._validate_child(0, "test") is False
