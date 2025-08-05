@@ -412,8 +412,7 @@ linkcheck_ignore = [
     # the links to anchors to the main README.
     r'^https://github.com/stfc/PSyclone#',
     # Requires authentication.
-    r'code.metoffice.gov.uk/trac/lfric/attachment/wiki/'
-    r'LFRicDocumentationPapers/lfric_documentation.pdf'
+    r'^https://code.metoffice.gov.uk/trac'
 ]
 
 # -- Autodoc configuration ---------------------------------------------------
