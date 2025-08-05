@@ -64,8 +64,7 @@ contains
 
     use field_mod,             only: field_type, field_proxy_type
     use reference_element_mod, only: reference_element_type
-    use mesh_constructor_helper_functions_mod, &
-                               only: domain_size_type
+    use domain_mod, only:            domain_type
     implicit none
 
     type( field_type ), intent( inout ) :: chi(3)
@@ -76,7 +75,7 @@ contains
     class(reference_element_type), pointer :: reference_element => null()
 
     type(field_proxy_type) :: chi_proxy(3)
-    type(domain_size_type) :: domain_size
+    type(domain_type) :: domain
 
     real(r_def), allocatable :: column_coords(:,:,:)
     real(r_def), allocatable :: dz(:)  ! dz(nlayers) array
@@ -112,7 +111,7 @@ contains
     allocate( column_coords(3,nverts,nlayers ) )
     dof_coords => chi_proxy(1)%vspace%get_nodes( )
 
-    domain_size =  mesh%get_domain_size()
+    domain =  mesh%get_domain()
 
     do cell = 1,chi_proxy(1)%vspace%get_ncell()
        map => chi_proxy(1)%vspace%get_cell_dofmap( cell )
@@ -131,8 +130,8 @@ contains
                                column_coords,           &
                                dof_coords,              &
                                vertex_coords,           &
-                               domain_size%maximum%x,   &
-                               domain_size%minimum%y )
+                               domain%maximum_xy(1),    &
+                               domain%maximum_xy(2) )
     end do
     ! Loop over all the cells
 
