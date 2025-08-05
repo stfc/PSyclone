@@ -1,3 +1,6 @@
+   62) PR #3042 for #2971. Moves OMPDeclareTargetTrans and
+   MarkRoutineForGPUMixin into psyir/transformations.
+
    61) PR #3040 for #3038. Improves the frontend error reporting of the
    psyclone command.
 
