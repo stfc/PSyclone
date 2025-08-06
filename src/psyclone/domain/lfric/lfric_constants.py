@@ -249,13 +249,17 @@ class LFRicConstants():
         # in the LFRic API ('real' and 'integer')
         LFRicConstants.VALID_BUILTIN_DATA_TYPES = ["gh_real", "gh_integer"]
 
+        # Iteration spaces for user-supplied kernels that must include halo
+        # regions for correctness.
+        LFRicConstants.HALO_KERNEL_ITERATION_SPACES = [
+            "halo_cell_column",
+            "owned_and_halo_cell_column"]
+
         # Valid LFRic iteration spaces for user-supplied kernels and
         # built-in kernels
         LFRicConstants.USER_KERNEL_ITERATION_SPACES = [
-            "cell_column", "domain",
-            "dof",
-            "halo_cell_column",
-            "owned_and_halo_cell_column"]
+            "cell_column", "domain", "dof"
+            ] + LFRicConstants.HALO_KERNEL_ITERATION_SPACES
 
         LFRicConstants.VALID_ITERATION_SPACES = \
             list(OrderedDict.fromkeys(

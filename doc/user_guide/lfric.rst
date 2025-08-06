@@ -307,9 +307,10 @@ question.
 Halo Depth
 ++++++++++
 
-If a Kernel is written to iterate into the halo (has an ``OPERATES_ON`` of
-``HALO_CELL_COLUMN`` or ``OWNED_AND_HALO_CELL_COLUMN``) then the halo depth
-must be passed as a final, ``integer`` argument to the Kernel.
+If a Kernel is written such that it *must* iterate into the halo (has an
+``OPERATES_ON`` of ``HALO_CELL_COLUMN`` or ``OWNED_AND_HALO_CELL_COLUMN``)
+then the halo depth must be passed as a final, ``integer`` argument to the
+Kernel.
 
 .. _lfric-alg-stencil:
 
