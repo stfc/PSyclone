@@ -5004,8 +5004,10 @@ class HaloReadAccess(HaloDepth):
         the special case of a Kernel which *must* iterate into the halo region
         (has an ``OPERATES_ON`` of ``HALO_CELL_COLUMN`` or
         ``OWNED_AND_HALO_CELL_COLUMN``) to a depth ``ndepth``, say, then the
-        depth of the halo that is read is computed as the *maximum* of
-        ``ndepth`` and the stencil size.
+        depth of the halo that is read is currently computed as the *maximum*
+        of ``ndepth`` and the stencil size. TODO #2781 - this case should be
+        handled by adding support for a new type of stencil rather than this
+        ad-hoc fix.
 
         :param field: the field that we are concerned with
 
@@ -5138,6 +5140,8 @@ class HaloReadAccess(HaloDepth):
                     # special case - the necessary halo depth is computed as
                     # the MAX of the halo and stencil depths, rather than as
                     # their sum.
+                    # TODO #2781 - instead of this ad-hoc fix, we should add
+                    # support for a new type of stencil.
                     self._var_depth = IntrinsicCall.create(
                         IntrinsicCall.Intrinsic.MAX,
                         [st_depth, self._var_depth.copy()])

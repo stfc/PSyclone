@@ -273,7 +273,9 @@ def test_psy_gen_halo_kernel_with_stencil(dist_mem, tmpdir):
         assert "loop2_start = 1" in code
         assert "loop2_stop = mesh%get_last_halo_cell(hdepth)" in code
         # Field with stencil access must be clean out to
-        # MAX(halo-depth, stencil-depth). In this case, there is a subsequent
+        # MAX(halo-depth, stencil-depth). (Note that this is not
+        # halo-depth + stencil-depth as might be expected because this is a
+        # 'halo' kernel - TODO #2781). In this case, there is a subsequent
         # kernel which loops out to a halo depth of other_depth and therefore
         # the condition is MAX(2, other_depth, hdepth, stdepth).
         assert '''\
