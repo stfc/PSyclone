@@ -20,18 +20,18 @@ DSLs following the PSyKAl model developed in the
 [GungHo project](https://www.metoffice.gov.uk/research/foundation/dynamics/next-generation).
 
 PSyclone is currently used to support the [LFRic mixed finite-element PSyKAl
-DSL](https://psyclone.readthedocs.io/en/latest/lfric.html)
+DSL](https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html)
 for the [UK MetOffice's next generation modelling
 system](https://www.metoffice.gov.uk/research/modelling-systems/lfric/) and
 the [GOcean finite-difference PSyKAl
-DSL](https://psyclone.readthedocs.io/en/latest/gocean1p0.html) for a [prototype
+DSL](https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html) for a [prototype
 2D ocean modelling system](https://gtr.ukri.org/projects?ref=NE%2FL01209X%2F1).
 It is also used to [insert GPU offloading
-directives](https://psyclone.readthedocs.io/en/latest/nemo.html) into existing
+directives](https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/nemo_examples.html) into existing
 directly-addressed MPI applications such as the
 [NEMO ocean model](https://www.nemo-ocean.eu/).
 
-For more detailed information see the [PSyclone Documentation](http://psyclone.readthedocs.io).
+For more detailed information see the [PSyclone Documentation](http://psyclone.readthedocs.io/en/latest).
 
 # Installation #
 
@@ -60,8 +60,9 @@ PSyclone is also available in the
 [Spack](https://packages.spack.io/package.html?name=py-psyclone) package
 managers.
 
-For more information about the installation process see
-[this section of the User Guide](https://psyclone.readthedocs.io/en/latest/system_specific_setup.html).
+For more information about the installation process see the
+[Getting Going](https://psyclone.readthedocs.io/en/latest/user_guide/getting_going.html).
+section of the User Guide.
 
 <!---  TODO #2627
 # Try it on Binder #

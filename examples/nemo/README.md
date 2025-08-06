@@ -55,7 +55,7 @@ Contains:
 ## Scripts
 
 Contains the scripts used to process the NEMO code base and to add profiling
-instrumentation (https://psyclone.readthedocs.io/en/stable/profiling.html)
+instrumentation (https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html)
 and OpenACC or OpenMP directives:
 
 1. `process_nemo.py` is a driver script that allows the user to specify

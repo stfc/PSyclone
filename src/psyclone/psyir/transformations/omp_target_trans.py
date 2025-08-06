@@ -106,40 +106,32 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         # next dependency so we can't add an asynchronous clause.
         if not next_depend:
             return
+        # As soon as we have a nowait target, we need to add a barrier
+        # at the end of the Routine.
+        containing_routine = instance.ancestor(Routine)
+        if not isinstance(containing_routine.children[-1],
+                          OMPTaskwaitDirective):
+            containing_routine.addchild(OMPTaskwaitDirective())
+
         # If find next_dependency returns True there is no follow up
-        # dependency, so we just need a barrier at the end of the containing
-        # Routine.
+        # dependency, so we don't need an additional barrier.
         if next_depend is True:
             # Add nowait to the instance.
             instance.nowait = True
-            # Add a barrier to the end of the containing Routine if there
-            # isn't one already.
-            containing_routine = instance.ancestor(Routine)
-            # Check barrier that corresponds to self.omp_directive and add the
-            # correct barrier type
-            if not isinstance(containing_routine.children[-1],
-                              OMPTaskwaitDirective):
-                containing_routine.addchild(OMPTaskwaitDirective())
             return
 
-        # Otherwise we have the next dependency and we need to find where the
-        # correct place for the preceding barrier is. Need to find a
+        # Otherwise we have the next dependencies and we need to find where
+        # the correct place for the preceding barrier is. Need to find a
         # guaranteed control flow path to place it.
-
-        # Find the deepest schedule in the tree containing both.
-        sched = next_depend.ancestor(Schedule, shared_with=instance)
-        routine = instance.ancestor(Routine)
-        if sched and (sched is routine or sched.is_descendent_of(routine)):
-            # Get the path from sched to next_depend
-            path = next_depend.path_from(sched)
+        for depend in next_depend:
+            # Find the deepest schedule in the tree containing both.
+            sched = depend.ancestor(Schedule, shared_with=instance)
+            # Get the path from sched to depend
+            path = depend.path_from(sched)
             # The first element of path is the position of the ancestor
             # of next_depend that is in sched, so we add the barrier there.
             sched.addchild(OMPTaskwaitDirective(), path[0])
-            instance.nowait = True
-
-        # If we didn't find anywhere to put the barrier then we just don't
-        # add the nowait.
-        # TODO #11: If we fail to have nowait added then log it
+        instance.nowait = True
 
     def validate(self, node, options=None):
         # pylint: disable=signature-differs

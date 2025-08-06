@@ -1350,12 +1350,9 @@ def test_lfrickernelargument_infer_field_datatype(monkeypatch, proxy):
     operator arguments.
 
     '''
-    if proxy:
-        proxy_str = "_proxy"
-    else:
-        proxy_str = ""
+    proxy_str = "_proxy" if proxy else ""
 
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=False).create(invoke_info)
@@ -1363,8 +1360,13 @@ def test_lfrickernelargument_infer_field_datatype(monkeypatch, proxy):
     schedule = invoke.schedule
     container_table = schedule.parent.symbol_table
     call = schedule[0].loop_body[0]
-    # Field argument.
+    # Field vector argument.
     arg = call.arguments.args[1]
+    dtype = arg.infer_datatype(proxy)
+    assert isinstance(dtype, ArrayType)
+    assert isinstance(dtype.intrinsic, DataTypeSymbol)
+    # Field argument.
+    arg = call.arguments.args[0]
     dtype = arg.infer_datatype(proxy)
     assert isinstance(dtype, DataTypeSymbol)
     assert dtype.name == f"field{proxy_str}_type"
@@ -1519,6 +1521,24 @@ def test_lfrickernelargument_psyir_expression(monkeypatch):
     assert isinstance(psyir.symbol.datatype, UnsupportedFortranType)
     assert isinstance(psyir.symbol.datatype.partial_datatype, ArrayType)
     assert len(psyir.symbol.datatype.partial_datatype.shape) == 3
+
+
+def test_arg_ensure_unique_name():
+    '''
+    Test that the _ensure_unique_name() method does its job when an argument
+    name would clash with a stencil name.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    first_arg = first_kernel.arguments.args[1]
+    assert first_arg._ensure_unique_name("nome") == "nome"
+    const = LFRicConstants()
+    name = const.STENCIL_MAPPING["cross"]
+    assert first_arg._ensure_unique_name(name) == name + "_arg"
 
 
 def test_arg_ref_name_method_error1():
