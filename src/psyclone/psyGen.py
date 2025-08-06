@@ -2665,7 +2665,6 @@ class TransInfo():
     def list(self):
         ''' return a string with a human readable list of the available
             transformations '''
-        import os
         if len(self._objects) == 1:
             result = "There is 1 transformation available:"
         else:

@@ -55,6 +55,7 @@ import pytest
 from fparser import api as fpapi
 from fparser.two import Fortran2003
 
+from psyclone import transformations
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
@@ -398,7 +399,6 @@ def test_valid_return_object_from_name():
 def test_find_subclasses():
     '''Test for the _find_subclasses() method.'''
     trans = TransInfo()
-    from psyclone import transformations
     # Check that the method does not include the legacy names for the
     # LFRic transformations.
     classes = trans._find_subclasses(transformations, Transformation)
@@ -407,8 +407,6 @@ def test_find_subclasses():
     # Check that the method finds at least one transformation we know about.
     # We don't check for every transformation as this would break every time
     # we added a new one.
-    from psyclone.psyir import transformations
-    classes = trans._find_subclasses(transformations, Transformation)
     assert "OMPLoopTrans" in [cls.__name__ for cls in classes]
 
 
