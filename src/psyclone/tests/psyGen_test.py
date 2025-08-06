@@ -55,6 +55,7 @@ import pytest
 from fparser import api as fpapi
 from fparser.two import Fortran2003
 
+from psyclone import transformations
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
@@ -66,7 +67,7 @@ from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
 from psyclone.parse.algorithm import parse, InvokeCall
-from psyclone.psyGen import (TransInfo, Transformation, PSyFactory,
+from psyclone.psyGen import (TransInfo, PSyFactory,
                              InlinedKern, object_index, HaloExchange, Invoke,
                              DataAccess, Kern, Arguments, CodedKern, Argument,
                              GlobalSum, InvokeSchedule)
@@ -84,7 +85,8 @@ from psyclone.transformations import (LFRicRedundantComputationTrans,
                                       LFRicKernelConstTrans,
                                       LFRicColourTrans,
                                       LFRicOMPLoopTrans,
-                                      OMPParallelTrans)
+                                      OMPParallelTrans,
+                                      Transformation)
 from psyclone.psyir.backend.visitor import VisitorError
 
 
@@ -392,6 +394,20 @@ def test_valid_return_object_from_name():
     trans = TransInfo()
     transform = trans.get_trans_name("ColourTrans")
     assert isinstance(transform, Transformation)
+
+
+def test_find_subclasses():
+    '''Test for the _find_subclasses() method.'''
+    trans = TransInfo()
+    # Check that the method does not include the legacy names for the
+    # LFRic transformations.
+    classes = trans._find_subclasses(transformations, Transformation)
+    for cls in classes:
+        assert "dynamo0p3" not in cls.__name__.lower()
+    # Check that the method finds at least one transformation we know about.
+    # We don't check for every transformation as this would break every time
+    # we added a new one.
+    assert "OMPLoopTrans" in [cls.__name__ for cls in classes]
 
 
 # Tests for class Invokes
