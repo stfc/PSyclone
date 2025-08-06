@@ -2130,7 +2130,7 @@ class Argument():
         called (in order to determine the values of precision,
         data_type and module_name).
 
-        :param arg_info: Information about this argument collected by \
+        :param arg_info: Information about this argument collected by
             the parser.
         :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
 
@@ -2158,22 +2158,10 @@ class Argument():
 
                 # Find the tag or create a new symbol with expected attributes
                 data_type = self.infer_datatype()
-                # In case of LFRic field vector, declare it as array.
-                # This is a fix for #1930, but we might want a better
-                # solution to avoid LFRic-specific code here.
-                # pylint: disable=no-member
-                if hasattr(self, 'vector_size') and self.vector_size > 1:
-                    data_type = ArrayType(data_type, [self.vector_size])
 
-                # Symbol imports for STENCILS are not yet in the symbol
-                # table (until lowering time), so make sure the argument
-                # names do not overlap with them
-                # pylint: disable=import-outside-toplevel
-                from psyclone.domain.lfric.lfric_constants import \
-                    LFRicConstants
-                const = LFRicConstants()
-                if self._orig_name.upper() in const.STENCIL_MAPPING.values():
-                    self._orig_name = self._orig_name + "_arg"
+                # Ensure that the symbol will have a unique name in the final
+                # PSy routine.
+                self._orig_name = self._ensure_unique_name(self._orig_name)
 
                 new_argument = symtab.find_or_create_tag(
                     tag, root_name=self._orig_name, symbol_type=DataSymbol,
@@ -2187,6 +2175,21 @@ class Argument():
                         new_argument not in previous_arguments):
                     symtab.specify_argument_list(previous_arguments +
                                                  [new_argument])
+
+    @classmethod
+    def _ensure_unique_name(cls, name: str) -> str:
+        '''
+        Given the proposed argument name, returns a new name that will be
+        unique in the final PSy routine.
+
+        This base implementation just returns the supplied name unchanged.
+
+        :param name: the proposed name of a kernel argument.
+
+        :returns: a new name for the kernel argument.
+
+        '''
+        return name
 
     @abc.abstractmethod
     def psyir_expression(self):
