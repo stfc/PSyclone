@@ -118,8 +118,6 @@ if ASYNC_PARALLEL:
     # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
     # (often invalid pointer dereference) in get_cstrgsurf
     OFFLOADING_ISSUES.append("sbcclo.f90")
-    # Found a nowait with no barrier satisfying its dependency
-    OFFLOADING_ISSUES.append("lbcnfd.f90")
 
 
 def trans(psyir):
