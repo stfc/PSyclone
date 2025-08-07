@@ -246,6 +246,13 @@ def test_loop_str():
     assert "Loop[variable:'i', loop_type:'i-loop']\n" in out
     Loop.set_loop_type_inference_rules({})
 
+    # Add explicitly_private_symbols
+    var = DataSymbol("var", INTEGER_TYPE)
+    var2 = DataSymbol("var2", INTEGER_TYPE)
+    loop.explicitly_private_symbols.add(var)
+    loop.explicitly_private_symbols.add(var2)
+    assert ", explicit_private_symbols:['var', 'var2']" in str(loop)
+
 
 def test_loop_independent_iterations():
     '''Test the independent_iterations method of Loop.'''

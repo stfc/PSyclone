@@ -38,8 +38,10 @@
 
 import pytest
 
+from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.psyir.nodes import (
-        Assignment, IfBlock, Loop, OMPParallelDoDirective, Routine, WhileLoop
+    Assignment, IfBlock, Loop, OMPParallelDoDirective, Routine, WhileLoop,
+    Literal
 )
 from psyclone.psyir.transformations import (
     ParallelLoopTrans, TransformationError)
@@ -662,6 +664,73 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
         trans.apply(loop, {"privatise_arrays": 3})
     assert ("The 'privatise_arrays' option must be a bool but got an object "
             "of type int" in str(err.value))
+
+
+def test_paralooptrans_array_privatisation_complex_control_flow(
+        fortran_reader, fortran_writer):
+    '''
+    Check that the 'privatise_arrays' transformation option allows to ignore
+    write-write dependencies by setting the associated variable as 'private'
+    when the loop has complex control flows (with branches and outer loops).
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer ji, jj, i
+          real :: var1(10,10)
+          real :: ztmp(10)
+          real :: ztmp2(10)
+          var1 = 1.0
+          ztmp2 = 1.0
+
+          if (i == 1) then
+              do ji = 1, 10
+                do jj = 1, 10
+                  ztmp(jj) = 3
+                end do
+                do jj = 1, 10
+                  var1(ji, jj) = ztmp(jj) * 2
+                end do
+              end do
+          else
+              do ji = 1, 10
+                do jj = 1, 10
+                  var1(ji, jj) = ztmp(jj) * 2
+                end do
+              end do
+          endif
+        end subroutine my_sub''')
+
+    loop = psyir.walk(Loop, stop_type=Loop)[0]
+    trans = ParaTrans()
+
+    # By default this can not be parallelised because 'ztmp' has a write-write
+    # race condition in the outer loops
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop)
+    assert ("ztmp(jj)\' causes a write-write race condition."
+            in str(err.value))
+
+    # It should succeed if we enable array privatisation
+    trans.validate(loop, {"privatise_arrays": True})
+
+    # Doing the same but with an outer loop around, it must fails because now
+    # it can loop back to the references in each of the branche
+    routine = psyir.children[0]
+    children = routine.pop_all_children()
+    routine.addchild(Loop.create(routine.symbol_table.lookup("i"),
+                                 Literal("1", INTEGER_TYPE),
+                                 Literal("2", INTEGER_TYPE),
+                                 Literal("1", INTEGER_TYPE),
+                                 children))
+
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop, {"privatise_arrays": True})
+    assert ("write-write dependency in 'ztmp' cannot be solved by array "
+            "privatisation" in str(err.value))
+
+    # But it is fine when explicitly requesting the symbol to be private
+    loop.explicitly_private_symbols.add(loop.scope.symbol_table.lookup("ztmp"))
+    trans.validate(loop, {"privatise_arrays": True})
 
 
 def test_parallel_loop_trans_find_next_dependency(fortran_reader):

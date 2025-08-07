@@ -159,6 +159,19 @@ def test_intrinsiccall_is_available_on_device(intrinsic, result):
     assert intrinsic_call.is_available_on_device('nvfortran-all') is result
 
 
+def test_intrinsiccall_reductions_is_available_on_device():
+    '''Tests that the is_available_on_device() refuses reduction intrinsics
+    with optional arguments'''
+    intrinsic_call = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
+    intrinsic_call.addchild(Reference(DataSymbol("result", REAL_TYPE)))
+    # This is avaliabe on the device
+    assert intrinsic_call.is_available_on_device()
+    # But not when it has more arguments as it sometimes fails for complex
+    # reductions with arguments
+    intrinsic_call.addchild(Literal("1", INTEGER_TYPE))
+    assert not intrinsic_call.is_available_on_device()
+
+
 def test_intrinsiccall_is_available_on_device_with_device_string():
     '''Tests that the is_available_on_device() method with a device_string
     argument provides different results with the 'nvfortran-uniform'

@@ -476,6 +476,10 @@ class Loop(Statement):
             result += "variable:None"
         if self.loop_type:
             result += f", loop_type:'{self.loop_type}'"
+        if self._explicitly_private_symbols:
+            sym_names = sorted([symbol.name for symbol in
+                                self._explicitly_private_symbols])
+            result += f", explicit_private_symbols:{sym_names}"
         result += "]\n"
         for entity in self._children:
             result += str(entity) + "\n"
