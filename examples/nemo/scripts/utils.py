@@ -530,8 +530,11 @@ def insert_explicit_loop_parallelism(
     # If we are adding asynchronous parallelism then we now try to minimise
     # the number of barriers.
     if asynchronous_parallelism:
-        minsync_trans = OMPMinimiseSyncTrans()
-        minsync_trans.apply(schedule)
+        try:
+            minsync_trans = OMPMinimiseSyncTrans()
+            minsync_trans.apply(schedule)
+        except TransformationError as err:
+            print(err)
 
 
 def add_profiling(children: Union[List[Node], Schedule]):
