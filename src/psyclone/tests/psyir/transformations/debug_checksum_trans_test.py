@@ -76,8 +76,8 @@ def test_checksum(fortran_reader, fortran_writer, tmpdir):
 
   ! PSyclone DebugChecksumTrans-generated checksums
   PRINT *, "PSyclone checksums from test at line:", PSYCLONE_INTERNAL_line_ + 1
-  PRINT *, "b checksum", SUM(b(:100))
-  PRINT *, "a checksum", SUM(a(:100))"""
+  PRINT *, "b checksum", SUM(b(: 100))
+  PRINT *, "a checksum", SUM(a(: 100))"""
     assert correct in out
     assert Compile(tmpdir).string_compiles(out)
 

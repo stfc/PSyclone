@@ -41,13 +41,14 @@
 
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from psyclone.core.access_type import AccessType
 from psyclone.core.component_indices import ComponentIndices
+from psyclone.core.symbolic_maths import SymbolicMaths
 from psyclone.errors import InternalError
 if TYPE_CHECKING:  # pragma: no cover
-    from psyclone.psyir.nodes import Node
+    from psyclone.psyir.nodes import Node, Range
 
 
 class AccessInfo():
@@ -155,8 +156,10 @@ class AccessInfo():
         :rtype: :py:class:`psyclone.psyir.nodes.Node` '''
         return self._node
 
-    def coverage(self):
+    def coverage(self) -> list[Range]:
         '''
+        Computes the coverage of this variable in this access.
+
         '''
         from psyclone.psyir.nodes import Loop, Range, Reference
         from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -188,7 +191,12 @@ class AccessInfo():
                         stop = loop_vars[ref.symbol][1].copy()
                         break
                     ref.replace_with(loop_vars[ref.symbol][1].copy())
-            shape.append(Range.create(start, stop))
+            if isinstance(start, Range) and start == stop:
+                # This index is already Range with no dependence on a loop
+                # variable.
+                shape.append(start)
+            else:
+                shape.append(Range.create(start, stop))
         return shape
 
     @property
@@ -431,16 +439,20 @@ class SingleVariableAccessInfo():
         # The index variable is not used in any index in any access:
         return False
 
-    def written_shape(self):
+    def written_shape(self) -> List[Range]:
         '''
-        Returns the lower and upper bounds of all write accesses to this
-        variable.
+        Returns the minimum lower and maximum upper bounds of all write
+        accesses to this variable.
 
         '''
-        from psyclone.psyir.nodes import IntrinsicCall, Range
+        from psyclone.psyir.nodes import (
+            Assignment, IntrinsicCall, Range, Reference, Schedule)
+        from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
         all_lower_bounds = None
         all_upper_bounds = None
+        parent_node = None
         for access in self.all_write_accesses:
+            parent_node = access.node.ancestor(Schedule)
             shape = access.coverage()
             if not all_lower_bounds and shape:
                 all_lower_bounds = [len(shape)*[]]
@@ -449,6 +461,15 @@ class SingleVariableAccessInfo():
                 all_lower_bounds[idx].append(bounds.start.copy())
                 all_upper_bounds[idx].append(bounds.stop.copy())
         shape = []
+
+        if not all_lower_bounds:
+            # No bounds were found for any write access.
+            return shape
+
+        symmaths = SymbolicMaths.get()
+        table = parent_node.scope.symbol_table
+        fake_sym = table.new_symbol(symbol_type=DataSymbol,
+                                    datatype=INTEGER_TYPE)
         for idx, lbounds in enumerate(all_lower_bounds):
             if len(lbounds) == 1:
                 # We only have one lower/upper bound for this index so no
@@ -456,12 +477,27 @@ class SingleVariableAccessInfo():
                 shape.append(Range.create(lbounds[0],
                                           all_upper_bounds[idx][0]))
             else:
-                shape.append(
-                    Range.create(
-                        IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
-                                             lbounds),
-                        IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
-                                             all_upper_bounds[idx])))
+                # Lower bound is MIN[all-lower-bounds]
+                min_val = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
+                                               lbounds)
+                # Use Sympy to simplify the expression.
+                fake = Assignment.create(Reference(fake_sym), min_val)
+                parent_node.addchild(fake)
+                symmaths.expand(min_val)
+                min_val = fake.rhs.detach()
+                fake.detach()
+                # Upper bound is MAX[all-upper-bounds]
+                max_val = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                               all_upper_bounds[idx])
+                # Use Sympy to simplify the expression.
+                fake = Assignment.create(Reference(fake_sym), max_val)
+                parent_node.addchild(fake)
+                symmaths.expand(max_val)
+                max_val = fake.rhs.detach()
+                fake.detach()
+
+                shape.append(Range.create(min_val, max_val))
+        table.remove(fake_sym)
         return shape
 
 

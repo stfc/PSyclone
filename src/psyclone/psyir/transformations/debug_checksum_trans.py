@@ -192,12 +192,16 @@ PSYCLONE_INTERNAL_line_ + 1
                 array_bit = member
             else:
                 array_bit = copy
-            # Need to convert the ref to a full range variant.
+            # Need to convert the ref to a version with ranges.
             if hasattr(array_bit, "indices"):
                 shape = varinfo.written_shape()
                 for i in range(len(array_bit.indices)):
-                    # ARPDBG new_index = array_bit.get_full_range(i)
-                    array_bit.indices[i].replace_with(shape[i])
+                    if not shape or not shape[i]:
+                        # No bounds information so convert to a full-range.
+                        new_index = array_bit.get_full_range(i)
+                    else:
+                        new_index = shape[i]
+                    array_bit.indices[i].replace_with(new_index)
             # Optimise the use of fwriter by detaching the copied node from
             # its parent tree.
             copy.detach()
