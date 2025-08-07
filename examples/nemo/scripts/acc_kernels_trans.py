@@ -449,13 +449,16 @@ def trans(psyir):
             enhance_tree_information(subroutine)
             # inline_calls(subroutine)
             have_kernels = add_kernels(subroutine.children)
-            if have_kernels and subroutine.name.lower() not in DEBUGCHECKSUM_IGNORE:
+            #if have_kernels and subroutine.name.lower() not in DEBUGCHECKSUM_IGNORE:
                 #if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
-                directives = subroutine.walk(ACCKernelsDirective)
-                for directive in directives:
+                    #directives = subroutine.walk(ACCKernelsDirective)
+                #for directive in directives:
                     #ACC_DATA_TRANS.apply([directive])
-                    CHECKSUM_TRANS.apply([directive])
-                print(f"Transforming {subroutine.name} with acc checksum")
+                    #try:
+                    #    CHECKSUM_TRANS.apply([directive])
+                    #except TransformationError:
+                    #    pass
+                #print(f"Transforming {subroutine.name} with acc checksum")
                 #ACC_EDATA_TRANS.apply(subroutine)
         else:
             print(

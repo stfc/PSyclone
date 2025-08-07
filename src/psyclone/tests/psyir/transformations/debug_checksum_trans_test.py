@@ -36,8 +36,11 @@
 
 ''' This module contains the tests for the DebugChecksumTrans.'''
 
-from psyclone.psyir.nodes import Routine
-from psyclone.psyir.transformations import DebugChecksumTrans
+import pytest
+
+from psyclone.psyir.nodes import Assignment, Routine
+from psyclone.psyir.transformations import (
+    DebugChecksumTrans, TransformationError)
 from psyclone.tests.utilities import Compile
 
 
@@ -144,8 +147,8 @@ end subroutine test
     ! PSyclone DebugChecksumTrans-generated checksums
     PRINT *, "PSyclone checksums from test_sub at line:", \
 PSYCLONE_INTERNAL_line_ + 1
-    PRINT *, "values%s%j checksum", SUM(values % s % j(1 : 100))
     PRINT *, "values%x checksum", SUM(values % x(1 : 100))
+    PRINT *, "values%s%j checksum", SUM(values % s % j(1 : 100))
     PRINT *, "values%i checksum", SUM(values % i(1 : 100))"""
     assert correct in out
 
@@ -182,3 +185,66 @@ PSYCLONE_INTERNAL_line_ + 1
   PRINT *, "a checksum", SUM(a(:))
   b(:) = 0"""
     assert correct in out
+
+
+def test_apply_repeated_writes(fortran_reader, fortran_writer, tmpdir):
+    '''
+    Test that we don't get duplicated output when the target region contains
+    more than one write to the same variable.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    program test_it
+      real, dimension(10) :: a, b, c
+
+      a(:) = 1.0
+      b(:) = a(:)
+      a(:) = 2.0
+      c = 3.0
+
+    end program test_it
+    ''')
+    routine = psyir.walk(Routine)[0]
+    DebugChecksumTrans().apply(routine)
+    out = fortran_writer(psyir)
+    assert 'PRINT *, "a checksum", SUM(a(:))' in out
+    assert 'PRINT *, "b checksum", SUM(b(:))' in out
+    assert 'PRINT *, "c checksum", SUM(c)' in out
+    assert out.count('PRINT *, "a checksum", SUM(a(:))') == 1
+    assert Compile(tmpdir).string_compiles(out)
+
+
+def test_validate_no_branch(fortran_reader):
+    '''
+    Check that we refuse to add a checksum when we can't be certain that an
+    array has been written to. (This is an issue because that in turn could
+    mean the array hasn't been allocated or initialised.)
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module test_mod
+      use some_mod, only: do_it
+    contains
+    subroutine a_test()
+      real :: a(10)
+      if (do_it) then
+        a(:) = 1.0
+      end if
+    end subroutine a_test
+    end module test_mod
+    ''')
+    # We can't apply the transformation to the whole body of the Routine
+    # as we don't know whether or not `a` is written.
+    routine = psyir.walk(Routine)[0]
+    with pytest.raises(TransformationError) as err:
+        DebugChecksumTrans().validate(routine)
+    assert ("Cannot compute checksum of 'a' because all writes to it ("
+            in str(err.value))
+    # But we can apply it inside the if block.
+    DebugChecksumTrans().validate(routine[0].if_body)
+    # Add an unconditional write to the same array.
+    assign = routine.walk(Assignment)[0]
+    routine.addchild(assign.copy())
+    # We should now be able to apply the transformation to the whole body
+    # of the Routine as there is a guaranteed write.
+    DebugChecksumTrans().validate(routine)

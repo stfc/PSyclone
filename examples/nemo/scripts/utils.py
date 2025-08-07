@@ -79,10 +79,11 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
 # function calls if the symbol is imported from some other module.
 # We therefore work-around this by keeping a list of known NEMO functions
 # from v4 and v5.
-DEBUGCHECKSUM_IGNORE = ['ldf_slp_init', 'dyn_spg_ts_init',
-                        'lbc_lnk_pt2pt_dp', 'dyn_vor_init', 'tke_tke',
-                        'p4z_fechem', 'p4z_micro', 'p4z_meso', 'tra_mle_trp_MLF',
-                        'tra_adv', "p4z_lys", "tra_adv_fct"]
+DEBUGCHECKSUM_IGNORE = [ ]
+#DEBUGCHECKSUM_IGNORE = ['ldf_slp_init', 'dyn_spg_ts_init',
+#                        'lbc_lnk_pt2pt_dp', 'dyn_vor_init', 'tke_tke',
+#                        'p4z_fechem', 'p4z_micro', 'p4z_meso', 'tra_mle_trp_MLF',
+#                        'tra_adv', "p4z_lys", "tra_adv_fct"]
 NEMO_FUNCTIONS = [
     # Internal funtions can be obtained with:
     # $ grep -rhi "end function" src/ | awk '{print $3}' | uniq | sort
