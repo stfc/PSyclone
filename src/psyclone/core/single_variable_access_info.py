@@ -155,6 +155,42 @@ class AccessInfo():
         :rtype: :py:class:`psyclone.psyir.nodes.Node` '''
         return self._node
 
+    def coverage(self):
+        '''
+        '''
+        from psyclone.psyir.nodes import Loop, Range, Reference
+        from psyclone.psyir.nodes.array_mixin import ArrayMixin
+        if not isinstance(self._node, ArrayMixin):
+            return []
+        # Construct a map of loop variables and their associated bounds.
+        loop_vars = {}
+        cursor = self._node.ancestor(Loop)
+        while cursor:
+            loop_vars[cursor.variable] = (cursor.start_expr, cursor.stop_expr,
+                                          cursor.step_expr)
+            cursor = cursor.ancestor(Loop)
+        shape = []
+        # For each index expression in this access, create new expressions
+        # substituting any loop variables with their min/max values from the
+        # associated loops.
+        for indx_exprn in self._node.indices:
+            start = indx_exprn.copy()
+            for ref in start.walk(Reference):
+                if ref.symbol in loop_vars:
+                    if ref is start:
+                        start = loop_vars[ref.symbol][0].copy()
+                        break
+                    ref.replace_with(loop_vars[ref.symbol][0].copy())
+            stop = indx_exprn.copy()
+            for ref in stop.walk(Reference):
+                if ref.symbol in loop_vars:
+                    if ref is stop:
+                        stop = loop_vars[ref.symbol][1].copy()
+                        break
+                    ref.replace_with(loop_vars[ref.symbol][1].copy())
+            shape.append(Range.create(start, stop))
+        return shape
+
     @property
     def description(self) -> str:
         '''
@@ -394,6 +430,39 @@ class SingleVariableAccessInfo():
 
         # The index variable is not used in any index in any access:
         return False
+
+    def written_shape(self):
+        '''
+        Returns the lower and upper bounds of all write accesses to this
+        variable.
+
+        '''
+        from psyclone.psyir.nodes import IntrinsicCall, Range
+        all_lower_bounds = None
+        all_upper_bounds = None
+        for access in self.all_write_accesses:
+            shape = access.coverage()
+            if not all_lower_bounds and shape:
+                all_lower_bounds = [len(shape)*[]]
+                all_upper_bounds = [len(shape)*[]]
+            for idx, bounds in enumerate(shape):
+                all_lower_bounds[idx].append(bounds.start.copy())
+                all_upper_bounds[idx].append(bounds.stop.copy())
+        shape = []
+        for idx, lbounds in enumerate(all_lower_bounds):
+            if len(lbounds) == 1:
+                # We only have one lower/upper bound for this index so no
+                # need for MIN/MAX
+                shape.append(Range.create(lbounds[0],
+                                          all_upper_bounds[idx][0]))
+            else:
+                shape.append(
+                    Range.create(
+                        IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
+                                             lbounds),
+                        IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                             all_upper_bounds[idx])))
+        return shape
 
 
 # ---------- Documentation utils -------------------------------------------- #

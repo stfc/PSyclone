@@ -45,11 +45,13 @@ from psyclone.tests.utilities import Compile
 
 
 def test_checksum(fortran_reader, fortran_writer, tmpdir):
-    ''' Test the behaviour of the debug_checksum_trans'''
+    '''Test the behaviour of the debug_checksum_trans. Includes check that
+    only the modified region of arrays are included.
 
+    '''
     code = """
     subroutine test
-        integer, dimension(1:100) :: a, b, c
+        integer, dimension(1:102) :: a, b, c
         logical, dimension(1:100) :: f
         integer :: i
         integer :: d
@@ -74,8 +76,8 @@ def test_checksum(fortran_reader, fortran_writer, tmpdir):
 
   ! PSyclone DebugChecksumTrans-generated checksums
   PRINT *, "PSyclone checksums from test at line:", PSYCLONE_INTERNAL_line_ + 1
-  PRINT *, "b checksum", SUM(b(:))
-  PRINT *, "a checksum", SUM(a(:))"""
+  PRINT *, "b checksum", SUM(b(:100))
+  PRINT *, "a checksum", SUM(a(:100))"""
     assert correct in out
     assert Compile(tmpdir).string_compiles(out)
 
