@@ -38,6 +38,8 @@
 ''' This module contains the Clause abstract node implementation. '''
 
 import abc
+from typing import Any
+
 from psyclone.psyir.nodes.node import Node
 
 
@@ -51,10 +53,9 @@ class Clause(Node, metaclass=abc.ABCMeta):
     _clause_string = None
 
     @property
-    def clause_string(self):
+    def clause_string(self) -> str:
         '''
         :returns: the base clause string for this Clause.
-        :rtype: str
         '''
         return self._clause_string
 
@@ -67,10 +68,8 @@ class OperandClause(Clause, metaclass=abc.ABCMeta):
     _operand = None
 
     @property
-    def operand(self):
+    def operand(self) -> Any:
         '''
-        Returns the operand string for this Clause.
-
-        :rtype: str
+        Returns the operand for this Clause.
         '''
         return self._operand

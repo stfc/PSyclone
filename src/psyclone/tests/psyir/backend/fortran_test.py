@@ -51,7 +51,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, Range, StructureReference,
     Schedule, Routine, Return, FileContainer, IfBlock, OMPTaskloopDirective,
     OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
-    OMPDependClause, IntrinsicCall)
+    OMPDependClause, IntrinsicCall, OMPReductionClause)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol, DataSymbol, GenericInterfaceSymbol,
     ImportInterface, RoutineSymbol, StaticInterface, Symbol, SymbolTable,
@@ -1963,6 +1963,10 @@ def test_fw_directive_with_clause(fortran_reader, fortran_writer):
   !$omp end taskloop
   !$omp end master
   !$omp end parallel''' in fortran_writer(container)
+    # Add a reduction clause with no children to ensure no output.
+    reduc = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.IEOR)
+    parallel.addchild(reduc)
+    assert "reduction" not in fortran_writer(container)
 
 
 def test_fw_standalonedirective(fortran_reader, fortran_writer):

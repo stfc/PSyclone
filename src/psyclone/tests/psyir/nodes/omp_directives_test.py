@@ -455,7 +455,8 @@ def test_omp_pdo_validate_child():
     prclause = OMPPrivateClause()
     fprclause = OMPFirstprivateClause()
     scclause = OMPScheduleClause()
-    reclause = OMPReductionClause()
+    reclause = OMPReductionClause(
+            operator=OMPReductionClause.ReductionClauseTypes.ADD)
 
     assert OMPParallelDoDirective._validate_child(0, sched) is True
     assert OMPParallelDoDirective._validate_child(1, declause) is True
@@ -1030,14 +1031,18 @@ def test_omp_parallel_validate_child():
     assert OMPParallelDirective._validate_child(0, Schedule()) is True
     assert OMPParallelDirective._validate_child(1, OMPDefaultClause()) is True
     assert OMPParallelDirective._validate_child(2, OMPPrivateClause()) is True
-    assert OMPParallelDirective._validate_child(3, OMPFirstprivateClause()) \
-        is True
-    assert OMPParallelDirective._validate_child(2, OMPReductionClause())\
-        is False
-    assert OMPParallelDirective._validate_child(4, OMPReductionClause())\
-        is True
-    assert OMPParallelDirective._validate_child(5, OMPReductionClause())\
-        is True
+    assert (OMPParallelDirective._validate_child(3, OMPFirstprivateClause())
+            is True)
+    assert (OMPParallelDirective._validate_child(2, OMPReductionClause(
+                operator=OMPReductionClause.ReductionClauseTypes.ADD))
+            is False)
+    assert (OMPParallelDirective._validate_child(4, OMPReductionClause(
+                operator=OMPReductionClause.ReductionClauseTypes.ADD))
+            is True)
+    assert (OMPParallelDirective._validate_child(
+            5, OMPReductionClause(
+                operator=OMPReductionClause.ReductionClauseTypes.ADD))
+            is True)
     assert OMPParallelDirective._validate_child(0, OMPDefaultClause()) is False
     assert OMPParallelDirective._validate_child(6, "test") is False
 
