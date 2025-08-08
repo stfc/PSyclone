@@ -186,8 +186,8 @@ class OMPPrivateClause(Clause):
     def _clause_string(self) -> bool:
         '''
         :returns: the string that represents this clause in OpenMP (i.e.
-                "private"). Returns an empty string to avoid generation of
-                code if this clause has no children.
+                  "private"). Returns an empty string to avoid generation of
+                  code if this clause has no children.
         '''
         if len(self.children) > 0:
             return "private"
@@ -486,7 +486,7 @@ class OMPDependClause(OperandClause):
 
         :returns: a text description of this node.
         '''
-        return (self.coloured_name(colour) +
+        return (f"{self.coloured_name(colour)}"
                 f"[operand={str(self._operand)}]")
 
 
@@ -575,6 +575,6 @@ class OMPReductionClause(OperandClause):
 
         :returns: a text description of this node.
         '''
-        return (self.coloured_name(colour) +
-                f"[operand={str(self._operand.name).lower()}: " +
+        return (f"{self.coloured_name(colour)}"
+                f"[operand={str(self._operand.name).lower()}: "
                 f"{str(self.children)}]")

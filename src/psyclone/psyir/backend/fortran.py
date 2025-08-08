@@ -1638,7 +1638,7 @@ class FortranWriter(LanguageWriter):
 
         result = node.clause_string
 
-        result = result + "(" + _operand_to_f_str[node.operand] + ": "
+        result = result + f"({_operand_to_f_str[node.operand]}: "
 
         child_list = []
         for child in node.children:

@@ -131,6 +131,10 @@ def test_default_clause():
             "OMPDefaultClause.DefaultClauseTypes but found 'str'" in
             str(excinfo.value))
 
+    coloredtext = colored("OMPDefaultClause", OMPDefaultClause._colour)
+    assert (coloredtext+"[default=DefaultClauseTypes.FIRSTPRIVATE]"
+            in default.node_str())
+
 
 def test_shared_clause():
     ''' Test the OMPSharedClause functionality. '''
