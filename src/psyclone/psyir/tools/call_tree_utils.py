@@ -37,6 +37,8 @@
 ''' This module provides tools to analyse the sequence of calls
 across different subroutines and modules.'''
 
+import logging
+
 from psyclone.core import Signature, VariablesAccessMap
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
@@ -286,6 +288,7 @@ class CallTreeUtils():
         # the right accesses (functions or variables) will be used.
         todo = []
         mod_manager = ModuleManager.get()
+        logger = logging.getLogger(__name__)
         for node in node_list:
             # TODO #2494 - we need to support calls in order to work for
             # generic PSyIR.
@@ -299,36 +302,36 @@ class CallTreeUtils():
                 try:
                     mod_info = mod_manager.get_module_info(kernel.module_name)
                 except FileNotFoundError as err:
-                    # TODO #11: Add proper logging
                     # TODO #2120: Handle error
-                    print(f"[CallTreeUtils.get_non_local_read_write_info] "
-                          f"Could not find module '{kernel.module_name}' - "
-                          f"ignored.")
-                    # This includes the currently defined search path:
-                    print(str(err))
+                    logger.warning(
+                        "[CallTreeUtils.get_non_local_read_write_info] "
+                        "Could not find module '%s' - "
+                        "ignored.\n%s", kernel.module_name, str(err))
                     continue
 
                 # Get the Container for this module.
                 cntr = mod_info.get_psyir()
                 if not cntr:
-                    print(f"[CallTreeUtils.get_non_local_read_write_info] "
-                          f"Could not get PSyIR for module "
-                          f"'{kernel.module_name}' - ignored.")
+                    logger.warning(
+                        "[CallTreeUtils.get_non_local_read_write_info] "
+                        "Could not get PSyIR for module "
+                        "'%s' - ignored.", kernel.module_name)
                     continue
                 all_possible_routines = cntr.resolve_routine(kernel.name)
                 if not all_possible_routines:
-                    print(f"[CallTreeUtils.get_non_local_read_write_info] "
-                          f"Could not get PSyIR for Routine "
-                          f"'{kernel.name}' from module "
-                          f"'{kernel.module_name}' as no possible routines "
-                          f" were found - ignored.")
+                    logger.warning(
+                        "[CallTreeUtils.get_non_local_read_write_info] "
+                        "Could not get PSyIR for Routine '%s' from module "
+                        "'%s' as no possible routines  were found - ignored.",
+                        kernel.name, kernel.module_name)
                 for routine_name in all_possible_routines:
                     psyir = cntr.find_routine_psyir(routine_name)
                     if not psyir:
-                        print(f"[CallTreeUtils.get_non_local_read_write_info] "
-                              f"Could not get PSyIR for Routine "
-                              f"'{routine_name}' from module "
-                              f"'{kernel.module_name}' - ignored.")
+                        logger.warning(
+                            "[CallTreeUtils.get_non_local_read_write_info] "
+                            "Could not get PSyIR for Routine '%s' from module "
+                            "'%s' - ignored.", routine_name,
+                            kernel.module_name)
                         continue
                     todo.extend(self.get_non_local_symbols(psyir))
         return self._resolve_calls_and_unknowns(todo, read_write_info)
@@ -359,6 +362,7 @@ class CallTreeUtils():
         # pylint: disable=too-many-branches, too-many-locals
         # pylint: disable=too-many-statements
         mod_manager = ModuleManager.get()
+        logger = logging.getLogger(__name__)
         # Using a set here means that duplicated entries will automatically
         # be filtered out.
         in_vars = set()
@@ -373,24 +377,26 @@ class CallTreeUtils():
                 if module_name is None:
                     # We don't know where the subroutine comes from.
                     # For now ignore this
-                    # TODO #11: Add proper logging
                     # TODO #2120: Handle error
-                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                          f"Unknown routine '{signature[0]} - ignored.")
+                    logger.warning(
+                        "[CallTreeUtils._resolve_calls_and_unknowns] "
+                        "Unknown routine '%s - ignored.", signature[0])
                     continue
                 try:
                     mod_info = mod_manager.get_module_info(module_name)
                 except FileNotFoundError:
-                    # TODO #11: Add proper logging
                     # TODO #2120: Handle error
-                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                          f"Cannot find module '{module_name}' - ignored.")
+                    logger.warning(
+                        "[CallTreeUtils._resolve_calls_and_unknowns] "
+                        "Cannot find module '%s' - ignored.", module_name)
                     continue
                 cntr = mod_info.get_psyir()
                 if not cntr:
-                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                          f"Cannot get PSyIR for module '{module_name}' - "
-                          f"ignoring unknown symbol '{signature[0]}'.")
+                    logger.warning(
+                        "[CallTreeUtils._resolve_calls_and_unknowns] "
+                        "Cannot get PSyIR for module '%s' - "
+                        "ignoring unknown symbol '%s'.",
+                        module_name, signature[0])
                     continue
                 # Check that we find at least one valid routine (several
                 # could be found in case of a generic interface):
@@ -398,11 +404,11 @@ class CallTreeUtils():
                 for routine_name in cntr.resolve_routine(signature[0]):
                     routine = cntr.find_routine_psyir(routine_name)
                     if not routine:
-                        # TODO #11: Add proper logging
                         # TODO #2120: Handle error
-                        print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                              f"Cannot find routine '{routine_name}' in module"
-                              f" '{module_name}' - ignored.")
+                        logger.warning(
+                            "[CallTreeUtils._resolve_calls_and_unknowns] "
+                            "Cannot find routine '%s' in module"
+                            " '%s' - ignored.", routine_name, module_name)
                         continue
                     # Add the list of non-locals to our todo list:
                     outstanding_nonlocals.extend(
@@ -410,9 +416,10 @@ class CallTreeUtils():
                     at_least_one_routine_found = True
 
                 if not at_least_one_routine_found:
-                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                          f"Cannot resolve routine '{signature[0]}' in module "
-                          f"'{module_name}' - ignored.")
+                    logger.warning(
+                        "[CallTreeUtils._resolve_calls_and_unknowns] "
+                        "Cannot resolve routine '%s' in module "
+                        "'%s' - ignored.", signature[0], module_name)
                 continue
 
             if external_type == "unknown":
@@ -421,18 +428,20 @@ class CallTreeUtils():
                 try:
                     mod_info = mod_manager.get_module_info(module_name)
                 except FileNotFoundError:
-                    # TODO #11: Add proper logging
                     # TODO #2120: Handle error
-                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                          f"Cannot find module '{module_name}' - ignoring "
-                          f"unknown symbol '{signature}'.")
+                    logger.warning(
+                        "[CallTreeUtils._resolve_calls_and_unknowns] "
+                        "Cannot find module '%s' - ignoring "
+                        "unknown symbol '%s'.", module_name, signature)
                     continue
 
                 cntr = mod_info.get_psyir()
                 if not cntr:
-                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                          f"Cannot get PSyIR for module '{module_name}' - "
-                          f"ignoring unknown symbol '{signature}'.")
+                    logger.warning(
+                        "[CallTreeUtils._resolve_calls_and_unknowns] "
+                        "Cannot get PSyIR for module '%s' - "
+                        "ignoring unknown symbol '%s'.",
+                        module_name, signature)
                 else:
                     psyir = cntr.find_routine_psyir(str(signature))
                     if psyir:
@@ -449,8 +458,9 @@ class CallTreeUtils():
                     try:
                         sym = sym_tab.lookup(signature[0])
                     except KeyError:
-                        print(f"[CallTreeUtils._resolve_calls_and_unknowns]"
-                              f"Cannot find symbol '{signature[0]}'.")
+                        logger.warning(
+                            "[CallTreeUtils._resolve_calls_and_unknowns]"
+                            "Cannot find symbol '%s'.", signature[0])
                         continue
                     # Check if we have a generic interface (of a function):
                     if isinstance(sym, GenericInterfaceSymbol):
@@ -459,11 +469,11 @@ class CallTreeUtils():
                         for function_name in all_possible_routines:
                             psyir = cntr.find_routine_psyir(function_name)
                             if not psyir:
-                                print(f"[CallTreeUtils._resolve_calls_and_"
-                                      f"unknowns] Could not get PSyIR for "
-                                      f"Function '{function_name}' from "
-                                      f"module '{module_name}' - "
-                                      f"ignored.")
+                                logger.warning(
+                                    "[CallTreeUtils._resolve_calls_and_"
+                                    "unknowns] Could not get PSyIR for "
+                                    "Function '%s' from module '%s' - "
+                                    "ignored.", function_name, module_name)
                                 continue
                             outstanding_nonlocals.append(
                                 ("routine", module_name,
