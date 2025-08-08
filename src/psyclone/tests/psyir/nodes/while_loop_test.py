@@ -90,7 +90,7 @@ def test_whileloop_create_and_refence_accesses():
                       "  pmt = 1.0\n"
                       "end do\n")
     var_access_info = loop.reference_accesses()
-    assert (str(var_access_info)) == "pmt: WRITE, tmp: READ"
+    assert (str(var_access_info)) == "tmp: READ, pmt: WRITE"
 
 
 def test_whileloop_create_invalid():

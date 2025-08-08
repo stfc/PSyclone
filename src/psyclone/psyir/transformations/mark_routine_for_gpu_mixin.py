@@ -109,7 +109,7 @@ class MarkRoutineForGPUMixin:
             ktable = sched.symbol_table
             for sig in vam.all_signatures:
                 name = sig.var_name
-                first = vam[sig].all_accesses[0].node
+                first = vam[sig][0].node
                 if isinstance(first, (Symbol, DataType)):
                     table = ktable
                 else:

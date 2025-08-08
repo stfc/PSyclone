@@ -61,12 +61,12 @@ def test_variables_access_map():
     var_accesses.add_access(Signature("written"), AccessType.WRITE, node)
     var_accesses.add_access(Signature("read_written"), AccessType.WRITE, node)
     var_accesses.add_access(Signature("read_written"), AccessType.READ, node)
-    assert str(var_accesses) == "read: READ, read_written: READ+WRITE, "\
-                                "written: WRITE"
+    assert (str(var_accesses) ==
+            "read: READ, written: WRITE, read_written: WRITE+READ")
     assert set(var_accesses.all_signatures) == set([Signature("read"),
                                                     Signature("written"),
                                                     Signature("read_written")])
-    all_accesses = var_accesses[Signature("read")].all_accesses
+    all_accesses = var_accesses[Signature("read")]
     assert all_accesses[0].node == node1
 
     # Create a new instance
@@ -76,8 +76,9 @@ def test_variables_access_map():
 
     # Now merge the new instance with the previous instance:
     var_accesses.update(var_accesses2)
-    assert str(var_accesses) == "new_var: READ, read: READ, " \
-                                "read_written: READ+WRITE, written: READ+WRITE"
+    assert (str(var_accesses) ==
+            "read: READ, written: WRITE+READ, read_written: WRITE+READ, "
+            "new_var: READ")
 
 
 # -----------------------------------------------------------------------------
@@ -155,7 +156,7 @@ def test_variables_access_map_update():
     var_accesses1.add_access(Signature("d"), AccessType.READ, node)
     var_accesses1.add_access(Signature("c"), AccessType.WRITE, node)
     c_accesses = var_accesses1[Signature("c")]
-    assert len(c_accesses.all_accesses) == 1
+    assert len(c_accesses) == 1
     assert c_accesses[0].access_type == AccessType.WRITE
 
     # First create one instance representing for example:
@@ -187,9 +188,9 @@ def test_constructor(fortran_reader):
     node1 = assignments[0]
     node2 = assignments[1]
     vai1 = node1.reference_accesses()
-    assert str(vai1) == "a: WRITE, b: READ, c: READ"
+    assert str(vai1) == "b: READ, c: READ, a: WRITE"
     vai1.update(node2.reference_accesses())
-    assert str(vai1) == "a: READ+WRITE, b: READ, c: READ+WRITE"
+    assert str(vai1) == "b: READ, c: READ+WRITE, a: WRITE+READ"
 
 
 # -----------------------------------------------------------------------------
@@ -209,7 +210,7 @@ def test_derived_type_scalar(fortran_reader):
         end module test'''
     node1 = fortran_reader.psyir_from_source(code).walk(Assignment)[0]
     vai1 = node1.reference_accesses()
-    assert str(vai1) == "a%b: WRITE, b%c: READ, c%d%e: READ"
+    assert str(vai1) == "b%c: READ, c%d%e: READ, a%b: WRITE"
 
 
 # -----------------------------------------------------------------------------
@@ -264,7 +265,11 @@ def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
 
     node1 = fortran_reader.psyir_from_source(code).walk(Assignment)[0]
     vai1 = node1.reference_accesses()
-    assert str(vai1) == "a%b%c: READ, c%e: WRITE, i: READ, j: READ, k: READ"
+    assert "a%b%c: READ" in str(vai1)
+    assert "c%e: WRITE" in str(vai1)
+    assert "i: READ" in str(vai1)
+    assert "j: READ" in str(vai1)
+    assert "k: READ" in str(vai1)
 
     # Verify that the index expression is correct. Convert the index
     # expression to a list of list of strings to make this easier:
@@ -348,7 +353,7 @@ def test_variables_access_map_shape_bounds(fortran_reader, function):
 
     # Array-shape accesses are 'inquiry'
     vam = node1.reference_accesses()
-    assert str(vam) == "a: NO_DATA_ACCESS, n: WRITE"
+    assert str(vam) == "a: INQUIRY, n: WRITE"
 
 
 # -----------------------------------------------------------------------------
@@ -360,11 +365,10 @@ def test_variables_access_map_domain_loop():
     _, invoke = get_invoke("25.1_kern_two_domain.f90", "lfric", idx=0)
     vam = invoke.schedule.reference_accesses()
     assert str(vam) == (
-        "a: READ, b: READ, f1_data: READWRITE, f2_data: "
-        "READWRITE, field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, "
-        "map_w3: READ, ncell_2d_no_halos: "
-        "READ, ndf_w3: READ, nlayers_f1: READ, nlayers_f2: READ, "
-        "r_def: NO_DATA_ACCESS, undf_w3: READ")
+        "field_type: TYPE_INFO, i_def: TYPE_INFO, r_def: TYPE_INFO, a: READ, "
+        "b: READ, f1_data: READWRITE, f2_data: READWRITE, map_w3: READ, "
+        "ncell_2d_no_halos: READ, ndf_w3: READ, nlayers_f1: READ, nlayers_f2: "
+        "READ, undf_w3: READ")
 
 
 # -----------------------------------------------------------------------------
@@ -382,14 +386,12 @@ def test_lfric_access_map():
     # reported as variables in the access list (but that the associated
     # precisions are):
     assert (
-        "basis_w1_qr: READ, basis_w3_qr: READ, cell: READ+WRITE, "
-        "diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, f1_data: "
-        "READ+WRITE, f2_data: READ, field_type: NO_DATA_ACCESS, i_def: "
-        "NO_DATA_ACCESS, m1_data: READ, "
-        "m2_data: READ, map_w1: READ, map_w2: READ, map_w3: READ, ndf_w1: "
-        "READ, ndf_w2: READ, ndf_w3: READ, nlayers_f1: READ, np_xy_qr: READ, "
-        "np_z_qr: READ, quadrature_xyoz_type: NO_DATA_ACCESS, "
-        "r_def: NO_DATA_ACCESS, undf_w1: READ, undf_w2: READ, "
-        "undf_w3: READ, uninitialised_loop0_start: READ, "
-        "uninitialised_loop0_stop: READ, "
-        "weights_xy_qr: READ, weights_z_qr: READ" == str(vam))
+        "field_type: TYPE_INFO, i_def: TYPE_INFO, quadrature_xyoz_type: "
+        "TYPE_INFO, r_def: TYPE_INFO, basis_w1_qr: READ, basis_w3_qr: READ, "
+        "cell: WRITE+READ, diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, "
+        "f1_data: INC, f2_data: READ, m1_data: READ, m2_data: READ, map_w1: "
+        "READ, map_w2: READ, map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3:"
+        " READ, nlayers_f1: READ, np_xy_qr: READ, np_z_qr: READ, undf_w1: "
+        "READ, undf_w2: READ, undf_w3: READ, uninitialised_loop0_start: READ, "
+        "uninitialised_loop0_stop: READ, weights_xy_qr: READ, weights_z_qr: "
+        "READ" == str(vam))

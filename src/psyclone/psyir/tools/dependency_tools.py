@@ -43,7 +43,7 @@ from enum import IntEnum
 import sympy
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType, Signature, SymbolicMaths
+from psyclone.core import AccessType, Signature, SymbolicMaths, AccessInfo
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -638,7 +638,7 @@ class DependencyTools():
         :type loop_variables: List[str]
         :param var_info: access information for this variable.
         :type var_info:
-            :py:class:`psyclone.core.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.AccessSequence`
 
         :return: whether the variable can be used in parallel.
         :rtype: bool
@@ -733,33 +733,31 @@ class DependencyTools():
         return True
 
     # -------------------------------------------------------------------------
-    def _is_scalar_parallelisable(self, var_info):
+    def _is_scalar_parallelisable(self, access_info: AccessInfo):
         '''Checks if the accesses to the given scalar variable can be
         parallelised, i.e. it is not a reduction.
 
-        :param var_info: the access information for the variable to test.
-        :type var_info: :py:class:`psyclone.core.var_info.VariableInfo`
+        :param access_info: the access information for the variable to test.
         :return: True if the scalar variable is not a reduction, i.e. it
             can be parallelised.
         :rtype: bool
         '''
 
         # Read only scalar variables can be parallelised
-        if var_info.is_read_only():
+        if access_info.is_read_only():
             return True
 
-        all_accesses = var_info.all_accesses
-        if len(all_accesses) == 1:
+        if len(access_info) == 1:
             # The variable is used only once. Either it is a read-only
             # variable, or it is supposed to store the result from the loop to
             # be used outside of the loop (or it is bad code). Read-only access
             # has already been tested above, so it must be a write access here,
             # which prohibits parallelisation.
             # We could potentially use lastprivate here?
-            self._add_message(f"Scalar variable '{var_info.var_name}' is "
-                              f"only written once.",
+            self._add_message(f"Scalar variable '{access_info.var_name}' "
+                              "is only written once.",
                               DTCode.WARN_SCALAR_WRITTEN_ONCE,
-                              [f"{var_info.var_name}"])
+                              [f"{access_info.var_name}"])
             return False
 
         # Now we have at least two accesses. If the first access is a WRITE,
@@ -768,16 +766,16 @@ class DependencyTools():
         # a 'READWRITE' access because, in that case, all we know is what the
         # kernel metadata tells us. However, we do know that such an access is
         # *not* a reduction because that would have 'SUM' access.
-        if all_accesses[0].access_type in (AccessType.WRITE,
-                                           AccessType.READWRITE):
+        if access_info[0].access_type in (AccessType.WRITE,
+                                          AccessType.READWRITE):
             return True
 
         # Otherwise there is a read first, which would indicate that this loop
         # is a reduction, which is not supported atm.
-        self._add_message(f"Variable '{var_info.var_name}' is read first, "
-                          f"which indicates a reduction.",
+        self._add_message(f"Variable '{access_info.var_name}' is read "
+                          f"first, which indicates a reduction.",
                           DTCode.WARN_SCALAR_REDUCTION,
-                          [var_info.var_name])
+                          [access_info.var_name])
         return False
 
     # -------------------------------------------------------------------------
@@ -836,7 +834,7 @@ class DependencyTools():
 
             # Access the symbol by inspecting the first access reference
             try:
-                symbol = var_info.all_accesses[0].node.symbol
+                symbol = var_info[0].node.symbol
             except AttributeError:
                 # If its a node without a symbol, look it up
                 var_name = signature.var_name
@@ -990,10 +988,10 @@ class DependencyTools():
 
         :param var_info1: access information for variable in the first loop.
         :type var_info1: \
-            :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.var_info.AccessSequence`
         :param var_info2: access information for variable in the second loop.
         :type var_info2: \
-            :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.var_info.AccessSequence`
         :param loop_variable1: symbol of the variable associated with the \
             first loop being fused.
         :type loop_variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -1007,7 +1005,7 @@ class DependencyTools():
 
         '''
         # pylint: disable=too-many-locals
-        all_accesses = var_info1.all_accesses + var_info2.all_accesses
+        all_accesses = var_info1 + var_info2
         loop_var_name1 = loop_variable1.name
         # Compare all accesses with the first one. If the loop variable
         # is used in a different subscript, raise an error. We test this

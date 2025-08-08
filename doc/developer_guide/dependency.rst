@@ -327,25 +327,23 @@ instance is holding information about. If the PSyIR tree is modified the
 store them.
 
 
-SingleVariableAccessInfo
-------------------------
-The values of the `VariablesAccessMap` map are `SingleVariableAccessInfo`,
-which contain the sequence of accesses to a single variable. When a new variable
-is detected when adding access information to a `VariablesAccessMap` instance
-via `add_access()`, a new instance of `SingleVariableAccessInfo` is added,
-which in turn stores all access to the specified variable.
+AccessSequence
+--------------
+The values of the `VariablesAccessMap` map are `AccessSequence`, which contain
+the sequence of accesses to a given variable. When a new variable is detected
+when adding access information to a `VariablesAccessMap` instance via the
+`add_access()` method, a new instance of `AccessSequence` is added,
+which in turn stores all accesses to the specified variable.
 
-.. autoclass:: psyclone.core.SingleVariableAccessInfo
+.. autoclass:: psyclone.core.AccessSequence
     :no-index:
     :members:
 
 AccessInfo
 ----------
-The class `SingleVariableAccessInfo` uses a list of
-`psyclone.core.AccessInfo` instances to store all
-accesses to a single variable. A new instance of `AccessInfo`
-is appended to the list whenever `add_access()`
-is called.
+The class `AccessSequence` is an ordered list of `psyclone.core.AccessInfo`
+instances to store all accesses to a single variable. A new instance of
+`AccessInfo` is appended to the list whenever `add_access()` is called.
 
 .. autoclass:: psyclone.core.AccessInfo
     :no-index:
@@ -481,20 +479,19 @@ thread-private. Note that this code does not handle the usage of
       # The `is_array_access` function will take information from
       # the access information as well as from the symbol table
       # into account.
-      access_info = var_accesses[signature]
+      access_sequence = var_accesses[signature]
       if symbol.is_array_access(access_info=access_info):
           # It's not a scalar variable, so it will not be private
           continue
 
       # If a scalar variable is only accessed once, it is either a coding
       # error or a shared variable - anyway it is not private
-      accesses = access_info.all_accesses
-      if len(accesses) == 1:
+      if len(access_sequence) == 1:
           continue
 
       # We have at least two accesses. If the first one is a write,
       # assume the variable should be private:
-      if accesses[0].access_type == AccessType.WRITE:
+      if access_sequence[0].access_type == AccessType.WRITE:
           print("Private variable", var_name)
           result.add(var_name.lower())
 

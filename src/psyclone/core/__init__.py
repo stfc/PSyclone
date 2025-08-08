@@ -37,8 +37,7 @@
 variable access information.
 '''
 
-from psyclone.core.single_variable_access_info import (
-    AccessInfo, SingleVariableAccessInfo)
+from psyclone.core.access_sequence import AccessInfo, AccessSequence
 from psyclone.core.variables_access_map import VariablesAccessMap
 from psyclone.core.access_type import AccessType
 from psyclone.core.component_indices import ComponentIndices
@@ -50,9 +49,9 @@ from psyclone.core.symbolic_maths import SymbolicMaths
 # this package e.g. 'from psyclone.core import Signature'
 __all__ = [
         'AccessInfo',
+        'AccessSequence',
         'AccessType',
         'ComponentIndices',
         'Signature',
-        'SingleVariableAccessInfo',
         'SymbolicMaths',
         'VariablesAccessMap']

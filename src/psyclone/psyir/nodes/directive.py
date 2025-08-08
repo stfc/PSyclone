@@ -100,7 +100,7 @@ class Directive(Statement, metaclass=abc.ABCMeta):
 
         for sig in var_info.all_signatures:
             vinfo = var_info[sig]
-            node = vinfo.all_accesses[0].node
+            node = vinfo[0].node
             sym = table.lookup(sig.var_name)
 
             if not vinfo.has_data_access():
