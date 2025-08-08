@@ -43,7 +43,7 @@ from enum import IntEnum
 import sympy
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType, Signature, SymbolicMaths
+from psyclone.core import AccessType, Signature, SymbolicMaths, AccessInfo
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -733,33 +733,31 @@ class DependencyTools():
         return True
 
     # -------------------------------------------------------------------------
-    def _is_scalar_parallelisable(self, access_sequence):
+    def _is_scalar_parallelisable(self, access_info: AccessInfo):
         '''Checks if the accesses to the given scalar variable can be
         parallelised, i.e. it is not a reduction.
 
-        :param access_sequence: the access information for the variable to
-            test.
-        :type access_sequence: :py:class:`psyclone.core.var_info.VariableInfo`
+        :param access_info: the access information for the variable to test.
         :return: True if the scalar variable is not a reduction, i.e. it
             can be parallelised.
         :rtype: bool
         '''
 
         # Read only scalar variables can be parallelised
-        if access_sequence.is_read_only():
+        if access_info.is_read_only():
             return True
 
-        if len(access_sequence) == 1:
+        if len(access_info) == 1:
             # The variable is used only once. Either it is a read-only
             # variable, or it is supposed to store the result from the loop to
             # be used outside of the loop (or it is bad code). Read-only access
             # has already been tested above, so it must be a write access here,
             # which prohibits parallelisation.
             # We could potentially use lastprivate here?
-            self._add_message(f"Scalar variable '{access_sequence.var_name}' "
+            self._add_message(f"Scalar variable '{access_info.var_name}' "
                               "is only written once.",
                               DTCode.WARN_SCALAR_WRITTEN_ONCE,
-                              [f"{access_sequence.var_name}"])
+                              [f"{access_info.var_name}"])
             return False
 
         # Now we have at least two accesses. If the first access is a WRITE,
@@ -768,16 +766,16 @@ class DependencyTools():
         # a 'READWRITE' access because, in that case, all we know is what the
         # kernel metadata tells us. However, we do know that such an access is
         # *not* a reduction because that would have 'SUM' access.
-        if access_sequence[0].access_type in (AccessType.WRITE,
-                                              AccessType.READWRITE):
+        if access_info[0].access_type in (AccessType.WRITE,
+                                          AccessType.READWRITE):
             return True
 
         # Otherwise there is a read first, which would indicate that this loop
         # is a reduction, which is not supported atm.
-        self._add_message(f"Variable '{access_sequence.var_name}' is read "
+        self._add_message(f"Variable '{access_info.var_name}' is read "
                           f"first, which indicates a reduction.",
                           DTCode.WARN_SCALAR_REDUCTION,
-                          [access_sequence.var_name])
+                          [access_info.var_name])
         return False
 
     # -------------------------------------------------------------------------

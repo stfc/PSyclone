@@ -39,6 +39,9 @@
 for a kernel subroutine.
 '''
 
+from typing import Optional
+
+from psyclone.core import VariablesAccessMap
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
@@ -471,8 +474,10 @@ class KernStubArgList(ArgOrdering):
         for rule in self._kern.qr_rules.values():
             self.extend(rule.kernel_args, var_accesses)
 
-    def indirection_dofmap(self, function_space, operator=None,
-                           var_accesses=None):
+    def indirection_dofmap(
+            self, function_space, operator=None,
+            var_accesses: Optional[VariablesAccessMap] = None
+    ):
         '''Add indirection dofmap required when applying a CMA operator. If
         supplied it also stores this access in var_accesses.
 
@@ -483,7 +488,6 @@ class KernStubArgList(ArgOrdering):
         :type operator: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises InternalError: if no kernel argument is supplied.
         :raises InternalError: if the supplied kernel argument is not a
