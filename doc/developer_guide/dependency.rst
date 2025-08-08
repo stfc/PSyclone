@@ -333,7 +333,7 @@ The values of the `VariablesAccessMap` map are `AccessSequence`, which contain
 the sequence of accesses to a given variable. When a new variable is detected
 when adding access information to a `VariablesAccessMap` instance via the
 `add_access()` method, a new instance of `AccessSequence` is added,
-which in turn stores all access to the specified variable.
+which in turn stores all accesses to the specified variable.
 
 .. autoclass:: psyclone.core.AccessSequence
     :no-index:

@@ -49,9 +49,9 @@ from psyclone.core.symbolic_maths import SymbolicMaths
 # this package e.g. 'from psyclone.core import Signature'
 __all__ = [
         'AccessInfo',
+        'AccessSequence',
         'AccessType',
         'ComponentIndices',
         'Signature',
-        'AccessSequence',
         'SymbolicMaths',
         'VariablesAccessMap']

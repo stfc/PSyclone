@@ -136,7 +136,7 @@ def test_variable_access_sequence():
     assert vam.is_written_first() is False
     assert vam.is_read() is False
 
-    assert not vam  # In python and empty list is falsy
+    assert not vam  # In python an empty list is falsy
     assert vam.all_read_accesses == []
     assert vam.all_write_accesses == []
     assert vam.signature == Signature("var_name")
