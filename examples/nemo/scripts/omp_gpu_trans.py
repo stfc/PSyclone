@@ -43,9 +43,10 @@ from utils import (
     normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
     NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.transformations import OMPTargetTrans
+from psyclone.psyir.transformations import (
+    OMPTargetTrans, OMPDeclareTargetTrans)
 from psyclone.transformations import (
-    OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
+    OMPLoopTrans, TransformationError)
 
 
 # This environment variable informs if profiling hooks have to be inserted.
