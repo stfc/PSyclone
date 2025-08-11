@@ -83,8 +83,8 @@ jobs:
         pip install .
         popd
 
-        # Now procss the extraction library in PSyclone, and overwrite the PYTHON_VERSION
-        # included in Fab:
+        # Now process the extraction library in PSyclone, and overwrite the
+        # psydata files included in Fab:
         pushd lfric-baf/infrastructure/build/psyclone/psydata/extract
         rm *90   # Delete the old files (in case that the names are changed)
         popd
