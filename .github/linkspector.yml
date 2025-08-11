@@ -7,6 +7,7 @@ ignorePatterns:
   - pattern: '^https://mybinder.org/v2/gh/stfc/psyclone'
   - pattern: '^https://codecov.io/gh/stfc/PSyclone'
   - pattern: '^https://code.metoffice.gov.uk/svn'
+  - pattern: '^https://code.metoffice.gov.uk/trac'
 replacementPatterns:
   - pattern: '^https:\/\/(psyclone.*\.readthedocs\.io\/en)\/stable$'
     replacement: 'https://$1/latest'
