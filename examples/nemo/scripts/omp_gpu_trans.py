@@ -43,9 +43,10 @@ from utils import (
     normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
     NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.transformations import OMPTargetTrans
+from psyclone.psyir.transformations import (
+    OMPTargetTrans, OMPDeclareTargetTrans)
 from psyclone.transformations import (
-    OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
+    OMPLoopTrans, TransformationError)
 
 
 # This environment variable informs if profiling hooks have to be inserted.
@@ -75,6 +76,7 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = [
     "vremap.f90",  # TODO #2772
+    "icefrm.f90",  # Has unsupportet implicit symbol declaration
 ]
 
 NEMOV5_EXCLUSIONS = []
@@ -110,6 +112,7 @@ OFFLOADING_ISSUES = [
     # asynchronicity.
     "fldread.f90",
     "trcatf.f90",
+    "zdfiwm.f90",
     "zdfsh2.f90",
 ]
 
