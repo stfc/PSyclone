@@ -235,4 +235,4 @@ class IncreaseRankLoopArraysTrans(Transformation):
                                         node.step_expr.copy()))
 
 
-_all__ = ["IncreaseRankLoopArraysTrans"]
+__all__ = ["IncreaseRankLoopArraysTrans"]

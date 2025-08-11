@@ -139,6 +139,7 @@ __all__ = [
     "HoistLocalArraysTrans",
     "HoistLoopBoundExprTrans",
     "HoistTrans",
+    "IncreaseRankLoopArraysTrans",
     "InlineTrans",
     "Abs2CodeTrans",
     "DotProduct2CodeTrans",
