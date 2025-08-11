@@ -1,3 +1,8 @@
+   71) PR #3062 for #2671. Improves the support for allowing arrays to be
+   declared thread private.
+
+   70) PR #2969 for #2902. Adds LFRic driver extraction integration tests.
+
    69) PR #3042 for #2971. Moves OMPDeclareTargetTrans and
    MarkRoutineForGPUMixin into psyir/transformations.
 
@@ -10,12 +15,12 @@
    66) PR #3039. Generalised loop tiling with examples
 
    65) PR #3077 for #3076. Small optimisation to avoid computing depth in
-   node.walk() unless it is required.   
+   node.walk() unless it is required.
 
    64) PR #3023 for #3012. Initial version of psyclonefc command
 
-   63) PR #2907 for #2878. Improves Extraction library output stats. 
-   
+   63) PR #2907 for #2878. Improves Extraction library output stats.
+
    62) PR #3058 for #3059. Update linkcheck parameters, fix links in docs
    and READMEs, update mentions of nan_check with value_range_check.
 
