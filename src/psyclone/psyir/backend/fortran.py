@@ -1603,20 +1603,20 @@ class FortranWriter(LanguageWriter):
                 f"Unsupported CodeBlock Structure '{node.structure}' found.")
         return result
 
-    def operandclause_node(self, node):
-        '''This method is called when a OperandClause is
+    def operatorclause_node(self, node):
+        '''This method is called when a OperatorClause is
         found in the PSyIR tree. It returns the clause and its children
         as a string.
 
-        :param node: an OperandClause PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.OperandClause`
+        :param node: an OperatorClause PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.OperatorClause`
 
         :returns: the Fortran code for this node.
         :rtype: str
 
         '''
-        # Map to convert operands to Fortran representations.
-        _operand_to_f_str = {
+        # Map to convert operators to Fortran representations.
+        _operator_to_f_str = {
             OMPDependClause.DependClauseTypes.IN: "in",
             OMPDependClause.DependClauseTypes.OUT: "out",
             OMPDependClause.DependClauseTypes.INOUT: "inout",
@@ -1638,7 +1638,7 @@ class FortranWriter(LanguageWriter):
 
         result = node.clause_string
 
-        result = result + f"({_operand_to_f_str[node.operand]}: "
+        result = result + f"({_operator_to_f_str[node.operator]}: "
 
         child_list = []
         for child in node.children:

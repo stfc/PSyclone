@@ -211,12 +211,12 @@ def test_depend_clause():
     dependout = OMPDependClause(
                     depend_type=OMPDependClause.DependClauseTypes.OUT)
     assert dependin != dependout
-    # Check operand
-    assert dependin.operand == OMPDependClause.DependClauseTypes.IN
-    assert dependout.operand == OMPDependClause.DependClauseTypes.OUT
-    assert depend1.operand == OMPDependClause.DependClauseTypes.INOUT
+    # Check operator
+    assert dependin.operator == OMPDependClause.DependClauseTypes.IN
+    assert dependout.operator == OMPDependClause.DependClauseTypes.OUT
+    assert depend1.operator == OMPDependClause.DependClauseTypes.INOUT
     coloredtext = colored("OMPDependClause", OMPDependClause._colour)
-    assert (coloredtext+"[operand=DependClauseTypes.INOUT]"
+    assert (coloredtext+"[operator=DependClauseTypes.INOUT]"
             in depend1.node_str())
 
 
@@ -238,17 +238,17 @@ def test_omp_reduction_clause():
             "OMPReductionClause.ReductionClauseTypes but found 'str'" in
             str(excinfo.value))
 
-    # Check .operand gives what is expected.
+    # Check .operator gives what is expected.
     reduc = OMPReductionClause(
             operator=OMPReductionClause.ReductionClauseTypes.ADD)
-    assert reduc.operand == OMPReductionClause.ReductionClauseTypes.ADD
+    assert reduc.operator == OMPReductionClause.ReductionClauseTypes.ADD
     # Check equality
     reduc2 = OMPReductionClause(
             operator=OMPReductionClause.ReductionClauseTypes.ADD)
     assert reduc == reduc2
 
     coloredtext = colored("OMPReductionClause", OMPReductionClause._colour)
-    assert (coloredtext + "[operand=add: []]" in reduc.node_str())
+    assert (coloredtext + "[operator=add: []]" in reduc.node_str())
 
 
 def test_reduction_validate_child():

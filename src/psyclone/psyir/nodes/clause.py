@@ -60,16 +60,16 @@ class Clause(Node, metaclass=abc.ABCMeta):
         return self._clause_string
 
 
-class OperandClause(Clause, metaclass=abc.ABCMeta):
+class OperatorClause(Clause, metaclass=abc.ABCMeta):
     '''
-    Base abstract class for all clauses that have an operand.
+    Base abstract class for all clauses that have an operator.
     '''
 
-    _operand = None
+    _operator = None
 
     @property
-    def operand(self) -> Any:
+    def operator(self) -> Any:
         '''
         Returns the operand for this Clause.
         '''
-        return self._operand
+        return self._operator

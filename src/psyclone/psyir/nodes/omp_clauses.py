@@ -38,7 +38,7 @@
 nodes.'''
 
 from enum import Enum
-from psyclone.psyir.nodes.clause import Clause, OperandClause
+from psyclone.psyir.nodes.clause import Clause, OperatorClause
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import Symbol
@@ -410,7 +410,7 @@ class OMPScheduleClause(Clause):
         return self.coloured_name(colour) + f"[schedule={self._schedule}]"
 
 
-class OMPDependClause(OperandClause):
+class OMPDependClause(OperatorClause):
     '''
     OpenMP Depend clause used for OpenMP Task directives.
 
@@ -439,7 +439,7 @@ class OMPDependClause(OperandClause):
                     "OMPDependClause expected 'depend_type' argument of type "
                     "OMPDependClause.DependClauseTypes but found "
                     f"'{type(depend_type).__name__}'")
-        self._operand = depend_type
+        self._operator = depend_type
         super().__init__(**kwargs)
 
     @staticmethod
@@ -458,16 +458,16 @@ class OMPDependClause(OperandClause):
         return isinstance(child, Reference)
 
     @property
-    def operand(self) -> DependClauseTypes:
+    def operator(self) -> DependClauseTypes:
         '''
-        :returns: the operand of this clause.
+        :returns: the operator of this clause.
         '''
-        return self._operand
+        return self._operator
 
     def __eq__(self, other) -> bool:
         '''Two OMPDependClause are equal if:
         1. Same type (OMPDependClause).
-        2. Same Operand
+        2. Same Operator
         3. Same number of children.
         4. Their children are equal.
 
@@ -476,7 +476,7 @@ class OMPDependClause(OperandClause):
         :returns: whether other is equal to self.
         '''
         is_eq = super().__eq__(other)
-        is_eq = is_eq and (self.operand == other.operand)
+        is_eq = is_eq and (self.operator == other.operator)
         return is_eq
 
     def node_str(self, colour=True) -> str:
@@ -487,10 +487,10 @@ class OMPDependClause(OperandClause):
         :returns: a text description of this node.
         '''
         return (f"{self.coloured_name(colour)}"
-                f"[operand={str(self._operand)}]")
+                f"[operator={str(self._operator)}]")
 
 
-class OMPReductionClause(OperandClause):
+class OMPReductionClause(OperatorClause):
     '''
     OpenMP Reduction clause.
 
@@ -528,7 +528,7 @@ class OMPReductionClause(OperandClause):
                     "OMPReductionClause expected 'operator' argument of type "
                     "OMPReductionClause.ReductionClauseTypes but found "
                     f"'{type(operator).__name__}'")
-        self._operand = operator
+        self._operator = operator
         super().__init__(**kwargs)
 
     @staticmethod
@@ -547,16 +547,16 @@ class OMPReductionClause(OperandClause):
         return isinstance(child, Reference)
 
     @property
-    def operand(self) -> ReductionClauseTypes:
+    def operator(self) -> ReductionClauseTypes:
         '''
         :returns: the operator of this clause.
         '''
-        return self._operand
+        return self._operator
 
     def __eq__(self, other) -> bool:
         '''Two OMPReductionClause are equal if:
         1. Same type (OMPReductionClause).
-        2. Same Operand
+        2. Same Operator
         3. Same number of children.
         4. Their children are equal.
 
@@ -565,7 +565,7 @@ class OMPReductionClause(OperandClause):
         :returns: whether other is equal to self.
         '''
         is_eq = super().__eq__(other)
-        is_eq = is_eq and (self.operand == other.operand)
+        is_eq = is_eq and (self.operator == other.operator)
         return is_eq
 
     def node_str(self, colour: bool = True) -> str:
@@ -576,5 +576,5 @@ class OMPReductionClause(OperandClause):
         :returns: a text description of this node.
         '''
         return (f"{self.coloured_name(colour)}"
-                f"[operand={str(self._operand.name).lower()}: "
+                f"[operator={str(self._operator.name).lower()}: "
                 f"{str(self.children)}]")
