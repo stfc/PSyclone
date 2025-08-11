@@ -44,14 +44,17 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import ArrayType, Symbol
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class IncreaseRankLoopArraysTrans(Transformation):
     ''' This transformation takes a loop and a list of arrays accessed inside
     the loop, and increases those arrays with an additional dimension with the
     size of the interation space. Then it indexes all accesses with the loop
     variable, so that each iteration accesses a unique location. Effectively
-    making the sub-array private for each iteration of the loop.
+    making the sub-array private for each iteration of the loop. It also
+    indexes all accesses outside the loop to iterate over the whole new rank.
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
@@ -62,6 +65,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
     ...     integer :: N=10, M=10
     ...     integer :: i, j
     ...     real, dimension(N) :: ztmp
+    ...     ztmp(:) = 0
     ...     do i = -5, M + 3
     ...         do j = 1, N
     ...             ztmp(j) = 1
@@ -83,6 +87,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
       integer :: j
       real, dimension(n,-5:m + 3) :: ztmp
     <BLANKLINE>
+      ztmp(:,:) = 0
       do i = -5, m + 3, 1
         do j = 1, n, 1
           ztmp(j,i) = 1
@@ -133,7 +138,8 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 f"The target Loop of the {self.name} transformation must be "
                 f"inside a Routine.")
 
-        # Check if the loop bound expressions are static
+        # Check if the loop bound expressions are static:
+        # First, find all Symbols accessed in the loop bounds.
         values_to_check = set()
         for ref in (node.start_expr.walk(Reference) +
                     node.stop_expr.walk(Reference)):
@@ -145,14 +151,17 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 if ref.parent.is_inquiry or ref.position == 0:
                     continue
             values_to_check.add(ref.symbol)
+        # Second, check that none of these Symbols are assigned to within the
+        # Routine
         for assignment in routine.walk(Assignment):
             if isinstance(assignment.lhs, Reference):
                 if assignment.lhs.symbol in values_to_check:
                     raise TransformationError(
                         f"{self.name} can only be applied to loops with static"
-                        f" loop bound expressions, but in has been attempted "
+                        f" loop bound expressions, but it has been attempted "
                         f"in a loop with the variable "
-                        f"'{assignment.lhs.symbol.name}'."
+                        f"'{assignment.lhs.symbol.name}' which is assigned to:"
+                        f" '{assignment.debug_string().strip()}'."
                     )
 
         # Capture all symbols used inside codeblocks, these are not permitted
@@ -165,9 +174,8 @@ class IncreaseRankLoopArraysTrans(Transformation):
         # string that resolves to it
         if not isinstance(arrays, list) or len(arrays) == 0:
             raise TransformationError(
-                f"{self.name} has a mandatory 'arrays' option that "
-                f"needs to be provided to inform what arrays needs their "
-                f"rank increased.")
+                f"{self.name} has a mandatory 'arrays' option that is required"
+                f" to specify which arrays are to have their rank increased.")
         for array in arrays:
             if isinstance(array, str):
                 try:
@@ -188,8 +196,6 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 raise TransformationError(
                     f"{self.name} does not support arrays that are referenced "
                     f"inside a Codeblock, but '{array.name}' is inside one.")
-            # TODO: check that the bound expressions are valid as static
-            # expressions in the declarations.
 
     def apply(
         self,
@@ -203,12 +209,14 @@ class IncreaseRankLoopArraysTrans(Transformation):
         :param arrays: list of arrays that will have the rank increased.
 
         '''
-        self.validate(node, arrays, **kwargs)
+        self.validate(node, arrays=arrays, **kwargs)
 
         for array in arrays:
             if isinstance(array, str):
                 array = node.scope.symbol_table.lookup(array, otherwise=None)
 
+            # Add an additional dimension to this array with the same bounds as
+            # the target Loop
             array.shape.append(
                 ArrayType.ArrayBounds(node.start_expr, node.stop_expr)
             )
@@ -216,7 +224,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
             for ref in array.find_symbol_table(node).node.walk(ArrayReference):
                 if ref.symbol is array:
                     if ref.is_descendent_of(node):
-                        # Inside the target loop index the reference to the
+                        # Inside the target loop index the reference using the
                         # loop variable
                         ref.addchild(Reference(node.variable))
                     else:

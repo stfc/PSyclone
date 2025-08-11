@@ -38,6 +38,7 @@
 import pytest
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import IncreaseRankLoopArraysTrans
+from psyclone.tests.utilities import Compile
 from psyclone.transformations import TransformationError
 
 
@@ -75,7 +76,7 @@ def test_irla_validate(fortran_reader):
     with pytest.raises(TransformationError) as err:
         trans.apply(routine.children[1])
     assert ("IncreaseRankLoopArraysTrans has a mandatory 'arrays' option "
-            "that needs to be provided to inform what arrays needs their "
+            "that is required to specify which arrays are to have their "
             "rank increased." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
@@ -100,7 +101,7 @@ def test_irla_validate(fortran_reader):
             " must be inside a Routine." in str(err.value))
 
 
-def test_irla_validate_bounds(fortran_reader):
+def test_irla_validate_bounds(fortran_reader, fortran_writer):
     ''' Check that the validate method checks if the loop bounds are static
     when possible. '''
     trans = IncreaseRankLoopArraysTrans()
@@ -131,8 +132,9 @@ def test_irla_validate_bounds(fortran_reader):
     with pytest.raises(TransformationError) as err:
         trans.apply(routine.walk(Loop)[0], arrays=['a'])
     assert ("IncreaseRankLoopArraysTrans can only be applied to loops with "
-            "static loop bound expressions, but in has been attempted "
-            "in a loop with the variable 'variable'." in str(err.value))
+            "static loop bound expressions, but it has been attempted "
+            "in a loop with the variable 'variable' which is assigned to: "
+            "'variable = 3'." in str(err.value))
 
     # This is fine
     trans.apply(routine.walk(Loop)[2], arrays=['a'])
@@ -167,12 +169,13 @@ def test_irla_apply(fortran_reader, fortran_writer):
     assert "ztmp(j,i) = ztmp(j,i) + 1" in code
 
 
-def test_irla_apply_accesses_outside_loop(fortran_reader, fortran_writer):
+def test_irla_apply_accesses_outside_loop(
+        fortran_reader, fortran_writer, tmpdir):
     ''' Check that the accesses outside the loop are also populate the whole
     array, this will imply duplicated computations for each value '''
     psyir = fortran_reader.psyir_from_source("""
      program test
-         integer :: N=10, M=10
+         integer, parameter :: N=10, M=10
          integer :: i, j
          real, dimension(N) :: ztmp
          ! Implicit loops
@@ -202,3 +205,4 @@ def test_irla_apply_accesses_outside_loop(fortran_reader, fortran_writer):
     # And the two inside the loop
     assert "ztmp(j,i) = ztmp(j,i) + 4" in code
     assert "ztmp(:,i) = 5" in code
+    assert Compile(tmpdir).string_compiles(code)

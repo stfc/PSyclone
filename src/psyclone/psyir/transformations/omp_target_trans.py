@@ -147,7 +147,7 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         :type options: Optional[Dict[str, Any]]
         :param str options["device_string"]: provide a compiler-platform
             identifier.
-        :param str options["allow_strings"]: prermit OMP target regions
+        :param str options["allow_strings"]: permit OMP target regions
             enclosing string operations.
         :param str options["verbose"]: insert preceding comments with the
             reason that made this validation fail.
