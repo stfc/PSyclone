@@ -1,0 +1,206 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2025, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author J. Henrichs, Bureau of Meteorology
+
+
+# This workflow will use a self-hosted runner to perform the more expensive
+# integrations tests that are not run on GHA systems.
+
+name: LFRic Extraction Tests
+
+on:
+  push
+
+jobs:
+  run_if_on_mirror:
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
+    runs-on: self-hosted
+    env:
+      LFRIC_APPS_REV: 7536
+      LFRIC_CORE_REV: 52054
+      PYTHON_VERSION: 3.13.3
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+        # This is required to get the commit history for merge commits for
+        # the ci-skip check below.
+        fetch-depth: '0'
+    - name: Check for [skip ci] in commit message
+      uses: mstachniuk/ci-skip@v1
+      with:
+        # This setting causes the tests to 'fail' if [skip ci] is specified
+        fail-fast: true
+        commit-filter: '[skip ci]'
+    - name: Install dependencies
+      run: |
+        # Use a specific version of Python (rather than the system-wide one).
+        module load python/${PYTHON_VERSION}
+        python -m venv .runner_venv
+        . .runner_venv/bin/activate
+        python -m pip install --upgrade pip
+        # Uncomment the below to use the submodule version of fparser rather
+        # than the latest release from pypi.
+        # pip install external/fparser
+        pip install .[test]
+        # Install BAF, and its version of Fab:
+        # ------------------------------------
+        git clone -b psyclone_ci_branch --recurse-submodules https://github.com/MetOffice/lfric-baf.git
+        # First install Fab:
+        pushd lfric-baf/fab
+        pip install .
+        popd
+
+        # Now process the extraction library in PSyclone, and overwrite the
+        # psydata files included in Fab:
+        pushd lfric-baf/infrastructure/build/psyclone/psydata/extract
+        rm *90   # Delete the old files (in case that the names are changed)
+        popd
+
+        # Create the new Fortran files, i.e. processing with Jinja2
+        pushd lib/extract/netcdf/lfric
+        # We need to use the new field types, so copy the newer version over
+        # the old version
+        # TODO 2623 - this will remove the old field types
+        cp kernel_data_netcdf.jinja-new-field-types kernel_data_netcdf.jinja
+        make read_kernel_data_mod.f90 compare_variables_mod.F90 extract_netcdf_base.F90 \
+             kernel_data_netcdf.f90 psy_data_base.f90 read_kernel_data_mod.f90
+        popd
+
+        # Copy the files into the LFRic Fab build system
+        cp lib/extract/netcdf/lfric/*90 lfric-baf/infrastructure/build/psyclone/psydata/extract
+
+
+    # Compile GungHo with extraction
+    - name: GungHo Extraction Compilation
+      run:  |
+        # Set up environment
+        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment%gcc@14
+        source .runner_venv/bin/activate
+        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
+        export COMPILER_PROFILE=fast-debug
+        export NUM_PROCS=6
+        export MAX_PROC=$((NUM_PROCS-1))
+
+        # Set the directory names for the extraction runs:
+        # -----------------------------------------------
+        export RUNDIR=${HOME}/LFRic/extraction_test
+        export LFRIC_CORE=${RUNDIR}/lfric_core_${LFRIC_CORE_REV}
+        export LFRIC_APPS=${RUNDIR}/lfric_apps_${LFRIC_APPS_REV}
+
+        # Copy the lfric source files (BAF copies files into the source tree)
+        # -------------------------------------------------------------------
+        rm -rf ${RUNDIR}
+        mkdir -p ${LFRIC_CORE} ${LFRIC_APPS}
+        cp -r ${HOME}/LFRic/lfric_core_${LFRIC_CORE_REV}/ ${RUNDIR}
+        cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}/ ${RUNDIR}
+
+        # Install the BAF scripts into the lfric directories:
+        # ---------------------------------------------------
+        cd lfric-baf
+        ./install.sh ${LFRIC_CORE} ${LFRIC_APPS}
+
+        # Copy the modified extraction script from PSyclone
+        # -------------------------------------------------
+        # This allows us to keep the extraction script working,
+        # even if we are using new features/names.
+        export EXTRACT_DIR=${LFRIC_APPS}/applications/gungho_model/optimisation/extract
+        # Note that this directory exists after the BAF installation
+        cp ${PSYCLONE_LFRIC_DIR}/extract_script.py ${EXTRACT_DIR}/global.py
+
+        # Build GungHo with the BAF extraction script
+        # -------------------------------------------
+        cd ${LFRIC_APPS}/applications/gungho_model
+        mkdir -p $PWD/fab_workspace
+        export FAB_WORKSPACE=$PWD/fab_workspace
+        # Fab expects that all compilers are in PATH, and
+        # does not support CC/FC etc with a full path. Since
+        # the spack environment does not add all required paths,
+        # we need to add the required paths manuall, and then
+        # unset the environment variables (which would otherwise
+        # be used as default)
+        export PATH="$(spack location -i rose-picker):$PATH"
+        # Run the Fab build script
+        ${LFRIC_CORE}/build.sh ./fab_gungho_model_extract.py   \
+          --profile ${COMPILER_PROFILE} --nproc 4 -fc $LDMPI -ld $LDMPI  -cc $CC
+
+        # Run gungho (which will create the NetCDF kernel data files)
+        # -----------------------------------------------------------
+        # Modify number of timesteps to reduce impact on system
+        cd example
+        sed -i "s/timestep_end='10'/timestep_end='1'/" configuration.nml
+        mpirun -n ${NUM_PROCS} ${FAB_WORKSPACE}/gungho_model_extract-${COMPILER_PROFILE}-mpif90-gfortran/gungho_model configuration.nml
+
+        # Now compile a subset of the drivers
+        # -----------------------------------
+
+        cd ..
+
+        compile_count=0
+
+        # `name` is the 'basic' name. A driver file is then called driver-$FILE.F90, and
+        # the kernel data files are called $FILE-$RANK.nc
+        for name in sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0; do
+
+          # We link with yaxt, since a few drivers inline a module that contains yaxt
+          # functions (though these functions and therefore yaxt are not actually used
+          # during the execution of the driver)
+          mpif90 driver-${name}.F90 $FFLAGS $LDFLAGS -l yaxt_c -o driver-${name}
+          compile_count=$((compile_count+1 ))
+        done
+
+        run_count=0
+        all_files="sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0"
+        for name in $all_files; do
+          # Execute the driver for each kernel data file,
+          # which will print results to the screen
+          # ---------------------------------------------
+          for proc in $(seq 0 $MAX_PROC); do
+            echo "Executing driver-${name} for ${proc}"
+            ./driver-${name} ./example/${name}-${proc}.nc
+            run_count=$((run_count+1))
+          done
+        done
+
+        NUM_NC_FILES=$(ls example/*-[0-${MAX_PROC}].nc|wc -w)
+        KERNEL_DATA=$((NUM_NC_FILES / NUM_PROCS))
+        echo "Drivers created:   $(ls driver*F90|wc -w)"
+        echo "Kernel data files: $NUM_NC_FILES"
+        echo "Unique Kernels:    $((NUM_NC_FILES/NUM_PROCS))"
+        echo "Drivers compiled:  ${compile_count}"
+        echo "Drivers executed:  ${run_count}"

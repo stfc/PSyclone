@@ -1,3 +1,5 @@
+   70) PR #2969 for #2902. Adds LFRic driver extraction integration tests.
+
    69) PR #3042 for #2971. Moves OMPDeclareTargetTrans and
    MarkRoutineForGPUMixin into psyir/transformations.
 
