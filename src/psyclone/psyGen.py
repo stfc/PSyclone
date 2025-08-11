@@ -2603,10 +2603,14 @@ class KernelArgument(Argument):
 
 class TransInfo():
     '''
-    This class provides information about, and access, to the available
+    This class provides information about, and access to, the available
     transformations in this implementation of PSyclone. New transformations
     will be picked up automatically as long as they subclass the abstract
     Transformation class.
+
+    .. warning::
+        This utility will not find Transformations under the new file
+        structure (TODO #620) and is deprecated.
 
     For example:
 
@@ -2631,6 +2635,10 @@ class TransInfo():
         # layout, where transformations are in different directories and files.
         # Leaving local imports so they will be removed once TransInfo is
         # replaced.
+        warnings.warn("PSyclone Deprecation Warning: the TransInfo class is "
+                      "deprecated. User transformation scripts should import "
+                      "the required Transformation classes directly.",
+                      DeprecationWarning, 2)
         # pylint: disable=import-outside-toplevel
         from psyclone import transformations
         if module is None:

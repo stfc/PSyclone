@@ -318,12 +318,21 @@ def test_transformation_validate_options():
 
 # TransInfo class unit tests
 
-def test_new_module():
+def test_transinfo_new_module():
     '''check that we can change the module where we look for
-    transformations.  There should be no transformations
-    available as the new module uses a different
-    transformation base class'''
-    trans = TransInfo(module=dummy_transformations)
+    transformations.  There should be no transformations available as the
+    new module uses a different transformation base class.
+
+    Also test that creating an instance of TransInfo raises a
+    DeprecationWarning.
+
+    '''
+    with warnings.catch_warnings(record=True) as warn:
+        # Cause all warnings to always be triggered.
+        warnings.simplefilter("always")
+        trans = TransInfo(module=dummy_transformations)
+    assert len(warn) == 1
+    assert "should import the required Transformation" in str(warn[-1].message)
     assert trans.num_trans == 0
 
 
