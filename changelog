@@ -1,3 +1,5 @@
+   72) PR #3086 for #3071. Improves TransInfo-related deprecation warnings.
+
    71) PR #3062 for #2671. Improves the support for allowing arrays to be
    declared thread private.
 
