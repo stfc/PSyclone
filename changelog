@@ -1,3 +1,10 @@
+   74) PR #3078 for #3068. Refactors single-variable access info (to
+   AccessSequence).
+
+   73) PR #3088 for #1812. Implements the OMPReductionClause.
+
+   72) PR #3086 for #3071. Improves TransInfo-related deprecation warnings.
+
    71) PR #3062 for #2671. Improves the support for allowing arrays to be
    declared thread private.
 
