@@ -38,7 +38,7 @@
 nodes.'''
 
 from enum import Enum
-from psyclone.psyir.nodes.clause import Clause, OperandClause
+from psyclone.psyir.nodes.clause import Clause, OperatorClause
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import Symbol
@@ -62,7 +62,7 @@ class OMPGrainsizeClause(Clause):
     _clause_string = "grainsize"
 
     @staticmethod
-    def _validate_child(position, child):
+    def _validate_child(position, child) -> bool:
         '''
          Decides whether a given child and position are valid for this node.
          One child allowed, of type Literal.
@@ -72,8 +72,6 @@ class OMPGrainsizeClause(Clause):
         :type child: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
         '''
         if position == 0:
             return isinstance(child, Literal)
@@ -89,7 +87,7 @@ class OMPNumTasksClause(Clause):
     _clause_string = "num_tasks"
 
     @staticmethod
-    def _validate_child(position, child):
+    def _validate_child(position, child) -> bool:
         '''
          Decides whether a given child and position are valid for this node.
          One child allowed, of type Literal.
@@ -99,7 +97,6 @@ class OMPNumTasksClause(Clause):
         :type child: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: whether the given child and position are valid for this node.
-        :rtype: bool
 
         '''
         if position == 0:
@@ -124,19 +121,18 @@ class OMPSharedClause(Clause):
     _children_valid_format = "Reference*"
 
     @property
-    def _clause_string(self):
+    def _clause_string(self) -> str:
         '''
-        :returns: the string that represents this clause in OpenMP (i.e. \
-                "shared"). Returns an empty string to avoid generation of \
+        :returns: the string that represents this clause in OpenMP (i.e.
+                "shared"). Returns an empty string to avoid generation of
                 code if this clause has no children.
-        :rtype: str
         '''
         if len(self.children) > 0:
             return "shared"
         return ""
 
     @staticmethod
-    def _validate_child(position, child):
+    def _validate_child(position, child) -> bool:
         '''
         Decides whether a given child and position are valid for this node.
         Any number of Reference nodes are allowed.
@@ -146,8 +142,6 @@ class OMPSharedClause(Clause):
         :type child: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: whether the given child and position are valid for this node.
-        :rtype: bool
-
         '''
         return isinstance(child, Reference)
 
@@ -170,7 +164,7 @@ class OMPPrivateClause(Clause):
         :returns: A OMPPrivateClause referencing the provided symbols.
         :rtype: py:class:`psyclone.psyir.nodes.OMPPrivateClause`
 
-        :raises TypeError: If the symbols argument is not a List that \
+        :raises TypeError: If the symbols argument is not a List that
             contains only PSyIR Symbols.
 
         '''
@@ -189,19 +183,18 @@ class OMPPrivateClause(Clause):
         return OMPPrivateClause(children=references)
 
     @property
-    def _clause_string(self):
+    def _clause_string(self) -> bool:
         '''
-        :returns: the string that represents this clause in OpenMP (i.e.\
-                "private"). Returns an empty string to avoid generation of\
-                code if this clause has no children.
-        :rtype: str
+        :returns: the string that represents this clause in OpenMP (i.e.
+                  "private"). Returns an empty string to avoid generation of
+                  code if this clause has no children.
         '''
         if len(self.children) > 0:
             return "private"
         return ""
 
     @staticmethod
-    def _validate_child(position, child):
+    def _validate_child(position, child) -> bool:
         '''
         Decides whether a given child and position are valid for this node.
         Any number of Reference nodes are allowed.
@@ -211,7 +204,6 @@ class OMPPrivateClause(Clause):
         :type child: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: whether the given child and position are valid for this node.
-        :rtype: bool
 
         '''
         return isinstance(child, Reference)
@@ -229,14 +221,14 @@ class OMPFirstprivateClause(Clause):
         ''' Create an OMPFirstprivateClause containing a Reference to each of
         the provided symbols as children.
 
-        :param symbols: List of symbols to reference in the firstprivate \
+        :param symbols: List of symbols to reference in the firstprivate
             clause.
         :type symbols: List[:py:class:`psyclone.psyir.symbols.Symbol`]
 
         :returns: A OMPFirstprivateClause referencing the provided symbols.
         :rtype: py:class:`psyclone.psyir.nodes.OMPFirstprivateClause`
 
-        :raises TypeError: If the symbols argument is not a List that \
+        :raises TypeError: If the symbols argument is not a List that
             contains only PSyIR Symbols.
 
         '''
@@ -255,19 +247,18 @@ class OMPFirstprivateClause(Clause):
         return OMPFirstprivateClause(children=references)
 
     @property
-    def _clause_string(self):
+    def _clause_string(self) -> str:
         '''
-        :returns: the string that represents this clause in OpenMP (i.e.\
-                "firstprivate"). Returns an empty string to avoid generation\
+        :returns: the string that represents this clause in OpenMP (i.e.
+                "firstprivate"). Returns an empty string to avoid generation
                 of code if this clause has no children.
-        :rtype: str
         '''
         if len(self.children) > 0:
             return "firstprivate"
         return ""
 
     @staticmethod
-    def _validate_child(position, child):
+    def _validate_child(position, child) -> bool:
         '''
         Decides whether a given child and position are valid for this node.
         Any number of Reference nodes are allowed.
@@ -277,7 +268,6 @@ class OMPFirstprivateClause(Clause):
         :type child: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: whether the given child and position are valid for this node.
-        :rtype: bool
 
         '''
         return isinstance(child, Reference)
@@ -288,11 +278,9 @@ class OMPDefaultClause(Clause):
     OpenMP Default clause. Used to determine the default declaration for
     variables used in an OpenMP region.
 
-    :param clause_type: The default data-sharing attribute to be described\
-                        by this clause. The default value is\
+    :param clause_type: The default data-sharing attribute to be described
+                        by this clause. The default value is
                         OMPDefaultClause.DefaultClauseTypes.SHARED.
-    :type clause_type: \
-        :py:class:`psyclone.psyir.nodes.OMPDefaultClause.DefaultClauseTypes`
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
@@ -308,7 +296,8 @@ class OMPDefaultClause(Clause):
 
     _children_valid_format = None
 
-    def __init__(self, clause_type=DefaultClauseTypes.SHARED, **kwargs):
+    def __init__(self, clause_type: DefaultClauseTypes =
+                 DefaultClauseTypes.SHARED, **kwargs):
         if not isinstance(clause_type, OMPDefaultClause.DefaultClauseTypes):
             raise TypeError(
                     "OMPDefaultClause expected 'clause_type' argument of type "
@@ -318,35 +307,30 @@ class OMPDefaultClause(Clause):
         super().__init__(**kwargs)
 
     @property
-    def clause_type(self):
+    def clause_type(self) -> DefaultClauseTypes:
         '''
         Gets the clause type value of this OMPDefaultClause
 
         :returns: the clause type for this OMPDefaultClause.
-        :rtype: \
-            :py:class:`psyclone.psyir.nodes.OMPDefaultClause.\
-                       DefaultClauseTypes`
         '''
         return self._clause_type
 
     @property
-    def _clause_string(self):
+    def _clause_string(self) -> str:
         '''
-        :returns: the string that represents this clause in OpenMP (e.g.\
-                "default(shared)"). The value in parentheses is dependent on\
+        :returns: the string that represents this clause in OpenMP (e.g.
+                "default(shared)"). The value in parentheses is dependent on
                 the DefaultClauseTypes value in _clause_type.
-        :rtype: str
         '''
         clause_string = "default(" + str(self._clause_type.name).lower() + ")"
         return clause_string
 
-    def node_str(self, colour=True):
+    def node_str(self, colour=True) -> str:
         '''
-        :param bool colour: whether or not to include control codes for \
+        :param bool colour: whether or not to include control codes for
                             coloured text.
 
         :returns: a text description of this node.
-        :rtype: str
         '''
         return self.coloured_name(colour) + f"[default={self._clause_type}]"
 
@@ -355,8 +339,8 @@ class OMPScheduleClause(Clause):
     '''
     OpenMP Schedule clause used for OMP Do Directives.
 
-    :param str schedule: The OpenMP schedule to use with this directive. \
-        The default value is "none" which means that no explicit schedule \
+    :param schedule: The OpenMP schedule to use with this directive.
+        The default value is "none" which means that no explicit schedule
         is specified.
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
@@ -367,28 +351,26 @@ class OMPScheduleClause(Clause):
     VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto",
                            "none"]
 
-    def __init__(self, schedule="none", **kwargs):
+    def __init__(self, schedule: str = "none", **kwargs):
         self.schedule = schedule
         super().__init__(**kwargs)
 
     @property
-    def _clause_string(self):
+    def _clause_string(self) -> str:
         '''
-        :returns: the string that represents this clause in OpenMP (e.g. \
-            "schedule(static)"). The value inside parentheses is \
-            set to the value of the schedule of this clause unless \
+        :returns: the string that represents this clause in OpenMP (e.g.
+            "schedule(static)"). The value inside parentheses is
+            set to the value of the schedule of this clause unless
             that value is 'none' in which case an empty string is returned.
-        :rtype: str
         '''
         if self._schedule != "none":
             return f"schedule({self._schedule})"
         return ""
 
     @property
-    def schedule(self):
+    def schedule(self) -> str:
         '''
         :returns: the schedule for this OMPScheduleClause.
-        :rtype: str
         '''
         return self._schedule
 
@@ -397,7 +379,7 @@ class OMPScheduleClause(Clause):
         '''
         :param str schedule: the schedule to use for this clause.
 
-        :raises ValueError: if the supplied value is not a recognised \
+        :raises ValueError: if the supplied value is not a recognised
                             OpenMP schedule.
         '''
         if schedule not in self.VALID_OMP_SCHEDULES:
@@ -406,39 +388,35 @@ class OMPScheduleClause(Clause):
                 f"Found '{schedule}'.")
         self._schedule = schedule
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         '''
         Two OMPScheduleClause are equal if they have the same schedule.
 
         :param object other: the object to check equality to.
 
         :returns: whether other is equal to self.
-        :rtype: bool
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and (self.schedule == other.schedule)
         return is_eq
 
-    def node_str(self, colour=True):
+    def node_str(self, colour: bool = True) -> str:
         '''
-        :param bool colour: whether or not to include control codes for \
+        :param bool colour: whether or not to include control codes for
                             coloured text.
 
         :returns: a text description of this node.
-        :rtype: str
         '''
         return self.coloured_name(colour) + f"[schedule={self._schedule}]"
 
 
-class OMPDependClause(OperandClause):
+class OMPDependClause(OperatorClause):
     '''
     OpenMP Depend clause used for OpenMP Task directives.
 
-    :param depend_type: The dependency type to use for this clause. The \
-                        default value is \
+    :param depend_type: The dependency type to use for this clause. The
+                        default value is
                         OMPDependClause.DependClauseTypes.INOUT.
-    :type depend_type: \
-            :py:class:`psyclone.psyir.nodes.OMPDependClause.DependClauseTypes`
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
@@ -454,17 +432,18 @@ class OMPDependClause(OperandClause):
         OUT = 1
         INOUT = 2
 
-    def __init__(self, depend_type=DependClauseTypes.INOUT, **kwargs):
+    def __init__(self, depend_type: DependClauseTypes =
+                 DependClauseTypes.INOUT, **kwargs):
         if not isinstance(depend_type, OMPDependClause.DependClauseTypes):
             raise TypeError(
                     "OMPDependClause expected 'depend_type' argument of type "
                     "OMPDependClause.DependClauseTypes but found "
                     f"'{type(depend_type).__name__}'")
-        self._operand = depend_type
+        self._operator = depend_type
         super().__init__(**kwargs)
 
     @staticmethod
-    def _validate_child(position, child):
+    def _validate_child(position, child) -> bool:
         '''
          Decides whether a given child and position are valid for this node.
          Any number of children allowed, but must be Reference.
@@ -474,49 +453,128 @@ class OMPDependClause(OperandClause):
         :type child: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: whether the given child and position are valid for this node.
-        :rtype: bool
 
         '''
         return isinstance(child, Reference)
 
     @property
-    def operand(self):
+    def operator(self) -> DependClauseTypes:
         '''
-        :returns: the string representation of the operand of this clause.
-        :rtype: str
+        :returns: the operator of this clause.
         '''
-        return str(self._operand.name).lower()
+        return self._operator
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         '''Two OMPDependClause are equal if:
         1. Same type (OMPDependClause).
-        2. Same Operand
+        2. Same Operator
         3. Same number of children.
         4. Their children are equal.
 
         :param object other: the object to check equality to.
 
         :returns: whether other is equal to self.
-        :rtype: bool
         '''
         is_eq = super().__eq__(other)
-        is_eq = is_eq and (self.operand == other.operand)
+        is_eq = is_eq and (self.operator == other.operator)
         return is_eq
 
-    def node_str(self, colour=True):
+    def node_str(self, colour=True) -> str:
         '''
-        :param bool colour: whether or not to include control codes for \
+        :param bool colour: whether or not to include control codes for
                             coloured text.
 
         :returns: a text description of this node.
-        :rtype: str
         '''
-        return self.coloured_name(colour) + f"[operand={self._operand}]"
+        return (f"{self.coloured_name(colour)}"
+                f"[operator={str(self._operator)}]")
 
 
-class OMPReductionClause(OperandClause):
+class OMPReductionClause(OperatorClause):
     '''
     OpenMP Reduction clause.
+
+    :param operator: The reduction operator to use for this clause.
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
+
+    :raises TypeError: if the supplied operator argument is the wrong type.
     '''
     _children_valid_format = "Reference+"
-    # TODO: #1812 Reduction string and operator
+    _clause_string = "reduction"
+
+    class ReductionClauseTypes(Enum):
+        '''Enumeration of the different operators for OMPReductionClause
+        supported in PSyclone.'''
+        # Arithmetic operators
+        ADD = 0
+        SUB = 1
+        MUL = 2
+        # Logical operators
+        AND = 3
+        OR = 4
+        EQV = 5  # Fortran specific
+        NEQV = 6  # Fortran specific
+        # Intrinsic procedures
+        MAX = 7
+        MIN = 8
+        IAND = 9
+        IOR = 10
+        IEOR = 11
+
+    def __init__(self, operator: ReductionClauseTypes, **kwargs):
+        if not isinstance(operator, OMPReductionClause.ReductionClauseTypes):
+            raise TypeError(
+                    "OMPReductionClause expected 'operator' argument of type "
+                    "OMPReductionClause.ReductionClauseTypes but found "
+                    f"'{type(operator).__name__}'")
+        self._operator = operator
+        super().__init__(**kwargs)
+
+    @staticmethod
+    def _validate_child(position, child) -> bool:
+        '''
+         Decides whether a given child and position are valid for this node.
+         Any number of children allowed, but must be Reference.
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+
+        '''
+        return isinstance(child, Reference)
+
+    @property
+    def operator(self) -> ReductionClauseTypes:
+        '''
+        :returns: the operator of this clause.
+        '''
+        return self._operator
+
+    def __eq__(self, other) -> bool:
+        '''Two OMPReductionClause are equal if:
+        1. Same type (OMPReductionClause).
+        2. Same Operator
+        3. Same number of children.
+        4. Their children are equal.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and (self.operator == other.operator)
+        return is_eq
+
+    def node_str(self, colour: bool = True) -> str:
+        '''
+        :param bool colour: whether or not to include control codes for
+                            coloured text.
+
+        :returns: a text description of this node.
+        '''
+        return (f"{self.coloured_name(colour)}"
+                f"[operator={str(self._operator.name).lower()}: "
+                f"{str(self.children)}]")

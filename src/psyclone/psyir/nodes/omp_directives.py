@@ -1378,7 +1378,7 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
             for sym in need_sync:
                 for clause in sync_clauses:
                     # Needs to be an out depend clause to synchronize
-                    if clause.operand == "in":
+                    if clause.operator == "in":
                         continue
                     # Check if the symbol is in this depend clause.
                     if sym.name in [child.symbol.name for child in
