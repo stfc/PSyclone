@@ -129,67 +129,77 @@ def test_variable_access_sequence():
     list of VariableInfo instances for one variable
     '''
 
-    vam = AccessSequence(Signature("var_name"))
-    assert vam.var_name == "var_name"
-    assert str(vam) == "var_name:[]"
-    assert vam.is_written() is False
-    assert vam.is_written_first() is False
-    assert vam.is_read() is False
+    accesses = AccessSequence(Signature("var_name"))
+    assert accesses.var_name == "var_name"
+    assert str(accesses) == "var_name:[]"
+    assert accesses.is_written() is False
+    assert accesses.is_written_first() is False
+    assert accesses.is_read() is False
 
-    assert not vam  # In python an empty list is falsy
-    assert vam.all_read_accesses == []
-    assert vam.all_write_accesses == []
-    assert vam.signature == Signature("var_name")
+    assert not accesses  # In python an empty list is falsy
+    assert accesses.all_read_accesses == []
+    assert accesses.all_write_accesses == []
+    assert accesses.signature == Signature("var_name")
 
-    vam.add_access(AccessType.INQUIRY, Node(), component_indices=None)
-    vam.add_access(AccessType.READ, Node(), component_indices=None)
-    assert str(vam) == "var_name:[INQUIRY,READ]"
-    assert vam.is_read()
-    assert vam.is_read_only()
-    assert vam.all_read_accesses == [vam[1]]
-    assert vam.all_write_accesses == []
-    assert not vam.is_written()
-    assert not vam.is_written_first()
-    vam.change_read_to_write()
-    assert not vam.is_read()
-    assert vam.is_written()
-    assert vam.is_written_first()
-    assert not vam.is_read_only()
-    assert vam.all_read_accesses == []
-    assert vam.all_write_accesses == [vam[1]]
+    accesses.add_access(AccessType.INQUIRY, Node(), component_indices=None)
+    accesses.add_access(AccessType.READ, Node(), component_indices=None)
+    assert str(accesses) == "var_name:[INQUIRY,READ]"
+    assert accesses.str_access_summary() == "INQUIRY+READ"
+    assert accesses.is_read()
+    assert accesses.has_data_access()
+    assert accesses.is_read_only()
+    assert accesses.all_read_accesses == [accesses[1]]
+    assert accesses.all_write_accesses == []
+    assert not accesses.is_written()
+    assert not accesses.is_written_first()
+    assert not accesses.is_called()
+    accesses.change_read_to_write()
+    assert not accesses.is_read()
+    assert accesses.is_written()
+    assert accesses.is_written_first()
+    assert not accesses.is_read_only()
+    assert accesses.all_read_accesses == []
+    assert accesses.all_write_accesses == [accesses[1]]
 
     # Now we have one write access, which we should not be able to
     # change to write again:
     with pytest.raises(InternalError) as err:
-        vam.change_read_to_write()
+        accesses.change_read_to_write()
     assert ("Variable 'var_name' has a 'WRITE' access. change_read_to_write() "
             "expects only inquiry accesses and a single 'READ' access."
             in str(err.value))
 
     with pytest.raises(IndexError) as err:
-        _ = vam[2]
+        _ = accesses[2]
 
     # Add a READ access - we should not be able to
     # change this read to write as there's already a WRITE access.
-    vam.add_access(AccessType.READ, Node(), component_indices=None)
+    accesses.add_access(AccessType.READ, Node(), component_indices=None)
     with pytest.raises(InternalError) as err:
-        vam.change_read_to_write()
+        accesses.change_read_to_write()
     assert ("Variable 'var_name' has a 'WRITE' access. change_read_to_write() "
             "expects only inquiry accesses and a single 'READ' access."
             in str(err.value))
     # And make sure the variable is not read_only if a write is added
-    vam.add_access(AccessType.WRITE, Node(), component_indices=None)
-    assert vam.is_read_only() is False
-    assert vam.all_read_accesses == [vam[2]]
-    assert vam.all_write_accesses == [vam[1], vam[3]]
+    accesses.add_access(AccessType.WRITE, Node(), component_indices=None)
+    assert accesses.is_read_only() is False
+    assert accesses.all_read_accesses == [accesses[2]]
+    assert accesses.all_write_accesses == [accesses[1], accesses[3]]
     # Check that we catch a case where there are no accesses at all.
-    vam = AccessSequence(Signature("var_name"))
+    accesses = AccessSequence(Signature("var_name"))
     with pytest.raises(InternalError) as err:
-        vam.change_read_to_write()
+        accesses.change_read_to_write()
     assert "but it does not have a 'READ' access" in str(err.value)
 
+    # Now do just a CALL, this will have no data accesses
+    accesses = AccessSequence(Signature("var_name"))
+    accesses.add_access(AccessType.CALL, Node(), component_indices=None)
+    assert accesses.is_called()
+    assert not accesses.is_read()
+    assert not accesses.is_written()
+    assert not accesses.has_data_access()
 
-# -----------------------------------------------------------------------------
+
 def test_variable_access_sequence_is_array(fortran_reader):
     '''Test that the AccessSequence class handles arrays as expected.
 
@@ -234,28 +244,30 @@ def test_variable_access_sequence_read_write():
     used in subroutine calls (depending on kernel metadata)
     '''
 
-    vam = AccessSequence(Signature("var_name"))
-    assert vam.has_read_write() is False
-    assert vam.is_written_first() is False
+    accesses = AccessSequence(Signature("var_name"))
+    assert accesses.has_read_write() is False
+    assert accesses.is_written_first() is False
 
     # Add a READ and WRITE access and make sure it is not reported as
     # READWRITE access
     node = Node()
-    vam.add_access(AccessType.READ, node, component_indices=None)
-    assert vam[0].node == node
+    accesses.add_access(AccessType.READ, node, component_indices=None)
+    assert accesses[0].node == node
     # Test a single read access:
-    assert vam.is_written_first() is False
-    vam.add_access(AccessType.WRITE, Node(), component_indices=None)
-    assert vam.has_read_write() is False
+    assert accesses.is_written_first() is False
+    accesses.add_access(AccessType.WRITE, Node(), component_indices=None)
+    assert accesses.has_read_write() is False
     # This tests a read-then-write access:
-    assert vam.is_written_first() is False
+    assert accesses.is_written_first() is False
 
-    vam.add_access(AccessType.READWRITE, Node(), component_indices=None)
-    assert vam.has_read_write()
+    accesses.add_access(AccessType.READWRITE, Node(), component_indices=None)
+    assert accesses.has_read_write()
 
     # Create a new instance, and add only one READWRITE access:
-    vam = AccessSequence(Signature("var_name"))
-    vam.add_access(AccessType.READWRITE, Node(), component_indices=None)
-    assert vam.has_read_write()
-    assert vam.is_read()
-    assert vam.is_written()
+    accesses = AccessSequence(Signature("var_name"))
+    accesses.add_access(AccessType.READWRITE, Node(), component_indices=None)
+    assert accesses.has_read_write()
+    assert accesses.is_read()
+    assert accesses.is_written()
+    assert accesses.has_data_access()
+    assert not accesses.is_called()
