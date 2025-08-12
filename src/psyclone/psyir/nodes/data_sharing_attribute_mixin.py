@@ -111,7 +111,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         for signature in var_accesses.all_signatures:
             if not var_accesses[signature].has_data_access():
                 continue
-            accesses = var_accesses[signature].all_accesses
+            accesses = var_accesses[signature]
             # TODO #2094: var_name only captures the top-level
             # component in the derived type accessor. If the attributes
             # only apply to a sub-component, this won't be captured
