@@ -393,43 +393,7 @@ def normalise_loops(
             scalartrans.apply(loop)
 
     if increase_array_ranks:
-        irlatrans = IncreaseRankLoopArraysTrans()
-        if schedule.name in ("dyn_zdf", "tra_zdf_imp"):
-            for outer_loop in schedule.walk(Loop, stop_type=Loop):
-                if outer_loop.variable.name == "jj":
-                    # Increase the rank of the temporary arrays in this loop
-                    irlatrans.apply(
-                        outer_loop,
-                        options={'arrays': ['zwd', 'zwi', 'zws', 'zwt']})
-                    # Now reorder the code
-                    for child in outer_loop.loop_body[:]:
-                        # Move the contents of the jj loop outside
-                        outer_loop.parent.addchild(child.detach(),
-                                                   index=outer_loop.position)
-                        # And add a new jj loop around each inner loop
-                        # that is not 'jn'
-                        target_loop = []
-                        for inner_loop in child.walk(Loop, stop_type=Loop):
-                            if inner_loop.variable.name != "jn":
-                                target_loop.append(inner_loop)
-                            else:
-                                for next_loop in inner_loop.loop_body.walk(
-                                                    Loop, stop_type=Loop):
-                                    target_loop.append(next_loop)
-                        for inner_loop in target_loop:
-                            if isinstance(inner_loop.loop_body[0], Loop):
-                                inner_loop = inner_loop.loop_body[0]
-                            inner_loop.replace_with(
-                                Loop.create(
-                                    outer_loop.variable,
-                                    outer_loop.start_expr.copy(),
-                                    outer_loop.stop_expr.copy(),
-                                    outer_loop.step_expr.copy(),
-                                    children=[inner_loop.copy()]
-                                )
-                            )
-                    # Remove the now empty jj loop
-                    outer_loop.detach()
+        increase_rank_and_reorder_nemov5_loops(schedule)
 
     if hoist_expressions:
         # First hoist all possible expressions
@@ -451,6 +415,62 @@ def normalise_loops(
     # TODO #1928: In order to perform better on the GPU, nested loops with two
     # sibling inner loops need to be fused or apply loop fission to the
     # top level. This would allow the collapse clause to be applied.
+
+
+def increase_rank_and_reorder_nemov5_loops(routine: Routine):
+    ''' This method increases the rank of temporary loops used inside selected
+    loops (in order to parallelise the outer loop without overlapping them)
+    and the rearranges the outer loop next to the inner ones (in order to
+    collapse them), so that more parallelism can be leverage. This is useful
+    in GPU contexts, but it increases the memory footprint and may not be
+    benefitial for caching-architectures.
+
+    :param routine: the target routine.
+
+    '''
+    irlatrans = IncreaseRankLoopArraysTrans()
+
+    # Map of routines and arrays
+    selection = {
+        "dyn_zdf": ['zwd', 'zwi', 'zws'],
+        "tra_zdf_imp": ['zwd', 'zwi', 'zws', 'zwt']
+    }
+
+    if routine.name not in selection:
+        return
+
+    for outer_loop in routine.walk(Loop, stop_type=Loop):
+        if outer_loop.variable.name == "jj":
+            # Increase the rank of the temporary arrays in this loop
+            irlatrans.apply(outer_loop, arrays=selection[routine.name])
+            # Now reorder the code
+            for child in outer_loop.loop_body[:]:
+                # Move the contents of the jj loop outside it
+                outer_loop.parent.addchild(child.detach(),
+                                           index=outer_loop.position)
+                # Add a new jj loop around each inner loop that is not 'jn'
+                target_loop = []
+                for inner_loop in child.walk(Loop, stop_type=Loop):
+                    if inner_loop.variable.name != "jn":
+                        target_loop.append(inner_loop)
+                    else:
+                        for next_loop in inner_loop.loop_body.walk(
+                                            Loop, stop_type=Loop):
+                            target_loop.append(next_loop)
+                for inner_loop in target_loop:
+                    if isinstance(inner_loop.loop_body[0], Loop):
+                        inner_loop = inner_loop.loop_body[0]
+                    inner_loop.replace_with(
+                        Loop.create(
+                            outer_loop.variable,
+                            outer_loop.start_expr.copy(),
+                            outer_loop.stop_expr.copy(),
+                            outer_loop.step_expr.copy(),
+                            children=[inner_loop.copy()]
+                        )
+                    )
+            # Remove the now empty jj loop
+            outer_loop.detach()
 
 
 def insert_explicit_loop_parallelism(
