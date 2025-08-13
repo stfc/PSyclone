@@ -109,12 +109,11 @@ class IncreaseRankLoopArraysTrans(Transformation):
     def validate(
         self,
         node: Loop,
-        arrays: Optional[list[Union[Symbol, str]]] = None
+        **kwargs
     ):
         ''' Checks that the supplied node is a valid target.
 
         :param node: target Loop node.
-        :param arrays: list of arrays that will have the rank increased.
 
         :raises TransformationError: if the node is not a Loop.
         :raises TransformationError: if the node is not inside a Routine.
@@ -127,6 +126,10 @@ class IncreaseRankLoopArraysTrans(Transformation):
             a CodeBlock.
 
         '''
+        super().validate(node, **kwargs)
+        self.validate_options(**kwargs)
+        arrays = self.get_option('arrays', **kwargs)
+
         if not isinstance(node, Loop):
             raise TransformationError(
                 f"The target of the {self.name} transformation should be a "
