@@ -39,6 +39,8 @@ This module contains the InlineTrans transformation.
 '''
 
 from typing import Dict, List, Optional
+
+from psyclone.core import SymbolicMaths
 from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.nodes import (
@@ -403,10 +405,9 @@ class InlineTrans(Transformation):
     ):
         """Eliminate if-block where condition is a boolean Literal.
 
-        TODO: This also requires support of conditions containing logical
-        expressions such as `(.true. .or. .false.)`
-        """
+        :param routine_node: the Routine in which to eliminate if blocks.
 
+        """
         def if_else_replace(main_schedule: Schedule,
                             if_block: IfBlock,
                             if_body_schedule: Schedule):
@@ -428,10 +429,14 @@ class InlineTrans(Transformation):
                 main_schedule.addchild(child, idx)
                 idx += 1
 
+        sym_maths = SymbolicMaths.get()
+
         for if_block in routine_node.walk(IfBlock):
             if_block: IfBlock
 
             condition = if_block.condition
+            # Ensure any expressions in the condition are simplified.
+            sym_maths.expand(condition)
 
             # Make sure we only handle a Boolean Literal as a condition
             # TODO #2802
