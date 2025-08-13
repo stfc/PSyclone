@@ -165,10 +165,29 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     )
 
         # Capture all symbols used inside codeblocks, these are not permitted
-        codeblock_symbols = set()
-        for cb in routine.walk(CodeBlock):
-            for name in cb.get_symbol_names():
-                codeblock_symbols.add(name.lower())
+        codeblock_names = set()
+        # Capture all symbols used outside the loop that we can not guarantee
+        # their safety (e.g. simple init expressions), this is because we would
+        # change the rank of this expression and it could very easily change
+        # the meaning of the code (e.g. used in a non-elemental call, part of
+        # index of another array, ...)
+        non_supported_outside_loop_symbols = set()
+        for check in routine.walk((CodeBlock, Reference)):
+            if isinstance(check, CodeBlock):
+                for name in check.get_symbol_names():
+                    codeblock_names.add(name.lower())
+            if isinstance(check, Reference):
+                if check.is_descendent_of(node):
+                    # These are fine because inside the loop we will add an
+                    # index and the resulting expression rank will be the same
+                    continue
+                if (isinstance(check.parent, Assignment) and
+                        check.position == 0):
+                    # Initialisation statements are fine, because the apply
+                    # we will extend the initialisation to the whole new rank
+                    continue
+                # Everything else is currently forbiden
+                non_supported_outside_loop_symbols.add(check.symbol)
 
         # Each item listed in the array list must be a local Array Symbol or a
         # string that resolves to it
@@ -192,10 +211,16 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     f"{self.name} provided 'arrays' must be local array "
                     f"symbols, but '{array}' is not")
 
-            if array.name.lower() in codeblock_symbols:
+            if array.name.lower() in codeblock_names:
                 raise TransformationError(
                     f"{self.name} does not support arrays that are referenced "
                     f"inside a Codeblock, but '{array.name}' is inside one.")
+
+            if array in non_supported_outside_loop_symbols:
+                raise TransformationError(
+                    f"{self.name} does not support arrays that are referenced "
+                    f"outside the given loop in a non-trivial expression "
+                    f"but '{array.name}' is used outside the loop.")
 
     def apply(
         self,

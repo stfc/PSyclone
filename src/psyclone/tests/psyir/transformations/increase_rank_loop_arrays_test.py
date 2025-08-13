@@ -57,7 +57,12 @@ def test_irla_validate(fortran_reader):
     psyir = fortran_reader.psyir_from_source("""
         program test
             real, dimension(10) :: a
+            integer, dimension(10) :: map
             integer :: i = 3
+            integer :: variable
+            ! Being used inside a non-elemental function or as array index
+            ! makes altering 'a' dangerous here
+            variable = sum(map(int(a + 3)))
             a(i) = 3
             do i = 1, 10
                a(i) = 3
@@ -74,29 +79,36 @@ def test_irla_validate(fortran_reader):
             "should be a Loop, but found 'Assignment'." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        trans.apply(routine.children[1])
+        trans.apply(routine.children[2])
     assert ("IncreaseRankLoopArraysTrans has a mandatory 'arrays' option "
             "that is required to specify which arrays are to have their "
             "rank increased." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        trans.apply(routine.children[1], arrays=['i'])
+        trans.apply(routine.children[2], arrays=['i'])
     assert ("IncreaseRankLoopArraysTrans provided 'arrays' must be local "
             "array symbols, but 'i: " in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        trans.apply(routine.children[1], arrays=['a'])
+        trans.apply(routine.children[2], arrays=['a'])
     assert ("IncreaseRankLoopArraysTrans does not support arrays that are "
             "referenced inside a Codeblock, but 'a' is inside one."
             in str(err.value))
 
+    routine.children[3].detach()
     with pytest.raises(TransformationError) as err:
-        trans.apply(routine.children[1], arrays=['non_existant'])
+        trans.apply(routine.children[2], arrays=['a'])
+    assert ("IncreaseRankLoopArraysTrans does not support arrays that are "
+            "referenced outside the given loop in a non-trivial expression "
+            "but 'a' is used outside the loop." in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        trans.apply(routine.children[2], arrays=['non_existant'])
     assert ("IncreaseRankLoopArraysTrans provided array 'non_existant' does "
             "not existin this scope." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        trans.apply(routine.children[1].detach(), arrays=['a'])
+        trans.apply(routine.children[2].detach(), arrays=['a'])
     assert ("The target Loop of the IncreaseRankLoopArraysTrans transformation"
             " must be inside a Routine." in str(err.value))
 
@@ -126,6 +138,7 @@ def test_irla_validate_bounds(fortran_reader, fortran_writer):
                    a(i) = 3
                 end do
             enddo
+
         end program
     """)
     routine = psyir.children[0]
@@ -136,8 +149,10 @@ def test_irla_validate_bounds(fortran_reader, fortran_writer):
             "in a loop with the variable 'variable' which is assigned to: "
             "'variable = 3'." in str(err.value))
 
-    # This is fine
-    trans.apply(routine.walk(Loop)[2], arrays=['a'])
+    # This is fine, it can safely add a new rank to keep each a(i) inside the
+    # second loop independent (note that each a(i) in the first loop will still
+    # be overwritted as in the original code)
+    trans.validate(routine.walk(Loop)[2], arrays=['a'])
 
 
 def test_irla_apply(fortran_reader, fortran_writer):
@@ -181,10 +196,10 @@ def test_irla_apply_accesses_outside_loop(
          ! Implicit loops
          ztmp = 1
          ! Range loop
-         ztmp(:) = ztmp(:) + 2
+         ztmp(3:4) = 2
          ! Explit loop
-         do j = 1, N
-             ztmp(j) = ztmp(j) / 3
+         do j = 1, 3
+             ztmp(j) = 3
          enddo
 
          do i = 1, 10
@@ -200,8 +215,8 @@ def test_irla_apply_accesses_outside_loop(
     code = fortran_writer(psyir)
     # Check the ztmp accesses outside the target loop
     assert "ztmp = 1" in code  # This already indexes the whole array
-    assert "ztmp(:,:) = ztmp(:,:) + 2" in code
-    assert "ztmp(j,:) = ztmp(j,:) / 3" in code
+    assert "ztmp(3:4,:) = 2" in code
+    assert "ztmp(j,:) = 3" in code
     # And the two inside the loop
     assert "ztmp(j,i) = ztmp(j,i) + 4" in code
     assert "ztmp(:,i) = 5" in code
