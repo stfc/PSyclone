@@ -191,7 +191,7 @@ class ReplaceInductionVariablesTrans(Transformation):
         # Check if there is another write to this variable
         # after the first one:
         if any(access.access_type != AccessType.READ
-               for access in var_accesses.all_accesses[1:]):
+               for access in var_accesses[1:]):
             return False
 
         return True

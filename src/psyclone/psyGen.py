@@ -46,7 +46,7 @@ import inspect
 import os
 from collections import OrderedDict
 import abc
-from typing import Any, Dict
+from typing import Any, Dict, List
 import warnings
 
 try:
@@ -2603,10 +2603,14 @@ class KernelArgument(Argument):
 
 class TransInfo():
     '''
-    This class provides information about, and access, to the available
+    This class provides information about, and access to, the available
     transformations in this implementation of PSyclone. New transformations
     will be picked up automatically as long as they subclass the abstract
     Transformation class.
+
+    .. warning::
+        This utility will not find Transformations under the new file
+        structure (TODO #620) and is deprecated.
 
     For example:
 
@@ -2631,6 +2635,10 @@ class TransInfo():
         # layout, where transformations are in different directories and files.
         # Leaving local imports so they will be removed once TransInfo is
         # replaced.
+        warnings.warn("PSyclone Deprecation Warning: the TransInfo class is "
+                      "deprecated. User transformation scripts should import "
+                      "the required Transformation classes directly.",
+                      DeprecationWarning, 2)
         # pylint: disable=import-outside-toplevel
         from psyclone import transformations
         if module is None:
@@ -2665,7 +2673,6 @@ class TransInfo():
     def list(self):
         ''' return a string with a human readable list of the available
             transformations '''
-        import os
         if len(self._objects) == 1:
             result = "There is 1 transformation available:"
         else:
@@ -2699,13 +2706,24 @@ class TransInfo():
                                   f"but expected one of "
                                   f"{self._obj_map.keys()}")
 
-    def _find_subclasses(self, module, base_class):
-        ''' return a list of classes defined within the specified module that
-            are a subclass of the specified baseclass. '''
-        import inspect
+    def _find_subclasses(self, module: type, base_class: type) -> List[type]:
+        '''
+        Return a list of classes defined within the specified module that
+        are a subclass of the specified baseclass.
+
+        Takes care to exclude the 'Dynamo0p3' wrapper classes that are only
+        there for backwards compatibility.
+
+        :param module: the module in which to look for classes.
+        :param base_class: the base class which classes must subclass.
+
+        :returns: the classes in the supplied module that subclass the
+                  supplied class.
+        '''
         return [cls for name, cls in inspect.getmembers(module)
                 if inspect.isclass(cls) and not inspect.isabstract(cls) and
-                issubclass(cls, base_class) and cls is not base_class]
+                issubclass(cls, base_class) and cls is not base_class
+                and name[:9] != "Dynamo0p3"]
 
 
 @dataclass

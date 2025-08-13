@@ -126,10 +126,10 @@ def test_omp_task_directive_clause_accessors(fortran_reader):
     copy = tree.lower_to_language_level()
     task_dir = copy.walk(OMPTaskDirective)[0]
     assert isinstance(task_dir.input_depend_clause, OMPDependClause)
-    assert (task_dir.input_depend_clause._operand ==
+    assert (task_dir.input_depend_clause.operator ==
             OMPDependClause.DependClauseTypes.IN)
     assert isinstance(task_dir.output_depend_clause, OMPDependClause)
-    assert (task_dir.output_depend_clause._operand ==
+    assert (task_dir.output_depend_clause.operator ==
             OMPDependClause.DependClauseTypes.OUT)
 
 
