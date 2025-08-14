@@ -622,6 +622,9 @@ def test_reference_is_write(fortran_reader):
 
 
 def test_reference_enters_and_escapes_scope(fortran_reader):
+    ''' Test that the enters_scope and escapes_scope work as expected with
+    local and global symbols.
+    '''
     code = """
     subroutine my_subroutine()
         use other
@@ -630,20 +633,60 @@ def test_reference_enters_and_escapes_scope(fortran_reader):
         a = 0
         call myfunc(b)
         c = 0
-
         do i=1, 10
             a = b + c
+            call myfunc(d)
         enddo
+        c = b + 1
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[0]
     # a value does not enter the scope (because we write it first in the scope)
     a_ref = loop.loop_body[0].lhs
-    import pdb; pdb.set_trace()
     assert not a_ref.enters_scope(loop)
     # b and c values enter the scope
     b_ref = loop.loop_body[0].rhs.operands[0]
-    import pdb; pdb.set_trace()
     assert b_ref.enters_scope(loop)
     c_ref = loop.loop_body[0].rhs.operands[1]
     assert c_ref.enters_scope(loop)
+    # For 'd' we assume a readwrite access, but since it is a local we still
+    # know that the value does not enter the scope
+    d_ref = loop.loop_body[1].arguments[0]
+    assert not d_ref.enters_scope(loop)
+
+    # 'c' value does not leave the scope (because we write after the scope)
+    assert not c_ref.escapes_scope(loop)
+    # 'a' and 'd' value does not leave the scope (because we don't use them
+    # after the scope)
+    assert not a_ref.escapes_scope(loop)
+    assert not d_ref.escapes_scope(loop)
+    # 'b' value is used after the scope
+    assert b_ref.escapes_scope(loop)
+
+    # Do the same but with global instead of local symbols
+    code = """
+    subroutine my_subroutine()
+        use other
+
+        a = 0
+        call myfunc(b)
+        c = 0
+        do i=1, 10
+            a = b + c
+            call myfunc(d)
+        enddo
+        c = b + 1
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    # In this case for 'd' we cannot guarantee that it is not written somewhere
+    # else (e.g. inside myfunc) and the call assumed read uses the value
+    d_ref = loop.loop_body[1].arguments[0]
+    assert d_ref.enters_scope(loop)
+
+    # 'a' and 'd' we cannot guarantee that they are used somewhere not visible
+    # (e.g. after this subroutine) so they now escape the scope
+    a_ref = loop.loop_body[0].lhs
+    assert a_ref.escapes_scope(loop)
+    d_ref = loop.loop_body[1].arguments[0]
+    assert d_ref.escapes_scope(loop)

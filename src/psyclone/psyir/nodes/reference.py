@@ -279,6 +279,9 @@ class Reference(DataNode):
 
         # Check if this instance is in the provided scope
         if not self.is_descendent_of(scope):
+            # If the 'value' is rewritten, it does not escape the scope
+            if self.is_write and not self.is_read:
+                return False
             return True
 
         # Now check all possible next accesses
@@ -304,12 +307,17 @@ class Reference(DataNode):
             return False
         visited_nodes.add(id(self))
 
-        # If it's not a local symbol, we cannot guarantee its lifetime
-        # if not isinstance(self.symbol.interface, AutomaticInterface):
-        #     return True
-
         # Check if this instance is in the provided scope
         if not self.is_descendent_of(scope):
+            return True
+
+        # If the 'value' starts here, stop this search chain (the DUC
+        # does not stop because if searches for WaWs)
+        if self.is_write and not self.is_read:
+            return False
+
+        # If it's not a local symbol, we cannot guarantee its lifetime
+        if not isinstance(self.symbol.interface, AutomaticInterface):
             return True
 
         # Now check all possible next accesses
