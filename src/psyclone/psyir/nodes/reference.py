@@ -205,7 +205,7 @@ class Reference(DataNode):
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
@@ -258,12 +258,15 @@ class Reference(DataNode):
         return chain.find_forward_accesses()
 
     def enters_scope(self, scope, visited_nodes=None) -> bool:
+
         '''
         :param scope: the given scope that we evaluate.
         :param visited_nodes: a set of nodes already visited, this is necessary
             because the dependency chains may contain cycles. Defaults to an
             empty set.
+
         :returns: whether the symbol lifetime starts before the given scope.
+
         '''
 
         # Populate visited_nodes, and stop recursion when appropriate
@@ -277,6 +280,7 @@ class Reference(DataNode):
         if not isinstance(self.symbol.interface, AutomaticInterface):
             return True
 
+
         # Check if this instance is outside the provided scope
         if not self.is_descendent_of(scope):
             return True
@@ -286,6 +290,7 @@ class Reference(DataNode):
             if not isinstance(ref, Reference):
                 return True
             if ref.enters_scope(scope, visited_nodes):
+
                 return True
 
         return False

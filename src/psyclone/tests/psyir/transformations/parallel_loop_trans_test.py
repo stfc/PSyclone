@@ -38,7 +38,11 @@
 
 import pytest
 
-from psyclone.psyir.nodes import Loop, OMPParallelDoDirective
+from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.nodes import (
+    Assignment, IfBlock, Loop, OMPParallelDoDirective, Routine, WhileLoop,
+    Literal
+)
 from psyclone.psyir.transformations import (
     ParallelLoopTrans, TransformationError)
 from psyclone.psyir.tools import DependencyTools, DTCode
@@ -662,6 +666,73 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
             "of type int" in str(err.value))
 
 
+def test_paralooptrans_array_privatisation_complex_control_flow(
+        fortran_reader, fortran_writer):
+    '''
+    Check that the 'privatise_arrays' transformation option allows to ignore
+    write-write dependencies by setting the associated variable as 'private'
+    when the loop has complex control flows (with branches and outer loops).
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer ji, jj, i
+          real :: var1(10,10)
+          real :: ztmp(10)
+          real :: ztmp2(10)
+          var1 = 1.0
+          ztmp2 = 1.0
+
+          if (i == 1) then
+              do ji = 1, 10
+                do jj = 1, 10
+                  ztmp(jj) = 3
+                end do
+                do jj = 1, 10
+                  var1(ji, jj) = ztmp(jj) * 2
+                end do
+              end do
+          else
+              do ji = 1, 10
+                do jj = 1, 10
+                  var1(ji, jj) = ztmp(jj) * 2
+                end do
+              end do
+          endif
+        end subroutine my_sub''')
+
+    loop = psyir.walk(Loop, stop_type=Loop)[0]
+    trans = ParaTrans()
+
+    # By default this can not be parallelised because 'ztmp' has a write-write
+    # race condition in the outer loops
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop)
+    assert ("ztmp(jj)\' causes a write-write race condition."
+            in str(err.value))
+
+    # It should succeed if we enable array privatisation
+    trans.validate(loop, {"privatise_arrays": True})
+
+    # Doing the same but with an outer loop around, it must fails because now
+    # it can loop back to the references in each of the branche
+    routine = psyir.children[0]
+    children = routine.pop_all_children()
+    routine.addchild(Loop.create(routine.symbol_table.lookup("i"),
+                                 Literal("1", INTEGER_TYPE),
+                                 Literal("2", INTEGER_TYPE),
+                                 Literal("1", INTEGER_TYPE),
+                                 children))
+
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop, {"privatise_arrays": True})
+    assert ("write-write dependency in 'ztmp' cannot be solved by array "
+            "privatisation" in str(err.value))
+
+    # But it is fine when explicitly requesting the symbol to be private
+    loop.explicitly_private_symbols.add(loop.scope.symbol_table.lookup("ztmp"))
+    trans.validate(loop, {"privatise_arrays": True})
+
+
 def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     '''
         Test the _find_next_dependency function in the ParallelLoopTrans
@@ -690,8 +761,8 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop.detach()
     direc.children[0].addchild(loop)
     psyir.children[0].addchild(direc, 0)
-    result = psyir.walk(Loop)[1].loop_body.children[0].lhs
-    assert paratrans._find_next_dependency(loop, direc) is result
+    result = psyir.walk(Loop)[1].loop_body.children[0]
+    assert paratrans._find_next_dependency(loop, direc) == [result]
 
     # Test when we have a loop in a loop and the next access is prior.
     code = """
@@ -712,8 +783,8 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop.detach()
     direc.children[0].addchild(loop)
     psyir.walk(Loop)[0].loop_body.addchild(direc)
-    result = psyir.walk(Loop)[0].loop_body.children[0].lhs
-    assert paratrans._find_next_dependency(loop, direc) is result
+    result = psyir.walk(Loop)[0].loop_body.children[0]
+    assert paratrans._find_next_dependency(loop, direc) == [result]
 
     # Test when we have a loop in a loop and an access after outside all of
     # the loops that the next access found it the prior one
@@ -736,8 +807,9 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop.detach()
     direc.children[0].addchild(loop)
     psyir.walk(Loop)[0].loop_body.addchild(direc)
-    result = psyir.walk(Loop)[0].loop_body.children[0].lhs
-    assert paratrans._find_next_dependency(loop, direc) is result
+    result = psyir.walk(Loop)[0].loop_body.children[0]
+    result2 = psyir.walk(Assignment)[2]
+    assert paratrans._find_next_dependency(loop, direc) == [result, result2]
 
     # Test that an access after inside the same ancestor loop is the
     # next access.
@@ -760,7 +832,31 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop.detach()
     direc.children[0].addchild(loop)
     psyir.walk(Loop)[0].loop_body.addchild(direc, 1)
-    result = psyir.walk(Loop)[0].loop_body.children[2].lhs
+    result = psyir.walk(Assignment)[2]
+    assert paratrans._find_next_dependency(loop, direc) == [result]
+
+    # Test that if the access is in a loop and there is a next access before
+    # but in a higher-level loop we get False.
+    code = """subroutine test
+    integer, dimension(100) :: a
+    integer :: i, j, k
+    do k = 1, 100
+    a(1) = 1
+      do j = 1, 100
+          do i = 1, 100
+             a(i) = a(i) + a(1)
+          end do
+      end do
+    end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    direc = paratrans._directive(None)
+    loop = psyir.walk(Loop)[2]
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Loop)[1].loop_body.addchild(direc)
+    result = False
     assert paratrans._find_next_dependency(loop, direc) is result
 
     # Test that if the loop is in a loop and the next access is outside
@@ -830,8 +926,8 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop.detach()
     direc.children[0].addchild(loop)
     psyir.walk(Loop)[0].loop_body.addchild(direc, 1)
-    result = psyir.walk(Loop)[3].loop_body.children[0].lhs
-    assert paratrans._find_next_dependency(loop, direc) is result
+    result = psyir.walk(Loop)[3].loop_body.children[0]
+    assert paratrans._find_next_dependency(loop, direc) == [result]
 
     # Test when there are multiple ancestor loops with accesses.
     code = """
@@ -854,8 +950,130 @@ def test_parallel_loop_trans_find_next_dependency(fortran_reader):
     loop.detach()
     direc.children[0].addchild(loop)
     psyir.walk(Loop)[1].loop_body.addchild(direc)
-    result = psyir.walk(Loop)[1].loop_body.children[0].lhs
+    result1 = psyir.walk(Loop)[0].loop_body.children[0]
+    result2 = psyir.walk(Loop)[1].loop_body.children[0]
+    assert paratrans._find_next_dependency(loop, direc) == [result1, result2]
+
+    # Test we find the while loop when we have a condition with an
+    # IntrinsicCall inside
+    code = """
+    subroutine test
+    integer, dimension(100) :: a
+    integer :: i
+    do i = 1, 100
+        a(i) = 1
+    end do
+    do while( ALL(a(:)) )
+       do i = 1, 100
+         a(i) = 0
+       end do
+    end do
+    end subroutine test
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(Routine)[0].children.insert(0, direc)
+    result = psyir.walk(WhileLoop)[0]
+    assert paratrans._find_next_dependency(loop, direc) == [result]
+
+    # Test we find no satisfiable dependency when the next access is an
+    # ancestor while loop's condition.
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[1]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(WhileLoop)[0].loop_body.addchild(direc)
+    result = False
     assert paratrans._find_next_dependency(loop, direc) is result
+
+    # Test that we don't find a previous dependency if the after dependency
+    # is in the same if block.
+    code = """
+    subroutine test
+    integer, dimension(100) :: a
+    integer :: i, j
+    do i = 1, 100
+        if( i < 100) then
+            do j = 1, 100
+                a(j) = i
+            end do
+            do j = 1, 100
+                a(j) = a(j) + i
+            end do
+            do j = 1, 100
+                a(j) = a(j) + j
+            end do
+        end if
+    end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[2]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(IfBlock)[0].if_body.children.insert(1, direc)
+    result = psyir.walk(Loop)[3].loop_body.children[0]
+    assert paratrans._find_next_dependency(loop, direc) == [result]
+
+    # Test we do find a previous dependency if they're not in the same IfBlock
+    code = """
+    subroutine test
+    integer, dimension(100) :: a
+    integer :: i, j
+    do i = 1, 100
+        if( i < 100) then
+            do j = 1, 100
+                a(j) = i
+            end do
+        end if
+            do j = 1, 100
+                a(j) = a(j) + i
+            end do
+        if (i < 50) then
+            do j = 1, 100
+                a(j) = a(j) + j
+            end do
+        end if
+    end do
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[2]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(IfBlock)[0].if_body.children.insert(1, direc)
+    result1 = psyir.walk(Loop)[1].loop_body.children[0]
+    result2 = psyir.walk(Loop)[3].loop_body.children[0]
+    assert paratrans._find_next_dependency(loop, direc) == [result1, result2]
+
+    # Check we find WaR dependencies.
+    code = """ subroutine x
+    integer :: i
+    integer, dimension(100) :: a, b
+
+do i = 1, 100
+  b(i) = a(i)
+end do
+do i = 1, 100
+   a(i) = i
+end do
+
+end subroutine x
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.children[0].children.insert(0, direc)
+    result = psyir.walk(Loop)[1].loop_body.children[0]
+    assert paratrans._find_next_dependency(loop, direc) == [result]
 
 
 def test_parallel_loop_trans_add_asynchronicity():

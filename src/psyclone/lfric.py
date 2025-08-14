@@ -70,8 +70,8 @@ from psyclone.psyir.nodes import (
     StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall,
     Assignment, ArrayReference, Loop, Container, Schedule, Node)
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, DataSymbol, ScalarType, UnresolvedType, DataTypeSymbol,
-    ContainerSymbol, ImportInterface, StructureType,
+    INTEGER_TYPE, DataSymbol, DataType, DataTypeSymbol, ScalarType,
+    UnresolvedType, ContainerSymbol, ImportInterface, StructureType,
     ArrayType, UnsupportedFortranType, ArgumentInterface)
 
 
@@ -5703,6 +5703,26 @@ class LFRicKernelArgument(KernelArgument):
         # already set up)
         self._complete_init(arg_info)
 
+    @classmethod
+    def _ensure_unique_name(cls, name: str) -> str:
+        '''
+        Given the proposed argument name, returns a new name that will be
+        unique in the final PSy routine.
+
+        :param name: the proposed name of a kernel argument.
+
+        :returns: a new name for the kernel argument.
+
+        '''
+        # Symbol imports for STENCILS are not yet in the symbol table (until
+        # lowering time), so make sure the argument names do not overlap with
+        # them.
+        const = LFRicConstants()
+        new_name = name
+        if name.upper() in const.STENCIL_MAPPING.values():
+            new_name += "_arg"
+        return new_name
+
     def generate_method_call(self, method, function_space=None):
         '''
         Generate a PSyIR call to the given method of this object.
@@ -6411,7 +6431,7 @@ class LFRicKernelArgument(KernelArgument):
         '''
         self._stencil = value
 
-    def infer_datatype(self, proxy=False):
+    def infer_datatype(self, proxy: bool = False) -> DataType:
         '''
         Infer the datatype of this kernel argument in the PSy layer using
         the LFRic API rules. If any LFRic infrastructure modules are required
@@ -6423,12 +6443,11 @@ class LFRicKernelArgument(KernelArgument):
         TODO #1258 - ultimately this routine should not have to create any
         DataTypeSymbols as that should already have been done.
 
-        :param bool proxy: whether or not we want the type of the proxy \
+        :param proxy: whether or not we want the type of the proxy
             object for this kernel argument. Defaults to False (i.e.
             return the type rather than the proxy type).
 
         :returns: the datatype of this argument.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
         :raises NotImplementedError: if an unsupported argument type is found.
 
@@ -6441,18 +6460,18 @@ class LFRicKernelArgument(KernelArgument):
 
         symtab = scope.symbol_table
 
-        def _find_or_create_type(mod_name, type_name):
+        def _find_or_create_type(mod_name: str,
+                                 type_name: str) -> DataTypeSymbol:
             '''
             Utility to find or create a DataTypeSymbol with the supplied name,
             imported from the named module.
 
-            :param str mod_name: the name of the module from which the \
-                                 DataTypeSymbol should be imported.
-            :param str type_name: the name of the derived type for which to \
-                                  create a DataTypeSymbol.
+            :param mod_name: the name of the module from which the
+                             DataTypeSymbol should be imported.
+            :param type_name: the name of the derived type for which to
+                              create a DataTypeSymbol.
 
             :returns: the symbol for the requested type.
-            :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
             '''
             return symtab.find_or_create(
@@ -6504,7 +6523,11 @@ class LFRicKernelArgument(KernelArgument):
                 type_name = self._proxy_data_type
             else:
                 type_name = self._data_type
-            return _find_or_create_type(mod_name, type_name)
+            dts = _find_or_create_type(mod_name, type_name)
+            if self.is_field and self.vector_size > 1:
+                # A field vector must be of ArrayType
+                return ArrayType(dts, [self.vector_size])
+            return dts
 
         raise NotImplementedError(
             f"'{str(self)}' is not a scalar, field or operator argument")

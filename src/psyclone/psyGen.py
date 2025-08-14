@@ -46,7 +46,7 @@ import inspect
 import os
 from collections import OrderedDict
 import abc
-from typing import Any, Dict
+from typing import Any, Dict, List
 import warnings
 
 try:
@@ -2130,7 +2130,7 @@ class Argument():
         called (in order to determine the values of precision,
         data_type and module_name).
 
-        :param arg_info: Information about this argument collected by \
+        :param arg_info: Information about this argument collected by
             the parser.
         :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
 
@@ -2158,22 +2158,10 @@ class Argument():
 
                 # Find the tag or create a new symbol with expected attributes
                 data_type = self.infer_datatype()
-                # In case of LFRic field vector, declare it as array.
-                # This is a fix for #1930, but we might want a better
-                # solution to avoid LFRic-specific code here.
-                # pylint: disable=no-member
-                if hasattr(self, 'vector_size') and self.vector_size > 1:
-                    data_type = ArrayType(data_type, [self.vector_size])
 
-                # Symbol imports for STENCILS are not yet in the symbol
-                # table (until lowering time), so make sure the argument
-                # names do not overlap with them
-                # pylint: disable=import-outside-toplevel
-                from psyclone.domain.lfric.lfric_constants import \
-                    LFRicConstants
-                const = LFRicConstants()
-                if self._orig_name.upper() in const.STENCIL_MAPPING.values():
-                    self._orig_name = self._orig_name + "_arg"
+                # Ensure that the symbol will have a unique name in the final
+                # PSy routine.
+                self._orig_name = self._ensure_unique_name(self._orig_name)
 
                 new_argument = symtab.find_or_create_tag(
                     tag, root_name=self._orig_name, symbol_type=DataSymbol,
@@ -2187,6 +2175,21 @@ class Argument():
                         new_argument not in previous_arguments):
                     symtab.specify_argument_list(previous_arguments +
                                                  [new_argument])
+
+    @classmethod
+    def _ensure_unique_name(cls, name: str) -> str:
+        '''
+        Given the proposed argument name, returns a new name that will be
+        unique in the final PSy routine.
+
+        This base implementation just returns the supplied name unchanged.
+
+        :param name: the proposed name of a kernel argument.
+
+        :returns: a new name for the kernel argument.
+
+        '''
+        return name
 
     @abc.abstractmethod
     def psyir_expression(self):
@@ -2600,10 +2603,14 @@ class KernelArgument(Argument):
 
 class TransInfo():
     '''
-    This class provides information about, and access, to the available
+    This class provides information about, and access to, the available
     transformations in this implementation of PSyclone. New transformations
     will be picked up automatically as long as they subclass the abstract
     Transformation class.
+
+    .. warning::
+        This utility will not find Transformations under the new file
+        structure (TODO #620) and is deprecated.
 
     For example:
 
@@ -2628,6 +2635,10 @@ class TransInfo():
         # layout, where transformations are in different directories and files.
         # Leaving local imports so they will be removed once TransInfo is
         # replaced.
+        warnings.warn("PSyclone Deprecation Warning: the TransInfo class is "
+                      "deprecated. User transformation scripts should import "
+                      "the required Transformation classes directly.",
+                      DeprecationWarning, 2)
         # pylint: disable=import-outside-toplevel
         from psyclone import transformations
         if module is None:
@@ -2662,7 +2673,6 @@ class TransInfo():
     def list(self):
         ''' return a string with a human readable list of the available
             transformations '''
-        import os
         if len(self._objects) == 1:
             result = "There is 1 transformation available:"
         else:
@@ -2696,13 +2706,24 @@ class TransInfo():
                                   f"but expected one of "
                                   f"{self._obj_map.keys()}")
 
-    def _find_subclasses(self, module, base_class):
-        ''' return a list of classes defined within the specified module that
-            are a subclass of the specified baseclass. '''
-        import inspect
+    def _find_subclasses(self, module: type, base_class: type) -> List[type]:
+        '''
+        Return a list of classes defined within the specified module that
+        are a subclass of the specified baseclass.
+
+        Takes care to exclude the 'Dynamo0p3' wrapper classes that are only
+        there for backwards compatibility.
+
+        :param module: the module in which to look for classes.
+        :param base_class: the base class which classes must subclass.
+
+        :returns: the classes in the supplied module that subclass the
+                  supplied class.
+        '''
         return [cls for name, cls in inspect.getmembers(module)
                 if inspect.isclass(cls) and not inspect.isabstract(cls) and
-                issubclass(cls, base_class) and cls is not base_class]
+                issubclass(cls, base_class) and cls is not base_class
+                and name[:9] != "Dynamo0p3"]
 
 
 @dataclass

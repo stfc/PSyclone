@@ -1115,8 +1115,9 @@ class Node():
 
         '''
         local_list = []
-        if isinstance(self, my_type) and depth in [None, self.depth]:
-            local_list.append(self)
+        if isinstance(self, my_type):
+            if depth is None or depth == self.depth:
+                local_list.append(self)
 
         # Stop recursion further into the tree if an instance of a class
         # listed in stop_type is found.
@@ -1519,7 +1520,7 @@ class Node():
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''

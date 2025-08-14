@@ -358,12 +358,12 @@ def test_array_access_pairs_1_var(lhs, rhs, distance, fortran_reader):
     # Get the READ access to 'a1' for expression (this is complicated by the
     # presence of 'inquiry' accesses for the array bounds in some cases).
     a1vinfo = assign.lhs.reference_accesses()[sig]
-    for access in a1vinfo.all_accesses:
+    for access in a1vinfo:
         if access.access_type == AccessType.READ:
             access_info_lhs = access
             break
     a1vinfo_rh = assign.rhs.reference_accesses()[sig]
-    for access in a1vinfo_rh.all_accesses:
+    for access in a1vinfo_rh:
         if access.access_type == AccessType.READ:
             access_info_rhs = access
             break

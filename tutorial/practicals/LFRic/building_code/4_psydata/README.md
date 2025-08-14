@@ -213,7 +213,7 @@ perturbation_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+
 The driver read in the data of the kernel data file, executed the driver, and compared the results
 with the results collected during the original execution. The table above is a summary of the
 comparison of all output variables. The meaning of these fields are explained in the
-[driver summary staticstics](https://psyclone.readthedocs.io/en/stable/psyke.html#driver-summary-statistics)
+[driver summary staticstics](https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html#driver-summary-statistics)
 section of the manual.
 
 ## Step 8: Try other PSyData libraries
@@ -296,7 +296,7 @@ and ``Makefile.value_range_check`` for the makefile to use.
 
 This example by itself will not print any message (since there is no invalid floating
 point number). In order to define a range for a variable (see
-[the documentation](https://psyclone.readthedocs.io/en/stable/psy_data.html#value-range-check)
+[the documentation](https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html#value-range-check)
 for details), set the following environment variable:
 
     PSYVERIFY__time_evolution__perturbation_data=0:4000 ./time_evolution
