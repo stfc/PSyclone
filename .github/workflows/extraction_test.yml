@@ -44,12 +44,12 @@ on:
 
 jobs:
   run_if_on_mirror:
-    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
+    if: ${{ github.repository == 'sergisiso/PSyclone' }}
     runs-on: self-hosted
     env:
       LFRIC_APPS_REV: 7536
       LFRIC_CORE_REV: 52054
-      PYTHON_VERSION: 3.13.3
+      PYTHON_VERSION: 3.13
 
     steps:
     - uses: actions/checkout@v3
@@ -107,7 +107,7 @@ jobs:
     - name: GungHo Extraction Compilation
       run:  |
         # Set up environment
-        source /apps/spack/psyclone-spack-25.3/spack-repo/share/spack/setup-env.sh
+        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%gcc@14
         source .runner_venv/bin/activate
         export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
