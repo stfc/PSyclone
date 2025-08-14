@@ -1150,6 +1150,18 @@ def test_process_array_declarations():
     assert symbol.datatype.shape[0].lower.value == "4"
     assert symbol.datatype.shape[0].upper == ArrayType.Extent.ATTRIBUTE
 
+    # When lower bound is default (i.e. 1)
+    reader = FortranStringReader("integer :: var3(1:)")
+    fparser2spec = Fortran2003.Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    symbol = fake_parent.symbol_table.lookup("var3")
+    assert len(symbol.shape) == 1
+    # Shape should be an ArrayBounds with known lower bound and ATTRIBUTE
+    # upper.
+    assert isinstance(symbol.datatype.shape[0], ArrayType.ArrayBounds)
+    assert symbol.datatype.shape[0].lower.value == "1"
+    assert symbol.datatype.shape[0].upper == ArrayType.Extent.ATTRIBUTE
+
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_array_declarations_bound_expressions():
