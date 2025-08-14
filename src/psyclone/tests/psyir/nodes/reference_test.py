@@ -44,7 +44,7 @@ import pytest
 from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (
     ArrayReference, Assignment, CodeBlock, colored,
-    KernelSchedule, Literal, Reference)
+    KernelSchedule, Literal, Reference, Loop)
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     UnresolvedType, ImportInterface,
                                     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
@@ -619,3 +619,31 @@ def test_reference_is_write(fortran_reader):
     # a = b has a as write and b as not
     assert references[10].is_write
     assert not references[11].is_write
+
+
+def test_reference_enters_and_escapes_scope(fortran_reader):
+    code = """
+    subroutine my_subroutine()
+        use other
+        integer :: a, b, c, d
+
+        a = 0
+        call myfunc(b)
+        c = 0
+
+        do i=1, 10
+            a = b + c
+        enddo
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    # a value does not enter the scope (because we write it first in the scope)
+    a_ref = loop.loop_body[0].lhs
+    import pdb; pdb.set_trace()
+    assert not a_ref.enters_scope(loop)
+    # b and c values enter the scope
+    b_ref = loop.loop_body[0].rhs.operands[0]
+    import pdb; pdb.set_trace()
+    assert b_ref.enters_scope(loop)
+    c_ref = loop.loop_body[0].rhs.operands[1]
+    assert c_ref.enters_scope(loop)

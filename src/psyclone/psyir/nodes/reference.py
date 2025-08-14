@@ -288,6 +288,37 @@ class Reference(DataNode):
 
         return False
 
+    def enters_scope(self, scope, visited_nodes=None) -> bool:
+        '''
+        :param scope: the given scope that we evaluate.
+        :param visited_nodes: a set of nodes already visited, this is necessary
+            because the dependency chains may contain cycles. Defaults to an
+            empty set.
+        :returns: whether the symbol lifetime starts before the given scope.
+        '''
+
+        # Populate visited_nodes, and stop recursion when appropriate
+        if visited_nodes is None:
+            visited_nodes = set()
+        if id(self) in visited_nodes:
+            return False
+        visited_nodes.add(id(self))
+
+        # If it's not a local symbol, we cannot guarantee its lifetime
+        # if not isinstance(self.symbol.interface, AutomaticInterface):
+        #     return True
+
+        # Check if this instance is in the provided scope
+        if not self.is_descendent_of(scope):
+            return True
+
+        # Now check all possible next accesses
+        for ref in self.previous_accesses():
+            if ref.enters_scope(scope, visited_nodes):
+                return True
+
+        return False
+
     def replace_symbols_using(self, table_or_symbol):
         '''
         Update any Symbols referenced by this Node with those in the
