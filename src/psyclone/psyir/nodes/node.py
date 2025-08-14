@@ -1074,11 +1074,12 @@ class Node():
         # Starting with 'self.parent' instead of 'node = self' avoids many
         # false positive pylint issues that assume self.root type would be
         # the same as self type.
-        if self.parent is None:
+        if self._parent is None:
             return self
-        node = self.parent
-        while node.parent is not None:
-            node = node.parent
+        # pylint: disable=protected-access
+        node = self._parent
+        while node._parent is not None:
+            node = node._parent
         return node
 
     def sameParent(self, node_2):
@@ -1129,7 +1130,7 @@ class Node():
         if depth is not None and self.depth >= depth:
             return local_list
 
-        for child in self.children:
+        for child in self._children:
             local_list += child.walk(my_type, stop_type, depth=depth)
         return local_list
 
