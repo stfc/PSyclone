@@ -220,10 +220,12 @@ def test_gen_decls_array(fortran_writer):
     result = fortran_writer.gen_decls(symbol_table)
     assert "real, dimension(3,5) :: simple" in result
     # With range
-    atype = ArrayType(REAL_TYPE, [(3, 5)])
+    sym = symbol_table.new_symbol("upper", symbol_type=DataSymbol,
+                                  datatype=INTEGER_TYPE)
+    atype = ArrayType(REAL_TYPE, [(3, 5), (-1, Reference(sym))])
     symbol_table.add(DataSymbol("simple2", atype))
     result = fortran_writer.gen_decls(symbol_table)
-    assert "real, dimension(3:5) :: simple2" in result
+    assert "real, dimension(3:5,-1:upper) :: simple2" in result
     # Only an explicit lower bound.
     atype = ArrayType(REAL_TYPE, [(3, ArrayType.Extent.ATTRIBUTE)])
     symbol_table.add(DataSymbol("simple3", atype))
