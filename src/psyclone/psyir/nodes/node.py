@@ -1178,22 +1178,23 @@ class Node():
                 global_list.append(block)
         return global_list
 
-    def ancestor(self, my_type, excluding=None, include_self=False,
+    def ancestor(self, ancestor_type, excluding=None, include_self=False,
                  limit=None, shared_with=None):
         '''
         Search back up the tree and check whether this node has an ancestor
-        that is an instance of the supplied type. If it does then we return
-        it otherwise we return None. An individual (or tuple of) (sub-)
-        class(es) to ignore may be provided via the `excluding` argument. If
-        `include_self` is True then the current node is included in the search.
+        that is an instance of the supplied type (or tuple of types). If it
+        does then we return it otherwise we return None.
+        An individual (or tuple of) (sub-) class(es) to ignore may be provided
+        via the `excluding` argument. If `include_self` is True then the
+        current node is included in the search.
         If `limit` is provided then the search ceases if/when the supplied
         node is encountered.
         If `shared_with` is provided, then the ancestor search will find an
         ancestor of both this node and the node provided as `shared_with` if
         such an ancestor exists.
 
-        :param my_type: class(es) to search for.
-        :type my_type: type | Tuple[type, ...]
+        :param ancestor_type: class(es) to search for.
+        :type ancestor_type: type | Tuple[type, ...]
         :param excluding: (sub-)class(es) to ignore or None.
         :type excluding: Optional[type | Tuple[type, ...]]
         :param bool include_self: whether or not to include this node in the \
@@ -1238,11 +1239,11 @@ class Node():
         shared_ancestor = None
         if shared_with is not None:
             shared_ancestor = shared_with.ancestor(
-                    my_type, excluding=excluding,
+                    ancestor_type, excluding=excluding,
                     include_self=include_self, limit=limit)
 
         while myparent is not None:
-            if isinstance(myparent, my_type):
+            if isinstance(myparent, ancestor_type):
                 if not (excluding and isinstance(myparent, excludes)):
                     # If this is a valid instance but not the same as for
                     # the shared_with node, we do logic afterwards to continue
@@ -1268,14 +1269,14 @@ class Node():
                 # potential shared ancestor, search upwards to find
                 # the next valid ancestor of this node.
                 myparent = myparent.ancestor(
-                        my_type, excluding=excluding,
+                        ancestor_type, excluding=excluding,
                         include_self=False, limit=limit)
             else:
                 # shared_ancestor is equal or deeper in the tree than
                 # myparent, so search upwards for the next valid ancestor
                 # of shared_ancestor.
                 shared_ancestor = shared_ancestor.ancestor(
-                        my_type, excluding=excluding, include_self=False,
+                        ancestor_type, excluding=excluding, include_self=False,
                         limit=limit)
         # If myparent is shared ancestor then return myparent.
         if myparent is shared_ancestor:

@@ -42,7 +42,6 @@ from typing import Set, Tuple
 from psyclone.core import AccessType
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.symbols import DataSymbol, Symbol
 
