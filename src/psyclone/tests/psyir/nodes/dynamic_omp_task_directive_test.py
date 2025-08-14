@@ -2505,7 +2505,7 @@ def test_omp_task_directive_sub_shift_indirection_if(
         integer, dimension(321, 10) :: B
         integer, dimension(320, 10) :: boundary
         integer :: i
-        integer :: iplusone
+        integer :: iplusone = 1
         integer :: j
         integer :: k
         do i = 1, 320, 32
@@ -2566,7 +2566,7 @@ def test_omp_task_directive_sub_shift_indirection_if_readonly(
         integer, dimension(321, 10) :: B
         integer, dimension(320, 10) :: boundary
         integer :: i
-        integer :: iplusone
+        integer :: iplusone = 1
         integer :: j
         integer :: k
         do i = 1, 320, 32
@@ -2628,7 +2628,7 @@ def test_omp_task_directive_array_member_if_indirection_readonly(
         type(x) :: AA
         integer, dimension(10,320) :: B
         integer, dimension(10,320) :: boundary
-        integer :: iplusone
+        integer :: iplusone = 1
         integer :: i
         integer :: j
         do i = 1, 320, 32
@@ -2689,7 +2689,7 @@ def test_omp_task_directive_array_member_if_indirection_write(
         type(x) :: AA
         integer, dimension(10,320) :: B
         integer, dimension(10,320) :: boundary
-        integer :: iplusone
+        integer :: iplusone = 1
         integer :: i
         integer :: j
         do i = 1, 320, 32
@@ -2803,13 +2803,12 @@ sshn_v(i,jiv))
     ptrans.apply(loops[0].parent.parent)
 
     correct = '''\
-  !$omp parallel default(shared) private(i,j,j_el_inner,j_out_var) \
-firstprivate(jiv)
+  !$omp parallel default(shared) private(i,j,j_el_inner,j_out_var,jiv)
   !$omp single
   do j_out_var = ystart, ystop, 32
     j_el_inner = MIN(j_out_var + (32 - 1), ystop)
-    !$omp task private(j,i) firstprivate(j_out_var,j_el_inner,xstart,\
-xstop,jiv) shared(boundary,va,hv,sshn_v) depend(in: boundary(:,j_out_var),\
+    !$omp task private(j,i,jiv) firstprivate(j_out_var,j_el_inner,xstart,\
+xstop) shared(boundary,va,hv,sshn_v) depend(in: boundary(:,j_out_var),\
 boundary(:,j_out_var + 32),g,hv(:,j_out_var),va(:,j_out_var + 32),\
 va(:,j_out_var),sshn_v(:,j_out_var),sshn_v(:,j_out_var + 32),\
 va(:,j_out_var - 32),sshn_v(:,j_out_var - 32)) depend(out: va(:,j_out_var))
@@ -2861,7 +2860,7 @@ def test_omp_task_directive_multi_step_if_indirection(
         integer, dimension(321, 10) :: B
         integer, dimension(320, 10) :: boundary
         integer :: i
-        integer :: iplusone
+        integer :: iplusone = 1
         integer :: j
         integer :: k
         do i = 1, 320, 32

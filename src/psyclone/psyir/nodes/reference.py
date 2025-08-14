@@ -39,10 +39,12 @@
 
 ''' This module contains the implementation of the Reference node.'''
 
+from typing import Optional, Set
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import Symbol, AutomaticInterface
 from psyclone.psyir.symbols.datatypes import UnresolvedType
 
@@ -257,7 +259,9 @@ class Reference(DataNode):
         chain = DefinitionUseChain(self)
         return chain.find_forward_accesses()
 
-    def escapes_scope(self, scope, visited_nodes=None) -> bool:
+    def escapes_scope(
+            self, scope: Node, visited_nodes: Optional[Set] = None
+    ) -> bool:
         '''
         :param scope: the given scope that we evaluate.
         :param visited_nodes: a set of nodes already visited, this is necessary
@@ -286,12 +290,16 @@ class Reference(DataNode):
 
         # Now check all possible next accesses
         for ref in self.next_accesses():
+            if not isinstance(ref, Reference):
+                return True
             if ref.escapes_scope(scope, visited_nodes):
                 return True
 
         return False
 
-    def enters_scope(self, scope, visited_nodes=None) -> bool:
+    def enters_scope(
+            self, scope: Node, visited_nodes: Optional[Set] = None
+    ) -> bool:
         '''
         :param scope: the given scope that we evaluate.
         :param visited_nodes: a set of nodes already visited, this is necessary
@@ -322,6 +330,8 @@ class Reference(DataNode):
 
         # Now check all possible next accesses
         for ref in self.previous_accesses():
+            if not isinstance(ref, Reference):
+                return True
             if ref.enters_scope(scope, visited_nodes):
                 return True
 

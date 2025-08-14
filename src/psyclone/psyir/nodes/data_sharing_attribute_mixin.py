@@ -125,8 +125,9 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             if (isinstance(symbol, DataSymbol) and
                     isinstance(self.dir_body[0], Loop) and
                     symbol in self.dir_body[0].explicitly_private_symbols):
-                if any(ref.symbol is symbol for ref in self.preceding()
-                       if isinstance(ref, Reference)):
+                visited = set()
+                if any(access.node.enters_scope(self, visited_nodes=visited)
+                       for access in accesses):
                     # If it's used before the loop, make it firstprivate
                     fprivate.add(symbol)
                 else:
@@ -181,7 +182,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
 
                     # Otherwise, the assignment to this variable is inside a
                     # loop (and it will be repeated for each iteration), so
-                    # we declare it as private or need_synch
+                    # we declare it as private or need_sync
                     name = signature.var_name
                     # TODO #2094: var_name only captures the top-level
                     # component in the derived type accessor. If the attributes
@@ -208,11 +209,14 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                         limit=loop_ancestor,
                         include_self=True)
                     if conditional_write:
-                        fprivate.add(symbol)
-                        break
-
-                    # Already found the first write and decided if it is
-                    # shared, private or firstprivate. We can stop looking.
+                        # If it's used before the loop, make it firstprivate
+                        visited = set()
+                        if any(access.node.enters_scope(
+                                                self, visited_nodes=visited)
+                               for access in accesses):
+                            fprivate.add(symbol)
+                            break
+                    # Otherwise it is just private
                     private.add(symbol)
                     break
 
