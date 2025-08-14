@@ -38,8 +38,9 @@
 ''' This module contains the RoutineSymbol.'''
 
 from __future__ import annotations
+from typing import Union
 
-from psyclone.psyir.symbols.datatypes import NoType
+from psyclone.psyir.symbols.datatypes import NoType, UnresolvedType
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -172,21 +173,39 @@ class RoutineSymbol(TypedSymbol):
                           is_pure=self.is_pure,
                           is_elemental=self.is_elemental)
 
-    def copy_properties(self, symbol_in: RoutineSymbol):
+    def copy_properties(self, symbol_in: Union[RoutineSymbol,
+                                               list[RoutineSymbol]]):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name (which is immutable) and visibility.
 
-        :param symbol_in: the symbol from which the properties are copied.
+        Supports being passed a list of RoutineSymbols in order to cope with a
+        Call to a RoutineSymbol that corresponds to an interface to more than
+        one implementation.
+
+        :param symbol_in: the symbol(s) from which the properties are copied.
 
         :raises TypeError: if the argument is not the expected type.
 
         '''
-        if not isinstance(symbol_in, RoutineSymbol):
-            raise TypeError(f"Argument should be of type 'RoutineSymbol' but "
-                            f"found '{type(symbol_in).__name__}'.")
-        super().copy_properties(symbol_in)
-        self._is_elemental = symbol_in.is_elemental
-        self._is_pure = symbol_in.is_pure
+        if not isinstance(symbol_in, list):
+            sym_list = [symbol_in]
+        else:
+            sym_list = symbol_in
+        if not all(isinstance(sym, RoutineSymbol) for sym in sym_list):
+            raise TypeError(
+                f"Argument(s) should be of type 'RoutineSymbol' but "
+                f"found '{[type(sym).__name__ for sym in sym_list]}'.")
+
+        super().copy_properties(sym_list[0])
+        # In a generic interface, if one Routine is elemental, they all must
+        # be (and the same for pure).
+        self._is_elemental = sym_list[0].is_elemental
+        self._is_pure = sym_list[0].is_pure
+
+        dtypes = set([str(sym.datatype) for sym in sym_list])
+        if len(dtypes) > 1:
+            # We have more than one possible datatype.
+            self._datatype = UnresolvedType()
 
 
 # For Sphinx AutoAPI documentation generation
