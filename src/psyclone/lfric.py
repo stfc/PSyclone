@@ -5044,7 +5044,8 @@ class HaloReadAccess(HaloDepth):
 
         # Records whether the kernel is a special "halo" kernel that must
         # iterate into the halo for correctness.
-        is_halo_kernel = False
+        is_halo_kernel = (call.iterates_over in
+                          const.HALO_KERNEL_ITERATION_SPACES)
 
         # now we have the parent loop we can work out what part of the
         # halo this field accesses
@@ -5053,8 +5054,6 @@ class HaloReadAccess(HaloDepth):
             # that iterates into the halo.
             if loop.upper_bound_halo_depth:
                 self._var_depth = loop.upper_bound_halo_depth
-                is_halo_kernel = (call.iterates_over in
-                                  const.HALO_KERNEL_ITERATION_SPACES)
             else:
                 # loop redundant computation is to the maximum depth
                 self._max_depth = True
