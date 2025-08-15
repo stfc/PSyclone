@@ -50,7 +50,7 @@ class RoutineSymbol(TypedSymbol):
     :param str name: name of the symbol.
     :param datatype: data type of the symbol. Default to NoType().
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-    :param kwargs: additional keyword arguments provided by \
+    :param kwargs: additional keyword arguments provided by
                    :py:class:`psyclone.psyir.symbols.TypedSymbol`
     :type kwargs: unwrapped dict.
 
@@ -198,7 +198,7 @@ class RoutineSymbol(TypedSymbol):
         if not all(isinstance(sym, RoutineSymbol) for sym in sym_list):
             raise TypeError(
                 f"Argument(s) should be of type 'RoutineSymbol' but "
-                f"found '{[type(sym).__name__ for sym in sym_list]}'.")
+                f"found {[type(sym).__name__ for sym in sym_list]}.")
 
         super().copy_properties(sym_list[0],
                                 exclude_interface=exclude_interface)

@@ -43,7 +43,6 @@
 from __future__ import annotations
 import abc
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
-from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.symbol import Symbol
 
 
@@ -140,7 +139,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         copy.inline_comment = self.inline_comment
         return copy
 
-    def copy_properties(self, symbol_in: DataSymbol,
+    def copy_properties(self, symbol_in: TypedSymbol,
                         exclude_interface: bool = False):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name (which is immutable) and visibility.
