@@ -39,8 +39,9 @@
 
 import pytest
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface, INTEGER_TYPE,
-    NoType, RoutineSymbol, ScalarType, Symbol, SymbolTable,
+    AutomaticInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    ImportInterface, INTEGER_TYPE,
+    NoType, REAL_TYPE, RoutineSymbol, ScalarType, Symbol, SymbolTable,
     UnresolvedInterface, UnresolvedType)
 
 
@@ -185,6 +186,37 @@ def test_routinesymbol_copy():
     new_sym4 = sym4.copy()
     assert new_sym4.interface is not interf
     assert new_sym4.interface.container_symbol is csym
+
+
+def test_routinesymbol_copy_properties():
+    '''
+    Test the copy_properties() method.
+
+    '''
+    csym = ContainerSymbol("a_mod")
+    sym1 = RoutineSymbol('a', datatype=INTEGER_TYPE,
+                         interface=ImportInterface(csym))
+    # Type checking of argument
+    with pytest.raises(TypeError) as err:
+        sym1.copy_properties("aha")
+    assert ("Argument(s) should be of type 'RoutineSymbol' but found ['str']"
+            in str(err.value))
+    sym2 = RoutineSymbol('b')
+    assert isinstance(sym2.datatype, NoType)
+    # Copy properties but exclude updating the Interface
+    sym2.copy_properties(sym1, exclude_interface=True)
+    assert sym2.datatype == INTEGER_TYPE
+    assert isinstance(sym2.interface, AutomaticInterface)
+    # Repeat but include the Interface
+    sym2.copy_properties(sym1)
+    assert isinstance(sym2.interface, ImportInterface)
+    # With list of RoutineSymbols
+    sym3 = RoutineSymbol('c', datatype=REAL_TYPE)
+    sym4 = RoutineSymbol('d')
+    sym4.copy_properties([sym2, sym3])
+    # Since the two supplied symbols have different datatypes, we don't know
+    # the type of sym4.
+    assert isinstance(sym4.datatype, UnresolvedType)
 
 
 def test_routinesymbol_replace_symbols_using():
