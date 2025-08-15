@@ -91,6 +91,7 @@ SKIP_FOR_PERFORMANCE = [
     "iom_nf90.f90",
     "iom_def.f90",
     "timing.f90",
+    "histcom.f90",
 ]
 
 OFFLOADING_ISSUES = [
@@ -171,7 +172,7 @@ def trans(psyir):
         # Many of the obs_ files have problems to be offloaded to the GPU
         if psyir.name.startswith("obs_"):
             continue
-        # Skip initialisation subroutines
+        # Skip initialisation and diagnostic subroutines
         if (subroutine.name.endswith('_alloc') or
                 subroutine.name.endswith('_init') or
                 subroutine.name.startswith('Agrif') or
@@ -189,6 +190,7 @@ def trans(psyir):
                 # See issue #3022
                 loopify_array_intrinsics=psyir.name != "getincom.f90",
                 convert_range_loops=True,
+                increase_array_ranks=not NEMOV4,
                 hoist_expressions=True
         )
         # Perform module-inlining of called routines.
@@ -253,6 +255,8 @@ def trans(psyir):
 
     # Iterate again and add profiling hooks when needed
     for subroutine in psyir.walk(Routine):
+        if psyir.name in SKIP_FOR_PERFORMANCE:
+            continue
         if PROFILING_ENABLED and subroutine.name not in disable_profiling_for:
             print(f"Adding profiling hooks to subroutine: {subroutine.name}")
             add_profiling(subroutine.children)

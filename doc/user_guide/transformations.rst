@@ -295,6 +295,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.IncreaseRankLoopArraysTrans
+      :members: apply
+      :no-index:
+
+####
+
 .. autoclass:: psyclone.domain.common.transformations.KernelModuleInlineTrans
     :members: apply
     :no-index:

@@ -145,6 +145,7 @@ class Reference2ArrayRangeTrans(Transformation):
             `allow_call_arguments` is False.
 
         '''
+        super().validate(node, **kwargs)
         self.validate_options(**kwargs)
         allow_call_arguments = self.get_option("allow_call_arguments",
                                                **kwargs)
