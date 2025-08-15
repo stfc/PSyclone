@@ -54,7 +54,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
     size of the interation space. Then it indexes all accesses with the loop
     variable, so that each iteration accesses a unique location. Effectively
     making the sub-array private for each iteration of the loop. It also
-    indexes all accesses outside the loop to iterate over the whole new rank.
+    indexes assignments outside the loop to iterate over the whole new rank.
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
@@ -128,6 +128,9 @@ class IncreaseRankLoopArraysTrans(Transformation):
             symbol is not local or not an array.
         :raises TransformationError: if any of the arrays are referenced inside
             a CodeBlock.
+        :raises TransformationError: if any of the arrays are referenced
+            outside the loop in anything other than (array) assignments to
+            their variable.
 
         '''
         super().validate(node, **kwargs)
