@@ -3388,7 +3388,7 @@ def test_HaloReadAccess_input_field():
         _ = HaloReadAccess(None, Schedule())
     assert (
         f"Generation Error: HaloInfo class expects an argument of type "
-        f"LFRicArgument, or equivalent, on initialisation, but found, "
+        f"LFRicKernelArgument, or equivalent, on initialisation, but found, "
         f"'{type(None)}'" == str(excinfo.value))
 
 
