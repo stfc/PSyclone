@@ -338,7 +338,7 @@ def normalise_loops(
         where possible, default is False.
     :param increase_array_ranks: whether to increase the rank of selected
         arrays.
-    :param bool hoist_expressions: whether to hoist bounds and loop invariant
+    :param hoist_expressions: whether to hoist bounds and loop invariant
         statements out of the loop nest.
     '''
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
@@ -418,12 +418,12 @@ def normalise_loops(
 
 
 def increase_rank_and_reorder_nemov5_loops(routine: Routine):
-    ''' This method increases the rank of temporary loops used inside selected
+    ''' This method increases the rank of temporary arrays used inside selected
     loops (in order to parallelise the outer loop without overlapping them)
-    and the rearranges the outer loop next to the inner ones (in order to
+    and then rearranges the outer loop next to the inner ones (in order to
     collapse them), so that more parallelism can be leverage. This is useful
     in GPU contexts, but it increases the memory footprint and may not be
-    benefitial for caching-architectures.
+    beneficial for caching-architectures.
 
     :param routine: the target routine.
 

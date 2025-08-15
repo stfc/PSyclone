@@ -65,7 +65,10 @@ class IncreaseRankLoopArraysTrans(Transformation):
     ...     integer :: N=10, M=10
     ...     integer :: i, j
     ...     real, dimension(N) :: ztmp
-    ...     ztmp(:) = 0
+    ...     ! (Array) Assignments to the target variable outside the loop are
+    ...     ! permited, but any other use will not pass the validation
+    ...     ztmp = 0
+    ...     ztmp(0) = 1
     ...     do i = -5, M + 3
     ...         do j = 1, N
     ...             ztmp(j) = 1
@@ -87,7 +90,8 @@ class IncreaseRankLoopArraysTrans(Transformation):
       integer :: j
       real, dimension(n,-5:m + 3) :: ztmp
     <BLANKLINE>
-      ztmp(:,:) = 0
+      ztmp = 0
+      ztmp(0,:) = 1
       do i = -5, m + 3, 1
         do j = 1, n, 1
           ztmp(j,i) = 1
@@ -169,11 +173,11 @@ class IncreaseRankLoopArraysTrans(Transformation):
 
         # Capture all symbols used inside codeblocks, these are not permitted
         codeblock_names = set()
-        # Capture all symbols used outside the loop that we can not guarantee
-        # their safety (e.g. simple init expressions), this is because we would
-        # change the rank of this expression and it could very easily change
-        # the meaning of the code (e.g. used in a non-elemental call, part of
-        # index of another array, ...)
+        # Capture all symbols used outside the loop anywhere other than the
+        # top reference of an array assignment. This is because we cannot
+        # guarantee their safty as they could change the rank of an expression
+        # or read location of and index and therefore change the meaning of the
+        # code.
         non_supported_outside_loop_symbols = set()
         for check in routine.walk((CodeBlock, Reference)):
             if isinstance(check, CodeBlock):
@@ -185,11 +189,11 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     # index and the resulting expression rank will be the same
                     continue
                 if (isinstance(check.parent, Assignment) and
-                        check.position == 0):
-                    # Initialisation statements are fine, because the apply
-                    # we will extend the initialisation to the whole new rank
+                        check is check.parent.lhs):
+                    # Assignments to the variable are fine, because the value
+                    # we will just be repeated to each index of the new rank
                     continue
-                # Everything else is currently forbiden
+                # Everything else is currently forbidden
                 non_supported_outside_loop_symbols.add(check.symbol)
 
         # Each item listed in the array list must be a local Array Symbol or a
@@ -234,7 +238,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
         '''Applies the transformation.
 
         :param node: target Loop node.
-        :param arrays: list of arrays that will have the rank increased.
+        :param arrays: list of arrays that will have their rank increased.
 
         '''
         self.validate(node, arrays=arrays, **kwargs)

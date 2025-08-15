@@ -113,7 +113,7 @@ def test_irla_validate(fortran_reader):
             " must be inside a Routine." in str(err.value))
 
 
-def test_irla_validate_bounds(fortran_reader, fortran_writer):
+def test_irla_validate_bounds(fortran_reader):
     ''' Check that the validate method checks if the loop bounds are static
     when possible. '''
     trans = IncreaseRankLoopArraysTrans()
@@ -153,6 +153,41 @@ def test_irla_validate_bounds(fortran_reader, fortran_writer):
     # second loop independent (note that each a(i) in the first loop will still
     # be overwritted as in the original code)
     trans.validate(routine.walk(Loop)[2], arrays=['a'])
+
+
+def test_irla_validate_multiple_loops_using_array(fortran_reader):
+    ''' Check that the validation does not permit multiple loops that use the
+    same array in anything other than writing array assingments.'''
+    trans = IncreaseRankLoopArraysTrans()
+    psyir = fortran_reader.psyir_from_source("""
+        program test
+            use other
+            real, dimension(10) :: a
+            integer :: i, j
+
+            do j = 1, 100
+                do i = 1, 10
+                   call myfunc(a)
+                end do
+            enddo
+
+            do j = 1, 100
+                do i = 1, 10
+                   a(i) = a(i) + 3
+                end do
+            enddo
+
+        end program
+    """)
+    routine = psyir.children[0]
+    # None of the loops pass validation, because the other one also uses 'a'
+    # in somthing other than the lhs of an array assignment.
+    for loop in routine.walk(Loop, stop_type=Loop):
+        with pytest.raises(TransformationError) as err:
+            trans.apply(loop, arrays=['a'])
+        assert ("IncreaseRankLoopArraysTrans does not support arrays that are "
+                "referenced outside the given loop in a non-trivial expression"
+                " but 'a' is used outside the loop." in str(err.value))
 
 
 def test_irla_apply(fortran_reader, fortran_writer):
