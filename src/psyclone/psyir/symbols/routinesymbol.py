@@ -173,16 +173,20 @@ class RoutineSymbol(TypedSymbol):
                           is_pure=self.is_pure,
                           is_elemental=self.is_elemental)
 
-    def copy_properties(self, symbol_in: Union[RoutineSymbol,
-                                               list[RoutineSymbol]]):
+    def copy_properties(self,
+                        symbol_in: Union[RoutineSymbol, list[RoutineSymbol]],
+                        exclude_interface: bool = False):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name (which is immutable) and visibility.
 
         Supports being passed a list of RoutineSymbols in order to cope with a
         Call to a RoutineSymbol that corresponds to an interface to more than
-        one implementation.
+        one implementation. In this case, only properties common to all
+        implementations are copied over.
 
         :param symbol_in: the symbol(s) from which the properties are copied.
+        :param exclude_interface: whether or not to copy the interface
+            property of the provided Symbol (default is to include it).
 
         :raises TypeError: if the argument is not the expected type.
 
@@ -196,7 +200,8 @@ class RoutineSymbol(TypedSymbol):
                 f"Argument(s) should be of type 'RoutineSymbol' but "
                 f"found '{[type(sym).__name__ for sym in sym_list]}'.")
 
-        super().copy_properties(sym_list[0])
+        super().copy_properties(sym_list[0],
+                                exclude_interface=exclude_interface)
         # In a generic interface, if one Routine is elemental, they all must
         # be (and the same for pure).
         self._is_elemental = sym_list[0].is_elemental

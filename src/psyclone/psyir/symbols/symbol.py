@@ -39,6 +39,7 @@
 '''This module contains the SymbolError class and the generic Symbol class.
 '''
 
+from __future__ import annotations
 from enum import Enum
 from psyclone.errors import PSycloneError, InternalError
 from psyclone.psyir.symbols.interfaces import (
@@ -153,12 +154,15 @@ class Symbol(CommentableMixin):
         copy.inline_comment = self.inline_comment
         return copy
 
-    def copy_properties(self, symbol_in):
+    def copy_properties(self,
+                        symbol_in: Symbol,
+                        exclude_interface: bool = False):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name (which is immutable) and visibility.
 
         :param symbol_in: the symbol from which the properties are copied.
-        :type symbol_in: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param exclude_interface: whether or not to copy the interface
+            property of the provided Symbol (default is to include it).
 
         :raises TypeError: if the argument is not the expected type.
 
@@ -166,7 +170,8 @@ class Symbol(CommentableMixin):
         if not isinstance(symbol_in, Symbol):
             raise TypeError(f"Argument should be of type 'Symbol' but "
                             f"found '{type(symbol_in).__name__}'.")
-        self._interface = symbol_in.interface
+        if not exclude_interface:
+            self._interface = symbol_in.interface
 
     def specialise(self, subclass, **kwargs):
         '''Specialise this symbol so that it becomes an instance of the class

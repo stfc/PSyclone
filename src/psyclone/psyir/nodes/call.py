@@ -50,7 +50,6 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
     GenericInterfaceSymbol,
-    DefaultModuleInterface,
     RoutineSymbol,
     Symbol,
     SymbolError,
@@ -499,8 +498,11 @@ class Call(Statement, DataNode):
                         if psyir:
                             routines.append(psyir)
                     if routines:
-                        rsym.copy_properties([rt.symbol for rt in routines])
-                        rsym.interface = DefaultModuleInterface()
+                        # Update the properties of the target RoutineSymbol
+                        # but don't change its interface as we haven't moved
+                        # anything.
+                        rsym.copy_properties([rt.symbol for rt in routines],
+                                             exclude_interface=True)
                         return routines
                 if not have_codeblock:
                     have_codeblock = any(isinstance(child, CodeBlock) for
@@ -614,9 +616,11 @@ class Call(Statement, DataNode):
                 if psyir:
                     routines.append(psyir)
             if all_names and len(routines) == len(all_names):
-                # We've resolved everything.
+                # We've resolved everything. Update the properties of the
+                # target RoutineSymbol but don't change its interface as we
+                # haven't moved anything.
                 self.routine.symbol.copy_properties(
-                    [rt.symbol for rt in routines])
+                    [rt.symbol for rt in routines], exclude_interface=True)
                 return routines
             cursor = cursor.parent
 

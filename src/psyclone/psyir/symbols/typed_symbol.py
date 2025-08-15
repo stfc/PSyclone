@@ -139,12 +139,14 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         copy.inline_comment = self.inline_comment
         return copy
 
-    def copy_properties(self, symbol_in):
+    def copy_properties(self, symbol_in: DataSymbol,
+                        exclude_interface: bool = False):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name (which is immutable) and visibility.
 
         :param symbol_in: the symbol from which the properties are copied.
-        :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param exclude_interface: whether or not to copy the interface
+            property of the provided Symbol (default is to include it).
 
         :raises TypeError: if the argument is not the expected type.
 
@@ -152,7 +154,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         if not isinstance(symbol_in, TypedSymbol):
             raise TypeError(f"Argument should be of type 'TypedSymbol' but "
                             f"found '{type(symbol_in).__name__}'.")
-        super(TypedSymbol, self).copy_properties(symbol_in)
+        super().copy_properties(symbol_in, exclude_interface=exclude_interface)
         self._datatype = symbol_in.datatype
 
     def resolve_type(self) -> TypedSymbol:
