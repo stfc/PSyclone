@@ -98,7 +98,7 @@ class DataType(metaclass=abc.ABCMeta):
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
@@ -332,7 +332,7 @@ class UnsupportedFortranType(UnsupportedType):
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
@@ -527,7 +527,7 @@ class ScalarType(DataType):
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
@@ -577,11 +577,12 @@ class ArrayType(DataType):
     class Extent(Enum):
         '''
         Enumeration of array shape extents that are unspecified at compile
-        time. An 'ATTRIBUTE' extent means that the lower bound is 1 with an
-        unknown extent (which can be retrieved with appropriate run-time
-        intrinsics). A 'DEFERRED' extent means that we don't know anything
-        about the bounds, and run-time intrinsics may or may not be able
-        to retrieve them (e.g. the array may need to be allocated/malloc'd).
+        time. An 'ATTRIBUTE' extent means that the lower bound is known
+        (defaults to 1 if not specified) with an unknown extent (which can be
+        retrieved at run-time with the UBOUND intrinsic). A 'DEFERRED' extent
+        means that we don't know anything about the bounds, and run-time
+        intrinsics may or may not be able to retrieve them (e.g. the array may
+        need to be allocated/malloc'd).
 
         '''
         DEFERRED = 1
@@ -599,7 +600,7 @@ class ArrayType(DataType):
             :returns: a map of all the symbol accessed inside this object, the
                 keys are Signatures (unique identifiers to a symbol and its
                 structure acccessors) and the values are
-                SingleVariableAccessInfo (a sequence of AccessTypes).
+                AccessSequence (a sequence of AccessTypes).
             :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
             '''
@@ -610,16 +611,40 @@ class ArrayType(DataType):
     @dataclass(frozen=True)
     class ArrayBounds:
         '''
-        Class to store lower and upper limits of an array dimension.
+        Class to store lower and upper limits of a declared array dimension.
 
         :param lower: the lower bound of the array dimension.
         :type lower: :py:class:`psyclone.psyir.nodes.DataNode`
-        :param upper: the upper bound of the array dimension.
-        :type upper: :py:class:`psyclone.psyir.nodes.DataNode`
+        :param upper: the upper bound of the array dimension or
+             ArrayType.Extent.ATTRIBUTE if unspecified.
+        :type upper: Union[:py:class:`psyclone.psyir.nodes.DataNode`,
+            `psyclone.psyir.symbols.datatypes.ArrayType.Extent.ATTRIBUTE`]
         '''
         # Have to use Any here as using DataNode causes a circular dependence.
         lower: Any
         upper: Any
+
+        def __post_init__(self):
+            '''
+            Adds validation of the values provided to the constructor.
+
+            :raises TypeError: if either bound is not a DataNode (or
+                               ArrayType.Extent.ATTRIBUTE for the upper bound).
+            '''
+            # pylint: disable-next=import-outside-toplevel
+            from psyclone.psyir.nodes import DataNode
+            if not isinstance(self.lower, DataNode):
+                raise TypeError(
+                    f"The lower bound provided when constructing an "
+                    f"ArrayBounds must be an instance of DataNode but got "
+                    f"'{type(self.lower).__name__}'")
+            if (self.upper != ArrayType.Extent.ATTRIBUTE and
+                    not isinstance(self.upper, DataNode)):
+                raise TypeError(
+                    f"The upper bound provided when constructing an "
+                    f"ArrayBounds must be either ArrayType.Extent.ATTRIBUTE or"
+                    f" an instance of DataNode but got "
+                    f"'{type(self.upper).__name__}'")
 
     def __init__(self, datatype, shape):
 
@@ -1049,7 +1074,7 @@ class ArrayType(DataType):
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
@@ -1313,7 +1338,7 @@ class StructureType(DataType):
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 

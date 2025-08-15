@@ -180,10 +180,8 @@ class ArrayReference(ArrayMixin, Reference):
         if isinstance(self.symbol.datatype, UnsupportedType):
             if (isinstance(self.symbol.datatype, UnsupportedFortranType) and
                     self.symbol.datatype.partial_datatype):
-                intrinsic = self.symbol.datatype.partial_datatype.intrinsic
-                if isinstance(intrinsic, DataTypeSymbol):
-                    return intrinsic
                 precision = self.symbol.datatype.partial_datatype.precision
+                intrinsic = self.symbol.datatype.partial_datatype.intrinsic
                 return ScalarType(intrinsic, precision)
             # Since we're accessing a single element of an array of
             # UnsupportedType we have to create a new UnsupportedFortranType.

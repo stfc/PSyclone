@@ -2131,7 +2131,7 @@ def test_field_access_info_for_arrays_in_builtins():
     assert Signature("f2_data") in vam
 
     assert (
-        "a: READ, df: READ+WRITE, f1_data: READ, f2_data: WRITE, "
-        "field_type: UNKNOWN, i_def: UNKNOWN, r_def: "
-        "UNKNOWN, uninitialised_loop0_start: READ, "
-        "uninitialised_loop0_stop: READ" == str(vam))
+        "field_type: TYPE_INFO, i_def: TYPE_INFO, r_def: TYPE_INFO, a: READ, "
+        "df: WRITE+READ, f1_data: READ, f2_data: WRITE, "
+        "uninitialised_loop0_start: READ, uninitialised_loop0_stop: READ"
+        == str(vam))

@@ -44,50 +44,23 @@ from typing import List
 
 from psyclone.core.component_indices import ComponentIndices
 from psyclone.core.signature import Signature
-from psyclone.core.single_variable_access_info import SingleVariableAccessInfo
+from psyclone.core.access_sequence import AccessSequence
 from psyclone.errors import InternalError
 
 
 class VariablesAccessMap(dict):
-    ''' This dictionary stores `SingleVariableAccessInfo` instances indexed by
+    ''' This dictionary stores `AccessSequence` instances indexed by
     their signature.
 
     '''
 
     def __str__(self):
         '''Gives a shortened visual representation of all variables
-        and their access mode. The output is one of: READ, WRITE, READ+WRITE,
-        or READWRITE for each variable accessed.
-        READ+WRITE is used if the statement (or set of statements)
-        contain individual read and write accesses, e.g. 'a=a+1'. In this
-        case two accesses to `a` will be recorded, but the summary displayed
-        using this function will be 'READ+WRITE'. Same applies if this object
-        stores variable access information about more than one statement, e.g.
-        'a=b; b=1'. There would be two different accesses to 'b' with two
-        different locations, but the string representation would show this as
-        READ+WRITE. If a variable is is passed to a kernel for which no
-        individual variable information is available, and the metadata for
-        this kernel indicates a READWRITE access, this is marked as READWRITE
-        in the string output.'''
+        and their access mode '''
 
-        all_signatures = self.all_signatures
         output_list = []
-        for signature in all_signatures:
-            mode = ""
-            if self.has_read_write(signature):
-                mode = "READWRITE"
-            else:
-                if self.is_read(signature):
-                    if self.is_written(signature):
-                        mode = "READ+WRITE"
-                    else:
-                        mode = "READ"
-                elif self.is_written(signature):
-                    mode = "WRITE"
-                else:
-                    # The data associated with this signature is not accessed.
-                    mode = "UNKNOWN"
-            output_list.append(f"{signature}: {mode}")
+        for key, value in self.items():
+            output_list.append(f"{key}: {value.str_access_summary()}")
         return ", ".join(output_list)
 
     def add_access(self, signature, access_type, node, component_indices=None):
@@ -153,7 +126,7 @@ class VariablesAccessMap(dict):
         if signature in self:
             self[signature].add_access(access_type, node, component_indices)
         else:
-            var_info = SingleVariableAccessInfo(signature)
+            var_info = AccessSequence(signature)
             var_info.add_access(access_type, node, component_indices)
             self[signature] = var_info
 
@@ -179,22 +152,22 @@ class VariablesAccessMap(dict):
                 result.append(sig)
         return result
 
-    def update(self, other_access_info):
+    def update(self, other_access_map):
         ''' Updates this dictionary with the entries in the provided
         VariablesAccessMap. If there are repeated signatures, the provided
         values are appended to the existing sequence of accesses.
 
-        :param other_access_info: the other VariablesAccessMap instance.
-        :type other_access_info: :py:class:`psyclone.core.VariablesAccessMap`
+        :param other_access_map: the other VariablesAccessMap instance.
+        :type other_access_map: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        for signature in other_access_info.all_signatures:
-            var_info = other_access_info[signature]
-            for access_info in var_info.all_accesses:
+        for signature in other_access_map.all_signatures:
+            access_sequence = other_access_map[signature]
+            for access_info in access_sequence:
                 if signature in self:
                     var_info = self[signature]
                 else:
-                    var_info = SingleVariableAccessInfo(signature)
+                    var_info = AccessSequence(signature)
                     self[signature] = var_info
 
                 var_info.add_access(access_info.access_type,

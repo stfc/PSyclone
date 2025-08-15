@@ -46,6 +46,7 @@ nodes.'''
 import abc
 import itertools
 import sympy
+import logging
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
@@ -1377,18 +1378,19 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
             for sym in need_sync:
                 for clause in sync_clauses:
                     # Needs to be an out depend clause to synchronize
-                    if clause.operand == "in":
+                    if clause.operator == "in":
                         continue
                     # Check if the symbol is in this depend clause.
                     if sym.name in [child.symbol.name for child in
                                     clause.children]:
                         break
                 else:
-                    raise GenerationError(
-                        f"Lowering '{type(self).__name__}' does not support "
-                        f"symbols that need synchronisation unless they are "
-                        f"in a depend clause, but found: "
-                        f"'{sym.name}' which is not in a depend clause.")
+                    logger = logging.getLogger(__name__)
+                    logger.warning(
+                        "Lowering '%s' detected a possible race condition for "
+                        "symbol '%s'. Make sure this is a false WaW dependency"
+                        " or the code includes the necessary "
+                        "synchronisations.", type(self).__name__, sym.name)
 
         self.addchild(private_clause)
         self.addchild(fprivate_clause)

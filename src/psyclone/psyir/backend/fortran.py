@@ -48,7 +48,8 @@ from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
 from psyclone.psyir.nodes import (
     BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
-    Literal, Operation, Range, Routine, Schedule, UnaryOperation)
+    Literal, Node, OMPDependClause, OMPReductionClause, Operation, Range,
+    Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
@@ -373,21 +374,21 @@ class FortranWriter(LanguageWriter):
         '''
         return self._operator_2_str[operator]
 
-    def gen_indices(self, indices, var_name=None):
+    def gen_indices(self,
+                    indices: list[Node],
+                    var_name: str = None) -> list[str]:
         '''Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
         This is used both for array references and array declarations. Note
         that 'indices' can also be a shape in case of Fortran.
 
         :param indices: list of PSyIR nodes.
-        :type indices: list of :py:class:`psyclone.psyir.symbols.Node`
-        :param str var_name: name of the variable for which the dimensions \
+        :param var_name: name of the variable for which the dimensions
             are created. Not used in the Fortran implementation.
 
         :returns: the Fortran representation of the dimensions.
-        :rtype: list of str
 
-        :raises NotImplementedError: if the format of the dimension is not \
+        :raises NotImplementedError: if the format of the dimension is not
             supported.
 
         '''
@@ -410,7 +411,10 @@ class FortranWriter(LanguageWriter):
                     upper_expression = self._visit(index.upper)
                 if lower_expression == "1":
                     # Lower bound of 1 is the default in Fortran
-                    dims.append(upper_expression)
+                    if upper_expression:
+                        dims.append(upper_expression)
+                    else:
+                        dims.append(":")
                 else:
                     dims.append(lower_expression+":"+upper_expression)
             elif isinstance(index, ArrayType.Extent):
@@ -1602,24 +1606,42 @@ class FortranWriter(LanguageWriter):
                 f"Unsupported CodeBlock Structure '{node.structure}' found.")
         return result
 
-    def operandclause_node(self, node):
-        '''This method is called when a OperandClause is
+    def operatorclause_node(self, node):
+        '''This method is called when a OperatorClause is
         found in the PSyIR tree. It returns the clause and its children
         as a string.
 
-        :param node: an OperandClause PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.OperandClause`
+        :param node: an OperatorClause PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.OperatorClause`
 
         :returns: the Fortran code for this node.
         :rtype: str
 
         '''
+        # Map to convert operators to Fortran representations.
+        _operator_to_f_str = {
+            OMPDependClause.DependClauseTypes.IN: "in",
+            OMPDependClause.DependClauseTypes.OUT: "out",
+            OMPDependClause.DependClauseTypes.INOUT: "inout",
+            OMPReductionClause.ReductionClauseTypes.ADD: "+",
+            OMPReductionClause.ReductionClauseTypes.SUB: "-",
+            OMPReductionClause.ReductionClauseTypes.MUL: "*",
+            OMPReductionClause.ReductionClauseTypes.AND: ".AND.",
+            OMPReductionClause.ReductionClauseTypes.OR: ".OR.",
+            OMPReductionClause.ReductionClauseTypes.EQV: ".EQV.",
+            OMPReductionClause.ReductionClauseTypes.NEQV: ".NEQV.",
+            OMPReductionClause.ReductionClauseTypes.MAX: "MAX",
+            OMPReductionClause.ReductionClauseTypes.MIN: "MIN",
+            OMPReductionClause.ReductionClauseTypes.IAND: "IAND",
+            OMPReductionClause.ReductionClauseTypes.IOR: "IOR",
+            OMPReductionClause.ReductionClauseTypes.IEOR: "IEOR",
+        }
         if len(node.children) == 0:
             return ""
 
         result = node.clause_string
 
-        result = result + "(" + node.operand + ": "
+        result = result + f"({_operator_to_f_str[node.operator]}: "
 
         child_list = []
         for child in node.children:

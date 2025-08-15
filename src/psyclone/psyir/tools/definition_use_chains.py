@@ -204,6 +204,11 @@ class DefinitionUseChain:
                   DefinitionUseChain
         :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
         """
+        # Compute the abs position caches as we'll use these a lot.
+        # The compute_cached_abs_position will only do this if needed
+        # so we don't need to check here.
+        self._reference.compute_cached_abs_positions()
+
         # Setup the start and stop positions
         save_start_position = self._start_point
         save_stop_position = self._stop_point
@@ -630,6 +635,15 @@ class DefinitionUseChain:
                 # No control for the condition - we always check that.
                 control_flow_nodes.append(None)
                 basic_blocks.append([node.condition])
+                # If it is inside a loop, the condition can loop back to itself
+                # or the other branch in the IfBlock
+                if node.ancestor((Loop, WhileLoop)):
+                    control_flow_nodes.append(node)
+                    basic_blocks.append(node.if_body.children[:])
+                    if node.else_body:
+                        control_flow_nodes.append(node)
+                        basic_blocks.append(node.else_body.children[:])
+                    continue
                 # Check if the node is in the else_body
                 in_else_body = False
                 if node.else_body:
@@ -852,6 +866,11 @@ class DefinitionUseChain:
                   DefinitionUseChain
         :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
         """
+        # Compute the abs position caches as we'll use these a lot.
+        # The compute_cached_abs_position will only do this if needed
+        # so we don't need to check here.
+        self._reference.compute_cached_abs_positions()
+
         # Setup the start and stop positions
         save_start_position = self._start_point
         save_stop_position = self._stop_point

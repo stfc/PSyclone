@@ -6,7 +6,8 @@ more detail in the directory
 ``<PSYCLONEHOME>/examples/lfric/eg17/full_example``.
 
 The script ``acc_parallel.py`` applies various OpenACC transformations
-to all kernels. See the PSyclone User Guide for [details](https://psyclone.readthedocs.io/en/stable/examples.html#example-14-openacc).
+to all kernels. See the PSyclone User Guide for [details](
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/lfric_examples.html#example-14-openacc).
 
 ## Compilation
 

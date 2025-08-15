@@ -2879,6 +2879,7 @@ class Fparser2Reader():
                 f"'{type(kind_arg).__name__}' in: {kind_selector}")
 
         # We have kind=kind-param
+        # TODO #3087: This misses expresssions such as "2*wp"
         kind_names = walk(kind_selector.items, Fortran2003.Name)
         if not kind_names:
             raise NotImplementedError(

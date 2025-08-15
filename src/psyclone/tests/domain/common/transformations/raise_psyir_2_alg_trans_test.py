@@ -43,7 +43,7 @@ import pytest
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Call, CodeBlock, Reference, \
-    Literal, BinaryOperation
+    Literal, BinaryOperation, ArrayReference
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, Symbol, \
     StructureType
 
@@ -555,7 +555,7 @@ def test_apply_keep_comments():
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
     assert len(subroutine[0].arguments) == 1
-    assert isinstance(subroutine[0].arguments[0], ArrayReference)
+    assert isinstance(subroutine[0].arguments[0], Call)
 
     invoke_trans = RaisePSyIR2AlgTrans()
     invoke_trans.apply(subroutine[0], 1)
