@@ -239,8 +239,8 @@ def test_initialise_quadrature(prog, fortran_writer):
     assert qrule.datatype is qtype
     # Check that the constructor is called in the generated code.
     gen = fortran_writer(prog)
-    assert ("qr = quadrature_xyoz_type(element_order_h + 3,element_order_h + "
-            "3,element_order_v + 3,quadrature_rule)"
+    assert ("qr = quadrature_xyoz_type(element_order_h + 3, element_order_h + "
+            "3, element_order_v + 3, quadrature_rule)"
             in gen)
 
 
@@ -337,8 +337,9 @@ def test_construct_kernel_args(prog, lfrickern, fortran_writer):
                 f"get_fs(mesh,element_order_h,element_order_v,{space})" in gen)
     for idx in range(2, 7):
         assert f"call field_{idx}" in gen
-    assert ("qr_xyoz = quadrature_xyoz_type(element_order_h + 3,"
-            "element_order_h + 3,element_order_v + 3,quadrature_rule)" in gen)
+    assert ("qr_xyoz = quadrature_xyoz_type(element_order_h + 3, "
+            "element_order_h + 3, element_order_v + 3, quadrature_rule)"
+            in gen)
     # TODO #240 - test for compilation.
 
 
