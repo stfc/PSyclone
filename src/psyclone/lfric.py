@@ -62,9 +62,8 @@ from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import (InvokeSchedule, Arguments,
-                             KernelArgument, HaloExchange, GlobalSum,
-                             DataAccess)
+from psyclone.psyGen import (Arguments, DataAccess, InvokeSchedule, Kern,
+                             KernelArgument, HaloExchange, GlobalSum)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Reference, ACCEnterDataDirective, ArrayOfStructuresReference,
@@ -4777,7 +4776,8 @@ class HaloDepth():
         return None
 
 
-def halo_check_arg(field, access_types):
+def halo_check_arg(field: LFRicKernelArgument,
+                   access_types: list[AccessType]) -> Kern:
     '''
     Support function which performs checks to ensure the first argument
     is a field, that the field is contained within Kernel or Builtin
@@ -4786,18 +4786,16 @@ def halo_check_arg(field, access_types):
     call object containing this argument.
 
     :param field: the argument object we are checking
-    :type field: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param access_types: List of allowed access types.
-    :type access_types: List of :py:class:`psyclone.psyGen.AccessType`.
-    :return: the call containing the argument object
-    :rtype: sub-class of :py:class:`psyclone.psyGen.Kern`
 
-    :raises GenerationError: if the first argument to this function is \
-                             the wrong type.
-    :raises GenerationError: if the first argument is not accessed in one of \
-                    the ways specified by the second argument to the function.
-    :raises GenerationError: if the first argument is not contained \
-                             within a call object.
+    :return: the call containing the argument object
+
+    :raises GenerationError: if the first argument to this function is
+        the wrong type.
+    :raises GenerationError: if the first argument is not accessed in one of
+        the ways specified by the second argument to the function.
+    :raises GenerationError: if the first argument is not contained
+        within a call object.
 
     '''
     try:
@@ -4827,14 +4825,12 @@ class HaloWriteAccess(HaloDepth):
     particular loop nest.
 
     :param field: the field that we are concerned with.
-    :type field: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param parent: the parent PSyIR node associated with the scoping region
                    that contains this halo access.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    def __init__(self, field, parent):
-        HaloDepth.__init__(self, parent)
+    def __init__(self, field: LFRicKernelArgument, parent: Node):
+        super().__init__(parent)
         self._compute_from_field(field)
 
     @property
@@ -5005,9 +5001,12 @@ class HaloReadAccess(HaloDepth):
         (has an ``OPERATES_ON`` of ``HALO_CELL_COLUMN`` or
         ``OWNED_AND_HALO_CELL_COLUMN``) to a depth ``ndepth``, say, then the
         depth of the halo that is read is currently computed as the *maximum*
-        of ``ndepth`` and the stencil size. TODO #2781 - this case should be
-        handled by adding support for a new type of stencil rather than this
-        ad-hoc fix.
+        of ``ndepth`` and the stencil size. This is because, computing the sum
+        of ``ndepth`` and the stencil size results in a halo depth that is
+        greater than the maximum allowed. In this particular case, the stencil
+        accesses are 'parallel' to the halo and therefore this workaround is
+        valid. TODO #2781 - this case should be handled by adding support for
+        a new type of stencil rather than this ad-hoc fix.
 
         :param field: the field that we are concerned with
 
