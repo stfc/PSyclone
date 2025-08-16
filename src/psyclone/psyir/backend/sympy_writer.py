@@ -805,7 +805,7 @@ class SymPyWriter(FortranWriter):
             # been re-named, and we can use it as is.
             name = node.name
 
-        if not node.is_array:
+        if not node.symbol.is_array:
             # This reference is not an array, just return the name
             return name
 
