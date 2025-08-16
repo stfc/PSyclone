@@ -53,7 +53,7 @@ def test_access_info():
     access_info = AccessInfo(AccessType.READ, Node())
     assert access_info.access_type == AccessType.READ
     assert access_info.component_indices.indices_lists == [[]]
-    assert not access_info.is_array()
+    assert not access_info.has_indices()
     assert str(access_info) == "READ"
     access_info.change_read_to_write()
     assert str(access_info) == "WRITE"
@@ -67,7 +67,7 @@ def test_access_info():
     component_indices = ComponentIndices([["i"]])
     access_info.component_indices = component_indices
     assert access_info.component_indices == component_indices
-    assert access_info.is_array()
+    assert access_info.has_indices()
 
     access_info = AccessInfo(AccessType.UNKNOWN, Node())
     assert access_info.access_type == AccessType.UNKNOWN
@@ -200,17 +200,17 @@ def test_variable_access_sequence():
     assert not accesses.has_data_access()
 
 
-def test_variable_access_sequence_is_array(fortran_reader):
-    '''Test that the AccessSequence class handles arrays as expected.
+def test_variable_access_sequence_has_indices(fortran_reader):
+    '''Test that the AccessSequence class handles indices as expected.
 
     '''
     vam = AccessSequence(Signature("var_name"))
     # Add non array-like access:
     vam.add_access(AccessType.READ, Node(), component_indices=None)
-    assert not vam.is_array()
+    assert not vam.has_indices()
     # Add array access:
     vam.add_access(AccessType.READ, Node(), [[Node()]])
-    assert vam.is_array()
+    assert vam.has_indices()
 
     # Get some real nodes:
     code = '''program test_prog
@@ -228,12 +228,12 @@ def test_variable_access_sequence_is_array(fortran_reader):
     vam = AccessSequence(Signature("b"))
     vam.add_access(AccessType.READ, rhs, ComponentIndices([ref_i]))
 
-    # Check that the access to "b[i]" is considered an array
+    # Check that the access to "b[i]" is considered an index
     # when testing for access using "i"
-    assert vam.is_array("i")
-    # Check that the access to "b[i]" is not considered an array
+    assert vam.has_indices("i")
+    # Check that the access to "b[i]" is not considered an index
     # when testing for access using "j"
-    assert not vam.is_array("j")
+    assert not vam.has_indices("j")
 
 
 # -----------------------------------------------------------------------------
