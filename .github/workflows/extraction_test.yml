@@ -135,15 +135,15 @@ jobs:
         # Set the directory names for the extraction runs:
         # -----------------------------------------------
         export RUNDIR=/archive/psyclone-tests/latest-run/extraction_test
-        export LFRIC_CORE=${RUNDIR}/lfric_core_${LFRIC_CORE_REV}
-        export LFRIC_APPS=${RUNDIR}/lfric_apps_${LFRIC_APPS_REV}
+        export LFRIC_CORE=${RUNDIR}/lfric_core
+        export LFRIC_APPS=${RUNDIR}/lfric_apps
 
         # Copy the lfric source files (BAF copies files into the source tree)
         # -------------------------------------------------------------------
         rm -rf ${RUNDIR}
         mkdir -p ${LFRIC_CORE} ${LFRIC_APPS}
-        cp -r /archive/psyclone-tests/latest-run/lfric_extraction/lfric_core_${LFRIC_CORE_REV}/ ${RUNDIR}
-        cp -r /archive/psyclone-tests/latest-run/lfric_extraction/lfric_apps_${LFRIC_APPS_REV}/ ${RUNDIR}
+        cp -r /archive/psyclone-tests/latest-run/lfric_extraction/lfric_core/ ${RUNDIR}
+        cp -r /archive/psyclone-tests/latest-run/lfric_extraction/lfric_apps/ ${RUNDIR}
 
         # Install the BAF scripts into the lfric directories:
         # ---------------------------------------------------

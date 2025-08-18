@@ -256,6 +256,9 @@ jobs:
   upload_if_on_mirror:
     if: ${{ github.repository == 'sergisiso/PSyclone' }}
     runs-on: ubuntu-latest
+    env:
+      LFRIC_APPS_REV: 10798
+      LFRIC_CORE_REV: 52772
     needs: run_if_on_mirror
     steps:
       - name: Install mongosh
@@ -274,7 +277,8 @@ jobs:
             --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
             github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
             ci_test: "LFRic Passthrough with DM", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "Rupert",
-            compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_dist_mem}}"'})'
+            compiler:"spack-gfortran-14", date: new Date(),
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_dist_mem}}"'})'
           mongosh \
             "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
             --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
@@ -282,7 +286,8 @@ jobs:
             --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
             github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
             ci_test: "LFRic OpenMP offloading", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "Rupert",
-            compiler:"spack-nvhpc-25.7", date: new Date(), elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_omp_offload}}"'})'
+            compiler:"spack-nvhpc-25.7", date: new Date(),
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_omp_offload}}"'})'
           mongosh \
             "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
             --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
@@ -290,20 +295,23 @@ jobs:
             --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
             github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
             ci_test: "LFRic OpenACC", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "Rupert",
-            compiler:"spack-nvhpc-25.7", date: new Date(), elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_acc_offload}}"'})'
+            compiler:"spack-nvhpc-25.7", date: new Date(),
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_acc_offload}}"'})'
           mongosh \
             "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
             --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
             --password ${{ secrets.MONGODB_PASSWORD }} \
             --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
             github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-            ci_test: "LFRic all transformations", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
-            system: "Rupert", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_all_trans}}"'})'
+            ci_test: "LFRic all transformations", lfric_version: '"$LFRIC_APPS_REV"',
+            system: "Rupert", compiler:"spack-gfortran-14", date: new Date(),
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_all_trans}}"'})'
           mongosh \
             "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
             --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
             --password ${{ secrets.MONGODB_PASSWORD }} \
             --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
             github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-            ci_test: "LFRic colour-tiling", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
-            system: "Rupert", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$${{needs.run_if_on_mirror.outputs.lfric_colour_tiling}}"'})'
+            ci_test: "LFRic colour-tiling", lfric_version: '"$LFRIC_APPS_REV"',
+            system: "Rupert", compiler:"spack-gfortran-14", date: new Date(),
+            elapsed_time: '"$${{needs.run_if_on_mirror.outputs.lfric_colour_tiling}}"'})'
