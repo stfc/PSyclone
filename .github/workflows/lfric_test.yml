@@ -314,4 +314,4 @@ jobs:
             github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
             ci_test: "LFRic colour-tiling", lfric_version: '"$LFRIC_APPS_REV"',
             system: "Rupert", compiler:"spack-gfortran-14", date: new Date(),
-            elapsed_time: '"$${{needs.run_if_on_mirror.outputs.lfric_colour_tiling}}"'})'
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_colour_tiling}}"'})'

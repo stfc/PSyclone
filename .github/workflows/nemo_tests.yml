@@ -56,6 +56,13 @@ jobs:
       NUM_PARALLEL: 16
       PREFIX: /archive/psyclone-tests/latest-run/
 
+    outputs:
+      nemo_omp_offload: ${{ steps.nemo_omp_offload.outputs.time }}
+      nemo_acc_kernels: ${{ steps.nemo_acc_kernels.outputs.time }}
+      nemo_acc_loops: ${{ steps.nemo_acc_loops.outputs.time }}
+      nemo_omp_cpu: ${{ steps.nemo_omp_cpu.outputs.time }}
+      nemo_omp_offload_async: ${{ steps.nemo_omp_offload_async.outputs.time }}
+
     steps:
     - uses: actions/checkout@v3
       with:
@@ -110,6 +117,7 @@ jobs:
 
     # PSyclone, compile and run MetOffice NEMO with OpenMP for GPUs
     - name: NEMO MetOffice OpenMP for GPU
+      id: nemo_omp_offload
       run: |
         . .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
@@ -127,17 +135,11 @@ jobs:
         # Check for full numerical reproducibility with KGO results
         diff <(make -s output-openmp_gpu)  KGOs/run.stat.nemo4.splitz12.nvhpc.10steps
         export VAR_TIME=$(grep -A 1 "Elapsed Time" <(make -s time-openmp_gpu) | head -n 2 | tail -n 1 | awk '{print $1}')
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "NEMOv4 OpenMP for GPU", nemo_version: "NEMO MO 4.0.2", system: "Rupert",
-        #   compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice NEMO with OpenACC kernels for GPUs
     - name: NEMO MetOffice OpenACC kernels for GPU
+      id: nemo_acc_kernels
       run: |
         . .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
@@ -159,17 +161,11 @@ jobs:
         make output-openacc_kernels | grep -q "S_min:  0.482686" || (echo "Error: 'S_min:  0.482686' not found!" & false)
         make output-openacc_kernels | grep -q "S_max:  0.407622" || (echo "Error: 'S_max:  0.407622' not found!" & false)
         export VAR_TIME=$(grep -A 1 "Elapsed Time" <(make -s time-openacc_kernels) | head -n 2 | tail -n 1 | awk '{print $1}')
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "NEMOv4 OpenACC kernels for GPU", nemo_version: "MEMO MO 4.0.2", system: "Rupert",
-        #   compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice NEMO with OpenACC loops for GPUs
     - name: NEMO MetOffice OpenACC loops for GPU
+      id: nemo_acc_loops
       run: |
         . .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
@@ -191,19 +187,13 @@ jobs:
         make output-openacc_loops | grep -q "S_min:  0.482686" || (echo "Error: 'S_min:  0.482686' not found!" & false)
         make output-openacc_loops | grep -q "S_max:  0.407622" || (echo "Error: 'S_max:  0.407622' not found!" & false)
         export VAR_TIME=$(grep -A 1 "Elapsed Time" <(make -s time-openacc_loops) | head -n 2 | tail -n 1 | awk '{print $1}')
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "NEMOv4 OpenACC loops for GPU", nemo_version: "MEMO MO 4.0.2", system: "Rupert",
-        #   compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
       
     # PSyclone, compile and run ECMWF NEMO with OpenMP for CPUs. This uses
     # the Intel compiler and does not disable MPI. Therefore we have to ensure
     # that we provide the path to the header files for Intel MPI.
     - name: NEMO ECMWF OpenMP for CPU
+      id: nemo_omp_cpu
       run: |
         . .runner_venv/bin/activate
         module load oneapi/${ONEAPI_VERSION}
@@ -230,18 +220,11 @@ jobs:
         make output-openmp_cpu | grep -q "S_min:  0.10" || (echo "Error: 'S_min:  0.10' not found!" & false)
         make output-openmp_cpu | grep -q "S_max:  0.404" || (echo "Error: 'S_max:  0.404' not found!" & false)
         export VAR_TIME=$(grep -A 1 "Elapsed Time" <(make -s time-openmp_cpu) | head -n 2 | tail -n 1 | awk '{print $1}')
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "NEMOv4 OpenMP for CPU", nemo_version: "NEMO ECMWF 4.0 V40 with mpp", system: "Rupert",
-        #   compiler:"intel-'"$ONEAPI_VERSION"'" , date: new Date(),
-        #   num_omp_threads: '"$OMP_NUM_THREADS"', elapsed_time: '"$VAR_TIME"'})'
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice NEMO with OpenMP for GPUs with Asynchronous directives
     - name: NEMO MetOffice OpenMP for GPU with async
+      id: nemo_omp_offload_async
       run: |
         . .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
@@ -260,11 +243,67 @@ jobs:
         # Check for full numerical reproducibility with KGO results
         diff <(make -s output-openmp_gpu)  KGOs/run.stat.nemo4.splitz12.nvhpc.10steps
         export VAR_TIME=$(grep -A 1 "Elapsed Time" <(make -s time-openmp_gpu) | head -n 2 | tail -n 1 | awk '{print $1}')
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "NEMOv4 OpenMP for GPU Async", nemo_version: "NEMO MO 4.0.2", system: "Rupert",
-        #   compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
+
+  upload_if_on_mirror:
+    if: ${{ github.repository == 'sergisiso/PSyclone' }}
+    runs-on: ubuntu-latest
+    env:
+      NVFORTRAN_VERSION: 25.7
+      ONEAPI_VERSION: 2025.2
+    needs: run_if_on_mirror
+    steps:
+      - name: Install mongosh
+        run: |
+          sudo apt-get install gnupg
+          wget -qO- https://www.mongodb.org/static/pgp/server-8.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-8.0.asc
+          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+          sudo apt-get update
+          sudo apt-get install -y mongodb-mongosh
+      - name: Upload results
+        run: |
+          mongosh \
+            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+            --password ${{ secrets.MONGODB_PASSWORD }} \
+            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+            ci_test: "NEMOv4 OpenMP for GPU", nemo_version: "NEMO MO 4.0.2", system: "Rupert",
+            compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(),
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_omp_offload}}"'})'
+          mongosh \
+            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+            --password ${{ secrets.MONGODB_PASSWORD }} \
+            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+            ci_test: "NEMOv4 OpenACC kernels for GPU", nemo_version: "MEMO MO 4.0.2", system: "Rupert",
+            compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(),
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_acc_kernels}}"'})'
+          mongosh \
+            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+            --password ${{ secrets.MONGODB_PASSWORD }} \
+            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+            ci_test: "NEMOv4 OpenACC loops for GPU", nemo_version: "MEMO MO 4.0.2", system: "Rupert",
+            compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(),
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_acc_loops}}"'})'
+          mongosh \
+            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+            --password ${{ secrets.MONGODB_PASSWORD }} \
+            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+            ci_test: "NEMOv4 OpenMP for CPU", nemo_version: "NEMO ECMWF 4.0 V40 with mpp", system: "Rupert",
+            compiler:"intel-'"$ONEAPI_VERSION"'" , date: new Date(),
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_omp_cpu}}"'})'
+          mongosh \
+            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+            --password ${{ secrets.MONGODB_PASSWORD }} \
+            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+            ci_test: "NEMOv4 OpenMP for GPU Async", nemo_version: "NEMO MO 4.0.2", system: "Rupert",
+            compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(),
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_omp_offload_async}}"'})'
