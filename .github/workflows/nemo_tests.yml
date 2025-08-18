@@ -54,7 +54,7 @@ jobs:
       PERL_VERSION: 5.42
       PYTHON_VERSION: 3.13
       NUM_PARALLEL: 16
-      PREFIX: /archive/psyclone-tests/last_tests/
+      PREFIX: /archive/psyclone-tests/latest-run/
 
     steps:
     - uses: actions/checkout@v3

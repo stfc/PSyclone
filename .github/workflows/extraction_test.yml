@@ -106,7 +106,7 @@ jobs:
         # Fetch the specified version of LFRic apps
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
         spack load fcm/xyl5qxp
-        cd /archive/psyclone-tests/last_tests
+        cd /archive/psyclone-tests/latest-run
         rm -rf lfric_extraction
         mkdir lfric_extraction
         cd lfric_extraction
@@ -125,7 +125,7 @@ jobs:
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%gcc@14
         source .runner_venv/bin/activate
-        export LFRIC_DIR=/archive/psyclone-tests/last_tests/extraction/lfric_apps_${LFRIC_APPS_REV}
+        export LFRIC_DIR=/archive/psyclone-tests/latest-run/extraction/lfric_apps_${LFRIC_APPS_REV}
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export COMPILER_PROFILE=fast-debug
@@ -134,7 +134,7 @@ jobs:
 
         # Set the directory names for the extraction runs:
         # -----------------------------------------------
-        export RUNDIR=/archive/psyclone-tests/last_tests/extraction_test
+        export RUNDIR=/archive/psyclone-tests/latest-run/extraction_test
         export LFRIC_CORE=${RUNDIR}/lfric_core_${LFRIC_CORE_REV}
         export LFRIC_APPS=${RUNDIR}/lfric_apps_${LFRIC_APPS_REV}
 
@@ -142,8 +142,8 @@ jobs:
         # -------------------------------------------------------------------
         rm -rf ${RUNDIR}
         mkdir -p ${LFRIC_CORE} ${LFRIC_APPS}
-        cp -r /archive/psyclone-tests/last_tests/lfric_extraction/LFRic/lfric_core_${LFRIC_CORE_REV}/ ${RUNDIR}
-        cp -r /archive/psyclone-tests/last_tests/lfric_extraction/lfric_apps_${LFRIC_APPS_REV}/ ${RUNDIR}
+        cp -r /archive/psyclone-tests/latest-run/lfric_extraction/lfric_core_${LFRIC_CORE_REV}/ ${RUNDIR}
+        cp -r /archive/psyclone-tests/latest-run/lfric_extraction/lfric_apps_${LFRIC_APPS_REV}/ ${RUNDIR}
 
         # Install the BAF scripts into the lfric directories:
         # ---------------------------------------------------

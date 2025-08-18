@@ -74,9 +74,9 @@ jobs:
         pip install .
     - name: Reset working directory
       run: |
-        rm -rf /archive/psyclone-tests/last_tests/${NEMODIR_NAME}
+        rm -rf /archive/psyclone-tests/latest-run/${NEMODIR_NAME}
         cp -r /archive/psyclone-tests/nemo-inputs/${NEMODIR_NAME} \
-              /archive/psyclone-tests/last_tests/${NEMODIR_NAME}
+              /archive/psyclone-tests/latest-run/${NEMODIR_NAME}
 
     # PSyclone passthrough for 5.0-beta of NEMO.
     - name: NEMO 5.0 gfortran passthrough
@@ -89,7 +89,7 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/last_tests/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
         export TEST_DIR=BENCH_PASSTHROUGH_GCC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
@@ -120,7 +120,7 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/last_tests/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
         export TEST_DIR=BENCH_PASSTHROUGH_NVHPC
         
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
@@ -150,7 +150,7 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/last_tests/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
         export TEST_DIR=BENCH_OMP_THREADING_GCC
 
         # Set up FCM envvars to use psyclonefc and compile with OpenMP for CPU
@@ -189,7 +189,7 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/last_tests/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
         export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC
 
         # Make sure the profiling wrapper is compiled with the same compiler
@@ -251,7 +251,7 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/last_tests/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
         export TEST_DIR=ORCA1_OMP_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
@@ -292,7 +292,7 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/last_tests/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
         export TEST_DIR=ORCA2_OMP_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
@@ -334,7 +334,7 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/last_tests/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
         export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC
 
         # Make sure the profiling wrapper is compiled with the same compiler
@@ -396,7 +396,7 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/last_tests/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
         export TEST_DIR=ORCA2_OMP_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
@@ -438,7 +438,7 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/last_tests/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
         export TEST_DIR=ORCA1_OMP_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
