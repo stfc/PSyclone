@@ -116,6 +116,7 @@ jobs:
           -r ${LFRIC_CORE_REV} https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
         sed -i "s|lfric_core_rev=$LFRIC_CORE_REV|lfric_core_rev=|g" lfric_apps/dependencies.sh
         sed -i "s|lfric_core_sources=|lfric_core_sources=$PWD/lfric_core|g" lfric_apps/dependencies.sh
+        sed -i "s|use_xios_io=.true.|use_xios_io=.false.|g" lfric_apps/applications/gungho_model/example/configuration.nml
 
 
     # Compile GungHo with extraction
@@ -163,13 +164,6 @@ jobs:
         cd ${LFRIC_APPS}/applications/gungho_model
         mkdir -p $PWD/fab_workspace
         export FAB_WORKSPACE=$PWD/fab_workspace
-        # Fab expects that all compilers are in PATH, and
-        # does not support CC/FC etc with a full path. Since
-        # the spack environment does not add all required paths,
-        # we need to add the required paths manuall, and then
-        # unset the environment variables (which would otherwise
-        # be used as default)
-        export PATH="$(spack location -i rose-picker):$PATH"
         # Run the Fab build script
         ${LFRIC_CORE}/build.sh ./fab_gungho_model_extract.py   \
           --profile ${COMPILER_PROFILE} --nproc 4 -fc $LDMPI -ld $LDMPI  -cc $CC
