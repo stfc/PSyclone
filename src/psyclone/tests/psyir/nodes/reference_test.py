@@ -48,8 +48,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     UnresolvedType, ImportInterface,
                                     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
-                                    REAL_TYPE, ScalarType, Symbol, SymbolTable,
-                                    UnresolvedInterface)
+                                    REAL_TYPE, ScalarType, Symbol, SymbolTable)
 
 
 def test_reference_bad_init():
