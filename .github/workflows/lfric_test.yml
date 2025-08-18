@@ -51,6 +51,13 @@ jobs:
       PYTHON_VERSION: 3.13
       NUM_PARALLEL: 16
 
+    outputs:
+      lfric_dist_mem: ${{ steps.lfric_dist_mem.outputs.time }}
+      lfric_omp_offload: ${{ steps.lfric_omp_offload.outputs.time }}
+      lfric_acc_offload: ${{ steps.lfric_acc_offload.outputs.time }}
+      lfric_all_trans: ${{ steps.lfric_all_trans.outputs.time }}
+      lfric_colour_tiling: ${{ steps.lfric_colour_tiling.outputs.time }}
+
     steps:
     - uses: actions/checkout@v3
       with:
@@ -95,6 +102,7 @@ jobs:
     # COMPUTE_ANNEXED_DOFS is set to false for this test by using the
     # appropriate cfg file.
     - name: LFRic passthrough (with DistributedMemory)
+      id: lfric_dist_mem
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
@@ -123,17 +131,11 @@ jobs:
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "LFRic Passthrough with DM", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "Rupert",
-        #   compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice gungho_model on GPU
     - name: LFRic GungHo with OpenMP offload
+      id: lfric_omp_offload
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
@@ -159,17 +161,11 @@ jobs:
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "LFRic OpenMP offloading", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "Rupert",
-        #   compiler:"spack-nvhpc-25.7", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice gungho_model on GPU
     - name: LFRic GungHo with OpenACC offload
+      id: lfric_acc_offload
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
@@ -195,17 +191,11 @@ jobs:
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "LFRic OpenACC", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "Rupert",
-        #   compiler:"spack-nvhpc-25.7", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 mpi ranks each with 2 OpenMP threads
     - name: LFRic with all transformations
+      id: lfric_all_trans
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
@@ -231,17 +221,11 @@ jobs:
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "LFRic all transformations", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
-        #   system: "Rupert", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 mpi ranks each with 2 OpenMP threads
     - name: LFRic with colour-tiling and OpenMP
+      id: lfric_colour_tiling
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
@@ -267,11 +251,59 @@ jobs:
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "LFRic colour-tiling", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
-        #   system: "Rupert", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
+
+  upload_if_on_mirror:
+    if: ${{ github.repository == 'sergisiso/PSyclone' }}
+    runs-on: ubuntu-latest
+    needs: run_if_on_mirror
+    steps:
+      - name: Install mongosh
+        run: |
+          sudo apt-get install gnupg
+          wget -qO- https://www.mongodb.org/static/pgp/server-8.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-8.0.asc
+          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+          sudo apt-get update
+          sudo apt-get install -y mongodb-mongosh
+      - name: Upload results
+        run: |
+          mongosh \
+            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+            --password ${{ secrets.MONGODB_PASSWORD }} \
+            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+            ci_test: "LFRic Passthrough with DM", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "Rupert",
+            compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_dist_mem}}"'})'
+          mongosh \
+            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+            --password ${{ secrets.MONGODB_PASSWORD }} \
+            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+            ci_test: "LFRic OpenMP offloading", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "Rupert",
+            compiler:"spack-nvhpc-25.7", date: new Date(), elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_omp_offload}}"'})'
+          mongosh \
+            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+            --password ${{ secrets.MONGODB_PASSWORD }} \
+            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+            ci_test: "LFRic OpenACC", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "Rupert",
+            compiler:"spack-nvhpc-25.7", date: new Date(), elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_acc_offload}}"'})'
+          mongosh \
+            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+            --password ${{ secrets.MONGODB_PASSWORD }} \
+            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+            ci_test: "LFRic all transformations", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
+            system: "Rupert", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_all_trans}}"'})'
+          mongosh \
+            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+            --password ${{ secrets.MONGODB_PASSWORD }} \
+            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+            ci_test: "LFRic colour-tiling", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
+            system: "Rupert", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$${{needs.run_if_on_mirror.outputs.lfric_colour_tiling}}"'})'
