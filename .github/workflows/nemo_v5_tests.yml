@@ -179,7 +179,8 @@ jobs:
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         tail run.stat
         # diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
-        export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     - name: NEMO 5.0 nvidia OpenMP for GPUs (BENCH - managed memory)
       id: bench_nvfortran_omp_offload
@@ -234,7 +235,8 @@ jobs:
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
-        export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     - name: NEMO 5.0 nvidia OpenMP for GPUs (UKMO ORCA1 - managed memory)
       id: orca1_nvfortran_omp_offload
@@ -268,7 +270,8 @@ jobs:
         # Run with round robin allocations of GPUs to MPI ranks
         mpirun -n 2 sh -c 'CUDA_VISIBLE_DEVICES=$OMPI_COMM_WORLD_LOCAL_RANK ./nemo'
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca1.nvhpc.10steps run.stat
-        export TIME_sec=$(grep "local MPI proces" timing.output | head -n 1 | awk '{print $5}' | tr -d s)
+        export VAR_TIME=$(grep "local MPI proces" timing.output | head -n 1 | awk '{print $5}' | tr -d s)
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     - name: NEMO 5.0 nvidia OpenMP for GPUs (UKMO ORCA2 - managed memory)
       id: orca2_nvfortran_omp_offload
@@ -300,7 +303,8 @@ jobs:
         # Uses both, threading and offloading
         OMP_NUM_THREADS=4 ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
-        export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
 
     - name: NEMO 5.0 nvidia Async OpenMP for GPUs (BENCH - managed memory)
@@ -374,7 +378,8 @@ jobs:
         # Uses both, threading and offloading
         OMP_NUM_THREADS=4 ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
-        export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     - name: NEMO 5.0 nvidia Async OpenMP for GPUs (UKMO ORCA1 - managed memory)
       # Only do this Action if this is a re-run

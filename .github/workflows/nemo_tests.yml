@@ -60,7 +60,7 @@ jobs:
       nemo_omp_offload: ${{ steps.nemo_omp_offload.outputs.time }}
       nemo_acc_kernels: ${{ steps.nemo_acc_kernels.outputs.time }}
       nemo_acc_loops: ${{ steps.nemo_acc_loops.outputs.time }}
-      nemo_omp_cpu: ${{ steps.nemo_omp_cpu.outputs.time }}
+      # nemo_omp_cpu: ${{ steps.nemo_omp_cpu.outputs.time }}
       nemo_omp_offload_async: ${{ steps.nemo_omp_offload_async.outputs.time }}
 
     steps:
@@ -194,6 +194,7 @@ jobs:
     # that we provide the path to the header files for Intel MPI.
     - name: NEMO ECMWF OpenMP for CPU
       id: nemo_omp_cpu
+      if: 0  # TODO #2895: Update to ifx
       run: |
         . .runner_venv/bin/activate
         module load oneapi/${ONEAPI_VERSION}
@@ -289,15 +290,15 @@ jobs:
             ci_test: "NEMOv4 OpenACC loops for GPU", nemo_version: "MEMO MO 4.0.2", system: "Rupert",
             compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(),
             elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_acc_loops}}"'})'
-          mongosh \
-            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-            --password ${{ secrets.MONGODB_PASSWORD }} \
-            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-            ci_test: "NEMOv4 OpenMP for CPU", nemo_version: "NEMO ECMWF 4.0 V40 with mpp", system: "Rupert",
-            compiler:"intel-'"$ONEAPI_VERSION"'" , date: new Date(),
-            elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_omp_cpu}}"'})'
+          # mongosh \
+          #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          #   --password ${{ secrets.MONGODB_PASSWORD }} \
+          #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          #   ci_test: "NEMOv4 OpenMP for CPU", nemo_version: "NEMO ECMWF 4.0 V40 with mpp", system: "Rupert",
+          #   compiler:"intel-'"$ONEAPI_VERSION"'" , date: new Date(),
+          #   elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_omp_cpu}}"'})'
           mongosh \
             "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
             --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
