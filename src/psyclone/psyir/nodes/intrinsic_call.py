@@ -780,6 +780,12 @@ class IntrinsicCall(Call):
             supported values.
 
         '''
+        # Reduction operations that have more than a single argument sometimes
+        # fail, so we avoid putting them on the accelerator device
+        if self.intrinsic in REDUCTION_INTRINSICS:
+            if len(self.arguments) > 1:
+                return False
+
         if not device_string:
             return self.intrinsic in DEFAULT_DEVICE_INTRINISCS
         if device_string == "nvfortran-all":
@@ -896,7 +902,7 @@ class IntrinsicCall(Call):
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''

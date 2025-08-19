@@ -64,6 +64,8 @@ from psyclone.psyir.transformations.hoist_local_arrays_trans import \
 from psyclone.psyir.transformations.hoist_loop_bound_expr_trans import \
     HoistLoopBoundExprTrans
 from psyclone.psyir.transformations.hoist_trans import HoistTrans
+from psyclone.psyir.transformations.increase_rank_loop_arrays_trans import \
+    IncreaseRankLoopArraysTrans
 from psyclone.psyir.transformations.inline_trans import InlineTrans
 from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
     Abs2CodeTrans
@@ -120,6 +122,8 @@ from psyclone.psyir.transformations.parallel_region_trans import \
     ParallelRegionTrans
 from psyclone.psyir.transformations.omp_taskloop_trans import \
     OMPTaskloopTrans
+from psyclone.psyir.transformations.omp_declare_target_trans import \
+    OMPDeclareTargetTrans
 
 # For AutoAPI documentation generation
 __all__ = [
@@ -135,6 +139,7 @@ __all__ = [
     "HoistLocalArraysTrans",
     "HoistLoopBoundExprTrans",
     "HoistTrans",
+    "IncreaseRankLoopArraysTrans",
     "InlineTrans",
     "Abs2CodeTrans",
     "DotProduct2CodeTrans",
@@ -168,4 +173,5 @@ __all__ = [
     "ValueRangeCheckTrans",
     "ParallelRegionTrans",
     "OMPTaskloopTrans",
+    "OMPDeclareTargetTrans",
 ]

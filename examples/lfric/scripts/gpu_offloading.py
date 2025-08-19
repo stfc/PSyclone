@@ -48,12 +48,13 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.nodes import (
     Call, Directive, IntrinsicCall, Loop, Routine, Schedule)
 from psyclone.psyir.transformations import (
-    ACCKernelsTrans, Matmul2CodeTrans, OMPTargetTrans, TransformationError)
+    ACCKernelsTrans, Matmul2CodeTrans, OMPTargetTrans, TransformationError,
+    OMPDeclareTargetTrans)
 from psyclone.transformations import (
     LFRicColourTrans, LFRicOMPLoopTrans,
     LFRicRedundantComputationTrans, OMPParallelTrans,
     ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans,
-    OMPDeclareTargetTrans, OMPLoopTrans)
+    OMPLoopTrans)
 
 
 # Names of any invoke that we won't add any GPU offloading

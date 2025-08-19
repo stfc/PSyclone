@@ -43,11 +43,12 @@
     (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
     Argument). '''
 
+from __future__ import annotations
 import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, List, Optional
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -61,17 +62,16 @@ from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import (InvokeSchedule, Arguments,
-                             KernelArgument, HaloExchange, GlobalSum,
-                             DataAccess)
+from psyclone.psyGen import (Arguments, DataAccess, InvokeSchedule, Kern,
+                             KernelArgument, HaloExchange, GlobalSum)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Reference, ACCEnterDataDirective, ArrayOfStructuresReference,
     StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall,
-    Assignment, ArrayReference, Loop, Container, Schedule, Node)
+    Assignment, ArrayReference, Loop, Container, DataNode, Schedule, Node)
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, DataSymbol, ScalarType, UnresolvedType, DataTypeSymbol,
-    ContainerSymbol, ImportInterface, StructureType,
+    INTEGER_TYPE, DataSymbol, DataType, DataTypeSymbol, ScalarType,
+    UnresolvedType, ContainerSymbol, ImportInterface, StructureType,
     ArrayType, UnsupportedFortranType, ArgumentInterface)
 
 
@@ -4166,7 +4166,9 @@ class LFRicHaloExchange(HaloExchange):
         depth_info_list = _create_depth_list(halo_info_list, self)
         return depth_info_list
 
-    def _compute_halo_read_info(self, ignore_hex_dep=False):
+    def _compute_halo_read_info(self,
+                                ignore_hex_dep: bool = False
+                                ) -> List[HaloReadAccess]:
         '''Dynamically computes all halo read dependencies and returns the
         required halo information (i.e. halo depth and stencil type)
         in a list of HaloReadAccess objects. If the optional
@@ -4176,19 +4178,18 @@ class LFRicHaloExchange(HaloExchange):
         and only return non-halo exchange dependencies if and when
         required.
 
-        :param bool ignore_hex_dep: if True then ignore any read \
-            accesses contained in halo exchanges. This is an optional \
+        :param ignore_hex_dep: if True then ignore any read
+            accesses contained in halo exchanges. This is an optional
             argument that defaults to False.
 
-        :return: a list containing halo information for each read dependency.
-        :rtype: :func:`list` of :py:class:`psyclone.lfric.HaloReadAccess`
+        :return: halo information for each read dependency.
 
-        :raises InternalError: if there is more than one read \
+        :raises InternalError: if there is more than one read
             dependency associated with a halo exchange.
-        :raises InternalError: if there is a read dependency \
-            associated with a halo exchange and it is not the last \
+        :raises InternalError: if there is a read dependency
+            associated with a halo exchange and it is not the last
             entry in the read dependency list.
-        :raises GenerationError: if there is a read dependency \
+        :raises GenerationError: if there is a read dependency
             associated with an asynchronous halo exchange.
         :raises InternalError: if no read dependencies are found.
 
@@ -4602,17 +4603,16 @@ class LFRicHaloExchangeEnd(LFRicHaloExchange):
 
     :param field: the field that this halo exchange will act on
     :type field: :py:class:`psyclone.lfric.LFRicKernelArgument`
-    :param check_dirty: optional argument (default True) indicating \
-    whether this halo exchange should be subject to a run-time check \
-    for clean/dirty halos.
+    :param check_dirty: optional argument (default True) indicating
+        whether this halo exchange should be subject to a run-time check
+        for clean/dirty halos.
     :type check_dirty: bool
-    :param vector_index: optional vector index (default None) to \
-    identify which index of a vector field this halo exchange is \
-    responsible for
+    :param vector_index: optional vector index (default None) to
+        identify which index of a vector field this halo exchange is
+        responsible for.
     :type vector_index: int
-    :param parent: optional PSyIRe parent node (default None) of this \
-    object
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param parent: PSyIR parent node (default None) of this object.
+    :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
     '''
     # Textual description of the node.
@@ -4715,20 +4715,22 @@ class HaloDepth():
         '''
         return self._var_depth
 
-    def set_by_value(self, max_depth, var_depth, annexed_only, max_depth_m1):
+    def set_by_value(self,
+                     max_depth: bool,
+                     var_depth: Optional[DataNode],
+                     annexed_only: bool,
+                     max_depth_m1: bool):
         # pylint: disable=too-many-arguments
-        '''Set halo depth information directly
+        '''Set halo depth information directly.
 
-        :param bool max_depth: True if the field accesses all of the
+        :param max_depth: True if the field accesses all of the
             halo and False otherwise
         :param var_depth: PSyIR expression specifying the halo
             access depth, if one exists, and None if not
-        :type var_depth: :py:class:`psyclone.psyir.nodes.Node`
-        :param bool annexed_only: True if only the halo's annexed dofs
+        :param annexed_only: True if only the halo's annexed dofs
             are accessed and False otherwise
-        :param bool max_depth_m1: True if the field accesses all of
-            the halo but does not require the outermost halo to be correct
-            and False otherwise
+        :param max_depth_m1: True if the field accesses all of the halo but
+            does not require the outermost halo to be correct, False otherwise
 
         '''
         self._max_depth = max_depth
@@ -4774,7 +4776,8 @@ class HaloDepth():
         return None
 
 
-def halo_check_arg(field, access_types):
+def halo_check_arg(field: LFRicKernelArgument,
+                   access_types: list[AccessType]) -> Kern:
     '''
     Support function which performs checks to ensure the first argument
     is a field, that the field is contained within Kernel or Builtin
@@ -4783,18 +4786,16 @@ def halo_check_arg(field, access_types):
     call object containing this argument.
 
     :param field: the argument object we are checking
-    :type field: :py:class:`psyclone.lfric.LFRicArgument`
     :param access_types: List of allowed access types.
-    :type access_types: List of :py:class:`psyclone.psyGen.AccessType`.
-    :return: the call containing the argument object
-    :rtype: sub-class of :py:class:`psyclone.psyGen.Kern`
 
-    :raises GenerationError: if the first argument to this function is \
-                             the wrong type.
-    :raises GenerationError: if the first argument is not accessed in one of \
-                    the ways specified by the second argument to the function.
-    :raises GenerationError: if the first argument is not contained \
-                             within a call object.
+    :return: the call containing the argument object
+
+    :raises GenerationError: if the first argument to this function is
+        the wrong type.
+    :raises GenerationError: if the first argument is not accessed in one of
+        the ways specified by the second argument to the function.
+    :raises GenerationError: if the first argument is not contained
+        within a call object.
 
     '''
     try:
@@ -4802,9 +4803,9 @@ def halo_check_arg(field, access_types):
         call = field.call
     except AttributeError as err:
         raise GenerationError(
-            f"HaloInfo class expects an argument of type LFRicArgument, or "
-            f"equivalent, on initialisation, but found, "
-            f"'{type(field)}'") from err
+            f"HaloInfo class expects an argument of type "
+            f"LFRicKernelArgument, or equivalent, on initialisation, but "
+            f"found, '{type(field)}'") from err
 
     if field.access not in access_types:
         api_strings = [access.api_specific_name() for access in access_types]
@@ -4824,14 +4825,12 @@ class HaloWriteAccess(HaloDepth):
     particular loop nest.
 
     :param field: the field that we are concerned with.
-    :type field: :py:class:`psyclone.lfric.LFRicArgument`
     :param parent: the parent PSyIR node associated with the scoping region
                    that contains this halo access.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    def __init__(self, field, parent):
-        HaloDepth.__init__(self, parent)
+    def __init__(self, field: LFRicKernelArgument, parent: Node):
+        super().__init__(parent)
         self._compute_from_field(field)
 
     @property
@@ -4887,7 +4886,7 @@ class HaloWriteAccess(HaloDepth):
             return None
         return depth_expr
 
-    def _compute_from_field(self, field):
+    def _compute_from_field(self, field: LFRicKernelArgument):
         '''Internal method to compute what parts of a field's halo are written
         to in a certain kernel and loop. The information computed is the depth
         of access and validity of the data after writing. The depth of access
@@ -4896,7 +4895,6 @@ class HaloWriteAccess(HaloDepth):
         clean.
 
         :param field: the field that we are concerned with.
-        :type field: :py:class:`psyclone.lfric.LFRicArgument`
 
         '''
         const = LFRicConstants()
@@ -4987,7 +4985,7 @@ class HaloReadAccess(HaloDepth):
         '''
         return self._stencil_type
 
-    def _compute_from_field(self, field):
+    def _compute_from_field(self, field: LFRicKernelArgument):
         '''Internal method to compute which parts of a field's halo are read
         in a certain kernel and loop. The information computed is the
         depth of access and the access pattern. The depth of access
@@ -4995,8 +4993,27 @@ class HaloReadAccess(HaloDepth):
         depth. The access pattern will only be specified if the kernel code
         performs a stencil access on the field.
 
+        For a standard kernel that has been transformed to perform redundant
+        computation and has a field argument with a stencil access, the depth
+        of that field's halo that is read is computed as the *sum* of the
+        depth of the redundant computation and the stencil size. However, for
+        the special case of a Kernel which *must* iterate into the halo region
+        (has an ``OPERATES_ON`` of ``HALO_CELL_COLUMN`` or
+        ``OWNED_AND_HALO_CELL_COLUMN``) to a depth ``ndepth``, say, then the
+        depth of the halo that is read is currently computed as the *maximum*
+        of ``ndepth`` and the stencil size. This is because, computing the sum
+        of ``ndepth`` and the stencil size results in a halo depth that is
+        greater than the maximum allowed. In this particular case, the stencil
+        accesses are 'parallel' to the halo and therefore this workaround is
+        valid. TODO #2781 - this case should be handled by adding support for
+        a new type of stencil rather than this ad-hoc fix.
+
         :param field: the field that we are concerned with
-        :type field: :py:class:`psyclone.lfric.LFRicArgument`
+
+        :raises GenerationError: if an unsupported name for a loop
+            upper-bound is found.
+        :raises GenerationError: if a Kernel with a stencil access performs
+            redundant computation out to the maximum halo depth.
 
         '''
         # pylint: disable=too-many-branches
@@ -5023,10 +5040,17 @@ class HaloReadAccess(HaloDepth):
             not (field.access == AccessType.INC
                  and loop.upper_bound_name in ["cell_halo",
                                                "colour_halo"]))
+
+        # Records whether the kernel is a special "halo" kernel that must
+        # iterate into the halo for correctness.
+        is_halo_kernel = (call.iterates_over in
+                          const.HALO_KERNEL_ITERATION_SPACES)
+
         # now we have the parent loop we can work out what part of the
         # halo this field accesses
         if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
-            # this loop performs redundant computation
+            # This loop performs redundant computation or is a 'halo' kernel
+            # that iterates into the halo.
             if loop.upper_bound_halo_depth:
                 self._var_depth = loop.upper_bound_halo_depth
             else:
@@ -5093,10 +5117,7 @@ class HaloReadAccess(HaloDepth):
             stencil_depth = field.descriptor.stencil['extent']
             if stencil_depth:
                 # stencil_depth is provided in the kernel metadata
-                self._var_depth = BinaryOperation.create(
-                    BinaryOperation.Operator.ADD,
-                    Literal(str(stencil_depth), INTEGER_TYPE),
-                    self._var_depth.copy())
+                st_depth = Literal(str(stencil_depth), INTEGER_TYPE)
             else:
                 # Stencil_depth is provided by the algorithm layer.
                 # It is currently not possible to specify kind for an
@@ -5105,17 +5126,31 @@ class HaloReadAccess(HaloDepth):
                 if field.stencil.extent_arg.is_literal():
                     # a literal is specified
                     value_str = field.stencil.extent_arg.text
-                    stencil_depth = Literal(value_str, INTEGER_TYPE)
+                    st_depth = Literal(value_str, INTEGER_TYPE)
                 else:
                     # a variable is specified
-                    stencil_depth = Reference(
+                    st_depth = Reference(
                         table.lookup(field.stencil.extent_arg.varname))
-                if self._var_depth:
+            if self._var_depth:
+                if is_halo_kernel:
+                    # 'halo' kernels (those that have halos included in their
+                    # iteration space in order to get correct results) are a
+                    # special case - the necessary halo depth is computed as
+                    # the MAX of the halo and stencil depths, rather than as
+                    # their sum.
+                    # TODO #2781 - instead of this ad-hoc fix, we should add
+                    # support for a new type of stencil.
+                    self._var_depth = IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.MAX,
+                        [st_depth, self._var_depth.copy()])
+                else:
+                    # Not a special case so the necessary depth is the sum of
+                    # the halo and stencil depths.
                     self._var_depth = BinaryOperation.create(
                         BinaryOperation.Operator.ADD,
-                        stencil_depth, self._var_depth.copy())
-                else:
-                    self._var_depth = stencil_depth
+                        st_depth, self._var_depth.copy())
+            else:
+                self._var_depth = st_depth
         # If this is an intergrid kernel and the field in question is on
         # the fine mesh then we must double the halo depth
         if call.is_intergrid and field.mesh == "gh_fine":
@@ -5702,6 +5737,26 @@ class LFRicKernelArgument(KernelArgument):
         # _init_data_type_properties() so the precision info etc is
         # already set up)
         self._complete_init(arg_info)
+
+    @classmethod
+    def _ensure_unique_name(cls, name: str) -> str:
+        '''
+        Given the proposed argument name, returns a new name that will be
+        unique in the final PSy routine.
+
+        :param name: the proposed name of a kernel argument.
+
+        :returns: a new name for the kernel argument.
+
+        '''
+        # Symbol imports for STENCILS are not yet in the symbol table (until
+        # lowering time), so make sure the argument names do not overlap with
+        # them.
+        const = LFRicConstants()
+        new_name = name
+        if name.upper() in const.STENCIL_MAPPING.values():
+            new_name += "_arg"
+        return new_name
 
     def generate_method_call(self, method, function_space=None):
         '''
@@ -6409,7 +6464,7 @@ class LFRicKernelArgument(KernelArgument):
         '''
         self._stencil = value
 
-    def infer_datatype(self, proxy=False):
+    def infer_datatype(self, proxy: bool = False) -> DataType:
         '''
         Infer the datatype of this kernel argument in the PSy layer using
         the LFRic API rules. If any LFRic infrastructure modules are required
@@ -6421,12 +6476,11 @@ class LFRicKernelArgument(KernelArgument):
         TODO #1258 - ultimately this routine should not have to create any
         DataTypeSymbols as that should already have been done.
 
-        :param bool proxy: whether or not we want the type of the proxy \
+        :param proxy: whether or not we want the type of the proxy
             object for this kernel argument. Defaults to False (i.e.
             return the type rather than the proxy type).
 
         :returns: the datatype of this argument.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
         :raises NotImplementedError: if an unsupported argument type is found.
 
@@ -6439,18 +6493,18 @@ class LFRicKernelArgument(KernelArgument):
 
         symtab = scope.symbol_table
 
-        def _find_or_create_type(mod_name, type_name):
+        def _find_or_create_type(mod_name: str,
+                                 type_name: str) -> DataTypeSymbol:
             '''
             Utility to find or create a DataTypeSymbol with the supplied name,
             imported from the named module.
 
-            :param str mod_name: the name of the module from which the \
-                                 DataTypeSymbol should be imported.
-            :param str type_name: the name of the derived type for which to \
-                                  create a DataTypeSymbol.
+            :param mod_name: the name of the module from which the
+                             DataTypeSymbol should be imported.
+            :param type_name: the name of the derived type for which to
+                              create a DataTypeSymbol.
 
             :returns: the symbol for the requested type.
-            :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
             '''
             return symtab.find_or_create(
@@ -6502,7 +6556,11 @@ class LFRicKernelArgument(KernelArgument):
                 type_name = self._proxy_data_type
             else:
                 type_name = self._data_type
-            return _find_or_create_type(mod_name, type_name)
+            dts = _find_or_create_type(mod_name, type_name)
+            if self.is_field and self.vector_size > 1:
+                # A field vector must be of ArrayType
+                return ArrayType(dts, [self.vector_size])
+            return dts
 
         raise NotImplementedError(
             f"'{str(self)}' is not a scalar, field or operator argument")
