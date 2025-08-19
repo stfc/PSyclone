@@ -43,7 +43,7 @@ on:
 
 jobs:
   run_if_on_mirror:
-    if: ${{ github.repository == 'sergisiso/PSyclone' }}
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     env:
       NEMODIR_NAME: UKMO-NEMOv5
@@ -418,7 +418,7 @@ jobs:
         export TIME_sec=$(grep "local MPI proces" timing.output | head -n 1 | awk '{print $5}' | tr -d s)
 
   upload_if_on_mirror:
-    if: ${{ github.repository == 'sergisiso/PSyclone' }}
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: ubuntu-latest
     env:
       NVFORTRAN_VERSION: 25.7
