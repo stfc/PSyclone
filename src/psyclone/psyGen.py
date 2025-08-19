@@ -2857,7 +2857,7 @@ class Transformation(metaclass=abc.ABCMeta):
             signature = inspect.signature(base_cls_apply)
             # Loop over the arguments to the apply call.
             for k, v in signature.parameters.items():
-                if k == "options":
+                if k == "options" and base_cls is not cls:
                     continue
                 # If the argument is a keyword argument, i.e. it has a default
                 # value then we add it to the list of options.
@@ -2895,8 +2895,6 @@ class Transformation(metaclass=abc.ABCMeta):
         invalid_options = []
         wrong_types = {}
         for option in kwargs:
-            if option == "options":
-                continue
             if option not in valid_options:
                 invalid_options.append(option)
                 continue
