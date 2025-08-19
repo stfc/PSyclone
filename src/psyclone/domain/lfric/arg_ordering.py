@@ -771,11 +771,11 @@ class ArgOrdering:
         '''
         const = LFRicConstants()
         if not scalar_arg.is_scalar or not scalar_arg.is_scalar_array:
-                raise InternalError(
-                    f"Expected argument type to be one of "
-                    f"{const.VALID_SCALAR_NAMES} or "
-                    f"{const.VALID_ARRAY_NAMES} but got "
-                    f"'{scalar_arg.argument_type}'")
+            raise InternalError(
+                f"Expected argument type to be one of "
+                f"{const.VALID_SCALAR_NAMES} or "
+                f"{const.VALID_ARRAY_NAMES} but got "
+                f"'{scalar_arg.argument_type}'")
 
         if scalar_arg.is_literal:
             # If we have a literal, do not add it to the variable access
