@@ -196,10 +196,12 @@ class KernCallInvokeArgList(ArgOrdering):
             datatype = LFRicTypes("LFRicLogicalScalarDataType")()
         else:
             raise NotImplementedError(
-                f"ScalarArray of type '{scalar_arr_arg.intrinsic_type}' not supported.")
+                f"ScalarArray of type '{scalar_arr_arg.intrinsic_type}' not '"
+                f"supported.")
 
         consts = LFRicConstants()
-        precision_name = consts.SCALAR_PRECISION_MAP[scalar_arr_arg.intrinsic_type]
+        precision_name = consts.SCALAR_PRECISION_MAP[
+            scalar_arr_arg.intrinsic_type]
         self._symtab.add_lfric_precision_symbol(precision_name)
 
         sym = self._symtab.new_symbol(scalar_arr_arg.name,

@@ -800,8 +800,8 @@ class ArgOrdering:
         :type var_accesses: \
             :py:class:`psyclone.core.VariablesAccessMap`
 
-        :raises InternalError: if the argument is not a recognised ScalarArray \
-            type.
+        :raises InternalError: if the argument is not a recognised \
+            ScalarArray type.
 
         '''
         const = LFRicConstants()
@@ -811,7 +811,8 @@ class ArgOrdering:
                 f"{const.VALID_ARRAY_NAMES} but got "
                 f"'{scalar_arr_arg.argument_type}'")
 
-        self.append(scalar_arr_arg.name, var_accesses, mode=scalar_arr_arg.access,
+        self.append(scalar_arr_arg.name, var_accesses,
+                    mode=scalar_arr_arg.access,
                     metadata_posn=scalar_arr_arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):
