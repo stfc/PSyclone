@@ -299,7 +299,7 @@ jobs:
 
         # Run test
         cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
-        ln -sf ../../../ORCA2_ICE_v4.2.0/* .
+        ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA2/* .
         # Uses both, threading and offloading
         OMP_NUM_THREADS=4 ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
@@ -374,7 +374,7 @@ jobs:
 
         # Run test
         cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
-        ln -sf ../../../ORCA2_ICE_v4.2.0/* .
+        ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA2/* .
         # Uses both, threading and offloading
         OMP_NUM_THREADS=4 ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
