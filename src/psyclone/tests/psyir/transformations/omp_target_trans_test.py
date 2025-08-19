@@ -121,6 +121,7 @@ def test_omptargettrans_validate(fortran_reader):
         integer, dimension(10, 10) :: A
         integer :: i
         integer :: j
+        character :: c = "b"
         do i = 1, 10
             do j = 1, 10
                 A(i, j) = myfunc(3)
@@ -136,6 +137,13 @@ def test_omptargettrans_validate(fortran_reader):
                 A(i, j) = LOG10(3)
             end do
         end do
+        do i = 1, 10
+            do j = 1, 10
+                if (c .eq. "a") then
+                    A(i, j) = LOG10(3)
+                endif
+            end do
+        end do
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
@@ -148,11 +156,15 @@ def test_omptargettrans_validate(fortran_reader):
             in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[1])
+        omptargettrans.validate(loops[1], {'verbose': True})
     assert ("'myfunc' is not available on the 'default' accelerator device, "
             "and therefore it cannot be called from within an OMP Target "
             "region. Use the 'device_string' option to specify a different "
             "device." in str(err.value))
+    assert ("'myfunc' is not available on the 'default' accelerator device, "
+            "and therefore it cannot be called from within an OMP Target "
+            "region. Use the 'device_string' option to specify a different "
+            "device." in loops[1].preceding_comment)
 
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[2])
@@ -175,6 +187,15 @@ def test_omptargettrans_validate(fortran_reader):
     assert ("Unsupported device_string value 'unknown-device', the supported "
             "values are '' (default), 'nvfortran-all', 'nvfortran-uniform'"
             in str(err.value))
+
+    # Check the characters are prevented, unless explictly allowed
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[4], options={'verbose': True})
+    assert ("OpenMP Target cannot enclose a region that uses characters, "
+            "but found: c" in str(err.value))
+    assert ("OpenMP Target cannot enclose a region that uses characters, "
+            "but found: c" in loops[4].preceding_comment)
+    omptargettrans.validate(loops[4], options={'allow_strings': True})
 
 
 def test_omptargetrans_apply_nowait(fortran_reader, fortran_writer):

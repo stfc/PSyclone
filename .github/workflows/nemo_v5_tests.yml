@@ -335,7 +335,7 @@ jobs:
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
         export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
-        export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC
+        export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC_ASYNC
 
         # Make sure the profiling wrapper is compiled with the same compiler
         export PROFILING_DIR=${GITHUB_WORKSPACE}/lib/profiling/nvidia/
@@ -397,7 +397,7 @@ jobs:
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
         export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
-        export TEST_DIR=ORCA2_OMP_OFFLOAD_NVHPC
+        export TEST_DIR=ORCA2_OMP_OFFLOAD_NVHPC_ASYNC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
@@ -439,7 +439,7 @@ jobs:
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
         export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
-        export TEST_DIR=ORCA1_OMP_OFFLOAD_NVHPC
+        export TEST_DIR=ORCA1_OMP_OFFLOAD_NVHPC_ASYNC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
