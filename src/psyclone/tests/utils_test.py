@@ -257,7 +257,7 @@ def test_transformation_doc_wrapper_no_docstring():
     instance.apply(None)
 
 
-def test_transformation_doc_wrapper_uniheritable():
+def test_transformation_doc_wrapper_uninheritable():
     '''Test the transformation doc wrapper doesn't inherit parameters'
     docstrings that are defined in the _uninheritable_args list.'''
 
@@ -281,7 +281,8 @@ def test_transformation_doc_wrapper_uniheritable():
             :type options: dict
             '''
 
-    # Create a base transformation class
+    # Create a second base transformation class to test multiple
+    # inheritance.
     class BaseTrans2(Transformation):
 
         def validate(self, node, opt2, **kwargs):
@@ -312,9 +313,12 @@ def test_transformation_doc_wrapper_uniheritable():
             :param opt3: opt3 docstring.
             '''
 
+    # Test that the options parameter docstring is not inherited from the
+    # superclass.
     transformation_documentation_wrapper(InheritingTrans1, inherit=True)
     assert ":param options:" not in InheritingTrans1.apply.__doc__
 
+    # Class to test multiple inheritance behaviour.
     class InheritingTrans2(BaseTrans, BaseTrans2):
 
         def validate(self, node, opt3, **kwargs):
@@ -329,6 +333,8 @@ def test_transformation_doc_wrapper_uniheritable():
             :param opt3: opt3 docstring.
             '''
 
+    # Test that the options parameter docstring is not inherited from either
+    # of the superclasses.
     transformation_documentation_wrapper(
         InheritingTrans2,
         inherit=[BaseTrans, BaseTrans2]
