@@ -349,7 +349,7 @@ def test_arraytype_arraybounds():
     two = Literal("2", INTEGER_TYPE)
     bounds = ArrayType.ArrayBounds(lower=two,
                                    upper=ArrayType.Extent.ATTRIBUTE)
-    assert bounds.lower is two
+    assert bounds.lower == two
     assert bounds.upper == ArrayType.Extent.ATTRIBUTE
     with pytest.raises(TypeError) as err:
         _ = ArrayType.ArrayBounds(lower=2,

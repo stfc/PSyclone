@@ -35,6 +35,7 @@
 
 ''' Utilities file to parallelise Nemo code. '''
 
+import os
 from typing import List, Union
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
@@ -47,7 +48,8 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
-    Reference2ArrayRangeTrans, ScalarisationTrans)
+    OMPMinimiseSyncTrans, Reference2ArrayRangeTrans,
+    ScalarisationTrans, IncreaseRankLoopArraysTrans)
 from psyclone.transformations import TransformationError
 
 # USE statements to chase to gather additional symbol information.
@@ -144,7 +146,7 @@ NEMO_FUNCTIONS = [
     'visc_air', 'visc_air_sclr', 'visc_air_vctr', 'w1', 'w2', 'z0_from_Cd',
     'z0tq_LKB', 'zdf_gls_alloc', 'zdf_iwm_alloc', 'zdf_mfc_alloc',
     'zdf_mxl_alloc', 'zdf_oce_alloc', 'zdf_osm_alloc', 'zdf_phy_alloc',
-    'zdf_tke_alloc', 'zdf_tmx_alloc',
+    'zdf_tke_alloc', 'zdf_tmx_alloc', 'itau2date',
     # grep -rh "INTERFACE" src | grep -v "END" | awk '{print $2}' | uniq | sort
     'alpha_sw', 'bulk_formula', 'cp_air', 'debug', 'DECAL_FEEDBACK',
     'DECAL_FEEDBACK_2D', 'depth_to_e3', 'de_sat_dt_ice', 'dia_ar5_hst',
@@ -175,6 +177,7 @@ CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 PARALLELISATION_ISSUES = [
     "ldfc1d_c2d.f90",
     "tramle.f90",
+    "traqsr.f90",
 ]
 
 PRIVATISATION_ISSUES = [
@@ -314,8 +317,9 @@ def normalise_loops(
         convert_array_notation: bool = True,
         loopify_array_intrinsics: bool = True,
         convert_range_loops: bool = True,
-        hoist_expressions: bool = True,
         scalarise_loops: bool = False,
+        increase_array_ranks: bool = False,
+        hoist_expressions: bool = True,
         ):
     ''' Normalise all loops in the given schedule so that they are in an
     appropriate form for the Parallelisation transformations to analyse
@@ -330,10 +334,12 @@ def normalise_loops(
         operate on arrays to explicit loops (currently only maxval).
     :param bool convert_range_loops: whether to convert ranges to explicit
         loops.
-    :param bool hoist_expressions: whether to hoist bounds and loop invariant
-        statements out of the loop nest.
     :param scalarise_loops: whether to attempt to convert arrays to scalars
         where possible, default is False.
+    :param increase_array_ranks: whether to increase the rank of selected
+        arrays.
+    :param hoist_expressions: whether to hoist bounds and loop invariant
+        statements out of the loop nest.
     '''
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
@@ -386,6 +392,9 @@ def normalise_loops(
         for loop in loops:
             scalartrans.apply(loop)
 
+    if increase_array_ranks:
+        increase_rank_and_reorder_nemov5_loops(schedule)
+
     if hoist_expressions:
         # First hoist all possible expressions
         for loop in schedule.walk(Loop):
@@ -408,12 +417,69 @@ def normalise_loops(
     # top level. This would allow the collapse clause to be applied.
 
 
+def increase_rank_and_reorder_nemov5_loops(routine: Routine):
+    ''' This method increases the rank of temporary arrays used inside selected
+    loops (in order to parallelise the outer loop without overlapping them)
+    and then rearranges the outer loop next to the inner ones (in order to
+    collapse them), so that more parallelism can be leverage. This is useful
+    in GPU contexts, but it increases the memory footprint and may not be
+    beneficial for caching-architectures.
+
+    :param routine: the target routine.
+
+    '''
+    irlatrans = IncreaseRankLoopArraysTrans()
+
+    # Map of routines and arrays
+    selection = {
+        "dyn_zdf": ['zwd', 'zwi', 'zws'],
+        "tra_zdf_imp": ['zwd', 'zwi', 'zws', 'zwt']
+    }
+
+    if routine.name not in selection:
+        return
+
+    for outer_loop in routine.walk(Loop, stop_type=Loop):
+        if outer_loop.variable.name == "jj":
+            # Increase the rank of the temporary arrays in this loop
+            irlatrans.apply(outer_loop, arrays=selection[routine.name])
+            # Now reorder the code
+            for child in outer_loop.loop_body[:]:
+                # Move the contents of the jj loop outside it
+                outer_loop.parent.addchild(child.detach(),
+                                           index=outer_loop.position)
+                # Add a new jj loop around each inner loop that is not 'jn'
+                target_loop = []
+                for inner_loop in child.walk(Loop, stop_type=Loop):
+                    if inner_loop.variable.name != "jn":
+                        target_loop.append(inner_loop)
+                    else:
+                        for next_loop in inner_loop.loop_body.walk(
+                                            Loop, stop_type=Loop):
+                            target_loop.append(next_loop)
+                for inner_loop in target_loop:
+                    if isinstance(inner_loop.loop_body[0], Loop):
+                        inner_loop = inner_loop.loop_body[0]
+                    inner_loop.replace_with(
+                        Loop.create(
+                            outer_loop.variable,
+                            outer_loop.start_expr.copy(),
+                            outer_loop.stop_expr.copy(),
+                            outer_loop.step_expr.copy(),
+                            children=[inner_loop.copy()]
+                        )
+                    )
+            # Remove the now empty jj loop
+            outer_loop.detach()
+
+
 def insert_explicit_loop_parallelism(
         schedule,
         region_directive_trans=None,
         loop_directive_trans=None,
         collapse: bool = True,
         privatise_arrays: bool = False,
+        asynchronous_parallelism: bool = False,
         uniform_intrinsics_only: bool = False,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
@@ -433,10 +499,13 @@ def insert_explicit_loop_parallelism(
         many nested loops as possible.
     :param privatise_arrays: whether to attempt to privatise arrays that cause
         write-write race conditions.
+    :param asynchronous_parallelism: whether to attempt to add asynchronocity
+    to the parallel sections.
     :param uniform_intrinsics_only: if True it prevent offloading loops
         with non-reproducible device intrinsics.
 
     '''
+    nemo_v4 = os.environ.get('NEMOV4', False)
     if schedule.name == "ts_wgt":
         return  # TODO #2937 WaW dependency incorrectly considered private
     # Add the parallel directives in each loop
@@ -445,7 +514,7 @@ def insert_explicit_loop_parallelism(
             continue  # Skip if an outer loop is already parallelised
 
         opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
-                "verbose": True, "nowait": False}
+                "verbose": True, "nowait": asynchronous_parallelism}
 
         if uniform_intrinsics_only:
             opts["device_string"] = "nvfortran-uniform"
@@ -458,33 +527,51 @@ def insert_explicit_loop_parallelism(
                 "and is not the inner loop")
             continue
 
-        # Skip if it is an array operation loop on an ice routine if along the
-        # third dim or higher or if the loop nests a loop over ice points
-        # (npti) or if the loop and array dims do not match.
-        # In addition, they often nest ice linearised loops (npti)
-        # which we'd rather parallelise
-        if ('ice' in routine_name
-            and isinstance(loop.stop_expr, IntrinsicCall)
-            and (loop.stop_expr.intrinsic in (IntrinsicCall.Intrinsic.UBOUND,
-                                              IntrinsicCall.Intrinsic.SIZE))
-            and (len(loop.walk(Loop)) > 2
-                 or any(ref.symbol.name in ('npti',)
-                        for lp in loop.loop_body.walk(Loop)
-                        for ref in lp.stop_expr.walk(Reference))
-                 or (str(len(loop.walk(Loop))) !=
-                     loop.stop_expr.arguments[1].value))):
-            loop.append_preceding_comment(
-                "PSyclone: ICE Loop not parallelised for performance reasons")
-            continue
+        if nemo_v4:
+            # Skip if it is an array operation loop on an ice routine if along
+            # the third dim or higher or if the loop nests a loop over ice
+            # points (npti) or if the loop and array dims do not match.
+            # In addition, they often nest ice linearised loops (npti)
+            # which we'd rather parallelise
+            if ('ice' in routine_name
+                and isinstance(loop.stop_expr, IntrinsicCall)
+                and (loop.stop_expr.intrinsic in (
+                        IntrinsicCall.Intrinsic.UBOUND,
+                        IntrinsicCall.Intrinsic.SIZE))
+                and (len(loop.walk(Loop)) > 2
+                     or any(ref.symbol.name in ('npti',)
+                            for lp in loop.loop_body.walk(Loop)
+                            for ref in lp.stop_expr.walk(Reference))
+                     or (str(len(loop.walk(Loop))) !=
+                         loop.stop_expr.arguments[1].value))):
+                loop.append_preceding_comment(
+                    "PSyclone: ICE Loop not parallelised for performance"
+                    "reasons")
+                continue
 
-        # Skip if looping over ice categories, ice or snow layers
-        # as these have only 5, 4, and 1 iterations, respectively
-        if (any(ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
-                for ref in loop.stop_expr.walk(Reference))):
-            loop.append_preceding_comment(
-                "PSyclone: Loop not parallelised because stops at 'jpl',"
-                " 'nlay_i' or 'nlay_s'.")
-            continue
+            # Skip if looping over ice categories, ice or snow layers as these
+            # have small trip counts if they are not collapsed
+            if not collapse and any(
+                    ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
+                    for ref in loop.stop_expr.walk(Reference)
+            ):
+                loop.append_preceding_comment(
+                    "PSyclone: Loop not parallelised because stops at 'jpl',"
+                    " 'nlay_i' or 'nlay_s' and is not collapsed.")
+                continue
+
+        else:
+            # In NEMOv5 add the necessary explicit private symbols in icethd
+            # in order to parallelise the outer loop
+            if routine_name == "ice_thd_zdf_BL99":
+                if isinstance(loop.stop_expr, Reference):
+                    if loop.stop_expr.symbol.name == "npti":
+                        for variable in ['zdiagbis', 'zindtbis', 'zindterm',
+                                         'ztib', 'ztrid', 'ztsb']:
+                            st = loop.scope.symbol_table
+                            sym = st.lookup(variable, otherwise=None)
+                            if sym is not None:
+                                loop.explicitly_private_symbols.add(sym)
 
         try:
             # First check that the region_directive is feasible for this region
@@ -502,6 +589,17 @@ def insert_explicit_loop_parallelism(
             # The parallelisation restrictions will be explained with a comment
             # associted to the loop in the generated output.
             continue
+
+    # If we are adding asynchronous parallelism then we now try to minimise
+    # the number of barriers.
+    if asynchronous_parallelism:
+        minsync_trans = OMPMinimiseSyncTrans()
+        # TODO #3091 - the transformation currently raises false errors in
+        # certain situations.
+        try:
+            minsync_trans.apply(schedule)
+        except TransformationError as err:
+            print(err)
 
 
 def add_profiling(children: Union[List[Node], Schedule]):
