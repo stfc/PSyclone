@@ -49,6 +49,13 @@ jobs:
       NEMODIR_NAME: UKMO-NEMOv5
       NUM_PARALLEL: 16
     
+    outputs:
+      bench_gfortran_omp_cpu: ${{ steps.bench_gfortran_omp_cpu.outputs.time }}
+      bench_nvfortran_omp_offload: ${{ steps.bench_nvfortran_omp_offload.outputs.time }}
+      orca1_nvfortran_omp_offload: ${{ steps.orca1_nvfortran_omp_offload.outputs.time }}
+      orca2_nvfortran_omp_offload: ${{ steps.orca2_nvfortran_omp_offload.outputs.time }}
+      orca2_nvfortran_omp_offload_async: ${{ steps.orca2_nvfortran_omp_offload_async.outputs.time }}
+
     steps:
     - uses: actions/checkout@v3
       with:
@@ -143,6 +150,7 @@ jobs:
         echo "Time-stepping duration = " $VAR_TIME
 
     - name: NEMO 5.0 gfortran OpenMP for CPUs
+      id: bench_gfortran_omp_cpu
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
@@ -172,16 +180,9 @@ jobs:
         tail run.stat
         # diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
         export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "NEMOv5 OpenMP for CPU", nemo_version: "NEMOv5", system: "Rupert",
-        #   compiler:"gfortran-14" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
 
     - name: NEMO 5.0 nvidia OpenMP for GPUs (BENCH - managed memory)
+      id: bench_nvfortran_omp_offload
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
@@ -234,16 +235,9 @@ jobs:
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "NEMOv5 OpenMP for GPU (BENCH)", nemo_version: "NEMOv5", system: "Rupert",
-        #   compiler:"nvhpc-25.1" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
 
     - name: NEMO 5.0 nvidia OpenMP for GPUs (UKMO ORCA1 - managed memory)
+      id: orca1_nvfortran_omp_offload
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
@@ -275,16 +269,9 @@ jobs:
         mpirun -n 2 sh -c 'CUDA_VISIBLE_DEVICES=$OMPI_COMM_WORLD_LOCAL_RANK ./nemo'
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca1.nvhpc.10steps run.stat
         export TIME_sec=$(grep "local MPI proces" timing.output | head -n 1 | awk '{print $5}' | tr -d s)
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "NEMOv5 OpenMP for GPU (ORCA1)", nemo_version: "NEMOv5", system: "Rupert",
-        #   compiler:"nvhpc-25.1" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
 
     - name: NEMO 5.0 nvidia OpenMP for GPUs (UKMO ORCA2 - managed memory)
+      id: orca2_nvfortran_omp_offload
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
@@ -314,14 +301,6 @@ jobs:
         OMP_NUM_THREADS=4 ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
         export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "NEMOv5 OpenMP for GPU (ORCA2)", nemo_version: "NEMOv5", system: "Rupert",
-        #   compiler:"nvhpc-25.1" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
 
 
     - name: NEMO 5.0 nvidia Async OpenMP for GPUs (BENCH - managed memory)
@@ -364,31 +343,8 @@ jobs:
         # We can compare all digits for this build
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
 
-        # Now do a fast-build (without reproducible or profiling options, which have a
-        # big impact for BENCH due to some inner-loop REAL intrinsics)
-        cd $NEMO_DIR
-        unset REPRODUCIBLE
-        unset ENABLE_PROFILING
-        export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
-        rm -rf tests/${TEST_DIR}
-        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
-          -j ${NUM_PARALLEL} -v 1
-
-        # Run non-reproducible test
-        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
-        OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
-        export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "NEMOv5 OpenMP for GPU Async (BENCH)", nemo_version: "NEMOv5", system: "Rupert",
-        #   compiler:"nvhpc-25.1" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
-
     - name: NEMO 5.0 nvidia Async OpenMP for GPUs (UKMO ORCA2 - managed memory)
+      id: orca2_nvfortran_omp_offload_async
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
@@ -419,14 +375,6 @@ jobs:
         OMP_NUM_THREADS=4 ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
         export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "NEMOv5 OpenMP for GPU Async (ORCA2)", nemo_version: "NEMOv5", system: "Rupert",
-        #   compiler:"nvhpc-25.1" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
 
     - name: NEMO 5.0 nvidia Async OpenMP for GPUs (UKMO ORCA1 - managed memory)
       # Only do this Action if this is a re-run
@@ -463,11 +411,66 @@ jobs:
         mpirun -n 2 sh -c 'CUDA_VISIBLE_DEVICES=$OMPI_COMM_WORLD_LOCAL_RANK ./nemo'
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca1.nvhpc.10steps run.stat
         export TIME_sec=$(grep "local MPI proces" timing.output | head -n 1 | awk '{print $5}' | tr -d s)
-        # /archive/psyclone-tests/action-runner-software/mongosh-2.5.6-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "NEMOv5 OpenMP for GPU Async (ORCA1)", nemo_version: "NEMOv5", system: "Rupert",
-        #   compiler:"nvhpc-25.1" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
+
+  upload_if_on_mirror:
+    if: ${{ github.repository == 'sergisiso/PSyclone' }}
+    runs-on: ubuntu-latest
+    env:
+      NVFORTRAN_VERSION: 25.7
+      ONEAPI_VERSION: 2025.2
+    needs: run_if_on_mirror
+    steps:
+      - name: Install mongosh
+        run: |
+          sudo apt-get install gnupg
+          wget -qO- https://www.mongodb.org/static/pgp/server-8.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-8.0.asc
+          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+          sudo apt-get update
+          sudo apt-get install -y mongodb-mongosh
+      - name: Upload results
+        run: |
+          mongosh \
+            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+            --password ${{ secrets.MONGODB_PASSWORD }} \
+            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+            ci_test: "NEMOv5 OpenMP for CPU", nemo_version: "NEMOv5", system: "Rupert",
+            compiler:"gfortran-14" , date: new Date(),
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_gfortran_omp_cpu}}"'})'
+          mongosh \
+            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+            --password ${{ secrets.MONGODB_PASSWORD }} \
+            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+            ci_test: "NEMOv5 OpenMP for GPU (BENCH)", nemo_version: "NEMOv5", system: "Rupert",
+            compiler:"nvhpc-25.1" , date: new Date(),
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_nvfortran_omp_offload}}"'})'
+          mongosh \
+            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+            --password ${{ secrets.MONGODB_PASSWORD }} \
+            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+            ci_test: "NEMOv5 OpenMP for GPU (ORCA1)", nemo_version: "NEMOv5", system: "Rupert",
+            compiler:"nvhpc-25.1" , date: new Date(),
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca1_nvfortran_omp_offload}}"'})'
+          mongosh \
+            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+            --password ${{ secrets.MONGODB_PASSWORD }} \
+            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+            ci_test: "NEMOv5 OpenMP for GPU (ORCA2)", nemo_version: "NEMOv5", system: "Rupert",
+            compiler:"nvhpc-25.1" , date: new Date(),
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca2_nvfortran_omp_offload}}"'})'
+          mongosh \
+            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+            --password ${{ secrets.MONGODB_PASSWORD }} \
+            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+            ci_test: "NEMOv5 OpenMP for GPU Async (ORCA2)", nemo_version: "NEMOv5", system: "Rupert",
+            compiler:"nvhpc-25.1" , date: new Date(),
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca2_nvfortran_omp_offload_async}}"'})'
