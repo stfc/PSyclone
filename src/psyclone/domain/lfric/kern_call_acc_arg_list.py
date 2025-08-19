@@ -272,6 +272,7 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.VariablesAccessMap`]
 
         '''
+        #TODO: Add implementation of OpenACC data region for ScalarArrays
 
 
 # ============================================================================

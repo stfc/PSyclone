@@ -773,7 +773,7 @@ class ArgOrdering:
         if not (scalar_arg.is_scalar or scalar_arg.is_scalar_array):
             raise InternalError(
                 f"Expected argument type to be one of "
-                f"{const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES}"
+                f"{const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES} "
                 f"but got '{scalar_arg.argument_type}'")
 
         if scalar_arg.is_literal:
