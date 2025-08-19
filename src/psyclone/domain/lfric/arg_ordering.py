@@ -770,7 +770,7 @@ class ArgOrdering:
 
         '''
         const = LFRicConstants()
-        if not scalar_arg.is_scalar or not scalar_arg.is_scalar_array:
+        if not (scalar_arg.is_scalar or scalar_arg.is_scalar_array):
             raise InternalError(
                 f"Expected argument type to be one of "
                 f"{const.VALID_SCALAR_NAMES} or "
