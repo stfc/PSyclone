@@ -6101,6 +6101,16 @@ class LFRicKernelArgument(KernelArgument):
         return self._argument_type in const.VALID_SCALAR_NAMES
 
     @property
+    def is_scalar_array(self):
+        '''
+        :returns: True if this kernel argument represents a \
+                  ScalarArray, False otherwise.
+        :rtype: bool
+        '''
+        const = LFRicConstants()
+        return self._argument_type in const.VALID_ARRAY_NAMES
+
+    @property
     def is_field(self):
         '''
         :returns: True if this kernel argument represents a field, \
