@@ -169,46 +169,6 @@ class KernCallInvokeArgList(ArgOrdering):
                                       datatype=datatype)
         self._scalars.append(sym)
 
-    def scalar_array(self, scalar_arr_arg, var_accesses=None):
-        '''
-        Add the necessary argument for a ScalarArray quantity as well as
-        an appropriate Symbol to the SymbolTable.
-
-        :param scalar_arr_arg: the ScalarArray kernel argument.
-        :type scalar_arr_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance that \
-            stores information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
-
-        :raises NotImplementedError: if a ScalarArray of type other than \
-            real or integer is found.
-
-        '''
-        super().scalar_array(scalar_arr_arg, var_accesses)
-
-        # Create a DataSymbol for this kernel argument.
-        if scalar_arr_arg.intrinsic_type == "real":
-            datatype = LFRicTypes("LFRicRealScalarDataType")()
-        elif scalar_arr_arg.intrinsic_type == "integer":
-            datatype = LFRicTypes("LFRicIntegerScalarDataType")()
-        elif scalar_arr_arg.intrinsic_type == "logical":
-            datatype = LFRicTypes("LFRicLogicalScalarDataType")()
-        else:
-            raise NotImplementedError(
-                f"ScalarArray of type '{scalar_arr_arg.intrinsic_type}' not '"
-                f"supported.")
-
-        consts = LFRicConstants()
-        precision_name = consts.SCALAR_PRECISION_MAP[
-            scalar_arr_arg.intrinsic_type]
-        self._symtab.add_lfric_precision_symbol(precision_name)
-
-        sym = self._symtab.new_symbol(scalar_arr_arg.name,
-                                      symbol_type=DataSymbol,
-                                      datatype=datatype)
-        self._scalars.append(sym)
-
     def fs_common(self, function_space, var_accesses=None):
         ''' Does nothing as there are no arguments associated with function
         spaces at the algorithm level.

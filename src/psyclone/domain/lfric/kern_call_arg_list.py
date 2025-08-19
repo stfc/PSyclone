@@ -255,33 +255,6 @@ class KernCallArgList(ArgOrdering):
             sym = self._symtab.lookup(scalar_arg.name)
             self.psyir_append(Reference(sym))
 
-    def scalar_array(self, scalar_array_arg, var_accesses=None):
-        '''Add the ScalarArray associated with the with the argument 'arg'
-        to the argument list. If suppiled it also stores this access in
-        var_accesses.
-
-        :param scalar_array_arg: the kernel argument with which the stencil \
-            is associated.
-        :type scalar_array_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
-
-        '''
-        const = LFRicConstants()
-        if not scalar_array_arg.is_scalar_array:
-            raise InternalError(
-                f"Expected argument type to be of type "
-                f"{const.VALID_ARRAY_NAMES} but got "
-                f"{scalar_array_arg.argument_type}"
-            )
-        if not scalar_array_arg:
-            self.psyir_append(scalar_array_arg.psyir_expression())
-        else:
-            sym = self._symtab.lookup(scalar_array_arg.name)
-            self.psyir_append(Reference(sym))
-
     # TODO uncomment this method when ensuring we only pass ncell3d once
     # to any given kernel.
     # def mesh_ncell3d(self):

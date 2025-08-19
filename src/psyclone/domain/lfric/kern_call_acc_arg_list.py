@@ -272,21 +272,6 @@ class KernCallAccArgList(KernCallArgList):
 
         '''
 
-    def scalar_array(self, scalar_arr_arg, var_accesses=None):
-        '''
-        Override the default implementation as there's no need to specify
-        ScalarArrays for an OpenACC data region.
-
-        :param scalar_arr_arg: the kernel argument.
-        :type scalar_arr_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance that
-            stores information about variable accesses.
-        :type var_accesses: Optional[
-            :py:class:`psyclone.core.VariablesAccessMap`]
-
-        '''
-
-
 # ============================================================================
 # For automatic documentation creation:
 __all__ = ["KernCallAccArgList"]

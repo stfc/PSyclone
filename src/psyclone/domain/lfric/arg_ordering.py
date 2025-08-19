@@ -770,11 +770,12 @@ class ArgOrdering:
 
         '''
         const = LFRicConstants()
-        if not scalar_arg.is_scalar:
-            raise InternalError(
-                f"Expected argument type to be one of "
-                f"{const.VALID_SCALAR_NAMES} but got "
-                f"'{scalar_arg.argument_type}'")
+        if not scalar_arg.is_scalar or not scalar_arg.is_scalar_array:
+                raise InternalError(
+                    f"Expected argument type to be one of "
+                    f"{const.VALID_SCALAR_NAMES} or "
+                    f"{const.VALID_ARRAY_NAMES} but got "
+                    f"'{scalar_arg.argument_type}'")
 
         if scalar_arg.is_literal:
             # If we have a literal, do not add it to the variable access
@@ -787,33 +788,6 @@ class ArgOrdering:
         else:
             self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
                         metadata_posn=scalar_arg.metadata_index)
-
-    def scalar_array(self, scalar_arr_arg, var_accesses=None):
-        '''Add the name associated with the ScalarArray argument to the
-        argument list and optionally add this ScalarArray to the variable
-        access information.
-
-        :param scalar_arr_arg: the kernel argument.
-        :type scalar_arr_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance that \
-            stores information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
-
-        :raises InternalError: if the argument is not a recognised \
-            ScalarArray type.
-
-        '''
-        const = LFRicConstants()
-        if not scalar_arr_arg.is_scalar_array:
-            raise InternalError(
-                f"Expected argument type to be one of "
-                f"{const.VALID_ARRAY_NAMES} but got "
-                f"'{scalar_arr_arg.argument_type}'")
-
-        self.append(scalar_arr_arg.name, var_accesses,
-                    mode=scalar_arr_arg.access,
-                    metadata_posn=scalar_arr_arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
