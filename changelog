@@ -1,3 +1,9 @@
+   78) PR #3106 for #3105. Add print handlers for Sympy boolean literals.
+
+   77) PR #3089 for #2781. Refine halo-depth logic for LFRic "halo" kernels.
+
+   76 PR #2910 for #2896. Adds IncreaseRankLoopArraysTrans.
+
    75) PR #3093 for #3092. Fixes Fortran backend declarations of (1:) arrays.
 
    74) PR #3078 for #3068. Refactors single-variable access info (to
