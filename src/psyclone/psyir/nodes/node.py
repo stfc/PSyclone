@@ -43,8 +43,10 @@ This module contains the abstract Node implementation as well as
 ChildrenList - a custom implementation of list.
 
 '''
+from __future__ import annotations
 import copy
 import graphviz
+from typing import Union
 
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import GenerationError, InternalError
@@ -841,7 +843,7 @@ class Node():
 
     def view(self, depth=0, colour=True, indent="    ", _index=None):
         '''Output a human readable description of the current node and all of
-        its descendents as a string.
+        its descendants as a string.
 
         :param int depth: depth of the tree hierarchy for output \
             text. Defaults to 0.
@@ -852,7 +854,7 @@ class Node():
         :param int _index: the position of this node wrt its siblings \
             or None. Defaults to None.
 
-        :returns: a representation of this node and its descendents.
+        :returns: a representation of this node and its descendants.
         :rtype: str
 
         :raises TypeError: if one of the arguments is the wrong type.
@@ -1133,6 +1135,17 @@ class Node():
         for child in self._children:
             local_list += child.walk(my_type, stop_type, depth=depth)
         return local_list
+
+    def has_a(self, my_type: Union[type, tuple[type]]) -> bool:
+        '''
+        :returns: whether any of the node descendants is of the given type(s).
+        '''
+        if isinstance(self, my_type):
+            return True
+        for child in self._children:
+            if child.has_a(my_type):
+                return True
+        return False
 
     def get_sibling_lists(self, my_type, stop_type=None):
         '''
@@ -1454,7 +1467,7 @@ class Node():
 
     def reductions(self, reprod=None):
         '''
-        Return all kernels that have reductions and are decendents of this
+        Return all kernels that have reductions and are descendants of this
         node. If reprod is not provided, all reductions are
         returned. If reprod is False, all builtin reductions that are
         not set to reproducible are returned. If reprod is True, all
@@ -1826,7 +1839,7 @@ class Node():
 
         '''
 
-    def is_descendent_of(self, potential_ancestor) -> bool:
+    def is_descendant_of(self, potential_ancestor) -> bool:
         '''
         Checks if this node is a descendant of the `potential_ancestor` node.
 

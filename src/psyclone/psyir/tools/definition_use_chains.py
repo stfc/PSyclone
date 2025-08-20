@@ -184,8 +184,7 @@ class DefinitionUseChain:
         # In PSyclone, possible control flow nodes are IfBlock, Loop
         # and WhileLoop, along with RegionDirectives.
         for node in self._scope:
-            c_f_nodes = node.walk((IfBlock, Loop, WhileLoop, RegionDirective))
-            if len(c_f_nodes) > 0:
+            if node.has_a((IfBlock, Loop, WhileLoop, RegionDirective)):
                 return False
         return True
 

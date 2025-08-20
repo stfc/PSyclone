@@ -282,7 +282,7 @@ class Reference(DataNode):
             return True
 
         # Check if this instance is in the provided scope
-        if not self.is_descendent_of(scope):
+        if not self.is_descendant_of(scope):
             # If the 'value' is rewritten, it does not escape the scope
             if self.is_write and not self.is_read:
                 return False
@@ -316,7 +316,7 @@ class Reference(DataNode):
         visited_nodes.add(id(self))
 
         # Check if this instance is in the provided scope
-        if not self.is_descendent_of(scope):
+        if not self.is_descendant_of(scope):
             return True
 
         # If the 'value' starts here, stop this search chain (the DUC
