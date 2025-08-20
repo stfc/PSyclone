@@ -63,15 +63,15 @@ def test_component_indices():
 
 
 # -----------------------------------------------------------------------------
-def test_is_array():
-    '''Test if arrays are correctly detected.
+def test_has_indices():
+    '''Test if indices are correctly detected.
     '''
     component_indices = ComponentIndices([["a", "b"], ["c"]])
 
-    assert component_indices.is_array()
+    assert component_indices.has_indices()
 
     component_indices = ComponentIndices([[], []])
-    assert not component_indices.is_array()
+    assert not component_indices.has_indices()
 
 
 # -----------------------------------------------------------------------------
