@@ -2414,16 +2414,22 @@ def test_apply_optional_arg_with_special_cases(fortran_reader,
     inline_trans.apply(calls[0])
     output = fortran_writer(psyir)
     assert ('''\
-    real :: var = 0.0
-    var = var
-    var = x + 1''' in output)
+    real, save :: var = 0.0
+
+    if (.true.) then
+      var = var
+    end if
+    var = var + 1.0''' in output)
     # Second call has the second, optional argument present.
     inline_trans.apply(calls[1])
     output = fortran_writer(psyir)
     assert ('''\
     var = 3.0 * var
-    var = var
+    if (.true.) then
+      var = var
+    end if
     var = var + 1.0
+
   end subroutine main''' in output)
     assert Compile(tmpdir).string_compiles(output)
 
