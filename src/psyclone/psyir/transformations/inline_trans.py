@@ -944,15 +944,20 @@ class InlineTrans(Transformation):
         routine_node: Routine,
         routine_arg: DataSymbol
     ):
-        """This function performs tests to see whether the
-        inlining can cope with it.
+        """This function performs tests to see whether the inlining can
+        cope with specified call and corresponding dummy arguments.
 
         :param call_node: The call used for inlining
         :param call_arg: The argument of a call
         :param routine: The routine to be inlined
         :param routine_arg: The argument of a routine
 
-        :raises TransformationError: Raised if transformation can't be done
+        :raises TransformationError: if the type of an actual argument is
+            unknown and it corresponds to a formal argument that is an array.
+        :raises TransformationError: if the shape of an actual argument does
+            not match that of the corresponding formal argument.
+        :raises TransformationError: if an actual array argument has non-unit
+            stride or an array slice in an indirect access.
 
         """
         # If the formal argument is an array with non-default bounds then
