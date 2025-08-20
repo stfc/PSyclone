@@ -89,15 +89,25 @@ class Message:
     :param int code: error or warning code.
     :param var_names: list of variable names (defaults to []).
     :type var_names: List[str]
+    :param var_infos: list of variable access infos (defaults to []).
+    :type var_infos: List[:py:class:`psyclone.core.SingleVariableAccessInfo`]
+
 
     '''
-    def __init__(self, message, code, var_names=None):
+    # TODO[mn416]: we want the access info for each variable
+    # in the message, but the above representation does not maintain
+    # a clear mapping between the two. There must be a cleaner way.
+    def __init__(self, message, code, var_names=None, var_infos=None):
         self._message = message
         self._code = code
         if var_names:
             self._var_names = var_names
         else:
             self._var_names = []
+        if var_infos:
+            self._var_infos = var_infos
+        else:
+            self._var_infos = []
 
     # ------------------------------------------------------------------------
     def __str__(self):
@@ -126,6 +136,17 @@ class Message:
         # We convert each expression into a string to support LazyStrings
         # inside of 'var_names'
         return [str(i) for i in self._var_names]
+
+    # ------------------------------------------------------------------------
+    @property
+    def var_infos(self):
+        ''':returns: the access info of each variable to which the message
+        applies.
+
+        :rtype: List[:py:class:`psyclone.core.SingleVariableAccessInfo`]
+
+        '''
+        return self._var_infos
 
 
 # ============================================================================
@@ -170,7 +191,7 @@ class DependencyTools():
         self._messages = []
 
     # -------------------------------------------------------------------------
-    def _add_message(self, message, code, var_names=None):
+    def _add_message(self, message, code, var_names=None, var_infos=None):
         '''Adds an informational message to the internal message
         handling system.
 
@@ -190,7 +211,7 @@ class DependencyTools():
             raise InternalError(f"Unknown message code {code}.")
 
         self._messages.append(Message(f"{message_type}: {message}", code,
-                                      var_names))
+                                      var_names, var_infos))
 
     # -------------------------------------------------------------------------
     def get_all_messages(self):
@@ -775,7 +796,7 @@ class DependencyTools():
         self._add_message(f"Variable '{access_info.var_name}' is read "
                           f"first, which indicates a reduction.",
                           DTCode.WARN_SCALAR_REDUCTION,
-                          [access_info.var_name])
+                          [access_info.var_name], [access_info])
         return False
 
     # -------------------------------------------------------------------------

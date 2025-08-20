@@ -48,7 +48,8 @@ from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import (
-        Call, Loop, Reference, Routine
+        Call, Loop, Reference, Routine,
+        BinaryOperation, IntrinsicCall, Assignment
 )
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -134,6 +135,143 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
 
         return True
 
+    # TODO[mn146]: use a data type for reduction operators not strings.
+    @staticmethod
+    def _get_reduction_operator(node):
+        ''' Return the reduction operator at the root of the given
+        DataNode or None if there isn't one.
+        '''
+        if isinstance(node, BinaryOperation):
+            if node.operator is BinaryOperation.Operator.ADD:
+                return "+"
+            elif node.operator is BinaryOperation.Operator.SUB:
+                return "-"
+            elif node.operator is BinaryOperation.Operator.MUL:
+                return "*"
+            elif node.operator is BinaryOperation.Operator.AND:
+                return ".and."
+            elif node.operator is BinaryOperation.Operator.OR:
+                return ".or."
+            elif node.operator is BinaryOperation.Operator.EQV:
+                return ".eqv."
+            elif node.operator is BinaryOperation.Operator.NEQV:
+                return ".neqv."
+        if isinstance(node, IntrinsicCall):
+            if node.intrinsic is IntrinsicCall.Intrinsic.MAX:
+                return "max"
+            if node.intrinsic is IntrinsicCall.Intrinsic.MIN:
+                return "min"
+            if node.intrinsic is IntrinsicCall.Intrinsic.IAND:
+                return "iand"
+            if node.intrinsic is IntrinsicCall.Intrinsic.IOR:
+                return "ior"
+            if node.intrinsic is IntrinsicCall.Intrinsic.IEOR:
+                return "ieor"
+        return None
+
+    @staticmethod
+    def _get_write_reduction(node, var_name):
+        '''Return the reduction operator for given node if it is an Assignment
+           of the form _either_
+
+             <var_name> = <var_name> <op> <DataNode>
+
+           or
+
+             <var_name> = <DataNode> <op> <var_name>
+
+           where <op> is a valid reduction operator. Otherwise return None.
+
+        :param node: the node to match against
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param str var_name: the candidate reduction variable.
+
+        :returns: the reduction operator, or None
+        :rtype: str
+        '''
+        if isinstance(node, Reference) and node.name == var_name:
+            if isinstance(node.parent, Assignment):
+                op = ParallelLoopTrans._get_reduction_operator(node.parent.rhs)
+                if op:
+                    ok0 = (isinstance(node.parent.rhs.children[0], Reference)
+                           and node.parent.rhs.children[0].name == var_name)
+                    ok1 = (isinstance(node.parent.rhs.children[1], Reference)
+                           and node.parent.rhs.children[1].name == var_name)
+                    if ok0 != ok1:  # exclusive or
+                        return op
+        return None
+
+    @staticmethod
+    def _get_read_reduction(node, var_name):
+        '''Return reduction operator for given node if it is the child
+           of a DataNode which is the RHS of an Assignment of the form
+
+             <var_name> = <var_name> <op> <DataNode>
+
+           or
+
+             <var_name> = <DataNode> <op> <var_name>
+
+           where <op> is a valid reduction operator. Otherwise return None.
+
+        :param node: the node to match against
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param str var_name: the candidate reduction variable.
+
+        :returns: the reduction operator, or None
+        :rtype: str
+        '''
+        if isinstance(node, Reference) and node.name == var_name:
+            op = ParallelLoopTrans._get_reduction_operator(node.parent)
+            if op:
+                if isinstance(node.parent.parent, Assignment):
+                    if isinstance(node.parent.parent.lhs, Reference):
+                        if node.parent.parent.lhs.name == var_name:
+                            return op
+            return None
+
+    @staticmethod
+    def _attempt_reduction(node, var_name, access_info, dry_run=False):
+        ''' Check and (if dry_run is False) add the variable to the
+        set of variables supporting reduction for the given loop node.
+
+        :param node: the loop that will be parallelised.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param access_info: the variable (and its accesses) that we want to
+           consider as a reduction variable.
+        :type access_info: :py:class:`psyclone.core.SingleVariableAccessInfo`
+        :param bool dry_run: whether to actually add the variable as
+           one that supports reduction.
+
+        :returns: whether the variable supports reduction.
+        :rtype: bool
+        '''
+        # Find all the reduction operators used for the given variable name.
+        # Return early if we ever encounter a use of the variable which is
+        # not in the form of a reduction.
+        ops = []
+        for access in access_info.all_read_accesses:
+            op = ParallelLoopTrans._get_read_reduction(access.node, var_name)
+            if op is None:
+                return False
+            ops.append(op)
+        for access in access_info.all_write_accesses:
+            op = ParallelLoopTrans._get_write_reduction(access.node, var_name)
+            if op is None:
+                return False
+            ops.append(op)
+        if ops == []:
+            return False
+
+        # All potential reductions must use the same operator
+        if any(op != ops[0] for op in ops):
+            return False
+
+        # Add the operator/variable pair to the Loop node
+        if not dry_run:
+            node.inferred_reduction_vars.add((op, var_name))
+        return True
+
     def validate(self, node, options=None, **kwargs):
         '''
         Perform validation checks before applying the transformation
@@ -160,6 +298,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             execution.
         :param bool privatise_arrays: whether to declare as private any
             write after write dependency symbols.
+        :param bool enable_reductions: whether to attempt parallelisation
+            of loops containing reductions.
 
         :raises TypeError: if 'collapse' is not an int or a bool.
         :raises TypeError: if 'ignore_dependencies_for' is not a list of str.
@@ -191,6 +331,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 ignore_dependencies_for = []
             sequential = self.get_option("sequential", **kwargs)
             privatise_arrays = self.get_option("privatise_arrays", **kwargs)
+            enable_reductions = self.get_option("enable_reductions", **kwargs)
         else:
             verbose = options.get("verbose", False)
             collapse = options.get("collapse", False)
@@ -200,6 +341,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             )
             sequential = options.get("sequential", False)
             privatise_arrays = options.get("privatise_arrays", False)
+            enable_reductions = options.get("enable_reductions", False)
 
         # Check we are not a sequential loop
         if (not sequential and isinstance(node, PSyLoop) and
@@ -283,6 +425,18 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                                 f"because it is not a plain local array or "
                                 f"it is used after the loop.")
                     continue
+                # See if the scalar in question allow parallelisation of
+                # the loop using reduction clauses.
+                if (enable_reductions and
+                        message.code == DTCode.WARN_SCALAR_REDUCTION):
+                    if (len(message.var_names) == 1 and
+                            len(message.var_infos) == 1):
+                        var_name = message.var_names[0]
+                        access_info = message.var_infos[0]
+                        if (self._attempt_reduction(node, var_name,
+                                                    access_info,
+                                                    dry_run=True)):
+                            continue
                 errors.append(str(message))
 
             if errors:
@@ -310,7 +464,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
               collapse: Union[int, bool] = False, force: bool = False,
               ignore_dependencies_for: Union[None, List[str]] = None,
               privatise_arrays: bool = False, sequential: bool = False,
-              nowait: bool = False, **kwargs):
+              nowait: bool = False, enable_reductions: bool = False,
+              **kwargs):
         '''
         Apply the Loop transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
@@ -351,6 +506,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             execution.
         :param bool privatise_arrays: whether to make the write after write
             dependency symbols declared as private.
+        :param bool enable_reductions: whether to attempt parallelisation
+            of loops containing reductions.
 
         '''
         if not options:
@@ -358,7 +515,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     verbose=verbose, collapse=collapse,
                     ignore_dependencies_for=ignore_dependencies_for,
                     privatise_arrays=privatise_arrays,
-                    sequential=sequential, nowait=nowait, **kwargs
+                    sequential=sequential, nowait=nowait,
+                    enable_reductions=enable_reductions, **kwargs
             )
             # Rename the input options that are renamed in this apply method.
             # TODO 2668, rename options to be consistent.
@@ -376,12 +534,14 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             list_of_names = options.get("ignore_dependencies_for", [])
             privatise_arrays = options.get("privatise_arrays", False)
             nowait = options.get("nowait", False)
+            enable_reductions = options.get("enable_reductions", False)
 
         self.validate(node, options=options, verbose=verbose,
                       collapse=collapse,
                       ignore_dependencies_for=ignore_dependencies_for,
                       privatise_arrays=privatise_arrays,
-                      sequential=sequential, nowait=nowait, **kwargs)
+                      sequential=sequential, nowait=nowait,
+                      enable_reductions=enable_reductions, **kwargs)
 
         list_of_signatures = [Signature(name) for name in list_of_names]
         dtools = DependencyTools()
@@ -401,6 +561,19 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 if message.code == DTCode.ERROR_WRITE_WRITE_RACE:
                     for var_name in message.var_names:
                         self._attempt_privatisation(node, var_name)
+
+        # If 'enable_reductions' is specified, see if any of the scalars
+        # preventing parallelisation can be supported by introducing
+        # reduction clauses.
+        if enable_reductions and not node.independent_iterations(
+                 dep_tools=dtools,
+                 test_all_variables=True,
+                 signatures_to_ignore=list_of_signatures):
+            for message in dtools.get_all_messages():
+                if message.code == DTCode.WARN_SCALAR_REDUCTION:
+                    for (var_name, var_info) in zip(message.var_names,
+                                                    message.var_infos):
+                        self._attempt_reduction(node, var_name, var_info)
 
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it

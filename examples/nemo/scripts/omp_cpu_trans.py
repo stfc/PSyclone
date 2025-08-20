@@ -82,7 +82,8 @@ def trans(psyir):
         return
 
     omp_parallel_trans = None
-    omp_loop_trans = OMPLoopTrans(omp_schedule="static")
+    omp_loop_trans = OMPLoopTrans(omp_schedule="static",
+                                  enable_reductions=True)
     omp_loop_trans.omp_directive = "paralleldo"
 
     for subroutine in psyir.walk(Routine):
