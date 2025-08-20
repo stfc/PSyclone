@@ -1606,6 +1606,34 @@ end module other_mod
     assert routines[0].name == "just_do_it"
 
 
+def test_call_get_callees_import_renamed(fortran_reader):
+    '''
+    Check that get_callees() works successfully for a routine that is
+    renamed on import.
+    '''
+    code = '''
+module some_mod
+contains
+  subroutine just_do_it()
+    write(*,*) "hello"
+  end subroutine just_do_it
+end module some_mod
+module other_mod
+  use some_mod, only: did_it=>just_do_it
+contains
+  subroutine run_it()
+    call did_it()
+  end subroutine run_it
+end module other_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    routines = call.get_callees()
+    assert len(routines) == 1
+    assert isinstance(routines[0], Routine)
+    assert routines[0].name == "just_do_it"
+
+
 def test_fn_call_get_callees(fortran_reader):
     '''
     Test that get_callees() works for a function call.
@@ -1797,3 +1825,30 @@ end module some_mod"""
         "Argument 'c' in subroutine 'foo' does not match any in the call"
         " 'call foo(e, f)' and is not OPTIONAL." in str(err.value)
     )
+
+
+def test_check_argument_type_matches(fortran_reader):
+    '''
+    Tests for the _check_argument_type_matches() method of Call.
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+    contains
+    subroutine amazing()
+      real :: var
+      call astounding(var)
+    end subroutine amazing
+    subroutine astounding(dummy1)
+      real :: dummy1
+    end subroutine astounding
+    end module my_mod
+    ''')
+    call = psyir.walk(Call)[0]
+    call._check_argument_type_matches(call.arguments[0],
+                                      DataSymbol("dummy1", REAL_TYPE))
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        # TODO - could just be a ValueError?
+        call._check_argument_type_matches(call.arguments[0],
+                                          DataSymbol("dummy1", INTEGER_TYPE))
+    assert "Argument type mismatch of call argument 'var'" in str(err.value)
+    # TODO extend to other types of argument, especially arrays.

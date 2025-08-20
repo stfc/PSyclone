@@ -638,19 +638,17 @@ class Call(Statement, DataNode):
     def _check_argument_type_matches(
                 self,
                 call_arg: DataNode,
-                routine_arg: DataSymbol,
-                check_argument_strict_array_datatype: bool = True,
-                check_argument_ignore_unresolved_types: bool = False
+                routine_arg: DataSymbol
             ):
-        """Return information whether argument types are matching.
-        This also supports 'optional' arguments by using
+        """Checks whether the supplied call and routine arguments are
+        compatible. This also supports 'optional' arguments by using
         partial types.
 
         :param call_arg: One argument of the call
         :param routine_arg: One argument of the routine
 
-        :raises CallMatchingArgumentsNotFound: Raised if no matching argument
-            was found.
+        :raises CallMatchingArgumentsNotFound: if the supplied arguments
+            do not match.
 
         """
         if isinstance(call_arg.datatype, ArrayType) and isinstance(
@@ -658,8 +656,8 @@ class Call(Statement, DataNode):
             return
 
         if isinstance(routine_arg.datatype, UnsupportedFortranType):
-            # This could be an 'optional' argument.
-            # This has at least a partial data type
+            # This could be an 'optional' argument. If so, it will have at
+            # least a partial datatype which we can check.
             if call_arg.datatype != routine_arg.datatype.partial_datatype:
                 call_arg_str = call_arg.debug_string().strip()
                 routine_arg_str = routine_arg.name
