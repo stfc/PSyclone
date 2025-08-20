@@ -127,7 +127,7 @@ class AccessInfo():
 
     def has_indices(self) -> bool:
         '''
-        :returns: if any of the acess components uses an index.
+        :returns: whether any of the access components uses an index.
         '''
         return self._component_indices.has_indices()
 
@@ -345,11 +345,12 @@ class AccessSequence(list):
         read_access.change_read_to_write()
 
     def has_indices(self, index_variable: str = None) -> bool:
-        ''' Checks if this variable accesses has any index. If the optional
-        `index_variable` is specified, only indices to the given variable
-        are considered.
+        ''' Checks whether this variable accesses has any index. If the
+        optional `index_variable` is provided, only indices involving the given
+        variable are considered.
 
-        :param index_variable: only consider indices to this variable.
+        :param index_variable: only consider index expressions that involve
+            this variable.
 
         :returns: true if any of the accesses has an index.
 
@@ -365,8 +366,9 @@ class AccessSequence(list):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Reference
 
+        lowered_name = index_variable.lower()
         for access_info in self:
-            if any(ref.symbol.name.lower() == index_variable.lower()
+            if any(ref.symbol.name.lower() == lowered_name
                    for ref in access_info.node.walk(Reference)):
                 return True
 
