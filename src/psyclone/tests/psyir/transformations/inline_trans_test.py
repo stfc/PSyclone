@@ -2375,25 +2375,31 @@ def test_validate_named_arg(fortran_reader):
     inline_trans.validate(call)
 
 
-def test_apply_optional_arg_with_special_cases(fortran_reader):
+def test_apply_optional_arg_with_special_cases(fortran_reader,
+                                               fortran_writer,
+                                               tmpdir):
     '''Test that the validate method inlines a routine
     that has an optional argument.
     This example has an additional if-branching condition
     `1.0==1.0` which is not directly of type `Literal`
-    '''
 
+    '''
     code = (
         "module test_mod\n"
         "contains\n"
         "subroutine main\n"
         "  real :: var = 0.0\n"
         "  call sub(var)\n"
+        "  call sub(var, opt2=3.0)\n"
         "end subroutine main\n"
-        "subroutine sub(x, opt)\n"
+        "subroutine sub(x, opt, opt2)\n"
         "  real, intent(inout) :: x\n"
-        "  real, optional :: opt\n"
+        "  real, optional :: opt, opt2\n"
         "  if( present(opt) )then\n"
         "    x = x + opt\n"
+        "  end if\n"
+        "  if( present(opt2) )then\n"
+        "    x = opt2 * x\n"
         "  end if\n"
         "  if( 1.0 == 1.0 )then\n"
         "    x = x\n"
@@ -2406,6 +2412,8 @@ def test_apply_optional_arg_with_special_cases(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     inline_trans.apply(call)
+    output = fortran_writer(psyir)
+    assert Compile(tmpdir).string_compiles(output)
 
 
 def test_apply_optional_arg_error(fortran_reader):
