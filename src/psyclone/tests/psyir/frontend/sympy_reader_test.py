@@ -85,6 +85,9 @@ def test_sympy_reader_constructor():
                                           "i .OR. i .AND. j"),
                                          ("i .eqv. j", "i .EQV. j"),
                                          ("i .neqv. j", "i .NEQV. j"),
+                                         (".TRUE. .and. .true.", ".true."),
+                                         (".TRUE. .AND. .FALSE.",
+                                          ".false."),
                                          ])
 def test_sympy_psyir_from_expression(fortran_reader, fortran_writer,
                                      expressions):
