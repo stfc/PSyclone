@@ -158,7 +158,8 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         self._datatype = symbol_in.datatype
 
     def resolve_type(self) -> TypedSymbol:
-        ''' If the symbol has an Unresolved datatype, find where it is defined
+        ''' If the symbol has an Unresolved datatype or is an import and
+        is of NoType (indicating a RoutineSymbol), find where it is defined
         (i.e. an external container) and obtain the properties of the symbol.
 
         :returns: this TypedSymbol with its properties updated. This is for
@@ -166,8 +167,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
                   class which returns a new Symbol object.
 
         '''
-        # This import has to be local to this method to avoid circular
-        # dependencies.
+        # Avoid circular dependencies.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols.datatypes import NoType, UnresolvedType
         if (isinstance(self.datatype, UnresolvedType) or
@@ -175,10 +175,8 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
             # Copy all the symbol properties but the interface and
             # visibility (the latter is determined by the current
             # scoping unit)
-            tmp = self.interface
             extern_symbol = self.get_external_symbol()
-            self.copy_properties(extern_symbol)
-            self.interface = tmp
+            self.copy_properties(extern_symbol, exclude_interface=True)
 
         return self
 

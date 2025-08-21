@@ -39,8 +39,9 @@
 import pytest
 
 from psyclone.psyir.symbols import (
-    ContainerSymbol, GenericInterfaceSymbol, ImportInterface, INTEGER_TYPE,
-    RoutineSymbol, SymbolTable, Symbol, UnresolvedInterface)
+    AutomaticInterface, ContainerSymbol, GenericInterfaceSymbol,
+    ImportInterface, INTEGER_TYPE, NoType, RoutineSymbol, SymbolTable, Symbol,
+    UnresolvedInterface)
 
 
 def test_gis_constructor():
@@ -159,9 +160,21 @@ def test_gis_copy_properties():
     csym = ContainerSymbol("woodland")
     coppice2 = GenericInterfaceSymbol("coppice2", [(ash, True)],
                                       interface=ImportInterface(csym))
-    new_sym.copy_properties(coppice2)
+    # Check that we can exclude copying interface properties.
+    new_sym.copy_properties(coppice2, exclude_interface=True)
+    assert isinstance(new_sym.interface, AutomaticInterface)
+    # Repeat but include the interface properties.
+    new_sym.copy_properties(coppice2, exclude_interface=False)
     for info in new_sym.routines:
         assert info.symbol.interface.container_symbol is csym
+
+    # Can be provided with a list of RoutineSymbols.
+    coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False)])
+    assert isinstance(coppice.datatype, NoType)
+    hazel = RoutineSymbol("hazel", datatype=INTEGER_TYPE)
+    beech = RoutineSymbol("beech", datatype=INTEGER_TYPE)
+    coppice.copy_properties([hazel, beech])
+    assert coppice.datatype == INTEGER_TYPE
 
 
 @pytest.mark.parametrize("table", [None, SymbolTable()])

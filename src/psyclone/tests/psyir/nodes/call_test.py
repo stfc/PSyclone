@@ -710,6 +710,7 @@ end module some_mod'''
     result = call.get_callees()
     assert len(result) == 2
     assert result == psyir.walk(Routine)[1:]
+    assert isinstance(call.routine.symbol.datatype, NoType)
 
 
 def test_call_get_callees_local_file_container(fortran_reader):
@@ -761,7 +762,7 @@ contains
   end subroutine
 
   ! Matching routine
-  subroutine foo(a, b, c)
+  pure subroutine foo(a, b, c)
     integer :: a, b, c
   end subroutine
 
@@ -773,6 +774,7 @@ end module some_mod'''
     assert routine_main.name == "main"
 
     call_foo: Call = routine_main.walk(Call)[0]
+    assert call_foo.routine.symbol.is_pure is True
 
     (result, _) = call_foo.get_callee()
 
@@ -1487,12 +1489,12 @@ contains
     call bottom(luggage)
   end subroutine top
 
-  subroutine ibottom(luggage)
+  pure subroutine ibottom(luggage)
     integer :: luggage
     luggage = luggage + 1
   end subroutine ibottom
 
-  subroutine rbottom(luggage)
+  pure subroutine rbottom(luggage)
     real :: luggage
     luggage = luggage + 1.0
   end subroutine rbottom
@@ -1500,12 +1502,15 @@ end module my_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
+    assert call.routine.symbol.is_pure is None
     callees = call.get_callees()
     assert len(callees) == 2
     assert isinstance(callees[0], Routine)
     assert callees[0].name == "rbottom"
     assert isinstance(callees[1], Routine)
     assert callees[1].name == "ibottom"
+    # Check that the properties of the called Symbol have been updated.
+    assert call.routine.symbol.is_pure is True
 
 
 def test_call_get_callees_file_container(fortran_reader):
