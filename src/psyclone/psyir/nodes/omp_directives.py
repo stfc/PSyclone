@@ -1785,6 +1785,11 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
                 parts.append(f"reduction("
                              f"{OMP_OPERATOR_MAPPING[reduction_type]}:"
                              f"{reduction})")
+        # TODO[mn416]: use the OMPReductionClause class to insert reduction
+        # clauses into directives, rather than this low-level approach.
+        if isinstance(self.dir_body[0], Loop):
+            for (op, var) in self.dir_body[0].inferred_reduction_vars:
+                parts.append(f"reduction({op}:{var})")
         return ", ".join(parts)
 
     @property

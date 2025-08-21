@@ -111,5 +111,6 @@ def trans(psyir):
                     loop_directive_trans=omp_loop_trans,
                     collapse=False,
                     privatise_arrays=(not NEMOV4 and
-                                      psyir.name not in PRIVATISATION_ISSUES)
+                                      psyir.name not in PRIVATISATION_ISSUES),
+                    enable_reductions=True
             )

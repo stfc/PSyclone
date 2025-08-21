@@ -577,7 +577,8 @@ def test_omploop_trans_new_options(sample_psyir):
     assert ("'OMPLoopTrans' received invalid options ['fakeoption1', "
             "'fakeoption2']. Valid options are '['node_type_check', "
             "'verbose', 'collapse', 'force', 'ignore_dependencies_for', "
-            "'privatise_arrays', 'sequential', 'nowait', 'reprod']."
+            "'privatise_arrays', 'sequential', 'nowait', 'enable_reductions', "
+            "'reprod']."
             in str(excinfo.value))
 
     # Check we get the relevant error message when submitting multiple
