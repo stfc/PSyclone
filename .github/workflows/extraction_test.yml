@@ -45,7 +45,7 @@ on:
 
 jobs:
   run_if_on_mirror:
-    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
+    if: ${{ github.repository == 'sergisiso/PSyclone' }}
     runs-on: self-hosted
     env:
       LFRIC_APPS_REV: 7536

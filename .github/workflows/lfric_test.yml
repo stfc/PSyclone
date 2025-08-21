@@ -41,15 +41,18 @@ name: LFRic Integration Tests
 on:
   push
 
+env:
+  LFRIC_APPS_REV: 10798
+  LFRIC_CORE_REV: 52772
+  PYTHON_VERSION: 3.13
+  GCC_VERSION: 14
+  NVHPC_VERSION: 25.1
+  NUM_PARALLEL: 16
+
 jobs:
   run_if_on_mirror:
-    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
+    if: ${{ github.repository == 'sergisiso/PSyclone' }}
     runs-on: self-hosted
-    env:
-      LFRIC_APPS_REV: 10798
-      LFRIC_CORE_REV: 52772
-      PYTHON_VERSION: 3.13
-      NUM_PARALLEL: 16
 
     outputs:
       lfric_dist_mem: ${{ steps.lfric_dist_mem.outputs.time }}
@@ -106,7 +109,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc
+        spack load lfric-build-environment%gcc@${GCC_VERSION}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone_no_annexed.cfg
@@ -139,7 +142,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%nvhpc
+        spack load lfric-build-environment%nvhpc@${NVHPC_VERSION}
         spack load nvhpc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
@@ -169,7 +172,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%nvhpc
+        spack load lfric-build-environment%nvhpc@${NVHPC_VERSION}
         spack load nvhpc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
@@ -199,7 +202,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc
+        spack load lfric-build-environment%gcc@${GCC_VERSION}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -229,7 +232,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc
+        spack load lfric-build-environment%gcc@${GCC_VERSION}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -254,11 +257,8 @@ jobs:
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
   upload_if_on_mirror:
-    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
+    if: ${{ github.repository == 'sergisiso/PSyclone' }}
     runs-on: ubuntu-latest
-    env:
-      LFRIC_APPS_REV: 10798
-      LFRIC_CORE_REV: 52772
     needs: run_if_on_mirror
     steps:
       - name: Install mongosh
@@ -270,48 +270,41 @@ jobs:
           sudo apt-get install -y mongodb-mongosh
       - name: Upload results
         run: |
+          export COMMON_FIELDS = 'branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'", date: new Date()'
+          export COMMON_FIELDS = ${COMMON_FIELDS}', github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'"'
+          export COMMON_FIELDS = ${COMMON_FIELDS}', lfric_apps_version: '"$LFRIC_APPS_REV"', system: "Rupert"'
           mongosh \
             "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
             --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
             --password ${{ secrets.MONGODB_PASSWORD }} \
-            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-            ci_test: "LFRic Passthrough with DM", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "Rupert",
-            compiler:"spack-gfortran-14", date: new Date(),
-            elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_dist_mem}}"'})'
-          mongosh \
-            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-            --password ${{ secrets.MONGODB_PASSWORD }} \
-            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-            ci_test: "LFRic OpenMP offloading", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "Rupert",
-            compiler:"spack-nvhpc-25.7", date: new Date(),
-            elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_omp_offload}}"'})'
-          mongosh \
-            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-            --password ${{ secrets.MONGODB_PASSWORD }} \
-            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-            ci_test: "LFRic OpenACC", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "Rupert",
-            compiler:"spack-nvhpc-25.7", date: new Date(),
-            elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_acc_offload}}"'})'
-          mongosh \
-            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-            --password ${{ secrets.MONGODB_PASSWORD }} \
-            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-            ci_test: "LFRic all transformations", lfric_version: '"$LFRIC_APPS_REV"',
-            system: "Rupert", compiler:"spack-gfortran-14", date: new Date(),
-            elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_all_trans}}"'})'
-          mongosh \
-            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-            --password ${{ secrets.MONGODB_PASSWORD }} \
-            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-            ci_test: "LFRic colour-tiling", lfric_version: '"$LFRIC_APPS_REV"',
-            system: "Rupert", compiler:"spack-gfortran-14", date: new Date(),
-            elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_colour_tiling}}"'})'
+            --eval 'db.GitHub_CI.insertMany(
+              {
+                ci_test: "LFRic Passthrough with DM",
+                compiler:"gfortran@'"$GCC_VERSION"'",
+                elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_dist_mem}}"',
+                '$COMMON_FIELDS'
+              },
+              {
+                ci_test: "LFRic OpenMP offloading",
+                compiler:"nvhpc@'"$NVHPC_VERSION"'",
+                elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_omp_offload}}"',
+                '$COMMON_FIELDS'
+              },
+              {
+                ci_test: "LFRic OpenACC",
+                compiler:"nvhpc@'"$NVHPC_VERSION"'",
+                elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_acc_offload}}"',
+                '${COMMON_FIELDS}'
+              },
+              {
+                ci_test: "LFRic all transformations",
+                compiler:"gfortran@'"$GCC_VERSION"'",
+                elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_all_trans}}"',
+                '${COMMON_FIELDS}'
+              },
+              {
+                ci_test: "LFRic colour-tiling",
+                compiler:"gfortran@'"$GCC_VERSION"'",
+                elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_colour_tiling}}"',
+                '${COMMON_FIELDS}'
+              })'

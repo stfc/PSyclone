@@ -41,13 +41,16 @@ name: NEMOv5 Integration Tests
 on:
   push
 
+env:
+  NVFORTRAN_VERSION: 25.7
+  ONEAPI_VERSION: 2025.0
+  GCC_VERSION: 14
+  NUM_PARALLEL: 16
+
 jobs:
   run_if_on_mirror:
-    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
+    if: ${{ github.repository == 'sergisiso/PSyclone' }}
     runs-on: self-hosted
-    env:
-      NEMODIR_NAME: UKMO-NEMOv5
-      NUM_PARALLEL: 16
     
     outputs:
       bench_gfortran_omp_cpu: ${{ steps.bench_gfortran_omp_cpu.outputs.time }}
@@ -81,9 +84,9 @@ jobs:
         pip install .
     - name: Reset working directory
       run: |
-        rm -rf /archive/psyclone-tests/latest-run/${NEMODIR_NAME}
-        cp -r /archive/psyclone-tests/nemo-inputs/${NEMODIR_NAME} \
-              /archive/psyclone-tests/latest-run/${NEMODIR_NAME}
+        rm -rf /archive/psyclone-tests/latest-run/UKMO-NEMOv5
+        cp -r /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv5 \
+              /archive/psyclone-tests/latest-run/UKMO-NEMOv5
 
     # PSyclone passthrough for 5.0-beta of NEMO.
     - name: NEMO 5.0 gfortran passthrough
@@ -92,11 +95,11 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%gcc@14
+        spack unload && spack load nemo-build-environment%gcc@${GCC_VERSION}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=BENCH_PASSTHROUGH_GCC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
@@ -115,7 +118,7 @@ jobs:
         mpirun -np 4 ./nemo
         tail run.stat
         # This was produced with gfortran, so we can do an exact diff
-        # diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
 
     - name: NEMO 5.0 nvidia passthrough
       # Only bother doing passthrough if this is a re-run of a previous test.
@@ -123,11 +126,11 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@25.1
+        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VERSION}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=BENCH_PASSTHROUGH_NVHPC
         
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
@@ -149,16 +152,16 @@ jobs:
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
 
-    - name: NEMO 5.0 gfortran OpenMP for CPUs
+    - name: NEMO 5.0 gfortran OpenMP for CPUs (BENCH)
       id: bench_gfortran_omp_cpu
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%gcc@14
+        spack unload && spack load nemo-build-environment%gcc@${GCC_VERSION}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=BENCH_OMP_THREADING_GCC
 
         # Set up FCM envvars to use psyclonefc and compile with OpenMP for CPU
@@ -178,7 +181,7 @@ jobs:
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         tail run.stat
-        # diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
@@ -187,11 +190,11 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@25.1
+        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VESION}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC
 
         # Make sure the profiling wrapper is compiled with the same compiler
@@ -243,11 +246,11 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@25.1
+        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VERSION}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=ORCA1_OMP_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
@@ -278,11 +281,11 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@25.1
+        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VERSION}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=ORCA2_OMP_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
@@ -313,11 +316,11 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@25.1
+        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VERSION}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC_ASYNC
 
         # Make sure the profiling wrapper is compiled with the same compiler
@@ -352,11 +355,11 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@25.1
+        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VERSION}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=ORCA2_OMP_OFFLOAD_NVHPC_ASYNC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
@@ -387,11 +390,11 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@25.1
+        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VERSION}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/psyclone-tests/latest-run/${NEMODIR_NAME}
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=ORCA1_OMP_OFFLOAD_NVHPC_ASYNC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
@@ -418,11 +421,8 @@ jobs:
         export TIME_sec=$(grep "local MPI proces" timing.output | head -n 1 | awk '{print $5}' | tr -d s)
 
   upload_if_on_mirror:
-    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
+    if: ${{ github.repository == 'sergisiso/PSyclone' }}
     runs-on: ubuntu-latest
-    env:
-      NVFORTRAN_VERSION: 25.7
-      ONEAPI_VERSION: 2025.2
     needs: run_if_on_mirror
     steps:
       - name: Install mongosh
@@ -434,48 +434,47 @@ jobs:
           sudo apt-get install -y mongodb-mongosh
       - name: Upload results
         run: |
+          export COMMON_FIELDS = 'branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'", date: new Date()'
+          export COMMON_FIELDS = ${COMMON_FIELDS}', github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'"'
+          export COMMON_FIELDS = ${COMMON_FIELDS}', system: "Rupert"'
           mongosh \
             "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
             --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
             --password ${{ secrets.MONGODB_PASSWORD }} \
-            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-            ci_test: "NEMOv5 OpenMP for CPU", nemo_version: "NEMOv5", system: "Rupert",
-            compiler:"gfortran-14" , date: new Date(),
-            elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_gfortran_omp_cpu}}"'})'
-          mongosh \
-            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-            --password ${{ secrets.MONGODB_PASSWORD }} \
-            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-            ci_test: "NEMOv5 OpenMP for GPU (BENCH)", nemo_version: "NEMOv5", system: "Rupert",
-            compiler:"nvhpc-25.1" , date: new Date(),
-            elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_nvfortran_omp_offload}}"'})'
-          mongosh \
-            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-            --password ${{ secrets.MONGODB_PASSWORD }} \
-            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-            ci_test: "NEMOv5 OpenMP for GPU (ORCA1)", nemo_version: "NEMOv5", system: "Rupert",
-            compiler:"nvhpc-25.1" , date: new Date(),
-            elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca1_nvfortran_omp_offload}}"'})'
-          mongosh \
-            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-            --password ${{ secrets.MONGODB_PASSWORD }} \
-            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-            ci_test: "NEMOv5 OpenMP for GPU (ORCA2)", nemo_version: "NEMOv5", system: "Rupert",
-            compiler:"nvhpc-25.1" , date: new Date(),
-            elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca2_nvfortran_omp_offload}}"'})'
-          mongosh \
-            "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-            --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-            --password ${{ secrets.MONGODB_PASSWORD }} \
-            --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-            github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-            ci_test: "NEMOv5 OpenMP for GPU Async (ORCA2)", nemo_version: "NEMOv5", system: "Rupert",
-            compiler:"nvhpc-25.1" , date: new Date(),
-            elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca2_nvfortran_omp_offload_async}}"'})'
+            --eval 'db.GitHub_CI.insertMany(
+            {
+              ci_test: "NEMOv5 OpenMP for CPU (BENCH)",
+              nemo_version: "NEMO 5.0-RC MO patch",
+              compiler:"gfortran-'"$GCC_VERSION"'",
+              elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_gfortran_omp_cpu}}"',
+              '$COMMON_FIELDS'
+            },
+            {
+              ci_test: "NEMOv5 OpenMP for GPU (BENCH)",
+              nemo_version: "NEMO 5.0-RC MO patch",
+              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+              elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_nvfortran_omp_offload}}"',
+              '$COMMON_FIELDS'
+            },
+            {
+              ci_test: "NEMOv5 OpenMP for GPU (ORCA1)",
+              nemo_version: "NEMO 5.0-RC MO patch",
+              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+              elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca1_nvfortran_omp_offload}}"',
+              '$COMMON_FIELDS'
+            },
+            {
+              ci_test: "NEMOv5 OpenMP for GPU (ORCA2)",
+              nemo_version: "NEMO 5.0-RC MO patch",
+              nemo_version: "NEMOv5",
+              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+              elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca2_nvfortran_omp_offload}}"',
+              '$COMMON_FIELDS'
+            },
+            {
+              ci_test: "NEMOv5 OpenMP for GPU Async (ORCA2)",
+              nemo_version: "NEMO 5.0-RC MO patch",
+              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+              elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca2_nvfortran_omp_offload_async}}"',
+              '$COMMON_FIELDS'
+            })'

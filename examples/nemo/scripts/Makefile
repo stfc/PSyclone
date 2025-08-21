@@ -37,7 +37,7 @@ INPUT_DIR ?= /archive/psyclone-tests/nemo-inputs/UKMO-eORCA1_GO8_NEMOv4
 # COMPILER_ARCH ?= linux_intel
 # ADD_KEYS ?= "IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
 # DEL_KEYS ?= "key_iomput"
-# INPUT_DIR ?= /archive/NEMO_INPUTS/NEMOv4/ECMWF/eORCA1_GO8/
+# INPUT_DIR ?= /archive/psyclone-tests/nemo-inputs/ECMWF-eORCA1_GO8
 
 # ---- End of configuration section - do not edit below this point ----
 
