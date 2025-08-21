@@ -282,29 +282,29 @@ jobs:
                 ci_test: "LFRic Passthrough with DM",
                 compiler:"gfortran@'"$GCC_VERSION"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_dist_mem}}"',
-                '$COMMON_FIELDS'
+                '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic OpenMP offloading",
                 compiler:"nvhpc@'"$NVHPC_VERSION"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_omp_offload}}"',
-                '$COMMON_FIELDS'
+                '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic OpenACC",
                 compiler:"nvhpc@'"$NVHPC_VERSION"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_acc_offload}}"',
-                '${COMMON_FIELDS}'
+                '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic all transformations",
                 compiler:"gfortran@'"$GCC_VERSION"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_all_trans}}"',
-                '${COMMON_FIELDS}'
+                '"${COMMON_FIELDS}'
               },
               {
                 ci_test: "LFRic colour-tiling",
                 compiler:"gfortran@'"$GCC_VERSION"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_colour_tiling}}"',
-                '${COMMON_FIELDS}'
+                '"${COMMON_FIELDS}"'
               })'

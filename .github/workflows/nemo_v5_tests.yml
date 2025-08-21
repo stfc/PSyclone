@@ -221,7 +221,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VESION}
+        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VERSION}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -493,40 +493,40 @@ jobs:
               nemo_version: "NEMO 5.0-RC MO patch",
               compiler:"gfortran-'"$GCC_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_gfortran_omp_cpu}}"',
-              '$COMMON_FIELDS'
+              '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv5 OpenMP for GPU (BENCH)",
               nemo_version: "NEMO 5.0-RC MO patch",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_nvfortran_omp_offload}}"',
-              '$COMMON_FIELDS'
+              '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv5 OpenMP for GPU (ORCA1)",
               nemo_version: "NEMO 5.0-RC MO patch",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca1_nvfortran_omp_offload}}"',
-              '$COMMON_FIELDS'
+              '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv5 OpenMP for GPU (ORCA2)",
               nemo_version: "NEMO 5.0-RC MO patch",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca2_nvfortran_omp_offload}}"',
-              '$COMMON_FIELDS'
+              '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv5 OpenMP for GPU Async (BENCH)",
               nemo_version: "NEMO 5.0-RC MO patch",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_nvfortran_omp_offload_async}}"',
-              '$COMMON_FIELDS'
+              '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv5 OpenMP for GPU Async (ORCA2)",
               nemo_version: "NEMO 5.0-RC MO patch",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca2_nvfortran_omp_offload_async}}"',
-              '$COMMON_FIELDS'
+              '"$COMMON_FIELDS"'
             })'

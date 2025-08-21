@@ -215,7 +215,7 @@ jobs:
           del_key "key_iomput" -j ${NUM_PARALLEL}
         
         # Run NEMO
-        cd cd cfgs/SPITZ12_psyclone/EXP00/
+        cd cfgs/SPITZ12_psyclone/EXP00/
         ln -sf /archive/psyclone-tests/nemo-inputs/ECMWF-eORCA1_GO8/* .
         export OMP_NUM_THREADS=12
         ./nemo
@@ -273,33 +273,33 @@ jobs:
               nemo_version: "NEMO MO 4.0.2",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_omp_offload}}"',
-              '$COMMON_FIELDS'
+              '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv4 OpenACC kernels for GPU",
               nemo_version: "MEMO MO 4.0.2",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_acc_kernels}}"',
-              '$COMMON_FIELDS'
+              '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv4 OpenACC loops for GPU",
               nemo_version: "MEMO MO 4.0.2",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_acc_loops}}"',
-              '$COMMON_FIELDS'
+              '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv4 OpenMP for CPU",
               nemo_version: "NEMO ECMWF 4.0 V40 with mpp",
               compiler:"intel-'"$ONEAPI_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_omp_cpu}}"',
-              '$COMMON_FIELDS'
+              '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv4 OpenMP for GPU Async",
               nemo_version: "NEMO MO 4.0.2",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_omp_offload_async}}"',
-              '$COMMON_FIELDS'
+              '"$COMMON_FIELDS"'
             })'
