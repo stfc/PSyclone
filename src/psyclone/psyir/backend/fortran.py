@@ -336,14 +336,6 @@ class FortranWriter(LanguageWriter):
             if fortrantype.lower() == "real" and \
                precision == ScalarType.Precision.DOUBLE:
                 return "double precision"
-            # This logging warning can be added when issue #11 is
-            # addressed.
-            # import logging
-            # logging.warning(
-            #      "Fortran does not support relative precision for the '%s' "
-            #      "datatype but '%s' was specified for variable '%s'.",
-            #      datatype, str(symbol.precision), symbol.name)
-#            assert False
             return fortrantype
 
         if isinstance(precision, DataSymbol):
