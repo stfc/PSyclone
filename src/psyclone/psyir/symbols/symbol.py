@@ -514,7 +514,7 @@ class Symbol(CommentableMixin):
             # Access Info might not have information if a variable is used
             # as array (e.g. in case of an array expression). In this case
             # we still need to check the type information in the symbol table.
-            is_array = access_info.is_array(index_variable=index_variable)
+            is_array = access_info.has_indices(index_variable=index_variable)
 
             # Access information might indicate that a variable is not an
             # array if it is used in array expressions only. In order to
