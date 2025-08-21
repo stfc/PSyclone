@@ -41,10 +41,11 @@ module testkern_scalar_array_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_scalar_array_type
-     type(arg_type), dimension(3) :: meta_args =               &
-          (/ arg_type(gh_scalar_array, gh_real,    gh_read, 2),   &
-             arg_type(gh_scalar_array, gh_logical, gh_read, 1),   &
-             arg_type(gh_scalar_array, gh_integer, gh_read, 4)    &
+     type(arg_type), dimension(4) :: meta_args =                  &
+          (/ arg_type(gh_scalar_array, gh_real,    gh_read, 2 ),  &
+             arg_type(gh_scalar_array, gh_logical, gh_read, 1 ),  &
+             arg_type(gh_scalar_array, gh_integer, gh_read, 4 ),  &
+             arg_type(gh_field,        gh_real,    gh_inc,  w1)   &
            /)
      integer :: operates_on = cell_column
    contains
@@ -53,17 +54,21 @@ module testkern_scalar_array_mod
 
 contains
 
-  subroutine testkern_scalar_array_code(dims_rarray, real_array,    &
+  subroutine testkern_scalar_array_code(nlayers,                    &
+                                        dims_rarray, real_array,    &
                                         dims_larray, logical_array, &
-                                        dims_iarray, integer_array)
+                                        dims_iarray, integer_array, &
+                                        afield)
     implicit none
 
-    integer(i_def), intent(in), dimension(2) :: dims_rarray
-    integer(i_def), intent(in), dimension(1) :: dims_larray
-    integer(i_def), intent(in), dimension(4) :: dims_iarray
-    real(r_def), intent(in), dimension(dims_rarray(1),dims_iarray(2)) :: real_array
-    logical(l_def), intent(in), dimension(dims_larray(1)) :: logical_array
-    integer(i_def), intent(in), dimension(dims_iarray(1),dims_iarray(2),dims_iarray(3),dims_iarray(4)) :: integer_array
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in), dimension(2) :: dims_rarray
+    integer(kind=i_def), intent(in), dimension(1) :: dims_larray
+    integer(kind=i_def), intent(in), dimension(4) :: dims_iarray
+    real(kind=r_def), intent(in), dimension(dims_rarray(1),dims_iarray(2)) :: real_array
+    logical(kind=l_def), intent(in), dimension(dims_larray(1)) :: logical_array
+    integer(kind=i_def), intent(in), dimension(dims_iarray(1),dims_iarray(2),dims_iarray(3),dims_iarray(4)) :: integer_array
+    real(kind=r_def), intent(inout) :: afield
 
   end subroutine testkern_scalar_array_code
 

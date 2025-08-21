@@ -5895,6 +5895,7 @@ class LFRicKernelArgument(KernelArgument):
                 # The collection datatype is not recognised or supported.
                 alg_datatype = None
 
+        # TODO: Check this is correct after is_scalar is fixed
         if self.is_scalar:
             self._init_scalar_properties(alg_datatype, alg_precision,
                                          check)
@@ -6153,7 +6154,7 @@ class LFRicKernelArgument(KernelArgument):
         :rtype: bool
         '''
         const = LFRicConstants()
-        return self._argument_type in const.VALID_SCALAR_NAMES
+        return self._argument_type in (const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES)
 
     @property
     def is_scalar_array(self):

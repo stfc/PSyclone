@@ -45,9 +45,10 @@ program scalar_array_invoke
   real(r_def),    dimension(50, 100)     :: real_array
   logical(l_def), dimension(10)          :: logical_array
   integer(i_def), dimension(2, 5, 10, 8) :: integer_array
+  type(field_type)                       :: afield
 
   call invoke(                                             &
-       testkern_scalar_array_type(real_array,logical_array,integer_array) &
+       testkern_scalar_array_type(real_array,logical_array,integer_array,afield) &
           )
 
 end program scalar_array_invoke
