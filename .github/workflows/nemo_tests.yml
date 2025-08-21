@@ -267,7 +267,7 @@ jobs:
             "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
             --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
             --password ${{ secrets.MONGODB_PASSWORD }} \
-            --eval 'db.GitHub_CI.insertMany(
+            --eval 'db.GitHub_CI.insertMany([
             {
               ci_test: "NEMOv4 OpenMP for GPU",
               nemo_version: "NEMO MO 4.0.2",
@@ -302,4 +302,4 @@ jobs:
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_omp_offload_async}}"',
               '"$COMMON_FIELDS"'
-            })'
+            }])'

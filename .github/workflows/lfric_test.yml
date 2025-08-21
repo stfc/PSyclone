@@ -277,7 +277,7 @@ jobs:
             "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
             --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
             --password ${{ secrets.MONGODB_PASSWORD }} \
-            --eval 'db.GitHub_CI.insertMany(
+            --eval 'db.GitHub_CI.insertMany([
               {
                 ci_test: "LFRic Passthrough with DM",
                 compiler:"gfortran@'"$GCC_VERSION"'",
@@ -307,4 +307,4 @@ jobs:
                 compiler:"gfortran@'"$GCC_VERSION"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_colour_tiling}}"',
                 '"${COMMON_FIELDS}"'
-              })'
+              }])'
