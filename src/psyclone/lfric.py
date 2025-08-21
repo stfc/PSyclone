@@ -5937,7 +5937,7 @@ class LFRicKernelArgument(KernelArgument):
             not declared with default precision.
 
         '''
-        #TODO: Check whether this needs scalars and ScalarArray separated
+        # TODO: Check whether this needs scalars and ScalarArray separated
         const = LFRicConstants()
         # Check the type of scalar defined in the metadata is supported.
         if self.intrinsic_type not in const.VALID_INTRINSIC_TYPES:
@@ -6155,7 +6155,8 @@ class LFRicKernelArgument(KernelArgument):
         :rtype: bool
         '''
         const = LFRicConstants()
-        return self._argument_type in (const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES)
+        return self._argument_type in (const.VALID_SCALAR_NAMES +
+                                       const.VALID_ARRAY_NAMES)
 
     @property
     def is_scalar_array(self):
