@@ -2857,6 +2857,9 @@ class Transformation(metaclass=abc.ABCMeta):
             signature = inspect.signature(base_cls_apply)
             # Loop over the arguments to the apply call.
             for k, v in signature.parameters.items():
+                # Since the 'options' argument is deprecated, its not
+                # inherited from superclasses as newer Transformations
+                # may not implement it.
                 if k == "options" and base_cls is not cls:
                     continue
                 # If the argument is a keyword argument, i.e. it has a default

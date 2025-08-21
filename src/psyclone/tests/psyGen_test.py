@@ -250,8 +250,6 @@ def test_transformation_get_valid_options():
     # Check that option is allowed if its specified on the transformation.
     assert options['options'].default == {}
 
-    # FIXME Add options and check its valid from self.
-
     class InheritTrans(TestTrans):
         '''Utility transformation to test inheriting arguments'''
         def apply(self, node, valid2: int = 1):
