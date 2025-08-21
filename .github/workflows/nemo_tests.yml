@@ -259,9 +259,9 @@ jobs:
           sudo apt-get install -y mongodb-mongosh
       - name: Upload results
         run: |
-          export COMMON_FIELDS = 'branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'", date: new Date()'
-          export COMMON_FIELDS = ${COMMON_FIELDS}', github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'"'
-          export COMMON_FIELDS = ${COMMON_FIELDS}', system: "Rupert"'
+          export COMMON_FIELDS='branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'", date: new Date()'
+          export COMMON_FIELDS=${COMMON_FIELDS}', github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'"'
+          export COMMON_FIELDS=${COMMON_FIELDS}', system: "Rupert"'
           mongosh \
             "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
             --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
