@@ -6273,6 +6273,9 @@ class LFRicKernelArgument(KernelArgument):
                     f"PSyIR contains one or more References.")
             return lit
 
+        # TODO: this possibly needs altering to consider ScalarArrays
+        # Currently .is_scalar doesn't include ScalarArrays so this won't
+        # pass. Need to work out if it needs to start for a ScalarArray
         if self.is_scalar:
             try:
                 scalar_sym = symbol_table.lookup(self.name)
