@@ -353,7 +353,24 @@ then
                         f"{sym.datatype.intrinsic.name}'"
                         f" is not guaranteed to be a global symbol")
                     continue
-            # TODO #3087: Precision could include multiple symbols
+            # Precision could include multiple symbols - handle in the same
+            # way as for DataSymbol but check all of them.
+            if isinstance(sym.datatype.precision, BinaryOperation):
+                refs = sym.datatype.precision.walk(Reference)
+                failed = False
+                for ref in refs:
+                    if isinstance(ref.symbol, DataSymbol):
+                        if ref.symbol.name in node.symbol_table:
+                            sym.append_preceding_comment(
+                                f"PSyclone warning: '{sym.name}' cannot "
+                                f"be hoisted to the global scope as '"
+                                f"{ref.symbol.name}'"
+                                f" is not guaranteed to be a global symbol")
+                            failed = True
+                            break
+                if failed:
+                    continue
+
             if isinstance(sym.datatype.precision, DataSymbol):
                 if sym.datatype.precision.name in node.symbol_table:
                     sym.append_preceding_comment(

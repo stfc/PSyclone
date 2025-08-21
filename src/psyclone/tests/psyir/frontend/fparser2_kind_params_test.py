@@ -246,4 +246,4 @@ def test_binop_kind(fortran_reader, fortran_writer):
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     out = fortran_writer(psyir)
-    assert "integer(kind=2 * i_def), dimension(2) :: c" in out
+    assert "integer(kind= 2 * i_def), dimension(2) :: c" in out

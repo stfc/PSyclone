@@ -343,6 +343,7 @@ class FortranWriter(LanguageWriter):
             #      "Fortran does not support relative precision for the '%s' "
             #      "datatype but '%s' was specified for variable '%s'.",
             #      datatype, str(symbol.precision), symbol.name)
+#            assert False
             return fortrantype
 
         if isinstance(precision, DataSymbol):
@@ -360,7 +361,7 @@ class FortranWriter(LanguageWriter):
 
         raise VisitorError(
             f"Unsupported precision type '{type(precision).__name__}' found "
-            "for symbol '{name}' in Fortran backend.")
+            f"for symbol '{name}' in Fortran backend.")
 
     def get_operator(self, operator):
         '''Determine the Fortran operator that is equivalent to the provided
