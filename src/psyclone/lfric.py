@@ -5937,6 +5937,7 @@ class LFRicKernelArgument(KernelArgument):
             not declared with default precision.
 
         '''
+        #TODO: Check whether this needs scalars and ScalarArray separated
         const = LFRicConstants()
         # Check the type of scalar defined in the metadata is supported.
         if self.intrinsic_type not in const.VALID_INTRINSIC_TYPES:
