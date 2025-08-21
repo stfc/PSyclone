@@ -4653,7 +4653,7 @@ def test_omp_serial_check_dependency_valid_pairing():
            )
 
 
-# TODO[mn416]: more tests needed
+# TODO[mn416]: more reduction tests needed
 def test_enable_reductions(fortran_reader, fortran_writer):
     ''' Tests the functionality of the enable_reductions option to
     the apply() method of OMPLoopTrans.
@@ -4673,3 +4673,26 @@ def test_enable_reductions(fortran_reader, fortran_writer):
     omplooptrans.apply(loop, enable_reductions=True)
     output = fortran_writer(psyir)
     assert "reduction(+:acc)" in output
+
+
+def test_nested_reductions(fortran_reader, fortran_writer):
+    ''' Tests that nested loops containing reductions can be collapsed.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:, :)
+            integer :: i, j
+            integer :: acc = 0
+
+            do j = 1, size(arr, 2)
+                do i = 1, size(arr, 1)
+                    acc = acc + arr(i, j)
+                end do
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True, collapse=2)
+    output = fortran_writer(psyir)
+    assert "reduction(+:acc)" in output
+    assert "collapse(2)" in output

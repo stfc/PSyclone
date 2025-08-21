@@ -573,7 +573,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 if message.code == DTCode.WARN_SCALAR_REDUCTION:
                     for (var_name, var_info) in zip(message.var_names,
                                                     message.var_infos):
-                        self._attempt_reduction(node, var_name, var_info)
+                        if self._attempt_reduction(node, var_name, var_info):
+                            list_of_signatures.append(Signature(var_name))
 
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it
