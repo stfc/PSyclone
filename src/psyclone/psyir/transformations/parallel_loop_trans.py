@@ -574,6 +574,9 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     for (var_name, var_info) in zip(message.var_names,
                                                     message.var_infos):
                         if self._attempt_reduction(node, var_name, var_info):
+                            # Add this variable to the list of signatures for
+                            # dependency tools to ignore, avoiding unnecessary
+                            # failures in the subsequent collapse check (below)
                             list_of_signatures.append(Signature(var_name))
 
         # If 'collapse' is specified, check that it is an int and that the
