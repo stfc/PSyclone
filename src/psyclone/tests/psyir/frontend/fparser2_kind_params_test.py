@@ -45,7 +45,7 @@ from fparser.two import Fortran2003
 
 from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
                                               _kind_find_or_create)
-from psyclone.psyir.nodes import KernelSchedule
+from psyclone.psyir.nodes import KernelSchedule, Reference
 from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, UnsupportedFortranType, RoutineSymbol, SymbolTable,
     Symbol, UnresolvedType, ContainerSymbol, UnresolvedInterface)
@@ -83,15 +83,15 @@ def test_process_declarations_kind_new_param():
     fake_parent, fp2spec = process_declarations("real(kind=wp) :: var1\n"
                                                 "real(kind=Wp) :: var2\n")
     var1_var = fake_parent.symbol_table.lookup("var1")
-    assert isinstance(var1_var.datatype.precision, DataSymbol)
+    assert isinstance(var1_var.datatype.precision, Reference)
     # Check that this has resulted in the creation of a new 'wp' symbol
     wp_var = fake_parent.symbol_table.lookup("wp")
     assert wp_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert var1_var.datatype.precision is wp_var
+    assert var1_var.datatype.precision == Reference(wp_var)
     # Check that, despite the difference in case, the second variable
     # references the same 'wp' symbol.
     var2_var = fake_parent.symbol_table.lookup("var2")
-    assert var2_var.datatype.precision is wp_var
+    assert var2_var.datatype.precision == Reference(wp_var)
     # Check that we get a symbol of unsupported type if the KIND expression has
     # an unexpected structure
     # Break the parse tree by changing Name('wp') into a str
@@ -102,6 +102,7 @@ def test_process_declarations_kind_new_param():
     processor.process_declarations(fake_parent, [fp2spec[0]], [])
     sym = fake_parent.symbol_table.lookup("var3")
     assert isinstance(sym, DataSymbol)
+    print(sym.datatype)
     assert isinstance(sym.datatype, UnsupportedFortranType)
 
 
@@ -131,9 +132,9 @@ def test_process_declarations_kind_use():
     fake_parent, _ = process_declarations("use kind_mod, only: r_def\n"
                                           "real(kind=r_def) :: var2")
     var2_var = fake_parent.symbol_table.lookup("var2")
-    assert isinstance(var2_var.datatype.precision, DataSymbol)
-    assert fake_parent.symbol_table.lookup("r_def") is \
-        var2_var.datatype.precision
+    assert isinstance(var2_var.datatype.precision, Reference)
+    assert (Reference(fake_parent.symbol_table.lookup("r_def")) ==
+            var2_var.datatype.precision)
 
     # If we change the symbol_table default visibility, this is respected
     # by new kind symbols
@@ -212,8 +213,8 @@ def test_process_declarations_kind_literals(vartype, kind, precision):
     fake_parent, _ = process_declarations(f"{vartype}(kind=KIND({kind})) :: "
                                           f"var")
     if not precision:
-        assert fake_parent.symbol_table.lookup("var").datatype.precision is \
-            fake_parent.symbol_table.lookup("t_def")
+        assert (fake_parent.symbol_table.lookup("var").datatype.precision ==
+                Reference(fake_parent.symbol_table.lookup("t_def")))
     else:
         assert (fake_parent.symbol_table.lookup("var").datatype.precision ==
                 precision)

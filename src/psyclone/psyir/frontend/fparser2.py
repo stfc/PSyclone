@@ -2833,7 +2833,10 @@ class Fparser2Reader():
             # arguments to KIND
             if isinstance(kind_arg, (Fortran2003.Int_Literal_Constant,
                                      Fortran2003.Real_Literal_Constant)):
-                return get_literal_precision(kind_arg, psyir_parent)
+                precision = get_literal_precision(kind_arg, psyir_parent)
+                if isinstance(precision, DataSymbol):
+                    precision = Reference(precision)
+                return precision
 
             raise NotImplementedError(
                 f"Only real and integer literals are supported as arguments "
@@ -2841,34 +2844,33 @@ class Fparser2Reader():
                 f"'{type(kind_arg).__name__}' in: {kind_selector}")
 
         # We have kind=kind-param
-        kind_names = walk(kind_selector.items,
-                          (Fortran2003.BinaryOpBase, Fortran2003.Name))
-        if not kind_names:
-            raise NotImplementedError(
-                f"Failed to find valid Name in Fortran Kind Selector: "
-                f"{kind_selector}'")
 
         # Create a dummy Schedule and Assignment to capture the kind=...
         # so we can capture expressions such as 2*wp.
+        # The input from fparser2 is ['(', kind, ')']
+        kind_items = kind_selector.items[1]
         fake_routine = Routine(RoutineSymbol("dummy"))
         dummy_schedule = Assignment()
         fake_routine.addchild(dummy_schedule)
         dummy_schedule.addchild(Reference(Symbol("a")))
-        self.process_nodes(parent=dummy_schedule, nodes=[kind_names[0]])
+        self.process_nodes(parent=dummy_schedule, nodes=[kind_items])
         # Create a copy of the created node.
         kindvar = dummy_schedule.rhs.copy()
         # For each symbol used in the BinaryOperation, we need to update
         # kindvar with the ones from the real symbol_table.
-        if isinstance(kindvar, BinaryOperation):
-            for ref in kindvar.walk(Reference):
-                sym_name = ref.symbol.name
-                sym = _kind_find_or_create(sym_name, symbol_table)
-                ref.symbol = sym
-            # Return the update BinaryOperation
-            return kindvar
+        for ref in kindvar.walk(Reference):
+            sym_name = ref.symbol.name
+            sym = _kind_find_or_create(sym_name, symbol_table)
+            ref.symbol = sym
+        if len(kindvar.walk(CodeBlock)) != 0:
+               raise NotImplementedError(
+                "Unsupported kind declaration, error message NYI"
+               )
+        # Return the update BinaryOperation
+        return kindvar
 
-        # Otherwise continue with the previous implementation.
-        return _kind_find_or_create(str(kind_names[0]), symbol_table)
+#        # Otherwise continue with the previous implementation.
+#        return _kind_find_or_create(str(kind_names[0]), symbol_table)
 
     def _add_comments_to_tree(self, parent: Node, preceding_comments,
                               psy_child: Node) -> None:
