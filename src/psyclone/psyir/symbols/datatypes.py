@@ -420,7 +420,6 @@ class ScalarType(DataType):
 
         self._intrinsic = intrinsic
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.operation import BinaryOperation
         from psyclone.psyir.nodes.datanode import DataNode
         if not isinstance(precision, (DataNode, ScalarType.Precision, int)):
             raise TypeError(

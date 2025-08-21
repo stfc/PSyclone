@@ -2863,9 +2863,9 @@ class Fparser2Reader():
             sym = _kind_find_or_create(sym_name, symbol_table)
             ref.symbol = sym
         if len(kindvar.walk(CodeBlock)) != 0:
-               raise NotImplementedError(
+            raise NotImplementedError(
                 "Unsupported kind declaration, error message NYI"
-               )
+            )
         # Return the update BinaryOperation
         return kindvar
 
