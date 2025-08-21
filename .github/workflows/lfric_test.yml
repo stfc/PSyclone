@@ -300,7 +300,7 @@ jobs:
                 ci_test: "LFRic all transformations",
                 compiler:"gfortran@'"$GCC_VERSION"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_all_trans}}"',
-                '"${COMMON_FIELDS}'
+                '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic colour-tiling",

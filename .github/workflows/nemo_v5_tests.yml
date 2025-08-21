@@ -393,7 +393,7 @@ jobs:
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
-        export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     - name: NEMO 5.0 nvidia Async OpenMP for GPUs (UKMO ORCA2 - managed memory)
