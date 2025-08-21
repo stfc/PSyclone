@@ -242,7 +242,7 @@ def test_partition(lhs, rhs, partition, fortran_reader):
     #  --> this must be the 'main' array variable we need to check for:
     sig = None
     for sig in access_info_lhs:
-        if access_info_lhs[sig].is_array():
+        if access_info_lhs[sig].has_indices():
             break
 
     # Get all accesses to the array variable. It has only one
@@ -405,7 +405,7 @@ def test_array_access_pairs_multi_var(lhs, rhs, independent, fortran_reader):
     # the 'main' array variable we need to check for:
     sig = None
     for sig in access_info_lhs:
-        if access_info_lhs[sig].is_array():
+        if access_info_lhs[sig].has_indices():
             break
 
     # Get all accesses to the array variable. It has only one

@@ -79,14 +79,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         # pylint: disable=unused-argument
         return isinstance(child, (DataNode, Range))
 
-    @property
-    def is_array(self):
-        ''':returns: if this instance indicates an array access.
-        :rtype: bool
-
-        '''
-        return True
-
     def index_of(self, node):
         '''
         If the given node is one of the index expressions of the array, it
