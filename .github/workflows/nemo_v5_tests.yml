@@ -57,6 +57,7 @@ jobs:
       bench_nvfortran_omp_offload: ${{ steps.bench_nvfortran_omp_offload.outputs.time }}
       orca1_nvfortran_omp_offload: ${{ steps.orca1_nvfortran_omp_offload.outputs.time }}
       orca2_nvfortran_omp_offload: ${{ steps.orca2_nvfortran_omp_offload.outputs.time }}
+      bench_nvfortran_omp_offload_async: ${{ steps.bench_nvfortran_omp_offload_async.outputs.time }}
       orca2_nvfortran_omp_offload_async: ${{ steps.orca2_nvfortran_omp_offload_async.outputs.time }}
 
     steps:
@@ -151,6 +152,36 @@ jobs:
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
+
+    - name: NEMO 5.0 Intel passthrough
+      # Only bother doing passthrough if this is a re-run of a previous test.
+      if: ${{ github.run_attempt != '1' }}
+      run: |
+        # Set up environment
+        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%oneapi@${ONEAPI_VERSION}
+        source .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export PSYCLONE_HOME=${PWD}/.runner_venv
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
+        export TEST_DIR=BENCH_PASSTHROUGH_ONEAPI
+
+        # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
+        cd $NEMO_DIR
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export FCFLAGS="-i4 -r8 -O2 -fp-model precise -fno-alias -g"
+
+        # Clean up and compile
+        rm -rf tests/${TEST_DIR}
+        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
+          add_key "key_nosignedzero" -j ${NUM_PARALLEL} -v 1
+
+        # Run test
+        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        mpirun -np 6 ./nemo
+        tail run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.oneapi.small.10steps run.stat
 
     - name: NEMO 5.0 gfortran OpenMP for CPUs (BENCH)
       id: bench_gfortran_omp_cpu
@@ -311,8 +342,7 @@ jobs:
 
 
     - name: NEMO 5.0 nvidia Async OpenMP for GPUs (BENCH - managed memory)
-      # Only do this Action if this is a re-run
-      if: ${{ github.run_attempt != '1' }}
+      id: bench_nvfortran_omp_offload_async
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
@@ -349,6 +379,22 @@ jobs:
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         # We can compare all digits for this build
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
+
+        # Now do a fast-build (without reproducible or profiling options, which have a
+        # big impact for BENCH due to some inner-loop REAL intrinsics)
+        cd $NEMO_DIR
+        unset REPRODUCIBLE
+        unset ENABLE_PROFILING
+        export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
+        rm -rf tests/${TEST_DIR}
+        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
+          -j ${NUM_PARALLEL} -v 1
+        # Run non-reproducible test
+        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
+        export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     - name: NEMO 5.0 nvidia Async OpenMP for GPUs (UKMO ORCA2 - managed memory)
       id: orca2_nvfortran_omp_offload_async
@@ -466,9 +512,15 @@ jobs:
             {
               ci_test: "NEMOv5 OpenMP for GPU (ORCA2)",
               nemo_version: "NEMO 5.0-RC MO patch",
-              nemo_version: "NEMOv5",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca2_nvfortran_omp_offload}}"',
+              '$COMMON_FIELDS'
+            },
+            {
+              ci_test: "NEMOv5 OpenMP for GPU Async (BENCH)",
+              nemo_version: "NEMO 5.0-RC MO patch",
+              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+              elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_nvfortran_omp_offload_async}}"',
               '$COMMON_FIELDS'
             },
             {
