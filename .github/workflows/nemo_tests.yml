@@ -204,7 +204,7 @@ jobs:
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_COMPILER=$MPIF90
         export MPIF90=psyclonefc
-        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py"
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py -I ${MPI_HOME}/include"
         export FCFLAGS="-i4 -r8 -O2 -heap-arrays -fp-model=precise -g -qopenmp"
         export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
 
