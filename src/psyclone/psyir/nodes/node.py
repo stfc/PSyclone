@@ -48,7 +48,6 @@ import graphviz
 
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.symbols import SymbolError
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -123,7 +122,6 @@ class ChildrenList(list):
             else:
                 errmsg = (f"{errmsg} The valid format is: "
                           f"'{self._validation_text}'.")
-
             raise GenerationError(errmsg)
 
     def _check_is_orphan(self, item):
@@ -1544,6 +1542,7 @@ class Node():
         # dependencies.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.scoping_node import ScopingNode
+        from psyclone.psyir.symbols import SymbolError
         node = self.ancestor(ScopingNode, include_self=True)
         if node:
             return node

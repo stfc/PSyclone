@@ -93,102 +93,6 @@ def gen_intent(symbol):
     return None  # non-Arguments do not have intent
 
 
-def gen_datatype(datatype, name):
-    '''Given a DataType instance as input, return the Fortran datatype
-    of the symbol including any specific precision properties.
-
-    :param datatype: the DataType or DataTypeSymbol describing the type of \
-                     the declaration.
-    :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or \
-                    :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
-    :param str name: the name of the symbol being declared (only used for \
-                     error messages).
-
-    :returns: the Fortran representation of the symbol's datatype \
-              including any precision properties.
-    :rtype: str
-
-    :raises NotImplementedError: if the symbol has an unsupported \
-        datatype.
-    :raises VisitorError: if the symbol specifies explicit precision \
-        and this is not supported for the datatype.
-    :raises VisitorError: if the size of the explicit precision is not \
-        supported for the datatype.
-    :raises VisitorError: if the size of the symbol is specified by \
-        another variable and the datatype is not one that supports the \
-        Fortran KIND option.
-    :raises NotImplementedError: if the type of the precision object \
-        is an unsupported type.
-
-    '''
-    if isinstance(datatype, DataTypeSymbol):
-        # Symbol is of derived type
-        return f"type({datatype.name})"
-
-    if (isinstance(datatype, ArrayType) and
-            isinstance(datatype.intrinsic, DataTypeSymbol)):
-        # Symbol is an array of derived types
-        return f"type({datatype.intrinsic.name})"
-
-    try:
-        fortrantype = TYPE_MAP_TO_FORTRAN[datatype.intrinsic]
-    except KeyError as error:
-        raise NotImplementedError(
-            f"Unsupported datatype '{datatype.intrinsic}' for symbol '{name}' "
-            f"found in gen_datatype().") from error
-
-    precision = datatype.precision
-
-    if isinstance(precision, int):
-        if fortrantype not in ['real', 'integer', 'logical']:
-            raise VisitorError(f"Explicit precision not supported for datatype"
-                               f" '{fortrantype}' in symbol '{name}' in "
-                               f"Fortran backend.")
-        if fortrantype == 'real' and precision not in [4, 8, 16]:
-            raise VisitorError(
-                f"Datatype 'real' in symbol '{name}' supports fixed precision "
-                f"of [4, 8, 16] but found '{precision}'.")
-        if fortrantype in ['integer', 'logical'] and precision not in \
-           [1, 2, 4, 8, 16]:
-            raise VisitorError(
-                f"Datatype '{fortrantype}' in symbol '{name}' supports fixed "
-                f"precision of [1, 2, 4, 8, 16] but found '{precision}'.")
-        # Precision has an an explicit size. Use the "type*size" Fortran
-        # extension for simplicity. We could have used
-        # type(kind=selected_int|real_kind(size)) or, for Fortran 2008,
-        # ISO_FORTRAN_ENV; type(type64) :: MyType.
-        return f"{fortrantype}*{precision}"
-
-    if isinstance(precision, ScalarType.Precision):
-        # The precision information is not absolute so is either
-        # machine specific or is specified via the compiler. Fortran
-        # only distinguishes relative precision for single and double
-        # precision reals.
-        if fortrantype.lower() == "real" and \
-           precision == ScalarType.Precision.DOUBLE:
-            return "double precision"
-        # This logging warning can be added when issue #11 is
-        # addressed.
-        # import logging
-        # logging.warning(
-        #      "Fortran does not support relative precision for the '%s' "
-        #      "datatype but '%s' was specified for variable '%s'.",
-        #      datatype, str(symbol.precision), symbol.name)
-        return fortrantype
-
-    if isinstance(precision, DataSymbol):
-        if fortrantype not in ["real", "integer", "logical"]:
-            raise VisitorError(
-                f"kind not supported for datatype '{fortrantype}' in symbol "
-                f"'{name}' in Fortran backend.")
-        # The precision information is provided by a parameter, so use KIND.
-        return f"{fortrantype}(kind={precision.name})"
-
-    raise VisitorError(
-        f"Unsupported precision type '{type(precision).__name__}' found for "
-        f"symbol '{name}' in Fortran backend.")
-
-
 def precedence(fortran_operator):
     '''Determine the relative precedence of the supplied Fortran operator.
     Relative Operator precedence is taken from the Fortran 2008
@@ -356,6 +260,107 @@ class FortranWriter(LanguageWriter):
             # than one.
             if mapping_key not in reverse_dict:
                 reverse_dict[mapping_key] = mapping_value.upper()
+
+    def gen_datatype(self, datatype, name):
+        '''Given a DataType instance as input, return the Fortran datatype
+        of the symbol including any specific precision properties.
+
+        :param datatype: the DataType or DataTypeSymbol describing the type of
+                         the declaration.
+        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or
+                        :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+        :param str name: the name of the symbol being declared (only used for
+                         error messages).
+
+        :returns: the Fortran representation of the symbol's datatype
+                  including any precision properties.
+        :rtype: str
+
+        :raises NotImplementedError: if the symbol has an unsupported
+            datatype.
+        :raises VisitorError: if the symbol specifies explicit precision
+            and this is not supported for the datatype.
+        :raises VisitorError: if the size of the explicit precision is not
+            supported for the datatype.
+        :raises VisitorError: if the size of the symbol is specified by
+            another variable and the datatype is not one that supports the
+            Fortran KIND option.
+        :raises NotImplementedError: if the type of the precision object
+            is an unsupported type.
+
+        '''
+        if isinstance(datatype, DataTypeSymbol):
+            # Symbol is of derived type
+            return f"type({datatype.name})"
+
+        if (isinstance(datatype, ArrayType) and
+                isinstance(datatype.intrinsic, DataTypeSymbol)):
+            # Symbol is an array of derived types
+            return f"type({datatype.intrinsic.name})"
+
+        try:
+            fortrantype = TYPE_MAP_TO_FORTRAN[datatype.intrinsic]
+        except KeyError as error:
+            raise NotImplementedError(
+                f"Unsupported datatype '{datatype.intrinsic}' for symbol "
+                f"'{name}' found in gen_datatype().") from error
+
+        precision = datatype.precision
+
+        if isinstance(precision, int):
+            if fortrantype not in ['real', 'integer', 'logical']:
+                raise VisitorError(f"Explicit precision not supported for "
+                                   f"datatype '{fortrantype}' in symbol "
+                                   f"'{name}' in Fortran backend.")
+            if fortrantype == 'real' and precision not in [4, 8, 16]:
+                raise VisitorError(
+                    f"Datatype 'real' in symbol '{name}' supports fixed "
+                    f"precision of [4, 8, 16] but found '{precision}'.")
+            if fortrantype in ['integer', 'logical'] and precision not in \
+               [1, 2, 4, 8, 16]:
+                raise VisitorError(
+                    f"Datatype '{fortrantype}' in symbol '{name}' supports "
+                    f"fixed precision of [1, 2, 4, 8, 16] but found "
+                    f"'{precision}'.")
+            # Precision has an an explicit size. Use the "type*size" Fortran
+            # extension for simplicity. We could have used
+            # type(kind=selected_int|real_kind(size)) or, for Fortran 2008,
+            # ISO_FORTRAN_ENV; type(type64) :: MyType.
+            return f"{fortrantype}*{precision}"
+
+        if isinstance(precision, ScalarType.Precision):
+            # The precision information is not absolute so is either
+            # machine specific or is specified via the compiler. Fortran
+            # only distinguishes relative precision for single and double
+            # precision reals.
+            if fortrantype.lower() == "real" and \
+               precision == ScalarType.Precision.DOUBLE:
+                return "double precision"
+            # This logging warning can be added when issue #11 is
+            # addressed.
+            # import logging
+            # logging.warning(
+            #      "Fortran does not support relative precision for the '%s' "
+            #      "datatype but '%s' was specified for variable '%s'.",
+            #      datatype, str(symbol.precision), symbol.name)
+            return fortrantype
+
+        if isinstance(precision, DataSymbol):
+            if fortrantype not in ["real", "integer", "logical"]:
+                raise VisitorError(
+                    f"kind not supported for datatype '{fortrantype}' in "
+                    f"symbol '{name}' in Fortran backend.")
+            # The precision information is provided by a parameter,
+            # so use KIND.
+            return f"{fortrantype}(kind={precision.name})"
+
+        if isinstance(precision, BinaryOperation):
+            precis = self._visit(precision)
+            return f"{fortrantype}(kind= {precis})"
+
+        raise VisitorError(
+            f"Unsupported precision type '{type(precision).__name__}' found "
+            "for symbol '{name}' in Fortran backend.")
 
     def get_operator(self, operator):
         '''Determine the Fortran operator that is equivalent to the provided
@@ -589,7 +594,7 @@ class FortranWriter(LanguageWriter):
                 f"'{type(symbol.datatype).__name__}' type. This is not "
                 f"supported by the Fortran backend.")
 
-        datatype = gen_datatype(symbol.datatype, symbol.name)
+        datatype = self.gen_datatype(symbol.datatype, symbol.name)
         result += f"{self._nindent}{datatype}"
 
         if array_shape and symbol.datatype.is_allocatable:

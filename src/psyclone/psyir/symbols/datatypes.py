@@ -419,12 +419,14 @@ class ScalarType(DataType):
                 f"'{type(intrinsic).__name__}'.")
 
         self._intrinsic = intrinsic
-
-        if not isinstance(precision, (int, ScalarType.Precision, DataSymbol)):
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.operation import BinaryOperation
+        if not isinstance(precision, (BinaryOperation, int,
+                                      ScalarType.Precision, DataSymbol)):
             raise TypeError(
                 f"ScalarType expected 'precision' argument to be of type "
-                f"int, ScalarType.Precision or DataSymbol, but found "
-                f"'{type(precision).__name__}'.")
+                f"BinaryOperation, int, ScalarType.Precision or DataSymbol, "
+                f"but found '{type(precision).__name__}'.")
         if isinstance(precision, int) and precision <= 0:
             raise ValueError(
                 f"The precision of a DataSymbol when specified as an integer "

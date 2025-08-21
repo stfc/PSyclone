@@ -234,3 +234,16 @@ def test_unsupported_kind(vartype, kind):
     sched, _ = process_declarations(f"{vartype}(kind=KIND({kind})) :: var")
     assert isinstance(sched.symbol_table.lookup("var").datatype,
                       UnsupportedFortranType)
+
+
+def test_binop_kind(fortran_reader, fortran_writer):
+    '''Check that we get the correct kind expression when passed in
+    a kind containing a binary operation.
+    '''
+    code = """subroutine test
+    integer, parameter :: i_def = 4
+    integer(kind = 2*i_def), dimension(2) :: c
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    out = fortran_writer(psyir)
+    assert "integer(kind=2 * i_def), dimension(2) :: c" in out
