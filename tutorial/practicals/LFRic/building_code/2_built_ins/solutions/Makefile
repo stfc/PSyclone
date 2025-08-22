@@ -77,7 +77,9 @@ EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ)
 # Test PSyclone target for continuous integration
 transform: $(PSY_SRC) $(ALGORITHM_SRC)
 
-compile: transform $(EXEC)
+# TODO #3114
+compile: transform
+	echo "Compilation for building_code/1_simple_kernels/part1 not working yet."
 
 run: compile
 	$(EXEC)
