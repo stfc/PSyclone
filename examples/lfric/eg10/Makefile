@@ -36,30 +36,48 @@
 
 include ../../common.mk
 
+EXEC = will_not_run.exe
+
+GENERATED_FILES = $(OBJ) *.mod intergrid_3levels_psy.f90 intergrid_3levels.f90 $(EXEC)
+
 # This defaults to the infrastructure library included in PSyclone
-LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/lfric/infrastructure
-LFRIC_LIB=$(LFRIC_DIR)/liblfric.a
-F90FLAGS += -I$(LFRIC_DIR)
+LFRIC_PATH ?= ${PSYCLONE_DIR}/external/lfric_infrastructure/preprocessed
+LFRIC_NAME=lfric_netcdf
+LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
+
+OBJ = intergrid_3levels_psy.o intergrid_3levels.o restrict_kernel_mod.o prolong_kernel_mod.o
+
+# This will add the required include flags to LFRIC_INCLUDE_FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
 
 .PHONY: transform compile run kernels
 
-transform:
-	${PSYCLONE} -api lfric intergrid_3levels.x90
+$(EXEC): $(LFRIC_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) \
+	$$(nf-config --flibs)
+
+transform intergrid_3levels_psy.f90 intergrid_3levels.f90:
+	${PSYCLONE} -api lfric intergrid_3levels.x90 \
+		-opsy intergrid_3levels_psy.f90 -oalg intergrid_3levels.f90
 
 # TODO #1203 compilation of this example is not yet working. The Algorithm
 # (and possibly infrastructure) needs updating.
-#compile: transform $(LFRIC_LIB) kernels psy.o
-
-compile: transform
-	@echo "No compilation targets for lfric/eg10"
+compile: transform $(EXEC)
 
 run: compile
 	@echo "No run targets for lfric/eg10"
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_DIR)
+	$(MAKE) -C $(LFRIC_PATH)
+
+intergrid_3levels_psy.o: prolong_kernel_mod.o restrict_kernel_mod.o intergrid_3levels_psy.o
+intergrid_3levels.o: intergrid_3levels_psy.o
 
 kernels: prolong_kernel_mod.o restrict_kernel_mod.o
 
-%.o: %.[fF]90
-	$(F90) $(F90FLAGS) -c $<
+#%.o: %.[fF]90
+#	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+%.o: %.f90
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+%.o: %.F90
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
