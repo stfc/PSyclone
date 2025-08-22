@@ -134,7 +134,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                 continue
 
             # All arrays not explicitly marked as threadprivate are shared
-            if any(accs.is_array() for accs in accesses):
+            if any(accs.has_indices() for accs in accesses):
                 continue
 
             # If a variable is only accessed once, it is either an error
