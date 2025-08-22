@@ -89,7 +89,7 @@ $(GHLIB_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(GHLIB_PATH)
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) netcdf
+	$(MAKE) -C $(LFRIC_PATH)
 
 $(PSYDATA_LIB): $(LFRIC_LIB)
 ifneq ($(PSYDATA_PATH),)
