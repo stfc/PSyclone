@@ -50,7 +50,7 @@ F90FLAGS ?= -g -O0
 OBJ = helmholtz_solver_alg_psy.o helmholtz_solver_alg_mod.o scaled_matrix_vector_kernel_mod.o driver.o
 
 EXEC = will_not_run.exe
-LFRIC_PATH ?= ../../../external/lfric_infrastructure/preprocessed
+LFRIC_PATH ?= ${PSYCLONE_DIR}/external/lfric_infrastructure/preprocessed
 LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 

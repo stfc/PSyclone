@@ -89,7 +89,7 @@ LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 EXEC = extract.$(TYPE)
 EXTRACT_NAME ?= _extract
 EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
-LFRIC_PATH ?= ../../../../external/lfric_infrastructure/preprocessed
+LFRIC_PATH = ${PSYCLONE_DIR}/external/lfric_infrastructure/preprocessed
 LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 

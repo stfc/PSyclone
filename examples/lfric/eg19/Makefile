@@ -44,7 +44,7 @@ F90FLAGS ?= -Wall -g -fcheck=bound
 OBJ = alg.o mixed_precision_psy.o mixed_kernel_mod.o
 
 EXEC = will_not_run.exe
-LFRIC_PATH = ../../../external/lfric_infrastructure/preprocessed
+LFRIC_PATH = ${PSYCLONE_DIR}/external/lfric_infrastructure/preprocessed
 LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 

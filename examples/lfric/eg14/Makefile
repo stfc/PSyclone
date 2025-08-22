@@ -57,7 +57,7 @@ OBJ = main_psy.o main_alg.o other_alg_mod_psy.o other_alg_mod_alg.o \
 
 EXEC = example_openacc
 
-LFRIC_PATH ?= $(PSYROOT)/external/lfric_infrastructure/preprocessed
+LFRIC_PATH ?= ${PSYCLONE_DIR}/external/lfric_infrastructure/preprocessed
 LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 # This sets up LFRIC_INCLUDE_FLAGS
