@@ -34,6 +34,7 @@
 # Authors: R. W. Ford, A. R. Porter, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
 # Modified: by J. Henrichs, Bureau of Meteorology
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Perform py.test tests on the psyclone.psyir.symbols.datatype module. '''
@@ -242,9 +243,9 @@ def test_scalartype_invalid_precision_type():
     '''
     with pytest.raises(TypeError) as excinfo:
         _ = ScalarType(ScalarType.Intrinsic.INTEGER, None)
-    assert ("ScalarType expected 'precision' argument to be of type int, "
-            "ScalarType.Precision or DataSymbol, but found 'NoneType'."
-            in str(excinfo.value))
+    assert ("ScalarType expected 'precision' argument to be of type "
+            "BinaryOperation, int, ScalarType.Precision or DataSymbol, "
+            "but found 'NoneType'." in str(excinfo.value))
 
 
 def test_scalartype_invalid_precision_int_value():

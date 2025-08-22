@@ -39,7 +39,6 @@
 '''This module provides management of variable access information.'''
 
 from psyclone.errors import InternalError
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
 # =============================================================================
@@ -149,6 +148,7 @@ class Signature:
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.debug_writer import DebugWriter
         from psyclone.psyir.nodes import Literal, Node, Reference
+        from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
         if language_writer is None:
             writer = DebugWriter()

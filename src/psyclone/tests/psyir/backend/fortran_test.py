@@ -43,8 +43,9 @@
 from collections import OrderedDict
 import pytest
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
-    FortranWriter, precedence
+from psyclone.psyir.backend.fortran import (
+        gen_intent,  FortranWriter, precedence
+)
 from psyclone.psyir.nodes import (
     ACCEnterDataDirective, Assignment, Node, CodeBlock, Container, Literal,
     UnaryOperation, BinaryOperation, Reference, Call, KernelSchedule,
@@ -141,7 +142,7 @@ def test_gen_indices_error(fortran_writer):
      (ScalarType.Intrinsic.INTEGER, "integer"),
      (ScalarType.Intrinsic.CHARACTER, "character"),
      (ScalarType.Intrinsic.BOOLEAN, "logical")])
-def test_gen_datatype_default_precision(type_name, result):
+def test_gen_datatype_default_precision(fortran_writer, type_name, result):
     '''Check for all supported datatype names that the gen_datatype
     function produces the expected Fortran types for scalar and arrays
     when no explicit precision is provided.
@@ -154,7 +155,8 @@ def test_gen_datatype_default_precision(type_name, result):
     array_type = ArrayType(scalar_type, [10, 10])
     for my_type in [scalar_type, array_type]:
         symbol = DataSymbol("dummy", my_type)
-        assert gen_datatype(symbol.datatype, symbol.name) == result
+        assert (fortran_writer.gen_datatype(symbol.datatype, symbol.name)
+                == result)
 
 
 @pytest.mark.parametrize(
@@ -170,7 +172,8 @@ def test_gen_datatype_default_precision(type_name, result):
       "character"),
      (ScalarType.Intrinsic.BOOLEAN, ScalarType.Precision.SINGLE, "logical"),
      (ScalarType.Intrinsic.BOOLEAN, ScalarType.Precision.DOUBLE, "logical")])
-def test_gen_datatype_relative_precision(type_name, precision, result):
+def test_gen_datatype_relative_precision(fortran_writer, type_name, precision,
+                                         result):
     '''Check for all supported datatype names that the gen_datatype
     function produces the expected Fortran types for scalar and arrays
     when relative precision is provided.
@@ -180,14 +183,16 @@ def test_gen_datatype_relative_precision(type_name, precision, result):
     array_type = ArrayType(scalar_type, [10, 10])
     for my_type in [scalar_type, array_type]:
         symbol = DataSymbol("dummy", my_type)
-        assert gen_datatype(symbol.datatype, symbol.name) == result
+        assert (fortran_writer.gen_datatype(symbol.datatype, symbol.name)
+                == result)
 
 
 @pytest.mark.parametrize("precision", [1, 2, 4, 8, 16, 32])
 @pytest.mark.parametrize("type_name,fort_name",
                          [(ScalarType.Intrinsic.INTEGER, "integer"),
                           (ScalarType.Intrinsic.BOOLEAN, "logical")])
-def test_gen_datatype_absolute_precision(type_name, precision, fort_name):
+def test_gen_datatype_absolute_precision(fortran_writer, type_name, precision,
+                                         fort_name):
     '''Check for the integer and logical datatype names that the
     gen_datatype function produces the expected Fortran types for
     scalar and arrays when explicit precision is provided.
@@ -202,19 +207,19 @@ def test_gen_datatype_absolute_precision(type_name, precision, fort_name):
         symbol = DataSymbol(symbol_name, my_type)
         if precision in [32]:
             with pytest.raises(VisitorError) as excinfo:
-                gen_datatype(symbol.datatype, symbol.name)
+                fortran_writer.gen_datatype(symbol.datatype, symbol.name)
             assert (f"Datatype '{fort_name}' in symbol '{symbol_name}' "
                     f"supports fixed precision of [1, 2, 4, 8, 16] but "
                     f"found '{precision}'."
                     in str(excinfo.value))
         else:
-            assert (gen_datatype(symbol.datatype, symbol.name) ==
-                    f"{fort_name}*{precision}")
+            assert (fortran_writer.gen_datatype(symbol.datatype, symbol.name)
+                    == f"{fort_name}*{precision}")
 
 
 @pytest.mark.parametrize(
     "precision", [1, 2, 4, 8, 16, 32])
-def test_gen_datatype_absolute_precision_real(precision):
+def test_gen_datatype_absolute_precision_real(fortran_writer, precision):
     '''Check for the real datatype name that the gen_datatype function
     produces the expected Fortran types for scalars and arrays when
     explicit precision is provided.
@@ -229,16 +234,16 @@ def test_gen_datatype_absolute_precision_real(precision):
         symbol = DataSymbol(symbol_name, my_type)
         if precision in [1, 2, 32]:
             with pytest.raises(VisitorError) as excinfo:
-                gen_datatype(symbol.datatype, symbol.name)
+                fortran_writer.gen_datatype(symbol.datatype, symbol.name)
             assert (f"Datatype 'real' in symbol '{symbol_name}' supports "
                     f"fixed precision of [4, 8, 16] but found '{precision}'."
                     in str(excinfo.value))
         else:
-            assert (gen_datatype(symbol.datatype, symbol.name) ==
-                    f"real*{precision}")
+            assert (fortran_writer.gen_datatype(symbol.datatype, symbol.name)
+                    == f"real*{precision}")
 
 
-def test_gen_datatype_absolute_precision_character():
+def test_gen_datatype_absolute_precision_character(fortran_writer):
     '''Check for the character datatype name that the
     gen_datatype function produces the expected Fortran types for
     scalars and arrays when explicit precision is provided.
@@ -250,7 +255,7 @@ def test_gen_datatype_absolute_precision_character():
     for my_type in [scalar_type, array_type]:
         symbol = DataSymbol(symbol_name, my_type)
         with pytest.raises(VisitorError) as excinfo:
-            gen_datatype(symbol.datatype, symbol.name)
+            fortran_writer.gen_datatype(symbol.datatype, symbol.name)
         assert (f"Explicit precision not supported for datatype 'character' "
                 f"in symbol '{symbol_name}' in Fortran backend."
                 in str(excinfo.value))
@@ -262,7 +267,7 @@ def test_gen_datatype_absolute_precision_character():
      (ScalarType.Intrinsic.INTEGER, "integer"),
      (ScalarType.Intrinsic.CHARACTER, "character"),
      (ScalarType.Intrinsic.BOOLEAN, "logical")])
-def test_gen_datatype_kind_precision(type_name, result):
+def test_gen_datatype_kind_precision(fortran_writer, type_name, result):
     '''Check for all supported datatype names that the gen_datatype
     function produces the expected Fortran types for scalars and
     arrays when precision is provided via another symbol.
@@ -276,26 +281,43 @@ def test_gen_datatype_kind_precision(type_name, result):
     for my_type in [scalar_type, array_type]:
         if type_name == ScalarType.Intrinsic.CHARACTER:
             with pytest.raises(VisitorError) as excinfo:
-                gen_datatype(my_type, symbol_name)
+                fortran_writer.gen_datatype(my_type, symbol_name)
             assert (f"kind not supported for datatype 'character' in symbol "
                     f"'{symbol_name}' in Fortran backend."
                     in str(excinfo.value))
         else:
-            assert (gen_datatype(my_type, symbol_name) ==
+            assert (fortran_writer.gen_datatype(my_type, symbol_name) ==
                     f"{result}(kind={precision_name})")
 
 
-def test_gen_datatype_derived_type():
+def test_gendatatype_kind_binop(fortran_writer):
+    '''Check that if we have a kind parameter such as 2*wp that
+    the gen_datatype function productes the expected result.
+    '''
+    precision_name = "wp"
+    sym_name = "dummy"
+    precision = BinaryOperation.create(
+            BinaryOperation.Operator.MUL, Literal("2", INTEGER_TYPE),
+            Reference(DataSymbol(precision_name, INTEGER_TYPE)))
+    scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, precision)
+    array_type = ArrayType(scalar_type, [10, 10])
+
+    for my_type in [scalar_type, array_type]:
+        assert (fortran_writer.gen_datatype(my_type, sym_name) ==
+                "integer(kind= 2 * wp)")
+
+
+def test_gen_datatype_derived_type(fortran_writer):
     ''' Check that gen_datatype handles derived types. '''
     # A symbol representing a single derived type
     tsym = DataTypeSymbol("my_type", UnresolvedType())
-    assert gen_datatype(tsym, "my_type") == "type(my_type)"
+    assert fortran_writer.gen_datatype(tsym, "my_type") == "type(my_type)"
     # An array of derived types
     atype = ArrayType(tsym, [10])
-    assert gen_datatype(atype, "my_list") == "type(my_type)"
+    assert fortran_writer.gen_datatype(atype, "my_list") == "type(my_type)"
 
 
-def test_gen_datatype_exception_1():
+def test_gen_datatype_exception_1(fortran_writer):
     '''Check that an exception is raised if gen_datatype is called with a
     symbol containing an unsupported datatype.
 
@@ -304,12 +326,12 @@ def test_gen_datatype_exception_1():
     symbol = DataSymbol("fred", data_type)
     symbol.datatype._intrinsic = None
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = gen_datatype(symbol.datatype, symbol.name)
+        _ = fortran_writer.gen_datatype(symbol.datatype, symbol.name)
     assert ("Unsupported datatype 'None' for symbol 'fred' found in "
             "gen_datatype()." in str(excinfo.value))
 
 
-def test_gen_datatype_exception_2():
+def test_gen_datatype_exception_2(fortran_writer):
     '''Check that an exception is raised if gen_datatype is called with a
     symbol containing an unsupported precision.
 
@@ -318,7 +340,7 @@ def test_gen_datatype_exception_2():
     symbol = DataSymbol("fred", data_type)
     symbol.datatype._precision = None
     with pytest.raises(VisitorError) as excinfo:
-        _ = gen_datatype(symbol.datatype, symbol.name)
+        _ = fortran_writer.gen_datatype(symbol.datatype, symbol.name)
     assert ("Unsupported precision type 'NoneType' found for symbol 'fred' "
             "in Fortran backend." in str(excinfo.value))
 
