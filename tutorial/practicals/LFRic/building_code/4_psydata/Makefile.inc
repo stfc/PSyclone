@@ -62,7 +62,7 @@ F90FLAGS += -I $(PSYDATA_PATH)
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../..
-LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/lfric/infrastructure
+LFRIC_PATH ?= $(PSYCLONE_RELPATH)/external/lfric_infrastructure/preprocessed
 LFRIC_NAME = lfric_netcdf
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
@@ -123,7 +123,7 @@ clean:
 
 allclean: clean
 	$(MAKE) -C $(GHLIB_PATH)   clean
-	$(MAKE) -C $(LFRIC_PATH)   clean
+	$(MAKE) -C $(LFRIC_PATH)   allclean
 
 # If PSYDATA_PATH is not defined (i.e. this is invoked from
 # Makefile, not solution/Makefile.*), we don't know which
