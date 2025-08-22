@@ -75,9 +75,5 @@ intergrid_3levels.o: intergrid_3levels_psy.o
 
 kernels: prolong_kernel_mod.o restrict_kernel_mod.o
 
-#%.o: %.[fF]90
-#	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
-%.o: %.f90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
-%.o: %.F90
+%.o: %.[fF]90
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
