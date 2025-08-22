@@ -54,7 +54,7 @@ env:
 
 jobs:
   run_if_on_mirror:
-    if: ${{ github.repository == 'sergisiso/PSyclone' }}
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
 
     outputs:
@@ -114,7 +114,7 @@ jobs:
         make -j ${NUM_PARALLEL} compile-passthrough
         make run-passthrough
         # Check for full numerical reproducibility with KGO results
-        diff <(make -s output-passthrough)  KGOs/run.stat.nemo4.splitz12.nvhpc.10steps
+        diff <(make -s output-passthrough)  KGOs/run.stat.nemo4.spitz12.nvhpc.10steps
 
     # PSyclone, compile and run MetOffice NEMO with OpenMP for GPUs
     - name: NEMO MetOffice OpenMP for GPU
@@ -134,7 +134,7 @@ jobs:
         export NV_ACC_POOL_THRESHOLD=75
         make run-openmp_gpu
         # Check for full numerical reproducibility with KGO results
-        diff <(make -s output-openmp_gpu)  KGOs/run.stat.nemo4.splitz12.nvhpc.10steps
+        diff <(make -s output-openmp_gpu)  KGOs/run.stat.nemo4.spitz12.nvhpc.10steps
         export VAR_TIME=$(grep -A 1 "Elapsed Time" <(make -s time-openmp_gpu) | head -n 2 | tail -n 1 | awk '{print $1}')
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
@@ -219,7 +219,7 @@ jobs:
         ln -sf /archive/psyclone-tests/nemo-inputs/ECMWF-eORCA1_GO8/* .
         export OMP_NUM_THREADS=12
         ./nemo
-        diff run.stat $PSYCLONE_NEMO_DIR/KGOs/run.stat.nemo4.splitz12.oneapi.10steps
+        diff run.stat $PSYCLONE_NEMO_DIR/KGOs/run.stat.nemo4.spitz12.oneapi.10steps
         export VAR_TIME=$(grep -A 1 "Elapsed Time" timing.output | head -n 2 | tail -n 1 | awk '{print $1}')
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
@@ -242,12 +242,12 @@ jobs:
         export NV_ACC_POOL_THRESHOLD=75
         make run-openmp_gpu
         # Check for full numerical reproducibility with KGO results
-        diff <(make -s output-openmp_gpu)  KGOs/run.stat.nemo4.splitz12.nvhpc.10steps
+        diff <(make -s output-openmp_gpu)  KGOs/run.stat.nemo4.spitz12.nvhpc.10steps
         export VAR_TIME=$(grep -A 1 "Elapsed Time" <(make -s time-openmp_gpu) | head -n 2 | tail -n 1 | awk '{print $1}')
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
   upload_if_on_mirror:
-    if: ${{ github.repository == 'sergisiso/PSyclone' }}
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: ubuntu-latest
     needs: run_if_on_mirror
     steps:

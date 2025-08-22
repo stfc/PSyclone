@@ -51,7 +51,7 @@ env:
 
 jobs:
   run_if_on_mirror:
-    if: ${{ github.repository == 'sergisiso/PSyclone' }}
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
 
     outputs:
@@ -257,7 +257,7 @@ jobs:
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
   upload_if_on_mirror:
-    if: ${{ github.repository == 'sergisiso/PSyclone' }}
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: ubuntu-latest
     needs: run_if_on_mirror
     steps:
