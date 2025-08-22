@@ -1989,7 +1989,7 @@ def test_real_to_int_x(fortran_writer):
         "f2_data(df) = INT(f1_data(df), kind=i_def)\n") in code
 
 
-@pytest.mark.parametrize("kind_name", ["i_native", "i_ncdf"])
+@pytest.mark.parametrize("kind_name", ["i_um", "i_ncdf"])
 def test_real_to_int_x_precision(monkeypatch, tmpdir, kind_name):
     '''
     Test that the built-in picks up and creates correct code for field
