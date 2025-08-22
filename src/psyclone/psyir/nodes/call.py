@@ -50,7 +50,6 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
     GenericInterfaceSymbol,
-    DefaultModuleInterface,
     RoutineSymbol,
     Symbol,
     SymbolError,
@@ -464,14 +463,15 @@ class Call(Statement, DataNode):
 
         return new_copy
 
-    def get_callees(self):
+    def get_callees(self) -> List[Routine]:
         '''
         Searches for the implementation(s) of all potential target routines
         for this Call without resolving static polymorphism by checking the
-        argument types.
+        argument types. Updates the properties of the RoutineSymbol that is
+        the target of this Call with those associated with the RoutineSymbols
+        of the target routines.
 
         :returns: the Routine(s) that this call targets.
-        :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
 
         :raises NotImplementedError: if the routine is not found or a
             limitation prevents definite determination of the target routine.
@@ -498,7 +498,11 @@ class Call(Statement, DataNode):
                         if psyir:
                             routines.append(psyir)
                     if routines:
-                        rsym.interface = DefaultModuleInterface()
+                        # Update the properties of the target RoutineSymbol
+                        # but don't change its interface as we haven't moved
+                        # anything.
+                        rsym.copy_properties([rt.symbol for rt in routines],
+                                             exclude_interface=True)
                         return routines
                 if not have_codeblock:
                     have_codeblock = any(isinstance(child, CodeBlock) for
@@ -612,7 +616,11 @@ class Call(Statement, DataNode):
                 if psyir:
                     routines.append(psyir)
             if all_names and len(routines) == len(all_names):
-                # We've resolved everything.
+                # We've resolved everything. Update the properties of the
+                # target RoutineSymbol but don't change its interface as we
+                # haven't moved anything.
+                self.routine.symbol.copy_properties(
+                    [rt.symbol for rt in routines], exclude_interface=True)
                 return routines
             cursor = cursor.parent
 

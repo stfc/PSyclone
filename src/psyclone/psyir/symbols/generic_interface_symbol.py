@@ -37,6 +37,7 @@
 ''' This module contains the GenericInterfaceSymbol.'''
 
 from dataclasses import dataclass
+from typing import Union
 
 from psyclone.psyir.symbols.symbol import Symbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
@@ -188,14 +189,27 @@ class GenericInterfaceSymbol(RoutineSymbol):
                           visibility=self.visibility,
                           interface=self.interface.copy())
 
-    def copy_properties(self, symbol_in: RoutineSymbol):
+    def copy_properties(self,
+                        symbol_in: Union[RoutineSymbol, list[RoutineSymbol]],
+                        exclude_interface: bool = False):
         '''
         Copies the properties of the supplied Symbol into this one.
 
-        :param symbol_in: the Symbol to copy properties from.
+        :param symbol_in: the Symbol(s) to copy properties from.
+        :param exclude_interface: whether or not to copy the interface
+            property of the provided Symbol (default is to include it).
 
         '''
-        super().copy_properties(symbol_in)
+        if not isinstance(symbol_in, list):
+            sym_list = [symbol_in]
+        else:
+            sym_list = symbol_in
+        super().copy_properties(sym_list,
+                                exclude_interface=exclude_interface)
+        if not isinstance(sym_list[0], type(self)):
+            # We aren't copying properties from another GenericInterfaceSymbol
+            # so we don't update the list of routines.
+            return
         # We must add information on the routines which this interface
         # can bind to.
         new_values = []

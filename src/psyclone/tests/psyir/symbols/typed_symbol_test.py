@@ -42,12 +42,12 @@ import pytest
 
 from psyclone.core import Signature
 from psyclone.psyir.symbols import (
-    TypedSymbol, ContainerSymbol, DataSymbol,
-    ImportInterface, UnresolvedInterface, ScalarType, ArrayType,
+    AutomaticInterface, ArrayType, TypedSymbol, ContainerSymbol, DataSymbol,
+    ImportInterface, UnresolvedInterface, ScalarType,
     REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, REAL8_TYPE,
     INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE,
-    BOOLEAN_TYPE, CHARACTER_TYPE, Symbol, SymbolTable,
-    DataTypeSymbol, UnresolvedType, UnsupportedFortranType)
+    BOOLEAN_TYPE, CHARACTER_TYPE, DataTypeSymbol, NoType, RoutineSymbol,
+    Symbol, SymbolTable, UnresolvedType, UnsupportedFortranType)
 from psyclone.psyir.nodes import Literal, Reference
 
 
@@ -202,11 +202,16 @@ def test_typed_symbol_copy_properties():
     ''' Check that the copy_properties() method works as expected. '''
     array_type = ArrayType(REAL_SINGLE_TYPE, [1, 2])
     symbol = TSymbol("myname", array_type)
-    new_sym = TSymbol("new_name", INTEGER_SINGLE_TYPE)
-    new_sym.copy_properties(symbol)
-    # Name should be unchanged
+    new_sym = TSymbol("new_name", INTEGER_SINGLE_TYPE,
+                      interface=UnresolvedInterface())
+    new_sym.copy_properties(symbol, exclude_interface=True)
+    # Name should be unchanged, as should interface.
     assert new_sym.name == "new_name"
+    assert isinstance(new_sym.interface, UnresolvedInterface)
     assert new_sym.datatype == array_type
+    # Repeat but permit interface to be updated.
+    new_sym.copy_properties(symbol)
+    assert isinstance(new_sym.interface, AutomaticInterface)
     with pytest.raises(TypeError) as err:
         new_sym.copy_properties(INTEGER_SINGLE_TYPE)
     assert ("Argument should be of type 'TypedSymbol' but found 'ScalarType'"
@@ -233,6 +238,18 @@ def test_typed_symbol_resolve_type(monkeypatch):
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
     assert new_sym.visibility == Symbol.Visibility.PRIVATE
     assert isinstance(new_sym.interface, ImportInterface)
+    # Repeat for an imported RoutineSymbol with NoType (implying that it is
+    # the target of a call).
+    symbolc = RoutineSymbol('c', datatype=NoType(),
+                            interface=ImportInterface(module))
+    # Monkeypatch the get_external_symbol() method so that it just returns
+    # a new RoutineSymbol that is pure.
+    monkeypatch.setattr(symbolc, "get_external_symbol",
+                        lambda: RoutineSymbol("b", datatype=NoType(),
+                                              is_pure=True))
+    new_sym = symbolc.resolve_type()
+    assert new_sym is symbolc
+    assert symbolc.is_pure
 
 
 def test_typed_symbol_shape():
