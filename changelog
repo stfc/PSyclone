@@ -1,3 +1,7 @@
+   82) PR #3107 towards #3074. Update dl_esm_inf submodule.
+
+   81) PR #3103 for #3091. Fix AsyncTransMixin with loops with if-else blocks.
+
    80) PR #3100 for #3097. Disable inheriting the options keyword in
    transformation docstrings when not appropriate.
 

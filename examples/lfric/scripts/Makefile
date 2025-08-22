@@ -40,6 +40,9 @@ include ../../common.mk
 # the compare_output.py script
 SCRIPTS = $(filter-out compare_ouput.py, $(wildcard *.py))
 
+# The kernel-extraction script generates driver source files.
+GENERATED_FILES += driver-*.F90
+
 transform: ${SCRIPTS}
 
 .PHONY: ${SCRIPTS}
