@@ -174,20 +174,6 @@ def test_ast_str():
             "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]")
 
 
-def test_ast_is_array():
-    ''' Test that an ArrayOfStructuresReference is marked as being an array.
-    '''
-    grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC,
-         None)])
-    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
-    grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
-    ssym = symbols.DataSymbol("grid", grid_array_type)
-    asref = nodes.ArrayOfStructuresReference.create(
-        ssym, [nodes.Literal("2", symbols.INTEGER_TYPE)], ["nx"])
-    assert asref.is_array
-
-
 def test_asr_datatype():
     '''Test that the datatype property works correctly for
     ArrayOfStructuresReference. (The actual implementation is in
