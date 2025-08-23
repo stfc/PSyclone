@@ -488,9 +488,6 @@ def insert_explicit_loop_parallelism(
                             if sym is not None:
                                 loop.explicitly_private_symbols.add(sym)
 
-        if routine_name == "tra_zdf_imp":
-            opts['allow_strings'] = True
-
         try:
             # First check that the region_directive is feasible for this region
             if region_directive_trans:

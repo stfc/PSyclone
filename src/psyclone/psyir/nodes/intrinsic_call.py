@@ -937,6 +937,10 @@ class IntrinsicCall(Call):
         ):
             if "dim" in self.argument_names:
                 return INTEGER_TYPE
+        # TODO #2303. Ideally we want the return type details of all
+        # intrinsics (encoded in the Intrinisc map?) and how each argument
+        # affects them. E.g. L/UBOUND without "dim" returns an array and
+        # with 'kind' changes the precision of the INTEGER
         return super().datatype
 
     # TODO #2102: Maybe the three properties below can be removed if intrinsic

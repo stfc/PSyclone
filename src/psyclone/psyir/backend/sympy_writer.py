@@ -427,6 +427,9 @@ class SymPyWriter(FortranWriter):
 
             is_fn_call = (
                 isinstance(orig_sym, RoutineSymbol) or
+                # Calls to generic symbols give an UNKNOWN type as they can
+                # actually be miscategorised array READS, but here we will
+                # consider all them as functions.
                 any(x.access_type in [AccessType.CALL, AccessType.UNKNOWN]
                     for x in sva))
 

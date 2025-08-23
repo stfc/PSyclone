@@ -363,15 +363,17 @@ def _refine_symbols_with_usage_location(
     location: Node,
     execution_part: Fortran2003.Execution_Part
 ):
-    ''' Refine the symbol infomration that we obtained from parsing
-    the declarations sections by knowledge infered by looking at the
+    ''' Refine the symbol information that we obtained from parsing
+    the declarations sections by knowledge inferred by looking at the
     usage location of the symbols in the execution_part
 
     :param symtab: SymbolTable to enhance information for.
     :param execution_part: fparser nodes to analyse for symbol usage.
 
     '''
-    # The top-reference of the assingment lhs is guaranteed to be a DataSymbol
+    # The top-reference of the assignment lhs is guaranteed to be a DataSymbol
+    # This is not true for statement functions, but fparser and psyclone
+    # currently don't support them.
     for assignment in walk(execution_part, Fortran2003.Assignment_Stmt):
         if isinstance(assignment.items[0], Fortran2003.Part_Ref):
             name = assignment.items[0].items[0].string.lower()
@@ -5075,13 +5077,13 @@ class Fparser2Reader():
         Transforms an fparser2 Part_Ref to the PSyIR representation.
 
         fparser2 cannot always disambiguate between Array Accessors, Calls and
-        DerivedType constuctors, and it fallbacks to Part_Ref when unknown.
+        DerivedType constructors, and it falls back to Part_Ref when unknown.
         PSyclone has a better chance of properly categorising them because we
         can follow 'use' statements to retrieve symbol information. If
-        psyclone does not find the definition it fallbacks to a Call. The
-        reason for this is that it is the more safest option. Constructors and
-        accessors can be cosidered calls (of unknown purity and elemental attr)
-        but the opposite is not true.
+        psyclone does not find the definition it falls back to a Call. The
+        reason for this is that it is the safest option. Constructors and
+        accessors can be considered calls (of unknown purity and elemental
+        attributes) but the opposite is not true.
 
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
