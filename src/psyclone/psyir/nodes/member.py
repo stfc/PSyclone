@@ -118,14 +118,6 @@ class Member(Node):
     def __str__(self):
         return self.node_str(False)
 
-    @property
-    def is_array(self):
-        ''':returns: whether this member is an array.
-        :rtype: bool
-
-        '''
-        return False
-
     def get_signature_and_indices(self):
         '''
         :returns: the Signature of this member access, and a list of list of

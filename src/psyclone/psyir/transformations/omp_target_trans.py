@@ -147,11 +147,17 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         :type options: Optional[Dict[str, Any]]
         :param str options["device_string"]: provide a compiler-platform
             identifier.
+        :param str options["allow_strings"]: permit OMP target regions
+            enclosing string operations.
+        :param str options["verbose"]: insert preceding comments with the
+            reason that made this validation fail.
 
         :raises TransformationError: if it contains calls to routines that
             are not available in the accelerator device.
         :raises TransformationError: if its a function and the target region
             attempts to enclose the assingment setting the return value.
+        :raises TransformationError: if the target region attempts to enclose
+            string operations and the 'allow_strings' option is not set.
         '''
         device_string = options.get("device_string", "") if options else ""
         strings = options.get("allow_strings", False) if options else False
@@ -199,10 +205,6 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
                                 node.preceding_comment = message
                             raise TransformationError(message)
                     # TODO #3054: Deal with UnresolvedType
-                    # if isinstance(dtype, UnresolvedType):
-                    #     raise TransformationError(
-                    #             f"Type of {datanode.debug_string()} is "
-                    #             f"unresolved")
 
     def apply(self, node, options=None):
         ''' Insert an OMPTargetDirective before the provided node or list

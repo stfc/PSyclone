@@ -1,3 +1,21 @@
+   83) PR #3104. Move integration tests to new runner.
+
+   82) PR #3107 towards #3074. Update dl_esm_inf submodule.
+
+   81) PR #3103 for #3091. Fix AsyncTransMixin with loops with if-else blocks.
+
+   80) PR #3100 for #3097. Disable inheriting the options keyword in
+   transformation docstrings when not appropriate.
+
+   79) PR #3099 for #3089. Remove is_array from Nodes and rename it to
+   has_indices() in Signature.
+
+   78) PR #3106 for #3105. Add print handlers for Sympy boolean literals.
+
+   77) PR #3089 for #2781. Refine halo-depth logic for LFRic "halo" kernels.
+
+   76) PR #2910 for #2896. Adds IncreaseRankLoopArraysTrans.
+
    75) PR #3093 for #3092. Fixes Fortran backend declarations of (1:) arrays.
 
    74) PR #3078 for #3068. Refactors single-variable access info (to

@@ -314,13 +314,13 @@ class SymPyWriter(FortranWriter):
         :param sva: information on the ways in which the Symbol is accessed.
 
         '''
-        if all(acs.is_array() for acs in sva):
+        if all(acs.has_indices() for acs in sva):
             return
         if not sym or isinstance(sym, (DataSymbol, RoutineSymbol)):
             return
         # Find an access that has indices.
         for acs in sva:
-            if not acs.is_array():
+            if not acs.has_indices():
                 continue
             ndims = None
             for indices in acs.component_indices:
@@ -430,7 +430,7 @@ class SymPyWriter(FortranWriter):
                 any(x.access_type in [AccessType.CALL, AccessType.UNKNOWN]
                     for x in sva))
 
-            if (sva.is_array() or
+            if (sva.has_indices() or
                     (orig_sym and (orig_sym.is_array or is_fn_call))):
                 # A Fortran array or function call. Declare a new SymPy
                 # function for it. This SymPy function will convert array
@@ -808,7 +808,7 @@ class SymPyWriter(FortranWriter):
             # been re-named, and we can use it as is.
             name = node.name
 
-        if not node.is_array:
+        if not node.symbol.is_array:
             # This reference is not an array, just return the name
             return name
 

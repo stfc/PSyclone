@@ -95,20 +95,6 @@ def test_array_create():
     assert result == "temp(i,j,1)"
 
 
-def test_array_is_array():
-    '''Test that an ArrayReference is marked as being an array.
-
-    '''
-    array_type = ArrayType(REAL_SINGLE_TYPE, [10, 10, 10])
-    symbol_temp = DataSymbol("temp", array_type)
-    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
-    symbol_j = DataSymbol("j", INTEGER_SINGLE_TYPE)
-    children = [Reference(symbol_i), Reference(symbol_j),
-                Literal("1", INTEGER_SINGLE_TYPE)]
-    array = ArrayReference.create(symbol_temp, children)
-    assert array.is_array is True
-
-
 def test_array_create_invalid1():
     '''Test that the create method in the ArrayReference class raises an
     exception if the provided symbol is not an array.
@@ -544,9 +530,8 @@ def test_array_datatype():
     bref = ArrayReference.create(not_quite_unsupported_sym, [two.copy()])
     assert bref.datatype == REAL_SINGLE_TYPE
     # The partial datatype could be a DataTypeSymbol
-    # FIXME
-    # not_quite_unsupported_sym.datatype.partial_datatype._intrinsic = stype
-    # assert bref.datatype == stype
+    not_quite_unsupported_sym.datatype.partial_datatype._intrinsic = stype
+    assert bref.datatype == stype
     # A sub-array of UnsupportedFortranType.
     aref3 = ArrayReference.create(
                 unsupported_sym, [Range.create(two.copy(), four.copy())])

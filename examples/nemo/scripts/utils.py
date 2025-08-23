@@ -47,8 +47,9 @@ from psyclone.psyir.symbols import (
     ArrayType, REAL_TYPE)
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
-    HoistTrans, InlineTrans, Maxval2LoopTrans, OMPMinimiseSyncTrans,
-    ProfileTrans, Reference2ArrayRangeTrans, ScalarisationTrans)
+    HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
+    OMPMinimiseSyncTrans, Reference2ArrayRangeTrans,
+    ScalarisationTrans, IncreaseRankLoopArraysTrans)
 from psyclone.transformations import TransformationError
 
 # USE statements to chase to gather additional symbol information.
@@ -226,8 +227,9 @@ def normalise_loops(
         convert_array_notation: bool = True,
         loopify_array_intrinsics: bool = True,
         convert_range_loops: bool = True,
-        hoist_expressions: bool = True,
         scalarise_loops: bool = False,
+        increase_array_ranks: bool = False,
+        hoist_expressions: bool = True,
         ):
     ''' Normalise all loops in the given schedule so that they are in an
     appropriate form for the Parallelisation transformations to analyse
@@ -242,10 +244,12 @@ def normalise_loops(
         operate on arrays to explicit loops (currently only maxval).
     :param bool convert_range_loops: whether to convert ranges to explicit
         loops.
-    :param bool hoist_expressions: whether to hoist bounds and loop invariant
-        statements out of the loop nest.
     :param scalarise_loops: whether to attempt to convert arrays to scalars
         where possible, default is False.
+    :param increase_array_ranks: whether to increase the rank of selected
+        arrays.
+    :param hoist_expressions: whether to hoist bounds and loop invariant
+        statements out of the loop nest.
     '''
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
@@ -302,6 +306,9 @@ def normalise_loops(
         for loop in loops:
             scalartrans.apply(loop)
 
+    if increase_array_ranks:
+        increase_rank_and_reorder_nemov5_loops(schedule)
+
     if hoist_expressions:
         # First hoist all possible expressions
         for loop in schedule.walk(Loop):
@@ -322,6 +329,62 @@ def normalise_loops(
     # TODO #1928: In order to perform better on the GPU, nested loops with two
     # sibling inner loops need to be fused or apply loop fission to the
     # top level. This would allow the collapse clause to be applied.
+
+
+def increase_rank_and_reorder_nemov5_loops(routine: Routine):
+    ''' This method increases the rank of temporary arrays used inside selected
+    loops (in order to parallelise the outer loop without overlapping them)
+    and then rearranges the outer loop next to the inner ones (in order to
+    collapse them), so that more parallelism can be leverage. This is useful
+    in GPU contexts, but it increases the memory footprint and may not be
+    beneficial for caching-architectures.
+
+    :param routine: the target routine.
+
+    '''
+    irlatrans = IncreaseRankLoopArraysTrans()
+
+    # Map of routines and arrays
+    selection = {
+        "dyn_zdf": ['zwd', 'zwi', 'zws'],
+        "tra_zdf_imp": ['zwd', 'zwi', 'zws', 'zwt']
+    }
+
+    if routine.name not in selection:
+        return
+
+    for outer_loop in routine.walk(Loop, stop_type=Loop):
+        if outer_loop.variable.name == "jj":
+            # Increase the rank of the temporary arrays in this loop
+            irlatrans.apply(outer_loop, arrays=selection[routine.name])
+            # Now reorder the code
+            for child in outer_loop.loop_body[:]:
+                # Move the contents of the jj loop outside it
+                outer_loop.parent.addchild(child.detach(),
+                                           index=outer_loop.position)
+                # Add a new jj loop around each inner loop that is not 'jn'
+                target_loop = []
+                for inner_loop in child.walk(Loop, stop_type=Loop):
+                    if inner_loop.variable.name != "jn":
+                        target_loop.append(inner_loop)
+                    else:
+                        for next_loop in inner_loop.loop_body.walk(
+                                            Loop, stop_type=Loop):
+                            target_loop.append(next_loop)
+                for inner_loop in target_loop:
+                    if isinstance(inner_loop.loop_body[0], Loop):
+                        inner_loop = inner_loop.loop_body[0]
+                    inner_loop.replace_with(
+                        Loop.create(
+                            outer_loop.variable,
+                            outer_loop.start_expr.copy(),
+                            outer_loop.stop_expr.copy(),
+                            outer_loop.step_expr.copy(),
+                            children=[inner_loop.copy()]
+                        )
+                    )
+            # Remove the now empty jj loop
+            outer_loop.detach()
 
 
 def insert_explicit_loop_parallelism(
@@ -449,12 +512,7 @@ def insert_explicit_loop_parallelism(
     # the number of barriers.
     if asynchronous_parallelism:
         minsync_trans = OMPMinimiseSyncTrans()
-        # TODO #3091 - the transformation currently raises false errors in
-        # certain situations.
-        try:
-            minsync_trans.apply(schedule)
-        except TransformationError as err:
-            print(err)
+        minsync_trans.apply(schedule)
 
 
 def add_profiling(children: Union[List[Node], Schedule]):
