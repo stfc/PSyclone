@@ -269,8 +269,7 @@ def normalise_loops(
                     continue
             if isinstance(reference.symbol, DataSymbol):
                 try:
-                    Reference2ArrayRangeTrans().apply(
-                        reference, options={'verbose': True})
+                    Reference2ArrayRangeTrans().apply(reference)
                 except TransformationError:
                     pass
         # The transformation above brings new symbols from dimension
