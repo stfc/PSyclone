@@ -39,7 +39,7 @@
 !>
 module planet_config_mod
 
-  use constants_mod, only: i_native, &
+  use constants_mod, only: i_medium, &
                            r_def
   use log_mod,       only: log_event, log_scratch_space &
                          , LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO
@@ -79,8 +79,8 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
+    integer(i_medium), intent(in) :: file_unit
+    integer(i_medium), intent(in) :: local_rank
 
     call read_namelist( file_unit, local_rank )
 
@@ -94,8 +94,8 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
+    integer(i_medium), intent(in) :: file_unit
+    integer(i_medium), intent(in) :: local_rank
 
     real(r_def) :: buffer_real_r_def(7)
 
@@ -107,7 +107,7 @@ contains
                       rd, &
                       scaling_factor
 
-    integer(i_native) :: condition
+    integer(i_medium) :: condition
     real(r_def) :: gas_constant_h2o = 1.0_r_def
 
     cp = rmdi

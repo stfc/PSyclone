@@ -57,7 +57,7 @@ EXEC = ./time_evolution
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../../..
-LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/lfric/infrastructure
+LFRIC_PATH = $(PSYCLONE_RELPATH)/external/lfric_infrastructure/preprocessed
 LFRIC_NAME = lfric_netcdf
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
@@ -85,7 +85,9 @@ EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
 # Test PSyclone target for continuous integration
 transform: $(PSY_SRC) $(ALGORITHM_SRC)
 
-compile: transform $(EXEC)
+# TODO #3114
+compile: transform
+	echo "Compilation for building_code/1_simple_kernels/part1 not working yet."
 
 run: compile
 	$(EXEC)
@@ -99,7 +101,7 @@ $(GHLIB_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(GHLIB_PATH)
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) netcdf 
+	$(MAKE) -C $(LFRIC_PATH) -f ../Makefile
 
 # Dependencies
 $(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
@@ -133,4 +135,4 @@ clean:
 
 allclean: clean
 	make -C $(GHLIB_PATH) clean
-	make -C $(LFRIC_PATH) clean
+	make -C $(LFRIC_PATH) -f ../Makefile clean

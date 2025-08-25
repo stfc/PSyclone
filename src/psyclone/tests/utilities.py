@@ -39,6 +39,7 @@
 from contextlib import contextmanager
 import difflib
 import os
+from pathlib import Path
 from pprint import pprint
 import subprocess
 import sys
@@ -358,6 +359,7 @@ class Compile():
         :rtype: bool
 
         '''
+        # pylint: disable=too-many-branches
         modules = set()
         # Get the names of all the imported modules as these are dependencies
         # that will need to be compiled first
@@ -545,19 +547,16 @@ def get_infrastructure_path(api: str) -> str:
     :raises RuntimeError: if an invalid api is supplied.
 
     '''
-    this_loc = os.path.dirname(os.path.abspath(__file__))
+    this_loc = Path(__file__).resolve()
+    root_dir = this_loc.parents[3]
     if api == "lfric":
-        return os.path.join(this_loc,
-                            "test_files", "lfric", "infrastructure")
-    elif api == "gocean":
-        root_dir = this_loc
-        for depth in range(3):
-            root_dir = os.path.dirname(root_dir)
-        return os.path.join(root_dir, "external", "dl_esm_inf",
-                            "finite_difference", "src")
-    else:
-        raise RuntimeError(f"The API '{api}' is not supported. "
-                           f"Supported values are 'lfric' and 'gocean'.")
+        return str(root_dir / "external" / "lfric_infrastructure" /
+                   "preprocessed")
+    if api == "gocean":
+        return str(root_dir / "external" / "dl_esm_inf" /
+                   "finite_difference" / "src")
+    raise RuntimeError(f"The API '{api}' is not supported. "
+                       f"Supported values are 'lfric' and 'gocean'.")
 
 
 # =============================================================================

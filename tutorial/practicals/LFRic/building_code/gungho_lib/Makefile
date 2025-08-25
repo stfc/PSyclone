@@ -39,7 +39,7 @@ F90FLAGS ?= -Wall -g -fcheck=bound
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../..
-LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/lfric/infrastructure
+LFRIC_PATH = $(PSYCLONE_RELPATH)/external/lfric_infrastructure/preprocessed
 LFRIC_NAME = lfric_netcdf
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
@@ -61,9 +61,12 @@ PSY_OBJ = $(filter %.o,$(PSY_SRC:.f90=.o))
 GHLIB_OBJ = $(filter %.o,$(GHLIB_SRC:.F90=.o) $(GHLIB_SRC:.f90=.o)) \
 	 $(ALGORITHM_OBJ) $(PSY_OBJ)
 
+# TODO #3114
+default:
+	echo "Compilation for building_code/1_simple_kernels/part1 not working yet."
+
 default: $(LFRIC_LIB) $(GHLIB_OBJ)
 	$(AR) $(ARFLAGS) libgungho.a $(GHLIB_OBJ)
-default: $(LIB)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH) netcdf

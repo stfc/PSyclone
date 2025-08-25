@@ -40,7 +40,6 @@
 module partitioning_config_mod
 
   use constants_mod, only: i_def, &
-                           i_native, &
                            str_def
   use log_mod,       only: log_event, log_scratch_space &
                          , LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO
@@ -52,12 +51,12 @@ module partitioning_config_mod
             read_partitioning_namelist, postprocess_partitioning_namelist, &
             partitioning_is_loadable, partitioning_is_loaded, partitioning_final
 
-  integer(i_native), public, parameter :: panel_decomposition_auto = 621
-  integer(i_native), public, parameter :: panel_decomposition_column = 361
-  integer(i_native), public, parameter :: panel_decomposition_custom = 529
-  integer(i_native), public, parameter :: panel_decomposition_row = 678
+  integer(i_def), public, parameter :: panel_decomposition_auto = 621
+  integer(i_def), public, parameter :: panel_decomposition_column = 361
+  integer(i_def), public, parameter :: panel_decomposition_custom = 529
+  integer(i_def), public, parameter :: panel_decomposition_row = 678
 
-  integer(i_native), public, protected :: panel_decomposition
+  integer(i_def), public, protected :: panel_decomposition
   integer(i_def), public, protected :: panel_xproc
   integer(i_def), public, protected :: panel_yproc
 
@@ -69,11 +68,11 @@ module partitioning_config_mod
                                        'custom', &
                                        'row']
 
-  integer(i_native), parameter :: panel_decomposition_value(4) &
-          = [621_i_native, &
-             361_i_native, &
-             529_i_native, &
-             678_i_native]
+  integer(i_def), parameter :: panel_decomposition_value(4) &
+          = [621_i_def, &
+             361_i_def, &
+             529_i_def, &
+             678_i_def]
 
 contains
 
@@ -83,7 +82,7 @@ contains
   !>
   !> @param[in] key Enumeration key.
   !>
-  integer(i_native) function panel_decomposition_from_key( key )
+  integer(i_def) function panel_decomposition_from_key( key )
 
     use constants_mod, only: unset_key, imdi
 
@@ -91,12 +90,12 @@ contains
 
     character(*), intent(in) :: key
 
-    integer(i_native) :: key_index
+    integer(i_def) :: key_index
 
     if (key == unset_key) then
       write( log_scratch_space, '(A)') &
           'Missing key for panel_decomposition enumeration in partitioning namelist.'
-      panel_decomposition_from_key = int(imdi,i_native)
+      panel_decomposition_from_key = int(imdi,i_def)
       call log_event( log_scratch_space, LOG_LEVEL_WARNING )
       return
     end if
@@ -130,13 +129,13 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: value
+    integer(i_def), intent(in) :: value
 
-    integer(i_native) :: value_index
+    integer(i_def) :: value_index
 
     value_index = 1
     do
-      if (panel_decomposition_value(value_index) == int(imdi,i_native)) then
+      if (panel_decomposition_value(value_index) == int(imdi,i_def)) then
         key_from_panel_decomposition = unset_key
         return
       else if (panel_decomposition_value(value_index) == value) then
@@ -165,8 +164,8 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
+    integer(i_def), intent(in) :: file_unit
+    integer(i_def), intent(in) :: local_rank
 
     call read_namelist( file_unit, local_rank, &
                         panel_decomposition )
@@ -182,12 +181,9 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
-    integer(i_native), intent(out) :: dummy_panel_decomposition
-
-    integer(i_def) :: buffer_integer_i_def(2)
-    integer(i_native) :: buffer_integer_i_native(1)
+    integer(i_def), intent(in) :: file_unit
+    integer(i_def), intent(in) :: local_rank
+    integer(i_def), intent(out) :: dummy_panel_decomposition
 
     character(str_def) :: panel_decomposition
 
@@ -195,7 +191,7 @@ contains
                             panel_xproc, &
                             panel_yproc
 
-    integer(i_native) :: condition
+    integer(i_def) :: condition
 
     panel_decomposition = unset_key
     panel_xproc = imdi
@@ -211,14 +207,6 @@ contains
       dummy_panel_decomposition = panel_decomposition_from_key( panel_decomposition )
 
     end if
-
-    buffer_integer_i_native(1) = dummy_panel_decomposition
-    buffer_integer_i_def(1) = panel_xproc
-    buffer_integer_i_def(2) = panel_yproc
-
-    dummy_panel_decomposition = buffer_integer_i_native(1)
-    panel_xproc = buffer_integer_i_def(1)
-    panel_yproc = buffer_integer_i_def(2)
 
     namelist_loaded = .true.
 
@@ -271,7 +259,7 @@ contains
 
     implicit none
 
-    panel_decomposition = int(imdi,i_native)
+    panel_decomposition = int(imdi,i_def)
     panel_xproc = imdi
     panel_yproc = imdi
 
