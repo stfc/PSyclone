@@ -196,7 +196,8 @@ class Reference2ArrayRangeTrans(Transformation):
             where this restriction does not apply.
 
         '''
-        self.validate(node, allow_call_arguments=allow_call_arguments)
+        self.validate(node, allow_call_arguments=allow_call_arguments,
+                      **kwargs)
 
         symbol = node.symbol
         indices = []
