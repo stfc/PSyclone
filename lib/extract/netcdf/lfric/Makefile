@@ -80,7 +80,7 @@ OBJS = psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o \
 
 default: $(PSYDATA_LIB)
 
-.PHONY: default clean allclean
+.PHONY: default clean allclean process
 
 # We add read_kernel_data_mod as a convenience for using this
 # in LFRic: all required file for kernel extractions and drivers
@@ -110,6 +110,9 @@ extract_netcdf_base.F90: $(LIB_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
 
 compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) $< > compare_variables_mod.F90
+
+process: kernel_data_netcdf.f90 psy_data_base.f90 read_kernel_data_mod.f90 \
+	extract_netcdf_base.F90 compare_variables_mod.F90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
