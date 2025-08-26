@@ -98,8 +98,7 @@ include $(LFRIC_PATH)/lfric_include_flags.inc
 
 LFRIC_INCLUDE_FLAGS += -I$(EXTRACT_DIR)
 
-transform: main_psy.f90 main_alg.f90
-
+transform: extract_process main_psy.f90 main_alg.f90
 	
 compile: transform $(EXEC)
 
@@ -122,6 +121,9 @@ $(LFRIC_LIB):
 
 $(EXTRACT_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(EXTRACT_DIR)
+
+extract_process:
+	$(MAKE) -C $(EXTRACT_DIR) process
 
 # Dependencies
 main_psy.o:	testkern_w0_kernel_mod.o $(EXTRACT_LIB) $(LFRIC_LIB)
@@ -148,7 +150,7 @@ driver-main-init:	driver-main-init.o
 
 # This dependency will make sure that read_kernel_data_mod was created
 # (which will be inlined in the driver).
-main_psy.f90: $(EXTRACT_LIB)
+main_psy.f90: extract_process
 main_alg.f90: main_psy.f90
 
 %.x90:	%.X90
