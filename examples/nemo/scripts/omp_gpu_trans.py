@@ -77,6 +77,7 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 FILES_TO_SKIP = [
     "vremap.f90",  # TODO #2772
     "icefrm.f90",  # Has unsupportet implicit symbol declaration
+    "fldread.f90",
 ]
 
 NEMOV5_EXCLUSIONS = []
@@ -109,9 +110,6 @@ OFFLOADING_ISSUES = [
     "trczdf.f90",
     "trcice_pisces.f90",
     "dtatsd.f90",
-    # Runtime Error: Illegal address during kernel execution with
-    # asynchronicity.
-    "fldread.f90",
     "trcatf.f90",
     "zdfiwm.f90",
     "zdfsh2.f90",
