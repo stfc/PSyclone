@@ -49,7 +49,6 @@ from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
-from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.symbol import Symbol
 
 
@@ -433,9 +432,9 @@ class ScalarType(DataType):
         if (isinstance(precision, DataNode)):
             for ref in precision.walk(DataNode):
                 if (not (isinstance(ref.datatype, ScalarType) and
-                     ref.datatype.intrinsic ==
-                     ScalarType.Intrinsic.INTEGER) and
-                not isinstance(ref.datatype, UnresolvedType)):
+                         ref.datatype.intrinsic ==
+                         ScalarType.Intrinsic.INTEGER) and
+                        not isinstance(ref.datatype, UnresolvedType)):
                     raise ValueError(
                         f"A DataNode representing the precision of another "
                         f"DataSymbol must be of either 'unresolved' or "
@@ -548,7 +547,7 @@ class ScalarType(DataType):
         from psyclone.psyir.nodes.datanode import DataNode
         if isinstance(self.precision, DataNode):
             precision_ras = self.precision.reference_accesses()
-            # Change all the precision_ras to be of access type 
+            # Change all the precision_ras to be of access type
             # TYPE_INFO instead, as this is a kind declaration not
             # a read.
             for sig in precision_ras:
@@ -1113,7 +1112,7 @@ class ArrayType(DataType):
 
         if isinstance(self.precision, DataNode):
             precision_ras = self.precision.reference_accesses()
-            # Change all the precision_ras to be of access type 
+            # Change all the precision_ras to be of access type
             # TYPE_INFO instead, as this is a kind declaration not
             # a read.
             for sig in precision_ras:
