@@ -492,7 +492,7 @@ class ScalarType(DataType):
         from psyclone.psyir.nodes.datanode import DataNode
         from psyclone.psyir.nodes.reference import Reference
         if (isinstance(other.precision, DataNode)
-            and isinstance(self.precision, DataNode)):
+                and isinstance(self.precision, DataNode)):
             self_refs = self.precision.walk(Reference)
             other_refs = other.precision.walk(Reference)
             precision_match = True
