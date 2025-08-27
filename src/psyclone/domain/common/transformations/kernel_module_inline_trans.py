@@ -50,7 +50,8 @@ from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface,
     GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError, SymbolTable)
 from psyclone.psyir.nodes import (
-    Call, Container, FileContainer, Routine, ScopingNode, IntrinsicCall)
+    Call, Container, DataNode, FileContainer, Routine, ScopingNode,
+    IntrinsicCall, Reference)
 
 
 class KernelModuleInlineTrans(Transformation):
@@ -295,8 +296,9 @@ class KernelModuleInlineTrans(Transformation):
                     if isinstance(symbol.datatype, DataTypeSymbol):
                         symbols_to_bring_in.add(symbol.datatype)
                     elif hasattr(symbol.datatype, 'precision'):
-                        if isinstance(symbol.datatype.precision, Symbol):
-                            symbols_to_bring_in.add(symbol.datatype.precision)
+                        if isinstance(symbol.datatype.precision, DataNode):
+                            for ref in symbol.datatype.precision.walk(Reference):
+                                symbols_to_bring_in.add(ref.symbol)
 
             # Bring the selected symbols inside the subroutine
             for symbol in symbols_to_bring_in:
