@@ -889,9 +889,10 @@ class FortranWriter(LanguageWriter):
                             Signature(ref.symbol.name))
             # If the precision of the Symbol being declared is itself defined
             # by a Symbol then include that as an 'input'.
-            if isinstance(symbol.datatype.precision, DataSymbol):
-                read_write_info.add_read(
-                    Signature(symbol.datatype.precision.name))
+            if isinstance(symbol.datatype.precision, DataNode):
+                for ref in symbol.datatype.precision.walk(Reference):
+                    read_write_info.add_read(
+                        Signature(ref.symbol.name))
             # Remove any 'inputs' that are not local since these do not affect
             # the ordering of local declarations.
             for sig in read_write_info.signatures_read:

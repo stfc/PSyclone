@@ -484,8 +484,29 @@ class ScalarType(DataType):
         # TODO #2659 - the following should be sufficient but isn't because
         # currently, each new instance of an LFRicIntegerScalarDataType ends
         # up with a brand new instance of a precision symbol.
-        return (self.precision == other.precision and
-                self.intrinsic == other.intrinsic)
+        # return (self.precision == other.precision and
+        #         self.intrinsic == other.intrinsic)
+        # Therefore, we have to take special action in the case where the
+        # precision is given by a DataNode:
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.datanode import DataNode
+        from psyclone.psyir.nodes.reference import Reference
+        if (isinstance(other.precision, DataNode)
+            and isinstance(self.precision, DataNode)):
+            self_refs = self.precision.walk(Reference)
+            other_refs = other.precision.walk(Reference)
+            precision_match = True
+            # If the precision is defined by DataNode then we need to check
+            # the symbol names and interfaces of all contained References.
+            for i, ref in enumerate(self_refs):
+                precision_match = (precision_match and
+                                   ref.symbol.name ==
+                                   other_refs[i].symbol.name and
+                                   ref.symbol.interface ==
+                                   other_refs[i].symbol.interface)
+        else:
+            precision_match = self.precision == other.precision
+        return precision_match and self.intrinsic == other.intrinsic
 
     def replace_symbols_using(self, table_or_symbol):
         '''
