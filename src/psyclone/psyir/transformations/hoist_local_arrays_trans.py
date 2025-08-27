@@ -372,14 +372,6 @@ then
                 if failed:
                     continue
 
-            if isinstance(sym.datatype.precision, DataSymbol):
-                if sym.datatype.precision.name in node.symbol_table:
-                    sym.append_preceding_comment(
-                        f"PSyclone warning: '{sym.name}' cannot be hoisted "
-                        f"to the global scope as '"
-                        f"{sym.datatype.precision.name}'"
-                        f" is not guaranteed to be a global symbol")
-                    continue
             # Check whether all of the bounds of the array are defined - an
             # allocatable array will have array dimensions of
             # ArrayType.Extent.DEFERRED

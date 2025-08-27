@@ -347,10 +347,6 @@ class FortranWriter(LanguageWriter):
             # so use KIND.
             return f"{fortrantype}(kind={self._visit(precision)})"
 
-        if isinstance(precision, DataNode):
-            precis = self._visit(precision)
-            return f"{fortrantype}(kind={precis})"
-
         raise VisitorError(
             f"Unsupported precision type '{type(precision).__name__}' found "
             f"for symbol '{name}' in Fortran backend.")

@@ -2834,8 +2834,6 @@ class Fparser2Reader():
             if isinstance(kind_arg, (Fortran2003.Int_Literal_Constant,
                                      Fortran2003.Real_Literal_Constant)):
                 precision = get_literal_precision(kind_arg, psyir_parent)
-                if isinstance(precision, DataSymbol):
-                    precision = Reference(precision)
                 return precision
 
             raise NotImplementedError(

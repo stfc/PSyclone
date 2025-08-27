@@ -180,9 +180,6 @@ class Literal(DataNode):
 
         '''
         access_info = VariablesAccessMap()
-        if isinstance(self.datatype.precision, Symbol):
-            access_info.add_access(Signature(self.datatype.precision.name),
-                                   AccessType.TYPE_INFO, self)
         if isinstance(self.datatype.precision, DataNode):
             subaccesses = self.datatype.reference_accesses()
             access_info.update(subaccesses)

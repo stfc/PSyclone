@@ -484,20 +484,8 @@ class ScalarType(DataType):
         # TODO #2659 - the following should be sufficient but isn't because
         # currently, each new instance of an LFRicIntegerScalarDataType ends
         # up with a brand new instance of a precision symbol.
-        # return (self.precision == other.precision and
-        #         self.intrinsic == other.intrinsic)
-        # Therefore, we have to take special action in the case where the
-        # precision is given by a Symbol:
-        if isinstance(other.precision, Symbol) and isinstance(self.precision,
-                                                              Symbol):
-            # If the precision in both types is given by a Symbol then we just
-            # compare their interfaces and their names.
-            precision_match = (
-                other.precision.name == self.precision.name and
-                other.precision.interface == self.precision.interface)
-        else:
-            precision_match = self.precision == other.precision
-        return precision_match and self.intrinsic == other.intrinsic
+        return (self.precision == other.precision and
+                self.intrinsic == other.intrinsic)
 
     def replace_symbols_using(self, table_or_symbol):
         '''
@@ -555,11 +543,6 @@ class ScalarType(DataType):
                     access._access_type = AccessType.TYPE_INFO
             access_info.update(precision_ras)
 
-        if isinstance(self.precision, Symbol):
-
-            access_info.add_access(
-                Signature(self.precision.name),
-                AccessType.TYPE_INFO, self)
         return access_info
 
 
@@ -1053,17 +1036,6 @@ class ArrayType(DataType):
 
         # TODO #1857: we will probably remove '_precision' and have
         # 'intrinsic' be 'datatype'.
-        if self._precision and isinstance(self._precision, Symbol):
-            if isinstance(table_or_symbol, Symbol):
-                if (table_or_symbol.name.lower() ==
-                        self._precision.name.lower()):
-                    self._precision = table_or_symbol
-            else:
-                try:
-                    self._precision = table_or_symbol.lookup(
-                        self._precision.name)
-                except KeyError:
-                    pass
         if self._intrinsic and isinstance(self._intrinsic, Symbol):
             if isinstance(table_or_symbol, Symbol):
                 if (table_or_symbol.name.lower() ==
@@ -1119,11 +1091,6 @@ class ArrayType(DataType):
                 for access in precision_ras[sig]:
                     access._access_type = AccessType.TYPE_INFO
             access_info.update(precision_ras)
-
-        if isinstance(self.precision, Symbol):
-            access_info.add_access(
-                Signature(self.precision.name),
-                AccessType.TYPE_INFO, self)
 
         for dim in self.shape:
             if isinstance(dim, ArrayType.ArrayBounds):
