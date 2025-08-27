@@ -40,12 +40,15 @@
 '''This module provides management of variable access information.'''
 
 
-from typing import List
+from typing import List, Optional, TYPE_CHECKING
 
 from psyclone.core.component_indices import ComponentIndices
 from psyclone.core.signature import Signature
 from psyclone.core.access_sequence import AccessSequence
+from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes import Node
 
 
 class VariablesAccessMap(dict):
@@ -63,7 +66,12 @@ class VariablesAccessMap(dict):
             output_list.append(f"{key}: {value.str_access_summary()}")
         return ", ".join(output_list)
 
-    def add_access(self, signature, access_type, node, component_indices=None):
+    def add_access(
+            self,
+            signature: Signature,
+            access_type: AccessType,
+            node: "Node",
+            component_indices: Optional[ComponentIndices] = None) -> None:
         '''Adds access information for the variable with the given signature.
         If the `component_indices` parameter is not an instance of
         `ComponentIndices`, it is used to construct an instance. Therefore it
@@ -103,7 +111,7 @@ class VariablesAccessMap(dict):
             # Handle some convenient cases:
             # 1. Add the right number of [] if component_indices is None:
             if component_indices is None:
-                component_indices = [[]] * len(signature)
+                component_indices = ComponentIndices([[]] * len(signature))
             elif isinstance(component_indices, list):
                 # 2. If the argument is a simple list (not a list of lists),
                 # assume that the indices are for the last component, and
@@ -115,7 +123,7 @@ class VariablesAccessMap(dict):
                     component_indices = [[]] * (len(signature)-1) \
                                       + [component_indices]
 
-            component_indices = ComponentIndices(component_indices)
+                component_indices = ComponentIndices(component_indices)
 
         if len(signature) != len(component_indices):
             raise InternalError(f"Cannot add '{component_indices}' with "
@@ -152,7 +160,8 @@ class VariablesAccessMap(dict):
                 result.append(sig)
         return result
 
-    def update(self, other_access_map: "VariablesAccessMap") -> None:
+    def update(self,   # type: ignore[override]
+               other_access_map: "VariablesAccessMap") -> None:
         ''' Updates this dictionary with the entries in the provided
         VariablesAccessMap. If there are repeated signatures, the provided
         values are appended to the existing sequence of accesses.
@@ -177,16 +186,14 @@ class VariablesAccessMap(dict):
         '''
         return self[signature].is_called()
 
-    def is_written(self, signature):
+    def is_written(self, signature: Signature) -> bool:
         '''Checks if the specified variable signature is at least
         written once.
 
         :param signature: signature of the variable.
-        :type signature: :py:class:`psyclone.core.Signature`
 
         :returns: True if the specified variable is written (at least \
             once).
-        :rtype: bool
 
         :raises: KeyError if the signature name cannot be found.
 
@@ -194,7 +201,7 @@ class VariablesAccessMap(dict):
         var_access_info = self[signature]
         return var_access_info.is_written()
 
-    def is_read(self, signature) -> bool:
+    def is_read(self, signature: Signature) -> bool:
         '''Checks if the specified variable signature is at least read once.
 
         :param signature: signature of the variable
@@ -208,7 +215,7 @@ class VariablesAccessMap(dict):
         var_access_info = self[signature]
         return var_access_info.is_read()
 
-    def has_read_write(self, signature):
+    def has_read_write(self, signature: Signature) -> bool:
         '''Checks if the specified variable signature has at least one
         READWRITE access (which is typically only used in a function call).
 
