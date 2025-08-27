@@ -200,7 +200,8 @@ def test_routinesymbol_replace_symbols_using():
     assert isinstance(sym1.datatype, NoType)
     # Test when the routine has a datatype.
     wp = DataSymbol("wp", INTEGER_TYPE)
-    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL, Reference(wp)))
+    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL,
+                                             Reference(wp)))
     # No symbol in table.
     sym3.replace_symbols_using(table)
     assert sym3.datatype.precision.symbol is wp

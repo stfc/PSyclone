@@ -1750,13 +1750,15 @@ def test_fw_literal_node(fortran_writer):
 
     # Check precision symbols are output as expected
     precision_symbol = DataSymbol("rdef", INTEGER_TYPE)
-    my_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(precision_symbol))
+    my_type = ScalarType(ScalarType.Intrinsic.REAL,
+                         Reference(precision_symbol))
     lit1 = Literal("3.14", my_type)
     result = fortran_writer(lit1)
     assert result == "3.14_rdef"
 
     # Check character precision symbols are output as expected
-    my_type = ScalarType(ScalarType.Intrinsic.CHARACTER, Reference(precision_symbol))
+    my_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                         Reference(precision_symbol))
     lit1 = Literal("hello", my_type)
     result = fortran_writer(lit1)
     assert result == "rdef_'hello'"

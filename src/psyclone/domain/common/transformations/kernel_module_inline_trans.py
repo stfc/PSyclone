@@ -297,7 +297,8 @@ class KernelModuleInlineTrans(Transformation):
                         symbols_to_bring_in.add(symbol.datatype)
                     elif hasattr(symbol.datatype, 'precision'):
                         if isinstance(symbol.datatype.precision, DataNode):
-                            for ref in symbol.datatype.precision.walk(Reference):
+                            for ref in symbol.datatype.precision.walk(
+                                    Reference):
                                 symbols_to_bring_in.add(ref.symbol)
 
             # Bring the selected symbols inside the subroutine

@@ -212,7 +212,8 @@ def test_scalartype_not_equal():
     # Set the precision of our ScalarType to be the precision symbol
     scalar_type = ScalarType(intrinsic, Reference(precision_symbol))
     # Same precision symbol but different intrinsic type
-    scalar_type2 = ScalarType(ScalarType.Intrinsic.REAL, Reference(precision_symbol))
+    scalar_type2 = ScalarType(ScalarType.Intrinsic.REAL,
+                              Reference(precision_symbol))
     assert scalar_type2 != scalar_type
     # Same intrinsic type but different precision specified as an integer
     scalar_type3 = ScalarType(intrinsic, 8)

@@ -220,7 +220,8 @@ def test_aos_ref_replace_symbols_using(component_symbol):
     Reference but we have a test here as it's a complex case.
 
     '''
-    i64 = nodes.Reference(symbols.DataSymbol("i64", symbols.INTEGER_DOUBLE_TYPE))
+    i64 = nodes.Reference(symbols.DataSymbol("i64",
+                                             symbols.INTEGER_DOUBLE_TYPE))
     itype = symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER, i64)
     int_one = nodes.Literal("1", itype)
     idx = symbols.DataSymbol("idx", symbols.INTEGER_TYPE)

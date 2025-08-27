@@ -341,7 +341,7 @@ def test_get_active_variables_datatype_error(fortran_reader):
     assert ("active variables of different datatype: 'a' is of intrinsic "
             "type 'Intrinsic.REAL' and precision 'Precision.UNDEFINED' while "
             "'c' is of intrinsic type 'Intrinsic.REAL' and precision "
-            "'Reference[name:'wp']'"  in str(err.value))
+            "'Reference[name:'wp']'" in str(err.value))
 
     with pytest.raises(NotImplementedError) as err:
         _get_active_variables_datatype(tl_psyir, ["a", "idx"])

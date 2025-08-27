@@ -1612,9 +1612,11 @@ class LFRicLMAOperators(LFRicCollection):
                 interface=ImportInterface(
                     self.symtab.lookup("constants_mod")))
             if op_dtype == "real":
-                intr_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(kind_sym))
+                intr_type = ScalarType(ScalarType.Intrinsic.REAL,
+                                       Reference(kind_sym))
             elif op_dtype == "integer":
-                intr_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(kind_sym))
+                intr_type = ScalarType(ScalarType.Intrinsic.INTEGER,
+                                       Reference(kind_sym))
             else:
                 raise NotImplementedError(
                     f"Only REAL and INTEGER LMA Operator types are supported, "
@@ -3041,7 +3043,8 @@ class LFRicBasisFunctions(LFRicCollection):
                     self.symtab.lookup("constants_mod")))
 
             # All quatratures are REAL
-            intr_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(kind_sym))
+            intr_type = ScalarType(ScalarType.Intrinsic.REAL,
+                                   Reference(kind_sym))
 
             if shape == "gh_quadrature_xyoz":
                 dim = self.symtab.find_or_create(

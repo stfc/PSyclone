@@ -54,7 +54,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, Assignment, BinaryOperation, Call, Container,
     IntrinsicCall, Literal, Range, Reference, Routine)
 from psyclone.psyir.symbols import (
-    SymbolTable, ImportInterface, Symbol,
+    SymbolTable, ImportInterface,
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol,
     INTEGER_TYPE, UnresolvedType, UnsupportedType)
 from psyclone.psyir.transformations import TransformationError
