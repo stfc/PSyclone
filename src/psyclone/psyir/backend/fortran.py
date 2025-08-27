@@ -49,7 +49,7 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.nodes import (
     BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
     Literal, Node, OMPDependClause, OMPReductionClause, Operation, Range,
-    Routine, Schedule, UnaryOperation)
+    Reference, Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
@@ -338,18 +338,18 @@ class FortranWriter(LanguageWriter):
                 return "double precision"
             return fortrantype
 
-        if isinstance(precision, DataSymbol):
+        if isinstance(precision, DataNode):
             if fortrantype not in ["real", "integer", "logical"]:
                 raise VisitorError(
                     f"kind not supported for datatype '{fortrantype}' in "
                     f"symbol '{name}' in Fortran backend.")
             # The precision information is provided by a parameter,
             # so use KIND.
-            return f"{fortrantype}(kind={precision.name})"
+            return f"{fortrantype}(kind={self._visit(precision)})"
 
-        if isinstance(precision, BinaryOperation):
+        if isinstance(precision, DataNode):
             precis = self._visit(precision)
-            return f"{fortrantype}(kind= {precis})"
+            return f"{fortrantype}(kind={precis})"
 
         raise VisitorError(
             f"Unsupported precision type '{type(precision).__name__}' found "
@@ -886,9 +886,11 @@ class FortranWriter(LanguageWriter):
             # The dependence analysis tools do not include symbols used to
             # define precision so check for those here.
             for lit in symbol.initial_value.walk(Literal):
-                if isinstance(lit.datatype.precision, DataSymbol):
-                    read_write_info.add_read(
-                        Signature(lit.datatype.precision.name))
+                if isinstance(lit.datatype.precision, DataNode):
+                    refs = lit.datatype.precision.walk(Reference)
+                    for ref in refs:
+                        read_write_info.add_read(
+                            Signature(ref.symbol.name))
             # If the precision of the Symbol being declared is itself defined
             # by a Symbol then include that as an 'input'.
             if isinstance(symbol.datatype.precision, DataSymbol):
@@ -1407,12 +1409,12 @@ class FortranWriter(LanguageWriter):
         else:
             result = node.value
 
-        if isinstance(precision, DataSymbol):
+        if isinstance(precision, DataNode):
             # A KIND variable has been specified
             if node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-                result = f"{precision.name}_{result}"
+                result = f"{self._visit(precision)}_{result}"
             else:
-                result = f"{result}_{precision.name}"
+                result = f"{result}_{self._visit(precision)}"
         if isinstance(precision, int):
             # A KIND value has been specified
             if node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:

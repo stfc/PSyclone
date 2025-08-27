@@ -45,7 +45,8 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   FileContainer, IfBlock, UnaryOperation,
                                   CodeBlock, ACCRoutineDirective, Literal,
-                                  IntrinsicCall, BinaryOperation, Reference)
+                                  IntrinsicCall, BinaryOperation, Reference,
+                                  DataNode)
 from psyclone.psyir.symbols import (
     ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol)
 from psyclone.psyir.transformations.transformation_error \
@@ -355,7 +356,7 @@ then
                     continue
             # Precision could include multiple symbols - handle in the same
             # way as for DataSymbol but check all of them.
-            if isinstance(sym.datatype.precision, BinaryOperation):
+            if isinstance(sym.datatype.precision, DataNode):
                 refs = sym.datatype.precision.walk(Reference)
                 failed = False
                 for ref in refs:

@@ -50,7 +50,7 @@ from psyclone.psyad.tl2ad import (
     _get_active_variables_datatype, _add_precision_symbol)
 from psyclone.psyir.nodes import (
     Container, FileContainer, Return, Routine, Assignment, BinaryOperation,
-    IntrinsicCall, Literal)
+    IntrinsicCall, Literal, Reference)
 from psyclone.psyir.symbols import (
     DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE,
     ArrayType, RoutineSymbol, ImportInterface, ScalarType, ContainerSymbol,
@@ -337,10 +337,11 @@ def test_get_active_variables_datatype_error(fortran_reader):
 
     with pytest.raises(NotImplementedError) as err:
         _get_active_variables_datatype(tl_psyir, ["a", "c"])
+    print(str(err.value))
     assert ("active variables of different datatype: 'a' is of intrinsic "
             "type 'Intrinsic.REAL' and precision 'Precision.UNDEFINED' while "
-            "'c' is of intrinsic type 'Intrinsic.REAL' and precision 'wp: "
-            in str(err.value))
+            "'c' is of intrinsic type 'Intrinsic.REAL' and precision "
+            "'Reference[name:'wp']'"  in str(err.value))
 
     with pytest.raises(NotImplementedError) as err:
         _get_active_variables_datatype(tl_psyir, ["a", "idx"])
@@ -372,13 +373,13 @@ def test_get_active_variables_datatype(fortran_reader):
     # Real, specified KIND
     atype = _get_active_variables_datatype(tl_psyir, ["d", "e"])
     assert atype.intrinsic == ScalarType.Intrinsic.REAL
-    assert isinstance(atype.precision, DataSymbol)
-    assert atype.precision.name == "wp"
+    assert isinstance(atype.precision, Reference)
+    assert atype.precision.symbol.name == "wp"
     # Integer, specified KIND
     atype = _get_active_variables_datatype(tl_psyir, ["ii", "jj", "kk"])
     assert atype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert isinstance(atype.precision, DataSymbol)
-    assert atype.precision.name == "i_def"
+    assert isinstance(atype.precision, Reference)
+    assert atype.precision.symbol.name == "i_def"
 
 
 # generate_adjoint function

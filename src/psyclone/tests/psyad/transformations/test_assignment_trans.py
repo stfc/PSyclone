@@ -952,7 +952,7 @@ def test_validate_rhs_zero():
     # 0 with a kind value
     real_kind = DataSymbol("r_def", INTEGER_TYPE, is_constant=True,
                            initial_value=8)
-    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, real_kind)
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(real_kind))
     rhs_literal = Literal("0.0", scalar_type)
     assignment = Assignment.create(Reference(lhs_symbol), rhs_literal)
     trans.validate(assignment)

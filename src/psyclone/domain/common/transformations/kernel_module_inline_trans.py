@@ -232,6 +232,7 @@ class KernelModuleInlineTrans(Transformation):
                 # Compare the routine to be inlined with the one that
                 # is already present.
                 new_rts = self._prepare_code_to_inline([kernel_schedule])
+                print(new_rts[0] == routine, len(new_rts))
                 if len(new_rts) == 1 and routine == new_rts[0]:
                     # It's the same so we can proceed (although all we need to
                     # do is update the RoutineSymbol referenced by the Call.)

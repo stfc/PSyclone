@@ -695,11 +695,15 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     end module my_mod
     ''')
 
+    print("----------------------------------------------")
     routine = psyir.walk(Routine)[0]
     new_routines = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
+    print("---")
+    print(result)
     assert "use external_mod1, only : r_def" in result
     assert "use not_needed" not in result
+    assert "1.0_r_def" in result
 
     # Also, if they are routine names
     psyir = fortran_reader.psyir_from_source('''

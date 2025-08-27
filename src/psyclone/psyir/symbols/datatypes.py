@@ -430,15 +430,17 @@ class ScalarType(DataType):
             raise ValueError(
                 f"The precision of a DataSymbol when specified as an integer "
                 f"number of bytes must be > 0 but found '{precision}'.")
-        if (isinstance(precision, DataSymbol) and
-                not (isinstance(precision.datatype, ScalarType) and
-                     precision.datatype.intrinsic ==
+        if (isinstance(precision, DataNode)):
+            for ref in precision.walk(DataNode):
+                if (not (isinstance(ref.datatype, ScalarType) and
+                     ref.datatype.intrinsic ==
                      ScalarType.Intrinsic.INTEGER) and
-                not isinstance(precision.datatype, UnresolvedType)):
-            raise ValueError(
-                f"A DataSymbol representing the precision of another "
-                f"DataSymbol must be of either 'unresolved' or scalar, "
-                f"integer type but got: {precision}")
+                not isinstance(ref.datatype, UnresolvedType)):
+                    raise ValueError(
+                        f"A DataNode representing the precision of another "
+                        f"DataSymbol must be of either 'unresolved' or "
+                        f"scalar, integer type but got: ScalarType with "
+                        f"datatype {ref.datatype}")
         self._precision = precision
 
     @property
@@ -511,18 +513,22 @@ class ScalarType(DataType):
             :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.datanode import DataNode
+        from psyclone.psyir.nodes.reference import Reference
         # Only the 'precision' of a ScalarType can refer to a Symbol.
-        if isinstance(self.precision, Symbol):
-            # Update any 'precision' information.
-            new_sym = None
-            if isinstance(table_or_symbol, Symbol):
-                if table_or_symbol.name.lower() == self.precision.name.lower():
-                    new_sym = table_or_symbol
-            else:
-                new_sym = table_or_symbol.lookup(self.precision.name,
-                                                 otherwise=None)
-            if new_sym:
-                self._precision = new_sym
+        if isinstance(self.precision, DataNode):
+            for ref in self.precision.walk(Reference):
+                # Update any 'precision' information.
+                new_sym = None
+                if isinstance(table_or_symbol, Symbol):
+                    if table_or_symbol.name.lower() == ref.symbol.name.lower():
+                        new_sym = table_or_symbol
+                else:
+                    new_sym = table_or_symbol.lookup(ref.symbol.name,
+                                                     otherwise=None)
+                if new_sym:
+                    ref.symbol = new_sym
 
     def reference_accesses(self):
         '''
@@ -535,11 +541,22 @@ class ScalarType(DataType):
         '''
         access_info = super().reference_accesses()
 
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.core.signature import Signature
+        from psyclone.core.access_type import AccessType
+        from psyclone.psyir.nodes.datanode import DataNode
+        if isinstance(self.precision, DataNode):
+            precision_ras = self.precision.reference_accesses()
+            # Change all the precision_ras to be of access type 
+            # TYPE_INFO instead, as this is a kind declaration not
+            # a read.
+            for sig in precision_ras:
+                for access in precision_ras[sig]:
+                    access._access_type = AccessType.TYPE_INFO
+            access_info.update(precision_ras)
+
         if isinstance(self.precision, Symbol):
-            # Avoid circular import
-            # pylint: disable=import-outside-toplevel
-            from psyclone.core.signature import Signature
-            from psyclone.core.access_type import AccessType
 
             access_info.add_access(
                 Signature(self.precision.name),
@@ -1085,6 +1102,7 @@ class ArrayType(DataType):
         # pylint: disable=import-outside-toplevel
         from psyclone.core.signature import Signature
         from psyclone.core.access_type import AccessType
+        from psyclone.psyir.nodes.datanode import DataNode
 
         access_info = super().reference_accesses()
 
@@ -1092,6 +1110,16 @@ class ArrayType(DataType):
             access_info.add_access(
                 Signature(self.intrinsic.name),
                 AccessType.TYPE_INFO, self)
+
+        if isinstance(self.precision, DataNode):
+            precision_ras = self.precision.reference_accesses()
+            # Change all the precision_ras to be of access type 
+            # TYPE_INFO instead, as this is a kind declaration not
+            # a read.
+            for sig in precision_ras:
+                for access in precision_ras[sig]:
+                    access._access_type = AccessType.TYPE_INFO
+            access_info.update(precision_ras)
 
         if isinstance(self.precision, Symbol):
             access_info.add_access(

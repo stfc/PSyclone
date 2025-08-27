@@ -42,6 +42,7 @@ from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface, INTEGER_TYPE,
     NoType, RoutineSymbol, ScalarType, Symbol, SymbolTable,
     UnresolvedInterface, UnresolvedType)
+from psyclone.psyir.nodes import Reference
 
 
 def test_routinesymbol_init():
@@ -172,10 +173,11 @@ def test_routinesymbol_copy():
 
     # Test when the routine has a datatype.
     wp = DataSymbol("wp", INTEGER_TYPE)
-    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL, wp))
+    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL,
+                                             Reference(wp)))
     new_sym3 = sym3.copy()
     assert new_sym3.datatype is not sym3.datatype
-    assert new_sym3.datatype.precision is wp
+    assert new_sym3.datatype.precision.symbol is wp
 
     # Test when the routine has an interface.
     csym = ContainerSymbol("test_mod")
@@ -198,11 +200,11 @@ def test_routinesymbol_replace_symbols_using():
     assert isinstance(sym1.datatype, NoType)
     # Test when the routine has a datatype.
     wp = DataSymbol("wp", INTEGER_TYPE)
-    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL, wp))
+    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL, Reference(wp)))
     # No symbol in table.
     sym3.replace_symbols_using(table)
-    assert sym3.datatype.precision is wp
+    assert sym3.datatype.precision.symbol is wp
     wp_new = wp.copy()
     table.add(wp_new)
     sym3.replace_symbols_using(table)
-    assert sym3.datatype.precision is wp_new
+    assert sym3.datatype.precision.symbol is wp_new

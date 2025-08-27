@@ -276,7 +276,7 @@ def test_gen_datatype_kind_precision(fortran_writer, type_name, result):
     precision_name = "prec_def"
     symbol_name = "dummy"
     precision = DataSymbol(precision_name, INTEGER_TYPE)
-    scalar_type = ScalarType(type_name, precision=precision)
+    scalar_type = ScalarType(type_name, precision=Reference(precision))
     array_type = ArrayType(scalar_type, [10, 10])
     for my_type in [scalar_type, array_type]:
         if type_name == ScalarType.Intrinsic.CHARACTER:
@@ -304,7 +304,7 @@ def test_gendatatype_kind_binop(fortran_writer):
 
     for my_type in [scalar_type, array_type]:
         assert (fortran_writer.gen_datatype(my_type, sym_name) ==
-                "integer(kind= 2 * wp)")
+                "integer(kind=2 * wp)")
 
 
 def test_gen_datatype_derived_type(fortran_writer):
@@ -1750,13 +1750,13 @@ def test_fw_literal_node(fortran_writer):
 
     # Check precision symbols are output as expected
     precision_symbol = DataSymbol("rdef", INTEGER_TYPE)
-    my_type = ScalarType(ScalarType.Intrinsic.REAL, precision_symbol)
+    my_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(precision_symbol))
     lit1 = Literal("3.14", my_type)
     result = fortran_writer(lit1)
     assert result == "3.14_rdef"
 
     # Check character precision symbols are output as expected
-    my_type = ScalarType(ScalarType.Intrinsic.CHARACTER, precision_symbol)
+    my_type = ScalarType(ScalarType.Intrinsic.CHARACTER, Reference(precision_symbol))
     lit1 = Literal("hello", my_type)
     result = fortran_writer(lit1)
     assert result == "rdef_'hello'"

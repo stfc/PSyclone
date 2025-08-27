@@ -380,8 +380,8 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         "    CLASS(*), TARGET :: type\n"
         "    integer :: branch1\n"
         "    integer :: branch2\n"
-        "    REAL(KIND = 4) :: rinfo1\n"
-        "    REAL(KIND = 8) :: rinfo2\n"
+        "    REAL(KIND=4) :: rinfo1\n"
+        "    REAL(KIND=8) :: rinfo2\n"
         "    character(256) :: type_string\n"
         "    REAL(KIND = 4), pointer :: ptr_REAL_4 => null()\n"
         "    REAL(KIND = 8), pointer :: ptr_REAL_8 => null()\n").lower()
@@ -407,6 +407,7 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         "    end if\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir).lower()
+    print(result)
     assert expected1 in result
     assert expected2 in result
     assert Compile(tmpdir).string_compiles(result)

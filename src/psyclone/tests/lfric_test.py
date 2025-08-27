@@ -4335,6 +4335,7 @@ def test_mixed_precision_args(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
+    print(generated_code)
     assert "use constants_mod\n" in generated_code
     assert """
   use field_mod, only : field_proxy_type, field_type

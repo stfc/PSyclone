@@ -701,7 +701,7 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
             raise InternalError(
                 f"Failed to find a symbol table to which to add the kind "
                 f"symbol '{precision_name}'.") from err
-        return _kind_find_or_create(precision_name, symbol_table)
+        return Reference(_kind_find_or_create(precision_name, symbol_table))
 
 
 def _process_routine_symbols(module_ast, container, visibility_map):
