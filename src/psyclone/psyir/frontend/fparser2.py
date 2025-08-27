@@ -2779,7 +2779,6 @@ class Fparser2Reader():
                         f"The symbol interface of a common block variable "
                         f"could not be updated because of {error}.") from error
 
-#    @staticmethod
     def _process_precision(self, type_spec, psyir_parent):
         '''Processes the fparser2 parse tree of the type specification of a
         variable declaration in order to extract precision

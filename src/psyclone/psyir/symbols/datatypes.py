@@ -376,7 +376,7 @@ class ScalarType(DataType):
     :type intrinsic: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
     :param precision: the precision of this scalar type.
     :type precision: :py:class:`psyclone.psyir.symbols.ScalarType.Precision` |
-                     int | :py:class:`psyclone.psyir.symbols.DataSymbol`
+                     int | :py:class:`psyclone.psyir.nodes.DataNode`
 
     :raises TypeError: if any of the arguments are of the wrong type.
     :raises ValueError: if any of the argument have unexpected values.
@@ -455,7 +455,7 @@ class ScalarType(DataType):
         '''
         :returns: the precision of this scalar type.
         :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision` |
-                int | :py:class:`psyclone.psyir.symbols.DataSymbol`
+                int | :py:class:`psyclone.psyir.nodes.DataNode`
         '''
         return self._precision
 
