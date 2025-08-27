@@ -48,8 +48,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     UnresolvedType, ImportInterface,
                                     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
-                                    REAL_TYPE, ScalarType, Symbol, SymbolTable,
-                                    UnresolvedInterface)
+                                    REAL_TYPE, ScalarType, Symbol, SymbolTable)
 
 
 def test_reference_bad_init():
@@ -130,25 +129,6 @@ def test_reference_children_validation():
             " LeafNode and doesn't accept children.") in str(excinfo.value)
 
 
-def test_reference_is_array():
-    '''Test that a non-array reference is marked as not an array.
-    '''
-    reference = Reference(DataSymbol("test", REAL_TYPE))
-    assert reference.is_array is False
-
-    # Test that a standard symbol (which would raise an exception if
-    # `is_array` of the symbol is called), does not raise an exception
-    # and is reported as not being an array:
-    ref = Reference(Symbol("symbol"))
-    assert ref.is_array is False
-
-    # Now add a real array to make sure this works as expected:
-    array_symbol = DataSymbol("symbol", ArrayType(REAL_TYPE, [10]),
-                              interface=UnresolvedInterface())
-    ref = Reference(array_symbol)
-    assert ref.is_array is True
-
-
 def test_reference_datatype():
     '''Test the datatype property.
 
@@ -177,7 +157,6 @@ def test_reference_accesses():
     symbol_temp = DataSymbol("temp", array_type)
     symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
     array = ArrayReference.create(symbol_temp, [Reference(symbol_i)])
-    assert array.is_array is True
     var_access_info = array.reference_accesses()
     assert str(var_access_info) == "i: READ, temp: READ"
 

@@ -87,16 +87,6 @@ class Reference(DataNode):
         return is_eq
 
     @property
-    def is_array(self):
-        '''
-        :returns: whether this reference is an array, False if it can not be
-            determined.
-        :rtype: bool
-
-        '''
-        return self.symbol.is_array
-
-    @property
     def is_read(self):
         '''
         :returns: whether this reference is reading from its symbol.

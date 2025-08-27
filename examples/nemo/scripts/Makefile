@@ -22,22 +22,22 @@ TEST_CASE ?= SPITZ12
 # INPUT_DIR ?=
 
 # Example Config for MetOffice - eORCA1_GO8 - nvidia
-NEMO_DIR ?= ${WORKSPACE}/NEMO_MO
+NEMO_DIR ?= /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv4/
 ROOT_SRC ?= ${NEMO_DIR}/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
 MPI_INC_DIR ?= ${MPI_HOME}/include
 COMPILER_ARCH ?= linux_nvidia_omp_gpu
 ADD_KEYS ?= "IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
 DEL_KEYS ?= "key_iomput key_mpp_mpi key_si3"
-INPUT_DIR ?= /archive/NEMO_INPUTS/NEMOv4/MO/eORCA1_GO8/
+INPUT_DIR ?= /archive/psyclone-tests/nemo-inputs/UKMO-eORCA1_GO8_NEMOv4
 
 # Example Config for ECMWF - eORCA1_GO8_Z75 (with MPI and SI3) - intel compiler
-# NEMO_DIR ?= ${WORKSPACE}/NEMO_ESMWF_V40
+# NEMO_DIR ?= /archive/psyclone-tests/nemo-inputs/ECMWF-NEMOv4/
 # ROOT_SRC ?= ${NEMO_DIR}/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
 # MPI_INC_DIR ?= ${I_MPI_ROOT}/include
 # COMPILER_ARCH ?= linux_intel
 # ADD_KEYS ?= "IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
 # DEL_KEYS ?= "key_iomput"
-# INPUT_DIR ?= /archive/NEMO_INPUTS/NEMOv4/ECMWF/eORCA1_GO8/
+# INPUT_DIR ?= /archive/psyclone-tests/nemo-inputs/ECMWF-eORCA1_GO8
 
 # ---- End of configuration section - do not edit below this point ----
 

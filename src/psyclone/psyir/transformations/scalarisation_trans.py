@@ -109,7 +109,7 @@ class ScalarisationTrans(LoopTrans):
         :returns: whether the symbol corresponding to signature is a
                   local array symbol or not.
         '''
-        if not var_accesses[signature].is_array():
+        if not var_accesses[signature].has_indices():
             return False
         # If any of the accesses are to a CodeBlock then we stop. This can
         # happen if there is a string access inside a string concatenation,

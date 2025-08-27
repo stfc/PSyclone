@@ -237,7 +237,7 @@ def test_transformation_get_valid_options():
     class TestTrans(Transformation):
         '''Utilty transformation to test methods of the abstract
         Transformation class.'''
-        def apply(self, node, valid: bool = True, untyped=False):
+        def apply(self, node, valid: bool = True, untyped=False, options={}):
             '''Apply method of TestTrans.'''
 
     options = TestTrans.get_valid_options()
@@ -247,6 +247,8 @@ def test_transformation_get_valid_options():
     assert options['untyped'].default is False
     assert options['untyped'].type is None
     assert options['untyped'].typename is None
+    # Check that option is allowed if its specified on the transformation.
+    assert options['options'].default == {}
 
     class InheritTrans(TestTrans):
         '''Utility transformation to test inheriting arguments'''
@@ -263,6 +265,8 @@ def test_transformation_get_valid_options():
     assert options['valid2'].default == 1
     assert options['valid2'].type is int
     assert options['valid2'].typename == "int"
+    # Check options isn't inherited from the superclass.
+    assert options.get('options', None) is None
 
 
 def test_transformation_get_valid_options_no_sphinx():
@@ -313,7 +317,7 @@ def test_transformation_validate_options():
     with pytest.raises(ValueError) as excinfo:
         instance.validate_options(not_valid=True)
     assert ("'TestTrans' received invalid options ['not_valid']. "
-            "Valid options are '['valid']." in str(excinfo.value))
+            "Valid options are '['valid', 'options']." in str(excinfo.value))
 
 
 # TransInfo class unit tests
