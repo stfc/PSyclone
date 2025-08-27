@@ -41,9 +41,9 @@
 
 import re
 
-from psyclone.core import AccessType, Signature, VariablesAccessMap
+from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols import ScalarType, Symbol, ArrayType
+from psyclone.psyir.symbols import ScalarType, ArrayType
 
 
 class Literal(DataNode):

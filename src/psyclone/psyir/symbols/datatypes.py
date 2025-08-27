@@ -530,7 +530,6 @@ class ScalarType(DataType):
 
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.core.signature import Signature
         from psyclone.core.access_type import AccessType
         from psyclone.psyir.nodes.datanode import DataNode
         if isinstance(self.precision, DataNode):
