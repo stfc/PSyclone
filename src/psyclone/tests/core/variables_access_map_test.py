@@ -41,12 +41,14 @@ import pytest
 from psyclone.core import ComponentIndices, Signature, VariablesAccessMap
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, Node
 from psyclone.tests.utilities import get_invoke
 
 
 # -----------------------------------------------------------------------------
-def test_variables_access_map():
+def test_variables_access_map() -> None:
     '''Test the implementation of VariablesAccessMap, a class that manages
     a list of variables, each with a list of accesses.
     '''
@@ -56,6 +58,8 @@ def test_variables_access_map():
     node2 = Node()
     var_accesses.add_access(Signature("written"), AccessType.WRITE, node2)
     assert str(var_accesses) == "read: READ, written: WRITE"
+    assert var_accesses.is_read(Signature("read"))
+    assert var_accesses.is_written(Signature("written"))
 
     node = Node()
     var_accesses.add_access(Signature("written"), AccessType.WRITE, node)
@@ -79,15 +83,25 @@ def test_variables_access_map():
     assert (str(var_accesses) ==
             "read: READ, written: WRITE+READ, read_written: WRITE+READ, "
             "new_var: READ")
+    assert not var_accesses.is_called(Signature("new_var"))
+
+    var_accesses.add_access(Signature("sub"),
+                            AccessType.CALL, Node(), component_indices=None)
+    assert var_accesses.is_called(Signature("sub"))
+
+    var_accesses.add_access(Signature("read_write"),
+                            AccessType.READWRITE, Node(),
+                            component_indices=None)
+    assert var_accesses.has_read_write(Signature("read_write"))
 
 
 # -----------------------------------------------------------------------------
-def test_variables_access_map_errors():
+def test_variables_access_map_errors() -> None:
     '''Tests if errors are handled correctly. '''
     var_accesses = VariablesAccessMap()
     node = Node()
     var_accesses.add_access(Signature("read"), AccessType.READ, node)
-    with pytest.raises(KeyError) as err:
+    with pytest.raises(KeyError):
         _ = var_accesses[Signature("does_not_exist")]
     with pytest.raises(KeyError):
         var_accesses.is_read(Signature("does_not_exist"))
@@ -98,22 +112,22 @@ def test_variables_access_map_errors():
     var_accesses.add_access(Signature("readwrite"), AccessType.READWRITE, node)
     assert "READWRITE" in str(var_accesses)
 
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(InternalError) as err_internal:
         var_accesses.add_access("no-signature", AccessType.READWRITE, node)
 
     assert "Got 'no-signature' of type 'str' but expected it to be of type " \
-           "psyclone.core.Signature." in str(err.value)
+           "psyclone.core.Signature." in str(err_internal.value)
 
     # Check for consistency between signature and component indices:
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(InternalError) as err_internal:
         var_accesses.add_access(Signature(("a", "b")), AccessType.READ, node,
                                 ComponentIndices([]))
     assert "Cannot add '[[]]' with length 1 as indices for 'a%b' which "\
-           "requires 2 elements." in str(err.value)
+           "requires 2 elements." in str(err_internal.value)
 
 
 # -----------------------------------------------------------------------------
-def test_component_indices_auto_extension():
+def test_component_indices_auto_extension() -> None:
     '''To make it more convenient for the user certain combinations of
     signature and component_indices in the add_access call will
     automatically add empty indices to the component_indices. For example.
@@ -144,7 +158,7 @@ def test_component_indices_auto_extension():
 
 
 # -----------------------------------------------------------------------------
-def test_variables_access_map_update():
+def test_variables_access_map_update() -> None:
     '''Tests the merge operation of VariablesAccessMap.
     '''
     # First create one instance representing for example:
@@ -172,7 +186,7 @@ def test_variables_access_map_update():
 
 
 # -----------------------------------------------------------------------------
-def test_constructor(fortran_reader):
+def test_constructor(fortran_reader: FortranReader) -> None:
     '''Test the optional constructor parameter (single node and list
     of nodes).'''
     code = '''module test
@@ -194,7 +208,7 @@ def test_constructor(fortran_reader):
 
 
 # -----------------------------------------------------------------------------
-def test_derived_type_scalar(fortran_reader):
+def test_derived_type_scalar(fortran_reader: FortranReader) -> None:
     '''This function tests the handling of derived scalartypes.
     '''
 
@@ -214,7 +228,8 @@ def test_derived_type_scalar(fortran_reader):
 
 
 # -----------------------------------------------------------------------------
-def to_fortran(writer, index_expression):
+def to_fortran(writer: FortranWriter,
+               index_expression: list[list[Node]]) -> list[list[str]]:
     '''A small helper function that converts index information from an
     AccessInfo object to a list of list of strings. For example, an access
     like `a(i)%b%c(j,k)` will have an index expression of
@@ -229,7 +244,6 @@ def to_fortran(writer, index_expression):
     :type index_expression: list of list of :py:class:`psyclone.psyir.node`s
 
     :return: list of list of corresponding Fortran code, each as string.
-    :rtype: list of list of str
     '''
 
     result = []
@@ -249,7 +263,10 @@ def to_fortran(writer, index_expression):
                           ("a(k)%b(j)%c", [["k"], ["j"], []]),
                           ("a(k)%b(j)%c(i)", [["k"], ["j"], ["i"]])
                           ])
-def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
+def test_derived_type_array(array: str,
+                            indices: list[list[str]],
+                            fortran_writer: FortranWriter,
+                            fortran_reader: FortranReader) -> None:
     '''This function tests the handling of derived array types.
     '''
     code = f'''module test
@@ -279,7 +296,7 @@ def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
 
 
 # -----------------------------------------------------------------------------
-def test_symbol_array_detection(fortran_reader):
+def test_symbol_array_detection(fortran_reader: FortranReader) -> None:
     '''Verifies the handling of arrays together with access information.
     '''
 
@@ -335,7 +352,8 @@ def test_symbol_array_detection(fortran_reader):
 
 # -----------------------------------------------------------------------------
 @pytest.mark.parametrize("function", ["size", "lbound", "ubound"])
-def test_variables_access_map_shape_bounds(fortran_reader, function):
+def test_variables_access_map_shape_bounds(fortran_reader: FortranReader,
+                                           function: str) -> None:
     '''Test that access to an array using shape, or lbound/ubound is marked
     as 'inquiry'.
 
@@ -355,9 +373,12 @@ def test_variables_access_map_shape_bounds(fortran_reader, function):
     vam = node1.reference_accesses()
     assert str(vam) == "a: INQUIRY, n: WRITE"
 
+    # Ensure that the access to 'a' is not listed as a data access:
+    assert vam.all_data_accesses == [Signature("n")]
+
 
 # -----------------------------------------------------------------------------
-def test_variables_access_map_domain_loop():
+def test_variables_access_map_domain_loop() -> None:
     '''Tests that LFRic domain loop (that do not have an actual loop
     structure, so especially the loop variable is not defined) work as
     expected.
@@ -372,7 +393,7 @@ def test_variables_access_map_domain_loop():
 
 
 # -----------------------------------------------------------------------------
-def test_lfric_access_map():
+def test_lfric_access_map() -> None:
     '''Test some LFRic specific potential bugs:
     '''
 

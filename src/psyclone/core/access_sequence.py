@@ -41,13 +41,15 @@
 
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from psyclone.core.access_type import AccessType
+from psyclone.core.signature import Signature
 from psyclone.core.component_indices import ComponentIndices
 from psyclone.errors import InternalError
 if TYPE_CHECKING:  # pragma: no cover
     from psyclone.psyir.nodes import Node
+    from psyclone.psyir.symbols import Symbol
 
 
 class AccessInfo():
@@ -61,10 +63,10 @@ class AccessInfo():
 
     '''
     def __init__(
-        self, access_type: AccessType, node: 'Node',
+        self, access_type: AccessType, node: Union['Node', Symbol],
         component_indices: Optional[list[list['Node']] |
                                     ComponentIndices] = None
-    ):
+    ) -> None:
         self._access_type = access_type
         self._node = node
         if not isinstance(component_indices, ComponentIndices):
@@ -72,10 +74,10 @@ class AccessInfo():
         else:
             self.component_indices = component_indices
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self._access_type}"
 
-    def change_read_to_write(self):
+    def change_read_to_write(self) -> None:
         '''This changes the access mode from READ to WRITE.
         This is used for processing assignment statements,
         where the LHS is first considered to be READ,
@@ -91,7 +93,7 @@ class AccessInfo():
         self._access_type = AccessType.WRITE
 
     @property
-    def component_indices(self):
+    def component_indices(self) -> ComponentIndices:
         '''
         This function returns the list of accesses used for each component
         as an instance of ComponentIndices. For example, `a(i)%b(j,k)%c`
@@ -105,7 +107,7 @@ class AccessInfo():
         return self._component_indices
 
     @component_indices.setter
-    def component_indices(self, component_indices: ComponentIndices):
+    def component_indices(self, component_indices: ComponentIndices) -> None:
         '''Sets the indices for this AccessInfo instance. The component_indices
         contains a list of indices for each component of the signature,
         e.g. for `a(i)%b(j,k)%c` the component_indices will be
@@ -132,7 +134,7 @@ class AccessInfo():
         return self._component_indices.has_indices()
 
     @property
-    def access_type(self):
+    def access_type(self) -> AccessType:
         ''':returns: the access type.
         :rtype: :py:class:`psyclone.core.access_type.AccessType`'''
         return self._access_type
@@ -146,9 +148,9 @@ class AccessInfo():
         return self._access_type not in AccessType.non_data_accesses()
 
     @property
-    def node(self):
+    def node(self) -> Union[Node, Symbol]:
         ''':returns: the PSyIR node at which this access happens.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node` '''
+        '''
         return self._node
 
     @property
@@ -179,7 +181,7 @@ class AccessSequence(list):
     :type signature: :py:class:`psyclone.core.Signature`
 
     '''
-    def __init__(self, signature):
+    def __init__(self, signature: Signature) -> None:
         self._signature = signature
 
     def __str__(self) -> str:
@@ -200,16 +202,16 @@ class AccessSequence(list):
         return f"{access_set}"
 
     @property
-    def signature(self):
-        ''':returns: the signature for which the accesses are stored.
-        :rtype: :py:class:`psyclone.core.Signature`
+    def signature(self) -> Signature:
+        '''
+        :returns: the signature for which the accesses are stored.
         '''
         return self._signature
 
     @property
-    def var_name(self):
-        ''':returns: the name of the variable whose access info is managed.
-        :rtype: str
+    def var_name(self) -> str:
+        '''
+        :returns: the name of the variable whose access info is managed.
         '''
         return str(self._signature)
 
@@ -259,7 +261,7 @@ class AccessSequence(list):
         return any(access_info.access_type in read_accesses
                    for access_info in self)
 
-    def has_read_write(self):
+    def has_read_write(self) -> bool:
         '''Checks if this variable has at least one READWRITE access.
 
         :returns: True if this variable is read (at least once).
@@ -279,7 +281,7 @@ class AccessSequence(list):
         return False
 
     @property
-    def all_read_accesses(self):
+    def all_read_accesses(self) -> list[str]:
         ''':returns: a list with all AccessInfo data for this variable
             that involve reading this variable.
         :rtype: List[:py:class:`psyclone.core.AccessInfo`]
@@ -288,10 +290,10 @@ class AccessSequence(list):
                 if access.access_type in AccessType.all_read_accesses()]
 
     @property
-    def all_write_accesses(self):
-        ''':returns: a list with all AccessInfo data for this variable
+    def all_write_accesses(self) -> list[AccessInfo]:
+        '''
+        :returns: a list with all AccessInfo data for this variable
             that involve writing this variable.
-        :rtype: List[:py:class:`psyclone.core.AccessInfo`]
         '''
         return [access for access in self
                 if access.access_type in AccessType.all_write_accesses()]
@@ -300,7 +302,7 @@ class AccessSequence(list):
         self, access_type: AccessType, node: 'Node',
         component_indices: Optional[list[list['Node']] |
                                     ComponentIndices] = None
-    ):
+    ) -> None:
         '''Adds access information to this variable.
 
         :param access_type: the type of access (READ, WRITE, ....)
@@ -310,7 +312,24 @@ class AccessSequence(list):
         '''
         self.append(AccessInfo(access_type, node, component_indices))
 
-    def change_read_to_write(self):
+    def update(self, access_seq: AccessSequence) -> None:
+        '''
+        This function adds all accesses from the given access sequence
+        to this access sequence.
+
+        :param access_seq: the accesses to add to this object.
+
+        :raises ValueError: if the given access sequence is for
+            a different signature.
+        '''
+        if self._signature != access_seq.signature:
+            raise ValueError(f"Updating AccessSequence for '{self.signature}' "
+                             f"with data for '{access_seq.signature}'.")
+        for access_info in access_seq:
+            self.add_access(access_info.access_type, access_info.node,
+                            access_info.component_indices)
+
+    def change_read_to_write(self) -> None:
         '''This function is only used when analysing an assignment statement.
         The LHS has first all variables identified, which will be READ.
         This function is then called to change the assigned-to variable
@@ -344,7 +363,7 @@ class AccessSequence(list):
                 f" it does not have a 'READ' access.")
         read_access.change_read_to_write()
 
-    def has_indices(self, index_variable: str = None) -> bool:
+    def has_indices(self, index_variable: Optional[str] = None) -> bool:
         ''' Checks whether this variable accesses has any index. If the
         optional `index_variable` is provided, only indices involving the given
         variable are considered.

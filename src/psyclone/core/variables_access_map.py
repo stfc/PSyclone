@@ -152,27 +152,22 @@ class VariablesAccessMap(dict):
                 result.append(sig)
         return result
 
-    def update(self, other_access_map):
+    def update(self, other_access_map: "VariablesAccessMap") -> None:
         ''' Updates this dictionary with the entries in the provided
         VariablesAccessMap. If there are repeated signatures, the provided
         values are appended to the existing sequence of accesses.
 
         :param other_access_map: the other VariablesAccessMap instance.
-        :type other_access_map: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         for signature in other_access_map.all_signatures:
             access_sequence = other_access_map[signature]
-            for access_info in access_sequence:
-                if signature in self:
-                    var_info = self[signature]
-                else:
-                    var_info = AccessSequence(signature)
-                    self[signature] = var_info
-
-                var_info.add_access(access_info.access_type,
-                                    access_info.node,
-                                    access_info.component_indices)
+            if signature in self:
+                var_info = self[signature]
+            else:
+                var_info = AccessSequence(signature)
+                self[signature] = var_info
+            var_info.update(access_sequence)
 
     def is_called(self, signature: Signature) -> bool:
         '''
