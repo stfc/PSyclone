@@ -125,9 +125,13 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                     isinstance(self.dir_body[0], Loop) and
                     symbol in self.dir_body[0].explicitly_private_symbols):
                 visited = set()
-                if any(access.node.enters_scope(self, visited_nodes=visited)
-                       for access in accesses):
-                    # If it's used before the loop, make it firstprivate
+                if (
+                    # The loop variable is always private
+                    self.dir_body[0].variable is not symbol and
+                    # For anything else, if it uses a value coming from before
+                    # the loop scope, make it firstprivate
+                    any(access.node.enters_scope(self, visited_nodes=visited)
+                        for access in accesses)):
                     fprivate.add(symbol)
                 else:
                     private.add(symbol)

@@ -268,10 +268,10 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             # entire IfBlock as the dependency.
             shared_if_anc = closest.ancestor(IfBlock, shared_with=directive)
             if shared_if_anc and shared_if_anc.else_body:
-                if ((directive.is_descendent_of(shared_if_anc.if_body) and
-                     closest.is_descendent_of(shared_if_anc.else_body)) or
-                    (directive.is_descendent_of(shared_if_anc.else_body)
-                     and closest.is_descendent_of(shared_if_anc.if_body))):
+                if ((directive.is_descendant_of(shared_if_anc.if_body) and
+                     closest.is_descendant_of(shared_if_anc.else_body)) or
+                    (directive.is_descendant_of(shared_if_anc.else_body)
+                     and closest.is_descendant_of(shared_if_anc.if_body))):
                     closest = shared_if_anc
             # Don't add repeats
             for dep in final_dependencies:

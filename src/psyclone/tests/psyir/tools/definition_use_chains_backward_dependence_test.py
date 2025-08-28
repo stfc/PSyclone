@@ -47,6 +47,7 @@ from psyclone.psyir.nodes import (
     WhileLoop,
 )
 from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
+from psyclone.psyir.transformations import ProfileTrans
 
 
 def test_definition_use_chain_compute_backward_uses(fortran_reader):
@@ -207,6 +208,8 @@ def test_definition_use_chain_find_backward_accesses_ifelse_example(
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
+    p_trans = ProfileTrans()
+    p_trans.apply(routine)
     # Start the chain from b = A + d.
     chains = DefinitionUseChain(routine.walk(Assignment)[4].rhs.children[0])
     reaches = chains.find_backward_accesses()
