@@ -111,7 +111,6 @@ class MarkRoutineForGPUMixin:
             for sig in vam.all_signatures:
                 name = sig.var_name
                 first = vam[sig][0].node
-                print(vam[sig][0].access_type)
                 if (isinstance(first, Reference)
                         and vam[sig][0].access_type == AccessType.TYPE_INFO):
                     table = ktable
