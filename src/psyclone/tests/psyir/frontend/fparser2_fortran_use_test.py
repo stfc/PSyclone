@@ -44,7 +44,9 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyGen import GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import CodeBlock, Container, KernelSchedule
+from psyclone.psyir.nodes import (
+    CodeBlock, Container, KernelSchedule, Reference
+)
 from psyclone.psyir.symbols import (
     ContainerSymbol, SymbolError, Symbol, DataSymbol, AutomaticInterface,
     INTEGER_SINGLE_TYPE, ScalarType, RoutineSymbol)
@@ -62,8 +64,8 @@ def test_use_return(fortran_reader):
     assert isinstance(sym, DataSymbol)
     assert isinstance(sym.datatype, ScalarType)
     assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    assert isinstance(sym.datatype.precision, DataSymbol)
-    assert sym.datatype.precision.name == "rkind"
+    assert isinstance(sym.datatype.precision, Reference)
+    assert sym.datatype.precision.symbol.name == "rkind"
 
 
 def test_use_return2(fortran_reader):
@@ -85,8 +87,8 @@ def test_use_return2(fortran_reader):
     assert isinstance(sym, DataSymbol)
     assert isinstance(sym.datatype, ScalarType)
     assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    assert isinstance(sym.datatype.precision, DataSymbol)
-    assert sym.datatype.precision.name == "rkind"
+    assert isinstance(sym.datatype.precision, Reference)
+    assert sym.datatype.precision.symbol.name == "rkind"
 
     code = '''module mymod
     use my_mod, only: rkind
@@ -106,8 +108,8 @@ def test_use_return2(fortran_reader):
     assert isinstance(sym, DataSymbol)
     assert isinstance(sym.datatype, ScalarType)
     assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    assert isinstance(sym.datatype.precision, DataSymbol)
-    assert sym.datatype.precision.name == "rkind"
+    assert isinstance(sym.datatype.precision, Reference)
+    assert sym.datatype.precision.symbol.name == "rkind"
 
 
 @pytest.mark.usefixtures("f2008_parser")
