@@ -881,6 +881,29 @@ def test_infer_sharing_attributes(fortran_reader):
     assert len(sync) == 1
     assert list(sync)[0].name == 'k'
 
+    # Check that kinds on literals are ignored for data sharing clauses
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer, parameter :: ikind = 4
+            integer :: i, scalar1, scalar2
+            real, dimension(10) :: array
+            do i = 1, 10
+               array(i) = 1_ikind + INTEGER(i, ikind)
+            enddo
+        end subroutine''')
+    omplooptrans = OMPLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop)
+    omptrans = OMPParallelTrans()
+    routine = psyir.walk(Routine)[0]
+    omptrans.apply(routine.children)
+    directive = psyir.walk(OMPParallelDirective)[0]
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
+    assert len(pvars) == 1
+    assert list(pvars)[0].name == 'i'
+    assert len(fpvars) == 0
+    assert len(sync) == 0
+
 
 def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
     ''' Tests for the infer_sharing_attributes() method of OpenMP directives
