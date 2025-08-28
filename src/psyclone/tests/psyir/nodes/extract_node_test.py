@@ -38,6 +38,7 @@
 
 ''' Performs pytest tests on the ExtractNode PSyIR node. '''
 
+import logging
 import pytest
 
 from psyclone.configuration import Config
@@ -45,7 +46,9 @@ from psyclone.core import Signature
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import ExtractNode, Node, Schedule, Routine
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import ExtractNode, Loop, Node, Schedule, Routine
 from psyclone.psyir.symbols import SymbolTable, ArrayType
 from psyclone.psyir.tools import ReadWriteInfo
 from psyclone.tests.utilities import get_invoke
@@ -154,7 +157,7 @@ def test_extract_node_lower_to_language_level():
     output = (
       """CALL extract_psy_data % """
       """PreStart("psy_single_invoke_three_kernels", "invoke_0-compute_cu_"""
-      """code-r0", 9, 5)
+      """code-r0", 7, 3)
     CALL extract_psy_data % PreDeclareVariable("cu_fld_data", cu_fld_data)
     CALL extract_psy_data % PreDeclareVariable("cu_fld_internal_xstart", """
       """cu_fld_internal_xstart)
@@ -164,13 +167,9 @@ def test_extract_node_lower_to_language_level():
       """cu_fld_internal_ystart)
     CALL extract_psy_data % PreDeclareVariable("cu_fld_internal_ystop", """
       """cu_fld_internal_ystop)
-    CALL extract_psy_data % PreDeclareVariable("i", i)
-    CALL extract_psy_data % PreDeclareVariable("j", j)
     CALL extract_psy_data % PreDeclareVariable("p_fld_data", p_fld_data)
     CALL extract_psy_data % PreDeclareVariable("u_fld_data", u_fld_data)
     CALL extract_psy_data % PreDeclareVariable("cu_fld_data_post", cu_fld_data)
-    CALL extract_psy_data % PreDeclareVariable("i_post", i)
-    CALL extract_psy_data % PreDeclareVariable("j_post", j)
     CALL extract_psy_data % PreDeclareVariable("p_fld_data_post", p_fld_data)
     CALL extract_psy_data % PreDeclareVariable("u_fld_data_post", u_fld_data)
     CALL extract_psy_data % PreEndDeclaration
@@ -183,8 +182,6 @@ def test_extract_node_lower_to_language_level():
       """cu_fld_internal_ystart)
     CALL extract_psy_data % ProvideVariable("cu_fld_internal_ystop", """
       """cu_fld_internal_ystop)
-    CALL extract_psy_data % ProvideVariable("i", i)
-    CALL extract_psy_data % ProvideVariable("j", j)
     CALL extract_psy_data % ProvideVariable("p_fld_data", p_fld_data)
     CALL extract_psy_data % ProvideVariable("u_fld_data", u_fld_data)
     CALL extract_psy_data % PreEnd
@@ -195,8 +192,6 @@ def test_extract_node_lower_to_language_level():
     enddo
     CALL extract_psy_data % PostStart
     CALL extract_psy_data % ProvideVariable("cu_fld_data_post", cu_fld_data)
-    CALL extract_psy_data % ProvideVariable("i_post", i)
-    CALL extract_psy_data % ProvideVariable("j_post", j)
     """)
     assert output in code
 
@@ -212,6 +207,20 @@ def test_extract_node_lower_to_language_level():
     for line in expected_lines:
         assert line in code
 
+    # Make sure loop variables are excluded:
+    loop_vars = [
+        'PreDeclareVariable("i", i)',
+        'PreDeclareVariable("j", j)',
+        'PreDeclareVariable("i_post", i)',
+        'PreDeclareVariable("j_post", j)',
+        'ProvideVariable("i", i)',
+        'ProvideVariable("j", j)',
+        'ProvideVariable("i_post", i)',
+        'ProvideVariable("j_post", j)',
+        ]
+    for line in loop_vars:
+        assert line not in code
+
 
 # ---------------------------------------------------------------------------
 def test_extract_node_gen():
@@ -225,9 +234,8 @@ def test_extract_node_gen():
     etrans.apply(invoke.schedule.children[0])
     code = str(psy.gen)
     output = '''CALL extract_psy_data % PreStart("single_invoke_psy", \
-"invoke_0_testkern_type-testkern_code-r0", 18, 16)
+"invoke_0_testkern_type-testkern_code-r0", 17, 15)
     CALL extract_psy_data % PreDeclareVariable("a", a)
-    CALL extract_psy_data % PreDeclareVariable("cell", cell)
     CALL extract_psy_data % PreDeclareVariable("f1_data", f1_data)
     CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
     CALL extract_psy_data % PreDeclareVariable("loop0_start", loop0_start)
@@ -245,7 +253,6 @@ def test_extract_node_gen():
     CALL extract_psy_data % PreDeclareVariable("undf_w2", undf_w2)
     CALL extract_psy_data % PreDeclareVariable("undf_w3", undf_w3)
     CALL extract_psy_data % PreDeclareVariable("a_post", a)
-    CALL extract_psy_data % PreDeclareVariable("cell_post", cell)
     CALL extract_psy_data % PreDeclareVariable("f1_data_post", f1_data)
     CALL extract_psy_data % PreDeclareVariable("f2_data_post", f2_data)
     CALL extract_psy_data % PreDeclareVariable("m1_data_post", m1_data)
@@ -262,7 +269,6 @@ def test_extract_node_gen():
     CALL extract_psy_data % PreDeclareVariable("undf_w3_post", undf_w3)
     CALL extract_psy_data % PreEndDeclaration
     CALL extract_psy_data % ProvideVariable("a", a)
-    CALL extract_psy_data % ProvideVariable("cell", cell)
     CALL extract_psy_data % ProvideVariable("f1_data", f1_data)
     CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
     CALL extract_psy_data % ProvideVariable("loop0_start", loop0_start)
@@ -290,7 +296,6 @@ undf_w3, map_w3(:,cell))
     assert output in code
 
     output = '''
-    CALL extract_psy_data % ProvideVariable("cell_post", cell)
     CALL extract_psy_data % ProvideVariable("f1_data_post", f1_data)
     '''
     assert output in code
@@ -406,7 +411,7 @@ def test_psylayer_flatten_same_symbols():
     in_fld_grid_dx = in_fld%grid%dx
     in_fld_grid_gphiu = in_fld%grid%gphiu
     CALL extract_psy_data % PreStart("psy_extract_example_with_various_\
-variable_access_patterns", "invoke_3-compute_kernel_code-r0", 12, 8)
+variable_access_patterns", "invoke_3-compute_kernel_code-r0", 10, 6)
     """ in code
 
     # Bring the data back to the orginal structure at the end of the region1
@@ -434,7 +439,7 @@ variable_access_patterns", "invoke_3-compute_kernel_code-r0", 12, 8)
     in_fld_grid_dx_1 = in_fld%grid%dx
     in_fld_grid_gphiu_1 = in_fld%grid%gphiu
     CALL extract_psy_data_1 % PreStart("psy_extract_example_with_\
-various_variable_access_patterns", "invoke_3-compute_kernel_code-r1", 12, 8)
+various_variable_access_patterns", "invoke_3-compute_kernel_code-r1", 10, 6)
     """ in code
 
     # Bring data back and flatten agian a thrid time
@@ -461,7 +466,7 @@ various_variable_access_patterns", "invoke_3-compute_kernel_code-r1", 12, 8)
     in_fld_grid_dx_2 = in_fld%grid%dx
     in_fld_grid_gphiu_2 = in_fld%grid%gphiu
     CALL extract_psy_data_2 % PreStart("psy_extract_example_with_various_\
-variable_access_patterns", "invoke_3-compute_kernel_code-r2", 12, 8)
+variable_access_patterns", "invoke_3-compute_kernel_code-r2", 10, 6)
     """ in code
 
 
@@ -495,3 +500,123 @@ def test_extraction_flatten_datatype(monkeypatch):
         dtype = en._flatten_datatype(ref)
     assert ("Could not find type for reference 'in_fld%grid%gphiu' in the"
             " config file" in str(err.value))
+
+
+# ---------------------------------------------------------------------------
+def test_extract_node_multi_node():
+    '''Tests extracting more than one loop works, and that loop variables
+    are indeed excluded even though they appear in more than one loop
+    '''
+
+    etrans = GOceanExtractTrans()
+
+    # Test a Loop nested within the OMP Parallel DO Directive
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90",
+                             "gocean", idx=0, dist_mem=False)
+    etrans.apply(invoke.schedule.children[0:3])
+
+    code = str(psy.gen)
+    # We don't test the full code here, but just make sure that we
+    # have the right number of variables that indicates that indeed
+    # all three loops are included
+    expected = (
+      'CALL extract_psy_data % '
+      'PreStart("psy_single_invoke_three_kernels", "invoke_0-r0", 15, 7)')
+    assert expected in code
+
+    # Make sure that the loop variables are indeed removed
+    loop_vars = [
+        'PreDeclareVariable("i", i)',
+        'PreDeclareVariable("j", j)',
+        'PreDeclareVariable("i_post", i)',
+        'PreDeclareVariable("j_post", j)',
+        'ProvideVariable("i", i)',
+        'ProvideVariable("j", j)',
+        'ProvideVariable("i_post", i)',
+        'ProvideVariable("j_post", j)',
+        ]
+
+    for line in loop_vars:
+        assert line not in code
+
+
+# ---------------------------------------------------------------------------
+def test_extract_ignore_imported_symbol(fortran_reader: FortranReader,
+                                        fortran_writer: FortranWriter) -> None:
+    '''
+    Test that if a loop variable is imported from a module, it is
+    also ignored.
+    '''
+    prog = """
+    module my_mod
+       integer :: a
+    end module my_mod
+
+    program test
+       use my_mod, only: a
+
+       do a=1, 10
+       end do
+    end program test
+    """
+    psyir = fortran_reader.psyir_from_source(prog)
+    extract_trans = GOceanExtractTrans()
+    extract_trans.apply(psyir.walk(Loop)[0])
+    code = fortran_writer(psyir)
+
+    assert 'PreStart("test", "test-r0", 0, 0)' in code
+
+
+# ---------------------------------------------------------------------------
+def test_extract_ignore_wrong_vars(fortran_reader: FortranReader,
+                                   fortran_writer: FortranWriter,
+                                   monkeypatch,
+                                   caplog) -> None:
+    '''
+    Test various edge cases when variables are supposed to be ignored
+    that are not in the list.
+    '''
+    prog = """
+    program test
+       integer :: i, a, b
+
+       do i=1, 10
+          a = b
+       end do
+    end program test
+    """
+    psyir = fortran_reader.psyir_from_source(prog)
+    extract_trans = GOceanExtractTrans()
+    extract_trans.apply(psyir.walk(Loop)[0])
+
+    # First remove b as read variable,
+    # which should not log a warning:
+    # -------------------------------
+    monkeypatch.setattr(ExtractNode, "get_removable_variables",
+                        lambda self: [("", Signature("b"))])
+    with caplog.at_level(logging.WARNING):
+        code = fortran_writer(psyir)
+    assert 'PreStart("test", "test-r0", 2, 2)' in code
+    assert caplog.text == ""
+
+    # Then remove a as written variable,
+    # which should not log a warning:
+    # ----------------------------------
+    monkeypatch.setattr(ExtractNode, "get_removable_variables",
+                        lambda self: [("", Signature("a"))])
+    with caplog.at_level(logging.WARNING):
+        code = fortran_writer(psyir)
+    assert 'PreStart("test", "test-r0", 2, 1)' in code
+    assert caplog.text == ""
+
+    # Now try to remove non-existing variable,
+    # which must log a warning:
+    # ----------------------------------------
+    monkeypatch.setattr(ExtractNode, "get_removable_variables",
+                        lambda self: [("", "xx")])
+    with caplog.at_level(logging.WARNING):
+        code = fortran_writer(psyir)
+
+    assert 'PreStart("test", "test-r0", 3, 2)' in code
+    assert ("Variable 'xx' is to be ignored, but it's neither in the list "
+            "of read variables" in caplog.text)
