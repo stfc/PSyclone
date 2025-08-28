@@ -43,13 +43,14 @@ from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
-from psyclone.psyGen import Transformation, args_filter, InvokeSchedule, \
-    HaloExchange
+from psyclone.psyGen import (Transformation, args_filter, InvokeSchedule, 
+    HaloExchange)
 from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
-    Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation, \
-    StructureReference, FileContainer, CodeBlock, IntrinsicCall, Container
+from psyclone.psyir.nodes import (Routine, Call, Reference, Literal,
+    Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation,
+    StructureReference, FileContainer, CodeBlock, IntrinsicCall, Container,
+    DataNode)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, RoutineSymbol, ContainerSymbol,
     UnsupportedFortranType, ArgumentInterface, ImportInterface,
@@ -771,7 +772,7 @@ class GOOpenCLTrans(Transformation):
             # Not all types have the 'precision' attribute (e.g.
             # UnresolvedType)
             if (hasattr(sym.datatype, "precision") and
-                    isinstance(sym.datatype.precision, DataSymbol)):
+                    isinstance(sym.datatype.precision, DataNode)):
                 sym.datatype._precision = ScalarType.Precision.DOUBLE
 
         if 'go_wp' in symtab:
