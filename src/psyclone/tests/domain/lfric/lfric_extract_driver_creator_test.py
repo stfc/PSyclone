@@ -223,7 +223,6 @@ def test_lfric_driver_simple_test():
         "call extract_psy_data%ReadVariable('undf_w3', undf_w3)",
         "call extract_psy_data%ReadVariable('x_ptr_vector_data', "
         "x_ptr_vector_data)",
-        "call extract_psy_data%ReadVariable('cell_post', cell_post)"
     ]:
         assert line.lower() in driver.lower(), line
 

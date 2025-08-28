@@ -38,8 +38,9 @@
 implementations.
 '''
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
+from psyclone.core import Signature
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import (
     Call, Literal, Reference, ExtractNode, Routine, Node)
@@ -115,7 +116,7 @@ class BaseDriverCreator:
     # -------------------------------------------------------------------------
     @staticmethod
     def add_result_tests(program: Routine,
-                         output_symbols: List[Tuple[Symbol, Symbol]]):
+                         output_symbols: List[Tuple[Symbol, Symbol]]) -> None:
         '''Adds tests to check that all output variables have the expected
         value.
 
@@ -151,7 +152,7 @@ class BaseDriverCreator:
     @staticmethod
     def _create_output_var_code(
         name: str, program: Routine, read_var: str,
-        postfix: str, module_name: str = None
+        postfix: str, module_name: Optional[str] = None
     ) -> Tuple[Symbol, Symbol]:
         '''
         This function creates all code required for an output variable:
@@ -212,9 +213,14 @@ class BaseDriverCreator:
         return (sym, post_sym)
 
     def _create_read_in_code(
-            self, program: Routine, psy_data: DataSymbol,
-            original_symtab: SymbolTable, read_write_info: ReadWriteInfo,
-            postfix: str) -> List[Tuple[Symbol, Symbol]]:
+            self,
+            program: Routine,
+            psy_data: DataSymbol,
+            original_symtab: SymbolTable,
+            read_write_info: ReadWriteInfo,
+            postfix: str,
+            removable_vars: List[Tuple[str, Signature]],
+        ) -> List[Tuple[Symbol, Symbol]]:
         '''This function creates the code that reads in the data file
         produced during extraction. For each:
 
@@ -253,15 +259,18 @@ class BaseDriverCreator:
                 sym = orig_sym.copy()
                 sym.interface = AutomaticInterface()
                 symbol_table.add(sym)
-                name_lit = Literal(str(signature), CHARACTER_TYPE)
-                read_stmts.append((name_lit, sym))
+                # Only add the variable if it is not to be ignored
+                if (module_name, signature) not in removable_vars:
+                    name_lit = Literal(str(signature), CHARACTER_TYPE)
+                    read_stmts.append((name_lit, sym))
 
         # Now do the input external variables. This are done after the locals
         # so that they match the literal tags of the extracting psy-layer
         ExtractNode.bring_external_symbols(read_write_info, symbol_table)
         mod_man = ModuleManager.get()
         for module_name, signature in read_write_info.all_used_vars_list:
-            if module_name:
+            # Only add if a variable is not supposed to be ignored
+            if module_name and (module_name, signature) not in removable_vars:
                 mod_info = mod_man.get_module_info(module_name)
                 orig_sym = mod_info.get_symbol(signature[0])
                 tag = f"{signature[0]}@{module_name}"
@@ -276,6 +285,8 @@ class BaseDriverCreator:
         # to a stored _post variable)
         output_symbols = []
         for module_name, signature in read_write_info.write_list:
+            if (module_name, signature) in removable_vars:
+                continue
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
@@ -307,7 +318,7 @@ class BaseDriverCreator:
         return name.replace("-", "")[:63]
 
     @staticmethod
-    def import_modules(program: Routine):
+    def import_modules(program: Routine) -> None:
         '''This function adds all the import statements required for the
         actual kernel calls. It finds all calls in the PSyIR tree and
         checks for calls with a ImportInterface. Any such call will

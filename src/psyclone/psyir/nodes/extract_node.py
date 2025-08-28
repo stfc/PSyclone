@@ -272,7 +272,8 @@ class ExtractNode(PSyDataNode):
                                               read_write_info,
                                               postfix=postfix,
                                               prefix=prefix,
-                                              region_name=region_name_tuple)
+                                              region_name=region_name_tuple,
+                                              removable_vars=removable_vars)
 
         for var_info in removable_vars:
             read_write_info.remove(signature=var_info[1],

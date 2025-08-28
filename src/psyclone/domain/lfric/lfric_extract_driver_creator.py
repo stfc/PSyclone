@@ -45,7 +45,11 @@ the output data contained in the input file.
 # creation implementation should make this file much smaller.
 # pylint: disable=too-many-lines
 
+from typing import List, Optional, Tuple
+
+from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.configuration import Config
+from psyclone.core import Signature
 from psyclone.domain.common import BaseDriverCreator
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.line_length import FortLineLength
@@ -53,13 +57,14 @@ from psyclone.parse import ModuleManager
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (Call, FileContainer,
+from psyclone.psyir.nodes import (Call, FileContainer, Node,
                                   Routine, StructureReference)
 from psyclone.psyir.symbols import (
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
                                     UnsupportedFortranType)
+from psyclone.psyir.tools import ReadWriteInfo
 
 
 class LFRicExtractDriverCreator(BaseDriverCreator):
@@ -162,7 +167,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
     :param region_name: the suggested region_name.
     '''
-    def __init__(self, region_name: str = None):
+    def __init__(self, region_name: Optional[Tuple[str, str]] = None) -> None:
         super().__init__()
         # TODO #2069: check if this list can be taken from LFRicConstants
         # TODO #2018: once r_field is defined in the LFRic infrastructure,
@@ -174,7 +179,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _add_precision_symbols(symbol_table):
+    def _add_precision_symbols(symbol_table) -> None:
         '''This function adds an import of the various precision
         symbols used by LFRic from the constants_mod module.
 
@@ -203,7 +208,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
     # -------------------------------------------------------------------------
     def _add_command_line_handler(self, program, psy_data_var, module_name,
-                                  region_name):
+                                  region_name) -> None:
         '''
         This function adds code to handle the command line. For now an
         alternative filename (to the default one that is hard-coded by
@@ -285,7 +290,13 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         program.children.insert(1, filename_test)
 
     # -------------------------------------------------------------------------
-    def create(self, nodes, read_write_info, prefix, postfix, region_name):
+    def create(self,
+               nodes: List[Node],
+               read_write_info: ReadWriteInfo,
+               prefix: str,
+               postfix: str,
+               region_name: Tuple[str, str],
+               removable_vars: List[Tuple[str, Signature]]) -> FileContainer:
         # pylint: disable=too-many-arguments
         '''This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
@@ -295,25 +306,26 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         It returns the file container which contains the driver.
 
         :param nodes: a list of nodes.
-        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param read_write_info: information about all input and output
             parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol,
+        :param prefix: the prefix to use for each PSyData symbol,
             e.g. 'extract' as prefix will create symbols ``extract_psydata``.
-        :param str postfix: a postfix that is appended to an output variable
+        :param postfix: a postfix that is appended to an output variable
             to create the corresponding variable that stores the output
             value from the kernel data file. The caller must guarantee that
             no name clashes are created when adding the postfix to a variable
             and that the postfix is consistent between extract code and
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param Tuple[str,str] region_name: an optional name to
+        :param region_name: an optional name to
             use for this PSyData area, provided as a 2-tuple containing a
             location name followed by a local name. The pair of strings
             should uniquely identify a region.
+        :param removable_vars: a list of tuples containing signatures and
+            the container name of variables that were not written to the
+            kernel data file (and as such should not be read in, though
+            they still need to be declared).
 
         :returns: the program PSyIR for a stand-alone driver.
-        :rtype: :py:class:`psyclone.psyir.psyir.nodes.FileContainer`
 
         '''
         # pylint: disable=too-many-locals
@@ -362,7 +374,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                        local_name)
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    original_symbol_table,
-                                                   read_write_info, postfix)
+                                                   read_write_info, postfix,
+                                                   removable_vars)
 
         # Copy the nodes that are part of the extraction
         program.children.extend(extract_region.pop_all_children())
@@ -413,8 +426,14 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             list(all_mods))
 
     # -------------------------------------------------------------------------
-    def get_driver_as_string(self, nodes, read_write_info, prefix, postfix,
-                             region_name, writer=FortranWriter()):
+    def get_driver_as_string(self,
+                             nodes: List[Node],
+                             read_write_info: ReadWriteInfo,
+                             prefix: str,
+                             postfix: str,
+                             region_name: Tuple[str, str],
+                             removable_vars: List[Tuple[str, Signature]],
+                             writer: LanguageWriter = FortranWriter()) -> str:
         # pylint: disable=too-many-arguments, too-many-locals
         '''This function uses the `create()` function to get the PSyIR of a
         stand-alone driver, and then uses the provided language writer
@@ -426,34 +445,34 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         dependencies like NetCDF) are required for compilation.
 
         :param nodes: a list of nodes.
-        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param read_write_info: information about all input and output
             parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol,
+        :param prefix: the prefix to use for each PSyData symbol,
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param str postfix: a postfix that is appended to an output variable
+        :param postfix: a postfix that is appended to an output variable
             to create the corresponding variable that stores the output
             value from the kernel data file. The caller must guarantee that
             no name clashes are created when adding the postfix to a variable
             and that the postfix is consistent between extract code and
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param Tuple[str,str] region_name: an optional name to
+        :param region_name: an optional name to
             use for this PSyData area, provided as a 2-tuple containing a
             location name followed by a local name. The pair of strings
             should uniquely identify a region.
+        :param removable_vars: a list of tuples containing signatures and
+            the container name of variables that were not written to the
+            kernel data file (and as such should not be read in, though
+            they still need to be declared).
         :param language_writer: a backend visitor to convert PSyIR
             representation to the selected language. It defaults to
             the FortranWriter.
-        :type language_writer:
-            :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         :returns: the driver in the selected language.
-        :rtype: str
 
         '''
         file_container = self.create(nodes, read_write_info, prefix,
-                                     postfix, region_name)
+                                     postfix, region_name,
+                                     removable_vars)
 
         module_dependencies = self.collect_all_required_modules(file_container)
         # Sort the modules by dependencies, i.e. start with modules
@@ -478,8 +497,13 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         return "\n".join(out)
 
     # -------------------------------------------------------------------------
-    def write_driver(self, nodes, read_write_info, prefix, postfix,
-                     region_name, writer=FortranWriter()):
+    def write_driver(self, nodes: List[Node],
+                     read_write_info: ReadWriteInfo,
+                     prefix: str,
+                     postfix: str,
+                     region_name: Tuple[str, str],
+                     removable_vars: List[Tuple[str, Signature]],
+                     writer: LanguageWriter = FortranWriter()) -> None:
         # pylint: disable=too-many-arguments
         '''This function uses the ``get_driver_as_string()`` function to get a
         a stand-alone driver, and then writes this source code to a file. The
@@ -488,33 +512,34 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
         :param nodes: a list of nodes containing the body of the driver
             routine.
-        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param read_write_info: information about all input and output
             parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol,
+        :param prefix: the prefix to use for each PSyData symbol,
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param str postfix: a postfix that is appended to an output variable
+        :param postfix: a postfix that is appended to an output variable
             to create the corresponding variable that stores the output
             value from the kernel data file. The caller must guarantee that
             no name clashes are created when adding the postfix to a variable
             and that the postfix is consistent between extract code and
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param Tuple[str,str] region_name: an optional name to
+        :param region_name: an optional name to
             use for this PSyData area, provided as a 2-tuple containing a
             location name followed by a local name. The pair of strings
             should uniquely identify a region.
+        :param removable_vars: a list of tuples containing signatures and
+            the container name of variables that were not written to the
+            kernel data file (and as such should not be read in, though
+            they still need to be declared).
         :param writer: a backend visitor to convert PSyIR
             representation to the selected language. It defaults to
             the FortranWriter.
-        :type writer:
-            :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         '''
         if self._region_name is not None:
             region_name = self._region_name
         code = self.get_driver_as_string(nodes, read_write_info, prefix,
-                                         postfix, region_name, writer=writer)
+                                         postfix, region_name,
+                                         removable_vars, writer=writer)
         fll = FortLineLength()
         code = fll.process(code)
         module_name, local_name = region_name
