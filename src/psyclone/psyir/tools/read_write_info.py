@@ -56,9 +56,9 @@ class ReadWriteInfo:
     read the variables in the same order.
     '''
 
-    def __init__(self):
-        self._read_list = []
-        self._write_list = []
+    def __init__(self) -> None:
+        self._read_list: list[Tuple[str, Signature]] = []
+        self._write_list: list[Tuple[str, Signature]] = []
         self._sorted = True
 
     # -------------------------------------------------------------------------
@@ -123,7 +123,9 @@ class ReadWriteInfo:
         return all_vars
 
     # -------------------------------------------------------------------------
-    def add_read(self, signature, container_name=None) -> None:
+    def add_read(self,
+                 signature: Signature,
+                 container_name: Optional[str] = None) -> None:
         '''This function adds a read access to the specified signature and
         container name. The container_name is optional and defaults to "",
         indicating that this signature is not based on importing a symbol
@@ -142,7 +144,9 @@ class ReadWriteInfo:
         self._sorted = False
 
     # -------------------------------------------------------------------------
-    def add_write(self, signature, container_name=None) -> None:
+    def add_write(self,
+                  signature: Signature,
+                  container_name: Optional[str] = None) -> None:
         '''This function adds a write access to the specified signature and
         container name. The container_name is optional and defaults to "",
         indicating that this signature is not based on importing a symbol
@@ -176,7 +180,18 @@ class ReadWriteInfo:
     # -------------------------------------------------------------------------
     def remove_variable(self,
                         signature: Signature,
-                        container_name: Optional[str] = "") -> None:
+                        container_name: str = "") -> None:
+        '''
+        This function removed a signature (if required with the corresponding
+        module name specified) from the read and/or write list. A warning
+        will be logged if the specified name is not found in any of the
+        two lists.
+
+        :param signature: the signature to remove.
+        :param container_name: the optional container name if the variable is
+            imported.
+
+        '''
         var_info = (container_name, signature)
         not_found_counter = 0
         try:
@@ -192,7 +207,7 @@ class ReadWriteInfo:
         if not_found_counter == 2:
             logger = logging.getLogger(__name__)
             logger.warning(f"ExtractNode: Variable '{var_info[1]}' is to "
-                           f"be ignored, but it's neither in the list of "
+                           f"be removed, but it's neither in the list of "
                            f"read variables ({self._read_list}), nor "
                            f"in the list of write variables "
                            f"({self._write_list}).")
