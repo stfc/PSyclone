@@ -46,7 +46,6 @@ def test_read_write_info() -> None:
     '''
 
     rwi = ReadWriteInfo()
-    # pylint: disable=use-implicit-booleaness-not-comparison
     assert rwi.all_used_vars_list == []
     assert rwi.read_list == []
     assert rwi.signatures_read == []
@@ -138,18 +137,18 @@ def test_remove_var(caplog: LogCaptureFixture) -> None:
     assert rwi.write_list == [("", sig_c), ("", sig_d), ("other_mod", sig_e)]
 
     # Remove from read list only:
-    rwi.remove_variable(sig_a)
+    rwi.remove(sig_a)
     assert rwi.read_list == [("", sig_c), ("my_mod", sig_b)]
     assert rwi.write_list == [("", sig_c), ("", sig_d), ("other_mod", sig_e)]
 
     # Remove from write list only:
-    rwi.remove_variable(sig_d)
+    rwi.remove(sig_d)
     assert rwi.read_list == [("", sig_c), ("my_mod", sig_b)]
     assert rwi.write_list == [("", sig_c), ("other_mod", sig_e)]
 
     # sig_b must have the module name specified,
     # otherwise it must not be removed, and a warning must be logged:
-    rwi.remove_variable(sig_b)
+    rwi.remove(sig_b)
     assert rwi.read_list == [("", sig_c), ("my_mod", sig_b)]
     assert rwi.write_list == [("", sig_c), ("other_mod", sig_e)]
     assert ("Variable 'b' is to be removed, but it's neither in the list of "
@@ -157,17 +156,16 @@ def test_remove_var(caplog: LogCaptureFixture) -> None:
     caplog.clear()
 
     # Remove from read list with the correct module name:
-    rwi.remove_variable(sig_b, "my_mod")
+    rwi.remove(sig_b, "my_mod")
     assert rwi.read_list == [("", sig_c)]
     assert rwi.write_list == [("", sig_c), ("other_mod", sig_e)]
 
     # Remove from the write list with the correct module name
-    rwi.remove_variable(sig_e, "other_mod")
+    rwi.remove(sig_e, "other_mod")
     assert rwi.read_list == [("", sig_c)]
     assert rwi.write_list == [("", sig_c)]
 
     # Test that a symbol is removed from both lists:
-    rwi.remove_variable(sig_c)
-    # pylint: disable=use-implicit-booleaness-not-comparison
+    rwi.remove(sig_c)
     assert rwi.read_list == []
     assert rwi.write_list == []

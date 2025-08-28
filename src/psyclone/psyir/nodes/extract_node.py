@@ -49,7 +49,6 @@ wrapping up settings for generating driver for the extracted code, will
 be added in Issue #298.
 '''
 
-import logging
 from typing import cast, List, Tuple, TYPE_CHECKING, Union
 
 from psyclone.configuration import Config
@@ -254,32 +253,6 @@ class ExtractNode(PSyDataNode):
         # TODO #3024: We could be more data efficient by better selecting
         # which don't need to be copied in (because the extraction region
         # will only write to them)
-        cleaned_read_list = read_write_info.all_used_vars_list
-        cleaned_write_list = read_write_info.write_list
-
-        for var_info in removable_vars:
-            not_found_counter = 0
-            try:
-                cleaned_read_list.remove(var_info)
-            except ValueError:
-                # If the variable is not in that list, ignore it
-                not_found_counter += 1
-            try:
-                cleaned_write_list.remove(var_info)
-            except ValueError:
-                # If the variable is not in that list, ignore it
-                not_found_counter += 1
-            if not_found_counter == 2:
-                logger = logging.getLogger(__name__)
-                logger.warning(f"ExtractNode: Variable '{var_info[1]}' is to "
-                               f"be ignored, but it's neither in the list of "
-                               f"read variables ({cleaned_read_list}), nor "
-                               f"in the list of write variables "
-                               f"({cleaned_write_list}).")
-
-        options = {'pre_var_list': cleaned_read_list,
-                   'post_var_list': cleaned_write_list,
-                   'post_var_postfix': self._post_name}
 
         if self._driver_creator:
             nodes = self.children
@@ -300,6 +273,14 @@ class ExtractNode(PSyDataNode):
                                               postfix=postfix,
                                               prefix=prefix,
                                               region_name=region_name_tuple)
+
+        for var_info in removable_vars:
+            read_write_info.remove(signature=var_info[1],
+                                   container_name=var_info[0])
+
+        options = {'pre_var_list': read_write_info.all_used_vars_list,
+                   'post_var_list': read_write_info.write_list,
+                   'post_var_postfix': self._post_name}
 
         return super().lower_to_language_level(options)
 

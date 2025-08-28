@@ -392,7 +392,7 @@ def test_driver_creation_same_symbol():
     dx_data = dx%data
     in_fld_grid_dx = in_fld%grid%dx
     in_fld_grid_gphiu = in_fld%grid%gphiu
-    CALL extract_psy_data % PreStart("module_name", "local_name", 12, 8)
+    CALL extract_psy_data % PreStart("module_name", "local_name", 10, 6)
     """ in code
     assert """
     CALL extract_psy_data % PostEnd

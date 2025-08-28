@@ -178,9 +178,7 @@ class ReadWriteInfo:
         return any(signature == sig for _, sig in self._read_list)
 
     # -------------------------------------------------------------------------
-    def remove_variable(self,
-                        signature: Signature,
-                        container_name: str = "") -> None:
+    def remove(self, signature: Signature, container_name: str = "") -> None:
         '''
         This function removed a signature (if required with the corresponding
         module name specified) from the read and/or write list. A warning
