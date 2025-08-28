@@ -25,13 +25,14 @@
 #          J. Dendy, Met Office
 
 
+from psyclone.core.access_type import AccessType
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import (Call, CodeBlock, Routine,
                                   IntrinsicCall)
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
-from psyclone.psyir.symbols import (DataSymbol, Symbol, SymbolError,
-                                    DataType)
+from psyclone.psyir.symbols import DataSymbol, SymbolError
 from psyclone.psyGen import BuiltIn
 
 
@@ -110,7 +111,9 @@ class MarkRoutineForGPUMixin:
             for sig in vam.all_signatures:
                 name = sig.var_name
                 first = vam[sig][0].node
-                if isinstance(first, (Symbol, DataType)):
+                print(vam[sig][0].access_type)
+                if (isinstance(first, Reference)
+                        and vam[sig][0].access_type == AccessType.TYPE_INFO):
                     table = ktable
                 else:
                     try:
