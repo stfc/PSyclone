@@ -40,11 +40,12 @@ from psyclone.core import Signature
 from psyclone.psyir.tools import ReadWriteInfo
 
 
-def test_read_write_info():
+def test_read_write_info() -> None:
     '''Test the ReadWriteInfo constructor.
     '''
 
     rwi = ReadWriteInfo()
+    # pylint: disable=use-implicit-booleaness-not-comparison
     assert rwi.all_used_vars_list == []
     assert rwi.read_list == []
     assert rwi.signatures_read == []
@@ -52,7 +53,7 @@ def test_read_write_info():
     assert rwi.signatures_written == []
 
 
-def test_add_read():
+def test_add_read() -> None:
     '''Test adding read variables with and without modules. '''
 
     rwi = ReadWriteInfo()
@@ -83,7 +84,7 @@ def test_add_read():
     assert rwi.is_read(sig_a) is True
 
 
-def test_add_write():
+def test_add_write() -> None:
     '''Test adding written variables with and without modules. '''
 
     rwi = ReadWriteInfo()
