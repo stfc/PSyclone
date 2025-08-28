@@ -111,6 +111,9 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         for signature in var_accesses.all_signatures:
             if not var_accesses[signature].has_data_access():
                 continue
+            # Skip those that are TYPE_INFO accesses
+            if var_accesses[signature][0].access_type == AccessType.TYPE_INFO:
+                continue
             accesses = var_accesses[signature]
             # TODO #2094: var_name only captures the top-level
             # component in the derived type accessor. If the attributes
