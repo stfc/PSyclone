@@ -857,11 +857,9 @@ class DefinitionUseChain:
         Backward accesses are all of the prior References or Calls that read
         or write to the symbol of the reference up to the point that a
         write to the symbol is guaranteed to occur.
-        # FIXME
-        PSyclone assumes all control flow may not be taken, so writes
+        PSyclone assumes any control flow could be not-taken, so writes
         that occur inside control flow do not end the backward access
         chain.
-        # FIXME
 
         :returns: the backward accesses of the reference given to this
                   DefinitionUseChain

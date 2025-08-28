@@ -40,6 +40,7 @@
 ''' Performs py.test tests on the Reference PSyIR node. '''
 
 import pytest
+import itertools
 
 from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (
@@ -49,6 +50,7 @@ from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     UnresolvedType, ImportInterface,
                                     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
                                     REAL_TYPE, ScalarType, Symbol, SymbolTable)
+from psyclone.psyir.transformations import ProfileTrans
 
 
 def test_reference_bad_init():
@@ -669,3 +671,43 @@ def test_reference_enters_and_escapes_scope(fortran_reader):
     assert a_ref.escapes_scope(loop)
     d_ref = loop.loop_body[1].arguments[0]
     assert d_ref.escapes_scope(loop)
+
+
+def test_reference_enters_scope_multiple_conditional_source(fortran_reader):
+    ''' Test that the enters_scope with two sources both inside the loop. '''
+    code = """
+    subroutine my_subroutine()
+      use other
+      INTEGER :: zice, jk, jj, ji, jpk, jpj, jpi
+
+      DO jk = 1, jpk
+         DO jj = 1, jpj
+            DO ji = 1, jpi
+               IF( tsn(ji,jj,jk) <= ztfreez(ji,jj) + 0.1d0 ) THEN; zice = 1.d0
+               ELSE                                              ; zice = 0.d0
+               ENDIF
+               zind(ji,jj,jk) = MAX (   &
+                   rnfmsk(ji,jj) * rnfmsk_z(jk),      &
+                   upsmsk(ji,jj)               ,      &
+                   zice                               &
+                   &                  ) * tmask(ji,jj,jk)
+                   zind(ji,jj,jk) = 1 - zind(ji,jj,jk)
+            END DO
+         END DO
+      END DO
+
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    zice_refs = [ref for ref in psyir.walk(Reference) if ref.name == "zice"]
+
+    # For all permutations fo zice_refs and loops it should say that zice does
+    # not enter the scope
+    for zice, loop in itertools.product(zice_refs, loops):
+        assert not zice.enters_scope(loop)
+
+    # Now repeat the test but enclosing the loops in a Profile region
+    p_trans = ProfileTrans()
+    p_trans.apply(loops[0])
+    for zice, loop in itertools.product(zice_refs, loops):
+        assert not zice.enters_scope(loop)
