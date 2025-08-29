@@ -2253,9 +2253,7 @@ def test_validate_array_reshape(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.validate(
-            call, options={"check_matching_arguments": False}
-        )
+        inline_trans.validate(call)
     assert ("Cannot inline routine 's' because it reshapes an argument: actual"
             " argument 'a(:,:)' has rank 2 but the corresponding formal "
             "argument, 'x', has rank 1" in str(err.value))
@@ -2312,9 +2310,7 @@ def test_validate_indirect_range(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.validate(
-            call, options={"check_matching_arguments": False}
-        )
+        inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because argument 'var(indices(:))' "
             "has an array range in an indirect access" in str(err.value))
 
@@ -2338,9 +2334,7 @@ def test_validate_non_unit_stride_slice(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.validate(
-            call, options={"check_matching_arguments": False}
-        )
+        inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because one of its arguments is an "
             "array slice with a non-unit stride: 'var(::2)' (TODO #1646)" in
             str(err.value))
