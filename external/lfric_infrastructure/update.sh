@@ -135,10 +135,10 @@ cat << EOF >Makefile
 # directories (if required), and is easily visible in git.
 #
 default:
-	make -f ../Makefile
+	\$(MAKE) -f ../Makefile
 
 allclean:
-	make -f ../Makefile allclean
+$(MAKE) -f ../Makefile allclean
 
 EOF
 
