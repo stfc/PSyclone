@@ -6463,7 +6463,7 @@ def test_intergrid_err(dist_mem):
     loops = schedule.walk(Loop)
     expected_err = (
         "cannot currently be applied to nodes which have inter-grid "
-        "kernels as descendents and ")
+        "kernels as descendants and ")
 
     if dist_mem:
         # Cannot apply redundant computation unless DM is enabled

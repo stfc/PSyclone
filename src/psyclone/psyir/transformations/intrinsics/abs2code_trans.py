@@ -110,7 +110,7 @@ class Abs2CodeTrans(Intrinsic2CodeTrans):
         and ``...`` could be arbitrary PSyIR code.
 
         This transformation requires the operation node to be a
-        descendent of an assignment and will raise an exception if
+        descendant of an assignment and will raise an exception if
         this is not the case.
 
         :param node: an ABS UnaryOperation node.

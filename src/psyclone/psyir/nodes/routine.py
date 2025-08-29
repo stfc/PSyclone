@@ -513,9 +513,9 @@ class Routine(Schedule, CommentableMixin):
                     other.return_symbol.name)
 
     def replace_with(self, node, keep_name_in_context=True):
-        '''Removes self and its descendents from the PSyIR tree to which it
+        '''Removes self and its descendants from the PSyIR tree to which it
         is connected and replaces it with the supplied node (and its
-        descendents).
+        descendants).
 
         The node must be a Routine (or subclass) and has the same Symbol as
         self.

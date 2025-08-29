@@ -187,7 +187,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 for name in check.get_symbol_names():
                     codeblock_names.add(name.lower())
             if isinstance(check, Reference):
-                if check.is_descendent_of(node):
+                if check.is_descendant_of(node):
                     # These are fine because inside the loop we will add an
                     # index and the resulting expression rank will be the same
                     continue
@@ -258,7 +258,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
 
             for ref in array.find_symbol_table(node).node.walk(ArrayReference):
                 if ref.symbol is array:
-                    if ref.is_descendent_of(node):
+                    if ref.is_descendant_of(node):
                         # Inside the target loop index the reference using the
                         # loop variable
                         ref.addchild(Reference(node.variable))
