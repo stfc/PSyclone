@@ -89,7 +89,7 @@ program main
     global_mesh_ptr => global_mesh
 
     partitioner_ptr => partitioner_planar
-    ! Note: stencil size must be 0, otherwise the constructur
+    ! Note: stencil size must be 1, otherwise the constructor
     ! crashes when allocation a 0-size array
     partition = partition_type(global_mesh_ptr, &
                                partitioner_ptr, &

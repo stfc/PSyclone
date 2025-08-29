@@ -412,7 +412,7 @@ It was decided not to include the full LFRic core repository as a git
 submodule, since it includes over 140MB of data not required for PSyclone.
 Instead, the script ``update.sh`` in ``external/lfric_infrastructure``
 is provided, which takes the location of a checked out version of
-LFRic core as parameter and update all files required by PSyclone.
+LFRic core as parameter and updates all files required by PSyclone.
 This script will:
 
 1. Create a backup of the current src subdirectory in ``src.backup``.
@@ -431,7 +431,7 @@ This script will:
 
 5. It will create a include makefile that contains all required
    include paths for any compilation tests in PSyclone.
-6. The it runs a dependency analysis and creates a ``Makefile``
+6. Then it runs a dependency analysis and creates a ``Makefile``
    that compiles the library. It will then compile the library.
 
 In order to update the LFRic infrastructure files, first remove the
@@ -439,13 +439,13 @@ currently ``preprocessed`` directory (in order to detect if files
 in LFRic core have been removed). Then checkout out the current
 version of LFRic core, and run the ``update.sh`` script with
 the location of the checked out LFRic core repository. If the compilation
-step finished successful, add and remove the files ins ``src`` and
+step finished successful, add and remove the files in ``src`` and
 ``backup``, and commit.
 
 When compilation tests are requested, the infrastructure files are automatically
 compiled into a temporary directory to create the required .mod files.
-Re-compiling the infrastructure files allows to use different compilers in
-the compilation tests.
+Re-compiling the infrastructure files when the tests are run allows the use
+of different compilers in the compilation tests.
 
 For the gocean domain a complete copy of the dl_esm_inf library is included 
 as a submodule in ``<PSYCLONEHOME>/external/dl_esm_inf``. Before running tests

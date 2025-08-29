@@ -52,46 +52,23 @@ LFRIC_PATH := $(dir $(this_file))/$(PRE_DIR)
 # get updated when `make -C ...` is used to change the directory)
 BUILD_PATH := $(shell pwd)
 include $(LFRIC_PATH)/lfric_include_flags.mk
+LFRIC_INCLUDE_FLAGS += $$(nf-config --fflags)
 
 # Since the repo includes the pre-processed files (.f90), we only
 # need to search for those here.
 ALL_SRC := $(subst $(LFRIC_PATH)/,,\
 		    $(shell find $(LFRIC_PATH) -name '*.f90' -print))
-ALL_OBJ = $(subst .F90,.o,$(subst .f90,.o,$(ALL_SRC)))
-
-# Additional object files required for netcdf support
-# TODO: atm compiling without NetCDF is not supported.
-OBJ_NETCDF = io/file_mod.o io/ugrid_generator_mod.o           \
-	io/ncdf_quad_mod.o io/lfric_ncdf_field_group_mod.o        \
-	io/lfric_ncdf_dims_mod.o io/lfric_ncdf_file_mod.o         \
-	io/lfric_ncdf_field_mod.o mesh/ugrid_mesh_data_mod.o      \
-	io/ncdf_quad_mod.o io/ugrid_2d_mod.o  io/ugrid_file_mod.o
-
-# We need to remove the objects only required for NetCDF from the
-# list of all objects (since we don't want to require NetCDF for
-# most compilation tests):
-OBJ := $(filter-out $(OBJ_NETCDF),$(ALL_OBJ))
+OBJ = $(subst .F90,.o,$(subst .f90,.o,$(ALL_SRC)))
 
 .PHONY: default netcdf dirs get_include_flags preprocess
 
 default: netcdf
 
-# TODO: Compiling without NetCDF does not work yet
-# .PHONY: standalone
-# Standalone target, no netcdf dependency:
-# ----------------------------------------
-#standalone: liblfric.a
-
-liblfric.a: dirs $(OBJ)
-	$(AR) $(ARFLAGS) $@ $(OBJ)
-
-# Netcdf target, like standalone but with support for netcdf files:
-# -----------------------------------------------------------------
-netcdf: LFRIC_INCLUDE_FLAGS += $$(nf-config --fflags)
-netcdf: OBJ += $(OBJ_NETCDF)
+# Netcdf target
 netcdf: liblfric_netcdf.a
-liblfric_netcdf.a: dirs $(OBJ) $(OBJ_NETCDF)
-	$(AR) $(ARFLAGS) $@ $(OBJ) $(OBJ_NETCDF)
+
+liblfric_netcdf.a: dirs $(OBJ)
+	$(AR) $(ARFLAGS) $@ $(OBJ)
 
 # Target for preprocessing the .F90 files, since PSyclone only
 # supports pre-processed files. The environment variable FPPFLAGS
@@ -143,8 +120,8 @@ endef
 $(foreach dir,$(DIRS),$(eval $(call compile_rule_template,$(dir))))
 
 clean:
-	find . -iname "*.o" -exec rm '{}' \;
-	find . -iname "*.mod" -exec rm '{}' \;
+	find . -iname "*.o" -delete
+	find . -iname "*.mod" -delete
 	rm -f liblfric.a liblfric_netcdf.a
 
 allclean: clean

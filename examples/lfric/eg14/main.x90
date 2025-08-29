@@ -88,7 +88,7 @@ program main
     global_mesh_ptr => global_mesh
 
     partitioner_ptr => partitioner_planar
-    ! Note: stencil size must be 0, otherwise the constructur
+    ! Note: stencil size must be 1, otherwise the constructor
     ! crashes when allocation a 0-size array
     partition = partition_type(global_mesh_ptr, &
                                partitioner_ptr, &
@@ -96,7 +96,7 @@ program main
                                1,       &    ! max stencil size
                                .false., &    ! generate_inner_haloes
                                0,       &    ! local rank
-                               1)          ! number of proceses
+                               1)            ! number of proceses
     call local_mesh%initialise( global_mesh_ptr, partition )
     call local_mesh%init_cell_owner()
     local_mesh_ptr => local_mesh

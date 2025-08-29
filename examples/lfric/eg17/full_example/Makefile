@@ -52,7 +52,6 @@ OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 EXEC = example
 
 LFRIC_PATH = ${PSYCLONE_DIR}/external/lfric_infrastructure/preprocessed
-# TODO: standalone compilation is not yet supported, so use the NetCDF version.
 LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 LDFLAGS=$$(nf-config --flibs)

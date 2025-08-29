@@ -60,12 +60,12 @@ LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 # This will add the required include flags to LFRIC_INCLUDE_FLAGS
 include $(LFRIC_PATH)/lfric_include_flags.mk
 
-# TODO: refactor this example to work with the new infrastructure
+# TODO #3114: refactor this example to work with the new infrastructure
 compile: transform
-	@echo "No compilation supported for lfric/eg1"
+	@echo "No compilation supported for lfric/eg17/full_example_netcdf"
 
 run: compile
-	@echo "No run targets for lfric/eg1"
+	@echo "No run targets for lfric/eg17/full_example_netcdf"
 
 transform: main_psy.f90
 
