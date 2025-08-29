@@ -74,12 +74,6 @@ def test_member_can_be_copied():
     assert member.name == "name1"
 
 
-def test_member_is_array():
-    ''' Test that we can check if a member is an array. '''
-    mem = nodes.Member("fred")
-    assert mem.is_array is False
-
-
 def test_member_get_signature():
     ''' Test that we get the expected signature from a member. '''
     mem = nodes.Member("fred")

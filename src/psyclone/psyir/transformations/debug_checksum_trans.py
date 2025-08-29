@@ -150,12 +150,13 @@ PSYCLONE_INTERNAL_line_ + 1
                     datatype = datatype.datatype
                 # If the final member is the only array, and its a supported
                 # datatype then we add it to the writes.
-                if (member.is_array and datatype.intrinsic in
+                if (isinstance(member, ArrayMixin) and datatype.intrinsic in
                         [ScalarType.Intrinsic.REAL,
                          ScalarType.Intrinsic.INTEGER] and
                         not multiple_arrays):
                     writes.append(assign.lhs)
-            elif (assign.lhs.is_array and assign.lhs.datatype.intrinsic in
+            elif (isinstance(assign.lhs, ArrayMixin)
+                  and assign.lhs.datatype.intrinsic in
                   [ScalarType.Intrinsic.REAL, ScalarType.Intrinsic.INTEGER]):
                 writes.append(assign.lhs)
 
@@ -176,7 +177,7 @@ PSYCLONE_INTERNAL_line_ + 1
             else:
                 array_bit = copy
             # Need to convert the lhs to a full range variant.
-            for i in range(len(array_bit.indices)):
+            for i, _ in enumerate(array_bit.indices):
                 new_index = array_bit.get_full_range(i)
                 array_bit.indices[i].replace_with(new_index)
             array = fwriter(copy)
