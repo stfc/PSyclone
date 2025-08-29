@@ -68,10 +68,13 @@ run: compile
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
 
-intergrid_3levels_psy.o: prolong_kernel_mod.o restrict_kernel_mod.o intergrid_3levels_psy.o
+intergrid_3levels_psy.o: prolong_kernel_mod.o restrict_kernel_mod.o
 intergrid_3levels.o: intergrid_3levels_psy.o
 
 kernels: prolong_kernel_mod.o restrict_kernel_mod.o
 
-%.o: %.[fF]90
+%.o: %.F90
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+
+%.o: %.f90
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
