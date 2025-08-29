@@ -60,8 +60,6 @@ transform intergrid_3levels_psy.f90 intergrid_3levels.f90:
 	${PSYCLONE} -api lfric intergrid_3levels.x90 \
 		-opsy intergrid_3levels_psy.f90 -oalg intergrid_3levels.f90
 
-# TODO #1203 compilation of this example is not yet working. The Algorithm
-# (and possibly infrastructure) needs updating.
 compile: transform $(EXEC)
 
 run: compile
