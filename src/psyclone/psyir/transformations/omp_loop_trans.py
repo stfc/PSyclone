@@ -36,6 +36,8 @@
 
 ''' Transformation to insert OpenMP directives to parallelise PSyIR Loops. '''
 
+from typing import Union, List
+
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.nodes import (
@@ -43,7 +45,7 @@ from psyclone.psyir.nodes import (
     Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
     OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
     OMPScheduleClause, OMPBarrierDirective, OMPParallelDirective,
-    OMPReductionClause
+    OMPReductionClause, BinaryOperation, IntrinsicCall
 )
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
@@ -299,6 +301,7 @@ class OMPLoopTrans(ParallelLoopTrans):
 
     def apply(self, node, options=None,
               reprod: bool = None,
+              enable_reductions: bool = False,
               **kwargs):
         '''Apply the OMPLoopTrans transformation to the specified PSyIR Loop.
 
@@ -310,44 +313,68 @@ class OMPLoopTrans(ParallelLoopTrans):
         :param options: a dictionary with options for transformations
                         and validation.
         :type options: Optional[Dict[str, Any]]
-
+        :param enable_reductions: whether to attempt to infer reduction
+            clauses or not.
         '''
+        # TODO[mn416]: move the conversion dict elsewhere?
+        to_omp_reduction_operator = {
+            BinaryOperation.Operator.ADD:
+                OMPReductionClause.ReductionClauseTypes.ADD,
+            BinaryOperation.Operator.SUB:
+                OMPReductionClause.ReductionClauseTypes.SUB,
+            BinaryOperation.Operator.MUL:
+                OMPReductionClause.ReductionClauseTypes.MUL,
+            BinaryOperation.Operator.AND:
+                OMPReductionClause.ReductionClauseTypes.AND,
+            BinaryOperation.Operator.OR:
+                OMPReductionClause.ReductionClauseTypes.OR,
+            BinaryOperation.Operator.EQV:
+                OMPReductionClause.ReductionClauseTypes.EQV,
+            BinaryOperation.Operator.NEQV:
+                OMPReductionClause.ReductionClauseTypes.NEQV,
+            IntrinsicCall.Intrinsic.MAX:
+                OMPReductionClause.ReductionClauseTypes.MAX,
+            IntrinsicCall.Intrinsic.MIN:
+                OMPReductionClause.ReductionClauseTypes.MIN,
+            IntrinsicCall.Intrinsic.IAND:
+                OMPReductionClause.ReductionClauseTypes.IAND,
+            IntrinsicCall.Intrinsic.IOR:
+                OMPReductionClause.ReductionClauseTypes.IOR,
+            IntrinsicCall.Intrinsic.IEOR:
+                OMPReductionClause.ReductionClauseTypes.IEOR
+            }
+
+        if enable_reductions:
+            red_ops = list(to_omp_reduction_operator.keys())
+        else:
+            red_ops = []
+
         # TODO 2668 - options dict is deprecated.
         if not options:
             if reprod is None:
                 reprod = Config.get().reproducible_reductions
             self.validate_options(
-                    reprod=reprod, **kwargs
+                    reprod=reprod,
+                    enable_reductions=enable_reductions,
+                    reduction_ops=red_ops,
+                    **kwargs
             )
             self._reprod = reprod
         else:
             self._reprod = options.get("reprod",
                                        Config.get().reproducible_reductions)
+            if options.get("enable_reductions", False):
+                options["reduction_ops"] = list(
+                    to_omp_reduction_operator.keys())
+            else:
+                options["reduction_ops"] = []
 
         parent = node.parent
         position = node.position
-        super().apply(node, options, **kwargs)
+        super().apply(node, options, reduction_ops=red_ops, **kwargs)
 
-        # Get the newly added directive
+        # Add reduction clauses to the newly introduced directive
         directive = parent.children[position]
-
-        # Add reduction clauses
-        # TODO[mn416]: use something higher-level than strings to capture
-        # reduction operator. Also, move the conversion dict elsewhere?
-        to_omp_reduction_operator = {
-            '+'     : OMPReductionClause.ReductionClauseTypes.ADD,
-            '-'     : OMPReductionClause.ReductionClauseTypes.SUB,
-            '*'     : OMPReductionClause.ReductionClauseTypes.MUL,
-            '.and.' : OMPReductionClause.ReductionClauseTypes.AND,
-            '.or.'  : OMPReductionClause.ReductionClauseTypes.OR,
-            '.eqv.' : OMPReductionClause.ReductionClauseTypes.EQV,
-            '.neqv.': OMPReductionClause.ReductionClauseTypes.NEQV,
-            '.max.' : OMPReductionClause.ReductionClauseTypes.MAX,
-            '.min.' : OMPReductionClause.ReductionClauseTypes.MIN,
-            '.iand.': OMPReductionClause.ReductionClauseTypes.IAND,
-            '.ior.' : OMPReductionClause.ReductionClauseTypes.IOR,
-            '.ieor.': OMPReductionClause.ReductionClauseTypes.IEOR
-            }
         for (op, var_name) in self.inferred_reduction_vars:
             clause = OMPReductionClause(to_omp_reduction_operator[op])
             clause.addchild(Reference(Symbol(var_name)))
