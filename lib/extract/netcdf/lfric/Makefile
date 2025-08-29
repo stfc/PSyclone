@@ -65,7 +65,7 @@ INF_LIB_NAME = lfric_netcdf
 INF_LIB = $(LFRIC_PATH)/lib$(INF_LIB_NAME).a
 
 # This will add the required include flags to $(LFRIC_INCLUDE_FLAGS)
-include $(LFRIC_PATH)/lfric_include_flags.inc
+include $(LFRIC_PATH)/lfric_include_flags.mk
 
 LFRIC_INCLUDE_FLAGS += $$(nf-config --fflags)
 PSYDATA_LIB_NAME = _extract

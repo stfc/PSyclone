@@ -64,7 +64,7 @@ INF_LIB_NAME = lfric
 INF_LIB = $(LFRIC_PATH)/lib$(INF_LIB_NAME).a
 
 # This will setup the required include flags in $(LFRIC_INCLUDE_FLAGS)
-include $(LFRIC_PATH)/lfric_include_flags.inc
+include $(LFRIC_PATH)/lfric_include_flags.mk
 
 PSYDATA_LIB_NAME = _extract
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a

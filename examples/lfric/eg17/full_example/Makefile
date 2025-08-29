@@ -58,7 +58,7 @@ LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 LDFLAGS=$$(nf-config --flibs)
 
 # This sets up LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
+include $(LFRIC_PATH)/lfric_include_flags.mk
 
 run: compile
 	./example

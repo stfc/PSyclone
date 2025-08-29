@@ -151,7 +151,7 @@ echo "Creating dependencies for $(echo $all_files | wc -w) files"
 ../create_dependencies.py $all_files  >dependency
 
 # Copy the makefile include file that defines the required include flags:
-cp ../lfric_include_flags.inc .
+cp ../lfric_include_flags.mk .
 
 echo Compiling infrastructure library
 make -f ../Makefile netcdf -j 4

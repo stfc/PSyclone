@@ -51,7 +51,7 @@ LFRIC_PATH := $(dir $(this_file))/$(PRE_DIR)
 # include paths (note: do not use $PWD, this variable might not
 # get updated when `make -C ...` is used to change the directory)
 BUILD_PATH := $(shell pwd)
-include $(LFRIC_PATH)/lfric_include_flags.inc
+include $(LFRIC_PATH)/lfric_include_flags.mk
 
 # Since the repo includes the pre-processed files (.f90), we only
 # need to search for those here.
@@ -108,7 +108,7 @@ preprocess: $(ALL_PREPROCESSED)
 # Other rules
 dirs:
 	# Create all required build directories. $(DIRS) is defined by the
-	# included makefile `lfric_include_flags.inc` above.
+	# included makefile `lfric_include_flags.mk` above.
 	mkdir -p $(DIRS)
 
 # Dependencies
@@ -139,7 +139,7 @@ $(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.f90
 endef
 
 # Define the required rules for each subdirectory. DIRS is defined
-# by the included file `lfric_include_flags.inc`
+# by the included file `lfric_include_flags.mk`
 $(foreach dir,$(DIRS),$(eval $(call compile_rule_template,$(dir))))
 
 clean:

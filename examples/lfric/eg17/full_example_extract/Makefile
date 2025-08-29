@@ -94,7 +94,7 @@ LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 # This will setup the required include flags in LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
+include $(LFRIC_PATH)/lfric_include_flags.mk
 
 LFRIC_INCLUDE_FLAGS += -I$(EXTRACT_DIR)
 

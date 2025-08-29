@@ -48,7 +48,7 @@ LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 OBJ = intergrid_3levels_psy.o intergrid_3levels.o restrict_kernel_mod.o prolong_kernel_mod.o
 
 # This will add the required include flags to LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
+include $(LFRIC_PATH)/lfric_include_flags.mk
 
 .PHONY: transform compile run kernels
 
