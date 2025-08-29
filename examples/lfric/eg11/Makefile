@@ -50,12 +50,12 @@ F90FLAGS ?= -g -O0
 OBJ = helmholtz_solver_alg_psy.o helmholtz_solver_alg_mod.o scaled_matrix_vector_kernel_mod.o driver.o
 
 EXEC = will_not_run.exe
-LFRIC_PATH = ../../../src/psyclone/tests/test_files/lfric/infrastructure
-LFRIC_NAME=lfric
+LFRIC_PATH ?= ${PSYCLONE_DIR}/external/lfric_infrastructure/preprocessed
+LFRIC_NAME=lfric_netcdf
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 # This will create LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
+include $(LFRIC_PATH)/lfric_include_flags.mk
 
 # This example will not run as no mesh is set up and the data is not
 # initialised in the algorithm layer. The example was simply designed
@@ -71,10 +71,11 @@ helmholtz_solver_alg_psy.f90 helmholtz_solver_alg_mod.f90: helmholtz_solver_alg_
 	${PSYCLONE} -api lfric -s ./async_script.py -opsy helmholtz_solver_alg_psy.f90 -oalg helmholtz_solver_alg_mod.f90 $<
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) \
+	 -L$(LFRIC_PATH) -l$(LFRIC_NAME) $$(nf-config --flibs)
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
+	$(MAKE) -C $(LFRIC_PATH) -f ../Makefile
 
 # Dependencies
 driver.o:			helmholtz_solver_alg_mod.o

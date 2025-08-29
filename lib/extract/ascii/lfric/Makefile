@@ -61,7 +61,7 @@ INF_LIB_NAME = lfric
 INF_LIB = $(LFRIC_PATH)/lib$(INF_LIB_NAME).a
 
 # This will setup the required include flags in $(LFRIC_INCLUDE_FLAGS)
-include $(LFRIC_PATH)/lfric_include_flags.inc
+include $(LFRIC_PATH)/lfric_include_flags.mk
 
 PSYDATA_LIB_NAME = _extract
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
@@ -75,7 +75,7 @@ OBJS = psy_data_base.o kernel_data_ascii.o extract_ascii_base.o \
 
 default: $(PSYDATA_LIB)
 
-.PHONY: default clean allclean
+.PHONY: default clean allclean process
 
 # We add read_kernel_data_mod as a convenience for using this
 # in LFRic: all required file for kernel extractions and drivers
@@ -105,6 +105,9 @@ extract_ascii_base.F90: $(LIB_TMPLT_DIR)/extract_ascii_base.jinja Makefile
 
 compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > compare_variables_mod.F90
+
+process: kernel_data_ascii.f90 psy_data_base.f90 read_kernel_data_mod.f90 extract_ascii_base.F90 \
+	compare_variables_mod.F90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<

@@ -37,12 +37,12 @@
 !------------------------------------------------------------------------------
 ! Drives the execution of the algorithms and kernels in Example 1.
 ! Based on the pared-down version of LFRic infrastructure stored in
-! $PSYCLONE_DIR/src/psyclone/tests/test_files/lfric/infrastructure
+! $PSYCLONE_DIR/external/lfric_infrastructure/
 !------------------------------------------------------------------------------
 program simple_kernels_driver
 
-  use constants_mod,          only : i_def, r_def
-  use global_mesh_base_mod,   only : global_mesh_base_type
+  use constants_mod,          only : i_def, r_def, str_def
+  use global_mesh_mod,        only:  global_mesh_type
   use mesh_mod,               only : mesh_type
   use partition_mod,          only : partition_type,     &
                                      partitioner_planar, &
@@ -55,8 +55,8 @@ program simple_kernels_driver
   implicit none
 
   ! Global and local mesh data types
-  type(global_mesh_base_type), target       :: global_mesh
-  class(global_mesh_base_type), pointer     :: global_mesh_ptr => null()
+  type(global_mesh_type), target            :: global_mesh
+  class(global_mesh_type), pointer          :: global_mesh_ptr => null()
   type(mesh_type), target                   :: mesh
   ! Extrusion
   type(uniform_extrusion_type), target      :: extrusion
@@ -83,6 +83,8 @@ program simple_kernels_driver
   integer(kind=i_def) :: element_order_h
   ! Finite-element method (FEM) order in the vertical direction
   integer(kind=i_def) :: element_order_v
+
+  character(str_def) :: mesh_name="123"
 
   !-----------------------------------------------------------------------------
   ! Set model parameters
@@ -112,7 +114,7 @@ program simple_kernels_driver
   !-----------------------------------------------------------------------------
   call log_event( "Creating mesh", LOG_LEVEL_INFO )
   ! Allocate global 2D mesh from the unit-test constructor
-  global_mesh = global_mesh_base_type()
+  global_mesh = global_mesh_type()
   global_mesh_ptr => global_mesh
 
   ! Generate the partition object
@@ -122,15 +124,16 @@ program simple_kernels_driver
                               xproc,             &
                               yproc,             &
                               max_stencil_depth, &
+                              .false.,           &
                               local_rank,        &
                               total_ranks )
 
   ! Create extrusion object
-  extrusion = uniform_extrusion_type( 0.0_r_def, domain_top, number_of_layers )
+  extrusion = uniform_extrusion_type( 0.0_r_def, domain_top, number_of_layers, 1 )
   extrusion_ptr => extrusion
 
   ! Create local 3D partitioned mesh
-  mesh = mesh_type( global_mesh_ptr, partition, extrusion_ptr )
+  mesh = mesh_type( global_mesh, extrusion, mesh_name=mesh_name )
 
   !-----------------------------------------------------------------------------
   ! Call algorithms

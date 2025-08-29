@@ -39,7 +39,7 @@
 !
 module configuration_mod
 
-  use constants_mod, only : i_native, l_def, str_def, str_max_filename
+  use constants_mod, only : i_def, l_def, str_def, str_max_filename
   use log_mod,       only : log_scratch_space, log_event, LOG_LEVEL_ERROR
 
   use base_mesh_config_mod, only : read_base_mesh_namelist, &
@@ -106,10 +106,10 @@ contains
 
     character(*), intent(in) :: filename
 
-    integer(i_native), intent(in) :: local_rank
+    integer(i_def), intent(in) :: local_rank
 
     character(str_def), allocatable :: namelists(:)
-    integer(i_native) :: unit = -1
+    integer(i_def) :: unit = -1
 
     !local_rank = get_comm_rank()
 
@@ -135,8 +135,8 @@ contains
 
     implicit none
 
-    integer(i_native),  intent(in)                 :: unit
-    integer(i_native),  intent(in)                 :: local_rank
+    integer(i_def),  intent(in)                 :: unit
+    integer(i_def),  intent(in)                 :: local_rank
     character(str_def), intent(inout), allocatable :: names(:)
 
     character(str_def), allocatable :: names_temp(:)
@@ -148,7 +148,7 @@ contains
     logical(l_def)     :: continue_read
     ! Number of names - technically a scalar but must be defined as a
     ! single element array to be broadcast-able
-    integer(i_native)  :: namecount(1)
+    integer(i_def)  :: namecount(1)
 
     namecount = 0
     if (local_rank == 0) then
@@ -193,7 +193,7 @@ contains
     logical(l_def), optional, intent(out) :: success_mask(:)
     logical(l_def)                        :: ensure_configuration
 
-    integer(i_native) :: i
+    integer(i_def) :: i
     logical           :: configuration_found = .True.
 
     if (present(success_mask) &
@@ -243,12 +243,12 @@ contains
                                            namelists, filename )
     implicit none
 
-    integer(i_native),  intent(in) :: unit
-    integer(i_native),  intent(in) :: local_rank
+    integer(i_def),  intent(in) :: unit
+    integer(i_def),  intent(in) :: local_rank
     character(str_def), intent(in) :: namelists(:)
     character(*),       intent(in) :: filename
 
-    integer(i_native) :: i
+    integer(i_def) :: i
 
     ! Read the namelists
     do i = 1, size(namelists)

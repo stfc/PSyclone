@@ -37,7 +37,7 @@
 !------------------------------------------------------------------------------
 ! Drives the execution of the algorithms and kernels in Example 3.
 ! Based on the pared-down version of LFRic infrastructure stored in
-! $PSYCLONE_DIR/src/psyclone/tests/test_files/lfric/infrastructure
+! $PSYCLONE_DIR/external/lfric_infrastructure/
 !------------------------------------------------------------------------------
 program time_evolution_driver
 

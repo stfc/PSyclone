@@ -68,13 +68,13 @@ module extract_psy_data_mod
         {% set all_declares=[] -%}
         {% set all_writes=[] -%}
         {% for prec in ALL_PREC %}
-        procedure :: DeclareField_r{{prec}}
-        procedure :: WriteField_r{{prec}}
+        procedure :: Declarefield_real{{prec}}
+        procedure :: Writefield_real{{prec}}
         procedure :: DeclareFieldVector_r{{prec}}
         procedure :: WriteFieldVector_r{{prec}}
-          {{- all_declares.append("DeclareField_r{{prec}}") or ""}}
+          {{- all_declares.append("Declarefield_real{{prec}}") or ""}}
           {{- all_declares.append("DeclareFieldVector_r{{prec}}") or ""}}
-          {{- all_writes.append("WriteField_r{{prec}}") or ""}}
+          {{- all_writes.append("Writefield_real{{prec}}") or ""}}
           {{- all_writes.append("WriteFieldVector_r{{prec}}") or ""}}
         {% endfor %}
 
@@ -87,7 +87,7 @@ module extract_psy_data_mod
         !> Declare generic interface for PreDeclareVariable:
         generic, public :: PreDeclareVariable =>  &
         {% for prec in ALL_PREC %}
-                           DeclareField_r{{prec}},      &
+                           Declarefield_real{{prec}},      &
                            DeclareFieldVector_r{{prec}},&
         {% endfor %}
                            DeclareIntField,       &
@@ -98,7 +98,7 @@ module extract_psy_data_mod
         !! the Fortran file.
         generic, public :: ProvideVariable =>   &
         {% for prec in ALL_PREC %}
-                           WriteField_r{{prec}},      &
+                           Writefield_real{{prec}},      &
                            WriteFieldVector_r{{prec}},&
         {% endfor %}
                            WriteIntField,       &
@@ -120,22 +120,22 @@ contains
     !! @param[in,out] this The instance of the extract_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine DeclareField_r{{prec}}(this, name, value)
+    subroutine Declarefield_real{{prec}}(this, name, value)
 
-        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+        use field_real{{prec}}_mod, only : field_real{{prec}}_type, field_real{{prec}}_proxy_type
 
         implicit none
 
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
-        type(field_r{{prec}}_type), intent(in)                  :: value
+        type(field_real{{prec}}_type), intent(in)                  :: value
 
-        type(field_r{{prec}}_proxy_type) :: value_proxy
+        type(field_real{{prec}}_proxy_type) :: value_proxy
 
         value_proxy = value%get_proxy()
         call this%PreDeclareVariable(name, value_proxy%data)
 
-    end subroutine DeclareField_r{{prec}}
+    end subroutine Declarefield_real{{prec}}
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes the values of an LFRic real-valued {{prec}}-bit field.
@@ -144,22 +144,22 @@ contains
     !! @param[in,out] this The instance of the extract_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine WriteField_r{{prec}}(this, name, value)
+    subroutine Writefield_real{{prec}}(this, name, value)
 
-        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+        use field_real{{prec}}_mod, only : field_real{{prec}}_type, field_real{{prec}}_proxy_type
 
         implicit none
 
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
-        type(field_r{{prec}}_type), intent(in)                  :: value
+        type(field_real{{prec}}_type), intent(in)                  :: value
 
-        type(field_r{{prec}}_proxy_type) :: value_proxy
+        type(field_real{{prec}}_proxy_type) :: value_proxy
 
         value_proxy = value%get_proxy()
         call this%ProvideVariable(name, value_proxy%data)
 
-    end subroutine WriteField_r{{prec}}
+    end subroutine Writefield_real{{prec}}
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine declares an LFRic real-valued {{prec}}-bit field vector.
@@ -170,16 +170,16 @@ contains
     !! @param[in] value The value of the variable.
     subroutine DeclareFieldVector_r{{prec}}(this, name, value)
 
-        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+        use field_real{{prec}}_mod, only : field_real{{prec}}_type, field_real{{prec}}_proxy_type
 
         implicit none
 
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
-        type(field_r{{prec}}_type), dimension(:), intent(in)        :: value
+        type(field_real{{prec}}_type), dimension(:), intent(in)        :: value
 
         integer                :: i
-        type(field_r{{prec}}_proxy_type) :: value_proxy
+        type(field_real{{prec}}_proxy_type) :: value_proxy
         character(9)           :: number
 
         ! Provide each component of the vector as an individual 1D array.
@@ -204,16 +204,16 @@ contains
     !! @param[in] value The value of the variable.
     subroutine WriteFieldVector_r{{prec}}(this, name, value)
 
-        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+        use field_real{{prec}}_mod, only : field_real{{prec}}_type, field_real{{prec}}_proxy_type
 
         implicit none
 
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
-        type(field_r{{prec}}_type), dimension(:), intent(in)        :: value
+        type(field_real{{prec}}_type), dimension(:), intent(in)        :: value
 
         integer                :: i
-        type(field_r{{prec}}_proxy_type) :: value_proxy
+        type(field_real{{prec}}_proxy_type) :: value_proxy
         character(9)           :: number
 
         ! Provide each dimension of the vector as an individual 1D array.

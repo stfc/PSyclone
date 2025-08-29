@@ -47,13 +47,13 @@ program multi_functions_multi_invokes
 
   type(field_type)             :: f1, f2, m1, m2
   type(field_type)             :: fieLd_r_def
-  type(r_phys_field_type)      :: fiEld_r_phys
+  type(r_bl_field_type)        :: fiEld_r_bl
   type(quadrature_xyoz_type)   :: qr
   type(operator_type)          :: operator_r_def
   real(r_def)                  :: a
   integer(i_def)               :: istp
   real(r_def)                  :: Scalar_r_def
-  real(r_phys)                 :: scalAr_r_phys
+  real(r_bl)                   :: scalAr_r_bl
 
   call invoke(                                       &
        mixed_kernel_type(scalar_r_deF, field_R_def, opeRator_r_def), &
@@ -61,7 +61,7 @@ program multi_functions_multi_invokes
        )
 
   call invoke(                                        &
-       mixed_kernel_type(scaLar_r_phys, fIeld_r_phys, opeRator_r_def), &
+       mixed_kernel_type(scaLar_r_bl, fIeld_r_bl, opeRator_r_def), &
        testkern_qr_type(f1, f2, m1, a, m2, istp, qr)  &
        )
 
