@@ -208,8 +208,6 @@ def test_definition_use_chain_find_backward_accesses_ifelse_example(
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
-    p_trans = ProfileTrans()
-    p_trans.apply(routine)
     # Start the chain from b = A + d.
     chains = DefinitionUseChain(routine.walk(Assignment)[4].rhs.children[0])
     reaches = chains.find_backward_accesses()
@@ -229,6 +227,36 @@ def test_definition_use_chain_find_backward_accesses_ifelse_example(
     assert len(reaches) == 2
     assert reaches[0] is not a_3
     assert reaches[1] is not a_3
+
+
+def test_definition_use_chain_find_backward_accesses_psy_data_node_example(
+    fortran_reader,
+):
+    """Functionality test for the find_backward_accesses routine. This
+    tests the behaviour when the behavious is the expected when the analysed
+    code is inside a PSyDataNode (e.g. a ProfileNode). """
+
+    # Just repeat the previous test but adding a ProfileNode on top
+    code = """
+    subroutine x()
+    integer :: a, b, c, d, e, f
+    a = 1
+    b = a + c
+    if ( d > e) then
+        a = 3
+    else
+        a = 4
+    end if
+    b = a + d
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    p_trans = ProfileTrans()
+    p_trans.apply(routine)
+    # Start the chain from b = A + d.
+    chains = DefinitionUseChain(routine.walk(Assignment)[4].rhs.children[0])
+    reaches = chains.find_backward_accesses()
+    assert len(reaches) == 4
 
 
 def test_definition_use_chain_find_backward_accesses_loop_example(

@@ -58,6 +58,7 @@ from psyclone.psyir.nodes import (
     Schedule,
     Statement,
     WhileLoop,
+    PSyDataNode,
 )
 
 
@@ -679,6 +680,14 @@ class DefinitionUseChain:
                 # This assumes that data in clauses is inquiry for now.
                 control_flow_nodes.append(None)
                 basic_blocks.append([node.dir_body])
+            elif isinstance(node, PSyDataNode):
+                # Add any current block to the list of blocks.
+                if len(current_block) > 0:
+                    basic_blocks.append(current_block)
+                    control_flow_nodes.append(None)
+                    current_block = []
+                control_flow_nodes.append(None)
+                basic_blocks.append([node.psy_data_body])
             else:
                 # This is a basic node, add it to the current block
                 current_block.append(node)
