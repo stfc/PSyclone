@@ -50,7 +50,6 @@ LFRIC_PATH := $(dir $(this_file))/$(PRE_DIR)
 # makefile will then use instead of $(LFRIC_PATH) for creating the
 # include paths (note: do not use $PWD, this variable might not
 # get updated when `make -C ...` is used to change the directory)
-BUILD_PATH := $(shell pwd)
 include $(LFRIC_PATH)/lfric_include_flags.mk
 LFRIC_INCLUDE_FLAGS += $$(nf-config --fflags)
 
@@ -60,59 +59,38 @@ ALL_SRC := $(subst $(LFRIC_PATH)/,,\
 		    $(shell find $(LFRIC_PATH) -name '*.f90' -print))
 OBJ = $(subst .F90,.o,$(subst .f90,.o,$(ALL_SRC)))
 
-.PHONY: default netcdf dirs get_include_flags preprocess
+.PHONY: default netcdf get_include_flags
 
-default: netcdf
+default:
+	# Switch into the preprocessed directory to compile:
+	$(MAKE) -C $(LFRIC_PATH)
 
 # Netcdf target
-netcdf: liblfric_netcdf.a
+netcdf: $(LFRIC_PATH)/liblfric_netcdf.a
 
-liblfric_netcdf.a: dirs $(OBJ)
-	$(AR) $(ARFLAGS) $@ $(OBJ)
-
-# Target for preprocessing the .F90 files, since PSyclone only
-# supports pre-processed files. The environment variable FPPFLAGS
-# can be set to define preprocessor macros, e.g.:
-#    FPPFLAGS="-DRDEF_PRECISION=32" make preprocess
-# Since 'make' uses time stamps, you need to provide the -B flag
-# to make to enforce re-preprocessing of all files.
-# ----------------------------------------------------------------
-FILES_TO_PREPROCESS = $(filter %.F90,$(ALL_SRC))
-ALL_PREPROCESSED = $(patsubst %.F90,%.f90,$(FILES_TO_PREPROCESS))
-
-preprocess: $(ALL_PREPROCESSED)
-
-# Other rules
-dirs:
-	# Create all required build directories. $(DIRS) is defined by the
-	# included makefile `lfric_include_flags.mk` above.
-	mkdir -p $(DIRS)
+$(LFRIC_PATH)/liblfric_netcdf.a: $(OBJ)
+	$(AR) $(ARFLAGS) $@ $(patsubst %,$(LFRIC_PATH)/%,$(OBJ))
 
 # Dependencies
 # ------------
 include $(LFRIC_PATH)/dependency
 
-# Rule for preprocessing:
-# -----------------------
-%.f90: %.F90
-	$(CPP) -P  $(FPPFLAGS) $< > $@
-
 # Compilation rules
 # -----------------
 
-# The following function defines two rules to compile SOMEDIR/*.F90
-# and SOMEDIR/*.f90 into SOMEDIR/*.o. Since LFRic stores the mod and
+# The following function defines two rules to compile SOMEDIR/*.f90 into
+# SOMEDIR/*.o. Since LFRic stores the mod and
 # .o files in the same directory, we mirror this behaviour here. Instead
 # of using compiler-specific flags to control the output location for
 # .mod files, this changes into the directory where the .o files should
 # be stored. This avoids the hassle of handling compiler specific flags.
 # An example for the rule created:
 # field/%.o: $(LFRIC_PATH)/field/%.f90
-#     cd field; $(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $< -o $(notdir $@)
+#     cd $(LFRIC_PATH)/field; $(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $< -o $(notdir $@)
 
 define compile_rule_template =
 $(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.f90
-	cd $(1); $$(F90) $$(F90FLAGS) $$(LFRIC_INCLUDE_FLAGS) -c $$< -o $$(notdir $$@)
+	cd $$(LFRIC_PATH)/$(1); $$(F90) $$(F90FLAGS) $$(LFRIC_INCLUDE_FLAGS) -c $$< -o $$(notdir $$@)
 endef
 
 # Define the required rules for each subdirectory. DIRS is defined

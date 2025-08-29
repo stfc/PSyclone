@@ -124,8 +124,9 @@ pushd preprocessed
 # Makefile in this directory.
 
 cat << EOF >Makefile
-# This Makefile is automatically created by ../update.sh
-# ======================================================
+# This Makefile is automatically created when updating
+# the LFRic infrastructure by ../update.sh
+# ====================================================
 
 # Don't modify the file directly, if required, update ../update.sh
 # to update the Makefile.
@@ -135,11 +136,13 @@ cat << EOF >Makefile
 # directories (if required), and is easily visible in git.
 #
 default:
-	\$(MAKE) -f ../Makefile
+	\$(MAKE) -f ../Makefile netcdf
+
+clean:
+	\$(MAKE) -f ../Makefile clean
 
 allclean:
-$(MAKE) -f ../Makefile allclean
-
+	\$(MAKE) -f ../Makefile allclean
 EOF
 
 all_files=""

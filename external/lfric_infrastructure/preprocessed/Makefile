@@ -10,7 +10,10 @@
 # directories (if required), and is easily visible in git.
 #
 default:
-	$(MAKE) -f ../Makefile
+	$(MAKE) -f ../Makefile netcdf
+
+clean:
+	$(MAKE) -f ../Makefile clean
 
 allclean:
 	$(MAKE) -f ../Makefile allclean
