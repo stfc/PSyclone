@@ -1,5 +1,6 @@
-# This Makefile is automatically created by ../update.sh
-# ======================================================
+# This Makefile is automatically created when updating
+# the LFRic infrastructure by ../update.sh
+# ====================================================
 
 # Don't modify the file directly, if required, update ../update.sh
 # to update the Makefile.
@@ -9,8 +10,7 @@
 # directories (if required), and is easily visible in git.
 #
 default:
-	make -f ../Makefile
+	$(MAKE) -f ../Makefile
 
 allclean:
-	make -f ../Makefile allclean
-
+	$(MAKE) -f ../Makefile allclean
