@@ -40,15 +40,19 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
+from typing import List, Optional, Tuple
 
+from psyclone.core import Signature
 from psyclone.domain.common import BaseDriverCreator
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import FileContainer, Literal, Routine
+from psyclone.psyir.backend.language_writer import LanguageWriter
+from psyclone.psyir.nodes import FileContainer, Literal, Node, Routine
 from psyclone.psyir.symbols import (CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
                                     REAL8_TYPE, ScalarType)
+from psyclone.psyir.tools import ReadWriteInfo
 
 # TODO 1382: once we support LFRic, make this into a proper base class
 # and put the domain-specific implementations into the domain/* directories.
@@ -68,7 +72,7 @@ class ExtractDriverCreator(BaseDriverCreator):
     '''
     def __init__(self, integer_type: ScalarType = INTEGER_TYPE,
                  real_type: ScalarType = REAL8_TYPE,
-                 region_name: str = None):
+                 region_name: Optional[Tuple[str, str]] = None):
         super().__init__()
         self._region_name = region_name
         # Set the integer and real types to use.
@@ -77,7 +81,14 @@ class ExtractDriverCreator(BaseDriverCreator):
                                "real": real_type}
 
     # -------------------------------------------------------------------------
-    def create(self, nodes, read_write_info, prefix, postfix, region_name):
+    def create(self,
+               nodes,
+               read_write_info,
+               prefix,
+               postfix,
+               region_name,
+               removable_vars: List[Tuple[str, Signature]],
+               ):
         # pylint: disable=too-many-arguments
         '''This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
@@ -102,6 +113,10 @@ class ExtractDriverCreator(BaseDriverCreator):
             use for this PSyData area, provided as a 2-tuple containing a
             location name followed by a local name. The pair of strings
             should uniquely identify a region.
+        :param removable_vars: a list of tuples containing signatures and
+            the container name of variables that were not written to the
+            kernel data file (and as such should not be read in, though
+            they still need to be declared).
 
         :returns: the program PSyIR for a stand-alone driver.
         :rtype: :py:class:`psyclone.psyir.psyir.nodes.FileContainer`
@@ -144,7 +159,8 @@ class ExtractDriverCreator(BaseDriverCreator):
 
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    og_symtab,
-                                                   read_write_info, postfix)
+                                                   read_write_info, postfix,
+                                                   removable_vars)
 
         # Copy the nodes that are part of the extraction
         extract_region = nodes[0].copy()
@@ -177,7 +193,8 @@ class ExtractDriverCreator(BaseDriverCreator):
     # -------------------------------------------------------------------------
     def get_driver_as_string(self, nodes, read_write_info,
                              prefix, postfix, region_name,
-                             writer=FortranWriter()):
+                             removable_vars: List[Tuple[str, Signature]],
+                             writer=FortranWriter()) -> str:
         # pylint: disable=too-many-arguments
         '''This function uses `create()` function to get the PSyIR of a
         stand-alone driver, and then uses the provided language writer
@@ -201,6 +218,10 @@ class ExtractDriverCreator(BaseDriverCreator):
             use for this PSyData area, provided as a 2-tuple containing a
             location name followed by a local name. The pair of strings
             should uniquely identify a region.
+        :param removable_vars: a list of tuples containing signatures and
+            the container name of variables that were not written to the
+            kernel data file (and as such should not be read in, though
+            they still need to be declared).
         :param language_writer: a backend visitor to convert PSyIR
             representation to the selected language. It defaults to
             the FortranWriter.
@@ -208,16 +229,22 @@ class ExtractDriverCreator(BaseDriverCreator):
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         :returns: the driver in the selected language.
-        :rtype: str
 
         '''
         file_container = self.create(nodes, read_write_info,
-                                     prefix, postfix, region_name)
+                                     prefix, postfix, region_name,
+                                     removable_vars)
         return writer(file_container)
 
     # -------------------------------------------------------------------------
-    def write_driver(self, nodes, read_write_info, prefix, postfix,
-                     region_name, writer=FortranWriter()):
+    def write_driver(self,
+                     nodes: List[Node],
+                     read_write_info: ReadWriteInfo,
+                     prefix: str,
+                     postfix: str,
+                     region_name: Tuple[str, str],
+                     removable_vars: List[Tuple[str, Signature]],
+                     writer: LanguageWriter = FortranWriter()) -> None:
         # pylint: disable=too-many-arguments
         '''This function uses the `get_driver_as_string()` function to get a
         a stand-alone driver, and then writes this source code to a file. The
@@ -225,33 +252,35 @@ class ExtractDriverCreator(BaseDriverCreator):
         "driver-"+module_name+"_"+region_name+".f90"
 
         :param nodes: a list of nodes.
-        :type nodes: list[:py:class:`psyclone.psyir.nodes.Node`]
         :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol,
+        :param prefix: the prefix to use for each PSyData symbol,
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param str postfix: a postfix that is appended to an output variable
+        :param postfix: a postfix that is appended to an output variable
             to create the corresponding variable that stores the output
             value from the kernel data file. The caller must guarantee that
             no name clashes are created when adding the postfix to a variable
             and that the postfix is consistent between extract code and
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param (str,str) region_name: an optional name to
+        :param region_name: an optional name to
             use for this PSyData area, provided as a 2-tuple containing a
             location name followed by a local name. The pair of strings
             should uniquely identify a region.
+        :param removable_vars: a list of tuples containing signatures and
+            the container name of variables that were not written to the
+            kernel data file (and as such should not be read in, though
+            they still need to be declared).
         :param language_writer: a backend visitor to convert PSyIR
             representation to the selected language. It defaults to
             the FortranWriter.
-        :type language_writer:
-            :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         '''
         if self._region_name is not None:
             region_name = self._region_name
         code = self.get_driver_as_string(nodes, read_write_info, prefix,
-                                         postfix, region_name, writer=writer)
+                                         postfix, region_name,
+                                         removable_vars, writer=writer)
         module_name, local_name = region_name
         with open(f"driver-{module_name}-{local_name}.f90", "w",
                   encoding='utf-8') as out:
