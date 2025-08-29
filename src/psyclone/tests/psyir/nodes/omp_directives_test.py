@@ -4653,7 +4653,83 @@ def test_omp_serial_check_dependency_valid_pairing():
            )
 
 
-# TODO[mn416]: more reduction tests needed
+def test_add_reduction_clause_parallel_do(fortran_reader, fortran_writer):
+    ''' Tests the add_reduction_clause() method of OMPParallelDoDirective.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    loop = psyir.walk(Loop)[0]
+    loop_parent = loop.parent
+    loop_position = loop.position
+    do_directive = OMPParallelDoDirective(children=[loop.detach()])
+    loop_parent.addchild(do_directive, index=loop_position)
+    clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause.addchild(Reference(Symbol("acc")))
+    do_directive.add_reduction_clause(clause)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_add_reduction_clause_do(fortran_reader, fortran_writer):
+    ''' Tests the add_reduction_clause() method of OMPDoDirective.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    loop = psyir.walk(Loop)[0]
+    OMPParallelTrans().apply(loop)
+    loop_parent = loop.parent
+    loop_position = loop.position
+    do_directive = OMPDoDirective(children=[loop.detach()])
+    loop_parent.addchild(do_directive, index=loop_position)
+    clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause.addchild(Reference(Symbol("acc")))
+    do_directive.add_reduction_clause(clause)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_add_reduction_clause_loop(fortran_reader, fortran_writer):
+    ''' Tests the add_reduction_clause() method of OMPLoopDirective.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    loop = psyir.walk(Loop)[0]
+    OMPParallelTrans().apply(loop)
+    loop_parent = loop.parent
+    loop_position = loop.position
+    loop_directive = OMPLoopDirective(children=[loop.detach()])
+    loop_parent.addchild(loop_directive, index=loop_position)
+    clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause.addchild(Reference(Symbol("acc")))
+    loop_directive.add_reduction_clause(clause)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
 def test_enable_reductions(fortran_reader, fortran_writer):
     ''' Tests the functionality of the enable_reductions option to
     the apply() method of OMPLoopTrans.
@@ -4672,7 +4748,7 @@ def test_enable_reductions(fortran_reader, fortran_writer):
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop, enable_reductions=True)
     output = fortran_writer(psyir)
-    assert "reduction(+:acc)" in output
+    assert "reduction(+: acc)" in output
 
 
 def test_nested_reductions(fortran_reader, fortran_writer):
@@ -4694,5 +4770,9 @@ def test_nested_reductions(fortran_reader, fortran_writer):
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop, enable_reductions=True, collapse=2)
     output = fortran_writer(psyir)
-    assert "reduction(+:acc)" in output
+    assert "reduction(+: acc)" in output
     assert "collapse(2)" in output
+
+# TODO[mn416]: more reduction tests needed
+#   - Test that "do", "paralleldo", "teamsdistributeparalleldo",
+#     "teamsloop", and "loop" all work correctly when reductions enabled

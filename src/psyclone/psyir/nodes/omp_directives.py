@@ -1358,6 +1358,7 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
         # Keep the first two children and compute the rest using the current
         # state of the node/tree (lowering it first in case new symbols are
         # created)
+        reduction_clauses = self._children[4:]
         self._children = self._children[:2]
         for child in self.children:
             child.lower_to_language_level()
@@ -1394,6 +1395,8 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
 
         self.addchild(private_clause)
         self.addchild(fprivate_clause)
+        for clause in reduction_clauses:
+            self.addchild(clause)
 
         return self
 
@@ -1660,6 +1663,8 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
     '''
     _directive_string = "do"
 
+    _children_valid_format = ("Schedule, [OMPReductionClause]*")
+
     def __init__(self, omp_schedule: str = "none",
                  collapse: int = None, reprod: bool = None,
                  nowait: bool = False,
@@ -1680,11 +1685,32 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         self._lowered_reduction_string = ""
         self.nowait = nowait
 
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        Decides whether a given child and position are valid for this node.
+        Currently, the children are a Schedule followed by zero or more
+        OMPReductionClause.
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+        '''
+        if position == 0:
+            return isinstance(child, Schedule)
+        elif position >= 1:
+            return isinstance(child, OMPReductionClause)
+        return False
+
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. Two OMPDoDirective nodes are equal
         if they have the same schedule, the same reproducible reduction option
-        (and the inherited equality is True).
+        (and the inherited equality is True), and they have the same reduction
+        clauses.
 
         :param object other: the object to check equality to.
 
@@ -1695,6 +1721,7 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         is_eq = is_eq and self.omp_schedule == other.omp_schedule
         is_eq = is_eq and self.reprod == other.reprod
         is_eq = is_eq and self.collapse == other.collapse
+        is_eq = is_eq and self.children[1:] == other.children[1:]
 
         return is_eq
 
@@ -1754,6 +1781,19 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
 
         self._collapse = value
 
+    def add_reduction_clause(self, clause):
+        '''Adds the given OMPReductionClause to the list of reduction clauses.
+
+        :param clause: an OMPReductionClause to be added.
+        :type clause: :py:class:`psyclone.psyir.nodes.OMPReductionClause`
+
+        :raises GenerationError: if the OMPDoDirective is malformed.
+        '''
+        if len(self.children) < 1:
+            raise GenerationError("Calling add_reduction_clause() on a "
+                                  "malformed OMPDoDirective.")
+        self.addchild(clause)
+
     def node_str(self, colour=True):
         '''
         Returns the name of this node with (optional) control codes
@@ -1785,11 +1825,6 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
                 parts.append(f"reduction("
                              f"{OMP_OPERATOR_MAPPING[reduction_type]}:"
                              f"{reduction})")
-        # TODO[mn416]: use the OMPReductionClause class to insert reduction
-        # clauses into directives, rather than this low-level approach.
-        if isinstance(self.dir_body[0], Loop):
-            for (op, var) in self.dir_body[0].inferred_reduction_vars:
-                parts.append(f"reduction({op}:{var})")
         return ", ".join(parts)
 
     @property
@@ -1965,6 +2000,9 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         OMPDoDirective.__init__(self, **kwargs)
         self.addchild(OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.SHARED))
+        self.addchild(OMPPrivateClause())
+        self.addchild(OMPFirstprivateClause())
+        self.addchild(OMPScheduleClause())
 
     @classmethod
     def create(cls, children=None, **kwargs):
@@ -2007,6 +2045,19 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             return True
         return False
 
+    def add_reduction_clause(self, clause):
+        '''Adds the given OMPReductionClause to the list of reduction clauses.
+
+        :param clause: an OMPReductionClause to be added.
+        :type clause: :py:class:`psyclone.psyir.nodes.OMPReductionClause`
+
+        :raises GenerationError: if the OMPParalleDoDirective is malformed.
+        '''
+        if len(self.children) < 5:
+            raise GenerationError("Calling add_reduction_clause() on a "
+                                  "malformed OMPParallelDoDirective.")
+        self.addchild(clause)
+
     def lower_to_language_level(self):
         '''
         In-place construction of clauses as PSyIR constructs.
@@ -2020,8 +2071,15 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # Calling the super() explicitly to avoid confusion
         # with the multiple-inheritance
         self._lowered_reduction_string = self._reduction_string()
+
+        # OMPScheduleClause is not allowed in OMPParallelDirective so
+        # we remove it, call OMPParallelDirective, and put it back again
+        saved_clauses = self._children[4:]
+        self._children = self._children[0:4]
         OMPParallelDirective.lower_to_language_level(self)
-        self.addchild(OMPScheduleClause(self._omp_schedule))
+        self._children.extend(saved_clauses)
+        self._children[4] = OMPScheduleClause(self._omp_schedule, parent=self)
+
         return self
 
     def begin_string(self):
@@ -2152,17 +2210,39 @@ class OMPLoopDirective(OMPRegionDirective):
     :type kwargs: unwrapped dict.
     '''
 
+    _children_valid_format = ("Schedule, [OMPReductionClause]*")
+
     def __init__(self, collapse=None, nowait: bool = False, **kwargs):
         super().__init__(**kwargs)
         self._collapse = None
         self.collapse = collapse  # Use setter with error checking
         self.nowait = nowait
 
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        Decides whether a given child and position are valid for this node.
+        Currently, the children are zero or more OMPReductionClause.
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        if position == 0:
+            return isinstance(child, Schedule)
+        elif position >= 1:
+            return isinstance(child, OMPReductionClause)
+        return False
+
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. Two OMPLoopDirective nodes are
         equal if they have the same collapse status and the inherited
-        equality is true.
+        equality is true, and they have the same reduction clauses.
 
         :param object other: the object to check equality to.
 
@@ -2171,6 +2251,7 @@ class OMPLoopDirective(OMPRegionDirective):
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.collapse == other.collapse
+        is_eq = is_eq and self.children[1:] == other.children[1:]
 
         return is_eq
 
@@ -2229,6 +2310,19 @@ class OMPLoopDirective(OMPRegionDirective):
                 f"integer or None, but value '{value}' has been given.")
 
         self._collapse = value
+
+    def add_reduction_clause(self, clause):
+        '''Adds the given OMPReductionClause to the list of reduction clauses.
+
+        :param clause: an OMPReductionClause to be added.
+        :type clause: :py:class:`psyclone.psyir.nodes.OMPReductionClause`
+
+        :raises GenerationError: if the OMPLoopDirective is malformed.
+        '''
+        if len(self.children) < 1:
+            raise GenerationError("Calling add_reduction_clause() on a "
+                                  "malformed OMPLoopDirective.")
+        self.addchild(clause)
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes

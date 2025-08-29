@@ -37,11 +37,13 @@
 ''' Transformation to insert OpenMP directives to parallelise PSyIR Loops. '''
 
 from psyclone.configuration import Config
+from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.nodes import (
-    Directive, Schedule,
+    Directive, Schedule, Reference,
     Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
     OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
     OMPScheduleClause, OMPBarrierDirective, OMPParallelDirective,
+    OMPReductionClause
 )
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
@@ -322,4 +324,31 @@ class OMPLoopTrans(ParallelLoopTrans):
             self._reprod = options.get("reprod",
                                        Config.get().reproducible_reductions)
 
+        parent = node.parent
+        position = node.position
         super().apply(node, options, **kwargs)
+
+        # Get the newly added directive
+        directive = parent.children[position]
+
+        # Add reduction clauses
+        # TODO[mn416]: use something higher-level than strings to capture
+        # reduction operator. Also, move the conversion dict elsewhere?
+        to_omp_reduction_operator = {
+            '+'     : OMPReductionClause.ReductionClauseTypes.ADD,
+            '-'     : OMPReductionClause.ReductionClauseTypes.SUB,
+            '*'     : OMPReductionClause.ReductionClauseTypes.MUL,
+            '.and.' : OMPReductionClause.ReductionClauseTypes.AND,
+            '.or.'  : OMPReductionClause.ReductionClauseTypes.OR,
+            '.eqv.' : OMPReductionClause.ReductionClauseTypes.EQV,
+            '.neqv.': OMPReductionClause.ReductionClauseTypes.NEQV,
+            '.max.' : OMPReductionClause.ReductionClauseTypes.MAX,
+            '.min.' : OMPReductionClause.ReductionClauseTypes.MIN,
+            '.iand.': OMPReductionClause.ReductionClauseTypes.IAND,
+            '.ior.' : OMPReductionClause.ReductionClauseTypes.IOR,
+            '.ieor.': OMPReductionClause.ReductionClauseTypes.IEOR
+            }
+        for (op, var_name) in self.inferred_reduction_vars:
+            clause = OMPReductionClause(to_omp_reduction_operator[op])
+            clause.addchild(Reference(Symbol(var_name)))
+            directive.add_reduction_clause(clause)

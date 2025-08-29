@@ -135,6 +135,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
 
         return True
 
+    # TODO[mn146]: abstract out reduction clause inference into its own class?
     # TODO[mn146]: use a data type for reduction operators not strings.
     @staticmethod
     def _get_reduction_operator(node):
@@ -231,20 +232,21 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             return None
 
     @staticmethod
-    def _attempt_reduction(node, var_name, access_info, dry_run=False):
-        ''' Check and (if dry_run is False) add the variable to the
-        set of variables supporting reduction for the given loop node.
+    def _attempt_reduction(node, var_name, access_info):
+        ''' Check if the given variable can be handled using a reduction
+        clause and, if so, return the reduction operator. Otherwise,
+        return None.
 
         :param node: the loop that will be parallelised.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param access_info: the variable (and its accesses) that we want to
-           consider as a reduction variable.
+        :param str var_name: the variable that we want to consider as a
+           reduction variable.
+        :param access_info: the access info for that variable.
         :type access_info: :py:class:`psyclone.core.SingleVariableAccessInfo`
-        :param bool dry_run: whether to actually add the variable as
-           one that supports reduction.
 
-        :returns: whether the variable supports reduction.
-        :rtype: bool
+        :returns: the reduction operator that can be used for the given 
+           variable if reduction is possible, or None otherwise.
+        :rtype: 
         '''
         # Find all the reduction operators used for the given variable name.
         # Return early if we ever encounter a use of the variable which is
@@ -253,24 +255,21 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         for access in access_info.all_read_accesses:
             op = ParallelLoopTrans._get_read_reduction(access.node, var_name)
             if op is None:
-                return False
+                return None
             ops.append(op)
         for access in access_info.all_write_accesses:
             op = ParallelLoopTrans._get_write_reduction(access.node, var_name)
             if op is None:
-                return False
+                return None
             ops.append(op)
         if ops == []:
-            return False
+            return None
 
         # All potential reductions must use the same operator
         if any(op != ops[0] for op in ops):
-            return False
+            return None
 
-        # Add the operator/variable pair to the Loop node
-        if not dry_run:
-            node.inferred_reduction_vars.add((op, var_name))
-        return True
+        return op
 
     def validate(self, node, options=None, **kwargs):
         '''
@@ -434,8 +433,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                         var_name = message.var_names[0]
                         access_info = message.var_infos[0]
                         if (self._attempt_reduction(node, var_name,
-                                                    access_info,
-                                                    dry_run=True)):
+                                                    access_info)):
                             continue
                 errors.append(str(message))
 
@@ -543,6 +541,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                       sequential=sequential, nowait=nowait,
                       enable_reductions=enable_reductions, **kwargs)
 
+        self.inferred_reduction_vars = []
         list_of_signatures = [Signature(name) for name in list_of_names]
         dtools = DependencyTools()
 
@@ -573,7 +572,9 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 if message.code == DTCode.WARN_SCALAR_REDUCTION:
                     for (var_name, var_info) in zip(message.var_names,
                                                     message.var_infos):
-                        if self._attempt_reduction(node, var_name, var_info):
+                        op = self._attempt_reduction(node, var_name, var_info)
+                        if op:
+                            self.inferred_reduction_vars.append((op, var_name))
                             # Add this variable to the list of signatures for
                             # dependency tools to ignore, avoiding unnecessary
                             # failures in the subsequent collapse check (below)
