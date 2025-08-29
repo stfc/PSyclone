@@ -89,14 +89,13 @@ class Message:
     :param int code: error or warning code.
     :param var_names: list of variable names (defaults to []).
     :type var_names: List[str]
-    :param var_infos: list of variable access infos (defaults to []).
+    :param var_infos: list of variable access infos (defaults to None). If
+       not None, each list element contains the access info of the
+       corresponding variable in the var_names list.
     :type var_infos: List[:py:class:`psyclone.core.SingleVariableAccessInfo`]
 
 
     '''
-    # TODO[mn416]: we want the access info for each variable
-    # in the message, but the above representation does not maintain
-    # a clear mapping between the two. There must be a cleaner way.
     def __init__(self, message, code, var_names=None, var_infos=None):
         self._message = message
         self._code = code
@@ -104,10 +103,7 @@ class Message:
             self._var_names = var_names
         else:
             self._var_names = []
-        if var_infos:
-            self._var_infos = var_infos
-        else:
-            self._var_infos = []
+        self._var_infos = var_infos
 
     # ------------------------------------------------------------------------
     def __str__(self):
@@ -141,7 +137,7 @@ class Message:
     @property
     def var_infos(self):
         ''':returns: the access info of each variable to which the message
-        applies.
+        applies, or None if this information does not exist.
 
         :rtype: List[:py:class:`psyclone.core.SingleVariableAccessInfo`]
 
@@ -209,6 +205,12 @@ class DependencyTools():
             message_type = "Error"
         else:
             raise InternalError(f"Unknown message code {code}.")
+
+        if var_names is not None and var_infos is not None:
+            if len(var_names) != len(var_infos):
+                raise InternalError(f"The var_names and var_infos arguments "
+                                    f"to _add_message must have the same "
+                                    f"length")
 
         self._messages.append(Message(f"{message_type}: {message}", code,
                                       var_names, var_infos))
