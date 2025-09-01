@@ -55,7 +55,7 @@ by the command:
                     [--backend {enable-validation,disable-validation}]
                     [-o OUTPUT_FILE] [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE] [-okern OUTPUT_KERNEL_PATH] [-d DIRECTORY] [-dm] [-nodm]
                     [--kernel-renaming {multiple,single}] [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}]
-                    [--log-file LOG_FILE] [--keep-comments] [--keep-directives]
+                    [--log-file LOG_FILE] [--keep-comments] [--keep-directives] [--free-form FREE_FORM]
                     filename
 
     Transform a file using the PSyclone source-to-source Fortran compiler
@@ -107,6 +107,8 @@ by the command:
      --keep-comments       keeps comments from the original code (defaults to False).
                            Directives are not kept with this option (use --keep-directives).
      --keep-directives     keeps directives from the original code (defaults to False).
+     --free-form FREE_FORM
+                           defines whether the original code is free form Fortran (defaults to True).
 
 Basic Use
 ---------
