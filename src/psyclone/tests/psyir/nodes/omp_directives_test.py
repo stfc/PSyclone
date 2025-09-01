@@ -70,7 +70,7 @@ from psyclone.psyir.transformations.omp_taskloop_trans import OMPTaskloopTrans
 from psyclone.transformations import (
     LFRicOMPLoopTrans, OMPParallelTrans,
     OMPParallelLoopTrans, LFRicOMPParallelLoopTrans, OMPSingleTrans,
-    OMPMasterTrans, OMPLoopTrans)
+    OMPMasterTrans, OMPLoopTrans, TransformationError)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "lfric")
@@ -4730,9 +4730,129 @@ def test_add_reduction_clause_loop(fortran_reader, fortran_writer):
     assert "reduction(+: acc)" in output
 
 
-def test_enable_reductions(fortran_reader, fortran_writer):
-    ''' Tests the functionality of the enable_reductions option to
-    the apply() method of OMPLoopTrans.
+def test_reduction_arith_ops(fortran_reader, fortran_writer):
+    ''' Test that reduction loops involing arithmetic reduction operators are
+    parallelised.
+    '''
+    ops = ["+", "-", "*"]
+    for op in ops:
+        psyir = fortran_reader.psyir_from_source(f'''
+            function sum_arr(arr) result (acc)
+                integer, intent(in) :: arr(:)
+                integer :: i
+                integer :: acc = 0
+
+                do i = 1, ubound(arr)
+                    acc = acc {op} arr(i)
+                end do
+            end function''')
+        omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+        loop = psyir.walk(Loop)[0]
+        omplooptrans.apply(loop, enable_reductions=True)
+        output = fortran_writer(psyir)
+        assert f"reduction({op}: acc)" in output
+        print(op)
+
+
+def test_reduction_logical(fortran_reader, fortran_writer):
+    ''' Test that reduction loops involing logical reduction operators are
+    parallelised.
+    '''
+    ops = [".AND.", ".OR.", ".EQV.", ".NEQV."]
+    for op in ops:
+        psyir = fortran_reader.psyir_from_source(f'''
+            function sum_arr(arr) result (acc)
+                integer, intent(in) :: arr(:)
+                integer :: i
+                logical :: acc = .false.
+
+                do i = 1, ubound(arr)
+                    acc = acc {op} arr(i)
+                end do
+            end function''')
+        omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+        loop = psyir.walk(Loop)[0]
+        omplooptrans.apply(loop, enable_reductions=True)
+        output = fortran_writer(psyir)
+        assert f"reduction({op}: acc)" in output
+        print(op)
+
+
+def test_reduction_intrins(fortran_reader, fortran_writer):
+    ''' Test that reduction loops involing intrinsic reduction operators are
+    parallelised.
+    '''
+    ops = ["MAX", "MIN", "IAND", "IOR", "IEOR"]
+    for op in ops:
+        psyir = fortran_reader.psyir_from_source(f'''
+            function sum_arr(arr) result (acc)
+                integer, intent(in) :: arr(:)
+                integer :: i
+                integer :: acc = 0
+
+                do i = 1, ubound(arr)
+                    acc = {op}(acc, arr(i))
+                end do
+            end function''')
+        omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+        loop = psyir.walk(Loop)[0]
+        omplooptrans.apply(loop, enable_reductions=True)
+        output = fortran_writer(psyir)
+        assert f"reduction({op}: acc)" in output
+        print(op)
+
+
+def test_multiple_reductions(fortran_reader, fortran_writer):
+    ''' Test that a loop containing multiple reductions is parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc
+            integer :: acc1 = 0
+            integer :: acc2 = 1
+
+            do i = 1, ubound(arr)
+                acc1 = acc1 + arr(i)
+                acc2 = acc2 * arr(i)
+            end do
+            acc = acc1 + acc2
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc1)" in output
+    assert "reduction(*: acc2)" in output
+
+
+def test_conditional_reduction(fortran_reader, fortran_writer):
+    ''' Test that a loop containing a reduction inside a conditional
+    is parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                if (arr(i) > 0) then
+                    acc = acc + arr(i)
+                end if
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_multiple_reduction_same_var(fortran_reader, fortran_writer):
+    ''' Test that a loop containing multiple reductions of the same
+    operator/variable pair is parallelised.
     '''
     psyir = fortran_reader.psyir_from_source('''
         function sum_arr(arr) result (acc)
@@ -4742,6 +4862,9 @@ def test_enable_reductions(fortran_reader, fortran_writer):
 
             do i = 1, ubound(arr)
                 acc = acc + arr(i)
+                if (arr(i) > 0) then
+                    acc = acc + 1
+                end if
             end do
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
@@ -4749,6 +4872,31 @@ def test_enable_reductions(fortran_reader, fortran_writer):
     omplooptrans.apply(loop, enable_reductions=True)
     output = fortran_writer(psyir)
     assert "reduction(+: acc)" in output
+
+
+def test_multiple_reduction_same_var_diff_op(fortran_reader, fortran_writer):
+    ''' Test that a loop containing multiple reductions of the same
+    variable, but involve different operators, is not parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+                if (arr(i) > 0) then
+                    acc = acc * 2
+                end if
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, enable_reductions=True)
+    assert ("Variable 'acc' is read first, which indicates a reduction"
+            in str(err.value))
 
 
 def test_nested_reductions(fortran_reader, fortran_writer):
@@ -4773,6 +4921,33 @@ def test_nested_reductions(fortran_reader, fortran_writer):
     assert "reduction(+: acc)" in output
     assert "collapse(2)" in output
 
+
+def test_non_reduction(fortran_reader, fortran_writer):
+    ''' Test that a loop that looks like it contains a reduction (but
+    doesn't), is not parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sub(arr1, arr2) result (count)
+            integer, intent(in) :: arr1(:)
+            integer, intent(out) :: arr2(:)
+            integer :: i
+            integer :: count = 1
+
+            do i = 1, size(arr)
+                if (arr1(i) > 0) then
+                    count = count + 1
+                end if
+                arr2(i) = count
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, enable_reductions=True)
+    assert ("Variable 'count' is read first, which indicates a reduction"
+            in str(err.value))
+
+
 # TODO[mn416]: more reduction tests needed
-#   - Test that "do", "paralleldo", "teamsdistributeparalleldo",
+#   - Test that "do", "teamsdistributeparalleldo",
 #     "teamsloop", and "loop" all work correctly when reductions enabled
