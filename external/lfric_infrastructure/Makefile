@@ -69,6 +69,8 @@ default:
 liblfric: dirs liblfric.a
 
 dirs:
+	# Create the directories, required if the CI builds
+	# this for compilation tests.
 	mkdir -p $(DIRS)
 
 liblfric.a: $(OBJ)
@@ -81,15 +83,15 @@ include $(LFRIC_PATH)/dependency
 # Compilation rules
 # -----------------
 
-# The following function defines two rules to compile SOMEDIR/*.f90 into
+# The following function defines a rule to compile SOMEDIR/*.f90 into
 # SOMEDIR/*.o. Since LFRic stores the mod and
 # .o files in the same directory, we mirror this behaviour here. Instead
 # of using compiler-specific flags to control the output location for
-# .mod files, this changes into the directory where the .o files should
+# .mod files, this macro changes into the directory where the .o files should
 # be stored. This avoids the hassle of handling compiler specific flags.
 # An example for the rule created:
 # field/%.o: $(LFRIC_PATH)/field/%.f90
-#     cd $(LFRIC_PATH)/field; $(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $< -o $(notdir $@)
+#     cd field; $(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $< -o $(notdir $@)
 
 define compile_rule_template =
 $(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.f90
