@@ -1,14 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you

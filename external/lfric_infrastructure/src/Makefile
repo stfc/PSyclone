@@ -10,7 +10,7 @@
 # directories (if required), and is easily visible in git.
 #
 default:
-	$(MAKE) -f ../Makefile netcdf
+	$(MAKE) -f ../Makefile liblfric
 
 clean:
 	$(MAKE) -f ../Makefile clean

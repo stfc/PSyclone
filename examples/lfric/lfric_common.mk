@@ -45,7 +45,7 @@ include $(this_dir)/../common.mk
 
 # Define the path to the LFRic infrastructure etc:
 LFRIC_PATH = ${PSYCLONE_DIR}/external/lfric_infrastructure/src
-LFRIC_NAME=lfric_netcdf
+LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 # This will add the required include flags to LFRIC_INCLUDE_FLAGS

@@ -37,7 +37,7 @@
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
-PRE_DIR = preprocessed
+PRE_DIR = src
 # MAKEFILE_LIST is a Gnu-make variable that contains all of the
 # arguments passed to the first invocation of Make. The last entry
 # in this list is the current file.
@@ -59,16 +59,19 @@ ALL_SRC := $(subst $(LFRIC_PATH)/,,\
 		    $(shell find $(LFRIC_PATH) -name '*.f90' -print))
 OBJ = $(subst .F90,.o,$(subst .f90,.o,$(ALL_SRC)))
 
-.PHONY: default netcdf get_include_flags
+.PHONY: default dirs liblfric get_include_flags
 
 default:
 	# Switch into the preprocessed directory to compile:
 	$(MAKE) -C $(LFRIC_PATH)
 
-# Netcdf target
-netcdf: $(LFRIC_PATH)/liblfric_netcdf.a
+# Target for the actual library
+liblfric: dirs liblfric.a
 
-$(LFRIC_PATH)/liblfric_netcdf.a: $(OBJ)
+dirs:
+	mkdir -p $(DIRS)
+
+liblfric.a: $(OBJ)
 	$(AR) $(ARFLAGS) $@ $(patsubst %,$(LFRIC_PATH)/%,$(OBJ))
 
 # Dependencies
@@ -90,7 +93,7 @@ include $(LFRIC_PATH)/dependency
 
 define compile_rule_template =
 $(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.f90
-	cd $$(LFRIC_PATH)/$(1); $$(F90) $$(F90FLAGS) $$(LFRIC_INCLUDE_FLAGS) -c $$< -o $$(notdir $$@)
+	cd $(1); $$(F90) $$(F90FLAGS) $$(LFRIC_INCLUDE_FLAGS) -c $$< -o $$(notdir $$@)
 endef
 
 # Define the required rules for each subdirectory. DIRS is defined
@@ -98,8 +101,8 @@ endef
 $(foreach dir,$(DIRS),$(eval $(call compile_rule_template,$(dir))))
 
 clean:
-	find . -iname "*.o" -delete
-	find . -iname "*.mod" -delete
-	rm -f liblfric.a liblfric_netcdf.a
+	find $(LFRIC_PATH) -iname "*.o" -delete
+	find $(LFRIC_PATH) -iname "*.mod" -delete
+	rm -f $(LFRIC_PATH)/liblfric.a
 
 allclean: clean

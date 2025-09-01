@@ -58,7 +58,7 @@ EXEC = ./time_evolution
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/external/lfric_infrastructure/src
-LFRIC_NAME = lfric_netcdf
+LFRIC_NAME = lfric
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 # This will add the required include flags to LFRIC_INCLUDE_FLAGS

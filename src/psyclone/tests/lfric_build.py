@@ -77,7 +77,7 @@ class LFRicBuild(Compile):
 
         base_path = Path(__file__).parent / "test_files" / "lfric"
         self.base_path = str(base_path)
-        self._infrastructure_path = get_infrastructure_path("lfric")
+        self._infrastructure_path = Path(get_infrastructure_path("lfric"))
         # On first instantiation (triggered by conftest.infra_compile)
         # compile the infrastructure library files.
         if not LFRicBuild._infrastructure_built:
@@ -110,10 +110,10 @@ class LFRicBuild(Compile):
             # Store the temporary path so that the compiled infrastructure
             # files can be used by all test compilations later.
             LFRicBuild._compilation_path = self._tmpdir
-            makefile = os.path.join(self._infrastructure_path,
-                                    "..", "Makefile")
+            makefile = self._infrastructure_path.parent / "Makefile"
             arg_list = [LFRicBuild._make_command, f"F90={self._f90}",
-                        f"F90FLAGS={self._f90flags}", "-f", makefile]
+                        f"F90FLAGS={self._f90flags}", "-f", str(makefile),
+                        "liblfric"]
             try:
                 with subprocess.Popen(arg_list, stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT) as build:
