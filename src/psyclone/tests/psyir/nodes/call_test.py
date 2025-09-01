@@ -43,8 +43,7 @@ from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
     ArrayReference, BinaryOperation, Call, Literal,
-    Node, Reference, Routine, Schedule)
-from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
+    Node, Reference, Routine, Schedule, CallMatchingArgumentsNotFound)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
     ArrayType, INTEGER_TYPE, ContainerSymbol, DataSymbol, NoType,
@@ -668,7 +667,7 @@ contains
   end subroutine bottom
 end module some_mod'''
     psyir = fortran_reader.psyir_from_source(code)
-    call = psyir.walk(Call)[0]
+    call: Call = psyir.walk(Call)[0]
     result = call.get_callees()
     assert result == [psyir.walk(Routine)[1]]
 
@@ -862,8 +861,9 @@ end module some_mod'''
 def test_call_get_callee_3c_trigger_error(fortran_reader):
     '''
     Test which is supposed to trigger an error when no matching routine
-    is found, but we use the special option check_matching_arguments=False
+    is found, but we use the special option `use_first_callee_and_no_arg_check`
     to find one.
+
     '''
     code = '''
 module some_mod
@@ -890,7 +890,10 @@ end module some_mod'''
     call_foo: Call = routine_main.walk(Call)[0]
     assert call_foo.routine.name == "foo"
 
-    call_foo.get_callee(check_matching_arguments=False)
+    result = call_foo.get_callee(use_first_callee_and_no_arg_check=True)
+    assert isinstance(result[0], Routine)
+    assert result[0].name == "foo"
+    assert result[1] == [0, 1]
 
 
 def test_call_get_callee_4_named_arguments(fortran_reader):
@@ -1602,6 +1605,34 @@ end module other_mod
     assert routines[0].name == "just_do_it"
 
 
+def test_call_get_callees_import_renamed(fortran_reader):
+    '''
+    Check that get_callees() works successfully for a routine that is
+    renamed on import.
+    '''
+    code = '''
+module some_mod
+contains
+  subroutine just_do_it()
+    write(*,*) "hello"
+  end subroutine just_do_it
+end module some_mod
+module other_mod
+  use some_mod, only: did_it=>just_do_it
+contains
+  subroutine run_it()
+    call did_it()
+  end subroutine run_it
+end module other_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    routines = call.get_callees()
+    assert len(routines) == 1
+    assert isinstance(routines[0], Routine)
+    assert routines[0].name == "just_do_it"
+
+
 def test_fn_call_get_callees(fortran_reader):
     '''
     Test that get_callees() works for a function call.
@@ -1749,3 +1780,91 @@ end module some_mod'''
             "but that Container defines a private Symbol of the same name. "
             "Searching for the Container that defines a public Routine with "
             "that name is not yet supported - TODO #924" in str(err.value))
+
+
+def test_call_get_callee_matching_arguments_not_found(fortran_reader):
+    """
+    Trigger error that matching arguments were not found.
+    In this test, this is caused by omitting the required third non-optional
+    argument.
+    """
+    code = """
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f
+    ! Omit the 3rd required argument
+    call foo(e, f)
+  end subroutine
+
+  ! Routine matching by 'name', but not by argument matching
+  subroutine foo(a, b, c)
+    integer :: a, b, c
+  end subroutine
+
+end module some_mod"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = psyir.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call_foo.get_callee()
+
+    assert (
+        "No matching routine found for 'call foo(e, f)':" in str(err.value)
+    )
+
+    assert (
+        "Argument 'c' in subroutine 'foo' does not match any in the call"
+        " 'call foo(e, f)' and is not OPTIONAL." in str(err.value)
+    )
+
+
+def test_check_argument_type_matches(fortran_reader):
+    '''
+    Tests for the _check_argument_type_matches() method of Call.
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+    contains
+    subroutine amazing()
+      real :: var
+      real, dimension(20) :: var2
+      call astounding(var)
+      call array_arg(var2)
+    end subroutine amazing
+    subroutine astounding(dummy1)
+      real :: dummy1
+    end subroutine astounding
+    end module my_mod
+    ''')
+    calls = psyir.walk(Call)
+    call = calls[0]
+    call._check_argument_type_matches(call.arguments[0],
+                                      DataSymbol("dummy1", REAL_TYPE))
+    # Integer instead of real.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call._check_argument_type_matches(call.arguments[0],
+                                          DataSymbol("dummy1", INTEGER_TYPE))
+    assert "Argument type mismatch of call argument 'var'" in str(err.value)
+    # For an array argument.
+    call2 = calls[1]
+    call2._check_argument_type_matches(
+        call2.arguments[0],
+        DataSymbol("dummy1", ArrayType(REAL_TYPE, shape=[10])))
+    # Scalar instead of array.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call2._check_argument_type_matches(call2.arguments[0],
+                                           DataSymbol("dummy1", REAL_TYPE))
+    assert "Argument type mismatch of call argument 'var2'" in str(err.value)
+    # Array of wrong rank.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call2._check_argument_type_matches(call2.arguments[0],
+                                           DataSymbol("dummy1", REAL_TYPE))
+    assert "Argument type mismatch of call argument 'var2'" in str(err.value)
