@@ -36,8 +36,6 @@
 
 ''' Transformation to insert OpenMP directives to parallelise PSyIR Loops. '''
 
-from typing import Union, List
-
 from psyclone.configuration import Config
 from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.nodes import (

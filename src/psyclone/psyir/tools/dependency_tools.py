@@ -208,9 +208,9 @@ class DependencyTools():
 
         if var_names is not None and var_infos is not None:
             if len(var_names) != len(var_infos):
-                raise InternalError(f"The var_names and var_infos arguments "
-                                    f"to _add_message must have the same "
-                                    f"length")
+                raise InternalError("The var_names and var_infos arguments "
+                                    "to _add_message must have the same "
+                                    "length")
 
         self._messages.append(Message(f"{message_type}: {message}", code,
                                       var_names, var_infos))
