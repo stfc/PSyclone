@@ -1161,6 +1161,30 @@ def trans(psyir):
     assert "module newname\n" in new_code
 
 
+def test_code_transformation_fixed_form(tmpdir, capsys):
+    ''' Test that the fixed-form option works for code transformation.'''
+    code = '''
+      subroutine test
+c     Comment here.
+      integer n
+
+      n = 3 +
+     &4
+      end subroutine'''
+    inputfile = str(tmpdir.join("fixed_form.f90"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([inputfile, "--free-form", False])
+    captured, _ = capsys.readouterr()
+    correct = """subroutine test()
+  integer :: n
+
+  n = 3 + 4
+
+end subroutine test"""
+    assert correct in captured
+
+
 def test_code_transformation_parse_failure(tmpdir, caplog, capsys):
     '''
     Test the error handling in the code_transformation_mode() method when
