@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
+#           M. Naylor, University of Cambridge, UK
 
 ''' Transformation to insert OpenMP directives to parallelise PSyIR Loops. '''
 

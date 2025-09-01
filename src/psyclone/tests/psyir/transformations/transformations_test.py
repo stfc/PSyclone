@@ -35,6 +35,7 @@
 #         A. B. G. Chalk, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified M. Naylor, University of Cambridge, UK
 
 '''
 API-agnostic tests for various transformation classes.

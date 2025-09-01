@@ -35,6 +35,7 @@
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
+#          M. Naylor, University of Cambridge, UK
 
 ''' This module provides the ParallelLoopTrans transformation.'''
 

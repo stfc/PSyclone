@@ -37,6 +37,7 @@
 #         C.M. Maynard, Met Office / University of Reading
 #         J. Henrichs, Bureau of Meteorology
 #         J. Remy, Université Grenoble Alpes, Inria
+#         M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the various OpenMP Directive

@@ -35,6 +35,7 @@
 #         A. B. G. Chalk, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 #          J. Remy, Université Grenoble Alpes, Inria
+#          M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenMP PSyIR Directive nodes. '''

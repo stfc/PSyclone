@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter, R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
+#           M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 ''' This module provides tools that are based on the code

@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Bureau of Meteorology
+# Modified: M. Naylor, University of Cambridge, UK
 
 '''Tool module, containing all generic (API independent) tools.
 '''
