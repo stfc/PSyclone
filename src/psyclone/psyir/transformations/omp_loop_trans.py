@@ -66,6 +66,34 @@ MAP_STR_TO_BARRIER_DIRECTIVE = {
 #: List containing the valid names for OMP directives.
 VALID_OMP_DIRECTIVES = list(MAP_STR_TO_LOOP_DIRECTIVES.keys())
 
+#: Mapping from PSyIR reduction operator to OMP reduction operator.
+MAP_REDUCTION_OP_TO_OMP = {
+    BinaryOperation.Operator.ADD:
+        OMPReductionClause.ReductionClauseTypes.ADD,
+    BinaryOperation.Operator.SUB:
+        OMPReductionClause.ReductionClauseTypes.SUB,
+    BinaryOperation.Operator.MUL:
+        OMPReductionClause.ReductionClauseTypes.MUL,
+    BinaryOperation.Operator.AND:
+        OMPReductionClause.ReductionClauseTypes.AND,
+    BinaryOperation.Operator.OR:
+        OMPReductionClause.ReductionClauseTypes.OR,
+    BinaryOperation.Operator.EQV:
+        OMPReductionClause.ReductionClauseTypes.EQV,
+    BinaryOperation.Operator.NEQV:
+        OMPReductionClause.ReductionClauseTypes.NEQV,
+    IntrinsicCall.Intrinsic.MAX:
+        OMPReductionClause.ReductionClauseTypes.MAX,
+    IntrinsicCall.Intrinsic.MIN:
+        OMPReductionClause.ReductionClauseTypes.MIN,
+    IntrinsicCall.Intrinsic.IAND:
+        OMPReductionClause.ReductionClauseTypes.IAND,
+    IntrinsicCall.Intrinsic.IOR:
+        OMPReductionClause.ReductionClauseTypes.IOR,
+    IntrinsicCall.Intrinsic.IEOR:
+        OMPReductionClause.ReductionClauseTypes.IEOR
+}
+
 
 @transformation_documentation_wrapper
 class OMPLoopTrans(ParallelLoopTrans):
@@ -315,36 +343,8 @@ class OMPLoopTrans(ParallelLoopTrans):
         :param enable_reductions: whether to attempt to infer reduction
             clauses or not.
         '''
-        # TODO[mn416]: move the conversion dict elsewhere?
-        to_omp_reduction_operator = {
-            BinaryOperation.Operator.ADD:
-                OMPReductionClause.ReductionClauseTypes.ADD,
-            BinaryOperation.Operator.SUB:
-                OMPReductionClause.ReductionClauseTypes.SUB,
-            BinaryOperation.Operator.MUL:
-                OMPReductionClause.ReductionClauseTypes.MUL,
-            BinaryOperation.Operator.AND:
-                OMPReductionClause.ReductionClauseTypes.AND,
-            BinaryOperation.Operator.OR:
-                OMPReductionClause.ReductionClauseTypes.OR,
-            BinaryOperation.Operator.EQV:
-                OMPReductionClause.ReductionClauseTypes.EQV,
-            BinaryOperation.Operator.NEQV:
-                OMPReductionClause.ReductionClauseTypes.NEQV,
-            IntrinsicCall.Intrinsic.MAX:
-                OMPReductionClause.ReductionClauseTypes.MAX,
-            IntrinsicCall.Intrinsic.MIN:
-                OMPReductionClause.ReductionClauseTypes.MIN,
-            IntrinsicCall.Intrinsic.IAND:
-                OMPReductionClause.ReductionClauseTypes.IAND,
-            IntrinsicCall.Intrinsic.IOR:
-                OMPReductionClause.ReductionClauseTypes.IOR,
-            IntrinsicCall.Intrinsic.IEOR:
-                OMPReductionClause.ReductionClauseTypes.IEOR
-            }
-
         if enable_reductions:
-            red_ops = list(to_omp_reduction_operator.keys())
+            red_ops = list(MAP_REDUCTION_OP_TO_OMP.keys())
         else:
             red_ops = []
 
@@ -364,7 +364,7 @@ class OMPLoopTrans(ParallelLoopTrans):
                                        Config.get().reproducible_reductions)
             if options.get("enable_reductions", False):
                 options["reduction_ops"] = list(
-                    to_omp_reduction_operator.keys())
+                    MAP_REDUCTION_OP_TO_OMP.keys())
             else:
                 options["reduction_ops"] = []
 
@@ -375,6 +375,6 @@ class OMPLoopTrans(ParallelLoopTrans):
         # Add reduction clauses to the newly introduced directive
         directive = parent.children[position]
         for (op, var_name) in self.inferred_reduction_vars:
-            clause = OMPReductionClause(to_omp_reduction_operator[op])
+            clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
             clause.addchild(Reference(Symbol(var_name)))
             directive.add_reduction_clause(clause)
