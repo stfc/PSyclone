@@ -937,93 +937,6 @@ class InlineTrans(Transformation):
         # Just an array reference.
         return ArrayReference.create(actual_arg.symbol, members[0][1])
 
-    def _validate_inline_of_call_and_routine_argument_pairs(
-        self,
-        call_node: Call,
-        call_arg: DataSymbol,
-        routine_node: Routine,
-        routine_arg: DataSymbol
-    ):
-        """This function performs tests to see whether the inlining can
-        cope with specified call and corresponding dummy arguments.
-
-        :param call_node: The call used for inlining
-        :param call_arg: The argument of a call
-        :param routine: The routine to be inlined
-        :param routine_arg: The argument of a routine
-
-        :raises TransformationError: if the type of an actual argument is
-            unknown and it corresponds to a formal argument that is an array.
-        :raises TransformationError: if the shape of an actual argument does
-            not match that of the corresponding formal argument.
-        :raises TransformationError: if an actual array argument has non-unit
-            stride or an array slice in an indirect access.
-
-        """
-        # If the formal argument is an array with non-default bounds then
-        # we also need to know the bounds of that array at the call site.
-        if not isinstance(routine_arg.datatype, ArrayType):
-            # Formal argument is not an array so we don't need to do any
-            # further checks.
-            return
-
-        # We have an array argument. We are only able to check that the
-        # argument is not re-shaped in the called routine if we have full
-        # type information on the actual argument.
-        # TODO #924. It would be useful if the `datatype` property was
-        # a method that took an optional 'resolve' argument to indicate
-        # that it should attempt to resolve any UnresolvedTypes.
-        if (isinstance(call_arg.datatype,
-                       (UnresolvedType, UnsupportedType)) or
-            (isinstance(call_arg.datatype, ArrayType) and
-             isinstance(call_arg.datatype.intrinsic,
-                        (UnresolvedType, UnsupportedType)))):
-            raise TransformationError(
-                f"Routine '{routine_node.name}' cannot be inlined because "
-                f"the type of the actual argument "
-                f"'{call_arg.debug_string()}' corresponding to an array"
-                f" formal argument ('{routine_arg.name}') is unknown.")
-
-        formal_rank = 0
-        actual_rank = 0
-        if isinstance(routine_arg.datatype, ArrayType):
-            formal_shape = routine_arg.datatype.shape
-            formal_rank = len(formal_shape)
-        if isinstance(call_arg.datatype, ArrayType):
-            actual_rank = len(call_arg.datatype.shape)
-        if formal_rank != actual_rank:
-            # It's OK to use the loop variable in the lambda definition
-            # because if we get to this point then we're going to quit
-            # the loop.
-            # pylint: disable=cell-var-from-loop
-            raise TransformationError(LazyString(
-                    lambda: f"Cannot inline routine '{routine_node.name}' "
-                    f"because it reshapes an argument: actual argument "
-                    f"'{call_arg.debug_string()}' has rank {actual_rank}"
-                    f" but the corresponding formal argument, "
-                    f"'{routine_arg.name}', has rank {formal_rank}"))
-        if actual_rank:
-            ranges = call_arg.walk(Range)
-            for rge in ranges:
-                ancestor_ref = rge.ancestor(Reference)
-                if ancestor_ref is not call_arg:
-                    # Have a range in an indirect access.
-                    # pylint: disable=cell-var-from-loop
-                    raise TransformationError(LazyString(
-                        lambda: f"Cannot inline routine '{routine_node.name}' "
-                        f"because argument '{call_arg.debug_string()}' "
-                        f"has an array range in an indirect access (TODO "
-                        f"#924)."))
-                if rge.step != _ONE:
-                    # TODO #1646. We could resolve this problem by making
-                    # a new array and copying the necessary values into it.
-                    # pylint: disable=cell-var-from-loop
-                    raise TransformationError(LazyString(
-                        lambda: f"Cannot inline routine '{routine_node.name}' "
-                        f"because one of its arguments is an array slice "
-                        f"with a non-unit stride: "
-                        f"'{call_arg.debug_string()}' (TODO #1646)"))
-
     def validate(
                 self,
                 node: Call,
@@ -1290,6 +1203,93 @@ class InlineTrans(Transformation):
                         f"Reference.")
 
         return (routine, arg_match_list)
+
+    def _validate_inline_of_call_and_routine_argument_pairs(
+        self,
+        call_node: Call,
+        call_arg: DataSymbol,
+        routine_node: Routine,
+        routine_arg: DataSymbol
+    ):
+        """This function performs tests to see whether the inlining can
+        cope with the specified call and corresponding dummy argument pair.
+
+        :param call_node: The call used for inlining
+        :param call_arg: The argument of a call
+        :param routine: The routine to be inlined
+        :param routine_arg: The argument of a routine
+
+        :raises TransformationError: if the type of an actual argument is
+            unknown and it corresponds to a formal argument that is an array.
+        :raises TransformationError: if the shape of an actual argument does
+            not match that of the corresponding formal argument.
+        :raises TransformationError: if an actual array argument has non-unit
+            stride or an array slice in an indirect access.
+
+        """
+        # If the formal argument is an array with non-default bounds then
+        # we also need to know the bounds of that array at the call site.
+        if not isinstance(routine_arg.datatype, ArrayType):
+            # Formal argument is not an array so we don't need to do any
+            # further checks.
+            return
+
+        # We have an array argument. We are only able to check that the
+        # argument is not re-shaped in the called routine if we have full
+        # type information on the actual argument.
+        # TODO #924. It would be useful if the `datatype` property was
+        # a method that took an optional 'resolve' argument to indicate
+        # that it should attempt to resolve any UnresolvedTypes.
+        if (isinstance(call_arg.datatype,
+                       (UnresolvedType, UnsupportedType)) or
+            (isinstance(call_arg.datatype, ArrayType) and
+             isinstance(call_arg.datatype.intrinsic,
+                        (UnresolvedType, UnsupportedType)))):
+            raise TransformationError(
+                f"Routine '{routine_node.name}' cannot be inlined because "
+                f"the type of the actual argument "
+                f"'{call_arg.debug_string()}' corresponding to an array"
+                f" formal argument ('{routine_arg.name}') is unknown.")
+
+        formal_rank = 0
+        actual_rank = 0
+        if isinstance(routine_arg.datatype, ArrayType):
+            formal_shape = routine_arg.datatype.shape
+            formal_rank = len(formal_shape)
+        if isinstance(call_arg.datatype, ArrayType):
+            actual_rank = len(call_arg.datatype.shape)
+        if formal_rank != actual_rank:
+            # It's OK to use the loop variable in the lambda definition
+            # because if we get to this point then we're going to quit
+            # the loop.
+            # pylint: disable=cell-var-from-loop
+            raise TransformationError(LazyString(
+                    lambda: f"Cannot inline routine '{routine_node.name}' "
+                    f"because it reshapes an argument: actual argument "
+                    f"'{call_arg.debug_string()}' has rank {actual_rank}"
+                    f" but the corresponding formal argument, "
+                    f"'{routine_arg.name}', has rank {formal_rank}"))
+        if actual_rank:
+            ranges = call_arg.walk(Range)
+            for rge in ranges:
+                ancestor_ref = rge.ancestor(Reference)
+                if ancestor_ref is not call_arg:
+                    # Have a range in an indirect access.
+                    # pylint: disable=cell-var-from-loop
+                    raise TransformationError(LazyString(
+                        lambda: f"Cannot inline routine '{routine_node.name}' "
+                        f"because argument '{call_arg.debug_string()}' "
+                        f"has an array range in an indirect access (TODO "
+                        f"#924)."))
+                if rge.step != _ONE:
+                    # TODO #1646. We could resolve this problem by making
+                    # a new array and copying the necessary values into it.
+                    # pylint: disable=cell-var-from-loop
+                    raise TransformationError(LazyString(
+                        lambda: f"Cannot inline routine '{routine_node.name}' "
+                        f"because one of its arguments is an array slice "
+                        f"with a non-unit stride: "
+                        f"'{call_arg.debug_string()}' (TODO #1646)"))
 
 
 # For AutoAPI auto-documentation generation.

@@ -861,10 +861,9 @@ end module some_mod'''
 def test_call_get_callee_3c_trigger_error(fortran_reader):
     '''
     Test which is supposed to trigger an error when no matching routine
-    is found, but we use the special option
-    TODO - UPDATE
-    options={"check_matching_arguments": False}
+    is found, but we use the special option `use_first_callee_and_no_arg_check`
     to find one.
+
     '''
     code = '''
 module some_mod
@@ -1836,19 +1835,36 @@ def test_check_argument_type_matches(fortran_reader):
     contains
     subroutine amazing()
       real :: var
+      real, dimension(20) :: var2
       call astounding(var)
+      call array_arg(var2)
     end subroutine amazing
     subroutine astounding(dummy1)
       real :: dummy1
     end subroutine astounding
     end module my_mod
     ''')
-    call = psyir.walk(Call)[0]
+    calls = psyir.walk(Call)
+    call = calls[0]
     call._check_argument_type_matches(call.arguments[0],
                                       DataSymbol("dummy1", REAL_TYPE))
+    # Integer instead of real.
     with pytest.raises(CallMatchingArgumentsNotFound) as err:
-        # TODO - could just be a ValueError?
         call._check_argument_type_matches(call.arguments[0],
                                           DataSymbol("dummy1", INTEGER_TYPE))
     assert "Argument type mismatch of call argument 'var'" in str(err.value)
-    # TODO extend to other types of argument, especially arrays.
+    # For an array argument.
+    call2 = calls[1]
+    call2._check_argument_type_matches(
+        call2.arguments[0],
+        DataSymbol("dummy1", ArrayType(REAL_TYPE, shape=[10])))
+    # Scalar instead of array.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call2._check_argument_type_matches(call2.arguments[0],
+                                           DataSymbol("dummy1", REAL_TYPE))
+    assert "Argument type mismatch of call argument 'var2'" in str(err.value)
+    # Array of wrong rank.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call2._check_argument_type_matches(call2.arguments[0],
+                                           DataSymbol("dummy1", REAL_TYPE))
+    assert "Argument type mismatch of call argument 'var2'" in str(err.value)
