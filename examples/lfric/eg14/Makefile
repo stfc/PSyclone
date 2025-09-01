@@ -43,7 +43,7 @@
 
 PSYROOT=../../..
 
-include $(PSYROOT)/examples/common.mk
+include ../lfric_common.mk
 
 GENERATED_FILES = *.o *.mod $(EXEC) main_alg.f90 main_psy.f90 \
                   other_alg_mod_psy.f90 other_alg_mod_alg.f90 \
@@ -56,12 +56,6 @@ OBJ = main_psy.o main_alg.o other_alg_mod_psy.o other_alg_mod_alg.o \
       testkern_w0_kernel_0_mod.o
 
 EXEC = example_openacc
-
-LFRIC_PATH ?= ${PSYCLONE_DIR}/external/lfric_infrastructure/preprocessed
-LFRIC_NAME=lfric_netcdf
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-# This sets up LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.mk
 
 # PSyData profiling wrapper library.
 # Default is to use the 'template' library which simply prints entry and exit
@@ -103,8 +97,8 @@ run: compile
 	./$(EXEC)
 
 $(EXEC): $(PROFILE_LIB) $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) \
-	-l$(LFRIC_NAME) -L${PROFILE_PATH} $(PROFILE_LINK) $$(nf-config --flibs)
+	$(F90) $(F90FLAGS)  $(OBJ) -o $(EXEC) \
+	 -L${PROFILE_PATH} $(PROFILE_LINK) $(LDFLAGS)
 
 $(PROFILE_LIB):
 	$(MAKE) -C $(PROFILE_PATH)
@@ -114,10 +108,10 @@ main_psy.o:	other_alg_mod_psy.o testkern_w0_kernel_0_mod.o
 main_alg.o:	other_alg_mod_alg.o main_psy.o testkern_w0_kernel_0_mod.o
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) -I$(PROFILE_PATH) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -I$(PROFILE_PATH) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -I$(PROFILE_PATH) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -I$(PROFILE_PATH) -c $<
 
 # Keep the generated psy and alg files
 .precious: main_psy.f90 main_alg.f90

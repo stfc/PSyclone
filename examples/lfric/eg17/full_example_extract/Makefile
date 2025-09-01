@@ -52,10 +52,10 @@ endif
 
 PSYROOT=../../../..
 
-# Set it to 'netcdf' to use the NetCDF writer
-TYPE?=binary
+# Set it to 'netcdf' or 'binary' to select a different output format
+TYPE?=ascii
 
-include $(PSYROOT)/examples/common.mk
+include ../../lfric_common.mk
 
 ifeq ($(TYPE), netcdf)
 	GENERATED_FILES += main-update.nc main-init.nc
@@ -89,14 +89,8 @@ LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 EXEC = extract.$(TYPE)
 EXTRACT_NAME ?= _extract
 EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
-LFRIC_PATH = ${PSYCLONE_DIR}/external/lfric_infrastructure/preprocessed
-LFRIC_NAME=lfric_netcdf
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
-# This will setup the required include flags in LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.mk
-
-LFRIC_INCLUDE_FLAGS += -I$(EXTRACT_DIR)
+F90FLAGS += -I$(EXTRACT_DIR)
 
 transform: extract_process main_psy.f90 main_alg.f90
 	
@@ -131,19 +125,17 @@ main_alg.o:	main_psy.o
 testkern_w0_kernel_mod.o: dummy_mod.o $(LFRIC_LIB)
 
 driver-main-update:	driver-main-update.o
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS)  driver-main-update.o \
-		$(LDFLAGS) -o driver-main-update
+	$(F90) $(F90FLAGS)  driver-main-update.o $(LDFLAGS) -o driver-main-update
 
 driver-main-init:	LFRIC_INCLUDE_FLAGS += -I $(EXTRACT_DIR)/..
 driver-main-init:	driver-main-init.o
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS)  driver-main-init.o \
-		$(LDFLAGS) -o driver-main-init
+	$(F90) $(F90FLAGS)  driver-main-init.o $(LDFLAGS) -o driver-main-init
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 # Keep the generated psy and alg files
 .precious: main.x90 main_psy.f90 main_alg.f90

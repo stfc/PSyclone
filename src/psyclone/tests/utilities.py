@@ -550,8 +550,7 @@ def get_infrastructure_path(api: str) -> str:
     this_loc = Path(__file__).resolve()
     root_dir = this_loc.parents[3]
     if api == "lfric":
-        return str(root_dir / "external" / "lfric_infrastructure" /
-                   "preprocessed")
+        return str(root_dir / "external" / "lfric_infrastructure" / "src")
     if api == "gocean":
         return str(root_dir / "external" / "dl_esm_inf" /
                    "finite_difference" / "src")

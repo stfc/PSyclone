@@ -34,7 +34,7 @@
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 
-include ../../common.mk
+include ../lfric_common.mk
 
 GENERATED_FILES = mixed_precision_psy.f90 alg.f90 ${EXEC} ${OBJ} *.mod
 
@@ -44,18 +44,11 @@ F90FLAGS ?= -Wall -g -fcheck=bound
 OBJ = alg.o mixed_precision_psy.o mixed_kernel_mod.o
 
 EXEC = will_not_run.exe
-LFRIC_PATH = ${PSYCLONE_DIR}/external/lfric_infrastructure/preprocessed
-LFRIC_NAME=lfric_netcdf
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-
-# This will add the required include flags to LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.mk
 
 .PHONY: transform compile run
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) \
-	$$(nf-config --flibs)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) $(LDFLAGS)
 
 compile: transform $(EXEC)
 
@@ -77,10 +70,10 @@ $(LFRIC_LIB):
 
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 allclean: clean
 	make -C $(LFRIC_PATH) allclean

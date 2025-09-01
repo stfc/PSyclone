@@ -34,27 +34,18 @@
 # Author: A. R. Porter, STFC Daresbury Laboratory
 # Modified J. Henrichs, Bureau of Meteorology
 
-include ../../common.mk
+include ../lfric_common.mk
 
 EXEC = will_not_run.exe
 
 GENERATED_FILES = $(OBJ) *.mod intergrid_3levels_psy.f90 intergrid_3levels.f90 $(EXEC)
 
-# This defaults to the infrastructure library included in PSyclone
-LFRIC_PATH ?= ${PSYCLONE_DIR}/external/lfric_infrastructure/preprocessed
-LFRIC_NAME=lfric_netcdf
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-
 OBJ = intergrid_3levels_psy.o intergrid_3levels.o restrict_kernel_mod.o prolong_kernel_mod.o
-
-# This will add the required include flags to LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.mk
 
 .PHONY: transform compile run kernels
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) \
-	$$(nf-config --flibs)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) $(LDFLAGS)
 
 transform intergrid_3levels_psy.f90 intergrid_3levels.f90:
 	${PSYCLONE} -api lfric intergrid_3levels.x90 \
@@ -73,11 +64,8 @@ intergrid_3levels.o: intergrid_3levels_psy.o
 
 kernels: prolong_kernel_mod.o restrict_kernel_mod.o
 
-#%.o: %.[fF]90
-#	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
-
 %.o: %.F90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<

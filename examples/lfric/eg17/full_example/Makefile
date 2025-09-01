@@ -40,7 +40,7 @@
 # export F90=gfortran
 # export F90FLAGS="-Wall -g -fcheck=bound"
 
-include ../../../common.mk
+include ../../lfric_common.mk
 
 GENERATED_FILES = main_psy.f90 main_alg.f90 *.o *.mod $(EXEC)
 
@@ -51,21 +51,13 @@ OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 
 EXEC = example
 
-LFRIC_PATH = ${PSYCLONE_DIR}/external/lfric_infrastructure/preprocessed
-LFRIC_NAME=lfric_netcdf
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-LDFLAGS=$$(nf-config --flibs)
-
-# This sets up LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.mk
-
 run: compile
 	./example
 
 compile: transform $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) \
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) \
 	-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS)
 
 $(LFRIC_LIB):
@@ -77,10 +69,10 @@ main_alg.o:	main_psy.o
 testkern_w0_kernel_mod.o: $(LFRIC_LIB)
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 # Keep the generated psy and alg files
 .precious: main_psy.f90 main_alg.f90

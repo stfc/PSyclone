@@ -48,7 +48,7 @@ endif
 # Path to the LFRic infrastructure library. It defaults to the pared-down
 # version of the LFRic infrastructure distributed with PSyclone.
 # Overwrite for a different infrastructure version.
-LFRIC_PATH ?= ./../../../../src/psyclone/tests/test_files/lfric/infrastructure
+LFRIC_PATH ?= ../../../../external/lfric_infrastructure/src
 # Paths to the PSyclone wrapper libraries and required templates. They default
 # to the relative paths to the top-level 'lib' and 'lib/extract/ascii'
 # directories. Overwrite for a custom location.

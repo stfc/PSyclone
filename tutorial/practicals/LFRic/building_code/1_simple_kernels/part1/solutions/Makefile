@@ -57,7 +57,7 @@ EXEC = ./simple_kernels_part1
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../../../..
-LFRIC_PATH ?= $(PSYCLONE_RELPATH)/external/lfric_infrastructure/preprocessed
+LFRIC_PATH ?= $(PSYCLONE_RELPATH)/external/lfric_infrastructure/src
 LFRIC_NAME = lfric
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
