@@ -213,6 +213,10 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             privatise_arrays = options.get("privatise_arrays", False)
             reduction_ops = options.get("reduction_ops", [])
 
+        # As a side effect, this method produces a list of inferred reduction
+        # clauses (if 'reduction_ops' is not None)
+        self.inferred_reduction_vars = []
+
         # Check we are not a sequential loop
         if (not sequential and isinstance(node, PSyLoop) and
                 node.loop_type == 'colours'):
@@ -304,8 +308,10 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                         var_name = message.var_names[0]
                         access_info = message.var_infos[0]
                         red_tool = ReductionInferenceTool(reduction_ops)
-                        if (red_tool.attempt_reduction(
-                                node, var_name, access_info)):
+                        op = red_tool.attempt_reduction(
+                                 node, var_name, access_info)
+                        if op:
+                            self.inferred_reduction_vars.append((op, var_name))
                             continue
                 errors.append(str(message))
 
@@ -419,9 +425,14 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                       sequential=sequential, nowait=nowait,
                       reduction_ops=reduction_ops, **kwargs)
 
-        self.inferred_reduction_vars = []
         list_of_signatures = [Signature(name) for name in list_of_names]
         dtools = DependencyTools()
+
+        # Add all reduction variables inferred by 'validate' to the list
+        # of signatures to ignore
+        if self.inferred_reduction_vars:
+            for (op, var_name) in self.inferred_reduction_vars:
+                list_of_signatures.append(Signature(var_name))
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
@@ -438,27 +449,6 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 if message.code == DTCode.ERROR_WRITE_WRITE_RACE:
                     for var_name in message.var_names:
                         self._attempt_privatisation(node, var_name)
-
-        # If 'reduction_ops' is non-empty, see if any of the scalars
-        # preventing parallelisation can be supported by introducing
-        # reduction clauses.
-        if reduction_ops and not node.independent_iterations(
-                 dep_tools=dtools,
-                 test_all_variables=True,
-                 signatures_to_ignore=list_of_signatures):
-            for message in dtools.get_all_messages():
-                if message.code == DTCode.WARN_SCALAR_REDUCTION:
-                    for (var_name, var_info) in zip(message.var_names,
-                                                    message.var_infos):
-                        red_tool = ReductionInferenceTool(reduction_ops)
-                        op = red_tool.attempt_reduction(
-                                 node, var_name, var_info)
-                        if op:
-                            self.inferred_reduction_vars.append((op, var_name))
-                            # Add this variable to the list of signatures for
-                            # dependency tools to ignore, avoiding unnecessary
-                            # failures in the subsequent collapse check (below)
-                            list_of_signatures.append(Signature(var_name))
 
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it

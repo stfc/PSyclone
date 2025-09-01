@@ -63,7 +63,7 @@ from psyclone.psyir.nodes import (
     Call, CodeBlock, Directive, Literal, Loop, Node,
     OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
-    Return, Schedule,
+    Return, Schedule, OMPReductionClause, Reference,
     OMPSingleDirective, PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -73,7 +73,9 @@ from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
     SymbolError, UnresolvedType)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
-from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
+from psyclone.psyir.transformations.omp_loop_trans import (
+    OMPLoopTrans, MAP_REDUCTION_OP_TO_OMP
+)
 from psyclone.psyir.transformations.parallel_loop_trans import (
     ParallelLoopTrans)
 from psyclone.psyir.transformations.region_trans import RegionTrans
@@ -268,6 +270,10 @@ class OMPParallelLoopTrans(OMPLoopTrans):
             and validation.
         :type options: Optional[Dict[str, Any]]
         '''
+        if options:
+            if options.get("enable_reductions", False):
+                options["reduction_ops"] = MAP_REDUCTION_OP_TO_OMP.keys()
+
         self.validate(node, options=options)
 
         # keep a reference to the node's original parent and its index as these
@@ -279,6 +285,12 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         # parent and its children to the node
         directive = OMPParallelDoDirective(children=[node.detach()],
                                            omp_schedule=self.omp_schedule)
+
+        # Add any inferred reduction clauses to the newly introduced directive
+        for (op, var_name) in self.inferred_reduction_vars:
+            clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
+            clause.addchild(Reference(Symbol(var_name)))
+            directive.add_reduction_clause(clause)
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
