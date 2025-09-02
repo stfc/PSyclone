@@ -141,8 +141,8 @@ this tutorial repository.
 ## LFRic code support
 
 All the tutorials here use a pared-down version of the LFRic infrastructure
-stored in the [`src/psyclone/tests/test_files/lfric/infrastructure`](
-../../../../src/psyclone/tests/test_files/lfric/infrastructure/README.md)
+stored in the [`external/lfric_infrastructure/`](
+../../../../external/lfric_infrastructure/README.md)
 directory of the PSyclone repository. For more information on LFRic code
 structure and functionality see the [*LFRic code structure* section](
 background/LFRic_structure.md).

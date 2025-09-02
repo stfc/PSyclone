@@ -6052,8 +6052,6 @@ class LFRicKernelArgument(KernelArgument):
                 argtype = "field"
             elif alg_datatype == "r_bl_field_type":
                 argtype = "r_bl_field"
-            elif alg_datatype == "r_phys_field_type":
-                argtype = "r_phys_field"
             elif alg_datatype == "r_solver_field_type":
                 argtype = "r_solver_field"
             elif alg_datatype == "r_tran_field_type":

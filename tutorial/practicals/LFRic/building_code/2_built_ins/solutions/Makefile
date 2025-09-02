@@ -56,12 +56,12 @@ EXEC = ./builtins
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../../..
-LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/lfric/infrastructure
+LFRIC_PATH ?= $(PSYCLONE_RELPATH)/external/lfric_infrastructure/src
 LFRIC_NAME = lfric
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 # This will add the required include flags to LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
+include $(LFRIC_PATH)/lfric_include_flags.mk
 
 # Object rules
 DRIVER_OBJ = $(notdir $(filter %.o,$(DRIVER_SRC:.f90=.o)))
@@ -77,7 +77,9 @@ EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ)
 # Test PSyclone target for continuous integration
 transform: $(PSY_SRC) $(ALGORITHM_SRC)
 
-compile: transform $(EXEC)
+# TODO #3114
+compile: transform
+	echo "Compilation for building_code/1_simple_kernels/part1 not working yet."
 
 run: compile
 	$(EXEC)
@@ -113,4 +115,4 @@ clean:
 	rm -f *.o *.mod $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
 
 allclean: clean
-	make -C $(LFRIC_PATH) clean
+	make -C $(LFRIC_PATH) allclean

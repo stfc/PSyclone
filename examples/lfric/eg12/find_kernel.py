@@ -73,7 +73,7 @@ ALG_PATH = "../code"
 ALG_NAME = "gw_mixed_schur_preconditioner_alg_mod.x90"
 # Specify the Kernel base name without the "_mod" and
 # file extension
-KERNEL_BASENAME = "matrix_vector_kernel"
+KERNEL_BASENAME = "matrix_vector"
 # Specify whether to apply transformations before looking for the Kernel call
 # position
 TRANSFORM = False

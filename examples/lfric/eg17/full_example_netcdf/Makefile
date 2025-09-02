@@ -40,9 +40,7 @@
 # export F90=gfortran
 # export F90FLAGS="-Wall -g -fcheck=bound"
 
-PSYROOT=../../../..
-
-include $(PSYROOT)/examples/common.mk
+include ../../lfric_common.mk
 
 GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
 
@@ -53,25 +51,20 @@ OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 
 EXEC = example
 
-LFRIC_PATH = $(PSYROOT)/src/psyclone/tests/test_files/lfric/infrastructure
-LFRIC_NAME=lfric_netcdf
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-
-# This will add the required include flags to LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
+# TODO #3114: refactor this example to work with the new infrastructure
+compile: transform
+	@echo "No compilation supported for lfric/eg17/full_example_netcdf"
 
 run: compile
-	./example
-
-compile: transform $(EXEC)
+	@echo "No run targets for lfric/eg17/full_example_netcdf"
 
 transform: main_psy.f90
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) $$(nf-config --flibs) $$(nc-config --libs)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LDFLAGS)
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) netcdf
+	$(MAKE) -C $(LFRIC_PATH) -f ../Makefile
 
 # Dependencies
 main_psy.o:	testkern_w0_kernel_mod.o
@@ -79,10 +72,10 @@ main_alg.o:	main_psy.o
 testkern_w0_kernel_mod.o: $(LFRIC_LIB)
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 # Keep the generated psy and alg files
 .precious: main_psy.f90 main_alg.f90
@@ -93,4 +86,4 @@ main_alg.f90: main_psy.f90
 	${PSYCLONE} -api lfric -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 allclean: clean
-	make -C $(LFRIC_PATH) allclean
+	make -C $(LFRIC_PATH) -f ../Makefile allclean

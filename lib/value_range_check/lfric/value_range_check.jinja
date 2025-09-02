@@ -52,8 +52,8 @@ module value_range_check_psy_data_mod
                                               real32, real64, &
                                               stderr => Error_Unit
     {% for prec in ALL_PREC %}
-    use field_r{{prec}}_mod, only : field_r{{prec}}_type, &
-                              field_r{{prec}}_proxy_type
+    use field_real{{prec}}_mod, only : field_real{{prec}}_type, &
+                              field_real{{prec}}_proxy_type
     {% endfor %}
     use integer_field_mod, only   : integer_field_type, integer_field_proxy_type
     use value_range_check_base_mod, only   : ValueRangeCheckBaseType, is_enabled
@@ -68,13 +68,13 @@ module value_range_check_psy_data_mod
         {% set all_declares=[] -%}
         {% set all_writes=[] -%}
         {% for prec in ALL_PREC %}
-        procedure :: DeclareField_r{{prec}}
-        procedure :: ProvideField_r{{prec}}
+        procedure :: Declarefield_real{{prec}}
+        procedure :: Providefield_real{{prec}}
         procedure :: DeclareFieldVector_r{{prec}}
         procedure :: ProvideFieldVector_r{{prec}}
-          {{- all_declares.append("DeclareField_r{{prec}}") or ""}}
+          {{- all_declares.append("Declarefield_real{{prec}}") or ""}}
           {{- all_declares.append("DeclareFieldVector_r{{prec}}") or ""}}
-          {{- all_writes.append("WriteField_r{{prec}}") or ""}}
+          {{- all_writes.append("Writefield_real{{prec}}") or ""}}
           {{- all_writes.append("WriteFieldVector_r{{prec}}") or ""}}
         {% endfor %}
 
@@ -86,7 +86,7 @@ module value_range_check_psy_data_mod
         !> Declare generic interface for PreDeclareVariable:
         generic, public :: PreDeclareVariable =>  &
         {% for prec in ALL_PREC %}
-                           DeclareField_r{{prec}},      &
+                           Declarefield_real{{prec}},      &
                            DeclareFieldVector_r{{prec}},&
         {% endfor %}
                            DeclareIntField,       &
@@ -96,7 +96,7 @@ module value_range_check_psy_data_mod
         !! (which checks for non normal IEEE numbers)
         generic, public :: ProvideVariable =>     &
         {% for prec in ALL_PREC %}
-                           ProvideField_r{{prec}},      &
+                           Providefield_real{{prec}},      &
                            ProvideFieldVector_r{{prec}},&
         {% endfor %}
                            ProvideIntField,       &
@@ -115,20 +115,20 @@ contains
     !! @param[in,out] this The instance of the value_range_check_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine DeclareField_r{{prec}}(this, name, value)
+    subroutine Declarefield_real{{prec}}(this, name, value)
 
         implicit none
 
         class(value_range_check_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                           :: name
-        type(field_r{{prec}}_type), intent(in)                   :: value
+        type(field_real{{prec}}_type), intent(in)                   :: value
 
-        type(field_r{{prec}}_proxy_type)                         :: value_proxy
+        type(field_real{{prec}}_proxy_type)                         :: value_proxy
 
         value_proxy = value%get_proxy()
         call this%PreDeclareVariable(name, value_proxy%data)
 
-    end subroutine DeclareField_r{{prec}}
+    end subroutine Declarefield_real{{prec}}
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine calls the corresponding function in the base class
@@ -137,15 +137,15 @@ contains
     !! @param[in,out] this The instance of the value_range_check_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine ProvideField_r{{prec}}(this, name, value)
+    subroutine Providefield_real{{prec}}(this, name, value)
 
         implicit none
 
         class(value_range_check_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                           :: name
-        type(field_r{{prec}}_type), intent(in)                   :: value
+        type(field_real{{prec}}_type), intent(in)                   :: value
 
-        type(field_r{{prec}}_proxy_type)                         :: value_proxy
+        type(field_real{{prec}}_proxy_type)                         :: value_proxy
 
         if (.not. is_enabled) return
 
@@ -155,7 +155,7 @@ contains
         value_proxy = value%get_proxy()
         call this%ProvideVariable(name, value_proxy%data)
 
-    end subroutine ProvideField_r{{prec}}
+    end subroutine Providefield_real{{prec}}
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine declares LFRic real-valued field vectors. It
@@ -170,7 +170,7 @@ contains
 
         class(value_range_check_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                           :: name
-        type(field_r{{prec}}_type), dimension(:), intent(in)     :: value
+        type(field_real{{prec}}_type), dimension(:), intent(in)     :: value
 
         integer :: i
         character(8) :: index_string   ! Enough for a 6 digit number plus '()'
@@ -196,7 +196,7 @@ contains
 
         class(value_range_check_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                           :: name
-        type(field_r{{prec}}_type), dimension(:), intent(in)     :: value
+        type(field_real{{prec}}_type), dimension(:), intent(in)     :: value
 
         integer      :: i
         character(8) :: index_string   ! Enough for a 6 digit number plus '()'

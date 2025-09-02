@@ -53,12 +53,12 @@
 module extract_psy_data_mod
 
     use, intrinsic :: iso_fortran_env, only : int64, int32
-    use extract_ascii_base_mod, only : ExtractAsciiBaseType
+    use extract_ascii_base_mod,   only : ExtractAsciiBaseType
 
     implicit none
 
     !> This is the data type that manages the information required
-    !! to write data to a binary file using the PSyData API. A
+    !! to write data to an ASCII file using the PSyData API. A
     !! static instance of this type is created for each instrumented
     !! region with PSyclone (and each region will write a separate
     !! file).
@@ -122,15 +122,15 @@ contains
     !! @param[in] value The value of the variable.
     subroutine DeclareField_r{{prec}}(this, name, value)
 
-        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+        use field_real{{prec}}_mod, only : field_real{{prec}}_type, field_real{{prec}}_proxy_type
 
         implicit none
 
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
-        type(field_r{{prec}}_type), intent(in)                  :: value
+        type(field_real{{prec}}_type), intent(in)                  :: value
 
-        type(field_r{{prec}}_proxy_type) :: value_proxy
+        type(field_real{{prec}}_proxy_type) :: value_proxy
 
         value_proxy = value%get_proxy()
         call this%PreDeclareVariable(name, value_proxy%data)
@@ -139,22 +139,22 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes the values of an LFRic real-valued {{prec}}-bit field.
-    !! to the binary file. It uses the corresponding function
+    !! to the ASCII file. It uses the corresponding function
     !! provided by the base class.
     !! @param[in,out] this The instance of the extract_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteField_r{{prec}}(this, name, value)
 
-        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+        use field_real{{prec}}_mod, only : field_real{{prec}}_type, field_real{{prec}}_proxy_type
 
         implicit none
 
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
-        type(field_r{{prec}}_type), intent(in)                  :: value
+        type(field_real{{prec}}_type), intent(in)                  :: value
 
-        type(field_r{{prec}}_proxy_type) :: value_proxy
+        type(field_real{{prec}}_proxy_type) :: value_proxy
 
         value_proxy = value%get_proxy()
         call this%ProvideVariable(name, value_proxy%data)
@@ -170,16 +170,16 @@ contains
     !! @param[in] value The value of the variable.
     subroutine DeclareFieldVector_r{{prec}}(this, name, value)
 
-        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+        use field_real{{prec}}_mod, only : field_real{{prec}}_type, field_real{{prec}}_proxy_type
 
         implicit none
 
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
-        type(field_r{{prec}}_type), dimension(:), intent(in)        :: value
+        type(field_real{{prec}}_type), dimension(:), intent(in)        :: value
 
         integer                :: i
-        type(field_r{{prec}}_proxy_type) :: value_proxy
+        type(field_real{{prec}}_proxy_type) :: value_proxy
         character(9)           :: number
 
         ! Provide each component of the vector as an individual 1D array.
@@ -197,23 +197,23 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes an LFRic real-valued {{prec}}-bit field vector to
-    !! the binary file. Each component is stored as an individual variable using
+    !! the ASCII file. Each component is stored as an individual variable using
     !! the corresponding array function of the base class.
     !! @param[in,out] this The instance of the extract_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine WriteFieldVector_r{{prec}}(this, name, value)
 
-        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+        use field_real{{prec}}_mod, only : field_real{{prec}}_type, field_real{{prec}}_proxy_type
 
         implicit none
 
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
-        type(field_r{{prec}}_type), dimension(:), intent(in)        :: value
+        type(field_real{{prec}}_type), dimension(:), intent(in)        :: value
 
         integer                :: i
-        type(field_r{{prec}}_proxy_type) :: value_proxy
+        type(field_real{{prec}}_proxy_type) :: value_proxy
         character(9)           :: number
 
         ! Provide each dimension of the vector as an individual 1D array.
@@ -255,7 +255,7 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes the values of an LFRic integer-valued field.
-    !! to the binary file. It uses the corresponding function
+    !! to the ASCII file. It uses the corresponding function
     !! provided by the base class.
     !! @param[in,out] this The instance of the extract_`.
     !! @param[in] name The name of the variable (string).
@@ -315,7 +315,7 @@ contains
 
 ! -------------------------------------------------------------------------
     !> @brief This subroutine writes an LFRic integer-valued field vector to the
-    !! binary file. Each component is stored as an individual variable
+    !! ASCII file. Each component is stored as an individual variable
     !! using the corresponding array function of the base class.
     !! @param[in,out] this The instance of the extract_PSyDataType.
     !! @param[in] name The name of the variable (string).
