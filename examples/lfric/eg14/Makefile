@@ -90,9 +90,6 @@ testkern_w0_kernel_0_mod.f90: main_psy.f90
 
 compile: transform ${EXEC}
 
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) -f ../Makefile
-
 run: compile
 	./$(EXEC)
 

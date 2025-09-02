@@ -56,9 +56,6 @@ compile: transform $(EXEC)
 run: compile
 	@echo "No run targets for lfric/eg10"
 
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
-
 intergrid_3levels_psy.o: prolong_kernel_mod.o restrict_kernel_mod.o
 intergrid_3levels.o: intergrid_3levels_psy.o
 

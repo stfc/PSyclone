@@ -53,3 +53,7 @@ include $(LFRIC_PATH)/lfric_include_flags.mk
 
 F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 LDFLAGS += -L $(LFRIC_PATH) -l$(LFRIC_NAME) $$(nf-config --flibs)
+
+# Add a rule to compile the lfric infrastructure library
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_PATH)

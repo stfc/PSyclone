@@ -60,9 +60,6 @@ $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) \
 	-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS)
 
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) -f ../Makefile netcdf
-
 # Dependencies
 main_psy.o:	testkern_w0_kernel_mod.o
 main_alg.o:	main_psy.o

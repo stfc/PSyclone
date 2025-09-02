@@ -67,9 +67,6 @@ helmholtz_solver_alg_psy.f90 helmholtz_solver_alg_mod.f90: helmholtz_solver_alg_
 $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) $(LDFLAGS)
 
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) -f ../Makefile
-
 # Dependencies
 driver.o:			helmholtz_solver_alg_mod.o
 helmholtz_solver_alg_psy.o:	scaled_matrix_vector_kernel_mod.o

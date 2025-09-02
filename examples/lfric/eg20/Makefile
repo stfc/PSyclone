@@ -45,9 +45,6 @@ compile: transform ${LFRIC_LIB}
 	@echo "#1770 Compilation is not supported: the generated code must be "
 	@echo "inserted into an LFRic mini-app."
 
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
-
 # Dependencies
 %.F90:
 	ln -s ../code/$@ .
