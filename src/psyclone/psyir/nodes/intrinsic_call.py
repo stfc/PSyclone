@@ -84,6 +84,7 @@ def _get_first_argument_type(node) -> DataType:
     '''
     return node.arguments[0].datatype
 
+
 # Anyone using this?
 def _get_first_argument_type_with_optional_kind(node) -> DataType:
     '''Helper function for the common IntrinsicCall case where the
@@ -102,6 +103,7 @@ def _get_first_argument_type_with_optional_kind(node) -> DataType:
         return_type = node.arguments[0].datatype.copy()
         return_type._precision = kind
         return return_type
+
 
 def _get_first_argument_logical_kind_with_optional_dim(node) -> DataType:
     '''Helper function for the common IntrinsicCall case where the
@@ -248,7 +250,7 @@ class IntrinsicCall(Call):
                     ScalarType.Intrinsic.REAL,
                     (node.arguments[node.argument_names.index("kind")]
                      if "kind" not in node.argument_names else
-                     arguments[0].datatype.precision))
+                     node.arguments[0].datatype.precision))
             ), None)
         ANY = IAttr(
             'ANY', True, False, False,
@@ -846,7 +848,8 @@ class IntrinsicCall(Call):
             ArgDesc(1, 1, DataNode), {}, None, None)
         PRODUCT = IAttr(
             'PRODUCT', True, False, False,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode, "mask": DataNode}, None, None)
+            ArgDesc(1, 1, DataNode), {"dim": DataNode, "mask": DataNode},
+            None, None)
         RADIX = IAttr(
             'RADIX', True, False, True,
             ArgDesc(1, 1, DataNode), {}, None, None)
@@ -872,13 +875,15 @@ class IntrinsicCall(Call):
         REDUCE = IAttr(
             'REDUCE', True, False, False,
             ArgDesc(2, 3, Reference),
-            {"mask": DataNode, "identity": DataNode, "ordered": DataNode}, None, None)
+            {"mask": DataNode, "identity": DataNode, "ordered": DataNode},
+            None, None)
         REPEAT = IAttr(
             'REPEAT', True, False, False,
             ArgDesc(2, 2, Reference), {}, None, None)
         RESHAPE = IAttr(
             'RESHAPE', True, False, False,
-            ArgDesc(2, 2, Reference), {"pad": DataNode, "order": DataNode}, None, None)
+            ArgDesc(2, 2, Reference), {"pad": DataNode, "order": DataNode},
+            None, None)
         RRSPACING = IAttr(
             'RRSPACING', True, True, False,
             ArgDesc(1, 1, Reference), {}, None, None)
@@ -890,7 +895,8 @@ class IntrinsicCall(Call):
             ArgDesc(2, 2, Reference), {}, None, None)
         SCAN = IAttr(
             'SCAN', True, True, False,
-            ArgDesc(2, 2, Reference), {"back": DataNode, "kind": DataNode}, None, None)
+            ArgDesc(2, 2, Reference), {"back": DataNode, "kind": DataNode},
+            None, None)
         SELECTED_CHAR_KIND = IAttr(
             'SELECTED_CHAR_KIND', True, False, False,
             ArgDesc(1, 1, Reference), {}, None, None)
@@ -927,7 +933,8 @@ class IntrinsicCall(Call):
             ArgDesc(1, 1, DataNode), {}, None, None)
         SIZE = IAttr(
             'SIZE', True, False, True,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode}, None, None)
+            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode},
+            None, None)
         SPACING = IAttr(
             'SPACING', True, True, False,
             ArgDesc(1, 1, DataNode), {}, None, None)
@@ -939,17 +946,20 @@ class IntrinsicCall(Call):
             ArgDesc(1, 1, DataNode), {}, None, None)
         STOPPED_IMAGES = IAttr(
             'STOPPED_IMAGES', False, False, False,
-            ArgDesc(0, 0, DataNode), {"team": DataNode, "kind": DataNode}, None, None)
+            ArgDesc(0, 0, DataNode), {"team": DataNode, "kind": DataNode},
+            None, None)
         STORAGE_SIZE = IAttr(
             'STORAGE_SIZE', True, False, True,
             ArgDesc(1, 1, DataNode), {"kind": DataNode}, None, None)
         SUM = IAttr(
             'SUM', True, False, False,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode, "mask": DataNode}, None, None)
+            ArgDesc(1, 1, DataNode), {"dim": DataNode, "mask": DataNode},
+            None, None)
         SYSTEM_CLOCK = IAttr(
             'SYSTEM_CLOCK', False, False, False,
             ArgDesc(0, 0, DataNode),
-            {"count": DataNode, "count_rate": DataNode, "count_max": DataNode}, None, None)
+            {"count": DataNode, "count_rate": DataNode, "count_max": DataNode},
+            None, None)
         TAN = IAttr(
             'TAN', True, True, False,
             ArgDesc(1, 1, DataNode), {}, None, None)
@@ -962,7 +972,8 @@ class IntrinsicCall(Call):
         THIS_IMAGE = IAttr(
             'THIS_IMAGE', True, False, False,
             ArgDesc(0, 0, DataNode),
-            {"coarray": DataNode, "team": DataNode, "dim": DataNode}, None, None)
+            {"coarray": DataNode, "team": DataNode, "dim": DataNode},
+            None, None)
         TINY = IAttr(
             'TINY', True, False, True,
             ArgDesc(1, 1, (Reference, Literal)), {}, None, None)
@@ -980,16 +991,19 @@ class IntrinsicCall(Call):
             ArgDesc(1, 1, DataNode), {}, None, None)
         UBOUND = IAttr(
             'UBOUND', True, False, True,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode}, None, None)
+            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode},
+            None, None)
         UCOBOUND = IAttr(
             'UCOBOUND', True, False, True,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode}, None, None)
+            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode},
+            None, None)
         UNPACK = IAttr(
             'UNPACK', True, False, False,
             ArgDesc(3, 3, DataNode), {}, None, None)
         VERIFY = IAttr(
             'VERIFY', True, True, False,
-            ArgDesc(2, 2, DataNode), {"back": DataNode, "kind": DataNode}, None, None)
+            ArgDesc(2, 2, DataNode), {"back": DataNode, "kind": DataNode},
+            None, None)
 
         def __hash__(self):
             return hash(self.name)
