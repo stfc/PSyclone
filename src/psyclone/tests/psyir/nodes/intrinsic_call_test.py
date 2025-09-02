@@ -1142,7 +1142,8 @@ def test_specific_return_types(fortran_reader, code, expected):
         # # Return type is integer of kind of x with dimension of x.
         # lambda res: (res.intrinsic == ScalarType.Intrinsic.INTEGER and
         #              res.precision.value == "4" and
-        #              len(res.shape) == 1 and res.shape[0].upper.value == "100"
+        #              len(res.shape) == 1 and res.shape[0].upper.value
+        #              == "100"
         #              and res.shape[0].lower.value == "1")
         # ),
         (
