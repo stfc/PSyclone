@@ -74,7 +74,7 @@ dirs:
 	mkdir -p $(DIRS)
 
 liblfric.a: $(OBJ)
-	$(AR) $(ARFLAGS) $@ $(patsubst %,$(LFRIC_PATH)/%,$(OBJ))
+	$(AR) $(ARFLAGS) $@ $(OBJ)
 
 # Dependencies
 # ------------
