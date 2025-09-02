@@ -93,7 +93,7 @@ class Message:
     :param var_infos: list of variable access infos (defaults to None). If
        not None, each list element contains the access info of the
        corresponding variable in the var_names list.
-    :type var_infos: List[:py:class:`psyclone.core.SingleVariableAccessInfo`]
+    :type var_infos: List[:py:class:`psyclone.core.AccessInfo`]
 
 
     '''
@@ -140,7 +140,7 @@ class Message:
         ''':returns: the access info of each variable to which the message
         applies, or None if this information does not exist.
 
-        :rtype: List[:py:class:`psyclone.core.SingleVariableAccessInfo`]
+        :rtype: List[:py:class:`psyclone.core.AccessInfo`]
 
         '''
         return self._var_infos

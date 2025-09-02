@@ -5010,3 +5010,25 @@ def test_reduction_omp_parallel_loop_trans(fortran_reader, fortran_writer):
     omplooptrans.apply(loop, options={"enable_reductions": True})
     output = fortran_writer(psyir)
     assert "reduction(+: acc)" in output
+
+def test_reduction_struct_member(fortran_reader, fortran_writer):
+    ''' Test that reduction loops involing struct members are
+    parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (struct)
+            use mod
+            integer, intent(in) :: arr(:)
+            integer :: i
+            type(struct_type) :: struct
+
+            struct%acc = 0
+            do i = 1, ubound(arr)
+                struct%acc = struct%acc + arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert f"reduction(+: struct%acc)" in output

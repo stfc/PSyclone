@@ -39,7 +39,7 @@
 
 from typing import Union, List
 
-from psyclone.core import AccessInfo
+from psyclone.core import (AccessInfo, Signature)
 from psyclone.psyir.nodes import (
         Node, Reference, BinaryOperation, IntrinsicCall, Assignment
 )
@@ -74,10 +74,19 @@ class ReductionInferenceTool():
                     return node.intrinsic
         return None
 
+    @staticmethod
+    def _get_reference_name(ref: Reference) -> str:
+        '''Return the name of the given Reference as a string.
+
+           :param ref: a Reference node.
+           :returns: the reference's name.
+        '''
+        return str(ref.get_signature_and_indices()[0])
+
     def _get_write_reduction(self, node: Node, var_name: str) -> \
             Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
-        '''Return the reduction operator for given node if it is an Assignment
-           of the form _either_
+        '''Return the reduction operator for given node if it is the
+           LHS of an Assignment of the form _either_
 
              <var_name> = <var_name> <op> <DataNode>
 
@@ -86,22 +95,29 @@ class ReductionInferenceTool():
              <var_name> = <DataNode> <op> <var_name>
 
            where <op> is an allowed reduction operator. Otherwise,
-           return None.
+           return None. The <var_name> is assumed to be the name of
+           a scalar reference, i.e. involves no indices.
 
         :param node: the node to match against.
-        :param var_name: the candidate reduction variable.
+        :param var_name: the candidate scalar reduction variable.
         :returns: the reduction operator, or None.
         '''
-        if isinstance(node, Reference) and node.name == var_name:
-            if isinstance(node.parent, Assignment):
-                op = self._get_reduction_operator(node.parent.rhs)
-                if op:
-                    ok0 = (isinstance(node.parent.rhs.children[0], Reference)
-                           and node.parent.rhs.children[0].name == var_name)
-                    ok1 = (isinstance(node.parent.rhs.children[1], Reference)
-                           and node.parent.rhs.children[1].name == var_name)
-                    if ok0 != ok1:  # exclusive or
-                        return op
+        if isinstance(node, Reference):
+            node_name = self._get_reference_name(node)
+            if node_name == var_name:
+                if isinstance(node.parent, Assignment):
+                    op = self._get_reduction_operator(node.parent.rhs)
+                    if op:
+                        child_ok = []
+                        for child in node.parent.rhs.children[:2]:
+                            if isinstance(child, Reference):
+                                child_name = self._get_reference_name(child)
+                                child_ok.append(child_name == var_name)
+                            else:
+                                child_ok.append(False)
+                        if (child_ok == [False, True] or
+                            child_ok == [True, False]):
+                            return op
         return None
 
     def _get_read_reduction(self, node: Node, var_name: str) -> \
@@ -116,30 +132,35 @@ class ReductionInferenceTool():
              <var_name> = <DataNode> <op> <var_name>
 
            where <op> is an allowed reduction operator. Otherwise, return
-           None.
+           None. The <var_name> is assumed to be the name of scalar
+           reference, i.e. involves no indices.
 
         :param node: the node to match against
-        :param var_name: the candidate reduction variable.
+        :param var_name: the candidate scalar reduction variable.
         :returns: the reduction operator, or None.
         '''
-        if isinstance(node, Reference) and node.name == var_name:
-            op = self._get_reduction_operator(node.parent)
-            if op:
-                if isinstance(node.parent.parent, Assignment):
-                    if isinstance(node.parent.parent.lhs, Reference):
-                        if node.parent.parent.lhs.name == var_name:
-                            return op
-            return None
+        if isinstance(node, Reference):
+            node_name = self._get_reference_name(node)
+            if node_name == var_name:
+                op = self._get_reduction_operator(node.parent)
+                if op:
+                    if isinstance(node.parent.parent, Assignment):
+                        lhs = node.parent.parent.lhs
+                        if isinstance(lhs, Reference):
+                            lhs_name = self._get_reference_name(lhs)
+                            if lhs_name == var_name:
+                                return op
+                return None
 
     def attempt_reduction(self, node: Node, var_name: str,
                           access_info: AccessInfo) -> \
             Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
-        ''' Check if the given variable can be handled using a reduction
+        '''Check if the given variable can be handled using a reduction
         clause and, if so, return the reduction operator. Otherwise,
-        return None.
+        return None. The variable name is assumed to be a scalar reference.
 
         :param node: the loop that will be parallelised.
-        :param var_name: the variable being considered as a
+        :param var_name: the scalar reference being considered as a
            reduction variable.
         :param access_info: the access info for that variable.
         :returns: the operator that can be used for the reduction
