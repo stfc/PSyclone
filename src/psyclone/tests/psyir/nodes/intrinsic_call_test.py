@@ -46,10 +46,12 @@ import pytest
 
 from psyclone.psyir.nodes import (
     ArrayReference, Literal, Reference, Schedule, Assignment)
-from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall, IAttr
+from psyclone.psyir.nodes.intrinsic_call import (
+    IntrinsicCall, IAttr, _get_first_argument_type,
+    _get_first_argument_logical_kind_with_optional_dim)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, INTEGER_TYPE, IntrinsicSymbol, REAL_TYPE,
-    BOOLEAN_TYPE, CHARACTER_TYPE)
+    BOOLEAN_TYPE, CHARACTER_TYPE, ScalarType, UnresolvedType)
 
 
 def test_intrinsic_enum():
@@ -579,3 +581,78 @@ end program test_prog
             "== 0) then" in result)
     assert ("if (verify(clname(ind1:ind2), '0123456789', kind=kind(1), "
             "back=.true.) == 0) then" in result)
+
+
+def test_get_first_argument_type(fortran_reader):
+    '''Test the _get_first_argument_type helper function.'''
+    code = """subroutine x
+    integer :: a, b
+    a = 1
+    b = ABS(a)
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    abs_call = psyir.walk(IntrinsicCall)[0]
+    dtype = _get_first_argument_type(abs_call)
+    assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert dtype.precision == ScalarType.Precision.UNDEFINED
+
+
+def test_get_first_argument_logical_kind_with_optional_dim(fortran_reader):
+    '''Test the _get_first_argument_logical_kind_with_optional_dim helper
+    function.'''
+    code = """subroutine x
+    logical, dimension(100,100) :: a
+    logical, dimension(100) :: b
+    logical :: c
+    c = ALL(a)
+    b = ALL(a, dim=1)
+    end subroutine x
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    all_calls = psyir.walk(IntrinsicCall)
+    dtype = _get_first_argument_logical_kind_with_optional_dim(all_calls[0])
+    assert dtype.intrinsic == ScalarType.Intrinsic.BOOLEAN
+    assert dtype.precision == ScalarType.Precision.UNDEFINED
+    dtype = _get_first_argument_logical_kind_with_optional_dim(all_calls[1])
+    assert isinstance(dtype, ArrayType)
+    assert len(dtype.shape) == 1
+    assert dtype.shape[0] == ArrayType.Extent.DEFERRED
+    assert dtype.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
+    assert dtype.datatype.precision == ScalarType.Precision.UNDEFINED
+
+
+@pytest.mark.parametrize("code, expected", [
+    ("""subroutine x
+     complex(4) :: z4
+     real :: result
+     result = aimag(z4)
+     end subroutine x""",
+     # AIMAG return type is UnresolvedType
+     lambda res: isinstance(res, UnresolvedType)
+    ),
+    ("""subroutine z
+    real*4 :: x
+    real :: y
+    y = AINT(x)
+    end subroutine z""",
+     # AINT return type is that of x here.
+     lambda res: (res.intrinsic == ScalarType.Intrinsic.REAL and
+                  res.precision == 4)
+    ),
+    ("""subroutine z
+    real*4 :: x
+    real*8 :: y
+    y = AINT(x, kind=8)
+    end subroutine z""",
+     # AINT return type is REAL with kind 8.
+     lambda res: (res.intrinsic == ScalarType.Intrinsic.REAL and
+                  isinstance(res.precision, Literal) and
+                  res.precision.value == "8")
+    ),
+    ])
+def test_specific_return_types(fortran_reader, code, expected):
+    ''' Test the specific return types of each IntrinsicCall that has its own
+    defined return type function.'''
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic = psyir.walk(IntrinsicCall)[0]
+    assert expected(intrinsic.intrinsic.return_type(intrinsic))
