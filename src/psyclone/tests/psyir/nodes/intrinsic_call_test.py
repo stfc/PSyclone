@@ -35,41 +35,69 @@
 # Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-'''
+"""
 This module contains pytest tests for the IntrinsicCall node.
 
 TODO #2341 - tests need to be added for all of the supported intrinsics.
 
-'''
+"""
 
 import pytest
 
 from psyclone.psyir.nodes import (
-    ArrayReference, Literal, Reference, Schedule, Assignment)
+    ArrayReference,
+    Literal,
+    Reference,
+    Schedule,
+    Assignment,
+)
 from psyclone.psyir.nodes.intrinsic_call import (
-    IntrinsicCall, IAttr, _get_first_argument_type,
-    _get_first_argument_logical_kind_with_optional_dim)
+    IntrinsicCall,
+    IAttr,
+    _get_first_argument_type,
+    _get_first_argument_logical_kind_with_optional_dim,
+    _get_real_with_argone_kind,
+    _get_real_with_x_kind,
+    _get_integer_of_kind_with_optional_dim,
+    _findloc_return_type,
+    _get_integer_with_optional_kind,
+    _int_return_type,
+    _iparity_return_type,
+    _get_bound_function_return_type,
+    _get_first_argument_type_with_optional_kind,
+    _get_first_argument_intrinsic_with_optional_kind_and_dim,
+)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, INTEGER_TYPE, IntrinsicSymbol, REAL_TYPE,
-    BOOLEAN_TYPE, CHARACTER_TYPE, ScalarType, UnresolvedType)
+    ArrayType,
+    DataSymbol,
+    INTEGER_TYPE,
+    IntrinsicSymbol,
+    REAL_TYPE,
+    BOOLEAN_TYPE,
+    CHARACTER_TYPE,
+    ScalarType,
+    UnresolvedType,
+)
 
 
 def test_intrinsic_enum():
-    '''Basic test for the IntrinsicCall.Intrinsic enum.'''
+    """Basic test for the IntrinsicCall.Intrinsic enum."""
     assert isinstance(IntrinsicCall.Intrinsic.MINVAL, IAttr)
     assert hash(IntrinsicCall.Intrinsic.MINVAL) == hash("MINVAL")
 
 
 def test_intrinsiccall_constructor():
-    '''Tests that the class' constructor and its parent are called
+    """Tests that the class' constructor and its parent are called
     correctly.
 
-    '''
+    """
     # Wrong type of routine argument.
     with pytest.raises(TypeError) as err:
         _ = IntrinsicCall(None)
-    assert ("IntrinsicCall 'intrinsic' argument should be an instance of "
-            "IntrinsicCall.Intrinsic, but found 'NoneType'." in str(err.value))
+    assert (
+        "IntrinsicCall 'intrinsic' argument should be an instance of "
+        "IntrinsicCall.Intrinsic, but found 'NoneType'." in str(err.value)
+    )
     # Check that supplied intrinsic and optional parent node is stored
     # correctly.
     sched = Schedule()
@@ -81,26 +109,26 @@ def test_intrinsiccall_constructor():
 
 
 def test_intrinsiccall_intrinsic():
-    '''Tests the intrinsic property returns the type of intrinsics from
+    """Tests the intrinsic property returns the type of intrinsics from
     the intrinsic property.
 
-    '''
+    """
     call = IntrinsicCall(IntrinsicCall.Intrinsic.MAXVAL)
     assert call.intrinsic is IntrinsicCall.Intrinsic.MAXVAL
 
 
 def test_intrinsiccall_is_elemental():
-    '''Tests the is_elemental() method works as expected. There are
+    """Tests the is_elemental() method works as expected. There are
     currently no elemental intrinsics so we can only test for
     False.
 
-    '''
+    """
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     assert intrinsic.is_elemental is False
 
 
 def test_intrinsiccall_is_pure():
-    '''Tests that the is_pure() method works as expected.'''
+    """Tests that the is_pure() method works as expected."""
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     assert intrinsic.is_pure is True
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE)
@@ -108,62 +136,66 @@ def test_intrinsiccall_is_pure():
 
 
 def test_intrinsiccall_is_inquiry():
-    '''Test that the is_inquiry() method works as expected.'''
+    """Test that the is_inquiry() method works as expected."""
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     assert intrinsic.is_inquiry is False
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATED)
     assert intrinsic.is_inquiry is True
 
 
-@pytest.mark.parametrize("intrinsic, result", [
-                (IntrinsicCall.Intrinsic.ABS, True),
-                (IntrinsicCall.Intrinsic.MIN, True),
-                (IntrinsicCall.Intrinsic.MAX, True),
-                (IntrinsicCall.Intrinsic.MAXVAL, True),
-                (IntrinsicCall.Intrinsic.ALLOCATE, False),
-                (IntrinsicCall.Intrinsic.MATMUL, False),
-                (IntrinsicCall.Intrinsic.ACOS, True),
-                (IntrinsicCall.Intrinsic.AINT, True),
-                (IntrinsicCall.Intrinsic.ANINT, True),
-                (IntrinsicCall.Intrinsic.ASIN, True),
-                (IntrinsicCall.Intrinsic.ATAN, True),
-                (IntrinsicCall.Intrinsic.ATAN2, True),
-                (IntrinsicCall.Intrinsic.COS, True),
-                (IntrinsicCall.Intrinsic.COSH, True),
-                (IntrinsicCall.Intrinsic.DBLE, True),
-                (IntrinsicCall.Intrinsic.DPROD, True),
-                (IntrinsicCall.Intrinsic.EXP, True),
-                (IntrinsicCall.Intrinsic.IAND, True),
-                (IntrinsicCall.Intrinsic.IEOR, True),
-                (IntrinsicCall.Intrinsic.INT, True),
-                (IntrinsicCall.Intrinsic.IOR, True),
-                (IntrinsicCall.Intrinsic.LOG, True),
-                (IntrinsicCall.Intrinsic.LOG10, True),
-                (IntrinsicCall.Intrinsic.MOD, True),
-                (IntrinsicCall.Intrinsic.NINT, True),
-                (IntrinsicCall.Intrinsic.NOT, True),
-                (IntrinsicCall.Intrinsic.REAL, True),
-                (IntrinsicCall.Intrinsic.SIGN, True),
-                (IntrinsicCall.Intrinsic.SIN, True),
-                (IntrinsicCall.Intrinsic.SINH, True),
-                (IntrinsicCall.Intrinsic.SQRT, True),
-                (IntrinsicCall.Intrinsic.TAN, True),
-                (IntrinsicCall.Intrinsic.TANH, True),
-                (IntrinsicCall.Intrinsic.PRODUCT, True),
-                (IntrinsicCall.Intrinsic.SUM, True),
-                (IntrinsicCall.Intrinsic.LBOUND, True),
-                (IntrinsicCall.Intrinsic.UBOUND, True)])
+@pytest.mark.parametrize(
+    "intrinsic, result",
+    [
+        (IntrinsicCall.Intrinsic.ABS, True),
+        (IntrinsicCall.Intrinsic.MIN, True),
+        (IntrinsicCall.Intrinsic.MAX, True),
+        (IntrinsicCall.Intrinsic.MAXVAL, True),
+        (IntrinsicCall.Intrinsic.ALLOCATE, False),
+        (IntrinsicCall.Intrinsic.MATMUL, False),
+        (IntrinsicCall.Intrinsic.ACOS, True),
+        (IntrinsicCall.Intrinsic.AINT, True),
+        (IntrinsicCall.Intrinsic.ANINT, True),
+        (IntrinsicCall.Intrinsic.ASIN, True),
+        (IntrinsicCall.Intrinsic.ATAN, True),
+        (IntrinsicCall.Intrinsic.ATAN2, True),
+        (IntrinsicCall.Intrinsic.COS, True),
+        (IntrinsicCall.Intrinsic.COSH, True),
+        (IntrinsicCall.Intrinsic.DBLE, True),
+        (IntrinsicCall.Intrinsic.DPROD, True),
+        (IntrinsicCall.Intrinsic.EXP, True),
+        (IntrinsicCall.Intrinsic.IAND, True),
+        (IntrinsicCall.Intrinsic.IEOR, True),
+        (IntrinsicCall.Intrinsic.INT, True),
+        (IntrinsicCall.Intrinsic.IOR, True),
+        (IntrinsicCall.Intrinsic.LOG, True),
+        (IntrinsicCall.Intrinsic.LOG10, True),
+        (IntrinsicCall.Intrinsic.MOD, True),
+        (IntrinsicCall.Intrinsic.NINT, True),
+        (IntrinsicCall.Intrinsic.NOT, True),
+        (IntrinsicCall.Intrinsic.REAL, True),
+        (IntrinsicCall.Intrinsic.SIGN, True),
+        (IntrinsicCall.Intrinsic.SIN, True),
+        (IntrinsicCall.Intrinsic.SINH, True),
+        (IntrinsicCall.Intrinsic.SQRT, True),
+        (IntrinsicCall.Intrinsic.TAN, True),
+        (IntrinsicCall.Intrinsic.TANH, True),
+        (IntrinsicCall.Intrinsic.PRODUCT, True),
+        (IntrinsicCall.Intrinsic.SUM, True),
+        (IntrinsicCall.Intrinsic.LBOUND, True),
+        (IntrinsicCall.Intrinsic.UBOUND, True),
+    ],
+)
 def test_intrinsiccall_is_available_on_device(intrinsic, result):
-    '''Tests that the is_available_on_device() method works as expected.'''
+    """Tests that the is_available_on_device() method works as expected."""
     intrinsic_call = IntrinsicCall(intrinsic)
     # For now default and nvfortran-all are the same
     assert intrinsic_call.is_available_on_device() is result
-    assert intrinsic_call.is_available_on_device('nvfortran-all') is result
+    assert intrinsic_call.is_available_on_device("nvfortran-all") is result
 
 
 def test_intrinsiccall_reductions_is_available_on_device():
-    '''Tests that the is_available_on_device() refuses reduction intrinsics
-    with optional arguments'''
+    """Tests that the is_available_on_device() refuses reduction intrinsics
+    with optional arguments"""
     intrinsic_call = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     intrinsic_call.addchild(Reference(DataSymbol("result", REAL_TYPE)))
     # This is avaliabe on the device
@@ -175,9 +207,9 @@ def test_intrinsiccall_reductions_is_available_on_device():
 
 
 def test_intrinsiccall_is_available_on_device_with_device_string():
-    '''Tests that the is_available_on_device() method with a device_string
+    """Tests that the is_available_on_device() method with a device_string
     argument provides different results with the 'nvfortran-uniform'
-    '''
+    """
     intrinsic_call = IntrinsicCall(IntrinsicCall.Intrinsic.LOG10)
     assert not intrinsic_call.is_available_on_device("nvfortran-uniform")
     intrinsic_call = IntrinsicCall(IntrinsicCall.Intrinsic.REAL)
@@ -185,32 +217,36 @@ def test_intrinsiccall_is_available_on_device_with_device_string():
 
     with pytest.raises(ValueError) as err:
         assert not intrinsic_call.is_available_on_device("invalid")
-    assert ("Unsupported device_string value 'invalid', the supported values"
-            " are '' (default), 'nvfortran-all', 'nvfortran-uniform'"
-            in str(err.value))
+    assert (
+        "Unsupported device_string value 'invalid', the supported values"
+        " are '' (default), 'nvfortran-all', 'nvfortran-uniform'"
+        in str(err.value)
+    )
 
 
 def test_intrinsiccall_alloc_create():
-    '''Tests the create() method supports various forms of 'allocate'.
-
-    '''
-    sym = DataSymbol("my_array", ArrayType(INTEGER_TYPE,
-                                           [ArrayType.Extent.DEFERRED]))
-    bsym = DataSymbol("my_array2", ArrayType(INTEGER_TYPE,
-                                             [ArrayType.Extent.DEFERRED]))
+    """Tests the create() method supports various forms of 'allocate'."""
+    sym = DataSymbol(
+        "my_array", ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+    )
+    bsym = DataSymbol(
+        "my_array2", ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+    )
     isym = DataSymbol("ierr", INTEGER_TYPE)
     csym = DataSymbol("msg", CHARACTER_TYPE)
     # Straightforward allocation of an array.
     alloc = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.ALLOCATE,
-        [ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])])
+        [ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])],
+    )
     assert isinstance(alloc, IntrinsicCall)
     assert alloc.intrinsic is IntrinsicCall.Intrinsic.ALLOCATE
     assert isinstance(alloc.routine.symbol, IntrinsicSymbol)
     assert alloc.routine.name == "ALLOCATE"
     alloc = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.ALLOCATE,
-        [Reference(sym), ("Mold", Reference(bsym))])
+        [Reference(sym), ("Mold", Reference(bsym))],
+    )
     assert isinstance(alloc, IntrinsicCall)
     assert alloc.argument_names == [None, "mold"]
     alloc = IntrinsicCall.create(
@@ -221,14 +257,14 @@ def test_intrinsiccall_alloc_create():
 
 
 def test_intrinsiccall_dealloc_create():
-    '''Tests for the creation of a 'deallocate' call.
-
-    '''
-    sym = DataSymbol("my_array", ArrayType(INTEGER_TYPE,
-                                           [ArrayType.Extent.DEFERRED]))
+    """Tests for the creation of a 'deallocate' call."""
+    sym = DataSymbol(
+        "my_array", ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+    )
     ierr = DataSymbol("ierr", INTEGER_TYPE)
     dealloc = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.DEALLOCATE, [Reference(sym)])
+        IntrinsicCall.Intrinsic.DEALLOCATE, [Reference(sym)]
+    )
     assert isinstance(dealloc, IntrinsicCall)
     assert dealloc.intrinsic is IntrinsicCall.Intrinsic.DEALLOCATE
     assert isinstance(dealloc.routine.symbol, IntrinsicSymbol)
@@ -242,13 +278,13 @@ def test_intrinsiccall_dealloc_create():
 
 
 def test_intrinsiccall_random_create():
-    '''Tests for the creation of a 'random' call.
-
-    '''
-    sym = DataSymbol("my_array", ArrayType(REAL_TYPE,
-                                           [ArrayType.Extent.DEFERRED]))
+    """Tests for the creation of a 'random' call."""
+    sym = DataSymbol(
+        "my_array", ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED])
+    )
     rand = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.RANDOM_NUMBER, [Reference(sym)])
+        IntrinsicCall.Intrinsic.RANDOM_NUMBER, [Reference(sym)]
+    )
     assert isinstance(rand, IntrinsicCall)
     assert rand.intrinsic is IntrinsicCall.Intrinsic.RANDOM_NUMBER
     assert isinstance(rand.routine.symbol, IntrinsicSymbol)
@@ -256,22 +292,27 @@ def test_intrinsiccall_random_create():
     assert rand.arguments[0].symbol is sym
 
 
-@pytest.mark.parametrize("intrinsic_call", [
-    IntrinsicCall.Intrinsic.MINVAL, IntrinsicCall.Intrinsic.MAXVAL,
-    IntrinsicCall.Intrinsic.SUM])
+@pytest.mark.parametrize(
+    "intrinsic_call",
+    [
+        IntrinsicCall.Intrinsic.MINVAL,
+        IntrinsicCall.Intrinsic.MAXVAL,
+        IntrinsicCall.Intrinsic.SUM,
+    ],
+)
 def test_intrinsiccall_minmaxsum_create(intrinsic_call):
-    '''Tests for the creation of the different argument options for
+    """Tests for the creation of the different argument options for
     'minval', 'maxval' and 'sum' IntrinsicCalls.
 
-    '''
+    """
     array = DataSymbol(
-        "my_array", ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]))
+        "my_array", ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED])
+    )
     dim = DataSymbol("dim", INTEGER_TYPE)
     mask = DataSymbol("mask", BOOLEAN_TYPE)
 
     # array only
-    intrinsic = IntrinsicCall.create(
-        intrinsic_call, [Reference(array)])
+    intrinsic = IntrinsicCall.create(intrinsic_call, [Reference(array)])
     assert isinstance(intrinsic, IntrinsicCall)
     assert intrinsic.intrinsic is intrinsic_call
     assert isinstance(intrinsic.routine.symbol, IntrinsicSymbol)
@@ -300,7 +341,8 @@ def test_intrinsiccall_minmaxsum_create(intrinsic_call):
     assert intrinsic.children[3].symbol.name == "dim"
     # array and optional literal mask and optional literal dim
     intrinsic = IntrinsicCall.create(
-        intrinsic_call, [
+        intrinsic_call,
+        [
             Reference(array),
             ("mask", Literal("1", INTEGER_TYPE)),
             ("dim", Literal("false", BOOLEAN_TYPE))])
@@ -309,22 +351,24 @@ def test_intrinsiccall_minmaxsum_create(intrinsic_call):
     assert intrinsic.children[3].value == "false"
 
 
-@pytest.mark.parametrize("intrinsic_call", [
-    IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE])
+@pytest.mark.parametrize(
+    "intrinsic_call",
+    [IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE],
+)
 @pytest.mark.parametrize("form", ["array", "literal"])
 def test_intrinsiccall_tinyhuge_create(intrinsic_call, form):
-    '''Tests for the creation of the different argument options for
+    """Tests for the creation of the different argument options for
     'tiny' and 'huge' IntrinsicCalls.
 
-    '''
+    """
     if form == "array":
         array = DataSymbol(
-            "my_array", ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]))
+            "my_array", ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED])
+        )
         arg = Reference(array)
     else:  # "literal"
         arg = Literal("1.0", REAL_TYPE)
-    intrinsic = IntrinsicCall.create(
-        intrinsic_call, [arg])
+    intrinsic = IntrinsicCall.create(intrinsic_call, [arg])
     assert isinstance(intrinsic, IntrinsicCall)
     assert intrinsic.intrinsic is intrinsic_call
     assert isinstance(intrinsic.routine.symbol, IntrinsicSymbol)
@@ -337,21 +381,24 @@ def test_intrinsiccall_tinyhuge_create(intrinsic_call, form):
 
 
 def test_intrinsiccall_create_errors():
-    '''Checks for the validation/type checking in the create() method.
-
-    '''
-    sym = DataSymbol("my_array", ArrayType(INTEGER_TYPE,
-                                           [ArrayType.Extent.DEFERRED]))
+    """Checks for the validation/type checking in the create() method."""
+    sym = DataSymbol(
+        "my_array", ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+    )
     aref = ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create("ALLOCATE", [Reference(sym)])
-    assert ("'intrinsic' argument should be an instance of "
-            "IntrinsicCall.Intrinsic, but found 'str'" in str(err.value))
+    assert (
+        "'intrinsic' argument should be an instance of "
+        "IntrinsicCall.Intrinsic, but found 'str'" in str(err.value)
+    )
     # Supplied arguments must be a list.
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, aref)
-    assert ("IntrinsicCall.create() 'arguments' argument should be an Iterable"
-            " but found 'ArrayReference'" in str(err.value))
+    assert (
+        "IntrinsicCall.create() 'arguments' argument should be an Iterable"
+        " but found 'ArrayReference'" in str(err.value)
+    )
     # An allocate must have one or more References as argument.
     with pytest.raises(ValueError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, [])
@@ -367,10 +414,11 @@ def test_intrinsiccall_create_errors():
             "found 2." in str(err.value))
     # Wrong type for a positional argument.
     with pytest.raises(TypeError) as err:
-        IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
-                             [sym])
-    assert ("The 'ALLOCATE' intrinsic requires that positional arguments be "
-            "of type " in str(err.value))
+        IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, [sym])
+    assert (
+        "The 'ALLOCATE' intrinsic requires that positional arguments be "
+        "of type " in str(err.value)
+    )
     assert "but got a 'DataSymbol'" in str(err.value)
     # Wrong type for a named position argument.
     with pytest.raises(TypeError) as err:
@@ -380,10 +428,14 @@ def test_intrinsiccall_create_errors():
             "but got 'DataSymbol'" in str(err.value))
     # Positional argument after named argument.
     with pytest.raises(ValueError) as err:
-        IntrinsicCall.create(IntrinsicCall.Intrinsic.DEALLOCATE,
-                             [Reference(sym), ("stat", aref), aref])
-    assert ("Found a positional argument *after* a named argument ('stat'). "
-            "This is invalid." in str(err.value))
+        IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.DEALLOCATE,
+            [Reference(sym), ("stat", aref), aref],
+        )
+    assert (
+        "Found a positional argument *after* a named argument ('stat'). "
+        "This is invalid." in str(err.value)
+    )
 
     # Test invalid optional argument provision
     with pytest.raises(ValueError) as err:
@@ -395,52 +447,64 @@ def test_intrinsiccall_create_errors():
 
     # Wrong type for the name of an optional argument.
     with pytest.raises(TypeError) as err:
-        IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
-                             [aref, (sym, sym)])
-    assert ("Optional arguments to an IntrinsicCall must be specified by a "
-            "(str, Reference) tuple but got a DataSymbol instead of a str"
-            in str(err.value))
+        IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.ALLOCATE, [aref, (sym, sym)]
+        )
+    assert (
+        "Optional arguments to an IntrinsicCall must be specified by a "
+        "(str, Reference) tuple but got a DataSymbol instead of a str"
+        in str(err.value)
+    )
     # Wrong type for an optional argument.
     with pytest.raises(TypeError) as err:
-        IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
-                             [aref, ("stat", sym)])
-    assert ("The optional argument 'stat' to intrinsic 'ALLOCATE' must be "
-            "of type 'Reference' but got 'DataSymbol'" in str(err.value))
+        IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.ALLOCATE, [aref, ("stat", sym)]
+        )
+    assert (
+        "The optional argument 'stat' to intrinsic 'ALLOCATE' must be "
+        "of type 'Reference' but got 'DataSymbol'" in str(err.value)
+    )
 
 
 def test_create_positional_arguments_with_names():
-    ''' Test the create method when given named positional arguments.'''
-    sym = DataSymbol("my_array",
-                     ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED]))
+    """Test the create method when given named positional arguments."""
+    sym = DataSymbol(
+        "my_array", ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+    )
     aref = ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])
     bref = ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])
 
     # All of these are valid
-    intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
-                                [aref.copy(), bref.copy()])
+    intr = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.DOT_PRODUCT, [aref.copy(), bref.copy()]
+    )
     assert isinstance(intr, IntrinsicCall)
     assert intr.arguments[0] == aref
     assert intr.arguments[1] == bref
     assert intr.argument_names == ["vector_a", "vector_b"]
 
-    intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
-                                [aref.copy(), ("vector_b", bref.copy())])
+    intr = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.DOT_PRODUCT,
+        [aref.copy(), ("vector_b", bref.copy())],
+    )
     assert isinstance(intr, IntrinsicCall)
     assert intr.arguments[0] == aref
     assert intr.arguments[1] == bref
     assert intr.argument_names == ["vector_a", "vector_b"]
 
-    intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
-                                [("vector_a", aref.copy()),
-                                 ("vector_b", bref.copy())])
+    intr = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.DOT_PRODUCT,
+        [("vector_a", aref.copy()), ("vector_b", bref.copy())],
+    )
     assert isinstance(intr, IntrinsicCall)
     assert intr.arguments[0] == aref
     assert intr.arguments[1] == bref
     assert intr.argument_names == ["vector_a", "vector_b"]
 
-    intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
-                                [("vector_b", bref.copy()),
-                                 ("vector_a", aref.copy())])
+    intr = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.DOT_PRODUCT,
+        [("vector_b", bref.copy()), ("vector_a", aref.copy())],
+    )
     assert isinstance(intr, IntrinsicCall)
     assert intr.arguments[0] == bref
     assert intr.arguments[1] == aref
@@ -449,22 +513,22 @@ def test_create_positional_arguments_with_names():
 
 @pytest.mark.parametrize("operator", ["lbound", "ubound", "size"])
 def test_reference_accesses_bounds(operator, fortran_reader):
-    '''Test that the reference_accesses method behaves as expected when
+    """Test that the reference_accesses method behaves as expected when
     the reference is the first argument to either the lbound or ubound
     intrinsic as that is simply looking up the array bounds (therefore
     the access is an enquiry) and when the reference is the
     second argument of either the lbound or ubound intrinsic (in which
     case the access should be a read).
 
-    '''
-    code = f'''module test
+    """
+    code = f"""module test
         contains
         subroutine tmp()
           real, dimension(:,:), allocatable:: a, b
           integer :: n
           n = {operator}(a, b(1,1))
         end subroutine tmp
-        end module test'''
+        end module test"""
     psyir = fortran_reader.psyir_from_source(code)
     schedule = psyir.walk(Assignment)[0]
 
@@ -475,19 +539,19 @@ def test_reference_accesses_bounds(operator, fortran_reader):
 
 
 def test_enumerator_name_matches_name_field():
-    '''
+    """
     Test that the name given to every IntrinsicCall matches the
     corresponding name field in the IAttr namedtuple.
-    '''
+    """
     for intrinsic_entry in IntrinsicCall.Intrinsic:
         assert intrinsic_entry._name_ == intrinsic_entry.name
 
 
 def test_allocate_intrinsic(fortran_reader, fortran_writer):
-    '''
+    """
     Test the ALLOCATE 'intrinsic'.
-    '''
-    code = '''
+    """
+    code = """
 program test_prog
   implicit none
   integer :: ierr
@@ -497,7 +561,7 @@ program test_prog
   allocate(arr2, mold=arr1)
   allocate(arr2, source=arr1, errmsg=msg)
 end program test_prog
-'''
+"""
     psyir = fortran_reader.psyir_from_source(code)
     assert len(psyir.walk(IntrinsicCall)) == 3
     result = fortran_writer(psyir).lower()
@@ -507,10 +571,10 @@ end program test_prog
 
 
 def test_deallocate_intrinsic(fortran_reader, fortran_writer):
-    '''
+    """
     Test the DEALLOCATE 'intrinsic'.
-    '''
-    code = '''
+    """
+    code = """
 program test_prog
   implicit none
   integer :: ierr
@@ -518,7 +582,7 @@ program test_prog
   deallocate(arr1)
   deallocate(arr1, stat=ierr)
 end program test_prog
-'''
+"""
     psyir = fortran_reader.psyir_from_source(code)
     assert len(psyir.walk(IntrinsicCall)) == 2
     result = fortran_writer(psyir).lower()
@@ -527,10 +591,10 @@ end program test_prog
 
 
 def test_index_intrinsic(fortran_reader, fortran_writer):
-    '''
+    """
     Test the INDEX intrinsic.
-    '''
-    code = '''
+    """
+    code = """
 program test_prog
   implicit none
   character(len=10) :: clname
@@ -541,7 +605,7 @@ program test_prog
   ind2 = INDEX( clname, '.', kind=4) - 1
 
 end program test_prog
-'''
+"""
     psyir = fortran_reader.psyir_from_source(code)
     assert len(psyir.walk(IntrinsicCall)) == 3
     result = fortran_writer(psyir).lower()
@@ -552,10 +616,10 @@ end program test_prog
 
 
 def test_verify_intrinsic(fortran_reader, fortran_writer):
-    '''
+    """
     Test the VERIFY intrinsic.
-    '''
-    code = '''
+    """
+    code = """
 program test_prog
   implicit none
   character(len=10) :: clname
@@ -572,7 +636,7 @@ idom = jpdom_local
 == 0 ) idom = jpdom_local
 
 end program test_prog
-'''
+"""
     psyir = fortran_reader.psyir_from_source(code)
     # Should have 4 VERIFY and 2 KIND
     assert len(psyir.walk(IntrinsicCall)) == 6
@@ -801,7 +865,7 @@ def test_get_all_accessed_symbols(fortran_reader):
 
 
 def test_get_first_argument_type(fortran_reader):
-    '''Test the _get_first_argument_type helper function.'''
+    """Test the _get_first_argument_type helper function."""
     code = """subroutine x
     integer :: a, b
     a = 1
@@ -815,8 +879,8 @@ def test_get_first_argument_type(fortran_reader):
 
 
 def test_get_first_argument_logical_kind_with_optional_dim(fortran_reader):
-    '''Test the _get_first_argument_logical_kind_with_optional_dim helper
-    function.'''
+    """Test the _get_first_argument_logical_kind_with_optional_dim helper
+    function."""
     code = """subroutine x
     logical, dimension(100,100) :: a
     logical, dimension(100) :: b
@@ -838,38 +902,509 @@ def test_get_first_argument_logical_kind_with_optional_dim(fortran_reader):
     assert dtype.datatype.precision == ScalarType.Precision.UNDEFINED
 
 
-@pytest.mark.parametrize("code, expected", [
-    ("""subroutine x
+def test_get_real_with_argone_kind(fortran_reader):
+    """Test the _get_real_with_argone_kind helper function."""
+    code = """subroutine y
+    real*8 :: x
+    x = BESSEL_J0(x)
+    end subroutine y"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bessel_call = psyir.walk(ArrayReference)[0]
+    intr = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.BESSEL_J0, [bessel_call.indices[0].copy()]
+    )
+    dtype = _get_real_with_argone_kind(intr)
+    assert dtype.intrinsic == ScalarType.Intrinsic.REAL
+    assert dtype.precision == 8
+
+
+def test_get_real_with_x_kind(fortran_reader):
+    """Test the _get_real_with_x_kind helper function."""
+    code = """subroutine y
+    real*8 :: x
+    x = BESSEL_JN(1, 2, x)
+    x = BESSEL_JN(1, x)
+    end subroutine y"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bessel_calls = psyir.walk(ArrayReference)
+    intr = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.BESSEL_JN,
+        [x.copy() for x in bessel_calls[0].indices],
+    )
+    dtype = _get_real_with_x_kind(intr)
+    assert dtype.intrinsic == ScalarType.Intrinsic.REAL
+    assert dtype.precision == 8
+    intr = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.BESSEL_JN,
+        [x.copy() for x in bessel_calls[1].indices],
+    )
+    dtype = _get_real_with_x_kind(intr)
+    assert dtype.intrinsic == ScalarType.Intrinsic.REAL
+    assert dtype.precision == 8
+
+
+def test_get_integer_of_kind_with_optional_dim(fortran_reader):
+    """Test the _get_integer_of_kind_with_optional_dim helper function."""
+    code = """
+    subroutine y
+    logical, dimension(100,100) :: a
+    integer :: b
+    integer*8, dimension(100) :: c
+
+    b = COUNT(a)
+    c = COUNT(a, dim=1, kind=8)
+    end subroutine y"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrs = psyir.walk(IntrinsicCall)
+
+    res = _get_integer_of_kind_with_optional_dim(intrs[0])
+    assert isinstance(res, ScalarType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision == ScalarType.Precision.UNDEFINED
+
+    res = _get_integer_of_kind_with_optional_dim(intrs[1])
+    assert isinstance(res, ArrayType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision.value == "8"
+    assert len(res.shape) == 1
+    assert res.shape[0] == ArrayType.Extent.DEFERRED
+
+
+def test_findloc_return_type(fortran_reader):
+    """Test the _findloc_return_type helper function."""
+    code = """
+    subroutine y
+    integer, dimension(100) :: a
+    integer, dimension(1) :: b
+    b = FINDLOC(a, 1)
+    end subroutine y"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrs = psyir.walk(ArrayReference)
+    intr = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.FINDLOC, [x.copy() for x in intrs[0].indices]
+    )
+    res = _findloc_return_type(intr)
+    assert isinstance(res, ArrayType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision == ScalarType.Precision.UNDEFINED
+    assert len(res.shape) == 1
+    assert res.shape[0].upper.value == "1"
+    assert res.shape[0].lower.value == "1"
+
+    # TODO #2823 adding namedargs makes this a CodeBlock so can't test yet.
+
+
+def test_get_integer_with_optional_kind(fortran_reader):
+    """Test the _get_integer_with_optional_kind helper function."""
+    code = """subroutine z
+    real*4 :: x
+    integer :: y
+    y = FLOOR(x)
+    end subroutine z"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic = psyir.walk(IntrinsicCall)[0]
+    assert _get_integer_with_optional_kind(intrinsic) == INTEGER_TYPE
+
+    code = """subroutine z
+    real*4 :: x
+    integer :: y
+    y = FLOOR(x, kind=4)
+    end subroutine z"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic = psyir.walk(IntrinsicCall)[0]
+    res = _get_integer_with_optional_kind(intrinsic)
+    assert (
+        res.intrinsic == ScalarType.Intrinsic.INTEGER
+        and isinstance(res.precision, Literal)
+        and res.precision.value == "4"
+    )
+
+
+def test_int_return_type(fortran_reader):
+    """Test the _int_return_type helper function."""
+    code = """subroutine z
+    real*4 :: x
+    integer :: y
+    y = INT(x)
+    end subroutine z"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic = psyir.walk(IntrinsicCall)[0]
+    assert _int_return_type(intrinsic) == INTEGER_TYPE
+
+    code = """subroutine z
+    real*4, dimension(100) :: x
+    integer*8, dimension(100) :: y
+    y = INT(x, kind=8)
+    end subroutine z"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic = psyir.walk(IntrinsicCall)[0]
+    rtype = _int_return_type(intrinsic)
+    assert isinstance(rtype, ArrayType)
+    assert rtype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert rtype.precision.value == "8"
+
+
+def test_iparity_return_type(fortran_reader):
+    """Test the _iparity_return_type helper function."""
+    code = """
+    subroutine x
+    integer, dimension(100, 100) :: array
+    integer :: k
+    k = IPARITY(array)
+    end subroutine x
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic = psyir.walk(ArrayReference)[0]
+    intrinsic = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.PARITY, [x.copy() for x in intrinsic.indices]
+    )
+
+    assert _iparity_return_type(intrinsic) == INTEGER_TYPE
+
+    # Can't test the other case with fortran reader, so need to
+    # create it manually.
+    k_sym = psyir.children[0].symbol_table.lookup("k")
+    intrinsic = psyir.walk(ArrayReference)[0]
+    intrinsic = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.PARITY,
+        [intrinsic.indices[0].copy(), Reference(k_sym)],
+    )
+    res = _iparity_return_type(intrinsic)
+    assert isinstance(res, ArrayType)
+    assert len(res.shape) == 1
+    assert res.shape[0] == ArrayType.Extent.DEFERRED
+
+
+def test_get_bound_function_return_type(fortran_reader):
+    """Test the _get_bound_function_return_type helper function."""
+    code = """subroutine x
+    integer, dimension(100,100) :: array
+    integer, dimension(2) :: out1
+    integer*8 :: out2
+    out1 = LBOUND(array)
+    out2 = LBOUND(array, dim=1, kind=8)
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsics = psyir.walk(IntrinsicCall)
+
+    res = _get_bound_function_return_type(intrinsics[0])
+    assert isinstance(res, ArrayType)
+    assert len(res.shape) == 1
+    assert res.datatype == INTEGER_TYPE
+    assert res.shape[0].lower.value == "1"
+    assert res.shape[0].upper.value == "2"
+
+    res = _get_bound_function_return_type(intrinsics[1])
+    assert isinstance(res, ScalarType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision.value == "8"
+
+
+def test_get_first_argument_type_with_optional_kind(fortran_reader):
+    """Test the _get_first_arguemnt_type_with_optional_kind helper
+    function."""
+    code = """subroutine x
+    logical*4 :: a
+    logical*8 :: b
+    b = LOGICAL(a, kind=8)
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsics = psyir.walk(IntrinsicCall)
+
+    res = _get_first_argument_type_with_optional_kind(intrinsics[0])
+    assert isinstance(res, ScalarType)
+    assert res.intrinsic == ScalarType.Intrinsic.BOOLEAN
+    assert res.precision.value == "8"
+
+
+def test_get_first_argument_intrinsic_with_optional_kind_and_dim(
+    fortran_reader,
+):
+    """Test the _get_first_argument_intrinsic_with_optional_kind_and_dim
+    helper function."""
+    code = """subroutine w
+    integer, dimension(100, 100) :: x
+    integer, dimension(100) :: y
+    integer, dimension(:) :: res
+    integer :: res2
+    res = MAXLOC(x)
+    res = MAXLOC(x, dim=1, kind=8)
+    res2 = MAXLOC(y, dim=1)
+    end subroutine w"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsics = psyir.walk(IntrinsicCall)
+    res = _get_first_argument_intrinsic_with_optional_kind_and_dim(
+        intrinsics[0]
+    )
+    assert isinstance(res, ArrayType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision == ScalarType.Precision.UNDEFINED
+    assert len(res.shape) == 1
+    assert res.shape[0].lower.value == "1"
+    assert res.shape[0].upper.value == "2"
+
+    res = _get_first_argument_intrinsic_with_optional_kind_and_dim(
+        intrinsics[1]
+    )
+    assert isinstance(res, ArrayType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision.value == "8"
+    assert len(res.shape) == 1
+    assert res.shape[0] == ArrayType.Extent.DEFERRED
+
+    res = _get_first_argument_intrinsic_with_optional_kind_and_dim(
+        intrinsics[2]
+    )
+    assert isinstance(res, ScalarType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision == ScalarType.Precision.UNDEFINED
+
+
+# FIXME Do we need ANINT tests.
+@pytest.mark.parametrize(
+    "code, expected",
+    [
+        (
+            """subroutine x
      complex(4) :: z4
      real :: result
      result = aimag(z4)
      end subroutine x""",
-     # AIMAG return type is UnresolvedType
-     lambda res: isinstance(res, UnresolvedType)
-     ),
-    ("""subroutine z
+            # AIMAG return type is UnresolvedType
+            lambda res: isinstance(res, UnresolvedType),
+        ),
+        (
+            """subroutine z
     real*4 :: x
     real :: y
     y = AINT(x)
     end subroutine z""",
-     # AINT return type is that of x here.
-     lambda res: (res.intrinsic == ScalarType.Intrinsic.REAL and
-                  res.precision == 4)
-     ),
-    ("""subroutine z
+            # AINT return type is that of x here.
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.REAL
+                and res.precision == 4
+            ),
+        ),
+        (
+            """subroutine z
     real*4 :: x
     real*8 :: y
     y = AINT(x, kind=8)
     end subroutine z""",
-     # AINT return type is REAL with kind 8.
-     lambda res: (res.intrinsic == ScalarType.Intrinsic.REAL and
-                  isinstance(res.precision, Literal) and
-                  res.precision.value == "8")
-     ),
-    ])
+            # AINT return type is REAL with kind 8.
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.REAL
+                and isinstance(res.precision, Literal)
+                and res.precision.value == "8"
+            ),
+        ),
+        (
+            """subroutine x
+     complex(4) :: z4
+     real :: r
+     z4 = CMPLX(r)
+     end subroutine x""",
+            # CMPLX return type is UnresolvedType
+            lambda res: isinstance(res, UnresolvedType),
+        ),
+        (
+            """subroutine x
+     complex(4) :: z4
+     complex(4) :: r
+     z4 = CONJG(r)
+     end subroutine x""",
+            # CONJG return type is UnresolvedType
+            lambda res: isinstance(res, UnresolvedType),
+        ),
+        (
+            """subroutine x
+    integer :: a(100)
+    integer :: b(100)
+    integer :: c
+    c = DOT_PRODUCT(a,b)
+    end subroutine x""",
+            # DOT_PRODUCT RETURN TYPE is Scalar type of input 1.
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.INTEGER
+                and res.precision == ScalarType.Precision.UNDEFINED
+            ),
+        ),
+        (
+            """subroutine z
+    integer :: i, j, k
+        k = IAND(i,j)
+    end subroutine z""",
+            # Kind is same as first input.
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.INTEGER
+                and res.precision == ScalarType.Precision.UNDEFINED
+            ),
+        ),
+        (
+            """subroutine z
+    integer*8 :: i, j
+    j = IAND(1, i)
+    end subroutine z""",
+            # Kind is same as 2nd input.
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.INTEGER
+                and res.precision == 8
+            ),
+        ),
+        (
+            """subroutine z
+    integer :: i, j, k
+        k = IEOR(i,j)
+    end subroutine z""",
+            # Kind is same as first input.
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.INTEGER
+                and res.precision == ScalarType.Precision.UNDEFINED
+            ),
+        ),
+        (
+            """subroutine z
+    integer*8 :: i, j
+    j = IEOR(1, i)
+    end subroutine z""",
+            # Kind is same as 2nd input.
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.INTEGER
+                and res.precision == 8
+            ),
+        ),
+        (
+            """subroutine z
+    integer :: i, j
+    integer :: k
+    k = IOR(i,j)
+    end subroutine z""",
+            # Kind is Integer of first input kind.
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.INTEGER
+                and res.precision == ScalarType.Precision.UNDEFINED
+            ),
+        ),
+        (
+            """subroutine z
+    integer*8 :: i,j
+    j = IOR(2, i)
+    end subroutine z""",
+            # Result is same as second argument here.
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.INTEGER
+                and res.precision == 8
+            ),
+        ),
+    ],
+)
 def test_specific_return_types(fortran_reader, code, expected):
-    ''' Test the specific return types of each IntrinsicCall that has its own
-    defined return type function.'''
+    """Test the specific return types of each IntrinsicCall that has its own
+    defined return type function."""
     psyir = fortran_reader.psyir_from_source(code)
     intrinsic = psyir.walk(IntrinsicCall)[0]
     assert expected(intrinsic.intrinsic.return_type(intrinsic))
+
+
+@pytest.mark.parametrize(
+    "code, intrinsic, expected",
+    [
+        (
+            """subroutine test
+        integer, dimension(100) :: x
+        integer, dimension(100) :: y
+        y = coshape(x)
+        end subroutine test""",
+            IntrinsicCall.Intrinsic.COSHAPE,
+            # Return type is integer of kind of x with dimension of x.
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.INTEGER
+                and res.precision == ScalarType.Precision.UNDEFINED
+                and len(res.shape) == 1
+                and res.shape[0].upper.value == "100"
+                and res.shape[0].lower.value == "1"
+            ),
+        ),
+        # TODO #2823 Can't do this test yet.
+        # ("""subroutine test
+        #    integer, dimension(100) :: x
+        #    integer, dimension(100) :: y
+        #    y = coshape(x, kind=4)
+        #    end subroutine test""",
+        # IntrinsicCall.Intrinsic.COSHAPE,
+        # # Return type is integer of kind of x with dimension of x.
+        # lambda res: (res.intrinsic == ScalarType.Intrinsic.INTEGER and
+        #              res.precision.value == "4" and
+        #              len(res.shape) == 1 and res.shape[0].upper.value == "100"
+        #              and res.shape[0].lower.value == "1")
+        # ),
+        (
+            """subroutine x
+    integer :: i, j, k
+    k = DSHIFTL(i,j,4)
+    end subroutine x""",
+            IntrinsicCall.Intrinsic.DSHIFTL,
+            # Return type here is that of input 1.
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.INTEGER
+                and res.precision == ScalarType.Precision.UNDEFINED
+            ),
+        ),
+        (
+            """subroutine x
+    integer*8 :: j, k
+    k = DSHIFTL(32,j,4)
+    end subroutine x""",
+            IntrinsicCall.Intrinsic.DSHIFTL,
+            # Return type here is that of input 2.
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.INTEGER
+                and res.precision == 8
+            ),
+        ),
+        # TODO #2823 Can't do this test yet, PSyclone creates a CodeBlock.
+        # ("""subroutine x
+        # integer*8, dimension(100) :: i, j
+        # i = FAILED_IMAGES()
+        # end subroutine x""",
+        # IntrinsicCall.Intrinsic.FAILED_IMAGES,
+        # # Return type here is Array of deferred size with integer type.
+        # lambda res: (isinstance(res, ArrayType) and
+        #             res.intrinsic == ScalarType.Intrinsic.INTEGER and
+        #             res.precision == ScalarType.Precision.UNDEFINED)
+        # ),
+        # TODO #2823 Can't do this test yet, PSyclone creates a CodeBlock.
+        # ("""subroutine x
+        # integer*8, dimension(100) :: i, j
+        # integer :: bad
+        # i = FAILED_IMAGES(kind=8)
+        # end subroutine x""",
+        # IntrinsicCall.Intrinsic.FAILED_IMAGES,
+        # # Return type here is Array of deferred size with integer type and
+        # # kind = 8
+        # lambda res: (isinstance(res, ArrayType) and
+        #             res.intrinsic == ScalarType.Intrinsic.INTEGER and
+        #             res.precision.value == "8")
+        # ),
+        # TODO #2823 Can't do this test yet, PSyclone creates a CodeBlock.
+        # ("""subroutine x
+        # integer :: i
+        # i = GET_TEAM()
+        # end subroutine x""",
+        # IntrinsicCall.Intrinsic.GET_TEAM,
+        # lambda res: isinstance(res, UnresolvedType)
+        # ),
+    ],
+)
+def test_specific_return_types_incorrect_parsed(
+    fortran_reader, code, intrinsic, expected
+):
+    """Test the specific return types of IntrisicCalls that aren't recognised
+    correctly by fparser."""
+    psyir = fortran_reader.psyir_from_source(code)
+    print(psyir.view())
+    parsed = psyir.walk(ArrayReference)[0]
+    indices = [x.copy() for x in parsed.indices]
+    intr = IntrinsicCall.create(intrinsic, indices)
+    assert expected(intr.intrinsic.return_type(intr))
