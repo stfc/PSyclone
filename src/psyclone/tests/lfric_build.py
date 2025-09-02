@@ -112,7 +112,8 @@ class LFRicBuild(Compile):
             LFRicBuild._compilation_path = self._tmpdir
             makefile = self._infrastructure_path.parent / "Makefile"
             arg_list = [LFRicBuild._make_command, f"F90={self._f90}",
-                        f"F90FLAGS={self._f90flags}", "-f", str(makefile),
+                        f"F90FLAGS={self._f90flags}",
+                        f"BUILD_PATH={self._tmpdir}", "-f", str(makefile),
                         "liblfric"]
             try:
                 with subprocess.Popen(arg_list, stdout=subprocess.PIPE,
