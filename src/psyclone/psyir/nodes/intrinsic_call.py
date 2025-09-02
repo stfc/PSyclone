@@ -91,6 +91,7 @@ def _get_first_argument_type(node) -> DataType:
     '''
     return node.arguments[0].datatype
 
+
 # Anyone using this?
 def _get_first_argument_type_with_optional_kind(node) -> DataType:
     '''Helper function for the common IntrinsicCall case where the
@@ -109,6 +110,7 @@ def _get_first_argument_type_with_optional_kind(node) -> DataType:
         return_type = node.arguments[0].datatype.copy()
         return_type._precision = kind
         return return_type
+
 
 def _get_first_argument_logical_kind_with_optional_dim(node) -> DataType:
     '''Helper function for the common IntrinsicCall case where the

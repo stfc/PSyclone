@@ -846,7 +846,7 @@ def test_get_first_argument_logical_kind_with_optional_dim(fortran_reader):
      end subroutine x""",
      # AIMAG return type is UnresolvedType
      lambda res: isinstance(res, UnresolvedType)
-    ),
+     ),
     ("""subroutine z
     real*4 :: x
     real :: y
@@ -855,7 +855,7 @@ def test_get_first_argument_logical_kind_with_optional_dim(fortran_reader):
      # AINT return type is that of x here.
      lambda res: (res.intrinsic == ScalarType.Intrinsic.REAL and
                   res.precision == 4)
-    ),
+     ),
     ("""subroutine z
     real*4 :: x
     real*8 :: y
@@ -865,7 +865,7 @@ def test_get_first_argument_logical_kind_with_optional_dim(fortran_reader):
      lambda res: (res.intrinsic == ScalarType.Intrinsic.REAL and
                   isinstance(res.precision, Literal) and
                   res.precision.value == "8")
-    ),
+     ),
     ])
 def test_specific_return_types(fortran_reader, code, expected):
     ''' Test the specific return types of each IntrinsicCall that has its own
