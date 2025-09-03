@@ -63,3 +63,11 @@ class StructureAccessorMixin(metaclass=abc.ABCMeta):
                 f"a first child that must be a (sub-class of) Member, but "
                 f"found: {self.children}")
         return self.children[0]
+
+    def component_indices(self):
+        '''
+        :returns: a tuple of each index in the accessor, e.g. for `a(i)%b(j,k)`
+        it returns `((i,),(j,k))`, for scalar accesses it returns `((,),)`, and
+        for `a%b` it returns ((,),(,)). Each member of the tuples is the PSyIR
+        node describing the index expression used.'''
+        return ((), *self.member.component_indices())

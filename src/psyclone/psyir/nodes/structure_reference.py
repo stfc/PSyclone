@@ -52,7 +52,7 @@ from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataType,
                                     StructureType, UnsupportedType)
 
 
-class StructureReference(Reference, StructureAccessorMixin):
+class StructureReference(StructureAccessorMixin, Reference):
     '''
     Node representing a reference to a component of a structure. As such
     it must have a single child representing the component being accessed.

@@ -127,6 +127,14 @@ class ArrayOfStructuresMixin(ArrayMixin,  StructureAccessorMixin,
                     f"psyir.nodes.DataNode or Range")
         return tuple(self._children[1:])
 
+    def component_indices(self):
+        '''
+        :returns: a tuple of each index in the accessor, e.g. for `a(i)%b(j,k)`
+        it returns `((i,),(j,k))`, for scalar accesses it returns `((,),)`, and
+        for `a%b` it returns ((,),(,)). Each member of the tuples is the PSyIR
+        node describing the index expression used.'''
+        return (self.indices, *self.member.component_indices())
+
     def get_signature_and_indices(self):
         ''':returns: the Signature of this array of structure reference, \
             and a list of lists of the indices used for each component.

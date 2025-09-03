@@ -557,6 +557,14 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                     f"expression but found '{type(child).__name__}'")
         return tuple(self.children)
 
+    def component_indices(self):
+        '''
+        :returns: a tuple of each index in the accessor, e.g. for `a(i)%b(j,k)`
+        it returns `((i,),(j,k))`, for scalar accesses it returns `((,),)`, and
+        for `a%b` it returns ((,),(,)). Each member of the tuples is the PSyIR
+        node describing the index expression used.'''
+        return (self.indices,)
+
     def _extent(self, idx):
         '''
         Create PSyIR for the number of elements in dimension `idx` of this
