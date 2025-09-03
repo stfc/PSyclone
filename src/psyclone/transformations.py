@@ -287,9 +287,9 @@ class OMPParallelLoopTrans(OMPLoopTrans):
                                            omp_schedule=self.omp_schedule)
 
         # Add any inferred reduction clauses to the newly introduced directive
-        for (op, var_name) in self.inferred_reduction_vars:
+        for (op, ref) in self.inferred_reduction_vars:
             clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
-            clause.addchild(Reference(Symbol(var_name)))
+            clause.addchild(ref)
             directive.add_reduction_clause(clause)
 
         # add the OpenMP loop directive as a child of the node's parent

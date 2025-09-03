@@ -37,7 +37,7 @@
 '''This module provides a class to assist with inferring reduction clauses
    for parallel loop/region directives.'''
 
-from typing import Union, List
+from typing import Union, List, Tuple
 
 from psyclone.core import (AccessInfo, Signature)
 from psyclone.psyir.nodes import (
@@ -154,7 +154,9 @@ class ReductionInferenceTool():
 
     def attempt_reduction(self, node: Node, var_name: str,
                           access_info: AccessInfo) -> \
-            Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
+            Tuple[Union[BinaryOperation.Operator,
+                        IntrinsicCall.Intrinsic],
+                  Reference]:
         '''Check if the given variable can be handled using a reduction
         clause and, if so, return the reduction operator. Otherwise,
         return None. The variable name is assumed to be a scalar reference.
@@ -163,8 +165,8 @@ class ReductionInferenceTool():
         :param var_name: the scalar reference being considered as a
            reduction variable.
         :param access_info: the access info for that variable.
-        :returns: the operator that can be used for the reduction
-           if reduction is possible, or None otherwise.
+        :returns: the operator/reference pair that can be used for the
+           reduction if reduction is possible, or None otherwise.
         '''
         # Find all the reduction operators used for the given variable name.
         # Return early if we ever encounter a use of the variable which is
@@ -175,11 +177,13 @@ class ReductionInferenceTool():
             if op is None:
                 return None
             ops.append(op)
+            ref = access.node
         for access in access_info.all_write_accesses:
             op = self._get_write_reduction(access.node, var_name)
             if op is None:
                 return None
             ops.append(op)
+            ref = access.node
 
         # No suitable reductions found?
         if ops == []:
@@ -189,4 +193,4 @@ class ReductionInferenceTool():
         if any(op != ops[0] for op in ops):
             return None
 
-        return op
+        return (op, ref.copy())

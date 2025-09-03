@@ -5011,6 +5011,7 @@ def test_reduction_omp_parallel_loop_trans(fortran_reader, fortran_writer):
     output = fortran_writer(psyir)
     assert "reduction(+: acc)" in output
 
+
 def test_reduction_struct_member(fortran_reader, fortran_writer):
     ''' Test that reduction loops involing struct members are
     parallelised.
@@ -5031,4 +5032,4 @@ def test_reduction_struct_member(fortran_reader, fortran_writer):
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop, enable_reductions=True)
     output = fortran_writer(psyir)
-    assert f"reduction(+: struct%acc)" in output
+    assert "reduction(+: struct%acc)" in output

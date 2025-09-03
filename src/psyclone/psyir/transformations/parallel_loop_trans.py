@@ -308,10 +308,10 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                         var_name = message.var_names[0]
                         access_info = message.var_infos[0]
                         red_tool = ReductionInferenceTool(reduction_ops)
-                        op = red_tool.attempt_reduction(
-                                 node, var_name, access_info)
-                        if op:
-                            self.inferred_reduction_vars.append((op, var_name))
+                        clause = red_tool.attempt_reduction(
+                                     node, var_name, access_info)
+                        if clause:
+                            self.inferred_reduction_vars.append(clause)
                             continue
                 errors.append(str(message))
 
@@ -431,8 +431,9 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         # Add all reduction variables inferred by 'validate' to the list
         # of signatures to ignore
         if self.inferred_reduction_vars:
-            for (op, var_name) in self.inferred_reduction_vars:
-                list_of_signatures.append(Signature(var_name))
+            for (op, ref) in self.inferred_reduction_vars:
+                sig = ref.get_signature_and_indices()[0]
+                list_of_signatures.append(sig)
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
