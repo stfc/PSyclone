@@ -1356,12 +1356,8 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
             for call in reversed(reprod_red_call_list):
                 call.reduction_sum_loop()
 
-        # Keep the first two children and compute the rest using the current
-        # state of the node/tree (lowering it first in case new symbols are
-        # created)
-        reduction_clauses = self._children[4:]
-        self._children = self._children[:2]
-        for child in self.children:
+        # Lower the first two children
+        for child in self.children[:2]:
             child.lower_to_language_level()
 
         # Create data sharing clauses (order alphabetically to make generation
@@ -1394,10 +1390,8 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
                         " or the code includes the necessary "
                         "synchronisations.", type(self).__name__, sym.name)
 
-        self.addchild(private_clause)
-        self.addchild(fprivate_clause)
-        for clause in reduction_clauses:
-            self.addchild(clause)
+        self.children[2].replace_with(private_clause)
+        self.children[3].replace_with(fprivate_clause)
 
         return self
 
@@ -2072,14 +2066,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # Calling the super() explicitly to avoid confusion
         # with the multiple-inheritance
         self._lowered_reduction_string = self._reduction_string()
-
-        # OMPScheduleClause is not allowed in OMPParallelDirective so
-        # we remove it, call OMPParallelDirective, and put it back again
-        saved_clauses = self._children[4:]
-        self._children = self._children[0:4]
         OMPParallelDirective.lower_to_language_level(self)
-        self._children.extend(saved_clauses)
-        self._children[4] = OMPScheduleClause(self._omp_schedule, parent=self)
+        self.children[4].replace_with(OMPScheduleClause(self._omp_schedule))
 
         return self
 
