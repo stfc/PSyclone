@@ -613,7 +613,7 @@ class IntrinsicCall(Call):
                 arg_names=(("a",),)),
             optional_args={},
             # TODO 1590 Complex conversion unsupported.
-            return_type=_get_first_argument_type, #FIXME
+            return_type=_get_first_argument_type,
             reference_accesses=None,
         )
         ACHAR = IAttr(
@@ -641,7 +641,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=_get_first_argument_type, # FIXME
+            return_type=_get_first_argument_type,
             reference_accesses=None,
         )
         ACOSH = IAttr(
@@ -655,7 +655,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=_get_first_argument_type, # FIXME
+            return_type=_get_first_argument_type,
             reference_accesses=None,
         )
         ADJUSTL = IAttr(
@@ -670,7 +670,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string",),)),
             optional_args={},
             # TODO 2612 This may be more complex if we support character len
-            return_type=_get_first_argument_type, # FIXME
+            return_type=_get_first_argument_type,
             reference_accesses=None,
         )
         ADJUSTR = IAttr(
@@ -685,7 +685,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string",),)),
             optional_args={},
             # TODO 2612 This may be more complex if we support character len
-            return_type=_get_first_argument_type, # FIXME
+            return_type=_get_first_argument_type,
             reference_accesses=None,
         )
         AIMAG = IAttr(
@@ -714,12 +714,16 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("a",),)),
             optional_args={"kind": DataNode},
-            return_type= lambda node: (
+            return_type=lambda node: (
                 ScalarType(
                     ScalarType.Intrinsic.REAL,
-                    (node.arguments[node.argument_names.index("kind")]
-                     if "kind" in node.argument_names else
-                     node.arguments[0].datatype.precision))), # FIXME
+                    (
+                        node.arguments[node.argument_names.index("kind")]
+                        if "kind" in node.argument_names
+                        else node.arguments[0].datatype.precision
+                    ),
+                )
+            ),
             reference_accesses=None,
         )
         ALL = IAttr(
@@ -765,9 +769,13 @@ class IntrinsicCall(Call):
             return_type=lambda node: (
                 ScalarType(
                     ScalarType.Intrinsic.REAL,
-                    (node.arguments[node.argument_names.index("kind")]
-                     if "kind" not in node.argument_names else
-                     arguments[0].datatype.precision))), #FIXME
+                    (
+                        node.arguments[node.argument_names.index("kind")]
+                        if "kind" not in node.argument_names
+                        else node.arguments[0].datatype.precision
+                    ),
+                )
+            ),
             reference_accesses=None,
         )
         ANY = IAttr(
@@ -795,7 +803,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=None,
+            return_type=_get_first_argument_type,
             reference_accesses=None,
         )
         ASINH = IAttr(
@@ -809,7 +817,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=None,
+            return_type=_get_first_argument_type,
             reference_accesses=None,
         )
         ASSOCIATED = IAttr(
@@ -840,7 +848,7 @@ class IntrinsicCall(Call):
             # N. B. If this has 2 arguments then the return value
             # is the of the second argument, however the standard defines
             # the type and kind type of both arguments must be the same.
-            return_type=_get_first_argument_type, # FIXME
+            return_type=_get_first_argument_type,
             reference_accesses=None,
         )
         ATAN2 = IAttr(
@@ -1051,7 +1059,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=_get_real_with_argone_kind, #FIXME
+            return_type=_get_real_with_argone_kind,
             reference_accesses=None,
         )
         BESSEL_J1 = IAttr(
@@ -1085,7 +1093,7 @@ class IntrinsicCall(Call):
                 )
             ),
             optional_args={},
-            return_type=_get_real_with_x_kind, # FIXME
+            return_type=_get_real_with_x_kind,
             reference_accesses=None,
         )
         BESSEL_Y0 = IAttr(
@@ -1259,6 +1267,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={"Y": DataNode, "kind": DataNode},
+            # TODO #1590 Complex numbers unsupported.
             return_type=lambda node: UnresolvedType(),
             reference_accesses=None,
         )
@@ -1414,6 +1423,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("coarray",),)),
             optional_args={"kind": DataNode},
+            # FIXME Return type
             return_type=lambda node: ArrayType(
                 ScalarType(
                     ScalarType.Intrinsic.INTEGER,
@@ -1473,7 +1483,26 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("array", "shift"),)),
             optional_args={"dim": DataNode},
-            return_type=_get_first_argument_type, # FIXME Wait on Sergi reply
+            return_type=_get_first_argument_type,  # FIXME Wait on Sergi reply
+            reference_accesses=None,
+        )
+        DATE_AND_TIME = IAttr(
+            name="DATE_AND_TIME",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(
+                min_count=0,
+                max_count=0,
+                types=DataNode,
+                arg_names=()),
+            optional_args={
+                "date": DataNode,
+                "time": DataNode,
+                "zone": DataNode,
+                "values": DataNode,
+            },
+            return_type=None,
             reference_accesses=None,
         )
         DBLE = IAttr(
@@ -1598,6 +1627,7 @@ class IntrinsicCall(Call):
                 arg_names=(("array", "shift"),)),
             optional_args={"boundary": DataNode, "dim": DataNode},
             return_type=_get_first_argument_type,
+            # FIXME Wait for Sergi reply.
             reference_accesses=None,
         )
         EPSILON = IAttr(
@@ -1902,6 +1932,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=()),
             optional_args={"level": DataNode},
+            # Unsupported return type (TEAM_TYPE from ISO_FORTRAN_ENV).
             return_type=lambda node: UnresolvedType(),
             reference_accesses=None,
         )
@@ -2396,6 +2427,7 @@ class IntrinsicCall(Call):
                 max_count=1,
                 types=DataNode,
                 arg_names=(("x",),)),
+            required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={},
             return_type=_get_first_argument_type,
             reference_accesses=None,
@@ -2774,7 +2806,7 @@ class IntrinsicCall(Call):
                 )
             ),
             optional_args={},
-            # FIXME Check this is correct.
+            # No kind on NORM2 but this function works for return type.
             return_type=(
                 _get_first_argument_intrinsic_with_optional_kind_and_dim
             ),
@@ -3109,6 +3141,8 @@ class IntrinsicCall(Call):
                 types=Reference,
                 arg_names=(("source", "shape"),)),
             optional_args={"pad": DataNode, "order": DataNode},
+            # I went with unresolved for now as the result depends on
+            # argument 2 (even the dimensionality).
             return_type=lambda node: UnresolvedType(),
             reference_accesses=None,
         )
