@@ -38,9 +38,8 @@
 ''' Transformation to insert OpenMP directives to parallelise PSyIR Loops. '''
 
 from psyclone.configuration import Config
-from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.nodes import (
-    Directive, Schedule, Reference,
+    Directive, Schedule,
     Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
     OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
     OMPScheduleClause, OMPBarrierDirective, OMPParallelDirective,
@@ -374,7 +373,7 @@ class OMPLoopTrans(ParallelLoopTrans):
 
         # Add reduction clauses to the newly introduced directive
         directive = parent.children[position]
-        for (op, ref) in self.inferred_reduction_vars:
+        for (op, ref) in self.inferred_reduction_clauses:
             clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
             clause.addchild(ref)
             directive.add_reduction_clause(clause)

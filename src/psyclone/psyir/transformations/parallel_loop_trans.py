@@ -215,7 +215,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
 
         # As a side effect, this method produces a list of inferred reduction
         # clauses (if 'reduction_ops' is not None)
-        self.inferred_reduction_vars = []
+        self.inferred_reduction_clauses = []
 
         # Check we are not a sequential loop
         if (not sequential and isinstance(node, PSyLoop) and
@@ -303,15 +303,13 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 # the loop using reduction clauses.
                 if (reduction_ops and
                         message.code == DTCode.WARN_SCALAR_REDUCTION):
-                    if (len(message.var_names) == 1 and
-                            len(message.var_infos) == 1):
-                        var_name = message.var_names[0]
-                        access_info = message.var_infos[0]
+                    if (len(message.var_infos) == 1):
+                        (sig, access_info) = message.var_infos[0]
                         red_tool = ReductionInferenceTool(reduction_ops)
                         clause = red_tool.attempt_reduction(
-                                     node, var_name, access_info)
+                                     node, sig, access_info)
                         if clause:
-                            self.inferred_reduction_vars.append(clause)
+                            self.inferred_reduction_clauses.append(clause)
                             continue
                 errors.append(str(message))
 
@@ -430,8 +428,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
 
         # Add all reduction variables inferred by 'validate' to the list
         # of signatures to ignore
-        if self.inferred_reduction_vars:
-            for (op, ref) in self.inferred_reduction_vars:
+        if self.inferred_reduction_clauses:
+            for (op, ref) in self.inferred_reduction_clauses:
                 sig = ref.get_signature_and_indices()[0]
                 list_of_signatures.append(sig)
 

@@ -90,11 +90,11 @@ class Message:
     :param int code: error or warning code.
     :param var_names: list of variable names (defaults to []).
     :type var_names: List[str]
-    :param var_infos: list of variable access infos (defaults to None). If
-       not None, each list element contains the access info of the
+    :param var_infos: list of Signature/AccessInfo pairs (defaults to None).
+       If not None, each list element contains the info pair for
        corresponding variable in the var_names list.
-    :type var_infos: List[:py:class:`psyclone.core.AccessInfo`]
-
+    :type var_infos: List[Tuple[:py:class:`psyclone.core.Signature`,
+                                :py:class:`psyclone.core.AccessInfo]]
 
     '''
     def __init__(self, message, code, var_names=None, var_infos=None):
@@ -137,10 +137,11 @@ class Message:
     # ------------------------------------------------------------------------
     @property
     def var_infos(self):
-        ''':returns: the access info of each variable to which the message
-        applies, or None if this information does not exist.
+        ''':returns: the Signature/AccessInfo pair for each variable to which
+        the message applies, or None if this information does not exist.
 
-        :rtype: List[:py:class:`psyclone.core.AccessInfo`]
+        :rtype: List[Tuple[:py:class:`psyclone.core.Signature`,
+                           :py:class:`psyclone.core.AccessInfo`]]
 
         '''
         return self._var_infos
@@ -196,6 +197,11 @@ class DependencyTools():
         :param int code: error or warning code.
         :param var_names: list of variable names (defaults to []).
         :type var_names: List[str]
+        :param var_infos: list of Signature/AccessInfo pairs (defaults to
+           None). If not None, each list element contains the info pair for
+           corresponding variable in the var_names list.
+        :type var_infos: List[Tuple[:py:class:`psyclone.core.Signature`,
+                                    :py:class:`psyclone.core.AccessInfo`]]
 
         '''
         if DTCode.INFO_MIN <= code <= DTCode.INFO_MAX:
@@ -757,10 +763,12 @@ class DependencyTools():
         return True
 
     # -------------------------------------------------------------------------
-    def _is_scalar_parallelisable(self, access_info: AccessInfo):
+    def _is_scalar_parallelisable(self, sig: Signature,
+                                  access_info: AccessInfo):
         '''Checks if the accesses to the given scalar variable can be
         parallelised, i.e. it is not a reduction.
 
+        :param sig: the signature for the variable to test.
         :param access_info: the access information for the variable to test.
         :return: True if the scalar variable is not a reduction, i.e. it
             can be parallelised.
@@ -799,7 +807,7 @@ class DependencyTools():
         self._add_message(f"Variable '{access_info.var_name}' is read "
                           f"first, which indicates a reduction.",
                           DTCode.WARN_SCALAR_REDUCTION,
-                          [access_info.var_name], [access_info])
+                          [access_info.var_name], [(sig, access_info)])
         return False
 
     # -------------------------------------------------------------------------
@@ -872,7 +880,7 @@ class DependencyTools():
                                                              var_info)
             else:
                 # Handle scalar variable
-                par_able = self._is_scalar_parallelisable(var_info)
+                par_able = self._is_scalar_parallelisable(signature, var_info)
             if not par_able:
                 if not test_all_variables:
                     return False

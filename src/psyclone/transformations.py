@@ -63,7 +63,7 @@ from psyclone.psyir.nodes import (
     Call, CodeBlock, Directive, Literal, Loop, Node,
     OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
-    Return, Schedule, OMPReductionClause, Reference,
+    Return, Schedule, OMPReductionClause,
     OMPSingleDirective, PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -287,7 +287,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
                                            omp_schedule=self.omp_schedule)
 
         # Add any inferred reduction clauses to the newly introduced directive
-        for (op, ref) in self.inferred_reduction_vars:
+        for (op, ref) in self.inferred_reduction_clauses:
             clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
             clause.addchild(ref)
             directive.add_reduction_clause(clause)

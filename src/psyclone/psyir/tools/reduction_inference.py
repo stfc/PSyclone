@@ -75,111 +75,105 @@ class ReductionInferenceTool():
         return None
 
     @staticmethod
-    def _get_reference_name(ref: Reference) -> str:
-        '''Return the name of the given Reference as a string.
-
-           :param ref: a Reference node.
-           :returns: the reference's name.
+    def _match_sig(ref: Reference, sig: Signature) -> bool:
+        '''Returns True if the Signature of the given Reference
+           matches the given Signature, and the Reference involves no
+           array indicies.  Returns False otherwise.
         '''
-        return str(ref.get_signature_and_indices()[0])
+        (ref_sig, ref_indices) = ref.get_signature_and_indices()
+        no_indices = sum(ref_indices, []) == []
+        return ref_sig == sig and no_indices
 
-    def _get_write_reduction(self, node: Node, var_name: str) -> \
+    def _get_write_reduction(self, node: Node, sig: Signature) -> \
             Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
         '''Return the reduction operator for given node if it is the
            LHS of an Assignment of the form _either_
 
-             <var_name> = <var_name> <op> <DataNode>
+             <Reference> = <Reference> <op> <DataNode>
 
            or
 
-             <var_name> = <DataNode> <op> <var_name>
+             <Reference> = <DataNode> <op> <Reference>
 
-           where <op> is an allowed reduction operator. Otherwise,
-           return None. The <var_name> is assumed to be the name of
-           a scalar reference, i.e. involves no indices.
+           where <op> is an allowed reduction operator and the Signature
+           of <Reference> is a scalar reference matching the given Signature.
+           Otherwise, return None.
 
         :param node: the node to match against.
-        :param var_name: the candidate scalar reduction variable.
+        :param sig: the candidate reduction variable.
         :returns: the reduction operator, or None.
         '''
         if isinstance(node, Reference):
-            node_name = self._get_reference_name(node)
-            if node_name == var_name:
+            if self._match_sig(node, sig):
                 if isinstance(node.parent, Assignment):
                     op = self._get_reduction_operator(node.parent.rhs)
                     if op:
                         child_ok = []
                         for child in node.parent.rhs.children[:2]:
-                            if isinstance(child, Reference):
-                                child_name = self._get_reference_name(child)
-                                child_ok.append(child_name == var_name)
-                            else:
-                                child_ok.append(False)
+                            child_ok.append(isinstance(child, Reference) and
+                                            self._match_sig(child, sig))
                         if (child_ok == [False, True] or
-                            child_ok == [True, False]):
+                                child_ok == [True, False]):
                             return op
         return None
 
-    def _get_read_reduction(self, node: Node, var_name: str) -> \
+    def _get_read_reduction(self, node: Node, sig: Signature) -> \
             Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
         '''Return reduction operator for given node if it is the child
            of a DataNode which is the RHS of an Assignment of the form
 
-             <var_name> = <var_name> <op> <DataNode>
+             <Reference> = <Reference> <op> <DataNode>
 
            or
 
-             <var_name> = <DataNode> <op> <var_name>
+             <Reference> = <DataNode> <op> <Reference>
 
-           where <op> is an allowed reduction operator. Otherwise, return
-           None. The <var_name> is assumed to be the name of scalar
-           reference, i.e. involves no indices.
+           where <op> is an allowed reduction operator and the Signature
+           of <Reference> is a scalar reference matching the given Signature.
+           Otherwise, return
 
         :param node: the node to match against
-        :param var_name: the candidate scalar reduction variable.
+        :param var_name: the candidate reduction variable.
         :returns: the reduction operator, or None.
         '''
         if isinstance(node, Reference):
-            node_name = self._get_reference_name(node)
-            if node_name == var_name:
+            if self._match_sig(node, sig):
                 op = self._get_reduction_operator(node.parent)
                 if op:
                     if isinstance(node.parent.parent, Assignment):
                         lhs = node.parent.parent.lhs
                         if isinstance(lhs, Reference):
-                            lhs_name = self._get_reference_name(lhs)
-                            if lhs_name == var_name:
+                            if self._match_sig(lhs, sig):
                                 return op
                 return None
 
-    def attempt_reduction(self, node: Node, var_name: str,
+    def attempt_reduction(self, node: Node, sig: Signature,
                           access_info: AccessInfo) -> \
             Tuple[Union[BinaryOperation.Operator,
                         IntrinsicCall.Intrinsic],
                   Reference]:
-        '''Check if the given variable can be handled using a reduction
-        clause and, if so, return the reduction operator. Otherwise,
-        return None. The variable name is assumed to be a scalar reference.
+        '''Check that the variable with the given Signature can be handled
+           using a reduction clause and, if so, return that clause.
+           Otherwise, return None.
 
-        :param node: the loop that will be parallelised.
-        :param var_name: the scalar reference being considered as a
-           reduction variable.
-        :param access_info: the access info for that variable.
-        :returns: the operator/reference pair that can be used for the
-           reduction if reduction is possible, or None otherwise.
+           :param node: the loop that will be parallelised.
+           :param sig: the variable being considered as a reduction variable.
+           :param access_info: the access info for that variable.
+           :returns: the operator/reference pair that can be used for the
+              reduction if reduction is possible, or None otherwise.
         '''
         # Find all the reduction operators used for the given variable name.
         # Return early if we ever encounter a use of the variable which is
         # not in the form of a reduction.
         ops = []
         for access in access_info.all_read_accesses:
-            op = self._get_read_reduction(access.node, var_name)
+            op = self._get_read_reduction(access.node, sig)
             if op is None:
                 return None
             ops.append(op)
             ref = access.node
         for access in access_info.all_write_accesses:
-            op = self._get_write_reduction(access.node, var_name)
+            op = self._get_write_reduction(access.node, sig)
             if op is None:
                 return None
             ops.append(op)
