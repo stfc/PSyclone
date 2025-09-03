@@ -55,7 +55,7 @@ from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall,
     IAttr,
     _get_first_argument_type,
-    _get_first_argument_logical_kind_with_optional_dim,
+    _get_first_argument_specified_kind_with_optional_dim,
     _get_real_with_argone_kind,
     _get_real_with_x_kind,
     _get_integer_of_kind_with_optional_dim,
@@ -66,6 +66,9 @@ from psyclone.psyir.nodes.intrinsic_call import (
     _get_bound_function_return_type,
     _get_first_argument_type_with_optional_kind,
     _get_first_argument_intrinsic_with_optional_kind_and_dim,
+    _matmul_return_type,
+    _maxval_return_type,
+    _reduce_return_type
 )
 from psyclone.psyir.symbols import (
     ArrayType,
@@ -77,6 +80,7 @@ from psyclone.psyir.symbols import (
     CHARACTER_TYPE,
     ScalarType,
     UnresolvedType,
+    NoType
 )
 
 
@@ -115,6 +119,36 @@ def test_intrinsiccall_intrinsic():
     """
     call = IntrinsicCall(IntrinsicCall.Intrinsic.MAXVAL)
     assert call.intrinsic is IntrinsicCall.Intrinsic.MAXVAL
+
+
+def test_intrinsiccall_datatype(fortran_reader):
+    """Test the datatype property returns the correct return types.
+    """
+    call = IntrinsicCall(IntrinsicCall.Intrinsic.NULLIFY)
+    assert isinstance(call.datatype, NoType)
+
+    code = """subroutine test
+    integer :: i
+    i = BIT_SIZE(i)
+    i = ABS(i)
+    end subroutine test
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(IntrinsicCall)[0]
+    assert call.datatype == INTEGER_TYPE
+
+    call = psyir.walk(IntrinsicCall)[1]
+    assert call.datatype == INTEGER_TYPE
+
+    code = """subroutine test
+    use my_mod
+
+    i = ABS(i)
+    end subroutine test
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(IntrinsicCall)[0]
+    assert isinstance(call.datatype, UnresolvedType)
 
 
 def test_intrinsiccall_is_elemental():
@@ -684,8 +718,8 @@ def test_get_first_argument_type(fortran_reader):
     assert dtype.precision == ScalarType.Precision.UNDEFINED
 
 
-def test_get_first_argument_logical_kind_with_optional_dim(fortran_reader):
-    """Test the _get_first_argument_logical_kind_with_optional_dim helper
+def test__get_first_argument_specified_kind_with_optional_dim(fortran_reader):
+    """Test the _get_first_argument_specified_kind_with_optional_dim helper
     function."""
     code = """subroutine x
     logical, dimension(100,100) :: a
@@ -697,10 +731,10 @@ def test_get_first_argument_logical_kind_with_optional_dim(fortran_reader):
     """
     psyir = fortran_reader.psyir_from_source(code)
     all_calls = psyir.walk(IntrinsicCall)
-    dtype = _get_first_argument_logical_kind_with_optional_dim(all_calls[0])
+    dtype = _get_first_argument_specified_kind_with_optional_dim(all_calls[0])
     assert dtype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     assert dtype.precision == ScalarType.Precision.UNDEFINED
-    dtype = _get_first_argument_logical_kind_with_optional_dim(all_calls[1])
+    dtype = _get_first_argument_specified_kind_with_optional_dim(all_calls[1])
     assert isinstance(dtype, ArrayType)
     assert len(dtype.shape) == 1
     assert dtype.shape[0] == ArrayType.Extent.DEFERRED
@@ -967,7 +1001,122 @@ def test_get_first_argument_intrinsic_with_optional_kind_and_dim(
     assert res.precision == ScalarType.Precision.UNDEFINED
 
 
-# FIXME Do we need ANINT tests.
+def test_matmul_return_type(fortran_reader):
+    code = """subroutine test
+    real, dimension(100,100) :: a
+    double precision, dimension(100, 100) :: b
+    real, dimension(100) :: c
+    real, dimension(:) :: d
+    real, dimension(:,:) :: e
+
+    e = MATMUL(a,b)
+    d = MATMUL(a,c)
+    d = MATMUL(c,a)
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsics = psyir.walk(IntrinsicCall)
+    res = _matmul_return_type(intrinsics[0])
+    assert isinstance(res, ArrayType)
+    assert res.intrinsic == ScalarType.Intrinsic.REAL
+    assert res.precision == ScalarType.Precision.UNDEFINED
+    assert len(res.shape) == 2
+    assert res.shape[0].lower.value == "1"
+    assert isinstance(res.shape[0].upper, IntrinsicCall)
+    assert res.shape[0].upper.intrinsic == IntrinsicCall.Intrinsic.SIZE
+    assert res.shape[0].upper.arguments[0].symbol.name == "a"
+    assert res.shape[0].upper.arguments[1].value == "1"
+    assert res.shape[1].lower.value == "1"
+    assert isinstance(res.shape[1].upper, IntrinsicCall)
+    assert res.shape[1].upper.intrinsic == IntrinsicCall.Intrinsic.SIZE
+    assert res.shape[1].upper.arguments[0].symbol.name == "b"
+    assert res.shape[1].upper.arguments[1].value == "2"
+
+    res = _matmul_return_type(intrinsics[1])
+    assert isinstance(res, ArrayType)
+    assert res.intrinsic == ScalarType.Intrinsic.REAL
+    assert res.precision == ScalarType.Precision.UNDEFINED
+    assert len(res.shape) == 1
+    assert res.shape[0].lower.value == "1"
+    assert isinstance(res.shape[0].upper, IntrinsicCall)
+    assert res.shape[0].upper.intrinsic == IntrinsicCall.Intrinsic.SIZE
+    assert res.shape[0].upper.arguments[0].symbol.name == "a"
+    assert res.shape[0].upper.arguments[1].value == "1"
+
+    res = _matmul_return_type(intrinsics[2])
+    assert isinstance(res, ArrayType)
+    assert res.intrinsic == ScalarType.Intrinsic.REAL
+    assert res.precision == ScalarType.Precision.UNDEFINED
+    assert len(res.shape) == 1
+    assert res.shape[0].lower.value == "1"
+    assert isinstance(res.shape[0].upper, IntrinsicCall)
+    assert res.shape[0].upper.intrinsic == IntrinsicCall.Intrinsic.SIZE
+    assert res.shape[0].upper.arguments[0].symbol.name == "a"
+    assert res.shape[0].upper.arguments[1].value == "1"
+
+
+def test_maxval_return_type(fortran_reader):
+    '''Test for the _maxval_return_type function.'''
+    code = """subroutine test
+    integer*8, dimension(100,100) :: x
+    integer, dimension(100) :: z
+    integer :: y
+    y = MAXVAL(x)
+    z = MAXVAL(x, dim=2)
+    end subroutine test
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    intrs = psyir.walk(IntrinsicCall)
+
+    res = _maxval_return_type(intrs[0])
+    assert isinstance(res, ScalarType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision == 8
+
+    res = _maxval_return_type(intrs[1])
+    assert isinstance(res, ArrayType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision == 8
+    assert len(res.shape) == 1
+    assert res.shape[0] == ArrayType.Extent.DEFERRED
+
+
+def test_reduce_return_type(fortran_reader):
+    """Test the _reduce_return_type function."""
+    code = """subroutine test
+    integer*8, dimension(100,100) :: x
+    integer, dimension(100) :: z
+    integer :: y
+    y = REDUCE(x, test)
+    z = REDUCE(x, test, 2)
+    end subroutine test
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+
+    intrinsic = psyir.walk(ArrayReference)[0]
+    intrinsic = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.REDUCE,
+        [intrinsic.indices[0].copy(), intrinsic.indices[1].copy()],
+    )
+    res = _reduce_return_type(intrinsic)
+    assert isinstance(res, ScalarType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision == 8
+
+    intrinsic = psyir.walk(ArrayReference)[1]
+    intrinsic = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.REDUCE,
+        [intrinsic.indices[0].copy(), intrinsic.indices[1].copy(),
+         intrinsic.indices[2].copy()],
+    )
+    res = _reduce_return_type(intrinsic)
+    assert isinstance(res, ArrayType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision == 8
+    assert len(res.shape) == 1
+    assert res.shape[0] == ArrayType.Extent.DEFERRED
+
+
+# FIXME Do we need ANINT (also REAL) tests (Reviewer/codecov decision).
 @pytest.mark.parametrize(
     "code, expected",
     [
@@ -1103,6 +1252,196 @@ def test_get_first_argument_intrinsic_with_optional_kind_and_dim(
                 and res.precision == 8
             ),
         ),
+        (
+            """subroutine z
+    integer*8 :: i,j
+    j = NOT(i)
+    end subroutine z""",
+            # Result is INTEGER with kind as first argument.
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.INTEGER
+                and res.precision == 8
+            ),
+        ),
+        (
+            """subroutine z
+    integer, dimension(100) :: i
+    integer, dimension(100) :: j
+    logical, dimension(100) :: mask
+    j = pack(i, mask)
+    end subroutine z""",
+            # Result is integer array with unknown size.
+            lambda res: (
+                isinstance(res, ArrayType) and
+                res.intrinsic == ScalarType.Intrinsic.INTEGER
+                and res.precision == ScalarType.Precision.UNDEFINED and
+                res.shape[0] == ArrayType.Extent.DEFERRED
+            ),
+        ),
+        (
+            """subroutine z
+        real, dimension(100,100) :: i
+        real :: k
+        k = PRODUCT(i)
+        end subroutine z""",
+            # Result is real scalar.
+            lambda res: (
+                isinstance(res, ScalarType) and
+                res.intrinsic == ScalarType.Intrinsic.REAL
+                and res.precision == ScalarType.Precision.UNDEFINED
+            ),
+        ),
+        (
+            """subroutine z
+        real, dimension(100,100) :: i
+        real, dimension(100) :: k
+        k = PRODUCT(i, dim=1)
+        end subroutine z""",
+            # Result is real array with unknown size.
+            lambda res: (
+                isinstance(res, ArrayType) and
+                res.intrinsic == ScalarType.Intrinsic.REAL
+                and res.precision == ScalarType.Precision.UNDEFINED and
+                res.shape[0] == ArrayType.Extent.DEFERRED
+            ),
+        ),
+        (
+            """subroutine z
+        real*8, dimension(100, 100) :: i
+        integer, dimension(:) :: k
+        k = SHAPE(i)
+        end subroutine z""",
+            # Result is INTEGER ARRAY with size 2
+            lambda res: (
+                isinstance(res, ArrayType) and
+                res.intrinsic == ScalarType.Intrinsic.INTEGER
+                and res.precision == ScalarType.Precision.UNDEFINED and
+                len(res.shape) == 1 and
+                res.shape[0].lower.value == "1" and
+                res.shape[0].upper.value == "2"
+            )
+        ),
+        (
+            """subroutine z
+        real*8, dimension(100, 100) :: i
+        integer, dimension(:) :: k
+        k = SHAPE(i, kind=8)
+        end subroutine z""",
+            # Result is INTEGER ARRAY with size 2
+            lambda res: (
+                isinstance(res, ArrayType) and
+                res.intrinsic == ScalarType.Intrinsic.INTEGER
+                and res.precision.value == "8" and
+                len(res.shape) == 1 and
+                res.shape[0].lower.value == "1" and
+                res.shape[0].upper.value == "2"
+            )
+        ),
+        (
+            """subroutine z
+        real*8, dimension(100) :: i
+        real*8, dimension(:,:) :: k
+        k = SPREAD(i,1,100)
+        end subroutine z""",
+            # Result is real array of dimension 2
+            lambda res: (
+                isinstance(res, ArrayType) and
+                res.intrinsic == ScalarType.Intrinsic.REAL
+                and res.precision == 8 and
+                len(res.shape) == 2 and
+                res.shape[0] == ArrayType.Extent.DEFERRED and
+                res.shape[1] == ArrayType.Extent.DEFERRED
+            )
+        ),
+        (
+            """subroutine z
+        real*8 :: i
+        real*8, dimension(:) :: k
+        k = SPREAD(i,1,100)
+        end subroutine z""",
+            # Result is real array of dimension 1
+            lambda res: (
+                isinstance(res, ArrayType) and
+                res.intrinsic == ScalarType.Intrinsic.REAL
+                and res.precision == 8 and
+                len(res.shape) == 1 and
+                res.shape[0] == ArrayType.Extent.DEFERRED
+            )
+        ),
+        (
+            """subroutine z
+        real*8, dimension(100) :: arr
+        real*8 :: res
+        res = SUM(arr)
+        end subroutine z""",
+            # Result is real scalar.
+            lambda res: (
+                isinstance(res, ScalarType) and
+                res.intrinsic == ScalarType.Intrinsic.REAL and
+                res.precision == 8
+            )
+        ),
+        (
+            """subroutine z
+        real*8, dimension(100, 100) :: arr
+        real*8, dimension(:) :: res
+        res = SUM(arr, dim=1)
+        end subroutine z""",
+            # Result is real scalar.
+            lambda res: (
+                isinstance(res, ArrayType) and
+                res.intrinsic == ScalarType.Intrinsic.REAL and
+                res.precision == 8 and
+                len(res.shape) == 1
+                and res.shape[0] == ArrayType.Extent.DEFERRED
+            )
+        ),
+        (
+            """subroutine z
+        real*8, dimension(100, 100) :: arr
+        real*8, dimension(:) :: res
+        res = TRANSFER(arr, res)
+        end subroutine z""",
+            # Result is real array.
+            lambda res: (
+                isinstance(res, ArrayType) and
+                res.intrinsic == ScalarType.Intrinsic.REAL and
+                res.precision == 8 and
+                len(res.shape) == 1
+                and res.shape[0] == ArrayType.Extent.DEFERRED
+            )
+        ),
+        (
+            """subroutine z
+        real*8, dimension(100, 100) :: arr
+        real :: res
+        res = TRANSFER(arr, res)
+        end subroutine z""",
+            # Result is scalar real.
+            lambda res: (
+                isinstance(res, ScalarType) and
+                res.intrinsic == ScalarType.Intrinsic.REAL and
+                res.precision == ScalarType.Precision.UNDEFINED
+            )
+        ),
+        (
+            """subroutine z
+        real*8, dimension(100, 10) :: arr
+        real*8, dimension(10, 100) :: arr2
+        arr2 = TRANSPOSE(arr)
+        end subroutine z""",
+            # Result is real array (10,100).
+            lambda res: (
+                isinstance(res, ArrayType) and
+                res.intrinsic == ScalarType.Intrinsic.REAL and
+                res.precision == 8 and
+                len(res.shape) == 2
+                and res.shape[0].lower.value == "1"
+                and res.shape[0].upper.value == "10"
+                and res.shape[1].lower.value == "1"
+                and res.shape[1].upper.value == "100"
+            )
+        ),
     ],
 )
 def test_specific_return_types(fortran_reader, code, expected):
@@ -1202,6 +1541,22 @@ def test_specific_return_types(fortran_reader, code, expected):
         # IntrinsicCall.Intrinsic.GET_TEAM,
         # lambda res: isinstance(res, UnresolvedType)
         # ),
+        # TODO #2823 Can't do this test yet, PSyclone creates a CodeBlock.
+        # (
+        #     """subroutine z
+        # integer, dimension(:) :: result
+        # result = STOPPED_IMAGES()
+        # end subroutine z""",
+        # IntrinsicCall.Intrinsic.STOPPED_IMAGES,
+        #     # Result is an integer array of dimension 1
+        #     lambda res: (
+        #         isinstance(res, ArrayType) and
+        #         res.intrinsic == ScalarType.Intrinsic.INTEGER
+        #         and res.precision == ScalarType.Precision.UNDEFINED and
+        #         len(res.shape) == 1 and
+        #         res.shape[0] == ArrayType.Extent.DEFERRED
+        #     )
+        # ),
     ],
 )
 def test_specific_return_types_incorrect_parsed(
@@ -1210,7 +1565,6 @@ def test_specific_return_types_incorrect_parsed(
     """Test the specific return types of IntrisicCalls that aren't recognised
     correctly by fparser."""
     psyir = fortran_reader.psyir_from_source(code)
-    print(psyir.view())
     parsed = psyir.walk(ArrayReference)[0]
     indices = [x.copy() for x in parsed.indices]
     intr = IntrinsicCall.create(intrinsic, indices)
