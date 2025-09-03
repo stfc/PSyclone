@@ -293,12 +293,13 @@ def test_sign_of_unknown_type(fortran_reader):
     '''
     code = '''\
     program test_prog
+      use my_mod, only: thing
       integer, parameter :: wp = kind(1.0d0)
       integer, parameter, dimension(0:4) :: A2D = (/1, 2, 3, 4, 5/)
       REAL(wp), DIMENSION(A2D(0)) :: ztmp1
       ztmp1 = 0.0
-      ! Can't handle because we don't know the type of MAX or ABS
-      ztmp1 = SIGN( MAX(ABS(ztmp1),1.E-6_wp), ztmp1 )
+      ! Can't handle because we don't know the type of thing
+      ztmp1 = SIGN( thing, ztmp1 )
       ! Can't handle because ztmp1 is an array
       ztmp1 = SIGN( ztmp1, 1.0 )
     end program test_prog'''
@@ -308,8 +309,9 @@ def test_sign_of_unknown_type(fortran_reader):
                  if call.intrinsic.name == "SIGN"]
     with pytest.raises(TransformationError) as err:
         trans.validate(sgn_calls[0])
-    assert ("Sign2CodeTrans cannot be applied to 'SIGN(MAX(ABS(ztmp1), "
-            "1.e-6_wp), ztmp1) because the type of the argument"
+    print(err.value)
+    assert ("Sign2CodeTrans cannot be applied to 'SIGN(thing, "
+            "ztmp1) because the type of the argument"
             in str(err.value))
     with pytest.raises(TransformationError) as err:
         trans.validate(sgn_calls[1])
