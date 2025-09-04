@@ -921,6 +921,7 @@ def test__get_first_argument_specified_kind_with_optional_dim(fortran_reader):
     logical :: c
     c = ALL(a)
     b = ALL(a, dim=1)
+    c = ALL(b, dim=1)
     end subroutine x
     """
     psyir = fortran_reader.psyir_from_source(code)
@@ -934,6 +935,9 @@ def test__get_first_argument_specified_kind_with_optional_dim(fortran_reader):
     assert dtype.shape[0] == ArrayType.Extent.DEFERRED
     assert dtype.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     assert dtype.datatype.precision == ScalarType.Precision.UNDEFINED
+    dtype = _get_first_argument_specified_kind_with_optional_dim(all_calls[2])
+    assert dtype.intrinsic == ScalarType.Intrinsic.BOOLEAN
+    assert dtype.precision == ScalarType.Precision.UNDEFINED
 
 
 def test_get_real_with_argone_kind(fortran_reader):
@@ -987,6 +991,7 @@ def test_get_integer_of_kind_with_optional_dim(fortran_reader):
 
     b = COUNT(a)
     c = COUNT(a, dim=1, kind=8)
+    b = COUNT(c, dim=1)
     end subroutine y"""
     psyir = fortran_reader.psyir_from_source(code)
     intrs = psyir.walk(IntrinsicCall)
@@ -1002,6 +1007,11 @@ def test_get_integer_of_kind_with_optional_dim(fortran_reader):
     assert res.precision.value == "8"
     assert len(res.shape) == 1
     assert res.shape[0] == ArrayType.Extent.DEFERRED
+
+    res = _get_integer_of_kind_with_optional_dim(intrs[2])
+    assert isinstance(res, ScalarType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision == ScalarType.Precision.UNDEFINED
 
 
 def test_findloc_return_type(fortran_reader):
@@ -1142,6 +1152,7 @@ def test_get_first_argument_type_with_optional_kind(fortran_reader):
     logical*4 :: a
     logical*8 :: b
     b = LOGICAL(a, kind=8)
+    b = LOGICAL(a)
     end subroutine x"""
     psyir = fortran_reader.psyir_from_source(code)
     intrinsics = psyir.walk(IntrinsicCall)
@@ -1150,6 +1161,10 @@ def test_get_first_argument_type_with_optional_kind(fortran_reader):
     assert isinstance(res, ScalarType)
     assert res.intrinsic == ScalarType.Intrinsic.BOOLEAN
     assert res.precision.value == "8"
+    res = _get_first_argument_type_with_optional_kind(intrinsics[1])
+    assert isinstance(res, ScalarType)
+    assert res.intrinsic == ScalarType.Intrinsic.BOOLEAN
+    assert res.precision == 4
 
 
 def test_get_first_argument_intrinsic_with_optional_kind_and_dim(
@@ -1282,6 +1297,7 @@ def test_reduce_return_type(fortran_reader):
     integer :: y
     y = REDUCE(x, test)
     z = REDUCE(x, test, 2)
+    y = REDUCE(z, test)
     end subroutine test
     """
     psyir = fortran_reader.psyir_from_source(code)
@@ -1308,6 +1324,16 @@ def test_reduce_return_type(fortran_reader):
     assert res.precision == 8
     assert len(res.shape) == 1
     assert res.shape[0] == ArrayType.Extent.DEFERRED
+
+    intrinsic = psyir.walk(ArrayReference)[2]
+    intrinsic = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.REDUCE,
+        [intrinsic.indices[0].copy(), intrinsic.indices[1].copy()],
+    )
+    res = _reduce_return_type(intrinsic)
+    assert isinstance(res, ScalarType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision == ScalarType.Precision.UNDEFINED
 
 
 # FIXME Do we need ANINT (also REAL) tests (Reviewer/codecov decision).
