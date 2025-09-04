@@ -43,10 +43,9 @@ from utils import (
     normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
     NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.transformations import (
-    OMPTargetTrans, OMPDeclareTargetTrans)
+from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import (
-    OMPLoopTrans, TransformationError)
+    OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
 
 
 # This environment variable informs if profiling hooks have to be inserted.
@@ -62,10 +61,6 @@ REPRODUCIBLE = os.environ.get('REPRODUCIBLE', False)
 # array privatisation is disabled and some more files excluded
 NEMOV4 = os.environ.get('NEMOV4', False)
 
-# This environment variable informs if we're enabling asynchronous
-# parallelism.
-ASYNC_PARALLEL = os.environ.get('ASYNC_PARALLEL', False)
-
 # Whether to chase the imported modules to improve symbol information (it can
 # also be a list of module filenames to limit the chasing to only specific
 # modules). This has to be used in combination with '-I' command flag in order
@@ -74,11 +69,7 @@ ASYNC_PARALLEL = os.environ.get('ASYNC_PARALLEL', False)
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = [
-    "vremap.f90",  # TODO #2772
-    "icefrm.f90",  # Has unsupportet implicit symbol declaration
-]
-
+FILES_TO_SKIP = []
 NEMOV5_EXCLUSIONS = []
 
 NEMOV4_EXCLUSIONS = [
@@ -91,7 +82,6 @@ SKIP_FOR_PERFORMANCE = [
     "iom_nf90.f90",
     "iom_def.f90",
     "timing.f90",
-    "histcom.f90",
 ]
 
 OFFLOADING_ISSUES = [
@@ -109,18 +99,9 @@ OFFLOADING_ISSUES = [
     "trczdf.f90",
     "trcice_pisces.f90",
     "dtatsd.f90",
-    # Runtime Error: Illegal address during kernel execution with
-    # asynchronicity.
-    "fldread.f90",
+    "zdfswm.f90",
     "trcatf.f90",
-    "zdfiwm.f90",
-    "zdfsh2.f90",
 ]
-
-if ASYNC_PARALLEL:
-    # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
-    # (often invalid pointer dereference) in get_cstrgsurf
-    OFFLOADING_ISSUES.append("sbcclo.f90")
 
 
 def trans(psyir):
@@ -172,7 +153,7 @@ def trans(psyir):
         # Many of the obs_ files have problems to be offloaded to the GPU
         if psyir.name.startswith("obs_"):
             continue
-        # Skip initialisation and diagnostic subroutines
+        # Skip initialisation subroutines
         if (subroutine.name.endswith('_alloc') or
                 subroutine.name.endswith('_init') or
                 subroutine.name.startswith('Agrif') or
@@ -187,11 +168,9 @@ def trans(psyir):
                 subroutine,
                 hoist_local_arrays=False,
                 convert_array_notation=True,
-                # See issue #3022
-                loopify_array_intrinsics=psyir.name != "getincom.f90",
-                convert_range_loops=True,
-                increase_array_ranks=not NEMOV4,
-                hoist_expressions=True
+                loopify_array_intrinsics=True,
+                convert_range_loops=(psyir.name not in ["fldread.f90"]),
+                hoist_expressions=True,
         )
         # Perform module-inlining of called routines.
         if INLINING_ENABLED:
@@ -224,7 +203,6 @@ def trans(psyir):
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
                     privatise_arrays=False,
-                    asynchronous_parallelism=ASYNC_PARALLEL,
                     uniform_intrinsics_only=REPRODUCIBLE,
             )
         elif psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES:
@@ -235,28 +213,19 @@ def trans(psyir):
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
                     privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
-                    asynchronous_parallelism=ASYNC_PARALLEL,
                     uniform_intrinsics_only=REPRODUCIBLE,
             )
         elif psyir.name not in PARALLELISATION_ISSUES:
             # This have issues offloading, but we can still do OpenMP threading
             print(f"Adding OpenMP threading to subroutine: {subroutine.name}")
-            # If asynchronous parallelism is enabled, these subroutines in
-            # sbcclo.f90 fail if they're parallelised on the CPU.
-            if (ASYNC_PARALLEL and subroutine.name in
-                    ("get_cssrcsurf", "get_cstrgsurf")):
-                continue
             insert_explicit_loop_parallelism(
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
-                    asynchronous_parallelism=True
+                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
             )
 
     # Iterate again and add profiling hooks when needed
     for subroutine in psyir.walk(Routine):
-        if psyir.name in SKIP_FOR_PERFORMANCE:
-            continue
         if PROFILING_ENABLED and subroutine.name not in disable_profiling_for:
             print(f"Adding profiling hooks to subroutine: {subroutine.name}")
             add_profiling(subroutine.children)
