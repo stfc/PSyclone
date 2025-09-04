@@ -86,6 +86,43 @@ IAttr = namedtuple(
 ArgDesc = namedtuple("ArgDesc", "min_count max_count types")
 
 
+def _convert_argument_to_type_info(argument: DataNode,
+                                   access_info: VariablesAccessMap) -> None:
+    """Helper function for the common case where an argument needs to have
+    a TYPE_INFO access map in access_info instead of a read access.
+
+    :param argument: The argument whose access needs changing.
+    :param access_info: The access map containing the access.
+    """
+    # TODO
+    assert False
+
+
+def _reference_accesses_all_reads_with_optional_kind(
+        node
+) -> VariablesAccessMap:
+    """Helper function for the common IntrinsicCall case where all
+    arguments are read only, with the exception of an optional kind named
+    argument which is instead TYPE_INFO.
+
+    :param node: The IntrinsicCall whose reference_accesses to compute.
+    :type node:  :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the reference accesses of node.
+    """
+    kind_index = (node.argument_names.index("kind") if
+                  "kind" in node.argument_names else None)
+    reference_accesses = VariablesAccessMap()
+    for i, arg in enumerate(node.arguments):
+        accesses = node.arguments.reference_accesses()
+        if kind_index == i:
+            if isinstance(arg, Reference):
+                _convert_argument_to_type_info(arg, accesses)
+        reference_accesses.update(accesses)
+
+    return reference_accesses
+
+
 def _get_first_argument_type(node) -> DataType:
     """Helper function for the common IntrinsicCall case where
     the return type matches exactly the datatype of the first argument.
