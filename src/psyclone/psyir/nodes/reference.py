@@ -39,10 +39,12 @@
 
 ''' This module contains the implementation of the Reference node.'''
 
+from typing import Optional, Set
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import Symbol, AutomaticInterface
 from psyclone.psyir.symbols.datatypes import UnresolvedType
 
@@ -247,7 +249,9 @@ class Reference(DataNode):
         chain = DefinitionUseChain(self)
         return chain.find_forward_accesses()
 
-    def escapes_scope(self, scope, visited_nodes=None) -> bool:
+    def escapes_scope(
+            self, scope: Node, visited_nodes: Optional[Set] = None
+    ) -> bool:
         '''
         :param scope: the given scope that we evaluate.
         :param visited_nodes: a set of nodes already visited, this is necessary
@@ -268,12 +272,55 @@ class Reference(DataNode):
             return True
 
         # Check if this instance is in the provided scope
-        if not self.is_descendent_of(scope):
+        if not self.is_descendant_of(scope):
+            # If the 'value' is rewritten, it does not escape the scope
+            if self.is_write and not self.is_read:
+                return False
             return True
 
         # Now check all possible next accesses
         for ref in self.next_accesses():
-            if ref.escapes_scope(scope, visited_nodes):
+            if (not isinstance(ref, Reference) or
+                    ref.escapes_scope(scope, visited_nodes)):
+                return True
+
+        return False
+
+    def enters_scope(
+            self, scope: Node, visited_nodes: Optional[Set] = None
+    ) -> bool:
+        '''
+        :param scope: the given scope that we evaluate.
+        :param visited_nodes: a set of nodes already visited, this is necessary
+            because the dependency chains may contain cycles. Defaults to an
+            empty set.
+        :returns: whether the symbol lifetime starts before the given scope.
+        '''
+
+        # Populate visited_nodes, and stop recursion when appropriate
+        if visited_nodes is None:
+            visited_nodes = set()
+        if id(self) in visited_nodes:
+            return False
+        visited_nodes.add(id(self))
+
+        # Check if this instance is in the provided scope
+        if not self.is_descendant_of(scope):
+            return True
+
+        # If the 'value' starts here, stop this search chain (the DUC
+        # does not stop because if searches for WaWs)
+        if self.is_write and not self.is_read:
+            return False
+
+        # If it's not a local symbol, we cannot guarantee its lifetime
+        if not isinstance(self.symbol.interface, AutomaticInterface):
+            return True
+
+        # Now check all possible next accesses
+        for ref in self.previous_accesses():
+            if (not isinstance(ref, Reference) or
+                    ref.enters_scope(scope, visited_nodes)):
                 return True
 
         return False
