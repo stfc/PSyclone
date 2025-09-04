@@ -103,6 +103,15 @@ OFFLOADING_ISSUES = [
     "trcatf.f90",
 ]
 
+<<<<<<< HEAD
+=======
+if ASYNC_PARALLEL:
+    # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
+    # (often invalid pointer dereference) in get_cstrgsurf
+    OFFLOADING_ISSUES.append("sbcclo.f90")
+    OFFLOADING_ISSUES.append("trcldf.f90")
+
+>>>>>>> 769cf008f55a8388fe1bb310dd176a00374335f8
 
 def trans(psyir):
     ''' Add OpenMP Target and Loop directives to all loops, including the
