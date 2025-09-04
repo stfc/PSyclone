@@ -280,9 +280,8 @@ class Reference(DataNode):
 
         # Now check all possible next accesses
         for ref in self.next_accesses():
-            if not isinstance(ref, Reference):
-                return True
-            if ref.escapes_scope(scope, visited_nodes):
+            if (not isinstance(ref, Reference) or
+                    ref.escapes_scope(scope, visited_nodes)):
                 return True
 
         return False
@@ -320,9 +319,8 @@ class Reference(DataNode):
 
         # Now check all possible next accesses
         for ref in self.previous_accesses():
-            if not isinstance(ref, Reference):
-                return True
-            if ref.enters_scope(scope, visited_nodes):
+            if (not isinstance(ref, Reference) or
+                    ref.enters_scope(scope, visited_nodes)):
                 return True
 
         return False

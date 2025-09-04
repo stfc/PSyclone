@@ -252,7 +252,9 @@ def test_definition_use_chain_find_backward_accesses_psy_data_node_example(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     p_trans = ProfileTrans()
-    p_trans.apply(routine)
+    # Skipping the first assignment is needed to improve the test coverage
+    # because it needs to deal with the current_block
+    p_trans.apply(routine[1:])
     # Start the chain from b = A + d.
     chains = DefinitionUseChain(routine.walk(Assignment)[4].rhs.children[0])
     reaches = chains.find_backward_accesses()

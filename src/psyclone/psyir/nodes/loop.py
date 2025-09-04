@@ -559,10 +559,13 @@ class Loop(Statement):
         In this case we can always return False as we know that this variable
         gets the iteration value.
 
+        #TODO #3124: Alternatively move the variable to a child Reference.
+
         :param scope: the given scope that we evaluate.
         :param visited_nodes: a set of nodes already visited, this is necessary
             because the dependency chains may contain cycles. Defaults to an
             empty set.
         :returns: whether the symbol lifetime starts before the given scope.
         '''
+        # pylint: disable=unused-argument
         return False
