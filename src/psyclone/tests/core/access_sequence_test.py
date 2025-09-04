@@ -71,7 +71,7 @@ def test_access_info():
     with pytest.raises(InternalError) as err:
         access_info2.change_read_to_type_info()
     assert ("Trying to change variable to 'TYPE_INFO' which does not have "
-        "'READ' access." in str(err.value))
+            "'READ' access." in str(err.value))
 
     access_info = AccessInfo(AccessType.UNKNOWN, Node())
     assert access_info.access_type == AccessType.UNKNOWN
@@ -257,6 +257,7 @@ def test_variable_access_sequence_read_to_type_info():
     assert ("Trying to change variable 'var_name' to "
             "'TYPE_INFO' but it has more than one 'READ' access."
             in str(err.value))
+
 
 def test_variable_access_sequence_has_indices(fortran_reader):
     '''Test that the AccessSequence class handles indices as expected.
