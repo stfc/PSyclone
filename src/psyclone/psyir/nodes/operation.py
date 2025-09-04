@@ -45,9 +45,6 @@ from typing import Tuple
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols.datatypes import (
-    ArrayType, BOOLEAN_TYPE, UnresolvedType, ScalarType,
-    UnsupportedFortranType, UnsupportedType)
 
 
 class Operation(DataNode, metaclass=ABCMeta):
@@ -347,6 +344,8 @@ class BinaryOperation(Operation):
             ScalarType.Precision).
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import ScalarType
         if precisions[0] == precisions[1]:
             return precisions[0]
 
@@ -389,6 +388,10 @@ class BinaryOperation(Operation):
                            either of the operands to a numeric operation.
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import (
+                BOOLEAN_TYPE, ScalarType, UnresolvedType)
+
         if self.operator not in self._numeric_ops:
             # Must be a relational or logical operator. Intrinsic type of
             # result will be boolean.
@@ -443,6 +446,10 @@ class BinaryOperation(Operation):
         :raises InternalError: if the operands are both arrays but are of
                                different shapes.
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import (
+            ArrayType, UnresolvedType, ScalarType,
+            UnsupportedFortranType, UnsupportedType)
         # Get the types of the operands.
         argtypes = []
         for child in self.children:

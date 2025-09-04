@@ -43,7 +43,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     Routine, FileContainer, UnaryOperation, BinaryOperation, Literal,
-    Assignment, CodeBlock, IntrinsicCall, Loop)
+    Assignment, CodeBlock, IntrinsicCall, Loop, Reference)
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols import (
     SymbolTable, DataSymbol, ScalarType, UnresolvedType)
@@ -177,10 +177,10 @@ def test_fortran_psyir_from_expression(fortran_reader):
     psyir = fortran_reader.psyir_from_expression("3.0_r_def", table)
     assert isinstance(psyir, Literal)
     assert isinstance(psyir.datatype, ScalarType)
-    assert isinstance(psyir.datatype.precision, DataSymbol)
+    assert isinstance(psyir.datatype.precision, Reference)
     symbol = table.lookup("r_def")
     assert isinstance(symbol, DataSymbol)
-    assert psyir.datatype.precision is symbol
+    assert psyir.datatype.precision.symbol is symbol
 
     psyir = fortran_reader.psyir_from_expression("3.0 + a", table)
     assert isinstance(psyir, BinaryOperation)

@@ -111,6 +111,13 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         for signature in var_accesses.all_signatures:
             if not var_accesses[signature].has_data_access():
                 continue
+            # Skip those that are TYPE_INFO accesses.
+            # TODO #3060: This should be all instead of any if we correctly
+            # have TYPE_INFO (or another access type) to handle kind
+            # expressions in IntrinsicCalls labelled correctly.
+            if any([x.access_type == AccessType.TYPE_INFO
+                    for x in var_accesses[signature]]):
+                continue
             accesses = var_accesses[signature]
             # TODO #2094: var_name only captures the top-level
             # component in the derived type accessor. If the attributes
