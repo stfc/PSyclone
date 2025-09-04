@@ -1297,7 +1297,7 @@ def test_reduce_return_type(fortran_reader):
     integer :: y
     y = REDUCE(x, test)
     z = REDUCE(x, test, 2)
-    y = REDUCE(z, test)
+    y = REDUCE(z, test, 2)
     end subroutine test
     """
     psyir = fortran_reader.psyir_from_source(code)
@@ -1328,7 +1328,8 @@ def test_reduce_return_type(fortran_reader):
     intrinsic = psyir.walk(ArrayReference)[2]
     intrinsic = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.REDUCE,
-        [intrinsic.indices[0].copy(), intrinsic.indices[1].copy()],
+        [intrinsic.indices[0].copy(), intrinsic.indices[1].copy(),
+         intrinsic.indices[2].copy()],
     )
     res = _reduce_return_type(intrinsic)
     assert isinstance(res, ScalarType)
