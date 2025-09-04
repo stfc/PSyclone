@@ -103,6 +103,9 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                     apply docstring.
     :type inherit: Union[list[Class], bool]
     '''
+    # List of argument doctrings to never inherit.
+    _uninheritable_args = ["options"]
+
     def update_func_docstring(func, added_parameters: DocstringData) -> None:
         '''
         Adds the docstrings specified in added_parameters to the
@@ -151,6 +154,10 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         else:
             added_parameters = None
         if added_parameters is not None:
+            # Remove any arguments we don't want to inherit.
+            for arg in list(added_parameters.arguments.keys()):
+                if arg in _uninheritable_args:
+                    del added_parameters.arguments[arg]
             update_func_docstring(cls.apply, added_parameters)
         # Update the validate docstring
         added_parameters = DocstringData.create_from_object(cls.apply)
