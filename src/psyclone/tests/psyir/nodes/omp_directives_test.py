@@ -41,6 +41,7 @@
 ''' Performs py.test tests on the OpenMP PSyIR Directive nodes. '''
 
 import os
+import re
 import pytest
 import logging
 from psyclone.errors import UnresolvedDependencyError
@@ -5033,3 +5034,32 @@ def test_reduction_struct_member(fortran_reader, fortran_writer):
     omplooptrans.apply(loop, enable_reductions=True)
     output = fortran_writer(psyir)
     assert "reduction(+: struct%acc)" in output
+
+def test_reduction_private_clash(fortran_reader, fortran_writer):
+    '''Test that a variable does not occur in both a reduction clause
+       and a private clause.'''
+    psyir = fortran_reader.psyir_from_source('''
+        function or_arr(arr) result (acc)
+            logical, intent(in) :: arr(:)
+            integer :: i
+            logical :: acc = .false.
+
+            do i = 1, ubound(arr)
+                if (arr(i)) then
+                    acc = .true.
+                end if
+            end do
+        end function''')
+    loop = psyir.walk(Loop)[0]
+    loop_parent = loop.parent
+    loop_position = loop.position
+    do_directive = OMPParallelDoDirective(children=[loop.detach()])
+    loop_parent.addchild(do_directive, index=loop_position)
+    clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.OR)
+    clause.addchild(Reference(Symbol("acc")))
+    do_directive.add_reduction_clause(clause)
+    output = fortran_writer(psyir)
+    assert "reduction(.OR.: acc)" in output
+    private_search = re.search("private\((.*?)\)", output)
+    if private_search:
+        assert "acc" not in private_search.group(1)
