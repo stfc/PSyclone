@@ -45,7 +45,8 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   FileContainer, IfBlock, UnaryOperation,
                                   CodeBlock, ACCRoutineDirective, Literal,
-                                  IntrinsicCall, BinaryOperation, Reference)
+                                  IntrinsicCall, BinaryOperation, Reference,
+                                  DataNode)
 from psyclone.psyir.symbols import (
     ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol)
 from psyclone.psyir.transformations.transformation_error \
@@ -353,15 +354,24 @@ then
                         f"{sym.datatype.intrinsic.name}'"
                         f" is not guaranteed to be a global symbol")
                     continue
-            # TODO #3087: Precision could include multiple symbols
-            if isinstance(sym.datatype.precision, DataSymbol):
-                if sym.datatype.precision.name in node.symbol_table:
-                    sym.append_preceding_comment(
-                        f"PSyclone warning: '{sym.name}' cannot be hoisted "
-                        f"to the global scope as '"
-                        f"{sym.datatype.precision.name}'"
-                        f" is not guaranteed to be a global symbol")
+            # Precision could include multiple symbols - handle in the same
+            # way as for DataSymbol but check all of them.
+            if isinstance(sym.datatype.precision, DataNode):
+                refs = sym.datatype.precision.walk(Reference)
+                failed = False
+                for ref in refs:
+                    if isinstance(ref.symbol, DataSymbol):
+                        if ref.symbol.name in node.symbol_table:
+                            sym.append_preceding_comment(
+                                f"PSyclone warning: '{sym.name}' cannot "
+                                f"be hoisted to the global scope as '"
+                                f"{ref.symbol.name}'"
+                                f" is not guaranteed to be a global symbol")
+                            failed = True
+                            break
+                if failed:
                     continue
+
             # Check whether all of the bounds of the array are defined - an
             # allocatable array will have array dimensions of
             # ArrayType.Extent.DEFERRED

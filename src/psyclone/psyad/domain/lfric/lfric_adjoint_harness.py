@@ -83,7 +83,7 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
     '''
     table = prog.symbol_table
     idef_sym = table.add_lfric_precision_symbol("i_def")
-    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef_sym)
+    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef_sym))
 
     # Initialise the sum to zero: sum = 0.0
     prog.addchild(Assignment.create(Reference(sum_sym),
@@ -155,9 +155,9 @@ def _compute_field_inner_products(routine, field_pairs):
     # pylint: disable=too-many-branches, too-many-locals
     table = routine.symbol_table
     rdef_sym = table.add_lfric_precision_symbol("r_def")
-    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef_sym)
+    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(rdef_sym))
     idef_sym = table.add_lfric_precision_symbol("i_def")
-    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef_sym)
+    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef_sym))
 
     builtin_factory = LFRicBuiltinFunctorFactory.get()
 
@@ -266,7 +266,7 @@ def _init_fields_random(fields, input_symbols, table):
 
     '''
     idef_sym = table.add_lfric_precision_symbol("i_def")
-    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef_sym)
+    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef_sym))
     # We use the setval_random builtin to initialise all fields.
     kernel_list = []
     builtin_factory = LFRicBuiltinFunctorFactory.get()
@@ -775,7 +775,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     routine.addchild(inv_call)
 
     rdef_sym = table.add_lfric_precision_symbol("r_def")
-    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef_sym)
+    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(rdef_sym))
 
     # Compute the first inner products.
     inner1_sym = table.new_symbol("inner1", symbol_type=DataSymbol,

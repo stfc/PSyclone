@@ -47,7 +47,7 @@ from psyclone.psyir.frontend import fparser2
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     get_literal_precision
 from psyclone.psyir.nodes import (
-    Node, Literal, CodeBlock, Schedule, Assignment, Routine)
+    Node, Literal, CodeBlock, Schedule, Assignment, Reference, Routine)
 from psyclone.psyir.symbols import (
     ScalarType, DataSymbol, INTEGER_TYPE, UnsupportedFortranType,
     SymbolTable)
@@ -175,14 +175,14 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
         assert f"'{literal.value}'" == value
     else:
         assert literal.value == value
-    assert isinstance(literal.datatype.precision, DataSymbol)
-    assert literal.datatype.precision.name == dprecision
+    assert isinstance(literal.datatype.precision, Reference)
+    assert literal.datatype.precision.symbol.name == dprecision
     assert isinstance(literal.datatype.precision.datatype,
                       ScalarType)
     assert (literal.datatype.precision.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
     assert (fake_parent.symbol_table.lookup(dprecision) is
-            literal.datatype.precision)
+            literal.datatype.precision.symbol)
 
 
 @pytest.mark.parametrize("value,dprecision,intrinsic",
