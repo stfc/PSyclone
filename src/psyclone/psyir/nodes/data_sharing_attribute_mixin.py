@@ -44,6 +44,7 @@ from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.while_loop import WhileLoop
+from psyclone.psyir.nodes.omp_clauses import OMPReductionClause
 from psyclone.psyir.symbols import DataSymbol, Symbol
 
 
@@ -106,6 +107,13 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         fprivate = set()
         need_sync = set()
 
+        # Collate reduction variables
+        red_vars = []
+        for clause in self.children:
+            if isinstance(clause, OMPReductionClause):
+                for ref in clause.children:
+                    red_vars.append(ref.name)
+
         # Determine variables that must be private, firstprivate or need_sync
         var_accesses = self.reference_accesses()
         for signature in var_accesses.all_signatures:
@@ -117,6 +125,8 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             # only apply to a sub-component, this won't be captured
             # appropriately.
             name = signature.var_name
+            if name in red_vars:
+                continue
             symbol = accesses[0].node.scope.symbol_table.lookup(
                 name, otherwise=None)
 

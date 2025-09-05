@@ -35,6 +35,7 @@
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
+#          M. Naylor, University of Cambridge, UK
 
 ''' This module provides the ParallelLoopTrans transformation.'''
 
@@ -48,9 +49,12 @@ from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import (
-        Call, Loop, Reference, Routine
+        Call, Loop, Reference, Routine,
+        BinaryOperation, IntrinsicCall
 )
-from psyclone.psyir.tools import DependencyTools, DTCode
+from psyclone.psyir.tools import (
+        DependencyTools, DTCode, ReductionInferenceTool
+)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
@@ -160,6 +164,12 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             execution.
         :param bool privatise_arrays: whether to declare as private any
             write after write dependency symbols.
+        :param reduction_ops: if non-empty, attempt parallelisation
+            of loops by inferring reduction clauses involving any of
+            the reduction operators in the list.
+        :type reduction_ops: List[
+            :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator` |
+            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`]
 
         :raises TypeError: if 'collapse' is not an int or a bool.
         :raises TypeError: if 'ignore_dependencies_for' is not a list of str.
@@ -191,6 +201,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 ignore_dependencies_for = []
             sequential = self.get_option("sequential", **kwargs)
             privatise_arrays = self.get_option("privatise_arrays", **kwargs)
+            reduction_ops = self.get_option("reduction_ops", **kwargs)
         else:
             verbose = options.get("verbose", False)
             collapse = options.get("collapse", False)
@@ -200,6 +211,11 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             )
             sequential = options.get("sequential", False)
             privatise_arrays = options.get("privatise_arrays", False)
+            reduction_ops = options.get("reduction_ops", [])
+
+        # As a side effect, this method produces a list of inferred reduction
+        # clauses (if 'reduction_ops' is not None)
+        self.inferred_reduction_clauses = []
 
         # Check we are not a sequential loop
         if (not sequential and isinstance(node, PSyLoop) and
@@ -283,6 +299,18 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                                 f"because it is not a plain local array or "
                                 f"it is used after the loop.")
                     continue
+                # See if the scalar in question allow parallelisation of
+                # the loop using reduction clauses.
+                if (reduction_ops and
+                        message.code == DTCode.WARN_SCALAR_REDUCTION):
+                    if (len(message.var_infos) == 1):
+                        (sig, access_info) = message.var_infos[0]
+                        red_tool = ReductionInferenceTool(reduction_ops)
+                        clause = red_tool.attempt_reduction(
+                                     node, sig, access_info)
+                        if clause:
+                            self.inferred_reduction_clauses.append(clause)
+                            continue
                 errors.append(str(message))
 
             if errors:
@@ -310,7 +338,10 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
               collapse: Union[int, bool] = False, force: bool = False,
               ignore_dependencies_for: Union[None, List[str]] = None,
               privatise_arrays: bool = False, sequential: bool = False,
-              nowait: bool = False, **kwargs):
+              nowait: bool = False,
+              reduction_ops: List[Union[BinaryOperation.Operator,
+                                        IntrinsicCall.Intrinsic]] = [],
+              **kwargs):
         '''
         Apply the Loop transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
@@ -351,6 +382,12 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             execution.
         :param bool privatise_arrays: whether to make the write after write
             dependency symbols declared as private.
+        :param reduction_ops: if non-empty, attempt parallelisation
+            of loops by inferring reduction clauses involving any of
+            the reduction operators in the list.
+        :type reduction_ops: List[
+            :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator` |
+            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`]
 
         '''
         if not options:
@@ -358,7 +395,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     verbose=verbose, collapse=collapse,
                     ignore_dependencies_for=ignore_dependencies_for,
                     privatise_arrays=privatise_arrays,
-                    sequential=sequential, nowait=nowait, **kwargs
+                    sequential=sequential, nowait=nowait,
+                    reduction_ops=reduction_ops, **kwargs
             )
             # Rename the input options that are renamed in this apply method.
             # TODO 2668, rename options to be consistent.
@@ -376,15 +414,24 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             list_of_names = options.get("ignore_dependencies_for", [])
             privatise_arrays = options.get("privatise_arrays", False)
             nowait = options.get("nowait", False)
+            reduction_ops = options.get("reduction_ops", False)
 
         self.validate(node, options=options, verbose=verbose,
                       collapse=collapse,
                       ignore_dependencies_for=ignore_dependencies_for,
                       privatise_arrays=privatise_arrays,
-                      sequential=sequential, nowait=nowait, **kwargs)
+                      sequential=sequential, nowait=nowait,
+                      reduction_ops=reduction_ops, **kwargs)
 
         list_of_signatures = [Signature(name) for name in list_of_names]
         dtools = DependencyTools()
+
+        # Add all reduction variables inferred by 'validate' to the list
+        # of signatures to ignore
+        if self.inferred_reduction_clauses:
+            for (op, ref) in self.inferred_reduction_clauses:
+                sig = ref.get_signature_and_indices()[0]
+                list_of_signatures.append(sig)
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
