@@ -5015,7 +5015,7 @@ def test_reduction_omp_parallel_loop_trans(fortran_reader, fortran_writer):
 
 def test_reduction_struct_member(fortran_reader, fortran_writer):
     ''' Test that reduction loops involing struct members are
-    parallelised.
+    not parallelised. This is not yet supported by OpenMP.
     '''
     psyir = fortran_reader.psyir_from_source('''
         function sum_arr(arr) result (struct)
@@ -5031,9 +5031,14 @@ def test_reduction_struct_member(fortran_reader, fortran_writer):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    omplooptrans.apply(loop, enable_reductions=True)
-    output = fortran_writer(psyir)
-    assert "reduction(+: struct%acc)" in output
+    #omplooptrans.apply(loop, enable_reductions=True)
+    #output = fortran_writer(psyir)
+    #assert "reduction(+: struct%acc)" in output
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, enable_reductions=True)
+    assert ("Variable 'struct%acc' is read first, which indicates a reduction"
+            in str(err.value))
+
 
 def test_reduction_private_clash(fortran_reader, fortran_writer):
     '''Test that a variable does not occur in both a reduction clause

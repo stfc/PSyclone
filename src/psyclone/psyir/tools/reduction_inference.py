@@ -81,8 +81,18 @@ class ReductionInferenceTool():
            array indicies.  Returns False otherwise.
         '''
         (ref_sig, ref_indices) = ref.get_signature_and_indices()
+
+        # Check that there are no indices invovled
         no_indices = sum(ref_indices, []) == []
-        return ref_sig == sig and no_indices
+
+        # OpenMP doesn't currently allow variables with member accessors
+        # as reduction variables. So we require the signature to be a
+        # singleton. If we want to infer such variables, we can easily remove
+        # this check (the OpenMP restriction could be bypassed, for example,
+        # by introducing a temporary variable).
+        no_members = len(ref_sig) == 1
+
+        return ref_sig == sig and no_indices and no_members
 
     def _get_write_reduction(self, node: Node, sig: Signature) -> \
             Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
