@@ -94,8 +94,16 @@ def _convert_argument_to_type_info(argument: DataNode,
     :param argument: The argument whose access needs changing.
     :param access_info: The access map containing the access.
     """
-    # TODO
-    assert False
+    # If the argument isn't a Reference then we don't do anything.
+    if isinstance(argument, Reference):
+        sig, _ = argument.get_signature_and_indices()
+        var_info = access_info[sig]
+        try:
+            var_info.change_read_to_type_info()
+        except InternalError as err:
+            # The argument here is also used in some other way
+            # so we do nothing
+            pass
 
 
 def _reference_accesses_all_reads_with_optional_kind(
