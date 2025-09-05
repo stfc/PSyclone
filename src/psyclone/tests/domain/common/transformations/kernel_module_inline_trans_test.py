@@ -661,13 +661,13 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     # Also, if they are in datatype precision expressions
     psyir = fortran_reader.psyir_from_source('''
     module my_mod
-        use external_mod1, only: r_def
+        use external_mod1, only: r_def, kind_multiplier
         use external_mod2, only: my_user_type
         use not_needed
         implicit none
         contains
         subroutine code()
-            real(kind=r_def) :: a,b
+            real(kind=r_def*kind_multiplier) :: a,b
             type(my_user_type) :: x
             a = b + x%data
         end subroutine code
@@ -677,7 +677,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     routine = psyir.walk(Routine)[0]
     new_routines = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
-    assert "use external_mod1, only : r_def" in result
+    assert "use external_mod1, only : kind_multiplier, r_def" in result
     assert "use external_mod2, only : my_user_type" in result
     assert "use not_needed" not in result
 
@@ -695,12 +695,9 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     end module my_mod
     ''')
 
-    print("----------------------------------------------")
     routine = psyir.walk(Routine)[0]
     new_routines = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
-    print("---")
-    print(result)
     assert "use external_mod1, only : r_def" in result
     assert "use not_needed" not in result
     assert "1.0_r_def" in result

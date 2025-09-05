@@ -2736,13 +2736,10 @@ class LFRicRealToIntXKern(LFRicBuiltIn):
         datatype = arg_refs[0].symbol.datatype
         if isinstance(datatype, UnsupportedFortranType):
             datatype = datatype.partial_datatype
-        precision = datatype.precision
-        if isinstance(precision, Reference):
-            precision = precision.symbol
 
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.INT,
-            [arg_refs[1], ("kind", Reference(precision))])
+            [arg_refs[1], ("kind", datatype.precision.copy())])
 
         # Create assignment and replace node
         return self._replace_with_assignment(lhs, rhs)
@@ -2797,13 +2794,10 @@ class LFRicRealToRealXKern(LFRicBuiltIn):
         datatype = arg_refs[0].symbol.datatype
         if isinstance(datatype, UnsupportedFortranType):
             datatype = datatype.partial_datatype
-        precision = datatype.precision
-        if isinstance(precision, Reference):
-            precision = precision.symbol
 
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.REAL,
-            [arg_refs[1], ("kind", Reference(precision))])
+            [arg_refs[1], ("kind", datatype.precision.copy())])
 
         # Create assignment and replace node
         return self._replace_with_assignment(lhs, rhs)

@@ -330,6 +330,31 @@ def test_scalartype_reference_accesses():
     assert svaccess[0].node is stype2.precision
 
 
+def test_scalartype_copy():
+    '''Test for the ScalarType.copy() method.'''
+    stype2 = ScalarType(ScalarType.Intrinsic.INTEGER,
+                        ScalarType.Precision.UNDEFINED)
+    rcopy = stype2.copy()
+    # Basic case, everything is just equivalent.
+    assert rcopy.intrinsic == stype2.intrinsic
+    assert rcopy.precision == stype2.precision
+
+    rdef = DataSymbol("rdef", INTEGER_TYPE)
+    precis = Reference(rdef)
+    stype2 = ScalarType(ScalarType.Intrinsic.INTEGER,
+                        precis)
+    rcopy = stype2.copy()
+
+    # If the precision is a DataNode, then
+    # precision and intrinsic should be equivalent, but
+    # the precision should not be the same object (so we can
+    # change the precision of one without affecting the precision
+    # of the other).
+    assert rcopy.intrinsic == stype2.intrinsic
+    assert rcopy.precision == stype2.precision
+    assert rcopy.precision is not stype2.precision
+
+
 # ArrayType class
 
 def test_arraytype_extent():
@@ -697,6 +722,20 @@ def test_arraytype_copy():
     bcopy = btype.copy()
     assert bcopy == btype
     assert bcopy is not btype
+
+    # Test when the precision of the scalar part of an ArrayType is a DataNode
+    precis = Reference(sym1)
+    btype = ArrayType(
+        ScalarType(
+            ScalarType.Intrinsic.INTEGER, precis,
+        ),
+        [ArrayType.Extent.DEFERRED]
+    )
+    bcopy = btype.copy()
+    assert bcopy.intrinsic == ScalarType.Intrinsic.INTEGER
+    # The precision should be equivalent to precis, but not the same object.
+    assert bcopy.precision == precis
+    assert bcopy.precision is not precis
 
 
 @pytest.mark.parametrize("table", [None, SymbolTable()])

@@ -2842,32 +2842,29 @@ class Fparser2Reader():
 
         # We have kind=kind-param
 
-        # Create a dummy Schedule and Assignment to capture the kind=...
+        # Create a dummy Routine and Assignment to capture the kind=...
         # so we can capture expressions such as 2*wp.
         # The input from fparser2 is ['(', kind, ')']
         kind_items = kind_selector.items[1]
         fake_routine = Routine(RoutineSymbol("dummy"))
-        dummy_schedule = Assignment()
-        fake_routine.addchild(dummy_schedule)
-        dummy_schedule.addchild(Reference(Symbol("a")))
-        self.process_nodes(parent=dummy_schedule, nodes=[kind_items])
+        dummy_assignment = Assignment()
+        fake_routine.addchild(dummy_assignment)
+        dummy_assignment.addchild(Reference(Symbol("a")))
+        self.process_nodes(parent=dummy_assignment, nodes=[kind_items])
         # Create a copy of the created node.
-        kindvar = dummy_schedule.rhs.copy()
-        # For each symbol used in the BinaryOperation, we need to update
+        kind_expression = dummy_assignment.rhs.detach()
+        # For each symbol used in the kind_expression, we need to update
         # kindvar with the ones from the real symbol_table.
-        for ref in kindvar.walk(Reference):
+        for ref in kind_expression.walk(Reference):
             sym_name = ref.symbol.name
             sym = _kind_find_or_create(sym_name, symbol_table)
             ref.symbol = sym
-        if len(kindvar.walk(CodeBlock)) != 0:
+        if len(kind_expression.walk(CodeBlock)) != 0:
             raise NotImplementedError(
-                "Unsupported kind declaration, error message NYI"
+                f"Unsupported kind declaration: "
+                f"{kind_expression.debug_string()}"
             )
-        # Return the update BinaryOperation
-        return kindvar
-
-#        # Otherwise continue with the previous implementation.
-#        return _kind_find_or_create(str(kind_names[0]), symbol_table)
+        return kind_expression
 
     def _add_comments_to_tree(self, parent: Node, preceding_comments,
                               psy_child: Node) -> None:
