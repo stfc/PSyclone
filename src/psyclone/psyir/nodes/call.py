@@ -498,11 +498,6 @@ class Call(Statement, DataNode):
                         if psyir:
                             routines.append(psyir)
                     if routines:
-                        # Update the properties of the target RoutineSymbol
-                        # but don't change its interface as we haven't moved
-                        # anything.
-                        rsym.copy_properties([rt.symbol for rt in routines],
-                                             exclude_interface=True)
                         return routines
                 if not have_codeblock:
                     have_codeblock = any(isinstance(child, CodeBlock) for
@@ -616,11 +611,7 @@ class Call(Statement, DataNode):
                 if psyir:
                     routines.append(psyir)
             if all_names and len(routines) == len(all_names):
-                # We've resolved everything. Update the properties of the
-                # target RoutineSymbol but don't change its interface as we
-                # haven't moved anything.
-                self.routine.symbol.copy_properties(
-                    [rt.symbol for rt in routines], exclude_interface=True)
+                # We've resolved everything.
                 return routines
             cursor = cursor.parent
 

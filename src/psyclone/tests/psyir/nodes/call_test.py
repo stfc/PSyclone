@@ -1502,15 +1502,13 @@ end module my_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
-    assert call.routine.symbol.is_pure is None
+    assert call.routine.symbol.is_pure is True
     callees = call.get_callees()
     assert len(callees) == 2
     assert isinstance(callees[0], Routine)
     assert callees[0].name == "rbottom"
     assert isinstance(callees[1], Routine)
     assert callees[1].name == "ibottom"
-    # Check that the properties of the called Symbol have been updated.
-    assert call.routine.symbol.is_pure is True
 
 
 def test_call_get_callees_file_container(fortran_reader):

@@ -1737,14 +1737,13 @@ class SymbolTable():
                 # This Symbol matches the name of a symbol at the import site.
                 local_sym = self.lookup(local_name)
                 interface = local_sym.interface
-                visibility = local_sym.visibility
 
                 # Found a match, update the interface if necessary or raise
                 # an error if it is an ambiguous match
                 if isinstance(interface, UnresolvedInterface):
                     # Now we know where the symbol is coming from
-                    interface = ImportInterface(csymbol,
-                                                orig_name=orig_name)
+                    local_sym.interface = ImportInterface(csymbol,
+                                                          orig_name=orig_name)
                 elif isinstance(interface, ImportInterface):
                     # If it is already an ImportInterface we don't need
                     # to update the interface information
@@ -1770,11 +1769,10 @@ class SymbolTable():
                         else:
                             local_sym.specialise(type(imported_sym))
 
-                    local_sym.copy_properties(imported_sym)
-                    # Restore the interface and visibility as these are
-                    # local (not imported) properties
-                    local_sym.interface = interface
-                    local_sym.visibility = visibility
+                    # Copy over the properties of the imported Symbol but don't
+                    # update the interface as this is a local proprty.
+                    local_sym.copy_properties(imported_sym,
+                                              exclude_interface=True)
             else:
                 # This table did not already contain a symbol with this
                 # name.
