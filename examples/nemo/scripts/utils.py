@@ -598,12 +598,7 @@ def insert_explicit_loop_parallelism(
     # the number of barriers.
     if asynchronous_parallelism:
         minsync_trans = OMPMinimiseSyncTrans()
-        # TODO #3091 - the transformation currently raises false errors in
-        # certain situations.
-        try:
-            minsync_trans.apply(schedule)
-        except TransformationError as err:
-            print(err)
+        minsync_trans.apply(schedule)
 
 
 def add_profiling(children: Union[List[Node], Schedule]):

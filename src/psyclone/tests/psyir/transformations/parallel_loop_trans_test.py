@@ -1075,6 +1075,34 @@ end subroutine x
     result = psyir.walk(Loop)[1].loop_body.children[0]
     assert paratrans._find_next_dependency(loop, direc) == [result]
 
+    # Check that if the next dependency is in a different part of an IfBlock
+    # then the dependency found is the entire IfBlock when contained in a
+    # parent loop
+    code = """subroutine x
+    integer :: i, j, k
+    integer, dimension(100) :: a
+    do i = 1, 10
+      if(k == 2) then
+        do j= 1, 100
+          a(j) = a(j) + i
+        end do
+      else
+        do j=1, 100
+          a(j) = a(j) - i
+        end do
+      end if
+    end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    # Add a directive around the first do j = 1 loop
+    loop = psyir.walk(Loop)[1]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(IfBlock)[0].if_body.children.insert(0, direc)
+    result = psyir.walk(IfBlock)[0]
+    assert paratrans._find_next_dependency(loop, direc) == [result]
+
 
 def test_parallel_loop_trans_add_asynchronicity():
     '''Test the _add_asynchronicity function of the parallel loop trans.'''
