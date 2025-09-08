@@ -2239,7 +2239,6 @@ class OMPLoopDirective(OMPRegionDirective):
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.collapse == other.collapse
-        is_eq = is_eq and self.children[1:] == other.children[1:]
 
         return is_eq
 
