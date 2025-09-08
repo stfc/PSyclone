@@ -1780,12 +1780,7 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
 
         :param clause: an OMPReductionClause to be added.
         :type clause: :py:class:`psyclone.psyir.nodes.OMPReductionClause`
-
-        :raises GenerationError: if the OMPDoDirective is malformed.
         '''
-        if len(self.children) < 1:
-            raise GenerationError("Calling add_reduction_clause() on a "
-                                  "malformed OMPDoDirective.")
         self.addchild(clause)
 
     def node_str(self, colour=True):
@@ -2044,12 +2039,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         :param clause: an OMPReductionClause to be added.
         :type clause: :py:class:`psyclone.psyir.nodes.OMPReductionClause`
-
-        :raises GenerationError: if the OMPParalleDoDirective is malformed.
         '''
-        if len(self.children) < 5:
-            raise GenerationError("Calling add_reduction_clause() on a "
-                                  "malformed OMPParallelDoDirective.")
         self.addchild(clause)
 
     def lower_to_language_level(self):
@@ -2303,12 +2293,7 @@ class OMPLoopDirective(OMPRegionDirective):
 
         :param clause: an OMPReductionClause to be added.
         :type clause: :py:class:`psyclone.psyir.nodes.OMPReductionClause`
-
-        :raises GenerationError: if the OMPLoopDirective is malformed.
         '''
-        if len(self.children) < 1:
-            raise GenerationError("Calling add_reduction_clause() on a "
-                                  "malformed OMPLoopDirective.")
         self.addchild(clause)
 
     def node_str(self, colour=True):
