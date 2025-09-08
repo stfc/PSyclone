@@ -60,10 +60,9 @@ class ReductionInferenceTool():
     def _get_reduction_operator(self, node: Node) -> \
             Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
         '''
-        Return the reduction operator at the root of the given
-        DataNode or None if there isn't one.
-
         :param node: the node to match against.
+        :returns: the reduction operator at the root of the given
+        DataNode or None if there isn't one.
         '''
         if isinstance(node, BinaryOperation):
             for op in self.red_ops:
@@ -78,13 +77,16 @@ class ReductionInferenceTool():
     @staticmethod
     def _match_sig(ref: Reference, sig: Signature) -> bool:
         '''
-        Returns True if the Signature of the given Reference matches
+        :param ref: the Reference node to match against.
+        :param sig: the candidate reduction variable.
+        :returns: True if the Signature of the given Reference matches
         the given Signature, and the Reference involves no array
         indices.  Returns False otherwise.
         '''
         (ref_sig, ref_indices) = ref.get_signature_and_indices()
 
-        # Check that there are no indices invovled
+        # OpenMP supports array slices as reduction variables, but we
+        # have not yet considered how to infer these.
         no_indices = sum(ref_indices, []) == []
 
         # OpenMP doesn't currently allow variables with member accessors
