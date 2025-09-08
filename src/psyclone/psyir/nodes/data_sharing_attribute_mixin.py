@@ -108,6 +108,8 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         need_sync = set()
 
         # Collate reduction variables
+        # TODO #2446 Ensure this behaves correctly for OpenACC when
+        # OpenACC reductions are supported.
         red_vars = []
         for clause in self.children:
             if isinstance(clause, OMPReductionClause):
