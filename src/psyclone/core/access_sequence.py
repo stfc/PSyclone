@@ -41,10 +41,9 @@
 
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from psyclone.core.access_type import AccessType
-from psyclone.core.component_indices import ComponentIndices
 from psyclone.errors import InternalError
 if TYPE_CHECKING:  # pragma: no cover
     from psyclone.psyir.nodes import Node
@@ -62,15 +61,9 @@ class AccessInfo():
     '''
     def __init__(
         self, access_type: AccessType, node: 'Node',
-        component_indices: Optional[list[list['Node']] |
-                                    ComponentIndices] = None
     ):
         self._access_type = access_type
         self._node = node
-        if not isinstance(component_indices, ComponentIndices):
-            self.component_indices = ComponentIndices(component_indices)
-        else:
-            self.component_indices = component_indices
 
     def __str__(self):
         return f"{self._access_type}"
@@ -102,28 +95,7 @@ class AccessInfo():
         :returns: the indices used in this access for each component.
         :rtype: :py:class:`psyclone.core.component_indices.ComponentIndices`
         '''
-        return self._component_indices
-
-    @component_indices.setter
-    def component_indices(self, component_indices: ComponentIndices):
-        '''Sets the indices for this AccessInfo instance. The component_indices
-        contains a list of indices for each component of the signature,
-        e.g. for `a(i)%b(j,k)%c` the component_indices will be
-        `[ [i], [j, k], [] ]` (with each element being the PSyIR of the
-        index expression).
-
-        :param component_indices: indices used in the access.
-
-        :raises InternalError: if component_indices is not an instance \
-            of :py:class:`psyclone.core.component_indices.ComponentIndices`.
-
-        '''
-
-        if not isinstance(component_indices, ComponentIndices):
-            raise InternalError(f"The component_indices object in the setter "
-                                f"of AccessInfo must be an instance of "
-                                f"ComponentIndices, got '{component_indices}'")
-        self._component_indices = component_indices
+        return self._node.component_indices
 
     def is_array(self):
         '''Test if any of the components has an index. E.g. an access like
@@ -133,7 +105,8 @@ class AccessInfo():
             the variable is an array.
         :rtype: bool
         '''
-        return self._component_indices.is_array()
+        from psyclone.psyir.nodes.array_mixin import ArrayMixin
+        return self._node.has_a(ArrayMixin)
 
     @property
     def access_type(self):
@@ -302,8 +275,6 @@ class AccessSequence(list):
 
     def add_access(
         self, access_type: AccessType, node: 'Node',
-        component_indices: Optional[list[list['Node']] |
-                                    ComponentIndices] = None
     ):
         '''Adds access information to this variable.
 

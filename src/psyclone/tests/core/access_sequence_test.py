@@ -39,7 +39,7 @@
 
 import pytest
 
-from psyclone.core import (AccessInfo, ComponentIndices, Signature,
+from psyclone.core import (AccessInfo, Signature,
                            AccessSequence)
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
@@ -64,45 +64,11 @@ def test_access_info():
         "'READ' access." in str(err.value)
 
     # Test setter and getter:
-    component_indices = ComponentIndices([["i"]])
-    access_info.component_indices = component_indices
-    assert access_info.component_indices == component_indices
-    assert access_info.is_array()
+    access_info = AccessInfo(AccessType.UNKNOWN, Node())
+    assert access_info.access_type == AccessType.UNKNOWN
 
     access_info = AccessInfo(AccessType.UNKNOWN, Node())
     assert access_info.access_type == AccessType.UNKNOWN
-    assert access_info.component_indices.indices_lists == [[]]
-
-    access_info = AccessInfo(AccessType.UNKNOWN, Node(),
-                             [["i", "j"]])
-    assert access_info.access_type == AccessType.UNKNOWN
-    assert access_info.component_indices.indices_lists == [["i", "j"]]
-
-    access_info = AccessInfo(AccessType.UNKNOWN, Node(),
-                             ComponentIndices([["i", "j"]]))
-    assert access_info.access_type == AccessType.UNKNOWN
-    assert access_info.component_indices.indices_lists == [["i", "j"]]
-
-
-# -----------------------------------------------------------------------------
-def test_access_info_exceptions():
-    '''Test that the right exceptions are raised.
-    '''
-    with pytest.raises(InternalError) as err:
-        _ = AccessInfo(AccessType.READ, Node(), component_indices=123)
-    assert "Index object in ComponentIndices constructor must be None, " \
-           "a list or list of lists, got '123'" in str(err.value)
-
-    with pytest.raises(InternalError) as err:
-        _ = AccessInfo(AccessType.READ, Node(), component_indices=[[], 123])
-    assert "ComponentIndices: Invalid list parameter '[[], 123]'" \
-        in str(err.value)
-
-    access_info = AccessInfo(AccessType.READ, Node())
-    with pytest.raises(InternalError) as err:
-        access_info.component_indices = 123
-    assert "The component_indices object in the setter of AccessInfo must " \
-           "be an instance of ComponentIndices, got '123'" in str(err.value)
 
 
 def test_access_info_description():
@@ -226,7 +192,7 @@ def test_variable_access_sequence_is_array(fortran_reader):
     ref_i = rhs.children[0]
 
     vam = AccessSequence(Signature("b"))
-    vam.add_access(AccessType.READ, rhs, ComponentIndices([ref_i]))
+    vam.add_access(AccessType.READ, rhs)
 
     # Check that the access to "b[i]" is considered an array
     # when testing for access using "i"

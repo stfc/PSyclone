@@ -38,7 +38,7 @@
 
 import pytest
 
-from psyclone.core import ComponentIndices, Signature, VariablesAccessMap
+from psyclone.core import Signature, VariablesAccessMap
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Assignment, Node
@@ -104,13 +104,6 @@ def test_variables_access_map_errors():
     assert "Got 'no-signature' of type 'str' but expected it to be of type " \
            "psyclone.core.Signature." in str(err.value)
 
-    # Check for consistency between signature and component indices:
-    with pytest.raises(InternalError) as err:
-        var_accesses.add_access(Signature(("a", "b")), AccessType.READ, node,
-                                ComponentIndices([]))
-    assert "Cannot add '[[]]' with length 1 as indices for 'a%b' which "\
-           "requires 2 elements." in str(err.value)
-
 
 # -----------------------------------------------------------------------------
 def test_component_indices_auto_extension():
@@ -133,12 +126,6 @@ def test_component_indices_auto_extension():
     # should not get any values added:
     with pytest.raises(InternalError) as err:
         var_accesses.add_access(sig, AccessType.READ, node, [["i", "j"]])
-    assert ("Cannot add '[['i', 'j']]' with length 1 as indices for 'a%b%c' "
-            "which requires 3 elements." in str(err.value))
-
-    component_indices = ComponentIndices(["i", "j"])
-    with pytest.raises(InternalError) as err:
-        var_accesses.add_access(sig, AccessType.READ, node, component_indices)
     assert ("Cannot add '[['i', 'j']]' with length 1 as indices for 'a%b%c' "
             "which requires 3 elements." in str(err.value))
 

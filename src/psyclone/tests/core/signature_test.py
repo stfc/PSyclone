@@ -38,7 +38,7 @@
 
 import pytest
 
-from psyclone.core import ComponentIndices, Signature
+from psyclone.core import Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -191,7 +191,6 @@ def test_to_language_fortran():
     gives the expected results.
     '''
     sig = Signature("a")
-    comp = ComponentIndices()
     assert sig.to_language(comp) == "a"
 
     comp = ComponentIndices(["i"])
