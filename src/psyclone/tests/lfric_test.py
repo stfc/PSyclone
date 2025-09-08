@@ -4078,7 +4078,6 @@ def test_lfricruntimechecks_multikern(tmpdir, monkeypatch):
     generated_code = str(psy.gen)
     assert "use testkern_mod, only : testkern_code" in generated_code
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use fs_continuity_mod" in generated_code
     assert "use mesh_mod, only : mesh_type" in generated_code
     assert "use fs_continuity_mod, only" in generated_code
     expected2 = (
