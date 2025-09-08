@@ -4732,6 +4732,23 @@ def test_add_reduction_clause_loop(fortran_reader, fortran_writer):
     assert "reduction(+: acc)" in output
 
 
+def test_reduction_clause_eq(fortran_reader, fortran_writer):
+    ''' Check that OMPDoDirective equality implies reduction-clause equality
+    '''
+    do_directive1 = OMPParallelDoDirective()
+    do_directive2 = OMPParallelDoDirective()
+
+    clause1 = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause1.addchild(Reference(Symbol("foo")))
+    do_directive1.add_reduction_clause(clause1)
+
+    clause2 = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause2.addchild(Reference(Symbol("bar")))
+    do_directive2.add_reduction_clause(clause2)
+
+    assert do_directive1 != do_directive2
+
+
 def test_reduction_arith_ops(fortran_reader, fortran_writer):
     ''' Test that reduction loops involing arithmetic reduction operators are
     parallelised.

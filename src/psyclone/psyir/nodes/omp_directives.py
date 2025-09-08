@@ -1716,7 +1716,6 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         is_eq = is_eq and self.omp_schedule == other.omp_schedule
         is_eq = is_eq and self.reprod == other.reprod
         is_eq = is_eq and self.collapse == other.collapse
-        is_eq = is_eq and self.children[1:] == other.children[1:]
 
         return is_eq
 
