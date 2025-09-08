@@ -45,6 +45,7 @@ from enum import Enum
 from typing import Callable
 
 from psyclone.core import AccessType, VariablesAccessMap
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
@@ -100,7 +101,7 @@ def _convert_argument_to_type_info(argument: DataNode,
         var_info = access_info[sig]
         try:
             var_info.change_read_to_type_info()
-        except InternalError as err:
+        except InternalError:
             # The argument here is also used in some other way
             # so we do nothing
             pass
