@@ -190,7 +190,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
         # r_quad is defined in constants_mod, but not exported. And r_phys
         # does not exist at all in LFRic, but is still in LFRic's psyclone.cfg
-        # file. TODO #2018
+        # file. TODO #2018 and
+        # https://code.metoffice.gov.uk/trac/lfric/ticket/4674
         api_config = Config.get().api_conf("lfric")
         all_precisions = [name for name in api_config.precision_map
                           if name not in ["r_quad", "r_phys"]]
