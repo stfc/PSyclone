@@ -101,7 +101,7 @@ $(GHLIB_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(GHLIB_PATH)
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) -f ../Makefile
+	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
 $(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
@@ -135,4 +135,4 @@ clean:
 
 allclean: clean
 	make -C $(GHLIB_PATH) clean
-	make -C $(LFRIC_PATH) -f ../Makefile clean
+	make -C $(LFRIC_PATH) clean

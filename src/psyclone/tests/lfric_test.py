@@ -4080,6 +4080,7 @@ def test_lfricruntimechecks_multikern(tmpdir, monkeypatch):
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
     assert "use fs_continuity_mod" in generated_code
     assert "use mesh_mod, only : mesh_type" in generated_code
+    assert "use fs_continuity_mod, only" in generated_code
     expected2 = (
         "    f3_proxy = f3%get_proxy()\n"
         "    f3_data => f3_proxy%data\n"

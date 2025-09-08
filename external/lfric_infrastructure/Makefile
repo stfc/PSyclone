@@ -78,7 +78,7 @@ liblfric.a: $(OBJ)
 
 # Dependencies
 # ------------
-include $(LFRIC_PATH)/dependency
+include $(LFRIC_PATH)/dependencies.mk
 
 # Compilation rules
 # -----------------

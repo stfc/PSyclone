@@ -3,6 +3,16 @@ apps/flux_direction_mod.o: utilities/constants_mod.o
 components/driver_collections_mod.o: field/halo_routing_collection_mod.o \
 	function_space/function_space_collection_mod.o mesh/global_mesh_collection_mod.o \
 	mesh/local_mesh_collection_mod.o mesh/mesh_collection_mod.o
+components/driver_model_data_mod.o: field/field_collection_mod.o \
+	field/field_mod.o utilities/constants_mod.o utilities/linked_list_mod.o \
+	utilities/log_mod.o
+components/driver_modeldb_mod.o: components/driver_model_data_mod.o \
+	components/io_context_collection_mod.o configuration/namelist_collection_mod.o \
+	key_value/key_value_collection_mod.o time/calendar_mod.o time/model_clock_mod.o \
+	utilities/lfric_mpi_mod.o
+components/io_context_collection_mod.o: io/empty_io_context_mod.o \
+	io/io_context_mod.o utilities/constants_mod.o utilities/hash_mod.o \
+	utilities/linked_list_data_mod.o utilities/linked_list_mod.o utilities/log_mod.o
 configuration/namelist_collection_mod.o: configuration/namelist_mod.o \
 	utilities/constants_mod.o utilities/linked_list_mod.o utilities/log_mod.o
 configuration/namelist_item_mod.o: key_value/key_value_mod.o \

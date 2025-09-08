@@ -4,7 +4,7 @@
 # all the required source files into the PSyclone tree, and preprocesses
 # all files (into a separate directory, to avoid issues with file system
 # that do not fully support mixed case).
-set -x
+
 function help() {
 
 	echo "$0: lfric_core-location"
@@ -39,22 +39,19 @@ fi
 # Get the root dir of this script, which is in external/lfric_infrastructure
 ROOT_DIR=$( cd -- "$( dirname -- "$(readlink -f ${BASH_SOURCE[0]})" )" &> /dev/null && pwd )
 SOURCE=$ROOT_DIR/src
-# if [[ -d ./src ]]; then
-# 	rm -rf src.backup
-# 	mv src src.backup
-# fi
+if [[ -d ./src ]]; then
+	rm -rf src.backup
+	mv src src.backup
+fi
 
 # Compilation of several tests in the test directory require
 # additional files from the LFRic apps repository, which are
 # just added to the lfric library. For now we just maintain
-# a single copy of this file to reduce dependencies to LFRic apps:
+# a single copy of these files to reduce dependencies to LFRic apps.
+# If compilation errors occur, it might be required to manually
+# update these files from a current LFRic apps repository.
 mkdir -p $SOURCE/apps
 cp $ROOT_DIR/apps/*.f90 $SOURCE/apps
-
-# The LFRic infrastructure needs many global collections. There is a separate
-# function that initialises all of them at once. Using it reduces code and
-# should make our example more robust to changes in the LFRic infrastructure.
-# So copy that one file from the components directory and add it to the build.
 
 mkdir -p $SOURCE/components
 cp $lfric_core/components/driver/source/driver_collections_mod.f90 $SOURCE/components
@@ -76,24 +73,47 @@ echo Preprocessing files
 # We preprocess ALL files, even .f90 - this way we have one loop to create
 # all required directories and files
 
-# Add svn info to the SOURCE directory
-svn info $lfric_core >$SOURCE/svn_info
-
+# Get the default preprocessor if the user has no CPP defined:
 CPP=${CPP:-cpp}
-# Preprocess all files - iname will cause f90 and F90 to be returned
+
+# Preprocess all files - `-iname`` will cause f90 and F90 to be returned
 all_files=$(find $lfric_infra_src -iname "*.f90")
 
 for file in $all_files; do
-	# Convert the absolute name to a relative name
+	# Convert the absolute name to a relative name by removing
+	# the lcric_infa_src path (which `find` has added to
+	# all paths).
+	# The ## specifies removal of the following string
+	# from the variable, i.e. a="/a/b/c.f"; rel=${a##/a/}
+	# would assign ``b/c.f``
 	rel_name=${file##$lfric_infra_src/}
-	rel_path=$(dirname $rel_name)
-	# Convert F90 to f90:
+	# Convert all suffixes to f90. The `%` removes everything after the
+	# given string, which is `.*`, i.e. it removes the suffix.
 	out_file=$SOURCE/${rel_name%.*}.f90
+
+	# Get the directory path (which is relative to the infrastructure
+	# source directory):
+	rel_path=$(dirname $rel_name)
 	mkdir -p $SOURCE/$rel_path
 	# Single apostrophes (e.g. in "and Queen's Printer") create a
 	# preprocessor warning. Ignore these warnings
-	cpp -traditional-cpp -P $PPFLAGS $file >$out_file  2>/dev/null
+	$CPP -traditional-cpp -P $PPFLAGS $file >$out_file  2>/dev/null
 done
+
+# The LFRic infrastructure needs many global collections. There is a separate
+# function that initialises all of them at once. Using it reduces code and
+# should make our example more robust to changes in the LFRic infrastructure.
+# So copy that one file from the components directory and add it to the build.
+cp $lfric_core/components/driver/source/driver_collections_mod.f90 \
+	 $SOUREC/components
+
+# The LFRic infrastructure depends on some files under components.
+# Copy these files into the src tree:
+cp $lfric_core/components/driver/source/driver_model_data_mod.f90 $SOURCE/components
+cp $lfric_core/components/driver/source/driver_modeldb_mod.f90 $SOURCE/components
+$CPP -traditional-cpp -P $PPFLAGS \
+	$lfric_core/components/driver/source//io_context_collection_mod.F90 \
+	> $SOURCE/components/io_context_collection_mod.f90
 
 echo Running Templaterator
 all_templates=$(find $lfric_infra_src -iname "*.t90")
@@ -109,14 +129,10 @@ for template in $all_templates; do
 		fi
 		args="-s kind=$kind -s type=$type"
 		out_file=$SOURCE/${rel_name%_mod.t90}_${kind}_mod.f90
-		echo $template
 		$lfric_core/infrastructure/build/tools/Templaterator $args $template -o $out_file
 	done
 done
 
-# Create all the dependencies using the fparser script (of which
-# we have a copy in PSyclone):
-# Preprocess all files
 pushd src
 # Create a dummy Makefile, which delegates the target to the
 # Makefile in this directory.
@@ -148,8 +164,10 @@ for i in $(find $SOURCE -iname "*.f90"); do
     all_files="$all_files $(realpath -s --relative-to=$SOURCE $i)"
 done
 
-echo "Creating dependencies for $(echo $all_files | wc -w) files"
-../create_dependencies.py $all_files  >dependency
+# Create all the dependencies using the fparser script (of which
+# we have a copy in PSyclone):
+echo "Creating dependencies.mk for $(echo $all_files | wc -w) files"
+../create_dependencies.py $all_files  >dependencies.mk
 
 # Copy the makefile include file that defines the required include flags:
 cp ../lfric_include_flags.mk .

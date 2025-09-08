@@ -419,28 +419,28 @@ is provided, which takes the location of a checked out version of
 LFRic core as parameter and updates all files required by PSyclone.
 This script will:
 
-1. Create a backup of the current src subdirectory in ``src.backup``.
-2. Copy all required source files from the LFRic core repository
-   into ``src``. Besides the infrastructure source from LFRic core,
-   it will also copy ``components/driver/source/driver_collections_mod.f90``
-   which makes running stand-alone LFRic binaries more robust.
-3. The script will run LFRic's ``Templerator`` to create additional
-   source files.
-4. Since PSyclone only supports pre-processed files, the script will
-   then preprocess all files from ``src`` into the directory
-   ``preprocessed``. It uses the flags::
+1. Create a backup of the current ``src`` subdirectory in ``src.backup``
+   (a previously existing ``src.backup`` directory will be deleted).
+2. Since PSyclone only supports pre-processed files, the script will
+   then preprocess all files from the LFRic infrastructure into the
+   directory ``external/lfric_infrastructure/src``. It uses the flags::
 
        -DNO_MPI -DRDEF_PRECISION=64 -DR_SOLVER_PRECISION=64 \
        -DR_TRAN_PRECISION=64 -DR_BL_PRECISION=64
-
-5. It will create a include makefile that contains all required
+3. Besides the infrastructure source from LFRic core,
+   it will also copy a few additional files from the ``components``
+   subdirectory which are required for the infrastructure or which
+   make the stand-alone LFRic binaries more robust for future LFRic
+   changes.
+4. The script will run LFRic's ``Templerator`` to create additional
+   source files.
+5. It will create an include makefile that contains all required
    include paths for any compilation tests in PSyclone.
 6. Then it runs a dependency analysis and creates a ``Makefile``
-   that compiles the library. It will then compile the library.
+   that compiles the library.
+7. It will then compile the library.
 
-In order to update the LFRic infrastructure files, first remove the
-currently ``preprocessed`` directory (in order to detect if files
-in LFRic core have been removed). Then checkout out the current
+In order to update the LFRic infrastructure files, checkout the current
 version of LFRic core, and run the ``update.sh`` script with
 the location of the checked out LFRic core repository. If the compilation
 step finished successful, add and remove the files in ``src`` and
