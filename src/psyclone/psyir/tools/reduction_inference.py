@@ -46,23 +46,24 @@ from psyclone.psyir.nodes import (
 
 
 class ReductionInferenceTool():
+    '''
+    Instances of this class are initialsied with a set of allowed
+    reduction operators. When inferring reduction clauses, only
+    reductions involving these operators are considered.
 
+    :param red_ops: a list of allowed reduction operators.
+    '''
     def __init__(self, red_ops: List[Union[BinaryOperation.Operator,
                                            IntrinsicCall.Intrinsic]] = []):
-        '''Instances of this class are initialsied with a set of allowed
-           reduction operators. When inferring reduction clauses, only
-           reductions involving these operators are considered.
-
-           :param red_ops: a list of allowed reduction operators.
-        '''
         self.red_ops = red_ops
 
     def _get_reduction_operator(self, node: Node) -> \
             Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
-        '''Return the reduction operator at the root of the given
-           DataNode or None if there isn't one.
+        '''
+        Return the reduction operator at the root of the given
+        DataNode or None if there isn't one.
 
-           :param node: the node to match against.
+        :param node: the node to match against.
         '''
         if isinstance(node, BinaryOperation):
             for op in self.red_ops:
@@ -76,9 +77,10 @@ class ReductionInferenceTool():
 
     @staticmethod
     def _match_sig(ref: Reference, sig: Signature) -> bool:
-        '''Returns True if the Signature of the given Reference
-           matches the given Signature, and the Reference involves no
-           array indicies.  Returns False otherwise.
+        '''
+        Returns True if the Signature of the given Reference matches
+        the given Signature, and the Reference involves no array
+        indices.  Returns False otherwise.
         '''
         (ref_sig, ref_indices) = ref.get_signature_and_indices()
 
@@ -96,18 +98,19 @@ class ReductionInferenceTool():
 
     def _get_write_reduction(self, node: Node, sig: Signature) -> \
             Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
-        '''Return the reduction operator for given node if it is the
-           LHS of an Assignment of the form _either_
+        '''
+        Return the reduction operator for given node if it is the
+        LHS of an Assignment of the form _either_
 
-             <Reference> = <Reference> <op> <DataNode>
+            <Reference> = <Reference> <op> <DataNode>
 
-           or
+        or
 
-             <Reference> = <DataNode> <op> <Reference>
+            <Reference> = <DataNode> <op> <Reference>
 
-           where <op> is an allowed reduction operator and the Signature
-           of <Reference> is a scalar reference matching the given Signature.
-           Otherwise, return None.
+        where <op> is an allowed reduction operator and the Signature
+        of <Reference> is a scalar reference matching the given Signature.
+        Otherwise, return None.
 
         :param node: the node to match against.
         :param sig: the candidate reduction variable.
@@ -129,18 +132,19 @@ class ReductionInferenceTool():
 
     def _get_read_reduction(self, node: Node, sig: Signature) -> \
             Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
-        '''Return reduction operator for given node if it is the child
-           of a DataNode which is the RHS of an Assignment of the form
+        '''
+        Return reduction operator for given node if it is the child
+        of a DataNode which is the RHS of an Assignment of the form
 
-             <Reference> = <Reference> <op> <DataNode>
+            <Reference> = <Reference> <op> <DataNode>
 
-           or
+        or
 
-             <Reference> = <DataNode> <op> <Reference>
+            <Reference> = <DataNode> <op> <Reference>
 
-           where <op> is an allowed reduction operator and the Signature
-           of <Reference> is a scalar reference matching the given Signature.
-           Otherwise, return
+        where <op> is an allowed reduction operator and the Signature
+        of <Reference> is a scalar reference matching the given Signature.
+        Otherwise, return None.
 
         :param node: the node to match against
         :param var_name: the candidate reduction variable.
@@ -162,15 +166,16 @@ class ReductionInferenceTool():
             Tuple[Union[BinaryOperation.Operator,
                         IntrinsicCall.Intrinsic],
                   Reference]:
-        '''Check that the variable with the given Signature can be handled
-           using a reduction clause and, if so, return that clause.
-           Otherwise, return None.
+        '''
+        Determine if the variable with the given Signature can be handled
+        using a reduction clause and, if so, return that clause.
+        Otherwise, return None.
 
-           :param node: the loop that will be parallelised.
-           :param sig: the variable being considered as a reduction variable.
-           :param access_info: the access info for that variable.
-           :returns: the operator/reference pair that can be used for the
-              reduction if reduction is possible, or None otherwise.
+        :param node: the node to be parallelised.
+        :param sig: the variable being considered as a reduction variable.
+        :param access_info: the access info for that variable.
+        :returns: the operator/reference pair that can be used for the
+           reduction if reduction is possible, or None otherwise.
         '''
         # Find all the reduction operators used for the given variable name.
         # Return early if we ever encounter a use of the variable which is
