@@ -158,7 +158,7 @@ class ReductionInferenceTool():
         Otherwise, return None.
 
         :param node: the node to match against
-        :param var_name: the candidate reduction variable.
+        :param sig: the candidate reduction variable.
         :returns: the reduction operator, or None.
         '''
         if isinstance(node, Reference):
