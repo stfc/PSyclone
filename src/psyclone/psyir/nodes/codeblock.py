@@ -279,3 +279,7 @@ class CodeBlock(Statement, DataNode):
                     if child.item and child.item.label:
                         return True
         return False
+
+class TSCodeBlock(CodeBlock):
+    def get_fortran_lines(self):
+        return [ast_node.text for ast_node in self.get_ast_nodes]

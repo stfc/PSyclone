@@ -50,6 +50,8 @@ from psyclone.configuration import Config
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Assignment, Node, Routine, Schedule
 from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.frontend.fortran_treesitter_reader import (
+    FortranTreeSitterReader)
 
 
 class FortranReader():
@@ -84,20 +86,28 @@ class FortranReader():
                  ignore_directives: bool = True,
                  last_comments_as_codeblocks: bool = False,
                  resolve_modules: Union[bool, List[str]] = False):
-        if not self._parser:
-            std = Config.get().fortran_standard
-            self._parser = ParserFactory().create(std=std)
-        self._free_form = free_form
-        if ignore_comments and not ignore_directives:
-            raise ValueError(
-                "Setting ignore_directives to False in the FortranReader will"
-                " only have an effect if ignore_comments is also set to False."
-            )
-        self._ignore_comments = ignore_comments
-        self._processor = Fparser2Reader(ignore_directives,
-                                         last_comments_as_codeblocks,
-                                         resolve_modules)
-        SYMBOL_TABLES.clear()
+        if os.environ.get("PSYCLONE_TS") is not None:
+            import tree_sitter_fortran
+            from tree_sitter import Language, Parser
+            language = Language(tree_sitter_fortran.language())
+            self._parser = Parser(language)
+            self._processor = FortranTreeSitterReader()
+        else:
+
+            if not self._parser:
+                std = Config.get().fortran_standard
+                self._parser = ParserFactory().create(std=std)
+            self._free_form = free_form
+            if ignore_comments and not ignore_directives:
+                raise ValueError(
+                    "Setting ignore_directives to False in the FortranReader will"
+                    " only have an effect if ignore_comments is also set to False."
+                )
+            self._ignore_comments = ignore_comments
+            self._processor = Fparser2Reader(ignore_directives,
+                                             last_comments_as_codeblocks,
+                                             resolve_modules)
+            SYMBOL_TABLES.clear()
 
     @staticmethod
     def validate_name(name: str):
@@ -129,6 +139,13 @@ class FortranReader():
         :raises ValueError: if the supplied Fortran cannot be parsed.
 
         '''
+        if os.environ.get("PSYCLONE_TS") is not None:
+            print(source_code)
+            tree = self._parser.parse(bytes(source_code, "utf8"))
+            print(tree.root_node)
+            psyir = self._processor.generate_psyir(tree.root_node)
+            print(psyir)
+            return psyir
         SYMBOL_TABLES.clear()
         string_reader = FortranStringReader(
             source_code, include_dirs=Config.get().include_paths,
@@ -249,6 +266,10 @@ class FortranReader():
         :raises ValueError: if the parser fails to parse the contents of
                             the supplied file.
         '''
+        if os.environ.get("PSYCLONE_TS") is not None:
+            with open(file_path, encoding="utf-8") as fortran_file:
+                return self.psyir_from_source(fortran_file.read())
+
         SYMBOL_TABLES.clear()
 
         # Note that this is the main performance hotspot in PSyclone, taking
