@@ -103,7 +103,7 @@ def _convert_argument_to_type_info(argument: DataNode,
             var_info.change_read_to_type_info()
         except InternalError:
             # The argument here is also used in some other way
-            # so we do nothing
+            # so we do nothing as the other usage has precedence.
             pass
 
 
@@ -123,7 +123,7 @@ def _reference_accesses_all_reads_with_optional_kind(
                   "kind" in node.argument_names else None)
     reference_accesses = VariablesAccessMap()
     for i, arg in enumerate(node.arguments):
-        accesses = node.arguments.reference_accesses()
+        accesses = arg.reference_accesses()
         if kind_index == i:
             if isinstance(arg, Reference):
                 _convert_argument_to_type_info(arg, accesses)
@@ -640,7 +640,9 @@ class IntrinsicCall(Call):
             optional_args={},
             # TODO 1590 Complex conversion unsupported.
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ACHAR = IAttr(
             name="ACHAR",
@@ -650,7 +652,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={"kind": DataNode},
             return_type=CHARACTER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ACOS = IAttr(
             name="ACOS",
@@ -660,7 +664,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ACOSH = IAttr(
             name="ACOSH",
@@ -670,7 +676,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ADJUSTL = IAttr(
             name="ADJUSTL",
@@ -681,7 +689,9 @@ class IntrinsicCall(Call):
             optional_args={},
             # TODO 2612 This may be more complex if we support character len
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ADJUSTR = IAttr(
             name="ADJUSTR",
@@ -692,7 +702,9 @@ class IntrinsicCall(Call):
             optional_args={},
             # TODO 2612 This may be more complex if we support character len
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         AIMAG = IAttr(
             name="AIMAG",
@@ -703,7 +715,9 @@ class IntrinsicCall(Call):
             optional_args={},
             # TODO #1590 Complex numbers' precision unsupported.
             return_type=lambda node: UnresolvedType(),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         AINT = IAttr(
             name="AINT",
@@ -722,7 +736,9 @@ class IntrinsicCall(Call):
                     ),
                 )
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ALL = IAttr(
             name="ALL",
@@ -732,7 +748,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={"dim": DataNode},
             return_type=_get_first_argument_specified_kind_with_optional_dim,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ALLOCATED = IAttr(
             name="ALLOCATED",
@@ -742,7 +760,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Inquiry function.
         )
         ANINT = IAttr(
             name="ANINT",
@@ -761,7 +779,9 @@ class IntrinsicCall(Call):
                     ),
                 )
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ANY = IAttr(
             name="ANY",
@@ -771,7 +791,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={"dim": DataNode},
             return_type=_get_first_argument_specified_kind_with_optional_dim,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ASIN = IAttr(
             name="ASIN",
@@ -781,7 +803,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ASINH = IAttr(
             name="ASINH",
@@ -791,7 +815,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ASSOCIATED = IAttr(
             name="ASSOCIATED",
@@ -801,7 +827,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={"target": DataNode},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Inquiry function
         )
         ATAN = IAttr(
             name="ATAN",
@@ -814,7 +840,9 @@ class IntrinsicCall(Call):
             # is the of the second argument, however the standard defines
             # the type and kind type of both arguments must be the same.
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ATAN2 = IAttr(
             name="ATAN2",
@@ -824,7 +852,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ATANH = IAttr(
             name="ATANH",
@@ -834,7 +864,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ATOMIC_ADD = IAttr(
             name="ATOMIC_ADD",
@@ -844,7 +876,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={"stat": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Write read Write
         )
         ATOMIC_AND = IAttr(
             name="ATOMIC_AND",
@@ -854,7 +886,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={"stat": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Write read Write
         )
         ATOMIC_CAS = IAttr(
             name="ATOMIC_CAS",
@@ -864,7 +896,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={"stat": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Write Write read read Write
         )
         ATOMIC_DEFINE = IAttr(
             name="ATOMIC_DEFINE",
@@ -874,7 +906,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={"stat": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Write read Write
         )
         ATOMIC_FETCH_ADD = IAttr(
             name="ATOMIC_FETCH_ADD",
@@ -884,7 +916,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(3, 3, DataNode),
             optional_args={"stat": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Write read write write
         )
         ATOMIC_FETCH_AND = IAttr(
             name="ATOMIC_FETCH_AND",
@@ -894,7 +926,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(3, 3, DataNode),
             optional_args={"stat": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Write read write write
         )
         ATOMIC_FETCH_OR = IAttr(
             name="ATOMIC_FETCH_OR",
@@ -904,7 +936,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(3, 3, DataNode),
             optional_args={"stat": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Write read write write
         )
         ATOMIC_FETCH_XOR = IAttr(
             name="ATOMIC_FETCH_XOR",
@@ -914,7 +946,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(3, 3, DataNode),
             optional_args={"stat": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Write read write write
         )
         ATOMIC_OR = IAttr(
             name="ATOMIC_OR",
@@ -924,7 +956,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={"stat": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Write read Write
         )
         ATOMIC_REF = IAttr(
             name="ATOMIC_REF",
@@ -934,7 +966,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={"stat": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Write read write
         )
         ATOMIC_XOR = IAttr(
             name="ATOMIC_XOR",
@@ -944,7 +976,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={"stat": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Write read write
         )
         BESSEL_J0 = IAttr(
             name="BESSEL_J0",
@@ -954,7 +986,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_real_with_argone_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         BESSEL_J1 = IAttr(
             name="BESSEL_J1",
@@ -964,7 +998,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_real_with_argone_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         BESSEL_JN = IAttr(
             name="BESSEL_JN",
@@ -974,7 +1010,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 3, DataNode),
             optional_args={},
             return_type=_get_real_with_x_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         BESSEL_Y0 = IAttr(
             name="BESSEL_Y0",
@@ -984,7 +1022,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_real_with_argone_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         BESSEL_Y1 = IAttr(
             name="BESSEL_Y1",
@@ -994,7 +1034,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_real_with_argone_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         BESSEL_YN = IAttr(
             name="BESSEL_YN",
@@ -1004,7 +1046,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 3, DataNode),
             optional_args={},
             return_type=_get_real_with_x_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         BGE = IAttr(
             name="BGE",
@@ -1014,7 +1058,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         BGT = IAttr(
             name="BGT",
@@ -1024,7 +1070,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         BIT_SIZE = IAttr(
             name="BIT_SIZE",
@@ -1034,7 +1082,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Inquiry function.
         )
         BLE = IAttr(
             name="BLE",
@@ -1044,7 +1092,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         BLT = IAttr(
             name="BLT",
@@ -1054,7 +1104,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         BTEST = IAttr(
             name="BTEST",
@@ -1064,7 +1116,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         CEILING = IAttr(
             name="CEILING",
@@ -1074,7 +1128,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={"kind": DataNode},
             return_type=_get_integer_with_optional_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         CHAR = IAttr(
             name="CHAR",
@@ -1084,7 +1140,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={"kind": DataNode},
             return_type=CHARACTER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         CMPLX = IAttr(
             name="CMPLX",
@@ -1095,7 +1153,9 @@ class IntrinsicCall(Call):
             optional_args={"Y": DataNode, "kind": DataNode},
             # TODO #1590 Complex numbers unsupported.
             return_type=lambda node: UnresolvedType(),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         CO_BROADCAST = IAttr(
             name="CO_BROADCAST",
@@ -1105,7 +1165,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 2, DataNode),
             optional_args={"stat": DataNode, "errmsg": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME ReadWrite, READ, Write, Write
         )
         CO_MAX = IAttr(
             name="CO_MAX",
@@ -1117,7 +1177,7 @@ class IntrinsicCall(Call):
                            "stat": DataNode,
                            "errmsg": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME readwrite, read, write, write
         )
         CO_MIN = IAttr(
             name="CO_MIN",
@@ -1129,7 +1189,7 @@ class IntrinsicCall(Call):
                            "stat": DataNode,
                            "errmsg": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME readwrite, read, write, write
         )
         CO_REDUCE = IAttr(
             name="CO_REDUCE",
@@ -1142,6 +1202,7 @@ class IntrinsicCall(Call):
                            "errmsg": DataNode},
             return_type=None,
             reference_accesses=None,
+            # FIXME readwrite, inquiry?, read, write, write
         )
         CO_SUM = IAttr(
             name="CO_SUM",
@@ -1153,7 +1214,7 @@ class IntrinsicCall(Call):
                            "stat": DataNode,
                            "errmsg": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME readwrite, read, write, write
         )
         COMMAND_ARGUMENT_COUNT = IAttr(
             name="COMMAND_ARGUMENT_COUNT",
@@ -1163,7 +1224,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(0, 0, None),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME None
         )
         CONJG = IAttr(
             name="CONJG",
@@ -1174,7 +1235,9 @@ class IntrinsicCall(Call):
             optional_args={},
             # TODO #1590 Complex numbers unsupported.
             return_type=lambda node: UnresolvedType(),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         COS = IAttr(
             name="COS",
@@ -1184,7 +1247,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         COSH = IAttr(
             name="COSH",
@@ -1194,7 +1259,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         COSHAPE = IAttr(
             name="COSHAPE",
@@ -1222,7 +1289,7 @@ class IntrinsicCall(Call):
                     for index in node.arguments[0].datatype.shape
                 ],
             ),
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME inquiry, kind
         )
         COUNT = IAttr(
             name="COUNT",
@@ -1232,7 +1299,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=_get_integer_of_kind_with_optional_dim,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         CPU_TIME = IAttr(
             name="CPU_TIME",
@@ -1242,7 +1311,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME write
         )
         CSHIFT = IAttr(
             name="CSHIFT",
@@ -1252,7 +1321,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={"dim": DataNode},
             return_type=_get_first_argument_type,  # FIXME Wait on Sergi reply
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         DATE_AND_TIME = IAttr(
             name="DATE_AND_TIME",
@@ -1267,7 +1338,7 @@ class IntrinsicCall(Call):
                 "values": DataNode,
             },
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME All write arguments
         )
         DBLE = IAttr(
             name="DBLE",
@@ -1277,7 +1348,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=REAL_DOUBLE_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         DIGITS = IAttr(
             name="DIGITS",
@@ -1287,7 +1360,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Inquiry
         )
         DIM = IAttr(
             name="DIM",
@@ -1297,7 +1370,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         DOT_PRODUCT = IAttr(
             name="DOT_PRODUCT",
@@ -1310,7 +1385,9 @@ class IntrinsicCall(Call):
                 node.arguments[0].datatype.intrinsic,
                 node.arguments[0].datatype.precision,
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         DPROD = IAttr(
             name="DPROD",
@@ -1320,7 +1397,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={},
             return_type=REAL8_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         DSHIFTL = IAttr(
             name="DSHIFTL",
@@ -1334,7 +1413,9 @@ class IntrinsicCall(Call):
                 if not isinstance(node.arguments[0], Literal)
                 else node.arguments[1].datatype.copy()
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         DSHIFTR = IAttr(
             name="DSHIFTR",
@@ -1348,7 +1429,9 @@ class IntrinsicCall(Call):
                 if not isinstance(node.arguments[0], Literal)
                 else node.arguments[1].datatype.copy()
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         EOSHIFT = IAttr(
             name="EOSHIFT",
@@ -1359,7 +1442,9 @@ class IntrinsicCall(Call):
             optional_args={"boundary": DataNode, "dim": DataNode},
             return_type=_get_first_argument_type,
             # FIXME Wait for Sergi reply.
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         EPSILON = IAttr(
             name="EPSILON",
@@ -1369,7 +1454,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME inquiry
         )
         ERF = IAttr(
             name="ERF",
@@ -1379,7 +1464,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_real_with_argone_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ERFC = IAttr(
             name="ERFC",
@@ -1389,7 +1476,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_real_with_argone_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ERFC_SCALED = IAttr(
             name="ERFC_SCALED",
@@ -1399,7 +1488,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_real_with_argone_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         EVENT_QUERY = IAttr(
             name="EVENT_QUERY",
@@ -1409,7 +1500,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={"stat": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME read write write
         )
         EXECUTE_COMMAND_LINE = IAttr(
             name="EXECUTE_COMMAND_LINE",
@@ -1424,7 +1515,7 @@ class IntrinsicCall(Call):
                 "cmdmsg": DataNode,
             },
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME read read write write write
         )
         EXP = IAttr(
             name="EXP",
@@ -1434,7 +1525,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         EXPONENT = IAttr(
             name="EXPONENT",
@@ -1444,7 +1537,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         EXTENDS_TYPE_OF = IAttr(
             name="EXTENDS_TYPE_OF",
@@ -1454,7 +1549,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Inquiry
         )
         FAILED_IMAGES = IAttr(
             name="FAILED_IMAGES",
@@ -1474,7 +1569,9 @@ class IntrinsicCall(Call):
                 ),
                 [ArrayType.Extent.DEFERRED],
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         FINDLOC = IAttr(
             name="FINDLOC",
@@ -1486,7 +1583,9 @@ class IntrinsicCall(Call):
                            "kind": DataNode,
                            "back": DataNode},
             return_type=_findloc_return_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         FLOAT = IAttr(
             name="FLOAT",
@@ -1496,7 +1595,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=REAL_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         FLOOR = IAttr(
             name="FLOOR",
@@ -1506,7 +1607,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={"kind": DataNode},
             return_type=_get_integer_with_optional_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         FRACTION = IAttr(
             name="FRACTION",
@@ -1516,7 +1619,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         GAMMA = IAttr(
             name="GAMMA",
@@ -1526,7 +1631,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         GET_COMMAND = IAttr(
             name="GET_COMMAND",
@@ -1541,7 +1648,7 @@ class IntrinsicCall(Call):
                 "errmsg": DataNode,
             },
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME WRITE, WRITE, WRITE
         )
         GET_COMMAND_ARGUMENT = IAttr(
             name="GET_COMMAND_ARGUMENT",
@@ -1553,10 +1660,11 @@ class IntrinsicCall(Call):
                 "value": DataNode,
                 "length": DataNode,
                 "status": DataNode,
+                # FIXME THis doesn't take errmsg.
                 "errmsg": DataNode,
             },
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME READ, Write, Write, Write
         )
         GET_ENVIRONMENT_VARIABLE = IAttr(
             name="GET_ENVIRONMENT_VARIABLE",
@@ -1569,10 +1677,11 @@ class IntrinsicCall(Call):
                 "length": DataNode,
                 "status": DataNode,
                 "trim_name": DataNode,
+                # FIXME This doesn't take errmsg.
                 "errmsg": DataNode,
             },
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME read, write, read, write, read
         )
         GET_TEAM = IAttr(
             name="GET_TEAM",
@@ -1583,7 +1692,9 @@ class IntrinsicCall(Call):
             optional_args={"level": DataNode},
             # Unsupported return type (TEAM_TYPE from ISO_FORTRAN_ENV).
             return_type=lambda node: UnresolvedType(),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         HUGE = IAttr(
             name="HUGE",
@@ -1593,7 +1704,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (Reference, Literal)),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         HYPOT = IAttr(
             name="HYPOT",
@@ -1603,7 +1716,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, (DataNode)),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         IACHAR = IAttr(
             name="IACHAR",
@@ -1613,7 +1728,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={"kind": DataNode},
             return_type=_get_integer_with_optional_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         IALL = IAttr(
             name="IALL",
@@ -1630,7 +1747,9 @@ class IntrinsicCall(Call):
             optional_args={"dim": DataNode, "mask": DataNode},
             # There is no kind, but this call will work.
             return_type=_get_integer_of_kind_with_optional_dim,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         IAND = IAttr(
             name="IAND",
@@ -1644,7 +1763,9 @@ class IntrinsicCall(Call):
                 if not isinstance(node.arguments[0], Literal)
                 else node.arguments[1].datatype.copy()
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         IANY = IAttr(
             name="IANY",
@@ -1661,7 +1782,9 @@ class IntrinsicCall(Call):
             optional_args={"dim": DataNode, "mask": DataNode},
             # There is no kind, but this call will work.
             return_type=_get_integer_of_kind_with_optional_dim,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         IBCLR = IAttr(
             name="IBCLR",
@@ -1671,7 +1794,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, (DataNode)),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         IBITS = IAttr(
             name="IBITS",
@@ -1681,7 +1806,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(3, 3, (DataNode)),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         IBSET = IAttr(
             name="IBSET",
@@ -1691,7 +1818,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, (DataNode)),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ICHAR = IAttr(
             name="ICHAR",
@@ -1701,7 +1830,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={"kind": DataNode},
             return_type=_get_integer_with_optional_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         IEOR = IAttr(
             name="IEOR",
@@ -1715,7 +1846,9 @@ class IntrinsicCall(Call):
                 if not isinstance(node.arguments[0], Literal)
                 else node.arguments[1].datatype.copy()
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         IMAGE_INDEX = IAttr(
             name="IMAGE_INDEX",
@@ -1725,7 +1858,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 3, (DataNode)),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         IMAGE_STATUS = IAttr(
             name="IMAGE_STATUS",
@@ -1735,7 +1870,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={"team": DataNode},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         INDEX = IAttr(
             name="INDEX",
@@ -1745,7 +1882,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, (DataNode)),
             optional_args={"back": DataNode, "kind": DataNode},
             return_type=_get_integer_with_optional_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         INT = IAttr(
             name="INT",
@@ -1755,7 +1894,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={"kind": DataNode},
             return_type=_int_return_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         IOR = IAttr(
             name="IOR",
@@ -1772,7 +1913,9 @@ class IntrinsicCall(Call):
                     else node.arguments[1].datatype.precision
                 ),
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         IPARITY = IAttr(
             name="IPARITY",
@@ -1782,7 +1925,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 2, (DataNode)),
             optional_args={"mask": DataNode},
             return_type=_iparity_return_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         IS_CONTIGUOUS = IAttr(
             name="IS_CONTIGUOUS",
@@ -1792,7 +1937,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Inquiry
         )
         IS_IOSTAT_END = IAttr(
             name="IS_IOSTAT_END",
@@ -1802,7 +1947,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         IS_IOSTAT_EOR = IAttr(
             name="IS_IOSTAT_EOR",
@@ -1812,7 +1959,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ISHFT = IAttr(
             name="ISHFT",
@@ -1822,7 +1971,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, (DataNode)),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         ISHFTC = IAttr(
             name="ISHFTC",
@@ -1832,7 +1983,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, (DataNode)),
             optional_args={"size": DataNode},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         KIND = IAttr(
             name="KIND",
@@ -1842,7 +1995,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Inquiry
         )
         LBOUND = IAttr(
             name="LBOUND",
@@ -1852,7 +2005,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=_get_bound_function_return_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         LCOBOUND = IAttr(
             name="LCOBOUND",
@@ -1862,7 +2017,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=_get_bound_function_return_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         LEADZ = IAttr(
             name="LEADZ",
@@ -1872,7 +2029,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         LEN = IAttr(
             name="LEN",
@@ -1882,7 +2041,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={"kind": DataNode},
             return_type=_get_integer_with_optional_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         LEN_TRIM = IAttr(
             name="LEN_TRIM",
@@ -1892,7 +2053,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={"kind": DataNode},
             return_type=_get_integer_with_optional_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         LGE = IAttr(
             name="LGE",
@@ -1902,7 +2065,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, (DataNode)),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         LGT = IAttr(
             name="LGT",
@@ -1912,7 +2077,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, (DataNode)),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         LLE = IAttr(
             name="LLE",
@@ -1922,7 +2089,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, (DataNode)),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         LLT = IAttr(
             name="LLT",
@@ -1932,7 +2101,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, (DataNode)),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         LOG = IAttr(
             name="LOG",
@@ -1942,7 +2113,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         LOG_GAMMA = IAttr(
             name="LOG_GAMMA",
@@ -1952,7 +2125,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         LOG10 = IAttr(
             name="LOG10",
@@ -1962,7 +2137,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         LOGICAL = IAttr(
             name="LOGICAL",
@@ -1972,7 +2149,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={"kind": DataNode},
             return_type=_get_first_argument_type_with_optional_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         MASKL = IAttr(
             name="MASKL",
@@ -1982,7 +2161,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={"kind": DataNode},
             return_type=_get_integer_with_optional_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         MASKR = IAttr(
             name="MASKR",
@@ -1992,7 +2173,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={"kind": DataNode},
             return_type=_get_integer_with_optional_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         MATMUL = IAttr(
             name="MATMUL",
@@ -2002,7 +2185,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={},
             return_type=_matmul_return_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         MAX = IAttr(
             name="MAX",
@@ -2012,7 +2197,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, None, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         MAXEXPONENT = IAttr(
             name="MAXEXPONENT",
@@ -2022,7 +2209,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Inquiry
         )
         MAXLOC = IAttr(
             name="MAXLOC",
@@ -2039,7 +2226,9 @@ class IntrinsicCall(Call):
             return_type=(
                 _get_first_argument_intrinsic_with_optional_kind_and_dim
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         MAXVAL = IAttr(
             name="MAXVAL",
@@ -2049,7 +2238,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={"dim": DataNode, "mask": DataNode},
             return_type=_maxval_return_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         MERGE = IAttr(
             name="MERGE",
@@ -2059,7 +2250,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(3, 3, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         MERGE_BITS = IAttr(
             name="MERGE_BITS",
@@ -2069,7 +2262,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(3, 3, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         MIN = IAttr(
             name="MIN",
@@ -2079,7 +2274,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, None, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         MINEXPONENT = IAttr(
             name="MINEXPONENT",
@@ -2089,7 +2286,10 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+            reference_accesses=None,  # FIXME Inquiry function
         )
         MINLOC = IAttr(
             name="MINLOC",
@@ -2106,7 +2306,9 @@ class IntrinsicCall(Call):
             return_type=(
                 _get_first_argument_intrinsic_with_optional_kind_and_dim
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         MINVAL = IAttr(
             name="MINVAL",
@@ -2116,7 +2318,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={"dim": DataNode, "mask": DataNode},
             return_type=_maxval_return_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         MOD = IAttr(
             name="MOD",
@@ -2126,7 +2330,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         MODULO = IAttr(
             name="MODULO",
@@ -2136,7 +2342,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         MOVE_ALLOC = IAttr(
             name="MOVE_ALLOC",
@@ -2144,9 +2352,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(2, 2, DataNode),
+            # FIXME No stat or errmsg arguments...
             optional_args={"stat": DataNode, "errmsg": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Readwrite, write
         )
         MVBITS = IAttr(
             name="MVBITS",
@@ -2156,7 +2365,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(5, 5, DataNode),
             optional_args={},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME read read read write read
         )
         NEAREST = IAttr(
             name="NEAREST",
@@ -2166,17 +2375,20 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         NEW_LINE = IAttr(
             name="NEW_LINE",
             is_pure=True,
             is_elemental=True,
+            # FIXME This is inquiry
             is_inquiry=False,
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=CHARACTER_TYPE,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME inquiry
         )
         NINT = IAttr(
             name="NINT",
@@ -2186,7 +2398,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={"kind": DataNode},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         NORM2 = IAttr(
             name="NORM2",
@@ -2200,7 +2414,9 @@ class IntrinsicCall(Call):
             return_type=(
                 _get_first_argument_intrinsic_with_optional_kind_and_dim
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         NOT = IAttr(
             name="NOT",
@@ -2213,7 +2429,9 @@ class IntrinsicCall(Call):
                 ScalarType.Intrinsic.INTEGER,
                 node.arguments[0].datatype.precision
             ),
-            reference_accesses=None
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         NULL = IAttr(
             name="NULL",
@@ -2224,7 +2442,7 @@ class IntrinsicCall(Call):
             optional_args={"mold": DataNode},
             # Returns a dissociated pointed - not supported.
             return_type=lambda node: UnresolvedType(),
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME type info
         )
         NUM_IMAGES = IAttr(
             name="NUM_IMAGES",
@@ -2234,7 +2452,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(0, 1, DataNode),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         OUT_OF_RANGE = IAttr(
             name="OUT_OF_RANGE",
@@ -2244,7 +2464,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={"round": DataNode},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Read, typeinfo, read
         )
         PACK = IAttr(
             name="PACK",
@@ -2259,17 +2479,21 @@ class IntrinsicCall(Call):
                     node.arguments[0].datatype.precision),
                 [ArrayType.Extent.DEFERRED]
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         PARITY = IAttr(
             name="PARITY",
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 2, DataNode),
-            optional_args={},
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"dim": DataNode},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         POPCNT = IAttr(
             name="POPCNT",
@@ -2279,7 +2503,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         POPPAR = IAttr(
             name="POPPAR",
@@ -2289,7 +2515,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         PRECISION = IAttr(
             name="PRECISION",
@@ -2299,7 +2527,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Inquiry
         )
         PRESENT = IAttr(
             name="PRESENT",
@@ -2309,7 +2537,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Inquiry
         )
         PRODUCT = IAttr(
             name="PRODUCT",
@@ -2323,7 +2551,9 @@ class IntrinsicCall(Call):
                     node, node.arguments[0].datatype.intrinsic
                 )
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         RADIX = IAttr(
             name="RADIX",
@@ -2333,7 +2563,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None
+            reference_accesses=None,  # FIXME Inquiry
         )
         RANDOM_INIT = IAttr(
             name="RANDOM_INIT",
@@ -2343,7 +2573,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         RANDOM_NUMBER = IAttr(
             name="RANDOM_NUMBER",
@@ -2353,7 +2585,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, Reference),
             optional_args={},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME write
         )
         RANDOM_SEED = IAttr(
             name="RANDOM_SEED",
@@ -2363,7 +2595,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(0, 0, Reference),
             optional_args={"size": DataNode, "put": DataNode, "Get": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME write, read, write
         )
         RANGE = IAttr(
             name="RANGE",
@@ -2373,7 +2605,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, Reference),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME inquiry
         )
         RANK = IAttr(
             name="RANK",
@@ -2383,7 +2615,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, Reference),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None
+            reference_accesses=None,  # FIXME Inquiry
         )
         REAL = IAttr(
             name="REAL",
@@ -2402,7 +2634,9 @@ class IntrinsicCall(Call):
                     ),
                 )
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         REDUCE = IAttr(
             name="REDUCE",
@@ -2414,7 +2648,9 @@ class IntrinsicCall(Call):
                            "identity": DataNode,
                            "ordered": DataNode},
             return_type=_reduce_return_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         REPEAT = IAttr(
             name="REPEAT",
@@ -2424,7 +2660,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, Reference),
             optional_args={},
             return_type=CHARACTER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         RESHAPE = IAttr(
             name="RESHAPE",
@@ -2436,7 +2674,9 @@ class IntrinsicCall(Call):
             # I went with unresolved for now as the result depends on
             # argument 2 (even the dimensionality).
             return_type=lambda node: UnresolvedType(),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         RRSPACING = IAttr(
             name="RRSPACING",
@@ -2446,7 +2686,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, Reference),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         SAME_TYPE_AS = IAttr(
             name="SAME_TYPE_AS",
@@ -2456,7 +2698,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, Reference),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Inquiry
         )
         SCALE = IAttr(
             name="SCALE",
@@ -2466,7 +2708,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, Reference),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         SCAN = IAttr(
             name="SCAN",
@@ -2476,27 +2720,35 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, Reference),
             optional_args={"back": DataNode, "kind": DataNode},
             return_type=_get_integer_with_optional_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         SELECTED_CHAR_KIND = IAttr(
             name="SELECTED_CHAR_KIND",
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
+            # FIXME this should be DataNode?
             required_args=ArgDesc(1, 1, Reference),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         SELECTED_INT_KIND = IAttr(
             name="SELECTED_INT_KIND",
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
+            # FIXME this should be DataNode?
             required_args=ArgDesc(1, 1, Reference),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         SELECTED_REAL_KIND = IAttr(
             name="SELECTED_REAL_KIND",
@@ -2506,7 +2758,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(0, 0, Reference),
             optional_args={"P": DataNode, "R": DataNode, "radix": DataNode},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         SET_EXPONENT = IAttr(
             name="SET_EXPONENT",
@@ -2516,7 +2770,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, Reference),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         SHAPE = IAttr(
             name="SHAPE",
@@ -2536,7 +2792,7 @@ class IntrinsicCall(Call):
                         Literal(str(len(node.arguments[0].datatype.shape)),
                                 INTEGER_TYPE))])
             ),
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Inquiry, typeinfo
         )
         SHIFTA = IAttr(
             name="SHIFTA",
@@ -2546,7 +2802,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, Reference),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         SHIFTL = IAttr(
             name="SHIFTL",
@@ -2556,7 +2814,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, Reference),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         SHIFTR = IAttr(
             name="SHIFTR",
@@ -2566,7 +2826,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, Reference),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         SIGN = IAttr(
             name="SIGN",
@@ -2576,7 +2838,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         SIN = IAttr(
             name="SIN",
@@ -2586,7 +2850,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         SINH = IAttr(
             name="SINH",
@@ -2596,7 +2862,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         SIZE = IAttr(
             name="SIZE",
@@ -2606,7 +2874,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=_get_integer_with_optional_kind,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Inquiry, read, type_info
         )
         SPACING = IAttr(
             name="SPACING",
@@ -2616,7 +2884,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME inquiry
         )
         SPREAD = IAttr(
             name="SPREAD",
@@ -2634,7 +2902,9 @@ class IntrinsicCall(Call):
                  if isinstance(node.arguments[0].datatype, ArrayType) else
                  [ArrayType.Extent.DEFERRED])
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         SQRT = IAttr(
             name="SQRT",
@@ -2646,7 +2916,9 @@ class IntrinsicCall(Call):
             # FIXME For reviewer - I put unresolved type because it can return
             # COMPLEX depending on input.
             return_type=lambda node: UnresolvedType(),
-            reference_accesses=None
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         STOPPED_IMAGES = IAttr(
             name="STOPPED_IMAGES",
@@ -2659,7 +2931,9 @@ class IntrinsicCall(Call):
                 _get_integer_with_optional_kind(node),
                 [ArrayType.Extent.DEFERRED]
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         STORAGE_SIZE = IAttr(
             name="STORAGE_SIZE",
@@ -2669,7 +2943,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={"kind": DataNode},
             return_type=_get_integer_with_optional_kind,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Inquiry
         )
         SUM = IAttr(
             name="SUM",
@@ -2685,7 +2959,9 @@ class IntrinsicCall(Call):
                     node, node.arguments[0].datatype.intrinsic
                 )
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         SYSTEM_CLOCK = IAttr(
             name="SYSTEM_CLOCK",
@@ -2697,7 +2973,7 @@ class IntrinsicCall(Call):
                            "count_rate": DataNode,
                            "count_max": DataNode},
             return_type=None,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME write, write, write
         )
         TAN = IAttr(
             name="TAN",
@@ -2707,7 +2983,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         TANH = IAttr(
             name="TANH",
@@ -2717,7 +2995,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         # FIXME I'm not sure this exists?
         TEAM_IMAGE = IAttr(
@@ -2742,7 +3022,9 @@ class IntrinsicCall(Call):
                            "team": DataNode,
                            "dim": DataNode},
             return_type=lambda node: UnresolvedType(),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         TINY = IAttr(
             name="TINY",
@@ -2752,7 +3034,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (Reference, Literal)),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME Inquiry
         )
         TRAILZ = IAttr(
             name="TRAILZ",
@@ -2762,7 +3044,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         TRANSFER = IAttr(
             name="TRANSFER",
@@ -2781,7 +3065,9 @@ class IntrinsicCall(Call):
                     [ArrayType.Extent.DEFERRED])
 
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         TRANSPOSE = IAttr(
             name="TRANSPOSE",
@@ -2796,7 +3082,9 @@ class IntrinsicCall(Call):
                 [node.arguments[0].datatype.shape[1],
                  node.arguments[0].datatype.shape[0]]
             ),
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         TRIM = IAttr(
             name="TRIM",
@@ -2806,7 +3094,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
             return_type=CHARACTER_TYPE,
-            reference_accesses=None
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         UBOUND = IAttr(
             name="UBOUND",
@@ -2816,7 +3106,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=_get_bound_function_return_type,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME inquiry, read, type_info
         )
         UCOBOUND = IAttr(
             name="UCOBOUND",
@@ -2826,7 +3116,7 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=_get_bound_function_return_type,
-            reference_accesses=None,
+            reference_accesses=None,  # FIXME inquiry, read, type_info
         )
         UNPACK = IAttr(
             name="UNPACK",
@@ -2836,7 +3126,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(3, 3, DataNode),
             optional_args={},
             return_type=_get_first_argument_type,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         VERIFY = IAttr(
             name="VERIFY",
@@ -2846,7 +3138,9 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(2, 2, DataNode),
             optional_args={"back": DataNode, "kind": DataNode},
             return_type=_get_integer_with_optional_kind,
-            reference_accesses=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
 
         def __hash__(self):

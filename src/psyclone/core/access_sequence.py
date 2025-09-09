@@ -328,7 +328,6 @@ class AccessSequence(list):
         '''
         read_access = None
         for acc in self:
-
             if acc.access_type == AccessType.READ:
                 if read_access:
                     raise InternalError(
