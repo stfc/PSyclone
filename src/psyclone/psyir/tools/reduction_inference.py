@@ -120,9 +120,18 @@ class ReductionInferenceTool():
         '''
         if isinstance(node, Reference):
             if self._match_sig(node, sig):
+                # We have found a write access to the candidate reduction
+                # variable. Now check that the parent of this write access
+                # is an assignment.
                 if isinstance(node.parent, Assignment):
+                    # Check that the RHS of the assignment has a reduction
+                    # operator at its root.
                     op = self._get_reduction_operator(node.parent.rhs)
                     if op:
+                        # Require that exactly one child of the reduction
+                        # operator is the candidate reduction variable
+                        # (x = x + x is not a valid reduction involving
+                        # the + operator).
                         child_ok = []
                         for child in node.parent.rhs.children[:2]:
                             child_ok.append(isinstance(child, Reference) and
@@ -154,8 +163,13 @@ class ReductionInferenceTool():
         '''
         if isinstance(node, Reference):
             if self._match_sig(node, sig):
+                # We have found a read access to the candidate reduction
+                # variable. Now check that the parent of this read access
+                # is an application of a reduction operator.
                 op = self._get_reduction_operator(node.parent)
                 if op:
+                    # Also check that the parent of the reduction operator
+                    # is an assigment of the candidate reduction variable.
                     if isinstance(node.parent.parent, Assignment):
                         lhs = node.parent.parent.lhs
                         if isinstance(lhs, Reference):
@@ -169,9 +183,9 @@ class ReductionInferenceTool():
                         IntrinsicCall.Intrinsic],
                   Reference]:
         '''
-        Determine if the variable with the given Signature can be handled
-        using a reduction clause and, if so, return that clause.
-        Otherwise, return None.
+        Determine if the variable with the given Signature and AccessInfo
+        can be handled using a reduction clause and, if so, return that
+        clause. Otherwise, return None.
 
         :param node: the node to be parallelised.
         :param sig: the variable being considered as a reduction variable.
@@ -179,7 +193,11 @@ class ReductionInferenceTool():
         :returns: the operator/reference pair that can be used for the
            reduction if reduction is possible, or None otherwise.
         '''
-        # Find all the reduction operators used for the given variable name.
+        # Iterate over all read and write accesses to the candidate reduction
+        # variable. If all read accesses conform to the get_read_reduction()
+        # form, and all write accesses to the get_write_reduction() form,
+        # and all reductions involve the same reduction operator, then
+        # the variable and operator are returned as a reduction clause.
         # Return early if we ever encounter a use of the variable which is
         # not in the form of a reduction.
         ops = []
@@ -189,19 +207,22 @@ class ReductionInferenceTool():
                 return None
             ops.append(op)
             ref = access.node
+        # If we reach here, then all read accesses are in the form of
+        # a reduction. Now check write accesses.
         for access in access_info.all_write_accesses:
             op = self._get_write_reduction(access.node, sig)
             if op is None:
                 return None
             ops.append(op)
             ref = access.node
-
-        # No suitable reductions found?
+        # If we reach here, then all read accesses and all write accesses
+        # are in the form of a reduction. But there may be no accesses,
+        # in which case we return None.
         if ops == []:
             return None
-
-        # All candidate reductions must involve the same operator.
+        # Require that all reductions found involve the same operator.
         if any(op != ops[0] for op in ops):
             return None
-
+        # Return the reduction operator and a (detached) copy of one of
+        # the references to the reduction variable.
         return (op, ref.copy())

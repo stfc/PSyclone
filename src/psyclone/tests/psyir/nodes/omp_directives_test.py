@@ -4818,6 +4818,26 @@ def test_reduction_intrins(fortran_reader, fortran_writer):
         assert f"reduction({op}: acc)" in output
 
 
+def test_bracketed_reductions(fortran_reader, fortran_writer):
+    ''' Test brakcted reductions are correctly detected.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = (arr(i) + i) + acc
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
 def test_multiple_reductions(fortran_reader, fortran_writer):
     ''' Test that a loop containing multiple reductions is parallelised.
     '''
