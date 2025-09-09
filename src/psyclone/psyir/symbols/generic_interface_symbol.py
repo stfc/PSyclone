@@ -50,6 +50,10 @@ class GenericInterfaceSymbol(RoutineSymbol):
     '''Symbol identifying a generic interface that maps to a number of
     different callable routines.
 
+    Unlike the parent classes, the constructor for this class cannot be
+    supplied with the 'is_pure', 'is_elemental' or 'datatype' properties as
+    these are derived from the RoutineSymbols contained within this interface.
+
     :param str name: name of the interface.
     :param routines: the routines that this interface provides access
         to and whether or not each of them is a module procedure.
@@ -57,9 +61,12 @@ class GenericInterfaceSymbol(RoutineSymbol):
                              :py:class:`psyclone.psyir.symbols.RoutineSymbol`,
                              bool]]
     :param kwargs: additional keyword arguments provided by
-                   :py:class:`psyclone.psyir.symbols.TypedSymbol`
+        :py:class:`psyclone.psyir.symbols.TypedSymbol`. Note that 'is_pure',
+        'is_elemental' and 'datatype' are not supported.
     :type kwargs: unwrapped dict.
 
+    :raises ValueError: if passed the 'is_pure', 'is_elemental' or 'datatype'
+                        properties.
     '''
     @dataclass(frozen=True)
     class RoutineInfo:
