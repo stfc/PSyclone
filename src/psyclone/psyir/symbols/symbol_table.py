@@ -1770,7 +1770,7 @@ class SymbolTable():
                             local_sym.specialise(type(imported_sym))
 
                     # Copy over the properties of the imported Symbol but don't
-                    # update the interface as this is a local proprty.
+                    # update the interface as this is a local property.
                     local_sym.copy_properties(imported_sym,
                                               exclude_interface=True)
             else:

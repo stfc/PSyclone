@@ -256,6 +256,10 @@ class GenericInterfaceSymbol(RoutineSymbol):
     @datatype.setter
     def datatype(self, _):
         '''
+        This property is computed dynamically from the RoutineSymbols that
+        this GenericInterfaceSymbol maps to and therefore cannot be set.
+
+        This method exists for compatibility with the RoutineSymbol superclass.
         '''
 
     def copy_properties(self,
