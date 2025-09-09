@@ -40,9 +40,8 @@
 import pytest
 from psyclone.psyir.symbols import (
     AutomaticInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    ImportInterface, INTEGER_TYPE,
-    NoType, REAL_TYPE, RoutineSymbol, ScalarType, Symbol, SymbolTable,
-    UnresolvedInterface, UnresolvedType)
+    ImportInterface, INTEGER_TYPE, NoType, RoutineSymbol, ScalarType, Symbol,
+    SymbolTable, UnresolvedInterface, UnresolvedType)
 
 
 def test_routinesymbol_init():
@@ -199,7 +198,7 @@ def test_routinesymbol_copy_properties():
     # Type checking of argument
     with pytest.raises(TypeError) as err:
         sym1.copy_properties("aha")
-    assert ("Argument(s) should be of type 'RoutineSymbol' but found ['str']"
+    assert ("Argument should be of type 'RoutineSymbol' but found 'str'"
             in str(err.value))
     sym2 = RoutineSymbol('b')
     assert isinstance(sym2.datatype, NoType)
@@ -210,13 +209,6 @@ def test_routinesymbol_copy_properties():
     # Repeat but include the Interface
     sym2.copy_properties(sym1)
     assert isinstance(sym2.interface, ImportInterface)
-    # With list of RoutineSymbols
-    sym3 = RoutineSymbol('c', datatype=REAL_TYPE)
-    sym4 = RoutineSymbol('d')
-    sym4.copy_properties([sym2, sym3])
-    # Since the two supplied symbols have different datatypes, we don't know
-    # the type of sym4.
-    assert isinstance(sym4.datatype, UnresolvedType)
 
 
 def test_routinesymbol_replace_symbols_using():
