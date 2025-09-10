@@ -42,35 +42,176 @@ TODO #2341 - tests need to be added for all of the supported intrinsics.
 
 """
 
-import pytest
+# import pytest
 
-from psyclone.core import AccessType
+from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.psyir.nodes import (
-#    ArrayReference,
-#    Literal,
+    ArrayReference,
+    Literal,
     Reference,
-#    Schedule,
     Assignment,
+    BinaryOperation
 )
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall,
     _convert_argument_to_type_info,
     _reference_accesses_all_reads_with_optional_kind,
+    _add_read_argument,
+    _add_write_argument,
+    _add_readwrite_argument,
+    _add_typeinfo_argument,
+    _add_inquiry_argument,
 )
 from psyclone.psyir.symbols import (
-#    ArrayType,
+    ArrayType,
     DataSymbol,
     INTEGER_TYPE,
-#    IntrinsicSymbol,
-#    REAL_TYPE,
-#    BOOLEAN_TYPE,
-#    CHARACTER_TYPE,
-#    ScalarType,
-#    UnresolvedType,
-#    NoType
+    # IntrinsicSymbol,
+    # REAL_TYPE,
+    # BOOLEAN_TYPE,
+    # CHARACTER_TYPE,
+    # ScalarType,
+    # UnresolvedType,
+    # NoType
 )
 
 
+def test_add_read_argument():
+    """ Test the _add_read_argument helper function."""
+    # Test we get expected behaviour for a Reference input.
+    symbol = DataSymbol("a", INTEGER_TYPE)
+    vam = VariablesAccessMap()
+    ref = Reference(symbol)
+    _add_read_argument(ref, vam)
+
+    sig, _ = ref.get_signature_and_indices()
+    assert len(vam) == 1
+    assert len(vam[sig]) == 1
+    assert vam[sig][0].access_type == AccessType.READ
+
+    # Test we get expected behaviour for a Literal input.
+    vam = VariablesAccessMap()
+    lit = Literal("1", INTEGER_TYPE)
+    _add_read_argument(lit, vam)
+    assert len(vam) == 0
+
+    # Test we get expected behaviour for a Binop with 2 References.
+    symbol2 = DataSymbol("b", INTEGER_TYPE)
+    ref1 = Reference(symbol)
+    ref2 = Reference(symbol2)
+    binop = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        ref1, ref2
+    )
+    vam = VariablesAccessMap()
+    _add_read_argument(binop, vam)
+    assert len(vam) == 2
+    sig, _ = ref1.get_signature_and_indices()
+    assert len(vam[sig]) == 1
+    assert vam[sig][0].access_type == AccessType.READ
+    sig, _ = ref2.get_signature_and_indices()
+    assert len(vam[sig]) == 1
+    assert vam[sig][0].access_type == AccessType.READ
+
+    # Test we get expected behaviour for an ArrayReference with Reference
+    # index
+    symbol = DataSymbol("c", ArrayType(INTEGER_TYPE, [2]))
+    ref3 = Reference(symbol2)
+    ref = ArrayReference.create(symbol, [ref3])
+    vam = VariablesAccessMap()
+    _add_read_argument(ref, vam)
+    sig, _ = ref.get_signature_and_indices()
+    assert len(vam[sig]) == 1
+    assert vam[sig][0].access_type == AccessType.READ
+    sig, _ = ref3.get_signature_and_indices()
+    # This is the same behaviour as an ArrayReference itself would have.
+    assert len(vam[sig]) == 1
+    assert vam[sig][0].access_type == AccessType.READ
+
+def test_add_write_argument():
+    """ Test the _add_write_argument helper function."""
+    # Test we get expected behaviour for a Reference input.
+    symbol = DataSymbol("a", INTEGER_TYPE)
+    vam = VariablesAccessMap()
+    ref = Reference(symbol)
+    _add_write_argument(ref, vam)
+
+    sig, _ = ref.get_signature_and_indices()
+    assert len(vam) == 1
+    assert len(vam[sig]) == 1
+    assert vam[sig][0].access_type == AccessType.WRITE
+
+    symbol = DataSymbol("c", ArrayType(INTEGER_TYPE, [2]))
+    aref = ArrayReference.create(symbol, [ref])
+    vam = VariablesAccessMap()
+    _add_write_argument(aref, vam)
+    sig, _ = aref.get_signature_and_indices()
+    assert len(vam[sig]) == 1
+    assert vam[sig][0].access_type == AccessType.WRITE
+    sig, _ = ref.get_signature_and_indices()
+    assert len(vam[sig]) == 1
+    assert vam[sig][0].access_type == AccessType.READ
+
+
+def test_add_readwrite_argument():
+    """ Test the _add_readwrite_argument helper function."""
+    # Test we get expected behaviour for a Reference input.
+    symbol = DataSymbol("a", INTEGER_TYPE)
+    vam = VariablesAccessMap()
+    ref = Reference(symbol)
+    _add_readwrite_argument(ref, vam)
+
+    sig, _ = ref.get_signature_and_indices()
+    assert len(vam) == 1
+    assert len(vam[sig]) == 1
+    assert vam[sig][0].access_type == AccessType.READWRITE
+
+    symbol = DataSymbol("c", ArrayType(INTEGER_TYPE, [2]))
+    aref = ArrayReference.create(symbol, [ref])
+    vam = VariablesAccessMap()
+    _add_readwrite_argument(aref, vam)
+    sig, _ = aref.get_signature_and_indices()
+    assert len(vam[sig]) == 1
+    assert vam[sig][0].access_type == AccessType.READWRITE
+    sig, _ = ref.get_signature_and_indices()
+    assert len(vam[sig]) == 1
+    assert vam[sig][0].access_type == AccessType.READ
+
+
+def test_add_typeinfo_argument():
+    """ Test the _add_typeinfo_argument helper function."""
+    # Test we get expected behaviour for a Reference input.
+    symbol = DataSymbol("a", INTEGER_TYPE)
+    vam = VariablesAccessMap()
+    ref = Reference(symbol)
+    _add_typeinfo_argument(ref, vam)
+
+    sig, _ = ref.get_signature_and_indices()
+    assert len(vam) == 1
+    assert len(vam[sig]) == 1
+    assert vam[sig][0].access_type == AccessType.TYPE_INFO
+
+    # Test we skip for a Literal
+    vam = VariablesAccessMap()
+    lit = Literal("1", INTEGER_TYPE)
+    _add_typeinfo_argument(lit, vam)
+    assert len(vam) == 0
+
+
+def test_add_inquiry_argument():
+    """ Test the _add_inquiry_argument helper function."""
+    symbol = DataSymbol("a", INTEGER_TYPE)
+    vam = VariablesAccessMap()
+    ref = Reference(symbol)
+    _add_inquiry_argument(ref, vam)
+
+    sig, _ = ref.get_signature_and_indices()
+    assert len(vam) == 1
+    assert len(vam[sig]) == 1
+    assert vam[sig][0].access_type == AccessType.INQUIRY
+    
+
+# FIXME Test _compute_reference_accesses
 def test_convert_argument_to_type_info():
     """Test the _convert_argument_to_type_info helper function."""
     # Test that if we supply a Read-only Reference it results in a TYPE_INFO.
