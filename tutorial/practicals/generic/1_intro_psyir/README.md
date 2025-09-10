@@ -10,7 +10,7 @@ this mini-app was kindly provided by Silvia Mocavero of CMCC.
 ## Prerequisites ##
 
 The requirements for this section are as described in the practicals
-[README.md](../../README.md#Requirements).
+[README.md](../../README.md##Requirements).
 
 Check that PSyclone is installed and configured correctly by doing:
 
@@ -22,7 +22,7 @@ When examining the PSyIR (the intermediate representation that PSyclone
 uses to generate and translate code) and writing transformation
 scripts, it may be useful to see the documentation of the various node
 types. The best way to do this is to use the [PSyclone Reference Guide
-](https://psyclone-ref.readthedocs.io/en/latest/).
+](https://psyclone.readthedocs.io/en/latest/reference_guide/).
 
 ## A note on importing PSyclone modules ##
 
@@ -43,7 +43,7 @@ Unfortunately, the various transformation classes are not yet as well
 organised. Many are now in the 'proper' location of
 `psyclone.psyir.transformations`, but some are still in
 `psyclone.transformations`. If in doubt, consult the
-[Reference Guide](https://psyclone-ref.readthedocs.io/en/latest/_static/html/annotated.html).
+[Reference Guide](https://psyclone.readthedocs.io/en/latest/html/annotated.html).
 
 
 ## 1. Processing Fortran code with PSyclone ##
@@ -166,7 +166,7 @@ content of the program (the sequence of executable statements) as children.
 ## 3. Interpreting the PSyIR ##
 
 The basic structure and means of navigating the PSyIR are covered in the
-[PSyIR - Tree navigation documentation](https://psyclone.readthedocs.io/en/latest/psyir.html#tree-navigation).
+[PSyIR - Tree navigation documentation](https://psyclone.readthedocs.io/en/latest/user_guide/psyir.html#tree-navigation).
 In summary, all nodes in the PSyIR have `parent` and `children`
 properties and a `walk` method which may be used to find all nodes of
 a given type (or types) below the current node. Various sub-classes of
@@ -249,8 +249,8 @@ exception of profiling) to apply transformations to regions of code
 that contain them.
 
 From a computational-performance standpoint, the most important nodes
-are [`Loop`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1psyir_1_1nodes_1_1loop_1_1Loop.html) and
-[`Assignment`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1psyir_1_1nodes_1_1assignment_1_1Assignment.html).
+are [`Loop`](https://psyclone.readthedocs.io/en/latest/html/classpsyclone_1_1psyir_1_1nodes_1_1loop_1_1Loop.html) and
+[`Assignment`](https://psyclone.readthedocs.io/en/latest/html/classpsyclone_1_1psyir_1_1nodes_1_1assignment_1_1Assignment.html).
 
 3. Modify the transformation script to obtain a list of all of the
    `Assignment` nodes:

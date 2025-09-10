@@ -51,14 +51,15 @@ on:
   push
 
 env:
-  CUDA_VERSION: 12.8.0
-  GFORTRAN_VERSION: 14.2.0
-  HDF5_VERSION: 1.14.5
-  NETCDF_C_VERSION: 4.9.2
-  NETCDF_FORTRAN_VERSION: 4.6.1
-  NVFORTRAN_VERSION: 25.1
-  OPENMPI_VERSION: 5.0.6
-  PYTHON_VERSION: 3.13.2
+  CUDA_VERSION: 13
+  GFORTRAN_VERSION: 15
+  HDF5_VERSION: 1.14
+  NETCDF_C_VERSION: 4.9
+  NETCDF_FORTRAN_VERSION: 4.6
+  NVFORTRAN_VERSION: 25.7
+  OPENMPI_VERSION: 5.0
+  PYTHON_VERSION: 3.13
+  NUM_PARALLEL: 16
 
 jobs:
   run_if_on_mirror:
@@ -87,34 +88,47 @@ jobs:
         # Uncomment the below to use the submodule version of fparser rather
         # than the latest release from pypi.
         # pip install external/fparser
-        pip install .[test,psydata]
+        pip install .[test,psydata,doc]
     - name: Unit tests with compilation - gfortran
       run: |
         . .runner_venv/bin/activate
         module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
-        pytest -n 4 --f90=gfortran --f90flags="-ffree-line-length-none" --compile --compileopencl src/psyclone/tests
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        pytest -n ${NUM_PARALLEL} --f90=gfortran --f90flags="-ffree-line-length-none" --compile --compileopencl src/psyclone/tests
     - name: Unit tests with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
-        pytest -n 4 --f90=nvfortran --compile --compileopencl src/psyclone/tests
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        pytest -n ${NUM_PARALLEL} --f90=nvfortran --compile --compileopencl src/psyclone/tests
+    - name: Libraries compilation - gfortran
+      run: |
+        . .runner_venv/bin/activate
+        make -C lib/extract clean
+        module load gcc/${GFORTRAN_VERSION}
+        make -C lib/extract test
+    - name: Libraries compilation - nvfortran
+      run: |
+        . .runner_venv/bin/activate
+        make -C lib/extract clean
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        F90=nvfortran make -C lib/extract test
     - name: Examples with compilation - gfortran
       run: |
         . .runner_venv/bin/activate
         make -C examples allclean
         # Although we're using gfortran, we link with CUDA's OpenCL library
         module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         module load cuda/${CUDA_VERSION}
+        # TODO #3074: Examples compilation cannot be run in parallel
         F90=gfortran make -C examples compile
     - name: Tutorials with compilation - gfortran
       run: |
         . .runner_venv/bin/activate
         make -C tutorial/practicals allclean
         module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         make -C tutorial/practicals compile
         make -C tutorial/training/users compile
     - name: Examples with compilation - nvfortran
@@ -122,14 +136,21 @@ jobs:
         . .runner_venv/bin/activate
         make -C examples allclean
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        # TODO #3074: Examples compilation cannot be run in parallel
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C examples compile
     - name: Tutorials with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
         make -C tutorial/practicals allclean
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/LFRic compile
         F90=nvfortran F90FLAGS="-acc -Minfo=all -Mnofma -O2" make -C tutorial/practicals/generic run
         make -C tutorial/practicals/generic/4_openacc acc_test
+    - name: Test logfile creation.
+      run: |
+        . .runner_venv/bin/activate
+        cd examples/nemo/eg1
+        psyclone -s ./openmp_cpu_levels_trans.py --log-level DEBUG --log-file log.out ../code/tra_adv.F90
+        test -f log.out

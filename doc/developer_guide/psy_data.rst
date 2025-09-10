@@ -35,8 +35,6 @@
 
 .. highlight:: fortran
 
-.. _psy_data:
-
 .. testsetup::
 
     import os
@@ -45,6 +43,8 @@
     # Define SOURCE_FILE to point to an existing gocean 1.0 file.
     SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
         "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+
+.. _devguide_psy_data:
 
 PSyData API
 ===========
@@ -102,9 +102,9 @@ Class Prefix            Description
 ======================= =======================================================
 profile                 All libraries related to profiling tools like TAU,
                         DrHook, NVIDIA's profiling tools, Vernier etc. See
-                        :ref:`user_guide:profiling` for details.
+                        :ref:`userguide-profiling` for details.
 extract                 For libraries used for kernel data extraction. See
-                        :ref:`user_guide:psyke` for details.
+                        :ref:`userguide-psyke` for details.
 read_only_verify        Use a checksum to verify that variables that are 
                         read-only are not modified in a subroutine.
 ======================= =======================================================
@@ -291,9 +291,10 @@ called ``PREFIX_PSyDataType``. It is up to the application how this variable is
 used. PSyclone will declare the variables to be static, meaning that they
 can be used to accumulate data from call to call. An example of
 the PSyDataType can be found in the example extraction code
-(see ``lib/extract/standalone/dl_esm_inf``,
+(see ``lib/extract/binary/dl_esm_inf``,
+``lib/extract/ascii/dl_esm_inf``,
 ``lib/extract/netcdf/dl_esm_inf``, or
-:ref:`user_guide:extraction_libraries` for
+:ref:`extraction_libraries` for
 a detailed description), any of the profiling wrapper libraries
 (all contained in ``lib/profiling``) or the read_only wrappers
 (in ``lib/read_only``).
@@ -334,7 +335,7 @@ a detailed description), any of the profiling wrapper libraries
     is written both before and after the region, the transformations will
     add two calls to ``PreDeclareVariable`` (it can be useful to
     provide a variable using a different name before and after,
-    see :ref:`user_guide:extraction_libraries`). If no variables are to be
+    see :ref:`extraction_libraries`). If no variables are to be
     provided to the wrapper library, this call will not be created
     (and there is no need to implement this function in a wrapper
     library).
@@ -348,7 +349,7 @@ a detailed description), any of the profiling wrapper libraries
     The same call is used for different arguments, so a generic
     interface is recommended to distinguish between
     the data types provided. The kernel extraction writer
-    (see :ref:`user_guide:extraction_libraries`) uses the following declaration
+    (see :ref:`extraction_libraries`) uses the following declaration
     (with types defined in the dl_esm_inf library)::    
     
         generic, public :: PreDeclareVariable => DeclareScalarInteger, &
@@ -451,6 +452,7 @@ of the node to insert. After passing validation,
 requested, and inserts it into the tree.
 
 .. autoclass:: psyclone.psyir.transformations.PSyDataTrans
+    :no-index:
     :members:
 
 ``PSyDataNode``
@@ -461,7 +463,8 @@ The derived classes will typically control the behaviour
 of ``PSyDataNode`` by providing additional parameters.
 
 .. autoclass:: psyclone.psyir.nodes.PSyDataNode
-    :members: gen_code
+    :members:
+    :no-index:
 
 There are two ways of passing options to the
 ``PSyDataNode``. The first one is used to pass
@@ -478,7 +481,7 @@ transformation to the node that will create the code.
 This is done by using the ``options`` dictionary that is
 a standard parameter for all ``validate`` and
 ``apply`` calls of a transformation (see
-:ref:`user_guide:transformations_application`). Besides using
+:ref:`transformations_application`). Besides using
 this dictionary for validation and application parameters,
 ``PSyDataTrans`` passes it to the constructor
 of the node that is being inserted. An example
@@ -488,8 +491,8 @@ can be somewhat cryptic due to the need to be unique).
 The region name is validated by ``PSyDataTrans``, and
 then passed to the node constructor. The ``PSyDataNode``
 stores the name as an instance attribute, so that they can
-be used at code creation time (when ``gen_code`` is being
-called). Below is the list of all options that the PSyData
+be used at code creation time (PSyIR lowering).
+Below is the list of all options that the PSyData
 node supports in the option dictionary:
 
 .. table::
@@ -516,15 +519,15 @@ node supports in the option dictionary:
 
 Passing Parameter From a Derived Node to the ``PSyDataNode``
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-The ``PSyDataTrans.gen_code`` function also accepts
-an option dictionary, which is used by derived nodes
-to control code creation. The ``gen_code`` function
-is called internally, not directly by the user. If
-the ``gen_code`` function of a node derived from
-``PSyDataNode`` is called, it can define this
+The ``PSyDataNode.lower_to_language_level`` function also accepts
+an option dictionary, which is used by derived nodes to control code
+creation.
+The ``lower_to_language_level`` function is called internally, not
+directly by the user. If the ``lower_to_language_level`` function of a
+node derived from ``PSyDataNode`` is called, it can define this
 option directory to pass the parameters to the ``PSyDataNode``'s
-``gen_code`` function. Here are the options that are currently
-supported by ``PSyDataNode``:
+``lower_to_language_level`` function. Here are the options that are
+currently supported by ``PSyDataNode``:
 
 ================ =========================================
 Parameter Name   Description
@@ -545,19 +548,19 @@ If there is no variable to be provided by the PSyData API (i.e both
 ``pre_variable_list`` and ``post_variable_list`` are empty), then the
 ``PSyDataNode`` will only create a call to ``PreStart`` and
 ``PostEnd``. This is utilised by the profiling node to make the profiling
-API libraries (see :ref:`user_guide:profiling`) independent of the infrastructure
+API libraries (see :ref:`userguide-profiling`) independent of the infrastructure
 library (since a call to ``ProvideVariable`` can contain API-specific
 variable types). It also reduces the number of calls required before
 and after the instrumented region which can affect overall
-performance and precision of any measurements; see :ref:`user_guide:profiling`
+performance and precision of any measurements; see :ref:`userguide-profiling`
 for more details.
 
 The kernel extraction node ``ExtractNode`` uses the dependency
 module to determine which variables are input- and output-parameters,
-and provides these two lists to the ``gen_code()`` function of its base class,
-a ``PSyDataNode`` node. It also uses the ``post_var_postfix`` option
-as described under ``gen_code()`` above (see also
-:ref:`user_guide:extraction_libraries`).
+and provides these two lists to the ````lower_to_language_level``()`` function
+of its base class, a ``PSyDataNode`` node. It also uses the ``post_var_postfix``
+option as described under ``lower_to_language_level``()`` above (see also
+:ref:`extraction_libraries`).
 
 .. _psydata_base_class:
 
@@ -665,7 +668,7 @@ takes the following parameters:
 
 -prefix:
     The prefix to use for the PSyData type and functions. Default is
-    emtpy (i.e. no prefix). If you specify a prefix, you have to
+    empty (i.e. no prefix). If you specify a prefix, you have to
     add the ``_`` between the prefix and name explicitly.
 
 -generic-declare:
@@ -940,7 +943,7 @@ Profiling
 ---------
 
 The command line options and transformations available to a user
-are described in the PSyclone User's guide (:ref:`user_guide:profiling`).
+are described in the PSyclone User's guide (:ref:`userguide-profiling`).
 This section describes how the PSyData API is used to implement
 the profiling wrapper API, and which functions must be provided in
 a wrapper library to allow other existing profiling tools to 
@@ -976,7 +979,7 @@ Vernier, DrHook wrapper).
 
 Kernel Extraction (PSyKE)
 -------------------------
-The PSyclone Kernel Extraction functionality (see :ref:`user_guide:psyke`)
+The PSyclone Kernel Extraction functionality (see :ref:`userguide-psyke`)
 also relies on the PSyData API to write kernel input- and output-arguments
 to a file.
 
@@ -1053,7 +1056,7 @@ the extraction transformation, e.g.:
 When compiled and executed, this driver will read in the values of
 all input- and output-variables, execute the
 instrumented code region, and then compare the results of the output
-variables (see :ref:`user_guide:extraction_libraries`). This program does
+variables (see :ref:`extraction_libraries`). This program does
 not depend on any infrastructure library (like 'dl_esm_inf`'), it
 only needs the PSyData ReadKernelData library (i.e.
 ``lib/extract/netcdf/read_kernel_data_mod``), plus any libraries
@@ -1164,7 +1167,7 @@ the extraction transformation, e.g.:
 When compiled and executed, this driver will read in the values of
 all input- and output-variables, execute the
 instrumented code region, and then compare the results of the output
-variables (see :ref:`user_guide:extraction_libraries`). ATM this
+variables (see :ref:`extraction_libraries`). ATM this
 driver will still depend on the LFRic infrastructure library (see issue
 #1991) and needs the PSyData ReadKernelData library (i.e.
 ``lib/extract/netcdf/read_kernel_data_mod``), plus any libraries
@@ -1173,6 +1176,7 @@ the wrapper depends on (e.g. NetCDF).
 The driver creation process is explained in the Python sources:
 
 .. autoclass:: psyclone.domain.lfric.LFRicExtractDriverCreator
+    :no-index:
     :members:
 
 Here is an example showing some of the driver code created:

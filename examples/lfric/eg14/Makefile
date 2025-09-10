@@ -43,7 +43,7 @@
 
 PSYROOT=../../..
 
-include $(PSYROOT)/examples/common.mk
+include ../lfric_common.mk
 
 GENERATED_FILES = *.o *.mod $(EXEC) main_alg.f90 main_psy.f90 \
                   other_alg_mod_psy.f90 other_alg_mod_alg.f90 \
@@ -57,12 +57,6 @@ OBJ = main_psy.o main_alg.o other_alg_mod_psy.o other_alg_mod_alg.o \
 
 EXEC = example_openacc
 
-LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-# This sets up LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
-
 # PSyData profiling wrapper library.
 # Default is to use the 'template' library which simply prints entry and exit
 # messages to stdout.
@@ -72,15 +66,17 @@ PROFILE_LINK=-ldummy
 # For NVIDIA profiling
 #PROFILE_PATH=$(PSYROOT)/lib/profiling/nvidia
 #PROFILE_LIB=$(PROFILE_PATH)/libnvtx_prof.a
-#PROFILE_LINK="-lnvtx_prof -lnvToolsExt"
+#PROFILE_LINK=-lnvtx_prof -lnvtx3interop -cuda
 
 .PHONY: transform compile run
 
 # This makefile assumes that the transformed kernel will be named
 # 'testkern_w0_kernel_0_mod.f90'. However, if it already exists then PSyclone
-# will create 'testkern_..._1_mod.f90' so remove it first.
+# will create 'testkern_..._1_mod.f90' so remove it first. Also remove
+# main_psy.f90, since testkern_w0_kernel_0_mod will not be recreated
+# if main_psy.f90 exists
 transform:
-	rm -f testkern_w0_kernel_0_mod.f90
+	rm -f testkern_w0_kernel_0_mod.f90 main_psy.f90
 	${MAKE} main_psy.f90
 	${MAKE} other_alg_mod_psy.f90
 
@@ -94,17 +90,12 @@ testkern_w0_kernel_0_mod.f90: main_psy.f90
 
 compile: transform ${EXEC}
 
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
-
 run: compile
 	./$(EXEC)
 
 $(EXEC): $(PROFILE_LIB) $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) -L${PROFILE_PATH} $(PROFILE_LINK)
-
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
+	$(F90) $(F90FLAGS)  $(OBJ) -o $(EXEC) \
+	 -L${PROFILE_PATH} $(PROFILE_LINK) $(LDFLAGS)
 
 $(PROFILE_LIB):
 	$(MAKE) -C $(PROFILE_PATH)
@@ -114,10 +105,10 @@ main_psy.o:	other_alg_mod_psy.o testkern_w0_kernel_0_mod.o
 main_alg.o:	other_alg_mod_alg.o main_psy.o testkern_w0_kernel_0_mod.o
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) -I$(PROFILE_PATH) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -I$(PROFILE_PATH) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -I$(PROFILE_PATH) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -I$(PROFILE_PATH) -c $<
 
 # Keep the generated psy and alg files
 .precious: main_psy.f90 main_alg.f90

@@ -39,7 +39,7 @@
 !>
 module perturbation_bell_config_mod
 
-  use constants_mod, only: i_native, &
+  use constants_mod, only: i_def, &
                            r_def, &
                            str_def
   use log_mod,       only: log_event, log_scratch_space &
@@ -51,14 +51,17 @@ module perturbation_bell_config_mod
   public :: read_perturbation_bell_namelist, postprocess_perturbation_bell_namelist, &
             perturbation_bell_is_loadable, perturbation_bell_is_loaded, perturbation_bell_final
 
-  real(r_def), public, protected :: half_width_x
-  real(r_def), public, protected :: half_width_y
-  real(r_def), public, protected :: perturbation_scale
-  real(r_def), public, protected :: perturbation_height
-  real(r_def), public, protected :: x_centre
-  real(r_def), public, protected :: y_centre
-  real(r_def), public, protected :: u_vel
-  real(r_def), public, protected :: v_vel
+  ! These variables should be protected, but then the driver for the kernel
+  ! extraction exercise cannot initialise them. To simplify the build process
+  ! they are just declared public
+  real(r_def), public :: half_width_x
+  real(r_def), public :: half_width_y
+  real(r_def), public :: perturbation_scale
+  real(r_def), public :: perturbation_height
+  real(r_def), public :: x_centre
+  real(r_def), public :: y_centre
+  real(r_def), public :: u_vel
+  real(r_def), public :: v_vel
 
   logical :: namelist_loaded = .false.
 
@@ -75,8 +78,8 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
+    integer(i_def), intent(in) :: file_unit
+    integer(i_def), intent(in) :: local_rank
 
     call read_namelist( file_unit, local_rank )
 
@@ -90,8 +93,8 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
+    integer(i_def), intent(in) :: file_unit
+    integer(i_def), intent(in) :: local_rank
 
     real(r_def) :: buffer_real_r_def(8)
 
@@ -104,7 +107,7 @@ contains
                                  u_vel, &
                                  v_vel
 
-    integer(i_native) :: condition
+    integer(i_def) :: condition
 
     half_width_x = rmdi
     half_width_y = rmdi

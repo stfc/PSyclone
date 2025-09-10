@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Laboratory
+# Modifications: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
 # The compiler to use may be specified via the F90 environment
 #
@@ -52,13 +52,15 @@ endif
 
 PSYROOT=../../../..
 
-# Set it to 'netcdf' to use the NetCDF writer
-TYPE?=standalone
+# Set it to 'netcdf' or 'binary' to select a different output format
+TYPE?=ascii
 
-include $(PSYROOT)/examples/common.mk
+include ../../lfric_common.mk
 
 ifeq ($(TYPE), netcdf)
 	GENERATED_FILES += main-update.nc main-init.nc
+else ifeq ($(TYPE), ascii)
+	GENERATED_FILES += main-update.ascii main-init.ascii
 else
 	GENERATED_FILES += main-update.binary main-init.binary
 endif
@@ -74,40 +76,45 @@ OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o dummy_mod.o
 
 ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/lfric
-	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 	F90FLAGS += $$(nf-config --fflags)
+else ifeq ($(TYPE), ascii)
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/ascii/lfric
 else
-	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/lfric
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/binary/lfric
 endif
+
+# Even standalone now needs NetCDF because of the LFRic infrastructure
+LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 
 EXEC = extract.$(TYPE)
 EXTRACT_NAME ?= _extract
 EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
-LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
-# This will setup the required include flags in LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
+F90FLAGS += -I$(EXTRACT_DIR)
 
-LFRIC_INCLUDE_FLAGS += -I$(EXTRACT_DIR)
-
-transform: main_psy.f90 main_alg.f90
-
+transform: extract_process main_psy.f90 main_alg.f90
+	
 compile: transform $(EXEC)
 
 run: compile
+	# Run application and extract data into files
 	./$(EXEC)
+	# Compile drivers
+	make driver-main-init
+	make driver-main-update
+	# Run drivers with extracted data
+	./driver-main-init
+	./driver-main-update
 
 $(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(EXTRACT_DIR) -l$(EXTRACT_NAME) \
 	      -L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS)
 
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
-
 $(EXTRACT_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(EXTRACT_DIR)
+
+extract_process:
+	$(MAKE) -C $(EXTRACT_DIR) process
 
 # Dependencies
 main_psy.o:	testkern_w0_kernel_mod.o $(EXTRACT_LIB) $(LFRIC_LIB)
@@ -115,26 +122,24 @@ main_alg.o:	main_psy.o
 testkern_w0_kernel_mod.o: dummy_mod.o $(LFRIC_LIB)
 
 driver-main-update:	driver-main-update.o
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS)  driver-main-update.o \
-		$(LDFLAGS) -o driver-main-update
+	$(F90) $(F90FLAGS)  driver-main-update.o $(LDFLAGS) -o driver-main-update
 
 driver-main-init:	LFRIC_INCLUDE_FLAGS += -I $(EXTRACT_DIR)/..
 driver-main-init:	driver-main-init.o
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS)  driver-main-init.o \
-		$(LDFLAGS) -o driver-main-init
+	$(F90) $(F90FLAGS)  driver-main-init.o $(LDFLAGS) -o driver-main-init
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 # Keep the generated psy and alg files
 .precious: main.x90 main_psy.f90 main_alg.f90
 
 # This dependency will make sure that read_kernel_data_mod was created
 # (which will be inlined in the driver).
-main_psy.f90: $(EXTRACT_LIB)
+main_psy.f90: extract_process
 main_alg.f90: main_psy.f90
 
 %.x90:	%.X90

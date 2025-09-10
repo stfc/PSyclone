@@ -1,7 +1,7 @@
 # ``ValueRangeCheck`` Library for LFRic
 
 This library implements the [PSyData API](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#psydata-value-range-check)
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html#psydata-value-range-check)
 to verify that input and output parameters of an LFRic kernel are within
 a user-specified range, and not ``NaN`` or infinite, using the LFRic
 infrastructure library.
@@ -9,7 +9,7 @@ infrastructure library.
 ## Dependencies
 
 This library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface with
 the application. The following dependencies must be available:
 
 - The LFRic infrastructure library. A pared-down version of LFRic
@@ -18,7 +18,7 @@ the application. The following dependencies must be available:
   https://github.com/stfc/PSyclone/tree/master/examples/lfric/eg17), however
   it is not included in the PSyclone [installation](
   ./../../README.md#installation). See the [LFRic API](
-  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html) documentation
+  https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html) documentation
   for information on how to obtain access to the LFRic code.
 
 - The ValueRangeCheck (``value_range_check_base.jinja``) and PSyData
@@ -41,7 +41,7 @@ The location of the LFRic infrastructure library is specified using the
 environment variable ``LFRIC_INF_DIR``. It defaults to the relative path
 to location of the pared-down LFRic infrastructure located in a clone of
 PSyclone repository,
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
+``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
 This is not available in the PSyclone [installation](
 ./../../README.md#installation) so the exact path
 **must be specified** during the compilation process, e.g.
@@ -64,7 +64,7 @@ The ``Makefile`` will compile the LFRic infrastructure library,
 ``liblfric.a``, if required, with the previously selected compiler flags.
 
 Similar to compilation of the [examples](
-https://psyclone.readthedocs.io/en/latest/tutorials_and_examples.html#compilation), the
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/examples_intro.html#compilation), the
 compiled wrapper library can be removed by running ``make clean``. To also
 remove the compiled infrastructure library it is necessary to run
 ``make allclean`` (this is especially important if changing compilers
@@ -77,7 +77,7 @@ The application needs to provide the parameters to link in this
 ``lfric``. For instance:
 
 ```shell
-$(F90)  ... -L$(PSYDATA_LIB_DIR)/nan_test/lfric -l_value_range_check \
+$(F90)  ... -L$(PSYDATA_LIB_DIR)/value_range_check/lfric -l_value_range_check \
         -L$(LFRIC_INF_DIR) -llfric $(LFRIC_SPECIFIC_LINKING_PARAMETERS)
 ```
 

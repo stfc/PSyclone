@@ -32,6 +32,7 @@ ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 Authors: R. W. Ford, A. R. Porter and S. Siso STFC Daresbury Lab
+         M. Naylor, University of Cambridge, UK
 -->
 
 # PSyclone PSyIR Examples
@@ -73,3 +74,43 @@ be run by doing:
 ```sh
 > python modify.py
 ```
+
+## Example 4:
+
+Demonstrates acceleration of a simple routine for matrix transposition using
+`LoopTilingTrans` and `OMPLoopTrans`. To run this example:
+
+```sh
+> cd transpose
+> make
+./trans
+Passed 0.7202s
+./trans_tiled
+Passed 0.2420s
+./trans_omp
+Passed 0.2996s
+./trans_omp_tiled
+Passed 0.0445s
+```
+
+(Sample output from a 20-core Intel i9-12900H.)
+
+## Example 5:
+
+Demonstrates acceleration of a simple routine for matrix multiplication using
+`LoopTilingTrans` and `OMPLoopTrans`. To run this example:
+
+```sh
+> cd matmul
+> make
+./matmul
+Passed   3.213s
+./matmul_tiled
+Passed   3.291s
+./matmul_omp
+Passed   1.134s
+./matmul_omp_tiled
+Passed   0.306s
+```
+
+(Sample output from a 20-core Intel i9-12900H.)

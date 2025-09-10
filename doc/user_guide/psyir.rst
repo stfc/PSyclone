@@ -46,10 +46,11 @@
 .. _psyir-ug:
 
 ===============================================
-PSyIR: the PSyclone Intermediate Representation
+The PSyIR
 ===============================================
 
-The PSyIR is at the heart of PSyclone, representing code for existing
+The PSyIR (PSyclone Intermediate Representation) is at the heart of PSyclone,
+representing both existing
 code and PSyKAl DSLs (at both the PSy- and kernel-layer levels). A PSyIR
 tree may be constructed from scratch (in Python) or by processing existing
 source code using a frontend. Transformations act on the PSyIR and
@@ -153,23 +154,37 @@ the code readability.
 The homogeneous navigation methods are:
 
    .. automethod:: psyclone.psyir.nodes.Node.children()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.siblings()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.parent()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.root()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.walk()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.get_sibling_lists()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.ancestor()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.scope()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.path_from()
+       :no-index:
 
 In addition to the navigation methods, nodes also have homogeneous methods to
 interrogate their location and surrounding nodes.
 
    .. automethod:: psyclone.psyir.nodes.Node.immediately_precedes()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.immediately_follows()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.position()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.abs_position()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Node.sameParent()
+       :no-index:
 
 The semantic navigation methods are:
 
@@ -178,23 +193,41 @@ The semantic navigation methods are:
    Schedule, e.g. ``sched[3]`` or ``sched[2:4]``.
 - ``Assignment``:
    .. automethod:: psyclone.psyir.nodes.Assignment.lhs()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.Assignment.rhs()
+       :no-index:
 - ``IfBlock``:
    .. automethod:: psyclone.psyir.nodes.IfBlock.condition()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.IfBlock.if_body()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.IfBlock.else_body()
+       :no-index:
 - ``Loop``:
    .. automethod:: psyclone.psyir.nodes.Loop.loop_body()
+       :no-index:
 - ``WhileLoop``:
    .. automethod:: psyclone.psyir.nodes.WhileLoop.condition()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.WhileLoop.loop_body()
+       :no-index:
 - ``Array`` nodes (e.g. ``ArrayReference``, ``ArrayOfStructuresReference``):
    .. automethod:: psyclone.psyir.nodes.ArrayReference.indices()
+       :no-index:
 - ``RegionDirective``:
    .. automethod:: psyclone.psyir.nodes.RegionDirective.dir_body()
+       :no-index:
    .. automethod:: psyclone.psyir.nodes.RegionDirective.clauses()
+       :no-index:
 - Nodes representing accesses of data within a structure (e.g. ``StructureReference``, ``StructureMember``):
    .. automethod:: psyclone.psyir.nodes.StructureReference.member()
+       :no-index:
+- ``BinaryOperation``:
+   .. automethod:: psyclone.psyir.nodes.BinaryOperation.operands()
+       :no-index:
+- ``UnaryOperation``:
+   .. automethod:: psyclone.psyir.nodes.UnaryOperation.operand()
+       :no-index:
 
 
 DataTypes
@@ -255,39 +288,38 @@ Array DataType
 An Array datatype itself has another datatype (or ``DataTypeSymbol``)
 specifying the type of its elements and a shape. The shape can have an
 arbitrary number of dimensions. Each dimension captures what is known
-about its extent. It is necessary to distinguish between four cases:
+about its extent. It is necessary to distinguish between three cases:
 
 .. tabularcolumns:: |p{9cm}|L|
 
 +--------------------------------------------+--------------------------------+
 |Description                                 | Entry in ``shape`` list        |
 +============================================+================================+
-|An array has a static extent known at       | ``ArrayType.ArrayBounds``      |
-|compile time.                               | containing integer ``Literal`` |
-|                                            | values                         |
-+--------------------------------------------+--------------------------------+
-|An array has an extent defined by another   | ``ArrayType.ArrayBounds``      |
-|symbol or (constant) PSyIR expression.      | containing ``Reference`` or    |
-|                                            | ``Operation`` nodes            |
+|An array that has explict bound             | ``ArrayType.ArrayBounds``      |
+|expressions.                                | containing two PSyIR DataNodes.|
 +--------------------------------------------+--------------------------------+
 |An array has a definite extent which is not | ``ArrayType.Extent.ATTRIBUTE`` |
-|known at compile time but can be queried    |                                |
-|at runtime.                                 |                                |
+|known at compile time but can be queried    | or ``ArrayType.ArrayBounds``   |
+|at runtime.                                 | with the lower bound given by a|
+|                                            | ``DataNode`` and the upper     |
+|                                            | bound  by                      |
+|                                            | ``ArrayType.Extent.ATTRIBUTE`` |
 +--------------------------------------------+--------------------------------+
 |It is not known whether an array has memory | ``ArrayType.Extent.DEFERRED``  |
 |allocated to it in the current scoping unit.|                                |
 +--------------------------------------------+--------------------------------+
 
-where ``ArrayType.ArrayBounds`` is a ``namedtuple`` with ``lower`` and
+where ``ArrayType.ArrayBounds`` is a ``dataclass`` with ``lower`` and
 ``upper`` members holding the lower- and upper-bounds of the extent of a
-given array dimension.
+given array dimension. Sometimes, the lower bound of an array will be
+known while its extent is unknown. This is represented by having the
+``upper`` member set to ``ArrayType.Extent.ATTRIBUTE``.
 
 The distinction between the last two cases is that in the former the
 extents are known but are kept internally with the array (for example
-an assumed shape array in Fortran) and in the latter the array has not
+an assumed-shape array in Fortran) while in the latter, the array has not
 yet been allocated any memory (for example the declaration of an
-allocatable array in Fortran) so the extents may have not been defined
-yet.
+allocatable array in Fortran) so the extents may have not yet been defined.
 
 For example:
 
@@ -303,6 +335,10 @@ For example:
     ...                                     ArrayType.Extent.ATTRIBUTE])
 
     >>> array_type = ArrayType(BOOLEAN_TYPE, [ArrayType.Extent.DEFERRED])
+
+Note that Fortran "assumed-size" arrays (which have the last dimension
+specified with a ``*``) are not supported in the PSyIR and any such
+declaration will result in a ``DataSymbol`` of ``UnsupportedFortranType``.
 
 Structure Datatype
 ------------------
@@ -370,26 +406,34 @@ from all symbol tables.
 The ``SymbolTable`` has the following interface:
 
 .. autoclass:: psyclone.psyir.symbols.SymbolTable
+    :no-index:
 
 Where each element is a ``Symbol`` with an immutable name:
 
 .. autoclass:: psyclone.psyir.symbols.Symbol
+    :no-index:
 
 There are several ``Symbol`` sub-classes to represent different
 labeled entities in the PSyIR. At the moment the available symbols
 are:
 
 - .. autoclass:: psyclone.psyir.symbols.ContainerSymbol
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.DataSymbol
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.DataTypeSymbol
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.IntrinsicSymbol
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.RoutineSymbol
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.GenericInterfaceSymbol
+    :no-index:
 
 See the reference guide for the full API documentation of the
 :ref_guide:`SymbolTable psyclone.psyir.symbols.html#psyclone.psyir.symbols.SymbolTable`
@@ -404,22 +448,31 @@ Interfaces are:
 
 
 - .. autoclass:: psyclone.psyir.symbols.AutomaticInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.DefaultModuleInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.ImportInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.ArgumentInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.StaticInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.CommonBlockInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.UnresolvedInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.UnknownInterface
+    :no-index:
 
 - .. autoclass:: psyclone.psyir.symbols.PreprocessorInterface
+    :no-index:
 
 
 Creating PSyIR

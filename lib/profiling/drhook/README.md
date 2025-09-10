@@ -1,7 +1,7 @@
 # PSyclone Wrapper Library for Dr Hook
 
 This is a wrapper library that maps the [PSyclone profiling API](
-https://psyclone.readthedocs.io/en/stable/profiling.html#profiling)
+https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling)
 to the Dr Hook API.
 
 ## Dependencies
@@ -11,13 +11,13 @@ not available on any public repository and the prospective user needs
 to contact ECMWF to obtain a copy of Dr Hook.
 
 This profiling library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface with
 the application. The library is based on the [PSyData base class](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-base-class),
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#psydata-base-class),
 which is included in PSyclone as a Jinja template, ``psy_data_base.jinja``.
 Full documentation on using this template is provided in the PSyclone
 [Developer Guide](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja).
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#jinja).
 
 The library uses the ``ProfileData`` type to store Dr Hook's handle for each
 region.

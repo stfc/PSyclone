@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
@@ -41,14 +41,12 @@
 
 import pytest
 
-from psyclone.core import Signature
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.tools import ReadWriteInfo
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (ACCParallelTrans, ACCLoopTrans,
-                                      DynamoOMPParallelLoopTrans)
+                                      LFRicOMPParallelLoopTrans)
 
 
 # --------------------------------------------------------------------------- #
@@ -66,56 +64,6 @@ def test_extract_trans():
     ltrans = LFRicExtractTrans()
     assert str(ltrans) == "Create a sub-tree of the PSyIR that has " \
                           "a node of type ExtractNode at its root."
-
-
-# --------------------------------------------------------------------------- #
-def test_determine_postfix():
-    '''Test that a unique postfix is determined.
-    '''
-
-    # Test if there is no clash that the specified postfix is returned as is:
-    read_write_info = ReadWriteInfo()
-    postfix = ExtractTrans.determine_postfix(read_write_info)
-    assert postfix == "_post"
-    postfix = ExtractTrans.determine_postfix(read_write_info,
-                                             postfix="_new_postfix")
-    assert postfix == "_new_postfix"
-
-    # Clash between input variable and a created output variable:
-    read_write_info = ReadWriteInfo()
-    read_write_info.add_read(Signature("var_post"))
-    read_write_info.add_write(Signature("var"))
-    postfix = ExtractTrans.determine_postfix(read_write_info)
-    assert postfix == "_post0"
-
-    # Two clashes between input variable and a created output variable:
-    read_write_info.add_read(Signature("var_post0"))
-    postfix = ExtractTrans.determine_postfix(read_write_info)
-    assert postfix == "_post1"
-
-    # Two clashes between different input variables and created output
-    # variables: 'var1' prevents the '_post' to be used, 'var2'
-    # prevents "_post0" to be used, 'var3' prevents "_post1":
-    read_write_info = ReadWriteInfo()
-    read_write_info.add_read(Signature("var1_post"))
-    read_write_info.add_read(Signature("var2_post0"))
-    read_write_info.add_read(Signature("var3_post1"))
-    read_write_info.add_write(Signature("var1"))
-    read_write_info.add_write(Signature("var2"))
-    read_write_info.add_write(Signature("var3"))
-    postfix = ExtractTrans.determine_postfix(read_write_info)
-    assert postfix == "_post2"
-
-    # Handle clash between output variables: the first variable will
-    # create "var" and var_post", the second "var_post" and "var_post_post".
-    read_write_info = ReadWriteInfo()
-    read_write_info. add_write(Signature("var"))
-    read_write_info. add_write(Signature("var_post"))
-    postfix = ExtractTrans.determine_postfix(read_write_info)
-    assert postfix == "_post0"
-    read_write_info.add_write(Signature("var_post0"))
-    postfix = ExtractTrans.determine_postfix(read_write_info)
-    assert postfix == "_post1"
 
 
 # -----------------------------------------------------------------------------
@@ -161,9 +109,9 @@ def test_extract_kern_builtin_no_loop():
 
 
 # -----------------------------------------------------------------------------
-def test_extract_loop_no_directive_dynamo0p3():
+def test_extract_loop_no_directive_lfric():
     ''' Test that applying Extract Transformation on a Loop without its
-    parent Directive when optimisations are applied in Dynamo0.3 API
+    parent Directive when optimisations are applied in LFRic API
     raises a TransformationError. '''
     etrans = LFRicExtractTrans()
 
@@ -171,8 +119,8 @@ def test_extract_loop_no_directive_dynamo0p3():
     _, invoke = get_invoke("4.13_multikernel_invokes_w3_anyd.f90",
                            "lfric", idx=0, dist_mem=False)
     schedule = invoke.schedule
-    # Apply DynamoOMPParallelLoopTrans to the second Loop
-    otrans = DynamoOMPParallelLoopTrans()
+    # Apply LFRicOMPParallelLoopTrans to the second Loop
+    otrans = LFRicOMPParallelLoopTrans()
     otrans.apply(schedule[1])
     loop = schedule.children[1].dir_body[0]
     # Try extracting the Loop inside the OMP Parallel DO region

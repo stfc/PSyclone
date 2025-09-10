@@ -253,8 +253,7 @@ class PSyIRVisitor():
         # the class hierarchy (starting from the current class name).
         for method_name in possible_method_names:
             try:
-                # pylint: disable=eval-used
-                node_result = eval(f"self.{method_name}(node)")
+                node_result = getattr(self, method_name)(node)
 
                 # We can only proceed to add comments if the Visitor
                 # returned a string, otherwise we just return
@@ -273,6 +272,10 @@ class PSyIRVisitor():
                     if not parent or valid:
                         if node.preceding_comment and self._COMMENT_PREFIX:
                             lines = node.preceding_comment.split('\n')
+                            # For better readability separate with a linebreak
+                            # any comment that is not at the top of their scope
+                            if node.position != 0:
+                                result += "\n"
                             for line in lines:
                                 result += (self._nindent +
                                            self._COMMENT_PREFIX +

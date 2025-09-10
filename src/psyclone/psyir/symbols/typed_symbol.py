@@ -234,23 +234,56 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
             return self._datatype.shape
         return []
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        super().replace_symbols_using(table)
+        super().replace_symbols_using(table_or_symbol)
 
         from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
         if isinstance(self.datatype, DataTypeSymbol):
-            try:
-                self._datatype = table.lookup(self.datatype.name)
-            except KeyError:
-                pass
+            if isinstance(table_or_symbol, Symbol):
+                if table_or_symbol.name.lower() == self.datatype.name.lower():
+                    self._datatype = table_or_symbol
+            else:
+                try:
+                    self._datatype = table_or_symbol.lookup(self.datatype.name)
+                except KeyError:
+                    pass
         else:
-            self._datatype.replace_symbols_using(table)
+            self._datatype.replace_symbols_using(table_or_symbol)
+
+    def reference_accesses(self):
+        '''
+        :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
+
+        '''
+        access_info = super().reference_accesses()
+
+        if self.is_import:
+            # We ignore any dependencies associated with imported symbols.
+            return access_info
+
+        if isinstance(self.datatype, DataTypeSymbol):
+            # pylint: disable=import-outside-toplevel
+            from psyclone.core.signature import Signature
+            from psyclone.core.access_type import AccessType
+            access_info.add_access(
+                Signature(self.datatype.name),
+                AccessType.TYPE_INFO, self)
+        else:
+            access_info.update(self.datatype.reference_accesses())
+        return access_info

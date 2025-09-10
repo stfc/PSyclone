@@ -37,8 +37,45 @@
 ''' This module contains the implementations of the various OpenACC Directive
 Clause nodes.'''
 
+from typing import Union
+
 from psyclone.psyir.nodes.clause import Clause
+from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.reference import Reference
+
+
+class ACCAsyncQueueClause(Clause):
+    '''
+    OpenACC async clause. Has one child which specifies which queue, if any,
+    this node is associated with.
+
+    '''
+    _children_valid_format = "DataNode"
+    _clause_string = "async"
+
+    @staticmethod
+    def _validate_child(position: int, child: Node) -> bool:
+        '''
+        Decides whether a given child and position are valid for this node.
+        Only zero or one child of type DataNode is permitted.
+
+        :param position: the position to be validated.
+        :param child: a child to be validated.
+
+        '''
+        if position != 0:
+            return False
+        return isinstance(child, DataNode)
+
+    @property
+    def queue(self) -> Union[DataNode, None]:
+        '''
+        :returns: the queue specified by this clause (if any)
+        '''
+        if self.children:
+            return self.children[0]
+        return None
 
 
 class ACCCopyClause(Clause):
@@ -120,4 +157,5 @@ class ACCCopyOutClause(Clause):
         return isinstance(child, Reference)
 
 
-__all__ = ["ACCCopyClause", "ACCCopyInClause", "ACCCopyOutClause"]
+__all__ = ["ACCAsyncQueueClause", "ACCCopyClause",
+           "ACCCopyInClause", "ACCCopyOutClause"]

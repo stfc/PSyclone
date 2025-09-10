@@ -58,7 +58,7 @@ PSYROOT=../../../..
 include $(PSYROOT)/examples/common.mk
 
 # Set it to 'netcdf' to use the NetCDF writer
-TYPE?=standalone
+TYPE?=binary
 
 GENERATED_FILES += *.o *.mod $(NAME)  alg.f90 psy.f90   \
 		  $(DRIVER_INIT).$(TYPE)   $(DRIVER_INIT).F90   \
@@ -76,8 +76,11 @@ ifeq ($(TYPE), netcdf)
 	F90FLAGS += $$(nf-config --fflags)
 	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 	GENERATED_FILES += main-init.nc main-update.nc
+else ifeq ($(TYPE), ascii)
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/ascii/dl_esm_inf
+	GENERATED_FILES += main-init.ascii main-update.ascii
 else
-	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/dl_esm_inf
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/binary/dl_esm_inf
 	GENERATED_FILES += main-init.binary main-update.binary
 
 endif

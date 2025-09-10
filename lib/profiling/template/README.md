@@ -1,21 +1,20 @@
 # PSyclone Wrapper Library Template
 
 This is a simple example to help writing your own PSyclone [PSyData-API-based](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) profile library (see
-the ["Profiling"](
-https://psyclone.readthedocs.io/en/stable/profiling.html#profiling) section
-in the PSyclone [User Guide](https://psyclone.readthedocs.io/en/stable/) for
-more information). It only prints out the function called at runtime and does
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) profile library (see
+the [User Guide Profiling](
+https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling) section
+for more information). It only prints out the function called at runtime and does
 not do any actual measurements.
 
 ## Dependencies
 
 This test library is based on the [PSyData base class](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-base-class),
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#psydata-base-class),
 which is included in PSyclone as a Jinja template, ``psy_data_base.jinja``.
 Full documentation on using this template is provided in the PSyclone
 [Developer Guide](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja). The
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#jinja). The
 script [``process.py``](./../../README.md#psydata-base-class) is used to
 process this template.
 

@@ -49,7 +49,7 @@ from psyclone.transformations import OMPSingleTrans, \
     OMPParallelTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+    os.path.abspath(__file__)))), "test_files", "lfric")
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
                                 "gocean1p0")
@@ -126,10 +126,10 @@ def test_omp_task_directive_clause_accessors(fortran_reader):
     copy = tree.lower_to_language_level()
     task_dir = copy.walk(OMPTaskDirective)[0]
     assert isinstance(task_dir.input_depend_clause, OMPDependClause)
-    assert (task_dir.input_depend_clause._operand ==
+    assert (task_dir.input_depend_clause.operator ==
             OMPDependClause.DependClauseTypes.IN)
     assert isinstance(task_dir.output_depend_clause, OMPDependClause)
-    assert (task_dir.output_depend_clause._operand ==
+    assert (task_dir.output_depend_clause.operator ==
             OMPDependClause.DependClauseTypes.OUT)
 
 

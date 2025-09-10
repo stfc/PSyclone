@@ -37,7 +37,6 @@
 
 ''' This module contains the DataTypeSymbol. '''
 
-from __future__ import absolute_import
 from psyclone.psyir.symbols.symbol import Symbol
 
 
@@ -126,6 +125,35 @@ class DataTypeSymbol(Symbol):
                             f"found '{type(symbol_in).__name__}'.")
         super(DataTypeSymbol, self).copy_properties(symbol_in)
         self._datatype = symbol_in.datatype
+
+    def reference_accesses(self):
+        '''
+        :returns: a map of all the symbol accessed inside this Symbol, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
+
+        '''
+        access_info = super().reference_accesses()
+        access_info.update(self.datatype.reference_accesses())
+        return access_info
+
+    def replace_symbols_using(self, table_or_symbol):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable  (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
+
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
+
+        '''
+        super().replace_symbols_using(table_or_symbol)
+        self.datatype.replace_symbols_using(table_or_symbol)
 
 
 # For automatic documentation generation

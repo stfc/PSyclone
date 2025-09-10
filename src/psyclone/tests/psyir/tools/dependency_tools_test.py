@@ -39,7 +39,7 @@
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Assignment, Loop
 from psyclone.psyir.tools import DependencyTools, DTCode
@@ -101,8 +101,7 @@ def test_dep_tool_constructor_errors():
     with pytest.raises(TypeError) as err:
         _ = DependencyTools(loop_types_to_parallelise=["invalid"])
     assert ("Invalid loop type 'invalid' specified in DependencyTools. Valid "
-            "values for API 'lfric' are ['dof', 'colours', 'colour', '', "
-            "'null']." in str(err.value))
+            "values for API 'lfric' are [" in str(err.value))
 
 
 # -----------------------------------------------------------------------------
@@ -236,14 +235,14 @@ def test_partition(lhs, rhs, partition, fortran_reader):
     assign = psyir.children[0].children[0]
 
     # Get all access info for the expression
-    access_info_lhs = VariablesAccessInfo(assign.lhs)
-    access_info_rhs = VariablesAccessInfo(assign.rhs)
+    access_info_lhs = assign.lhs.reference_accesses()
+    access_info_rhs = assign.rhs.reference_accesses()
 
     # Find the access that is an array (and therefore not a loop variable)
     #  --> this must be the 'main' array variable we need to check for:
     sig = None
     for sig in access_info_lhs:
-        if access_info_lhs[sig].is_array():
+        if access_info_lhs[sig].has_indices():
             break
 
     # Get all accesses to the array variable. It has only one
@@ -295,8 +294,8 @@ def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, fortran_reader):
 
     sig = Signature("a1")
     # Get all access info for the expression to 'a1'
-    access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
-    access_info_rhs = VariablesAccessInfo(assign.rhs)[sig][0]
+    access_info_lhs = assign.lhs.reference_accesses()[sig][0]
+    access_info_rhs = assign.rhs.reference_accesses()[sig][0]
     index = (0, 0)
     lhs_index0 = access_info_lhs.component_indices[index]
     rhs_index0 = access_info_rhs.component_indices[index]
@@ -358,13 +357,13 @@ def test_array_access_pairs_1_var(lhs, rhs, distance, fortran_reader):
     sig = Signature("a1")
     # Get the READ access to 'a1' for expression (this is complicated by the
     # presence of 'inquiry' accesses for the array bounds in some cases).
-    a1vinfo = VariablesAccessInfo(assign.lhs)[sig]
-    for access in a1vinfo.all_accesses:
+    a1vinfo = assign.lhs.reference_accesses()[sig]
+    for access in a1vinfo:
         if access.access_type == AccessType.READ:
             access_info_lhs = access
             break
-    a1vinfo_rh = VariablesAccessInfo(assign.rhs)[sig]
-    for access in a1vinfo_rh.all_accesses:
+    a1vinfo_rh = assign.rhs.reference_accesses()[sig]
+    for access in a1vinfo_rh:
         if access.access_type == AccessType.READ:
             access_info_rhs = access
             break
@@ -399,14 +398,14 @@ def test_array_access_pairs_multi_var(lhs, rhs, independent, fortran_reader):
     psyir = fortran_reader.psyir_from_source(source)
     assign = psyir.children[0].children[0]
 
-    access_info_lhs = VariablesAccessInfo(assign.lhs)
-    access_info_rhs = VariablesAccessInfo(assign.rhs)
+    access_info_lhs = assign.lhs.reference_accesses()
+    access_info_rhs = assign.rhs.reference_accesses()
 
     # Find the access that is not to i,j, or k --> this must be
     # the 'main' array variable we need to check for:
     sig = None
     for sig in access_info_lhs:
-        if access_info_lhs[sig].is_array():
+        if access_info_lhs[sig].has_indices():
             break
 
     # Get all accesses to the array variable. It has only one
@@ -419,8 +418,8 @@ def test_array_access_pairs_multi_var(lhs, rhs, independent, fortran_reader):
                                    ["i", "j", "k", "l"])
 
     # Get all access info for the expression to 'a1'
-    access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
-    access_info_rhs = VariablesAccessInfo(assign.rhs)[sig][0]
+    access_info_lhs = assign.lhs.reference_accesses()[sig][0]
+    access_info_rhs = assign.rhs.reference_accesses()[sig][0]
     # The variable partition contains a list, each element being a pair of
     # a variable set (element 0) and subscripts indices (element 1).
     # So partition[0][1] takes the subscript indices ([1]) of the first

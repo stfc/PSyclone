@@ -41,27 +41,17 @@ previously dumped kernel input- and output-data.
 
 # TODO #706: Add compilation support
 
-from collections import namedtuple
 from pathlib import Path
-import os
-import re
 
 import pytest
 
-from psyclone.configuration import Config
-from psyclone.errors import InternalError
 from psyclone.domain.common import ExtractDriverCreator
 from psyclone.domain.gocean.transformations import (GOceanExtractTrans,
                                                     GOConstLoopBoundsTrans)
-from psyclone.parse import ModuleManager
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Reference, Routine
+from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
-from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
-from psyclone.psyir.transformations import PSyDataTrans, TransformationError
-from psyclone.tests.utilities import Compile, get_base_path, get_invoke
-
+from psyclone.psyir.transformations import PSyDataTrans
+from psyclone.tests.utilities import get_invoke
 
 # API names
 GOCEAN_API = "gocean"
@@ -146,42 +136,93 @@ def test_driver_creation1():
     # tests if unique variable names are created in the driver: the user
     # program contains a local variable 'dx', which clashes with the grid
     # property dx. The grid property will be renamed to 'dx_1':
-    expected = '''use read_kernel_data_mod, only : ReadKernelDataType
-
-  real*8, allocatable, dimension(:,:) :: out_fld
-  real*8, allocatable, dimension(:,:) :: in_out_fld
-  real*8, allocatable, dimension(:,:) :: in_fld
-  real*8, allocatable, dimension(:,:) :: dx
-  real*8, allocatable, dimension(:,:) :: in_fld_grid_gphiu
-  real*8, allocatable, dimension(:,:) :: out_fld_post
+    expected = '''
+  use read_kernel_data_mod, only : ReadKernelDataType
+  use kernel_driver_test, only : compute_kernel_code
+  use compare_variables_mod, only : compare, compare_init, compare_summary
+  integer :: out_fld_internal_ystart
+  integer :: out_fld_internal_ystop
+  integer :: out_fld_internal_xstart
+  integer :: out_fld_internal_xstop
+  integer :: i
+  integer :: j
+  real*8, allocatable, dimension(:,:) :: out_fld_data
+  real*8, allocatable, dimension(:,:) :: in_out_fld_data
+  real*8, allocatable, dimension(:,:) :: in_fld_data
+  real*8, allocatable, dimension(:,:) :: dx_data
   real*8 :: in_fld_grid_dx
-  real*8, allocatable, dimension(:,:) :: in_out_fld_post
+  real*8, allocatable, dimension(:,:) :: in_fld_grid_gphiu
   type(ReadKernelDataType) :: extract_psy_data
-  call extract_psy_data%OpenReadModuleRegion('psy_extract_example_with_various_variable_''' \
-  '''access_patterns', &
-&'invoke_0_compute_kernel-compute_kernel_code-r0')
-  call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
-  call extract_psy_data%ReadVariable('out_fld', out_fld)
-  call extract_psy_data%ReadVariable('in_fld', in_fld)
-  call extract_psy_data%ReadVariable('in_out_fld_post', in_out_fld_post)
-  call extract_psy_data%ReadVariable('dx', dx)
-  call extract_psy_data%ReadVariable('in_fld%grid%dx', in_fld_grid_dx)
-  call extract_psy_data%ReadVariable('in_fld%grid%gphiu', in_fld_grid_gphiu)
+  real*8, allocatable, dimension(:,:) :: dx_data_post
+  integer :: i_post
+  real*8, allocatable, dimension(:,:) :: in_fld_data_post
+  real*8 :: in_fld_grid_dx_post
+  real*8, allocatable, dimension(:,:) :: in_fld_grid_gphiu_post
+  real*8, allocatable, dimension(:,:) :: in_out_fld_data_post
+  integer :: j_post
+  real*8, allocatable, dimension(:,:) :: out_fld_data_post
+
+  call extract_psy_data%OpenReadModuleRegion('psy_extract_example_with_\
+various_variable_access_patterns', 'invoke_0_compute_kernel-compute_\
+kernel_code-r0')
+  call extract_psy_data%ReadVariable('dx_data', dx_data)
+  call extract_psy_data%ReadVariable('in_fld_data', in_fld_data)
+  call extract_psy_data%ReadVariable('in_fld_grid_dx', in_fld_grid_dx)
+  call extract_psy_data%ReadVariable('in_fld_grid_gphiu', in_fld_grid_gphiu)
+  call extract_psy_data%ReadVariable('in_out_fld_data', in_out_fld_data)
+  call extract_psy_data%ReadVariable('out_fld_data', out_fld_data)
+  call extract_psy_data%ReadVariable('out_fld_internal_xstart', \
+out_fld_internal_xstart)
+  call extract_psy_data%ReadVariable('out_fld_internal_xstop', \
+out_fld_internal_xstop)
+  call extract_psy_data%ReadVariable('out_fld_internal_ystart', \
+out_fld_internal_ystart)
+  call extract_psy_data%ReadVariable('out_fld_internal_ystop', \
+out_fld_internal_ystop)
+  call extract_psy_data%ReadVariable('i', i)
+  call extract_psy_data%ReadVariable('j', j)
+  call extract_psy_data%ReadVariable('dx_data_post', dx_data_post)
+  call extract_psy_data%ReadVariable('i_post', i_post)
+  call extract_psy_data%ReadVariable('in_fld_data_post', in_fld_data_post)
+  call extract_psy_data%ReadVariable('in_fld_grid_dx_post', \
+in_fld_grid_dx_post)
+  call extract_psy_data%ReadVariable('in_fld_grid_gphiu_post', \
+in_fld_grid_gphiu_post)
+  call extract_psy_data%ReadVariable('in_out_fld_data_post', \
+in_out_fld_data_post)
+  call extract_psy_data%ReadVariable('j_post', j_post)
+  call extract_psy_data%ReadVariable('out_fld_data_post', out_fld_data_post)
   do j = out_fld_internal_ystart, out_fld_internal_ystop, 1
     do i = out_fld_internal_xstart, out_fld_internal_xstop, 1
-      call compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, dx, ''' \
-      '''in_fld_grid_dx, in_fld_grid_gphiu)
+      call compute_kernel_code(i, j, out_fld_data, in_out_fld_data, \
+in_fld_data, dx_data, in_fld_grid_dx, in_fld_grid_gphiu)
     enddo
   enddo
-  call compare_init(4)
+  call compare_init(8)
   call compare('i', i, i_post)
-  call compare('in_out_fld', in_out_fld, in_out_fld_post)
+  call compare('in_out_fld_data', in_out_fld_data, in_out_fld_data_post)
   call compare('j', j, j_post)
-  call compare('out_fld', out_fld, out_fld_post)
-  call compare_summary()'''
+  call compare('out_fld_data', out_fld_data, out_fld_data_post)
+  call compare_summary()
+'''
     expected_lines = expected.split("\n")
     for line in expected_lines:
-        assert line in driver_code
+        assert line in driver_code, line + "\n -- not in --\n" + driver_code
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone, and we would have
+    # a: call compare_init(4)
+    expected = '''
+  call compare('dx_data', dx_data, dx_data_post)
+  call compare('in_fld_data', in_fld_data, in_fld_data_post)
+  call compare('in_fld_grid_dx', in_fld_grid_dx, in_fld_grid_dx_post)
+  call compare('in_fld_grid_gphiu', in_fld_grid_gphiu, \
+in_fld_grid_gphiu_post)
+    '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in driver_code, line + "\n -- not in --\n" + driver_code
 
     # TODO: This requires mpi atm, since the inlines infrastructure file
     # parallel_utils_mod is used (and not parallel_utils_stub_mod)
@@ -199,22 +240,23 @@ def test_driver_creation2():
 
     '''
     # Use tmpdir so that the driver is created in tmp
+    psy, invoke = get_invoke("driver_test.f90", GOCEAN_API,
+                             idx=0, dist_mem=False)
 
-    _, invoke = get_invoke("driver_test.f90", GOCEAN_API,
-                           idx=0, dist_mem=False)
-
-    nodes = [invoke.schedule.children[0]]
     clb_trans = GOConstLoopBoundsTrans()
     clb_trans.apply(invoke.schedule)
+    etrans = GOceanExtractTrans()
+    first_loop = invoke.schedule.walk(Loop)[0]
+    etrans.apply(first_loop, {'create_driver': True,
+                              'region_name':
+                              ("module_name", "local_name")})
 
-    ctu = CallTreeUtils()
-    read_write_info = ctu.get_in_out_parameters(nodes)
+    _ = psy.gen
+    driver = Path("driver-module_name-local_name.f90")
+    assert driver.is_file()
 
-    edc = ExtractDriverCreator()
-
-    driver_code = edc.get_driver_as_string(nodes, read_write_info,
-                                           "extract", "_post",
-                                           ("module_name", "local_name"))
+    with driver.open("r", encoding="utf-8") as driver_file:
+        driver_code = driver_file.read()
 
     # This is an excerpt of the code that should get created.
     # It is tested line by line since there is other code in between
@@ -226,41 +268,54 @@ def test_driver_creation2():
 
   integer :: istop
   integer :: jstop
-  real*8, allocatable, dimension(:,:) :: out_fld
-  real*8, allocatable, dimension(:,:) :: in_out_fld
-  real*8, allocatable, dimension(:,:) :: in_fld
-  real*8, allocatable, dimension(:,:) :: dx
+  real*8, allocatable, dimension(:,:) :: out_fld_data
+  real*8, allocatable, dimension(:,:) :: in_out_fld_data
+  real*8, allocatable, dimension(:,:) :: in_fld_data
+  real*8, allocatable, dimension(:,:) :: dx_data
   real*8, allocatable, dimension(:,:) :: in_fld_grid_gphiu
-  real*8, allocatable, dimension(:,:) :: out_fld_post
+  real*8, allocatable, dimension(:,:) :: out_fld_data_post
   real*8 :: in_fld_grid_dx
-  real*8, allocatable, dimension(:,:) :: in_out_fld_post
+  real*8, allocatable, dimension(:,:) :: in_out_fld_data_post
   type(ReadKernelDataType) :: extract_psy_data
   call extract_psy_data%OpenReadModuleRegion('module_name', 'local_name')
-  call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
-  ALLOCATE(out_fld, mold=out_fld_post)
-  out_fld = 0
-  call extract_psy_data%ReadVariable('in_fld', in_fld)
-  call extract_psy_data%ReadVariable('in_out_fld_post', in_out_fld_post)
-  call extract_psy_data%ReadVariable('dx', dx)
-  call extract_psy_data%ReadVariable('in_fld%grid%dx', in_fld_grid_dx)
-  call extract_psy_data%ReadVariable('in_fld%grid%gphiu', in_fld_grid_gphiu)
-  istop = out_fld_grid_subdomain_internal_xstop
-  jstop = out_fld_grid_subdomain_internal_ystop
+  call extract_psy_data%ReadVariable('out_fld_data_post', out_fld_data_post)
+  call extract_psy_data%ReadVariable('in_fld_data', in_fld_data)
+  call extract_psy_data%ReadVariable('in_out_fld_data_post', \
+in_out_fld_data_post)
+  call extract_psy_data%ReadVariable('dx_data', dx_data)
+  call extract_psy_data%ReadVariable('in_fld_grid_dx', in_fld_grid_dx)
+  call extract_psy_data%ReadVariable('in_fld_grid_gphiu', in_fld_grid_gphiu)
   do j = 2, jstop, 1
     do i = 2, istop + 1, 1
-      call compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, dx, ''' \
-      '''in_fld_grid_dx, in_fld_grid_gphiu)
+      call compute_kernel_code(i, j, out_fld_data, in_out_fld_data, \
+in_fld_data, dx_data, in_fld_grid_dx, in_fld_grid_gphiu)
     enddo
   enddo
-  call compare_init(4)
+  call compare_init(8)
   call compare('i', i, i_post)
-  call compare('in_out_fld', in_out_fld, in_out_fld_post)
+  call compare('in_out_fld_data', in_out_fld_data, in_out_fld_data_post)
   call compare('j', j, j_post)
-  call compare('out_fld', out_fld, out_fld_post)
+  call compare('out_fld_data', out_fld_data, out_fld_data_post)
   call compare_summary()'''
     expected_lines = expected.split("\n")
     for line in expected_lines:
-        assert line in driver_code
+        assert line in driver_code, line + "\n -- not in --\n" + driver_code
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone, and we would have
+    # a: call compare_init(4)
+    expected = '''
+  call compare('dx_data', dx_data, dx_data_post)
+  call compare('in_fld_data', in_fld_data, in_fld_data_post)
+  call compare('in_fld_grid_dx', in_fld_grid_dx, in_fld_grid_dx_post)
+  call compare('in_fld_grid_gphiu', in_fld_grid_gphiu, \
+in_fld_grid_gphiu_post)
+    '''
+
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in driver_code, line + "\n -- not in --\n" + driver_code
 
 
 # -----------------------------------------------------------------------------
@@ -278,7 +333,6 @@ def test_rename_suffix_if_name_clash():
 
     '''
     # Use tmpdir so that the driver is created in tmp
-
     etrans = GOceanExtractTrans()
     psy, invoke = get_invoke("driver_test.f90",
                              GOCEAN_API, idx=1, dist_mem=False)
@@ -288,49 +342,20 @@ def test_rename_suffix_if_name_clash():
                                         ("module_name", "local_name")})
     extract_code = str(psy.gen)
 
-    print("XX", extract_code)
-    # This kernel calls compute_kernel(out_fld, in_out_fld, out_fld_post, dx)
-    # with the access patterns:
-    #   out_fld:      write
-    #   in_out_fld:   read+write
-    #   out_fld_post: read
-    # Due to the name clash of "out_fld"+"_post" (first parameter output
-    # value) and "out_fld_post" (third parameters as input argument)
-    # the _post suffix is changed to "_post0". So the file will
-    # contain:
-    #   out_fld:          the input value of the written field, since even if a
-    #                     parameter is output only, its input value is stored
-    #                     in case that the kernel only updates some elements
-    #   in_out_fld:       the input value of the in_out_fld argument
-    #   out_fld_post:     the input value of the read-only array
-    # Then for the written fields:
-    #   in_out_fld_post0: the value of in_out_fld after the kernel
-    #   out_fld_post0:    the output value of output_fld after the kernel call
-    # Test that these fields are indeed given to the extraction library.
-    # Note that the last two ProvideVariable calls will actually be after
-    # the kernel call.
+    # This kernel calls compute_kernel(out_fld%data, out_fld_data%data,
+    #                                  out_fld_data_post%data, dx%data)
+    # Make sure the extraction does not clash the names of
+    # flattening out_fld%data to out_fld_data or out_fld_data_post
     expected_lines = [
-      # Declaration, first the three arguments
-      'CALL extract_psy_data % PreDeclareVariable("out_fld", out_fld)',
-      'CALL extract_psy_data % PreDeclareVariable("in_out_fld", '
-      'in_out_fld',
-      'CALL extract_psy_data % PreDeclareVariable("out_fld_post", '
-      'out_fld_post)',
-      # Declare the two variables to be written after the kernel, with
-      # the suffix `_post0` added.
-      'CALL extract_psy_data % PreDeclareVariable("in_out_fld_post0", '
-      'in_out_fld',
-      'CALL extract_psy_data % PreDeclareVariable("out_fld_post0", out_fld)',
-      # Provide the variables before the kernel call:
-      'CALL extract_psy_data % ProvideVariable("out_fld", out_fld)',
-      'CALL extract_psy_data % ProvideVariable("in_out_fld", in_out_fld)',
-      'CALL extract_psy_data % ProvideVariable("out_fld_post", out_fld_post)',
-      # Provide the variables after the kernel call:
-      'CALL extract_psy_data % ProvideVariable("in_out_fld_post0", '
-      'in_out_fld)',
-      'CALL extract_psy_data % ProvideVariable("out_fld_post0", out_fld)']
+      'CALL extract_psy_data % PreDeclareVariable("out_fld_data_1", '
+      'out_fld_data_1)',
+      'CALL extract_psy_data % PreDeclareVariable("out_fld_data_1_post", '
+      'out_fld_data_1)',
+      'call compute_kernel_code(i, j, out_fld_data_1, out_fld_data_data, '
+      'out_fld_data_post_data, dx_data, out_fld_data_post_grid_dx, '
+      'out_fld_data_post_grid_gphiu)']
     for line in expected_lines:
-        assert line in extract_code
+        assert line in extract_code, line + "\n -- not in --\n" + extract_code
 
     # Now we also need to check that the driver uses the new suffix,
     # i.e. both as key for ReadVariable, as well as for the variable
@@ -342,115 +367,14 @@ def test_rename_suffix_if_name_clash():
         driver_code = driver_file.read()
 
     expected = """
-  real*8, allocatable, dimension(:,:) :: out_fld
-  real*8, allocatable, dimension(:,:) :: in_out_fld
-  real*8, allocatable, dimension(:,:) :: out_fld_post
-  real*8, allocatable, dimension(:,:) :: in_out_fld_post0
-  real*8, allocatable, dimension(:,:) :: out_fld_post0
-  call extract_psy_data%ReadVariable('in_out_fld', in_out_fld)
-  call extract_psy_data%ReadVariable('in_out_fld_post0', in_out_fld_post0)
-  call extract_psy_data%ReadVariable('out_fld_post0', out_fld_post0)
-  call extract_psy_data%ReadVariable('out_fld', out_fld)
-  call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)"""
+  real*8, allocatable, dimension(:,:) :: out_fld_data_1
+  real*8, allocatable, dimension(:,:) :: out_fld_data_1_post
+  call extract_psy_data%ReadVariable('out_fld_data_1', out_fld_data_1)
+  call extract_psy_data%ReadVariable('out_fld_data_1_post', \
+out_fld_data_1_post)"""
 
     for line in expected.split("\n"):
-        assert line in driver_code
-
-    # Now test that more than one variable clash is handled. The third
-    # invoke uses:
-    # "out_fld" as output field
-    # "out_fld_post" as input field (first clash -->
-    # suffix becomes "_post0")
-    # "out_fld_post0" as input+output field (next clash -->
-    # suffix = "_post1")
-    psy, invoke = get_invoke("driver_test.f90",
-                             GOCEAN_API, idx=2, dist_mem=False)
-    schedule = invoke.schedule
-    # We don't check the driver, we already tested that the
-    # driver picks up the adjusted suffix above
-    etrans.apply(schedule.children[0])
-    extract_code = str(psy.gen)
-
-    # Check that *out_fld* is declared correctly: it is only declared as
-    # output value, but it must also be added as input field, to make sure
-    # we have all values of a field, even if the kernel doesn't update them:
-    assert 'PreDeclareVariable("out_fld_post1", out_fld)' in extract_code
-    assert 'PreDeclareVariable("out_fld", out_fld)' in extract_code
-
-    # Check that *out_fld_post* (input/output) is declared correctly. It
-    # must be declared twice: once for the input value using the original
-    # variable name, and once as output using the "_post1" suffix.
-    assert ('PreDeclareVariable("out_fld_post", out_fld_post)'
-            in extract_code)
-    assert ('PreDeclareVariable("out_fld_post_post1", out_fld_post)'
-            in extract_code)
-
-    # Check that *out_fld_post0* is declared correctly: as input-only
-    # variable it must be declared once for using the original variable
-    # name.
-    assert ('PreDeclareVariable("out_fld_post0", out_fld_post0)'
-            in extract_code)
-    assert ('PreDeclareVariable("out_fld_post0_post1", out_fld_post0)'
-            not in extract_code)
-
-
-# -----------------------------------------------------------------------------
-def test_driver_creation_create_flattened_symbol_errors(monkeypatch):
-    '''Test that create_flattened_symbol raises the appropriate errors.
-
-    '''
-    _, invoke = get_invoke("driver_test.f90",
-                           GOCEAN_API, idx=0, dist_mem=False)
-    schedule = invoke.schedule
-
-    # Get the reference to the 6th argument, which is the gocean
-    # property.
-    ref = schedule.children[0].loop_body.children[0] \
-        .loop_body.children[0].arguments.args[5].psyir_expression()
-    # Make sure we have the right reference:
-    assert isinstance(ref, Reference)
-    assert ref.children[0].children[0].name == "gphiu"
-
-    edc = ExtractDriverCreator()
-
-    # Remove the default types to trigger the error of
-    # not finding the default type to use:
-    edc._default_types = {}
-    with pytest.raises(InternalError) as err:
-        # The symbol table can be None, that code is not reached.
-        edc.create_flattened_symbol("new_name", ref, None)
-    # Leave out the config filename in the test
-    assert re.search("Type 'real' of the property reference "
-                     "'in_fld%grid%gphiu' as defined in the config file "
-                     "'.*' is not supported in the GOcean API",
-                     str(err.value))
-
-    # Monkey patch the grid property dictionary to remove the
-    # go_grid_lat_u entry, triggering an earlier error:
-    api_config = Config.get().api_conf("gocean")
-    grid_properties = api_config.grid_properties
-    monkeypatch.delitem(grid_properties, "go_grid_lat_u")
-
-    with pytest.raises(InternalError) as err:
-        # The symbol table can be None, that code is not reached.
-        edc.create_flattened_symbol("new_name", ref, None)
-    assert re.search("Could not find type for reference 'in_fld%grid%gphiu' "
-                     "in the config file '.*'.", str(err.value))
-
-    grid_properties = api_config.grid_properties
-
-    # We have to create an invalid property from scratch, since the
-    # GOceanConfig implementation only allows valid types.
-    Property = namedtuple("Property", "fortran type intrinsic_type")
-    prop = Property("{0}%grid%gphiu", "invalid-type", "real")
-    monkeypatch.setitem(grid_properties, "go_grid_lat_u", prop)
-    # We need a new instance, since the instance above was modified
-    edc = ExtractDriverCreator()
-    with pytest.raises(InternalError) as err:
-        edc.create_flattened_symbol("new_name", ref, SymbolTable())
-    assert re.search("The expression 'in_fld%grid%gphiu' maps to an unknown "
-                     "GOcean property type 'invalid-type' in the config "
-                     "file '.*'.", str(err.value))
+        assert line in driver_code, line + "\n -- not in --\n" + driver_code
 
 
 # -----------------------------------------------------------------------------
@@ -477,36 +401,7 @@ def test_errors_add_call():
 
 
 # -----------------------------------------------------------------------------
-def test_driver_creation_add_all_kernel_symbols_errors():
-    '''Test the error that can be raised in add_all_kernel_symbols.
-
-    '''
-    _, invoke = get_invoke("driver_test.f90",
-                           GOCEAN_API, idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    # Create the copy and lower it before the default_types are
-    # changed (which will prevent lowering from working).
-    schedule_copy = schedule.copy()
-    schedule_copy.lower_to_language_level()
-
-    # First provide a structured type that is not an r2d_field:
-    edc = ExtractDriverCreator()
-    ref = schedule_copy.children[0].loop_body.children[0] \
-        .loop_body.children[0].arguments[2]
-    assert ref.symbol.name == "out_fld"
-    assert ref.symbol.datatype.name == "r2d_field"
-    ref.symbol.datatype._name = "unknown type"
-    read_write_info = ReadWriteInfo()
-    symbol_table = SymbolTable()
-    with pytest.raises(InternalError) as err:
-        edc.add_all_kernel_symbols(schedule_copy, symbol_table,
-                                   read_write_info)
-    assert ("Error when constructing driver for 'invoke_0_compute_kernel': "
-            "Unknown derived type 'unknown type' in reference "
-            "'out_fld%internal%ystart'." in str(err.value))
-
-
-# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
 def test_driver_creation_same_symbol():
     '''Make sure that if a symbol appears in more than one invoke no duplicated
     symbol is created.
@@ -516,28 +411,66 @@ def test_driver_creation_same_symbol():
     # This means the same symbols are re-encountered when handling the
     # second kernel call (since each kernel argument has already been
     # declared when the first kernel was done).
-    _, invoke = get_invoke("driver_test.f90", GOCEAN_API,
-                           idx=3, dist_mem=False)
+    psy, invoke = get_invoke("driver_test.f90", GOCEAN_API,
+                             idx=3, dist_mem=False)
 
-    nodes = [invoke.schedule.children[0]]
-    ctu = CallTreeUtils()
-    read_write_info = ctu.get_in_out_parameters(nodes)
+    etrans = GOceanExtractTrans()
+    etrans.apply(invoke.schedule, {'create_driver': True,
+                                   'region_name':
+                                   ("module_name", "local_name")})
+    code = psy.gen
 
-    edc = ExtractDriverCreator()
-    driver_code = edc.get_driver_as_string(nodes, read_write_info,
-                                           "extract", "_post",
-                                           ("module_name", "local_name"))
-    # Make sure we have both kernel calls in the driver.
-    correct = """  do j = out_fld_internal_ystart, out_fld_internal_ystop, 1
+    # Only one version of the flattened symbol is created and given
+    # the value back
+    assert """
+    out_fld_internal_ystart = out_fld%internal%ystart
+    out_fld_internal_ystop = out_fld%internal%ystop
+    out_fld_internal_xstart = out_fld%internal%xstart
+    out_fld_internal_xstop = out_fld%internal%xstop
+    out_fld_data = out_fld%data
+    in_out_fld_data = in_out_fld%data
+    in_fld_data = in_fld%data
+    dx_data = dx%data
+    in_fld_grid_dx = in_fld%grid%dx
+    in_fld_grid_gphiu = in_fld%grid%gphiu
+    CALL extract_psy_data % PreStart("module_name", "local_name", 12, 8)
+    """ in code
+    assert """
+    CALL extract_psy_data % PostEnd
+    in_fld%grid%gphiu = in_fld_grid_gphiu
+    in_fld%grid%dx = in_fld_grid_dx
+    dx%data = dx_data
+    in_fld%data = in_fld_data
+    in_out_fld%data = in_out_fld_data
+    out_fld%data = out_fld_data
+    out_fld%internal%xstop = out_fld_internal_xstop
+    out_fld%internal%xstart = out_fld_internal_xstart
+    out_fld%internal%ystop = out_fld_internal_ystop
+    out_fld%internal%ystart = out_fld_internal_ystart""" in code
+    driver = Path("driver-module_name-local_name.f90")
+    assert driver.is_file()
+
+    with driver.open("r", encoding="utf-8") as driver_file:
+        driver_code = driver_file.read()
+
+    # Make sure that all kernels use the same flattened symbols
+    correct = """
+  do j = out_fld_internal_ystart, out_fld_internal_ystop, 1
     do i = out_fld_internal_xstart, out_fld_internal_xstop, 1
-      call compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, dx, """ \
-      """in_fld_grid_dx, in_fld_grid_gphiu)
+      call compute_kernel_code(i, j, out_fld_data, in_out_fld_data, \
+in_fld_data, dx_data, in_fld_grid_dx, in_fld_grid_gphiu)
     enddo
   enddo
   do j = out_fld_internal_ystart, out_fld_internal_ystop, 1
     do i = out_fld_internal_xstart, out_fld_internal_xstop, 1
-      call compute_kernel_code(i, j, out_fld, in_out_fld, in_fld, dx, """ \
-      """in_fld_grid_dx, in_fld_grid_gphiu)
+      call compute_kernel_code(i, j, out_fld_data, in_out_fld_data, \
+in_fld_data, dx_data, in_fld_grid_dx, in_fld_grid_gphiu)
+    enddo
+  enddo
+  do j = out_fld_internal_ystart, out_fld_internal_ystop, 1
+    do i = out_fld_internal_xstart, out_fld_internal_xstop, 1
+      call compute_kernel_code(i, j, out_fld_data, in_out_fld_data, \
+in_fld_data, dx_data, in_fld_grid_dx, in_fld_grid_gphiu)
     enddo
   enddo"""
     assert correct in driver_code
@@ -561,7 +494,7 @@ def test_driver_creation_import_modules(fortran_reader):
     # Delete all symbols in the symbol table so we can check if the right
     # symbols are added:
     program.scope._symbol_table = SymbolTable()
-    edc.import_modules(program.scope._symbol_table, psyir.children[0])
+    edc.import_modules(program)
     symbol_table = program.scope.symbol_table
     all_symbols = symbol_table.get_symbols()
     assert len(all_symbols) == 2
@@ -570,47 +503,3 @@ def test_driver_creation_import_modules(fortran_reader):
     mod_func = all_symbols["mod_func"]
     assert str(mod_func) == ("mod_func: RoutineSymbol<UnresolvedType, "
                              "pure=unknown, elemental=unknown>")
-
-
-# -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
-def test_driver_node_verification():
-    '''Test that the create() method verifies the node list it receives
-    and only accept the valid parameters.
-
-    '''
-    # Use tmpdir in case that the call below does not raise an
-    # exception, which would result in the driver being created
-    # in the current directory.
-
-    api = "gocean"
-    _, info = parse(os.path.join(get_base_path(api), "driver_test.f90"),
-                    api=api)
-    psy = PSyFactory(api, distributed_memory=False).create(info)
-    invokes = psy.invokes.invoke_list
-
-    edc = ExtractDriverCreator()
-
-    # Provide the nodes in the wrong order.
-    # Invoke #3 has all in all three kernels:
-    schedule = invokes[3].schedule
-    read_write_info = ReadWriteInfo()
-    with pytest.raises(TransformationError) as err:
-        edc.create(nodes=[schedule.children[1],
-                          schedule.children[2],
-                          schedule.children[0]],
-                   read_write_info=read_write_info, prefix="extract",
-                   postfix="post", region_name=("file", "region"))
-    assert ("Children are not consecutive children of one parent"
-            in str(err.value))
-    assert ("has position 0, but previous child had position 2."
-            in str(err.value))
-
-    # Provide nodes from different invokes:
-    with pytest.raises(TransformationError) as err:
-        edc.create(nodes=[invokes[3].schedule.children[1],
-                          invokes[2].schedule.children[0]],
-                   read_write_info=read_write_info, prefix="extract",
-                   postfix="post", region_name=("file", "region"))
-    assert ("supplied nodes are not children of the same parent."
-            in str(err.value))

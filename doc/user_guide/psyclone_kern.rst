@@ -113,8 +113,7 @@ written to a particular file. If this is not specified then the Python
 results in the output being printed to the terminal.
 
 The ``-l``, or ``--limit`` option utilises the PSyclone support for
-wrapping of lines within the 132 character limit in the generated Fortran code
-(please see the :ref:`Line Length <line-length>` chapter for more details).
+wrapping of lines within the 132 character limit in the generated Fortran code.
 
 .. _stub-generation:
 
@@ -187,23 +186,23 @@ Kernels
 
 Any LFRic kernel can be used as input to the stub generator.
 Example Kernels can be found in the ``examples/lfric`` repository or,
-for more simple cases, in the ``tests/test_files/dynamo0p3`` directory.
+for more simple cases, in the ``tests/test_files/lfric`` directory.
 These directories are located in the ``<PSYCLONEHOME>/src/psyclone``
 directory where ``<PSYCLONEHOME>`` refers to the location where you
 download or clone PSyclone (:ref:`Getting Going <getting-going>`).
 
-In the ``tests/test_files/dynamo0p3`` directory the majority of examples
+In the ``tests/test_files/lfric`` directory the majority of examples
 start with ``testkern``. Amongst the exceptions are: ``testkern_simple_mod.f90``,
 ``ru_kernel_mod.f90`` and ``matrix_vector_kernel_mod.F90``. The following
 test kernels can be used to generate kernel stub code (running stub
 generation from the ``<PSYCLONEHOME>/src/psyclone`` directory)::
 
-    tests/test_files/dynamo0p3/testkern_chi_read_mod.F90
-    tests/test_files/dynamo0p3/testkern_coord_w0_mod.F90
-    tests/test_files/dynamo0p3/testkern_operator_mod.f90
-    tests/test_files/dynamo0p3/testkern_operator_nofield_mod.f90
-    tests/test_files/dynamo0p3/ru_kernel_mod.f90
-    tests/test_files/dynamo0p3/testkern_simple_mod.f90
+    tests/test_files/lfric/testkern_chi_read_mod.F90
+    tests/test_files/lfric/testkern_coord_w0_mod.F90
+    tests/test_files/lfric/testkern_operator_mod.f90
+    tests/test_files/lfric/testkern_operator_nofield_mod.f90
+    tests/test_files/lfric/ru_kernel_mod.f90
+    tests/test_files/lfric/testkern_simple_mod.f90
 
 .. _stub-generation-example:
 
@@ -211,7 +210,7 @@ Example
 +++++++
 
 A simple, single field example of a kernel that can be used as input for the
-stub generator is found in ``tests/test_files/dynamo0p3/testkern_simple_mod.f90`` and
+stub generator is found in ``tests/test_files/lfric/testkern_simple_mod.f90`` and
 is shown below:
 
 .. _simple_metadata:
@@ -258,7 +257,7 @@ is shown below:
 
 If we run the kernel stub generator on the ``testkern_simple_mod.f90`` example::
 
-  > psyclone-kern -api lfric -gen stub tests/test_files/dynamo0p3/testkern_simple_mod.f90
+  > psyclone-kern -api lfric -gen stub tests/test_files/lfric/testkern_simple_mod.f90
 
 we get the following kernel stub output:
 
@@ -364,7 +363,7 @@ Kernel, excluding the subroutine body, is given below:
 
 If we run the kernel stub generator on this example::
 
-  > psyclone-kern -api lfric -gen stub tests/test_files/dynamo0p3/ru_kernel_mod.f90
+  > psyclone-kern -api lfric -gen stub tests/test_files/lfric/ru_kernel_mod.f90
 
 we obtain the following output:
 
@@ -440,24 +439,24 @@ The following tests do not produce stub kernel code either because
 they are invalid or because they contain functionality that is not
 supported in the stub generator::
 
-    tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
-    tests/test_files/dynamo0p3/testkern_any_space_4_mod.f90
-    tests/test_files/dynamo0p3/testkern_any_discontinuous_space_op_2_mod.f90
-    tests/test_files/dynamo0p3/testkern_dofs_mod.f90
-    tests/test_files/dynamo0p3/testkern_invalid_fortran_mod.f90
-    tests/test_files/dynamo0p3/testkern_short_name_mod.f90
-    tests/test_files/dynamo0p3/testkern_no_datatype_mod.f90
-    tests/test_files/dynamo0p3/testkern_wrong_file_name.F90
+    tests/test_files/lfric/testkern_any_space_1_mod.f90
+    tests/test_files/lfric/testkern_any_space_4_mod.f90
+    tests/test_files/lfric/testkern_any_discontinuous_space_op_2_mod.f90
+    tests/test_files/lfric/testkern_dofs_mod.f90
+    tests/test_files/lfric/testkern_invalid_fortran_mod.f90
+    tests/test_files/lfric/testkern_short_name_mod.f90
+    tests/test_files/lfric/testkern_no_datatype_mod.f90
+    tests/test_files/lfric/testkern_wrong_file_name.F90
 
 ``testkern_invalid_fortran_mod.f90``, ``testkern_no_datatype_mod.f90``,
 ``testkern_short_name_mod.f90`` and ``testkern_wrong_file_name.F90`` are designed to be
 invalid for PSyclone stub generation testing purposes and should produce
 appropriate errors. Two examples are below::
 
-    > psyclone-kern -api lfric -gen stub tests/test_files/dynamo0p3/testkern_invalid_fortran_mod.f90
+    > psyclone-kern -api lfric -gen stub tests/test_files/lfric/testkern_invalid_fortran_mod.f90
     Error: 'Parse Error: Code appears to be invalid Fortran'
 
-    > psyclone-kern -api lfric -gen stub tests/test_files/dynamo0p3/testkern_no_datatype_mod.f90
+    > psyclone-kern -api lfric -gen stub tests/test_files/lfric/testkern_no_datatype_mod.f90
     Error: 'Parse Error: Kernel type testkern_type does not exist'
 
 ``testkern_dofs_mod.f90`` is an example with an unsupported feature, as the
@@ -475,7 +474,7 @@ for :ref:`quadrature <lfric-quadrature>` and
 ``testkern_any_discontinuous_space_op_2_mod.f90`` should fail with
 appropriate warnings because of that. For example::
 
-    > psyclone-kern -api lfric -gen stub tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
+    > psyclone-kern -api lfric -gen stub tests/test_files/lfric/testkern_any_space_1_mod.f90
     Error: "Generation Error: Unsupported space for basis function, expecting
     one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2',
     'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi'] but found 'any_space_1'"
@@ -484,7 +483,7 @@ As noted above, if the LFRic API naming convention for module and type
 names is not followed, the stub generator will return with an error
 message. For example::
 
-    > psyclone-kern -api lfric -gen stub tests/test_files/dynamo0p3/testkern_wrong_file_name.F90
+    > psyclone-kern -api lfric -gen stub tests/test_files/lfric/testkern_wrong_file_name.F90
     Error: "Parse Error: Error, module name 'testkern_wrong_file_name' does not have
     '_mod' as an extension. This convention is assumed."
 
@@ -514,7 +513,7 @@ is useful for a number of reasons:
 1) Starting point for creating a test for a kernel;
 2) Benchmarking an individual kernel;
 3) Constructing a test harness for the adjoint of a kernel produced by
-   :ref:`PSyAD <psyad:introduction>`.
+   :ref:`PSyAD <psyad_introduction>`.
 
 Currently algorithm generation is only supported for the LFRic API but it
 could be extended to the GOcean API if desired.
@@ -539,7 +538,7 @@ Example
 If we take the same kernel used in the stub-generation
 :ref:`example <stub-generation-example>` then running ::
 
-  > psyclone-kern -api lfric -gen alg tests/test_files/dynamo0p3/testkern_simple_mod.f90
+  > psyclone-kern -api lfric -gen alg tests/test_files/lfric/testkern_simple_mod.f90
 
 gives the following algorithm layer code:
 
@@ -589,7 +588,7 @@ Once that's done, the interesting part is the `invoke` call:
                   simple_type(field_1))
 
 (where a line-break has been added for clarity). In this example the `invoke`
-is for two kernels: the first is a :ref:`Built-in <built-ins>` that gives
+is for two kernels: the first is a :ref:`Built-in <psykal-built-ins>` that gives
 `field_1` the value `1.0` everywhere and the second is the 'simple' kernel
 itself which is passed the now initialised `field_1`.
 

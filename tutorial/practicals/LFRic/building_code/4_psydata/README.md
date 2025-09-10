@@ -60,8 +60,7 @@ PSyclone on the file ``time_evolution_alg_mod.x90``.
 
 For this part of the exercise add the ``-s`` flag to the ``psyclone``
 invocation in ``Makefile.extract_one`` and provide the path to your script
-so that PSyclone will invoke it. It must start with ``./``, otherwise
-Python will not find our file.
+so that PSyclone will invoke it.
 
 Once this is done, you can then create your application using:
 
@@ -180,9 +179,7 @@ At this stage no driver is created that can read in the file.
 ## Step 7: Instrument more than one invoke
 
 The transformation script can be slightly changed to instrument all invokes
-in a file. While this might not be useful for kernel extraction, it is
-essential for e.g. parameter verification, where you typically want to
-check all invokes contained in a program. Use the template ``extract_all_transform.py``
+in a file. Use the template ``extract_all_transform.py``
 to apply the extraction transformation to all invokes in a file. This script
 actually requires less changes than the``extract_one_transform.py`` template
 (since it works on all invokes):
@@ -190,11 +187,34 @@ actually requires less changes than the``extract_one_transform.py`` template
 1. Import the required transformation and create an instance (first TODO).
 2. In the loop over all invokes apply the transformation (second TODO).
 
+Additionally, when applying the extract transformation, the additional
+parameter ``create_driver`` is set to True. This results in two additional
+programs being created - stand-alone programs that will read in the
+kernel data files, execute the kernels, and then compare the results
+with the original values when executing the application. 
+
  Then modify ``Makefile.extract_all`` to supply your
-``extract_all_transform.py`` script to PSyclone.
+``extract_all_transform.py`` script to PSyclone. This makefile
+will also compile both driver programs created here.
+
 Following the same process as above will result in a binary that creates
 two NetCDF files at run time - one for each invoke in the file.
 
+Then you can execute each of the two drivers, e.g.:
+
+```bash
+$ ./driver-time_evolution-invoke_initialise_perturbation 
+         Variable      max_abs      max_rel      l2_diff       l2_cos    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3
+             cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00 
+               df .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00 
+perturbation_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+06 .0000000E+00 .0000000E+00 .0000000E+00 
+
+```
+The driver read in the data of the kernel data file, executed the driver, and compared the results
+with the results collected during the original execution. The table above is a summary of the
+comparison of all output variables. The meaning of these fields are explained in the
+[driver summary staticstics](https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html#driver-summary-statistics)
+section of the manual.
 
 ## Step 8: Try other PSyData libraries
 The following set of PSyData libraries is available and can be tested.
@@ -276,7 +296,7 @@ and ``Makefile.value_range_check`` for the makefile to use.
 
 This example by itself will not print any message (since there is no invalid floating
 point number). In order to define a range for a variable (see
-[the documentation](https://psyclone.readthedocs.io/en/stable/psy_data.html#value-range-check)
+[the documentation](https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html#value-range-check)
 for details), set the following environment variable:
 
     PSYVERIFY__time_evolution__perturbation_data=0:4000 ./time_evolution
@@ -304,20 +324,29 @@ for each column. And after the first time this is reported as an invalid input p
 and then as an invalid output value.
 
 ### Stand-alone Kernel Extraction
-PSyclone provides two different kernel extraction libraries. Besides the
+PSyclone provides three different kernel extraction libraries. Besides the
 NetCDF based one, which was used above, there is also a stand-alone library
-which only uses Fortran IO and has no other external dependencies. This
-library is ideal if your application does not already have a NetCDF dependency.
-The downside is that you can't easily inspect the binary output file.
+which only uses Fortran binary IO and one that uses ASCII format. Both of these
+do not have any other external dependencies. For these
+libraries is ideal if your application does not already have a NetCDF dependency,
+or you are copying the data files to a platform where you don't have NetCDF.
+
+The binary output format cannot be easily inspected, and it might not be portable
+between different compilers or platforms. The ASCII format might not
+reproduce bitwise identical results depending on compiler.
 There is no other change to the script or the application required, and you
 don't need to run PSyclone again if you have already processed the files,
 but you need to recompile the files that use kernel extraction.
 
 The extraction makefiles are all set up so you can easily switch to use
 the stand-alone library instead of the NetCDF one. Just set the
-makefile variable `TYPE` to `standalone` when invoking `make`:
+makefile variable `TYPE` to `binary` when invoking `make`:
 
-    make TYPE=standalone -f solutions/Makefile.extract_one
+    make TYPE=binary -f solutions/Makefile.extract_all
 
-After running the instrumented `time_evolution` binary, a new output file
-`time_evolution-propagate.binary` is created.
+After running the instrumented `time_evolution` binary, two output files
+``time_evolution-invoke_initialise_perturbation.binary`` and 
+``time_evolution-invoke_propagate_perturbation.binary`` are created.
+
+Similarly, using ``TYPE=ascii`` will produce two files with the
+``ascii`` suffix.

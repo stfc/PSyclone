@@ -43,14 +43,13 @@
 
 import abc
 from collections import OrderedDict
+from typing import Tuple
 
-from psyclone.configuration import Config
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.errors import InternalError
-from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.array_of_structures_reference import (
     ArrayOfStructuresReference)
-from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.statement import Statement
@@ -97,12 +96,11 @@ class Directive(Statement, metaclass=abc.ABCMeta):
         write_only = OrderedDict()
         table = self.scope.symbol_table
 
-        var_info = VariablesAccessInfo()
-        self.reference_accesses(var_info)
+        var_info = self.reference_accesses()
 
         for sig in var_info.all_signatures:
             vinfo = var_info[sig]
-            node = vinfo.all_accesses[0].node
+            node = vinfo[0].node
             sym = table.lookup(sig.var_name)
 
             if not vinfo.has_data_access():
@@ -153,7 +151,7 @@ class Directive(Statement, metaclass=abc.ABCMeta):
             # Then work our way down the various members.
             for depth in range(1, len(sig)):
                 if sig[:depth+1] not in access_dict:
-                    if node.is_array:
+                    if node.symbol.is_array:
                         base_cls = ArrayOfStructuresReference
                         # Copy the indices so as not to modify the original
                         # node.
@@ -235,53 +233,14 @@ class RegionDirective(Directive):
         return self.children[0]
 
     @property
-    def clauses(self):
+    def clauses(self) -> Tuple[Clause]:
         '''
         :returns: the Clauses associated with this directive.
         :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
         '''
         if len(self.children) > 1:
-            return self.children[1:]
-        return []
-
-    def gen_post_region_code(self, parent):
-        '''
-        Generates any code that must be executed immediately after the end of
-        the region defined by this directive.
-
-        TODO #1648 this method is only used by the gen_code() code-generation
-        path and should be replaced by functionality in a
-        'lower_to_language_level' method in an LFRic-specific subclass
-        of the appropriate directive.
-
-        :param parent: where to add new f2pygen nodes.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        if not Config.get().distributed_memory or self.ancestor(Loop):
-            return
-        # Have to import PSyLoop here to avoid a circular dependence.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.common.psylayer import PSyLoop
-
-        commented = False
-        for loop in self.walk(PSyLoop):
-            if not isinstance(loop.parent, Loop):
-                if not commented and loop.unique_modified_args("gh_field"):
-                    commented = True
-                    parent.add(CommentGen(parent, ""))
-                    parent.add(CommentGen(parent,
-                                          " Set halos dirty/clean for fields "
-                                          "modified in the above loop(s)"))
-                    parent.add(CommentGen(parent, ""))
-                loop.gen_mark_halos_clean_dirty(parent)
-
-        if commented:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " End of set dirty/clean section for "
-                                  "above loop(s)"))
-            parent.add(CommentGen(parent, ""))
+            return tuple(self.children[1:])
+        return ()
 
 
 class StandaloneDirective(Directive):
@@ -294,8 +253,9 @@ class StandaloneDirective(Directive):
     (e.g. OpenMP, OpenACC, compiler-specific) inherit from this class.
 
     '''
-    # Textual description of the node.
-    _children_valid_format = None
+    # Textual description of the node. A standalone directive may only have
+    # Clauses as children.
+    _children_valid_format = "Clause*"
 
     @staticmethod
     def _validate_child(position, child):
@@ -308,20 +268,15 @@ class StandaloneDirective(Directive):
         :rtype: bool
 
         '''
-        # Children are not allowed for StandaloneDirective
-        return False
+        # Only clauses are permitted.
+        return isinstance(child, Clause)
 
     @property
-    def clauses(self):
+    def clauses(self) -> Tuple[Clause]:
         '''
         :returns: the Clauses associated with this directive.
-        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
         '''
-        # This should be uncommented once a standalone directive with
-        # clauses exists
-        # if len(self.children) > 0:
-        #    return self.children
-        return []
+        return tuple(self.children)
 
 
 # For automatic API documentation generation

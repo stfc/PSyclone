@@ -124,12 +124,15 @@ if __name__ == "__main__":
             # not contains this.
             use_name = str(node.items[2])
 
-            if use_name not in lookup_files:
+            if use_name not in lookup_files and use_name.lower() not in lookup_files:
                 # Silently ignore modules we can't find, assuming
                 # that they are system dependencies (e.g. MPI.mod)
                 continue
 
-            obj_dependency = os.path.splitext(lookup_files[use_name])[0] + ".o"
+            try:
+                obj_dependency = os.path.splitext(lookup_files[use_name])[0] + ".o"
+            except KeyError:
+                obj_dependency = os.path.splitext(lookup_files[use_name.lower()])[0] + ".o"
             # Only add dependencies that are not already in the list:
             if obj_dependency not in all_use:
                 all_use.append(obj_dependency)

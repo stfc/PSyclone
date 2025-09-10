@@ -36,20 +36,23 @@
 
 ''' Test utilities including support for testing that code compiles. '''
 
-import difflib
 from contextlib import contextmanager
+import difflib
 import os
+from pathlib import Path
 from pprint import pprint
 import subprocess
 import sys
+from typing import Tuple
 
 import pytest
 
 from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
+from psyclone.parse import ModuleInfo, FileInfo, ModuleManager
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import Invoke, PSyFactory, PSy
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import ScopingNode
 
@@ -337,25 +340,26 @@ class Compile():
             raise CompileError(output)
 
     def _code_compiles(self, psy_ast, dependencies=None):
-        '''Attempts to build the Fortran code supplied as an AST of
-        f2pygen objects. Returns True for success, False otherwise.
+        '''
+        Use the given PSy class to generate the necessary PSyKAl components
+        to compile the psy-layer. Returns True for success, False otherwise.
         It is meant for internal test uses only, and must only be
         called when compilation is actually enabled (use code_compiles
         otherwse). All files produced are deleted.
 
-        :param psy_ast: The AST of the generated PSy layer.
+        :param psy_ast: The PSy object to build.
         :type psy_ast: :py:class:`psyclone.psyGen.PSy`
-        :param dependencies: optional module- or file-names on which \
-                    one or more of the kernels/PSy-layer depend (and \
-                    that are not part of e.g. the GOcean or LFRic \
-                    infrastructure).  These dependencies will be built \
-                    in the order they occur in this list.
+        :param dependencies: optional module- or file-names on which one or
+            more of the kernels/PSy-layer depend (and that are not part of
+            e.g. the GOcean or LFRic infrastructure).  These dependencies will
+            be built in the order they occur in this list.
         :type dependencies: List[str]
 
         :return: True if generated code compiles, False otherwise.
         :rtype: bool
 
         '''
+        # pylint: disable=too-many-branches
         modules = set()
         # Get the names of all the imported modules as these are dependencies
         # that will need to be compiled first
@@ -365,12 +369,10 @@ class Compile():
                 for symbol in scope.symbol_table.containersymbols:
                     modules.add(symbol.name)
 
-            # Not everything is captured by PSyIR yet (some API PSy-layers are
-            # fully or partially f2pygen), in these cases we still need to
-            # import the kernel modules used in these PSy-layers.
-            # By definition, built-ins do not have associated Fortran modules.
-            for call in invoke.schedule.coded_kernels():
-                modules.add(call.module_name)
+        # Then also get all the CodedKernels used in all Invokes
+        for invoke in psy_ast.invokes.invoke_list:
+            for kernelcall in invoke.schedule.coded_kernels():
+                modules.add(kernelcall.module_name)
 
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
@@ -381,7 +383,21 @@ class Compile():
                 # We limit the line lengths of the generated code so that
                 # we don't trip over compiler limits.
                 fll = FortLineLength()
-                psy_file.write(fll.process(str(psy_ast.gen)))
+                code = str(psy_ast.gen)
+                psy_file.write(fll.process(code))
+
+            # Not all dependencies are captured by PSyIR as ContainerSymbols
+            # (e.g. multiple versions of coded kernels are not given a module
+            # name until code-generation dependening on what already exist in
+            # the filesystem), in these cases we take advantage that PSy-layer
+            # always use the _mod convention to look into the output code for
+            # these additional dependencies that we need to compile.
+            for name in code.split():
+                if name.endswith(('_mod', '_mod,')):
+                    # Delete the , if the case of 'use name, only ...'
+                    if name[-1] == ',':
+                        name = name[:-1]
+                    modules.add(name)
 
             success = True
 
@@ -413,7 +429,7 @@ class Compile():
                 except IOError:
                     # Not all modules need to be found, for example API
                     # infrastructure modules will be provided already built.
-                    print(f"File {fort_file} not found for compilation.")
+                    print(f"File '{fort_file}' not found for compilation.")
                     paths = [self.base_path, str(self._tmpdir)]
                     print(f"It was searched in: {paths}")
                 except CompileError:
@@ -430,12 +446,12 @@ class Compile():
         return success
 
     def code_compiles(self, psy_ast, dependencies=None):
-        '''Attempts to build the Fortran code supplied as an AST of
-        f2pygen objects. Returns True for success, False otherwise.
+        '''Attempts to build the Fortran code supplied as a PSy object.
+        Returns True for success, False otherwise.
         If compilation is not enabled returns true. Uses _code_compiles
-        for the actual compilation. All files produced are deleted.
+        for the actual compilation.
 
-        :param psy_ast: The AST of the generated PSy layer.
+        :param psy_ast: The generated PSy layer.
         :type psy_ast: :py:class:`psyclone.psyGen.PSy`
         :param dependencies: optional module- or file-names on which \
                     one or more of the kernels/PSy-layer depend (and \
@@ -510,7 +526,7 @@ def get_base_path(api):
     # Define the mapping of supported APIs to Fortran directories
     # Note that the nemo files are outside of the default tests/test_files
     # directory, they are in tests/nemo/test_files
-    api_2_path = {"lfric": "dynamo0p3",
+    api_2_path = {"lfric": "lfric",
                   "nemo": "../nemo/test_files",
                   "gocean": "gocean1p0"}
     try:
@@ -523,24 +539,42 @@ def get_base_path(api):
                         "test_files", dir_name)
 
 
+def get_infrastructure_path(api: str) -> str:
+    '''
+    :returns: the location of the infrastructure source files for the
+              specified API/DSL.
+
+    :raises RuntimeError: if an invalid api is supplied.
+
+    '''
+    this_loc = Path(__file__).resolve()
+    root_dir = this_loc.parents[3]
+    if api == "lfric":
+        return str(root_dir / "external" / "lfric_infrastructure" / "src")
+    if api == "gocean":
+        return str(root_dir / "external" / "dl_esm_inf" /
+                   "finite_difference" / "src")
+    raise RuntimeError(f"The API '{api}' is not supported. "
+                       f"Supported values are 'lfric' and 'gocean'.")
+
+
 # =============================================================================
-def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
+def get_invoke(algfile: str, api: str, idx: int = None, name: str = None,
+               dist_mem: bool = None) -> Tuple[PSy, Invoke]:
     '''
     Utility method to get the idx'th or named invoke from the algorithm
     in the specified file.
 
-    :param str algfile: name of the Algorithm source file (Fortran).
-    :param str api: which PSyclone API this Algorithm uses.
-    :param int idx: the index of the invoke from the Algorithm to return
-                    or None if name is specified.
-    :param str name: the name of the required invoke or None if an index
-                     is supplied.
-    :param bool dist_mem: if the psy instance should be created with or \
-                          without distributed memory support.
+    :param algfile: name of the Algorithm source file (Fortran).
+    :param api: which PSyclone API this Algorithm uses.
+    :param idx: the index of the invoke from the Algorithm to return
+                or None if name is specified.
+    :param name: the name of the required invoke or None if an index
+                 is supplied.
+    :param dist_mem: if the psy instance should be created with or
+                     without distributed memory support.
 
     :returns: (psy object, invoke object)
-    :rtype: Tuple[:py:class:`psyclone.psyGen.PSy`, \
-                  :py:class:`psyclone.psyGen.Invoke`]
 
     :raises RuntimeError: if neither idx or name are supplied or if
                           both are supplied
@@ -552,7 +586,11 @@ def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
         raise RuntimeError("Either the index or the name of the "
                            "requested invoke must be specified")
 
-    Config.get().api = api
+    config = Config.get()
+    config.api = api
+    # Ensure infrastructure module files can be discovered.
+    config.include_paths.append(get_infrastructure_path(api))
+
     _, info = parse(os.path.join(get_base_path(api), algfile), api=api)
     psy = PSyFactory(api, distributed_memory=dist_mem).create(info)
     if name:
@@ -601,3 +639,28 @@ def check_links(parent, children):
     for index, child in enumerate(children):
         assert child.parent is parent
         assert parent.children[index] is child
+
+
+def make_external_module(monkeypatch,
+                         fortran_reader,
+                         mod_name: str,
+                         code: str):
+    '''
+    Utility to add an 'external' module into the ModuleManager. This saves us
+    from having to create and then search for a specific module file.
+
+    :param monkeypatch: the monkeypatch fixture to use.
+    :param fortran_reader: the FortranReader fixture to use.
+    :param mod_name: the name of the module to create.
+    :param code: the Fortran source for the module.
+
+    '''
+    minfo = ModuleInfo(mod_name, FileInfo(f"{mod_name}.f90"))
+    # Create the PSyIR for the provided module and store it in the
+    # ModuleInfo object.
+    cntr = fortran_reader.psyir_from_source(code).children[0]
+    minfo._psyir_container_node = cntr
+    # Monkeypatch an entry for this ModuleInfo into the ModuleManager so
+    # that it will be found when the named module is requested.
+    mman = ModuleManager.get()
+    monkeypatch.setitem(mman._modules, mod_name, minfo)

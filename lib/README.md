@@ -1,7 +1,7 @@
 # Wrapper Libraries for Use with PSyclone
 
 This directory contains [PSyData-API-based](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) wrapper libraries.
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) wrapper libraries.
 They enable PSyclone to provide transformations that will insert callbacks
 to an external library at runtime. These callbacks allow third-party libraries
 to access data structures at specified locations in the code for different
@@ -13,11 +13,11 @@ The wrapper libraries for the supported use cases are listed
 
 Wrapper libraries can be accessed from a clone of PSyclone repository
 or a PSyclone [installation](
-https://psyclone.readthedocs.io/en/stable/getting_going.html). In a
+https://psyclone.readthedocs.io/en/latest/user_guide/getting_going.html). In a
 PSyclone installation the libraries may be found in ``share/psyclone/lib``
 under your Python (or PSyclone, depending on the ``pip install`` options)
 installation, see ["Getting Going"](
-https://psyclone.readthedocs.io/en/stable/getting_going.html)
+https://psyclone.readthedocs.io/en/latest/user_guide/getting_going.html)
 for possible locations.
 
 If working with wrapper libraries from a PSyclone installation, it
@@ -32,10 +32,10 @@ dependencies, see [below](#compilation) for more information.
 
 The file ``psy_data_base.jinja`` contains a Jinja template that can be used
 by the [PSyData-API-based](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) wrapper libraries.
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) wrapper libraries.
 Full documentation on using this template is provided in the PSyclone
 [Developer Guide](
-https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja). The
+https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#jinja). The
 script ``process.py`` is used by the derived classes to process this
 template. This script is processed with the help of the Shell script
 ``get_python.sh`` that finds an executable Python command.
@@ -51,10 +51,10 @@ rely on a file compiled in this directory.
 Contains code for extracting kernel data - i.e. all input and output
 parameters of a kernel invocation.
 
-### [``nan_test``](./nan_test) directory
+### [``value_range_check``](./value_range_check) directory
 
 Contains PSyData-API-based libraries for checking that input and output
-parameters of kernels are valid numbers (i.e. not ``NaN`` or infinity).
+values of kernels are within valid ranges (i.e. not ``NaN`` or infinity).
 
 ### [``profiling``](./profiling) directory
 
@@ -80,7 +80,7 @@ Fortran compiler (``gfortran``), i.e. simply running ``make`` will build a
 wrapper library with the version of ``gfortran`` available in a user's
 environment. The compilation flags vary from one library to another (they
 are usually set to debugging). As for the compilation of the [API examples](
-https://psyclone.readthedocs.io/en/latest/examples.html#compilation), these
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/examples_intro.html#compilation), these
 flags can be set to a different compiler. For instance,
 
 ```shell
@@ -88,7 +88,7 @@ F90=ifort F90FLAGS="-g -check bounds" make
 ```
 
 Similar to compilation of the [examples](
-https://psyclone.readthedocs.io/en/latest/examples.html#compilation), the
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/examples_intro.html#compilation), the
 compiled library can be removed by running ``make clean``. There is also
 the ``allclean`` target that removes the compiled wrapper library as well
 as the compiled infrastructure library that the wrapper may
@@ -96,7 +96,7 @@ as the compiled infrastructure library that the wrapper may
 
 The compilation of wrapper libraries was tested with the Gnu and Intel
 Fortran compilers, see [here](
-https://psyclone.readthedocs.io/en/latest/examples.html#supported-compilers)
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/examples_intro.html#supported-compilers)
 for the full list. Please let the PSyclone developers know if you have
 problems using a compiler that has been tested or if you are working
 with a different compiler.
@@ -112,13 +112,13 @@ is by default set to the relative path to the top-level `lib` directory.
 libraries are compiled in a clone of PSyclone repository or in a PSyclone
 [installation](#installation).
 
-Compilation of ``extract``, ``nan_test``, ``read_only`` and some of the
+Compilation of ``extract``, ``values_ragne_check``, ``read_only`` and some of the
 profiling wrapper libraries depends on infrastructure libraries relevant
 to the API they are used for. [GOcean API](
-https://psyclone.readthedocs.io/en/stable/gocean1p0.html) uses the
+https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html) uses the
 [``dl_esm_inf`` library](https://github.com/stfc/dl_esm_inf) and
-[LFRic (Dynamo 0.3) API](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html)
+[LFRic API](
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html)
 uses the LFRic infrastructure (see the linked documentation on how to
 access and use the LFRic code). The locations of the respective
 infrastructure libraries can be configured with the variables

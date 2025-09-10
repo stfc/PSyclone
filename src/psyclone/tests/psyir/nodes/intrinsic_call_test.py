@@ -44,7 +44,6 @@ TODO #2341 - tests need to be added for all of the supported intrinsics.
 
 import pytest
 
-from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes import (
     ArrayReference, Literal, Reference, Schedule, Assignment)
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall, IAttr
@@ -137,7 +136,7 @@ def test_intrinsiccall_is_inquiry():
                 (IntrinsicCall.Intrinsic.INT, True),
                 (IntrinsicCall.Intrinsic.IOR, True),
                 (IntrinsicCall.Intrinsic.LOG, True),
-                (IntrinsicCall.Intrinsic.LOG10, False),
+                (IntrinsicCall.Intrinsic.LOG10, True),
                 (IntrinsicCall.Intrinsic.MOD, True),
                 (IntrinsicCall.Intrinsic.NINT, True),
                 (IntrinsicCall.Intrinsic.NOT, True),
@@ -155,7 +154,38 @@ def test_intrinsiccall_is_inquiry():
 def test_intrinsiccall_is_available_on_device(intrinsic, result):
     '''Tests that the is_available_on_device() method works as expected.'''
     intrinsic_call = IntrinsicCall(intrinsic)
+    # For now default and nvfortran-all are the same
     assert intrinsic_call.is_available_on_device() is result
+    assert intrinsic_call.is_available_on_device('nvfortran-all') is result
+
+
+def test_intrinsiccall_reductions_is_available_on_device():
+    '''Tests that the is_available_on_device() refuses reduction intrinsics
+    with optional arguments'''
+    intrinsic_call = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
+    intrinsic_call.addchild(Reference(DataSymbol("result", REAL_TYPE)))
+    # This is avaliabe on the device
+    assert intrinsic_call.is_available_on_device()
+    # But not when it has more arguments as it sometimes fails for complex
+    # reductions with arguments
+    intrinsic_call.addchild(Literal("1", INTEGER_TYPE))
+    assert not intrinsic_call.is_available_on_device()
+
+
+def test_intrinsiccall_is_available_on_device_with_device_string():
+    '''Tests that the is_available_on_device() method with a device_string
+    argument provides different results with the 'nvfortran-uniform'
+    '''
+    intrinsic_call = IntrinsicCall(IntrinsicCall.Intrinsic.LOG10)
+    assert not intrinsic_call.is_available_on_device("nvfortran-uniform")
+    intrinsic_call = IntrinsicCall(IntrinsicCall.Intrinsic.REAL)
+    assert not intrinsic_call.is_available_on_device("nvfortran-uniform")
+
+    with pytest.raises(ValueError) as err:
+        assert not intrinsic_call.is_available_on_device("invalid")
+    assert ("Unsupported device_string value 'invalid', the supported values"
+            " are '' (default), 'nvfortran-all', 'nvfortran-uniform'"
+            in str(err.value))
 
 
 def test_intrinsiccall_alloc_create():
@@ -436,8 +466,8 @@ def test_reference_accesses_bounds(operator, fortran_reader):
 
     # The access to 'a' should be reported as 'NO_DATA_ACCESS' as its
     # actual data is not accessed.
-    vai = VariablesAccessInfo(schedule)
-    assert str(vai) == "a: NO_DATA_ACCESS, b: READ, n: WRITE"
+    vam = schedule.reference_accesses()
+    assert str(vam) == "a: INQUIRY, b: READ, n: WRITE"
 
 
 def test_enumerator_name_matches_name_field():

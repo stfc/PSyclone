@@ -13,12 +13,12 @@ This example needs two libraries: the gocean infrastructure library
 dl_esm_inf, and a corresponding extraction library. By default
 it will use the infrastructure library in ``../../../../external/dl_esm_inf``
 and automatically compile this library
-(see https://psyclone-dev.readthedocs.io/en/latest/working_practises.html
+(see https://psyclone.readthedocs.io/en/latest/developer_guide/working_practises.html
 for the correct way of checking out all required software) . You can set
 the environment variable ``INF_DIR`` to point to a different directory.
 
 The stand-alone extraction library in
-``../../../../lib/extract/standalone/dl_esm_inf`` is used as default, and
+``../../../../lib/extract/binary/dl_esm_inf`` is used as default, and
 will also be automatically compiled. You can also use the NetCDF based
 extraction library by setting the environment variable `TYPE` to `netcdf`
 when calling `make`, e.g.:
@@ -31,7 +31,7 @@ installation-specific paths). The NetCDF-based extraction library in
 will also be automatically compiled.
 
 The binary  instrumented for extraction will either be called
-``extract_test.standalone`` or ``extract_test.netcdf``.
+``extract_test.binary`` or ``extract_test.netcdf``.
 More details on compiling these libraries are in the corresponding
 subdirectories. To create and compile the example, type ``make compile``.
 
@@ -47,8 +47,8 @@ psyclone -nodm -l -api "gocean"             \
 This will also create two driver files, which can read the corresponding
 output files, call the kernel, and verify that the same output values are
 computed. These drivers will be compiled by the Makefile as well and will
-be named ``driver-main-init.standalone/netcdf`` and
-``driver-main-update.standalone/netcdf``.
+be named ``driver-main-init.binary/netcdf`` and
+``driver-main-update.binary/netcdf``.
 
 
 ## Running
@@ -68,7 +68,7 @@ When running the driver program, all the output variables will be listed
 together with either 'correct', or 'incorrect' (and the actual and
 expected) values:
 ```
-./driver-main-init.standalone
+./driver-main-init.binary
  a_fld correct
  b_fld correct
  c_fld correct

@@ -40,25 +40,41 @@
 
 import abc
 from collections.abc import Iterable
+from typing import Union, List
+import warnings
 
 from psyclone import psyGen
 from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import Loop, Reference, Call, Routine
-from psyclone.psyir.symbols import AutomaticInterface
+from psyclone.psyir.nodes import (
+        Call, Loop, Reference, Routine
+)
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.psyir.transformations.loop_trans import LoopTrans
+from psyclone.psyir.transformations.async_trans_mixin import \
+    AsyncTransMixin
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
+from psyclone.utils import transformation_documentation_wrapper
 
-class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
+
+@transformation_documentation_wrapper
+class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
     '''
     Adds an abstract directive (it needs to be specified by sub-classing this
     transformation) to a loop indicating that it should be parallelised. It
     performs some data dependency checks to guarantee that the loop can be
     parallelised without changing the semantics of it.
+
+    If the nowait option is supplied to the apply function, then PSyclone will
+    attempt to add the relevant asynchronous option to the directive, if
+    supported. If its not supported, or PSyclone's analysis suggests that it
+    cannot be launched asynchronously, the transformation will occur as though
+    the nowait option was not supplied. If the asynchronous option is added,
+    PSyclone will also generate a corresponding barrier before the next
+    dependent statement.
 
     '''
     # The types of node that must be excluded from the section of PSyIR
@@ -81,12 +97,12 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         '''
 
     @staticmethod
-    def _attempt_privatisation(node, symbol_name, dry_run=False):
+    def _attempt_privatisation(loop, symbol_name, dry_run=False):
         ''' Check and (if dry_run is False) perform symbol privatisation
         for the given symbol_name in the given node.
 
-        :param node: the loop that will be parallelised.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param loop: the loop that will be parallelised.
+        :type loop: :py:class:`psyclone.psyir.nodes.Loop`
         :param str symbol_name: the symbol that we want to privatise.
         :param bool dry_run: whether to perform the actual privatisation.
 
@@ -94,31 +110,31 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :rtype: bool
         '''
         try:
-            sym = node.scope.symbol_table.lookup(symbol_name)
+            sym = loop.scope.symbol_table.lookup(symbol_name)
         except KeyError:
             # Structures are reported with the full expression:
             # "mystruct%myfield" by the DA var_name, we purposely avoid
             # privatising these
             return False
 
-        # If it's not a local symbol, we cannot safely analyse its lifetime
-        if not isinstance(sym.interface, AutomaticInterface):
-            return False
+        if sym in loop.explicitly_private_symbols:
+            return True
 
-        # Check that the symbol is not referenced after this loop (before
+        # Check that the symbol is not referenced following this loop (before
         # the loop is fine because we can use OpenMP/OpenACC first-private or
         # Fortran do concurrent local_init())
-        if any(ref.symbol is sym
-               for ref in node.following(include_children=False)
-               if isinstance(ref, Reference)):
+        refs_in_loop = filter(lambda x: x.symbol is sym, loop.walk(Reference))
+        last_access = list(refs_in_loop)[-1]
+        loop.compute_cached_abs_positions()
+        if last_access.escapes_scope(loop):
             return False
 
         if not dry_run:
-            node.explicitly_private_symbols.add(sym)
+            loop.explicitly_private_symbols.add(sym)
 
         return True
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Perform validation checks before applying the transformation
 
@@ -126,19 +142,24 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool|int options["collapse"]: if it's a bool and is False
+        :param bool|int collapse: if it's a bool and is False
             (default), it won't collapse. If it's a bool and is True, it will
             collapse as much as possible. If it's an integer, it will attempt
             to collapse until the specified number of loops (if they exist and
-            are safe to collapse). The options 'ignore_dependencies_for'
-            and 'force' also affect the collapse applicability.
-        :param bool options["force"]: whether to force parallelisation of the
+            are safe to collapse them). The options 'ignore_dependencies_for'
+            and 'force' also affect the collapse applicability analysis.
+        :param bool force: whether to force parallelisation of the
             target loop (i.e. ignore any dependence analysis).
-        :param list[str] options["ignore_dependencies_for"]: whether to ignore
+        :param list[str] ignore_dependencies_for: whether to ignore
             some symbol names from the dependence analysis checks.
-        :param bool options["sequential"]: whether this is a sequential loop.
-        :param bool options["verbose"]: whether to report the reasons the
+        :param bool sequential: whether this is a sequential loop.
+        :param bool verbose: whether to report the reasons the
             validate and collapse steps have failed.
+        :param bool nowait: whether to add a nowait clause and a
+            corresponding barrier (or equivalent) to enable asynchronous
+            execution.
+        :param bool privatise_arrays: whether to declare as private any
+            write after write dependency symbols.
 
         :raises TypeError: if 'collapse' is not an int or a bool.
         :raises TypeError: if 'ignore_dependencies_for' is not a list of str.
@@ -156,16 +177,29 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         '''
         # Check that the supplied node is a Loop and does not contain any
         # unsupported nodes.
-        super().validate(node, options=options)
-
+        super().validate(node, options=options, **kwargs)
+        # TODO 2668 - options dict is deprecated.
         if not options:
-            options = {}
-        verbose = options.get("verbose", False)
-        collapse = options.get("collapse", False)
-        force = options.get("force", False)
-        ignore_dependencies_for = options.get("ignore_dependencies_for", [])
-        sequential = options.get("sequential", False)
-        privatise_arrays = options.get("privatise_arrays", False)
+            self.validate_options(**kwargs)
+            verbose = self.get_option("verbose", **kwargs)
+            collapse = self.get_option("collapse", **kwargs)
+            force = self.get_option("force", **kwargs)
+            ignore_dependencies_for = self.get_option(
+                    "ignore_dependencies_for", **kwargs
+            )
+            if ignore_dependencies_for is None:
+                ignore_dependencies_for = []
+            sequential = self.get_option("sequential", **kwargs)
+            privatise_arrays = self.get_option("privatise_arrays", **kwargs)
+        else:
+            verbose = options.get("verbose", False)
+            collapse = options.get("collapse", False)
+            force = options.get("force", False)
+            ignore_dependencies_for = options.get(
+                    "ignore_dependencies_for", []
+            )
+            sequential = options.get("sequential", False)
+            privatise_arrays = options.get("privatise_arrays", False)
 
         # Check we are not a sequential loop
         if (not sequential and isinstance(node, PSyLoop) and
@@ -272,7 +306,11 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                         node.append_preceding_comment(f"PSyclone: {messages}")
                 raise TransformationError(messages)
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, verbose: bool = False,
+              collapse: Union[int, bool] = False, force: bool = False,
+              ignore_dependencies_for: Union[None, List[str]] = None,
+              privatise_arrays: bool = False, sequential: bool = False,
+              nowait: bool = False, **kwargs):
         '''
         Apply the Loop transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
@@ -287,7 +325,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
           end do
           !$OMP END DO
 
-        At code-generation time (when gen_code()` is called), this node must be
+        At code-generation time (when lowering is called), this node must be
         within (i.e. a child of) a PARALLEL region.
 
         :param node: the supplied node to which we will apply the
@@ -295,30 +333,56 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool|int options["collapse"]: if it's a bool and is False
+        :param bool|int collapse: if it's a bool and is False
             (default), it won't collapse. If it's a bool and is True, it will
             collapse as much as possible. If it's an integer, it will attempt
             to collapse until the specified number of loops (if they exist and
             are safe to collapse them). The options 'ignore_dependencies_for'
-            and 'force' also affect the collapse applicabilty analysis.
-        :param bool options["force"]: whether to force parallelisation of the
+            and 'force' also affect the collapse applicability analysis.
+        :param bool force: whether to force parallelisation of the
             target loop (i.e. ignore any dependence analysis).
-        :param list[str] options["ignore_dependencies_for"]: whether to ignore
+        :param list[str] ignore_dependencies_for: whether to ignore
             some symbol names from the dependence analysis checks.
-        :param bool options["sequential"]: whether this is a sequential loop.
-        :param bool options["verbose"]: whether to report the reasons the
+        :param bool sequential: whether this is a sequential loop.
+        :param bool verbose: whether to report the reasons the
             validate and collapse steps have failed.
+        :param bool nowait: whether to add a nowait clause and a
+            corresponding barrier (or equivalent) to enable asynchronous
+            execution.
+        :param bool privatise_arrays: whether to make the write after write
+            dependency symbols declared as private.
 
         '''
         if not options:
-            options = {}
-        self.validate(node, options=options)
+            self.validate_options(
+                    verbose=verbose, collapse=collapse,
+                    ignore_dependencies_for=ignore_dependencies_for,
+                    privatise_arrays=privatise_arrays,
+                    sequential=sequential, nowait=nowait, **kwargs
+            )
+            # Rename the input options that are renamed in this apply method.
+            # TODO 2668, rename options to be consistent.
+            ignore_dep_analysis = force
+            if ignore_dependencies_for is None:
+                list_of_names = []
+            else:
+                list_of_names = ignore_dependencies_for
+        else:
+            # TODO 2668 - options dict is deprecated.
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+            verbose = options.get("verbose", False)
+            collapse = options.get("collapse", False)
+            ignore_dep_analysis = options.get("force", False)
+            list_of_names = options.get("ignore_dependencies_for", [])
+            privatise_arrays = options.get("privatise_arrays", False)
+            nowait = options.get("nowait", False)
 
-        verbose = options.get("verbose", False)
-        collapse = options.get("collapse", False)
-        ignore_dep_analysis = options.get("force", False)
-        list_of_names = options.get("ignore_dependencies_for", [])
-        privatise_arrays = options.get("privatise_arrays", False)
+        self.validate(node, options=options, verbose=verbose,
+                      collapse=collapse,
+                      ignore_dependencies_for=ignore_dependencies_for,
+                      privatise_arrays=privatise_arrays,
+                      sequential=sequential, nowait=nowait, **kwargs)
+
         list_of_signatures = [Signature(name) for name in list_of_names]
         dtools = DependencyTools()
 
@@ -406,3 +470,10 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
+
+        if nowait:
+            self._add_asynchronicity(directive)
+
+
+# For AutoAPI documentation generation.
+__all__ = ["ParallelLoopTrans"]

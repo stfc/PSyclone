@@ -46,6 +46,7 @@ ChildrenList - a custom implementation of list.
 import copy
 import graphviz
 
+from psyclone.core import VariablesAccessMap
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolError
 
@@ -389,6 +390,7 @@ class Node():
                         f"annotation '{annotation}', valid "
                         f"annotations are: {self.valid_annotations}.")
         self._disable_tree_update = False
+        self._cached_abs_position = None
         self.update_signal()
 
     def __eq__(self, other):
@@ -976,6 +978,32 @@ class Node():
             if child is self:
                 return index
 
+    def compute_cached_abs_positions(self):
+        '''
+        Cache the absolute positions for all nodes in this node's root's tree.
+        This involves computing the absolute positions for all of the nodes
+        in the tree, and storing them.
+
+        :raises InternalError: if the absolute position cannot be found.
+        '''
+        # We only recompute the cache if its current invalid. The root's
+        # cached position is always invalidated if the tree is changed, so
+        # we use that to check the validity.
+        # pylint: disable=protected-access
+        if self.root._cached_abs_position is None:
+            # Reset the cache.
+            self._cached_abs_position = None
+            position = self.START_POSITION
+            # The first node found is the root, so increment the position
+            # after updating the position.
+            for node in self.root.walk(Node):
+                # pylint: disable=protected-access
+                node._cached_abs_position = position
+                position += 1
+            if self._cached_abs_position is None:
+                raise InternalError("Error in search for Node position "
+                                    "in the tree")
+
     @property
     def abs_position(self):
         '''
@@ -991,6 +1019,11 @@ class Node():
         '''
         if self.root is self:
             return self.START_POSITION
+        # Check if the cached values have been invalidated by checking the
+        # root (which receives invalidations from all connected nodes)
+        # pylint: disable=protected-access
+        if self.root._cached_abs_position is not None:
+            return self._cached_abs_position
         found, position = self._find_position(self.root.children,
                                               self.START_POSITION)
         if not found:
@@ -1082,8 +1115,9 @@ class Node():
 
         '''
         local_list = []
-        if isinstance(self, my_type) and depth in [None, self.depth]:
-            local_list.append(self)
+        if isinstance(self, my_type):
+            if depth is None or depth == self.depth:
+                local_list.append(self)
 
         # Stop recursion further into the tree if an instance of a class
         # listed in stop_type is found.
@@ -1481,16 +1515,18 @@ class Node():
             child.lower_to_language_level()
         return self
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. The default implementation
-        just recurses down to all children.
-
-        :param var_accesses: Stores the output results.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
         '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
+
+        '''
+        var_accesses = VariablesAccessMap()
         for child in self._children:
-            child.reference_accesses(var_accesses)
+            var_accesses.update(child.reference_accesses())
+        return var_accesses
 
     @property
     def scope(self):
@@ -1607,6 +1643,7 @@ class Node():
         # And make a recursive copy of each child instead
         self.children.extend([child.copy() for child in other.children])
         self._disable_tree_update = False
+        self._cached_abs_position = None
 
     def copy(self):
         ''' Return a copy of this node. This is a bespoke implementation for
@@ -1620,7 +1657,7 @@ class Node():
         '''
         # Start with a shallow copy of the object
         new_instance = copy.copy(self)
-        # and then refine the elements that shouldn't be shallow copied
+        # Then refine the elements that shouldn't be shallow copied
         # pylint: disable=protected-access
         new_instance._refine_copy(self)
         return new_instance
@@ -1717,8 +1754,10 @@ class Node():
         recursive signal (i.e. they won't cause this node to attempt to
         update itself again).
 
-        This base implementation does nothing.
+        This base implementation invalidates any cached abs_position values,
+        and must be called by all subclasses implementing this method.
         '''
+        self._cached_abs_position = None
 
     def path_from(self, ancestor):
         ''' Find the path in the psyir tree between ancestor and node and
@@ -1755,20 +1794,23 @@ class Node():
         result_list.reverse()
         return result_list
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table_or_symbol):
         '''
         Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable with matching names. If there
-        is no match for a given Symbol then it is left unchanged.
+        supplied SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
 
         This base implementation simply propagates the call to any child Nodes.
 
-        :param table: the symbol table in which to look up replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
+            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         for child in self.children:
-            child.replace_symbols_using(table)
+            child.replace_symbols_using(table_or_symbol)
 
     def update_parent_symbol_table(self, new_parent):
         '''

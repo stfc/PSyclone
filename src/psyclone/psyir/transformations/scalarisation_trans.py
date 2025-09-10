@@ -38,7 +38,7 @@
 import itertools
 from typing import Optional, Dict, Any, List, Tuple
 
-from psyclone.core import VariablesAccessInfo, Signature, SymbolicMaths
+from psyclone.core import VariablesAccessMap, Signature, SymbolicMaths
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Call, CodeBlock, Literal, \
         IfBlock, Loop, Node, Range, Reference, Routine, StructureReference
@@ -100,7 +100,7 @@ class ScalarisationTrans(LoopTrans):
 
     @staticmethod
     def _is_local_array(signature: Signature,
-                        var_accesses: VariablesAccessInfo) -> bool:
+                        var_accesses: VariablesAccessMap) -> bool:
         '''
         :param signature: The signature to check if it is a local array symbol
                           or not.
@@ -109,23 +109,23 @@ class ScalarisationTrans(LoopTrans):
         :returns: whether the symbol corresponding to signature is a
                   local array symbol or not.
         '''
-        if not var_accesses[signature].is_array():
+        if not var_accesses[signature].has_indices():
             return False
         # If any of the accesses are to a CodeBlock then we stop. This can
         # happen if there is a string access inside a string concatenation,
         # e.g. NEMO4.
-        for access in var_accesses[signature].all_accesses:
+        for access in var_accesses[signature]:
             if isinstance(access.node, CodeBlock):
                 return False
-        base_symbol = var_accesses[signature].all_accesses[0].node.symbol
+        base_symbol = var_accesses[signature][0].node.symbol
         if not base_symbol.is_automatic:
             return False
         # If its a derived type then we don't scalarise.
-        if isinstance(var_accesses[signature].all_accesses[0].node,
+        if isinstance(var_accesses[signature][0].node,
                       StructureReference):
             return False
         # Find the containing routine
-        rout = var_accesses[signature].all_accesses[0].node.ancestor(Routine)
+        rout = var_accesses[signature][0].node.ancestor(Routine)
         # If the array is the return symbol then its not a local
         # array symbol
         if base_symbol is rout.return_symbol:
@@ -136,7 +136,7 @@ class ScalarisationTrans(LoopTrans):
     @staticmethod
     def _have_same_unmodified_index(
             signature: Signature,
-            var_accesses: VariablesAccessInfo) -> bool:
+            var_accesses: VariablesAccessMap) -> bool:
         '''
         :param signature: The signature to check.
         :param var_accesses: The VariableAccessesInfo object containing
@@ -147,7 +147,7 @@ class ScalarisationTrans(LoopTrans):
         '''
         array_indices = None
         scalarisable = True
-        for access in var_accesses[signature].all_accesses:
+        for access in var_accesses[signature]:
             if array_indices is None:
                 array_indices = access.component_indices
             # For some reason using == on the component_lists doesn't work
@@ -178,7 +178,7 @@ class ScalarisationTrans(LoopTrans):
     @staticmethod
     def _check_first_access_is_write(signature: Signature,
                                      loop: Loop,
-                                     var_accesses: VariablesAccessInfo) \
+                                     var_accesses: VariablesAccessMap) \
             -> bool:
         '''
         :param signature: The signature to check.
@@ -190,7 +190,7 @@ class ScalarisationTrans(LoopTrans):
         if not var_accesses[signature].is_written_first():
             return False
         # Need to find the first access and check if its in a conditional.
-        accesses = var_accesses[signature].all_accesses
+        accesses = var_accesses[signature]
         first_node = accesses[0].node
         ifblock = first_node.ancestor(IfBlock)
         # If the depth of the ifblock is larger than loop then the write
@@ -276,7 +276,7 @@ class ScalarisationTrans(LoopTrans):
     @staticmethod
     def _value_unused_after_loop(sig: Signature,
                                  loop: Loop,
-                                 var_accesses: VariablesAccessInfo) -> bool:
+                                 var_accesses: VariablesAccessMap) -> bool:
         '''
         :param sig: The signature to check.
         :param loop: The loop the transformation is operating on.
@@ -286,7 +286,7 @@ class ScalarisationTrans(LoopTrans):
                   sig is read from after the loop.
         '''
         # Find the last access of the signature
-        last_access = var_accesses[sig].all_accesses[-1].node
+        last_access = var_accesses[sig][-1].node
         # Compute the indices used in this loop. We know that all of the
         # indices used in this loop must be the same.
         indices = last_access.indices
@@ -405,7 +405,7 @@ class ScalarisationTrans(LoopTrans):
         # simplicity. Otherwise if its a read we can't scalarise safely.
         # If its a write then this symbol can be scalarised.
 
-        var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+        var_accesses = node.loop_body.reference_accesses()
 
         # Find all the arrays that are only accessed by a single index, and
         # that index is only read inside the loop.
@@ -440,7 +440,7 @@ class ScalarisationTrans(LoopTrans):
         # For each finalised target we can replace them with a scalarised
         # symbol
         for target in finalised_targets:
-            target_accesses = var_accesses[target].all_accesses
+            target_accesses = var_accesses[target]
             first_access = target_accesses[0].node
             symbol_type = first_access.symbol.datatype.datatype
             symbol_name = first_access.symbol.name

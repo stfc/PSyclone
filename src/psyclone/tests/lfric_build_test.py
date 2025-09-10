@@ -101,7 +101,8 @@ def test_lfric_build_compiler_flags(tmpdir, monkeypatch):
     # the infrastructure is built.
     with pytest.raises(CompileError) as err:
         builder._build_infrastructure()
-    assert ("['make', 'F90=my_compiler', 'F90FLAGS=-my -special -flags', '-f'"
+    assert (f"['make', 'F90=my_compiler', 'F90FLAGS=-my -special -flags', "
+            f"'BUILD_PATH={tmpdir}', '-f'"
             in str(err.value))
 
 

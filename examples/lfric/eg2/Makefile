@@ -47,13 +47,16 @@ transform: vanilla inline loopfuse
 # the transformation script 'my_script.py.'
 
 vanilla:
-	${PSYCLONE} -api lfric -nodm -d ../code -s ./print_psyir_trans.py ./multi_invoke_mod.x90
+	${PSYCLONE} -api lfric -nodm -d ../code \
+			-s ./print_psyir_trans.py ./multi_invoke_mod.x90
 
 inline:
-	${PSYCLONE} -api lfric -nodm -d ../code -s ./module_inline_trans.py ./multi_invoke_mod.x90
+	${PSYCLONE} -api lfric -nodm -d ../code \
+			-s ./module_inline_trans.py ./multi_invoke_mod.x90
 
 loopfuse:
-	${PSYCLONE} -api lfric -nodm -d ../code -s ./loop_fuse_trans.py ./multi_invoke_mod.x90
+	${PSYCLONE} -api lfric -nodm -d ../code \
+			-s ./loop_fuse_trans.py ./multi_invoke_mod.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg2"

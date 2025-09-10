@@ -37,7 +37,7 @@
 
 .. highlight:: fortran
 
-.. _psyke:
+.. _userguide-psyke:
 
 PSy Kernel Extractor (PSyKE)
 ============================
@@ -52,145 +52,20 @@ to be extracted and run as a stand-alone application. This ability, called
 PSyKE (PSy Kernel Extractor), can be useful for benchmarking parts of a
 model, such as LFRic, without the need for using its infrastructure.
 
-.. _psyke-intro-mechanism:
+.. _psyke-use:
 
-Mechanism
-+++++++++
+Usage
+-----
 
-The code marked for extraction can be (subject to 
-:ref:`psyke-intro-restrictions`):
-
-* One or more Nodes in an Invoke (e.g. Loops containing Kernel or
-  Built-In calls, a Directive enclosing one or more Loops) or
-
-* The entire Invoke (extraction applied to all Nodes).
-
-The basic mechanism of code extraction is through applying the
-``ExtractTrans`` transformation to selected Nodes. This
+The code extraction is currently enabled by utilising an ``ExtractTrans``
+transformation in a user script (see :ref:`sec_transformations_script` section
+for more details). The basic mechanism of code extraction is through applying
+the ``ExtractTrans`` transformation to selected Nodes. This
 transformation is further sub-classed into API-specific implementations,
 ``LFRicExtractTrans`` and ``GOceanExtractTrans``. Both
 sub-classed transformations insert an instance of the ``ExtractNode``
 object into the Schedule of a specific Invoke. All Nodes marked for
 extraction become children of the ``ExtractNode``.
-
-The ``ExtractNode`` class uses the dependency analysis to detect
-which variables are input-, and which ones are output-parameters.
-The lists of variables are then passed to the ``PSyDataNode``,
-which is the base class of any ``ExtractNode`` (details of
-the ``PSyDataNode`` can be found in :ref:`dev_guide:psy_data`). This
-node then creates the actual code, as in the following LFRic example::
-
-      ! ExtractStart
-      !
-      CALL extract_psy_data%PreStart("testkern_mod", "testkern_code", 4, 2)
-      CALL extract_psy_data%PreDeclareVariable("a", a)
-      CALL extract_psy_data%PreDeclareVariable("f2", f2)
-      CALL extract_psy_data%PreDeclareVariable("m1", m1)
-      CALL extract_psy_data%PreDeclareVariable("m2", m2)
-      CALL extract_psy_data%PreDeclareVariable("map_w1", map_w1)
-      ...
-      CALL extract_psy_data%PreDeclareVariable("undf_w3", undf_w3)
-      CALL extract_psy_data%PreDeclareVariable("f1_post", f1)
-      CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
-      CALL extract_psy_data%PreEndDeclaration
-      CALL extract_psy_data%ProvideVariable("a", a)
-      CALL extract_psy_data%ProvideVariable("f2", f2)
-      CALL extract_psy_data%ProvideVariable("m1", m1)
-      CALL extract_psy_data%ProvideVariable("m2", m2)
-      CALL extract_psy_data%ProvideVariable("map_w1", map_w1)
-      ...
-      CALL extract_psy_data%ProvideVariable("undf_w3", undf_w3)      
-      CALL extract_psy_data%PreEnd
-      DO cell=1,f1_proxy%vspace%get_ncell()
-        !
-        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,  &
-             m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1,           &
-             map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, &
-             undf_w3, map_w3(:,cell))
-      END DO 
-      CALL extract_psy_data%PostStart
-      CALL extract_psy_data%ProvideVariable("cell_post", cell)
-      CALL extract_psy_data%ProvideVariable("f1_post", f1)
-      CALL extract_psy_data%PostEnd
-      !
-      ! ExtractEnd
-
-The :ref:`PSyData API <psy_data>` relies on generic Fortran interfaces to
-provide the  field-type-specific implementations of the ``ProvideVariable``
-for different types. This means that a different version of the external
-PSyData library that PSyKE uses must be supplied for each PSyclone API.
-
-.. _psyke-intro-restrictions:
-
-Restrictions
-++++++++++++
-
-Code extraction can be applied to unoptimised or optimised code. There are
-restrictions that check for correctness of optimising transformations when
-extraction is applied, as well as restrictions that eliminate dependence on
-the specific model infrastructure.
-
-.. _psyke-intro-restrictions-gen:
-
-General
-#######
-
-This group of restrictions is enforced irrespective of whether optimisations
-are used or not.
-
-* Extraction can be applied to a single Node or a list of Nodes in a
-  Schedule. For the latter, Nodes in the list must be consecutive children
-  of the same parent Schedule.
-
-* Extraction cannot be applied to an ``ExtractNode`` or a Node list that
-  already contains one (otherwise we would have an extract region within
-  another extract region).
-
-* A Kernel or a Built-In call cannot be extracted without its parent Loop.
-
-.. _psyke-intro-restrictions-dm:
-
-Distributed memory
-##################
-
-Kernel extraction for distributed memory is supported in as much as each
-process will write its own output file by adding its rank to the output
-file name. So each kernel and each rank will produce one file. It is possible
-to extract several consecutive kernels, but there must be no halo exchange
-calls between the kernels. The extraction transformation will test for this
-and raise an exception if this should happen.
-The compiled driver program accepts the name of the extracted kernel file as
-a command line parameter. If this is not specified, it will use the default
-name (``module-region`` without a rank).
-
-
-.. _psyke-intro-restrictions-shared:
-
-Shared memory and API-specific
-##############################
-
-The ``ExtractTrans`` transformation cannot be applied to:
-
-* A Loop without its parent Directive,
-
-* An orphaned Directive (e.g. ``OMPDoDirective``, ``ACCLoopDirective``)
-  without its parent Directive (e.g. ACC or OMP Parallel Directive),
-
-* A Loop over cells in a colour without its parent Loop over colours in
-  the LFRic API,
-
-* An inner Loop without its parent outer Loop in the GOcean API.
-
-* Kernels that have a halo exchange call between them.
-
-.. _psyke-use:
-
-Use
----
-
-The code extraction is currently enabled by utilising a transformation
-script (see :ref:`sec_transformations_script` section for more details).
-
 For example, the transformation script which extracts the first Kernel call
 in LFRic API test example ``15.1.2_builtin_and_normal_kernel_invoke.f90``
 would be written as:
@@ -224,8 +99,8 @@ PSyclone modifies the Schedule of the selected ``invoke_0``:
   Schedule[invoke='invoke_0' dm=False]
       0: Loop[type='dofs',field_space='any_space_1',it_space='dofs',
               upper_bound='ndofs']
-          Literal[value:'NOT_INITIALISED']
-          Literal[value:'NOT_INITIALISED']
+          Reference[name:'loop0_start']
+          Reference[name:'loop0_stop']
           Literal[value:'1']
           Schedule[]
               0: BuiltIn setval_c(f5,0.0)
@@ -279,7 +154,8 @@ to insert the extract region. As shown below, all children of an
               0: CodedKern testkern_code(scalar,f1,f2,f3,f4) [module_inline=False]
 
 To extract multiple Nodes, ``ExtractTrans`` can be applied to the list
-of Nodes (subject to :ref:`psyke-intro-restrictions-gen` restrictions above):
+of Nodes (subject to :ref:`psyke-intro-restrictions-gen` restrictions above).
+
 
 .. code-block:: python
 
@@ -304,6 +180,54 @@ This modifies the above Schedule as:
                       0: CodedKern testkern_code_w2_only(f3,f2) [module_inline=False]
   ...
 
+
+The ``ExtractNode`` class uses the dependency analysis to detect
+which variables are input-, and which ones are output-parameters.
+The lists of variables are then passed to the ``PSyDataNode``,
+which is the base class of any ``ExtractNode`` (details of
+the ``PSyDataNode`` can be found in :ref:`psy_data`). This
+node then creates the actual code, as in the following LFRic example::
+
+      ! ExtractStart
+      !
+      CALL extract_psy_data%PreStart("testkern_mod", "testkern_code", 4, 2)
+      CALL extract_psy_data%PreDeclareVariable("a", a)
+      CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreDeclareVariable("m1", m1)
+      CALL extract_psy_data%PreDeclareVariable("m2", m2)
+      CALL extract_psy_data%PreDeclareVariable("map_w1", map_w1)
+      ...
+      CALL extract_psy_data%PreDeclareVariable("undf_w3", undf_w3)
+      CALL extract_psy_data%PreDeclareVariable("f1_post", f1)
+      CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
+      CALL extract_psy_data%PreEndDeclaration
+      CALL extract_psy_data%ProvideVariable("a", a)
+      CALL extract_psy_data%ProvideVariable("f2", f2)
+      CALL extract_psy_data%ProvideVariable("m1", m1)
+      CALL extract_psy_data%ProvideVariable("m2", m2)
+      CALL extract_psy_data%ProvideVariable("map_w1", map_w1)
+      ...
+      CALL extract_psy_data%ProvideVariable("undf_w3", undf_w3)
+      CALL extract_psy_data%PreEnd
+      DO cell=1,f1_proxy%vspace%get_ncell()
+        !
+        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,  &
+             m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1,           &
+             map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, &
+             undf_w3, map_w3(:,cell))
+      END DO
+      CALL extract_psy_data%PostStart
+      CALL extract_psy_data%ProvideVariable("cell_post", cell)
+      CALL extract_psy_data%ProvideVariable("f1_post", f1)
+      CALL extract_psy_data%PostEnd
+      !
+      ! ExtractEnd
+
+The :ref:`PSyData API <psy_data>` relies on generic Fortran interfaces to
+provide the  field-type-specific implementations of the ``ProvideVariable``
+for different types. This means that a different version of the external
+PSyData library that PSyKE uses must be supplied for each PSyclone API.
+
 As said above, extraction can be performed on optimised code. For example,
 the following example transformation script first adds ``!$OMP PARALLEL DO``
 directive and then extracts the optimised code in LFRic API test
@@ -312,11 +236,11 @@ example ``15.1.2_builtin_and_normal_kernel_invoke.f90``:
 .. code-block:: python
 
   from psyclone.domain.lfric.transformations import LFRicExtractTrans
-  from psyclone.transformations import DynamoOMPParallelLoopTrans
+  from psyclone.transformations import LFRicOMPParallelLoopTrans
 
   # Get instances of the transformations
   etrans = LFRicExtractTrans()
-  otrans = DynamoOMPParallelLoopTrans()
+  otrans = LFRicOMPParallelLoopTrans()
 
   # Get Invoke and its Schedule
   invoke = psy.invokes.get("invoke_0")
@@ -366,24 +290,111 @@ The generated code is now:
 
 Examples in ``examples/lfric/eg12`` directory demonstrate how to
 apply code extraction by utilising PSyclone transformation scripts
-(see :ref:`examples` section for more information). The code
+(see :ref:`examples_lfric` section for more information). The code
 in ``examples/lfric/eg17/full_example_extract`` can be compiled and
 run, and it will create two kernel data files.
+
+
+.. _psyke-intro-restrictions:
+
+Restrictions
+++++++++++++
+
+Code extraction can be applied to unoptimised or optimised code. There are
+restrictions that check for correctness of optimising transformations when
+extraction is applied, as well as restrictions that eliminate dependence on
+the specific model infrastructure.
+
+.. _psyke-intro-restrictions-gen:
+
+General
+#######
+
+This group of restrictions is enforced irrespective of whether optimisations
+are used or not.
+
+* Extraction can be applied to a single Node or a list of Nodes in a
+  Schedule. For the latter, Nodes in the list must be consecutive children
+  of the same parent Schedule.
+
+* Extraction cannot be applied to an ``ExtractNode`` or a Node list that
+  already contains one (otherwise we would have an extract region within
+  another extract region).
+
+* A Kernel or a Built-In call cannot be extracted without its parent Loop.
+
+* The extraction code will now write variables that are used from other
+  modules to the kernel data file, and the driver will read these values in.
+  Unfortunately, if a variable is used that is defined as ``private`` or
+  ``protected``, the value cannot be written to the file, and compilation
+  will abort. The only solution is to modify this file and make all variables
+  public.
+
+  * The new build system FAB will be able to remove ``private`` and
+    ``protected`` declarations in any source files, meaning no manual
+    modification of files is required anymore (TODO #2536).
+
+.. _psyke-intro-restrictions-dm:
+
+Distributed memory
+##################
+
+Kernel extraction for distributed memory is supported in as much as each
+process will write its own output file by adding its rank to the output
+file name. So each kernel and each rank will produce one file. It is possible
+to extract several consecutive kernels, but there must be no halo exchange
+calls between the kernels. The extraction transformation will test for this
+and raise an exception if this should happen.
+The compiled driver program accepts the name of the extracted kernel file as
+a command line parameter. If this is not specified, it will use the default
+name (``module-region`` without a rank).
+
+
+.. _psyke-intro-restrictions-shared:
+
+Shared memory and API-specific
+##############################
+
+The ``ExtractTrans`` transformation cannot be applied to:
+
+* A Loop without its parent Directive,
+
+* An orphaned Directive (e.g. ``OMPDoDirective``, ``ACCLoopDirective``)
+  without its parent Directive (e.g. ACC or OMP Parallel Directive),
+
+* A Loop over cells in a colour without its parent Loop over colours in
+  the LFRic API,
+
+* An inner Loop without its parent outer Loop in the GOcean API.
+
+* Kernels that have a halo exchange call between them.
+
 
 .. _extraction_libraries:
 
 Extraction Libraries
 --------------------
-PSyclone comes with two extraction libraries: one is based on NetCDF
-and will create NetCDF files to contain all input- and output-parameters.
-The second one is a stand-alone library which uses only standard Fortran
-IO to write and read kernel data. The binary files produced using this
-library may not be portable between machines and compilers. If you
-require such portability then please use the NetCDF extraction library.
+PSyclone comes with three extraction libraries:
 
-The two extraction :ref:`libraries <libraries>` are in
-`lib/extract/standalone
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone>`_.
+- one is based on NetCDF and will create NetCDF files which contain all input- and
+  output-parameters.
+- the second one is a stand-alone library which uses only standard unformatted
+  Fortran binary IO to write and read kernel data. The binary files produced using
+  this library may not be portable between machines and compilers.
+- the last version is a stand-alone library which writes the data as ASCII
+  files. While this is supposed to be very general, some compilers do not
+  write sufficient digits for floating point numbers to reproduce the exact
+  same binary representation. This can show up as small errors reported
+  when running the drivers, even for trivial operations like `x-y`.
+
+The best option for portability across different compilers and different
+hardware is the NetCDF extraction library.
+
+The three extraction :ref:`libraries <libraries>` are in
+`lib/extract/binary
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/binary>`_,
+`lib/extract/ascii
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/ascii>`_,
 and in
 `lib/extract/netcdf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf>`_.
@@ -407,15 +418,17 @@ Extraction for GOcean
 +++++++++++++++++++++
 
 The extraction libraries in 
-`lib/extract/standalone/dl_esm_inf
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/dl_esm_inf>`_
+`lib/extract/binary/dl_esm_inf
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/binary/dl_esm_inf>`_,
+`lib/extract/ascii/dl_esm_inf
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/ascii/dl_esm_inf>`_
 and 
 `lib/extract/netcdf/dl_esm_inf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/dl_esm_inf>`_
 implement the full PSyData API for use with the
 :ref:`GOcean <gocean-api>` dl_esm_inf infrastructure library.
-When running the instrumented executable, it will create either a binary or
-a NetCDF file for each instrumented
+When running the instrumented executable, it will create a corresponding
+data file for each instrumented
 code region. It includes all variables that are read before the code
 is executed, and all variables that have been modified. The output
 variables have the postfix ``_post`` attached to the names,
@@ -427,9 +440,9 @@ variable ``xyz`` will have its
 sizes stored as ``xyzdim1``, ``xyzdim2`` for the input values,
 and output arrays use the name ``xyz_postdim1``, ``xyz_postdim2``.
 
-.. note:: The stand-alone library does not store the names of the
-    variables in the output file, but these names will be used
-    as variable names in the created driver.
+.. note:: The stand-alone libraries do not store the names of the
+    variables in the output file, but will match the variable names
+    in the created driver.
 
 The output file contains the values of all variables used in the
 subroutine. The ``GOceanExtractTrans`` transformation can automatically
@@ -465,8 +478,10 @@ Extraction for LFRic
 ++++++++++++++++++++
 
 The libraries in 
-`lib/extract/standalone/lfric
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/lfric>`_
+`lib/extract/binary/lfric
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/binary/lfric>`_,
+`lib/extract/ascii/lfric
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/ascii/lfric>`_
 and
 `lib/extract/netcdf/lfric
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/lfric>`_
@@ -503,11 +518,11 @@ optimisation of a stand-alone kernel.
 
 .. warning:: Care has to be taken that the driver matches the version
     of the code that was used to create the output file, otherwise the
-    driver will likely crash. The stand-alone driver relies on a
-    strict ordering of variable values in the output file and e.g.
-    even renaming one variable can affect this. The NetCDF version
-    stores the variable names and will not be able to find a variable
-    if its name has changed.
+    driver will likely crash. The stand-alone drivers (both ASCII and
+    binary) rely on a strict ordering of variable values in the output
+    file and e.g. even renaming one variable can affect this. The NetCDF
+    version stores the variable names and will not be able to find a
+    variable if its name has changed.
 
 The LFRic kernel driver will inline all required external modules into the
 driver. It uses a ``ModuleManager`` to find the required modules, based on the
@@ -529,10 +544,10 @@ Therefore, compilation for a created driver, e.g. the one created in
 
    $ gfortran -g -O0 driver-main-update.F90 -o driver-main-update
    $ ./driver-main-update
-       Variable      max_abs      max_rel      l2_diff       l2_cos    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3
-           cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
-    field1_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .5390000E+03 .0000000E+00 .0000000E+00 .0000000E+00
-     dummy_var1 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
+     Variable        count    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3   #rel>=1E-3      max_abs      max_rel      l2_diff       l2_cos
+         cell            1            1            0            0            0            0 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01
+  field1_data          539          539            0            0            0            0 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01
+   dummy_var1            1            1            0            0            0            0 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01
 
 (see :ref:`driver_summary_statistics` for details about the statistics`).
 Note that the Makefile in the example will actually provide additional include
@@ -540,27 +555,13 @@ paths (infrastructure files and extraction library) for the compiler, but
 these flags are actually only required for compiling the example program, not
 for the driver.
 
-Restrictions of Kernel Extraction and Driver Creation
-#####################################################
-A few restrictions still apply to the current implementation of the driver
-creation code:
-
-- Distributed memory is not yet supported. See #1992.
-- The extraction code will now write variables that are used from other
-  modules to the kernel data file, and the driver will read these values in.
-  Unfortunately, if a variable is used that is defined as private,
-  the value cannot be written to the file, and compilation will abort.
-  The only solution is to modify this file and make all variables public.
-  This mostly affects ``log_mod.F90``, but a few other modules as well.
-- The new build system FAB will be able to remove ``private`` and
-  ``protected`` declarations in any source files, meaning no manual
-  modification of files is required anymore (TODO #2536).
-
 Extraction for generic Fortran
 ++++++++++++++++++++++++++++++
 The libraries in
-`lib/extract/standalone/generic
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/generic>`_
+`lib/extract/binary/generic
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/binary/generic>`_,
+`lib/extract/ascii/generic
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/ascii/generic>`_
 and
 `lib/extract/netcdf/generic
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/generic>`_
@@ -587,10 +588,10 @@ by changing the compilation options, or compiler version. Example output:
 
 .. code-block:: output
 
-       Variable      max_abs      max_rel      l2_diff       l2_cos    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3
-           cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
-    field1_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .5390000E+03 .0000000E+00 .0000000E+00 .0000000E+00
-     dummy_var1 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
+     Variable        count    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3   #rel>=1E-3      max_abs      max_rel      l2_diff       l2_cos
+         cell            1            1            0            0            0            0 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01
+  field1_data          539          539            0            0            0            0 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01
+   dummy_var1            1            1            0            0            0            0 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01
 
 The columns from left to right are:
 
@@ -606,28 +607,33 @@ The columns from left to right are:
 .. only:: latex or has_dvipng
 
   * The variable name.
+  * The number of elements for this variable (i.e. 1 for scalar).
+  * How many values are identical.
+  * How many values have a relative error of less than 10\ :sup:`-9` but are not identical. Note that
+    single precision variables typically do not have enough significant digits to have an error of 10\ :sup:`-9`.
+  * How many values have a relative error of less than 10\ :sup:`-6` but more than 10\ :sup:`-9`.
+  * How many values have a relative error of less than 10\ :sup:`-3` but more than 10\ :sup:`-6`.
+  * How many values have a relative error of more than 10\ :sup:`-3`.
   * The maximum absolute error of all elements.
   * The maximum relative error of all elements. If an element has the value
     0, the relative error for this element is considered to be 1.0.
   * The L2 difference: :math:`\sqrt{\sum{(original-new)^2}}`.
   * The cosine of the angle between the two vectors: :math:`\frac{\sum{original*new}}{\sqrt{\sum{original*original}}*\sqrt{\sum{new*new}}}`.
-  * How many values are identical.
-  * How many values have a relative error of less than 10\ :sup:`-9` but are not identical.
-  * How many values have a relative error of less than 10\ :sup:`-6` but more than 10\ :sup:`-9`.
-  * How many values have a relative error of less than 10\ :sup:`-3` but more than 10\ :sup:`-6`.
 
 .. only:: html and not has_dvipng
 
   * The variable name.
+  * The number of elements for this variable (i.e. 1 for scalar).
+  * How many values are identical.
+  * How many values have a relative error of less than 10\ :sup:`-9` but are not identical. Note that
+    single precision variables typically do not have enough significant digits to have an error of 10\ :sup:`-9`.
+  * How many values have a relative error of less than 10\ :sup:`-6` but more than 10\ :sup:`-9`.
+  * How many values have a relative error of less than 10\ :sup:`-3` but more than 10\ :sup:`-6`.
   * The maximum absolute error of all elements.
   * The maximum relative error of all elements. If an element has the value
     0, the relative error for this element is considered to be 1.0.
   * The L2 difference: `sqrt(sum((original-new)`\ :sup:`2` `))`.
   * The cosine of the angle between the two vectors: `sum(original*new)/(sqrt(sum(original*original))*sqrt(sum(new*new)))`.
-  * How many values are identical.
-  * How many values have a relative error of less than 10\ :sup:`-9` but are not identical.
-  * How many values have a relative error of less than 10\ :sup:`-6` but more than 10\ :sup:`-9`.
-  * How many values have a relative error of less than 10\ :sup:`-3` but more than 10\ :sup:`-6`.
 
 .. note:: The usefulness of the columns printed is still being evaluated. Early
     indications are that the cosine of the angle between the two vectors,

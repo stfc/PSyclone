@@ -35,22 +35,26 @@
 
 ''' Utilities file to parallelise Nemo code. '''
 
+import os
+from typing import List, Union
+
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Assignment, Loop, Directive, Reference, CodeBlock, ArrayReference,
-    Call, Return, IfBlock, Routine, IntrinsicCall)
+    Assignment, Loop, Directive, Node, Reference, CodeBlock, ArrayReference,
+    Call, Return, IfBlock, Routine, Schedule, IntrinsicCall,
+    StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
-    Reference2ArrayRangeTrans, ScalarisationTrans)
+    OMPMinimiseSyncTrans, Reference2ArrayRangeTrans,
+    ScalarisationTrans, IncreaseRankLoopArraysTrans)
 from psyclone.transformations import TransformationError
-
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
-    "oce", "par_oce", "dom_oce", "phycst", "ice",
+    "oce", "par_oce", "par_kind", "dom_oce", "phycst", "ice",
     "obs_fbm", "flo_oce", "sbc_ice", "wet_dry"
 ]
 
@@ -142,7 +146,26 @@ NEMO_FUNCTIONS = [
     'visc_air', 'visc_air_sclr', 'visc_air_vctr', 'w1', 'w2', 'z0_from_Cd',
     'z0tq_LKB', 'zdf_gls_alloc', 'zdf_iwm_alloc', 'zdf_mfc_alloc',
     'zdf_mxl_alloc', 'zdf_oce_alloc', 'zdf_osm_alloc', 'zdf_phy_alloc',
-    'zdf_tke_alloc', 'zdf_tmx_alloc',
+    'zdf_tke_alloc', 'zdf_tmx_alloc', 'itau2date',
+    # grep -rh "INTERFACE" src | grep -v "END" | awk '{print $2}' | uniq | sort
+    'alpha_sw', 'bulk_formula', 'cp_air', 'debug', 'DECAL_FEEDBACK',
+    'DECAL_FEEDBACK_2D', 'depth_to_e3', 'de_sat_dt_ice', 'dia_ar5_hst',
+    'dia_ptr_hst', 'div_hor', 'dom_tile_copyin', 'dom_tile_copyout',
+    'dq_sat_dt_ice', 'dyn_vor', 'e3_to_depth', 'eos', 'eos_fzp',
+    'eos_rab', 'e_sat', 'e_sat_ice', 'f_h_louis', 'f_m_louis',
+    'gamma_moist', 'glob_2Dmax', 'glob_2Dmin', 'glob_2Dsum', 'glob_3Dmax',
+    'glob_3Dmin', 'glob_3Dsum', 'halo_mng_resize', 'icb_utl_bilin_h',
+    'ice_var_itd', 'ice_var_snwblow', 'ice_var_snwfra', 'iom_get',
+    'iom_getatt', 'iom_nf90_get', 'iom_put', 'iom_putatt',
+    'iom_rstput', 'lbc_lnk', 'lbc_lnk_neicoll', 'lbc_lnk_pt2pt',
+    'lbc_nfd', 'lbnd_ij', 'ldf_eiv_trp', 'local_2Dmax', 'local_2Dmin',
+    'local_2Dsum', 'local_3Dmax', 'local_3Dmin', 'local_3Dsum',
+    'L_vap', 'mpp_max', 'mpp_maxloc', 'mpp_min', 'mpp_minloc',
+    'mpp_nfd', 'mpp_sum', 'pres_temp', 'prt_ctl_sum', 'ptr_mpp_sum',
+    'ptr_sj', 'ptr_sum', 'qlw_net', 'q_sat', 'rho_air', 'Ri_bulk',
+    'SIGN', 'sum3x3', 'theta_exner', 'tra_mle_trp', 'trd_vor_zint',
+    'virt_temp', 'visc_air', 'wAimp', 'wzv', 'zdf_osm_iomput',
+    'zdf_osm_velocity_rotation',
 ]
 
 # Currently fparser has no way of distinguishing array accesses from statement
@@ -154,7 +177,7 @@ CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 PARALLELISATION_ISSUES = [
     "ldfc1d_c2d.f90",
     "tramle.f90",
-    "dynspg_ts.f90",
+    "traqsr.f90",
 ]
 
 PRIVATISATION_ISSUES = [
@@ -180,8 +203,8 @@ def _it_should_be(symbol, of_type, instance):
 
 def enhance_tree_information(schedule):
     ''' Manually fix some PSyIR issues produced by not having enough symbol
-    information from external modules. Setting NEMO_MODULES_TO_IMPORT above
-    improve the situation but its not complete (not all symbols are imported)
+    information from external modules. Using RESOLVE_IMPORTS improves the
+    situation but it's not complete (not all symbols are imported)
     and it is not transitive (imports that inside import other symbols).
 
     :param schedule: the PSyIR Schedule to transform.
@@ -231,9 +254,14 @@ def inline_calls(schedule):
 
       1. Find the source of the routine being called.
       2. Insert that source into the same Container as the call site.
-      3. Replace the call to the routine with the body of the routine.
 
     where each step is dependent upon the success of the previous one.
+
+    Ideally (#924), this would then be followed by:
+
+      3. Replace the call to the routine with the body of the routine.
+
+    but currently this functionality is not robust enough for use here.
 
     TODO #924 - this could be InlineAllCallsTrans.apply(schedule,
                                                         excluding={})
@@ -242,14 +270,16 @@ def inline_calls(schedule):
     :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
 
     '''
-    excluding = ["ctl_stop", "ctl_warn", "eos", "iom_", "hist", "mpi_",
-                 "timing_", "oasis_"]
+    excluding = ["ctl_nam", "ctl_stop", "ctl_warn", "prt_ctl", "eos",
+                 "iom_", "hist", "mpi_", "timing_", "oasis_",
+                 "fatal_error"  # TODO #2846 - is brought into scope via
+                                # multiple wildcard imports
+                 ]
     ignore_codeblocks = ["bdy_dyn3d_frs", "bdy_dyn3d_spe", "bdy_dyn3d_zro",
                          "bdy_dyn3d_zgrad"]
     mod_inline_trans = KernelModuleInlineTrans()
     inline_trans = InlineTrans()
-    all_calls = schedule.walk(Call)
-    for call in all_calls:
+    for call in schedule.walk(Call):
         if isinstance(call, IntrinsicCall):
             continue
         rsym = call.routine.symbol
@@ -257,13 +287,18 @@ def inline_calls(schedule):
         if any(name.startswith(excl_name) for excl_name in excluding):
             print(f"Inlining of routine '{name}' is disabled.")
             continue
-        if rsym.is_import:
+        if rsym.is_import or rsym.is_unresolved:
             try:
                 mod_inline_trans.apply(call)
                 print(f"Module-inlined routine '{name}'")
             except TransformationError as err:
                 print(f"Module inline of '{name}' failed:\n{err}")
                 continue
+
+        # TODO #924 - SKIP ACTUAL INLINING FOR NOW. Currently this causes
+        # failures when processing NEMO and this needs further work.
+        continue
+
         try:
             options = {}
             if name in ignore_codeblocks:
@@ -282,8 +317,9 @@ def normalise_loops(
         convert_array_notation: bool = True,
         loopify_array_intrinsics: bool = True,
         convert_range_loops: bool = True,
-        hoist_expressions: bool = True,
         scalarise_loops: bool = False,
+        increase_array_ranks: bool = False,
+        hoist_expressions: bool = True,
         ):
     ''' Normalise all loops in the given schedule so that they are in an
     appropriate form for the Parallelisation transformations to analyse
@@ -298,10 +334,12 @@ def normalise_loops(
         operate on arrays to explicit loops (currently only maxval).
     :param bool convert_range_loops: whether to convert ranges to explicit
         loops.
-    :param bool hoist_expressions: whether to hoist bounds and loop invariant
-        statements out of the loop nest.
     :param scalarise_loops: whether to attempt to convert arrays to scalars
         where possible, default is False.
+    :param increase_array_ranks: whether to increase the rank of selected
+        arrays.
+    :param hoist_expressions: whether to hoist bounds and loop invariant
+        statements out of the loop nest.
     '''
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
@@ -337,6 +375,8 @@ def normalise_loops(
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
+            if assignment.walk(StructureReference):
+                continue  # TODO #2951 Fix issues with structure_refs
             try:
                 explicit_loops.apply(assignment)
             except TransformationError:
@@ -351,6 +391,9 @@ def normalise_loops(
         scalartrans = ScalarisationTrans()
         for loop in loops:
             scalartrans.apply(loop)
+
+    if increase_array_ranks:
+        increase_rank_and_reorder_nemov5_loops(schedule)
 
     if hoist_expressions:
         # First hoist all possible expressions
@@ -374,12 +417,70 @@ def normalise_loops(
     # top level. This would allow the collapse clause to be applied.
 
 
+def increase_rank_and_reorder_nemov5_loops(routine: Routine):
+    ''' This method increases the rank of temporary arrays used inside selected
+    loops (in order to parallelise the outer loop without overlapping them)
+    and then rearranges the outer loop next to the inner ones (in order to
+    collapse them), so that more parallelism can be leverage. This is useful
+    in GPU contexts, but it increases the memory footprint and may not be
+    beneficial for caching-architectures.
+
+    :param routine: the target routine.
+
+    '''
+    irlatrans = IncreaseRankLoopArraysTrans()
+
+    # Map of routines and arrays
+    selection = {
+        "dyn_zdf": ['zwd', 'zwi', 'zws'],
+        "tra_zdf_imp": ['zwd', 'zwi', 'zws', 'zwt']
+    }
+
+    if routine.name not in selection:
+        return
+
+    for outer_loop in routine.walk(Loop, stop_type=Loop):
+        if outer_loop.variable.name == "jj":
+            # Increase the rank of the temporary arrays in this loop
+            irlatrans.apply(outer_loop, arrays=selection[routine.name])
+            # Now reorder the code
+            for child in outer_loop.loop_body[:]:
+                # Move the contents of the jj loop outside it
+                outer_loop.parent.addchild(child.detach(),
+                                           index=outer_loop.position)
+                # Add a new jj loop around each inner loop that is not 'jn'
+                target_loop = []
+                for inner_loop in child.walk(Loop, stop_type=Loop):
+                    if inner_loop.variable.name != "jn":
+                        target_loop.append(inner_loop)
+                    else:
+                        for next_loop in inner_loop.loop_body.walk(
+                                            Loop, stop_type=Loop):
+                            target_loop.append(next_loop)
+                for inner_loop in target_loop:
+                    if isinstance(inner_loop.loop_body[0], Loop):
+                        inner_loop = inner_loop.loop_body[0]
+                    inner_loop.replace_with(
+                        Loop.create(
+                            outer_loop.variable,
+                            outer_loop.start_expr.copy(),
+                            outer_loop.stop_expr.copy(),
+                            outer_loop.step_expr.copy(),
+                            children=[inner_loop.copy()]
+                        )
+                    )
+            # Remove the now empty jj loop
+            outer_loop.detach()
+
+
 def insert_explicit_loop_parallelism(
         schedule,
         region_directive_trans=None,
         loop_directive_trans=None,
         collapse: bool = True,
         privatise_arrays: bool = False,
+        asynchronous_parallelism: bool = False,
+        uniform_intrinsics_only: bool = False,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
@@ -398,15 +499,25 @@ def insert_explicit_loop_parallelism(
         many nested loops as possible.
     :param privatise_arrays: whether to attempt to privatise arrays that cause
         write-write race conditions.
+    :param asynchronous_parallelism: whether to attempt to add asynchronocity
+    to the parallel sections.
+    :param uniform_intrinsics_only: if True it prevent offloading loops
+        with non-reproducible device intrinsics.
 
     '''
+    nemo_v4 = os.environ.get('NEMOV4', False)
+    if schedule.name == "ts_wgt":
+        return  # TODO #2937 WaW dependency incorrectly considered private
     # Add the parallel directives in each loop
     for loop in schedule.walk(Loop):
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
         opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
-                "verbose": True}
+                "verbose": True, "nowait": asynchronous_parallelism}
+
+        if uniform_intrinsics_only:
+            opts["device_string"] = "nvfortran-uniform"
 
         routine_name = loop.ancestor(Routine).name
 
@@ -416,33 +527,51 @@ def insert_explicit_loop_parallelism(
                 "and is not the inner loop")
             continue
 
-        # Skip if it is an array operation loop on an ice routine if along the
-        # third dim or higher or if the loop nests a loop over ice points
-        # (npti) or if the loop and array dims do not match.
-        # In addition, they often nest ice linearised loops (npti)
-        # which we'd rather parallelise
-        if ('ice' in routine_name
-            and isinstance(loop.stop_expr, IntrinsicCall)
-            and (loop.stop_expr.intrinsic in (IntrinsicCall.Intrinsic.UBOUND,
-                                              IntrinsicCall.Intrinsic.SIZE))
-            and (len(loop.walk(Loop)) > 2
-                 or any(ref.symbol.name in ('npti',)
-                        for lp in loop.loop_body.walk(Loop)
-                        for ref in lp.stop_expr.walk(Reference))
-                 or (str(len(loop.walk(Loop))) !=
-                     loop.stop_expr.arguments[1].value))):
-            loop.append_preceding_comment(
-                "PSyclone: ICE Loop not parallelised for performance reasons")
-            continue
+        if nemo_v4:
+            # Skip if it is an array operation loop on an ice routine if along
+            # the third dim or higher or if the loop nests a loop over ice
+            # points (npti) or if the loop and array dims do not match.
+            # In addition, they often nest ice linearised loops (npti)
+            # which we'd rather parallelise
+            if ('ice' in routine_name
+                and isinstance(loop.stop_expr, IntrinsicCall)
+                and (loop.stop_expr.intrinsic in (
+                        IntrinsicCall.Intrinsic.UBOUND,
+                        IntrinsicCall.Intrinsic.SIZE))
+                and (len(loop.walk(Loop)) > 2
+                     or any(ref.symbol.name in ('npti',)
+                            for lp in loop.loop_body.walk(Loop)
+                            for ref in lp.stop_expr.walk(Reference))
+                     or (str(len(loop.walk(Loop))) !=
+                         loop.stop_expr.arguments[1].value))):
+                loop.append_preceding_comment(
+                    "PSyclone: ICE Loop not parallelised for performance"
+                    "reasons")
+                continue
 
-        # Skip if looping over ice categories, ice or snow layers
-        # as these have only 5, 4, and 1 iterations, respectively
-        if (any(ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
-                for ref in loop.stop_expr.walk(Reference))):
-            loop.append_preceding_comment(
-                "PSyclone: Loop not parallelised because stops at 'jpl',"
-                " 'nlay_i' or 'nlay_s'.")
-            continue
+            # Skip if looping over ice categories, ice or snow layers as these
+            # have small trip counts if they are not collapsed
+            if not collapse and any(
+                    ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
+                    for ref in loop.stop_expr.walk(Reference)
+            ):
+                loop.append_preceding_comment(
+                    "PSyclone: Loop not parallelised because stops at 'jpl',"
+                    " 'nlay_i' or 'nlay_s' and is not collapsed.")
+                continue
+
+        else:
+            # In NEMOv5 add the necessary explicit private symbols in icethd
+            # in order to parallelise the outer loop
+            if routine_name == "ice_thd_zdf_BL99":
+                if isinstance(loop.stop_expr, Reference):
+                    if loop.stop_expr.symbol.name == "npti":
+                        for variable in ['zdiagbis', 'zindtbis', 'zindterm',
+                                         'ztib', 'ztrid', 'ztsb']:
+                            st = loop.scope.symbol_table
+                            sym = st.lookup(variable, otherwise=None)
+                            if sym is not None:
+                                loop.explicitly_private_symbols.add(sym)
 
         try:
             # First check that the region_directive is feasible for this region
@@ -454,25 +583,40 @@ def insert_explicit_loop_parallelism(
 
             # And if successful, the region directive on top.
             if region_directive_trans:
-                region_directive_trans.apply(loop.parent.parent)
+                region_directive_trans.apply(loop.parent.parent, options=opts)
         except TransformationError:
             # This loop cannot be transformed, proceed to next loop.
             # The parallelisation restrictions will be explained with a comment
             # associted to the loop in the generated output.
             continue
 
+    # If we are adding asynchronous parallelism then we now try to minimise
+    # the number of barriers.
+    if asynchronous_parallelism:
+        minsync_trans = OMPMinimiseSyncTrans()
+        minsync_trans.apply(schedule)
 
-def add_profiling(children):
+
+def add_profiling(children: Union[List[Node], Schedule]):
     '''
-    Walks down the PSyIR and inserts the largest possible profiling regions.
-    Code that contains directives is excluded.
+    Walks down the PSyIR and inserts the largest possible profiling regions
+    in place. Code inside functions or that contains directives is excluded.
 
-    :param children: sibling nodes in the PSyIR to which to attempt to add \
-                     profiling regions.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+    :param children: a Schedule or sibling nodes in the PSyIR to which to
+        attempt to add profiling regions.
 
     '''
+    if children and isinstance(children, Schedule):
+        # If we are given a Schedule, we look at its children.
+        children = children.children
+
     if not children:
+        return
+
+    # We do not want profiling calipers inside functions (such as the
+    # PSyclone-generated comparison functions).
+    parent_routine = children[0].ancestor(Routine)
+    if parent_routine and parent_routine.return_symbol:
         return
 
     node_list = []

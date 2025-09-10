@@ -16,7 +16,7 @@ most computationally costly routines in the LFRic dynamical core.
 
 ## The asynchronous halo exchange transformation ##
 
-PSyclone provides the `Dynamo0p3AsyncHaloExchangeTrans` halo exchange
+PSyclone provides the `LFRicAsyncHaloExchangeTrans` halo exchange
 transformation which transforms synchronous halo exchanges to
 asynchronous ones.
 
@@ -52,28 +52,26 @@ need to traverse this tree to get to the halo exchanges and then apply
 the transformation to the appropriate nodes.
 
 In order to use the transformation in the script we need to import it. The 
-`Dynamo0p3AsyncHaloExchangeTrans` is found in `psyclone/transformations`
+`LFRicAsyncHaloExchangeTrans` is found in `psyclone/transformations`
 
 ```python
-from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans
+from psyclone.transformations import LFRicAsyncHaloExchangeTrans
 ```
 
 As transformations are objects we also need to create an instance of
-`Dynamo0p3AsyncHaloExchangeTrans`.
+`LFRicAsyncHaloExchangeTrans`.
 
 ```python
-    async_hex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    async_hex_trans = LFRicAsyncHaloExchangeTrans()
 ```
 
 If you would like to find out more about this transformation, it is
-documented in our
-[user guide](https://psyclone.readthedocs.io/en/latest/dynamo0p3.html)
-(search for `Dynamo0p3AsyncHaloExchangeTrans`). Alternatively, if you
-prefer, a pdf of the user guide is also available in <psyclone_home> and is
-called psyclone.pdf
+documented in the
+[User Guide](https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html)
+(search for `LFRicAsyncHaloExchangeTrans`).
 
 Traversing the PSyIR tree is discussed in the [user
-guide](https://psyclone.readthedocs.io/en/latest/psyir.html) (search
+guide](https://psyclone.readthedocs.io/en/latest/user_guide/psyir.html) (search
 for Tree Navigation) and in one of the [notebook
 tutorials](../../../../notebooks/introduction.ipynb).
 
@@ -93,10 +91,10 @@ We only want to return HaloExchange nodes. In the LFRic API
 HaloExchange nodes are instances of the `LFRicHaloExchange` class.
 
 We therefore need to import the `LFRicHaloExchange` class which is found
-in `psyclone/dynamo0p3`
+in `psyclone/lfric`
 
 ```python
-from psyclone.dynamo0p3 import LFRicHaloExchange
+from psyclone.lfric import LFRicHaloExchange
 ```
 
 and use it in the walk method:
@@ -118,10 +116,10 @@ called `async_hex_trans`:
 Your script should look something like this:
 
 ```python
-from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans
-from psyclone.dynamo0p3 import LFRicHaloExchange
+from psyclone.transformations import LFRicAsyncHaloExchangeTrans
+from psyclone.lfric import LFRicHaloExchange
 def trans(psyir):
-    async_hex = Dynamo0p3AsyncHaloExchangeTrans()
+    async_hex = LFRicAsyncHaloExchangeTrans()
     for hex_node in psyir.walk(LFRicHaloExchange):
         async_hex.apply(hex_node)
     print(psyir.view())
@@ -138,8 +136,8 @@ You will see that all halo exchanges have been converted to asynchronous halo ex
 ```bash
 InvokeSchedule[invoke='invoke_0', dm=True]
     0: Loop[type='dofs', field_space='any_space_1', it_space='dof', upper_bound='ndofs']
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
+        Reference[name:'loop0_start']
+        Reference[name:'loop0_stop']
         Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
         Schedule[]
             0: BuiltIn setval_c(grad_p,0.0_r_def)
@@ -225,8 +223,8 @@ output. For example:
 ```bash
 InvokeSchedule[invoke='invoke_0', dm=True]
     0: Loop[type='dofs', field_space='any_space_1', it_space='dof', upper_bound='ndofs']
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
+        Reference[name:'loop0_start']
+        Reference[name:'loop0_stop']
         Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
         Schedule[]
             0: BuiltIn setval_c(grad_p,0.0_r_def)
