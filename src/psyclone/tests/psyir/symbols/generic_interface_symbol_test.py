@@ -39,8 +39,9 @@
 import pytest
 
 from psyclone.psyir.symbols import (
-    ContainerSymbol, GenericInterfaceSymbol, ImportInterface, INTEGER_TYPE,
-    RoutineSymbol, SymbolTable, Symbol, UnresolvedInterface)
+    AutomaticInterface, ContainerSymbol, GenericInterfaceSymbol,
+    ImportInterface, INTEGER_TYPE, RoutineSymbol, SymbolTable, Symbol,
+    UnresolvedInterface)
 
 
 def test_gis_constructor():
@@ -101,14 +102,28 @@ def test_gis_specialise():
     assert symbol.routines[1].from_container is False
 
 
-def test_gis_typedsymbol_keywords():
+def test_gis_typedsymbol_keywords_rejected():
     '''
-    Test that keyword arguments to the constructor are passed through to the
-    TypedSymbol constructor.
+    Test that certain keyword arguments to the constructor are rejected
+    (because the associated properties are computed dynamically from the
+    RoutineSymbols that the GenericInterfaceSymbol contains.
+    TypedSymbol constructor).
     '''
-    walnut = GenericInterfaceSymbol("walnut", [(RoutineSymbol("nut"), True)],
-                                    datatype=INTEGER_TYPE)
-    assert walnut.datatype == INTEGER_TYPE
+    with pytest.raises(ValueError) as err:
+        _ = GenericInterfaceSymbol("walnut", [(RoutineSymbol("nut"), True)],
+                                   datatype=INTEGER_TYPE)
+    assert ("'datatype' property of GenericInterfaceSymbol cannot be supplied "
+            "to the constructor" in str(err.value))
+    with pytest.raises(ValueError) as err:
+        _ = GenericInterfaceSymbol("walnut", [(RoutineSymbol("nut"), True)],
+                                   is_pure=True)
+    assert ("'is_pure' property of GenericInterfaceSymbol cannot be supplied "
+            "to the constructor" in str(err.value))
+    with pytest.raises(ValueError) as err:
+        _ = GenericInterfaceSymbol("walnut", [(RoutineSymbol("nut"), True)],
+                                   is_elemental=True)
+    assert ("'is_elemental' property of GenericInterfaceSymbol cannot be "
+            "supplied to the constructor" in str(err.value))
 
 
 def test_gis_str():
@@ -159,7 +174,11 @@ def test_gis_copy_properties():
     csym = ContainerSymbol("woodland")
     coppice2 = GenericInterfaceSymbol("coppice2", [(ash, True)],
                                       interface=ImportInterface(csym))
-    new_sym.copy_properties(coppice2)
+    # Check that we can exclude copying interface properties.
+    new_sym.copy_properties(coppice2, exclude_interface=True)
+    assert isinstance(new_sym.interface, AutomaticInterface)
+    # Repeat but include the interface properties.
+    new_sym.copy_properties(coppice2, exclude_interface=False)
     for info in new_sym.routines:
         assert info.symbol.interface.container_symbol is csym
 
