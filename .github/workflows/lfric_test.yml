@@ -258,6 +258,32 @@ jobs:
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
+    - name: LFRic Atm PSyclone transmutation
+      id: lfric_atm
+      run: |
+        # Set up environment
+        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment%gcc@${GCC_VERSION}
+
+        # Reset folder
+        rm -rf /archive/psyclone-tests/latest-run/lfric_atm
+        mkdir /archive/psyclone-tests/latest-run/lfric_atm
+        cd /archive/psyclone-tests/latest-run/lfric_atm
+
+        # Fetch and build the app
+        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
+          https://code.metoffice.gov.uk/svn/lfric_apps/main/branches/dev/stephencook/vn2.2_spectral_gwd_psyclone_transmute lfric_apps
+        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
+           fcm:lfric.xm_tr@core2.2 lfric_core
+        sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" lfric_apps/dependencies.sh
+        sed -i "s|lfric_core_sources=|lfric_core_sources=/archive/psyclone-tests/latest-run/lfric_atm/lfric_core|g" lfric_apps/dependencies.sh
+        cd lfric_apps
+        ./build/local_build.py -a lfric_atm -p meto-ex1a -j 16
+
+        # Run a the app with 8 threads
+        cd applications/lfric_atm/example/
+        OMP_NUM_THREADS=8 ../bin/lfric_atm configuration.nml
+
   upload_if_on_mirror:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: ubuntu-latest
