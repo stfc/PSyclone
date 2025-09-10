@@ -233,8 +233,9 @@ def test_definition_use_chain_find_backward_accesses_psy_data_node_example(
     fortran_reader,
 ):
     """Functionality test for the find_backward_accesses routine. This
-    tests the behaviour when the behavious is the expected when the analysed
-    code is inside a PSyDataNode (e.g. a ProfileNode). """
+    tests the behaviour is as expected when the analysed code is inside
+    a PSyDataNode (e.g. a ProfileNode), which is that it has to ignore
+    this ancestor enclosing node."""
 
     # Just repeat the previous test but adding a ProfileNode on top
     code = """
@@ -258,6 +259,8 @@ def test_definition_use_chain_find_backward_accesses_psy_data_node_example(
     # Start the chain from b = A + d.
     chains = DefinitionUseChain(routine.walk(Assignment)[4].rhs.children[0])
     reaches = chains.find_backward_accesses()
+    # Inside the ProfileRegion the DUC has to work as before, the 'a' has
+    # 4 backwards accesses as shown in the previous test.
     assert len(reaches) == 4
 
 

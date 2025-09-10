@@ -4693,7 +4693,7 @@ def test_firstprivate_with_uninitialised(fortran_reader, fortran_writer):
     assert "private(i,not_initialised)" in output
     assert "firstprivate(a,b,c,d)" in output
 
-    # Check that complex initialised cases, such are Codeblocks and
+    # Check that complex initialised cases, such as Codeblocks and
     # initialisations below the loop are caught as a firstprivate
     code = '''
     module test

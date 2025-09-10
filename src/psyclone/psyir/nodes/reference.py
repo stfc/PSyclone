@@ -253,6 +253,24 @@ class Reference(DataNode):
             self, scope: Node, visited_nodes: Optional[Set] = None
     ) -> bool:
         '''
+        Whether the symbol lifetime continues after the given scope. For
+        example, given the following fortran code:
+
+        .. code-block:: fortran
+                do i=1,10
+                  a = 1
+                  b = 2
+                  c = 3
+                end do
+                b = 4
+                call mysub(a, b)
+            end subroutine
+
+        'b' and 'c' if it is local, finish their value lifetime at the end
+        of the loop scope (it is not re-used afterwards). While for 'a' and
+        'c' if it is global, their value may be used later and they "escape the
+        scope".
+
         :param scope: the given scope that we evaluate.
         :param visited_nodes: a set of nodes already visited, this is necessary
             because the dependency chains may contain cycles. Defaults to an
@@ -280,6 +298,9 @@ class Reference(DataNode):
 
         # Now check all possible next accesses
         for ref in self.next_accesses():
+            # Not all accesses are references as some other nodes (e.g.
+            # Loop) represent an access to a symbol
+            # TODO #3124: explore making all symbol accesses References
             if (not isinstance(ref, Reference) or
                     ref.escapes_scope(scope, visited_nodes)):
                 return True
@@ -290,6 +311,20 @@ class Reference(DataNode):
             self, scope: Node, visited_nodes: Optional[Set] = None
     ) -> bool:
         '''
+        Whether the symbol lifetime starts before the given scope. For
+        example, given the following fortran code:
+
+        .. code-block:: fortran
+            do i=1,10
+              a = 1
+              if (b>3) c = 1
+            end do
+
+        'a' does not enter the scope. Even if it had a value before in the loop
+        scope this is reassigned to a new value. However, 'b' and 'c' values
+        enter the scope, because there is a path in which they take the value
+        the symbol had before the scope.
+
         :param scope: the given scope that we evaluate.
         :param visited_nodes: a set of nodes already visited, this is necessary
             because the dependency chains may contain cycles. Defaults to an
@@ -308,8 +343,9 @@ class Reference(DataNode):
         if not self.is_descendant_of(scope):
             return True
 
-        # If the 'value' starts here, stop this search chain (the DUC
-        # does not stop because if searches for WaWs)
+        # If the 'value' starts here  (i.e. the first access in the scoping
+        # region is a write), stop this search chain (the DUC does not stop
+        # because if searches for WaWs)
         if self.is_write and not self.is_read:
             return False
 
@@ -317,7 +353,7 @@ class Reference(DataNode):
         if not isinstance(self.symbol.interface, AutomaticInterface):
             return True
 
-        # Now check all possible next accesses
+        # Now check all possible previous accesses
         for ref in self.previous_accesses():
             if (not isinstance(ref, Reference) or
                     ref.enters_scope(scope, visited_nodes)):
