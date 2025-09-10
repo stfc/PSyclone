@@ -918,7 +918,7 @@ def test_iparity_return_type(fortran_reader):
     intrinsic = psyir.walk(ArrayReference)[0]
     intrinsic = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.PARITY,
-        [intrinsic.indices[0].copy(), Reference(k_sym)],
+        [intrinsic.indices[0].copy(), ("dim", Reference(k_sym))],
     )
     res = _iparity_return_type(intrinsic)
     assert isinstance(res, ArrayType)
