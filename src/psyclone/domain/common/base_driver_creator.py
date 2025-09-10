@@ -39,14 +39,14 @@ implementations.
 '''
 
 from abc import abstractmethod
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from psyclone.line_length import FortLineLength
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import (
-    Call, Literal, Reference, ExtractNode, Routine, Node)
+    Call, FileContainer, Literal, Reference, ExtractNode, Routine, Node)
 from psyclone.psyir.symbols import (
     CHARACTER_TYPE, ContainerSymbol, ImportInterface, INTEGER_TYPE, NoType,
     RoutineSymbol, DataSymbol, UnsupportedFortranType, Symbol,
@@ -348,14 +348,99 @@ class BaseDriverCreator:
 
     # -------------------------------------------------------------------------
     @abstractmethod
+    def create(self, nodes, read_write_info, prefix, postfix, region_name):
+        pass
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def collect_all_required_modules(
+            file_container: FileContainer) -> Dict[str, Set[str]]:
+        '''Collects recursively all modules used in the file container.
+        It returns a dictionary, with the keys being all the (directly or
+        indirectly) used modules.
+
+        :param file_container: the FileContainer for which to collect all
+            used modules.
+
+        :returns: a dictionary, with the required module names as key, and
+            as value a set of all modules required by the key module.
+
+        '''
+        all_mods: Set[str] = set()
+        for container in file_container.children:
+            sym_tab = container.symbol_table
+            # Add all imported modules (i.e. all container symbols)
+            all_mods.update(symbol.name for symbol in sym_tab.symbols
+                            if isinstance(symbol, ContainerSymbol))
+
+        mod_manager = ModuleManager.get()
+        return mod_manager.get_all_dependencies_recursively(
+            list(all_mods))
+
+    # -------------------------------------------------------------------------
     def get_driver_as_string(self,
                              nodes: List[Node],
                              read_write_info: ReadWriteInfo,
                              prefix: str,
                              postfix: str,
                              region_name: Tuple[str, str],
-                             writer: LanguageWriter = FortranWriter()) -> None:
-        pass
+                             writer: LanguageWriter = FortranWriter()) -> str:
+        # pylint: disable=too-many-arguments, too-many-locals
+        '''This function uses the `create()` function to get the PSyIR of a
+        stand-alone driver, and then uses the provided language writer
+        to create a string representation in the selected language
+        (defaults to Fortran).
+        All required modules will be inlined in the correct order, i.e. each
+        module will only depend on modules inlined earlier, which will allow
+        compilation of the driver. No other dependencies (except system
+        dependencies like NetCDF) are required for compilation.
+
+        :param nodes: a list of nodes.
+        :param read_write_info: information about all input and output
+            parameters.
+        :param prefix: the prefix to use for each PSyData symbol,
+            e.g. 'extract' as prefix will create symbols `extract_psydata`.
+        :param postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
+            driver code (see 'ExtractTrans.determine_postfix()').
+        :param region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
+            should uniquely identify a region.
+        :param language_writer: a backend visitor to convert PSyIR
+            representation to the selected language. It defaults to
+            the FortranWriter.
+
+        :returns: the driver in the selected language.
+
+        '''
+        file_container = self.create(nodes, read_write_info, prefix,
+                                     postfix, region_name)
+
+        module_dependencies = self.collect_all_required_modules(file_container)
+        # Sort the modules by dependencies, i.e. start with modules
+        # that have no dependency. This is required for compilation, the
+        # compiler must have found any dependent modules before it can
+        # compile a module.
+        mod_manager = ModuleManager.get()
+        sorted_modules = mod_manager.sort_modules(module_dependencies)
+
+        # Inline all required modules into the driver source file so that
+        # it is stand-alone.
+        out = []
+
+        for module in sorted_modules:
+            # Note that all modules in `sorted_modules` are known to be in
+            # the module manager, so we can always get the module info here.
+            mod_info = mod_manager.get_module_info(module)
+            out.append(mod_info.get_source_code())
+
+        out.append(writer(file_container))
+
+        return "\n".join(out)
 
     # -------------------------------------------------------------------------
     def write_driver(self,
