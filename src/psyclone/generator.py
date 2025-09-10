@@ -178,7 +178,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
              kern_out_path="",
              kern_naming="multiple",
              keep_comments: bool = False,
-             keep_directives: bool = False):
+             keep_directives: bool = False,
+             free_form: bool = True):
     # pylint: disable=too-many-arguments, too-many-statements
     # pylint: disable=too-many-branches, too-many-locals
     '''Takes a PSyclone algorithm specification as input and outputs the
@@ -215,6 +216,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     :param keep_comments: whether to keep comments from the original source.
     :param keep_directives: whether to keep directives from the original
                             source.
+    :param free_form: whether the original source is free form Fortran.
 
     :raises GenerationError: if an invalid API is specified.
     :raises GenerationError: if an invalid kernel-renaming scheme is specified.
@@ -283,7 +285,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
         # Create language-level PSyIR from the Algorithm file
         reader = FortranReader(ignore_comments=not keep_comments,
-                               ignore_directives=not keep_directives)
+                               ignore_directives=not keep_directives,
+                               free_form=free_form)
         if api in LFRIC_API_NAMES:
             # avoid undeclared builtin errors in PSyIR by adding a
             # wildcard use statement.
@@ -540,6 +543,12 @@ def main(arguments):
         help="keeps directives from the original code (defaults to False)."
     )
 
+    parser.add_argument(
+        "--free-form", default=True, type=bool,
+        help="defines whether the original code is free form Fortran "
+             "(defaults to True)."
+    )
+
     args = parser.parse_args(arguments)
 
     # Set the logging system up.
@@ -626,7 +635,8 @@ def main(arguments):
                                  output_file=args.o,
                                  keep_comments=args.keep_comments,
                                  keep_directives=args.keep_directives,
-                                 line_length=args.limit)
+                                 line_length=args.limit,
+                                 free_form=args.free_form)
     else:
         # PSyKAl-DSL mode
 
@@ -655,7 +665,8 @@ def main(arguments):
                                 kern_out_path=kern_out_path,
                                 kern_naming=args.kernel_renaming,
                                 keep_comments=args.keep_comments,
-                                keep_directives=args.keep_directives)
+                                keep_directives=args.keep_directives,
+                                free_form=args.free_form)
         except NoInvokesError:
             _, exc_value, _ = sys.exc_info()
             print(f"Warning: {exc_value}")
@@ -766,7 +777,7 @@ def add_builtins_use(fp2_tree, name):
 
 def code_transformation_mode(input_file, recipe_file, output_file,
                              keep_comments: bool, keep_directives: bool,
-                             line_length="off"):
+                             free_form: bool = True, line_length="off"):
     ''' Process the input_file with the recipe_file instructions and
     store it in the output_file.
 
@@ -785,6 +796,8 @@ def code_transformation_mode(input_file, recipe_file, output_file,
                             source.
     :param str line_length: set to "output" to break the output into lines
         of 123 chars, and to "all", to additionally check the input code.
+    :param free_form: whether the original source is free form Fortran or
+                      not.
 
     '''
     logger = logging.getLogger(__name__)
@@ -812,7 +825,8 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         # Parse file
         reader = FortranReader(resolve_modules=resolve_mods,
                                ignore_comments=not keep_comments,
-                               ignore_directives=not keep_directives)
+                               ignore_directives=not keep_directives,
+                               free_form=free_form)
         try:
             psyir = reader.psyir_from_file(input_file)
         except (InternalError, ValueError, IOError) as err:
