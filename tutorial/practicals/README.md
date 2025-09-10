@@ -166,7 +166,7 @@ $ sudo apt install libnetcdf-dev libnetcdff-dev
 https://cloud-gc.readthedocs.io/en/latest/chapter04_developer-guide/install-basic.html#install-netcdf-with-package-manager). If
 you're not using gfortran then you will probably have to build NetCDF
 yourself. This process is described here:
-https://www.unidata.ucar.edu/software/netcdf/documentation/NUG/getting_and_building_netcdf.html.
+https://docs.unidata.ucar.edu/nug/current/getting_and_building_netcdf.html.
 
 ## Setup and Validation
 
