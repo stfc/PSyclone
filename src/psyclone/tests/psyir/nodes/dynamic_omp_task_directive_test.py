@@ -2505,7 +2505,7 @@ def test_omp_task_directive_sub_shift_indirection_if(
         integer, dimension(321, 10) :: B
         integer, dimension(320, 10) :: boundary
         integer :: i
-        integer :: iplusone = 1
+        integer :: iplusone
         integer :: j
         integer :: k
         do i = 1, 320, 32
@@ -2533,10 +2533,10 @@ def test_omp_task_directive_sub_shift_indirection_if(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,a,b) \
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,a,b) \
 depend(in: boundary(:,i),b(:,i),k) depend(out: a(:,i + 32),a(:,i),a(:,i - 32))
     do j = 1, 32, 1
       if (boundary(j,i) > 1) then
@@ -2566,7 +2566,7 @@ def test_omp_task_directive_sub_shift_indirection_if_readonly(
         integer, dimension(321, 10) :: B
         integer, dimension(320, 10) :: boundary
         integer :: i
-        integer :: iplusone = 1
+        integer :: iplusone
         integer :: j
         integer :: k
         do i = 1, 320, 32
@@ -2595,10 +2595,10 @@ def test_omp_task_directive_sub_shift_indirection_if_readonly(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,a,b) \
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,a,b) \
 depend(in: boundary(:,i),k,b(:,i + 32),b(:,i),b(:,i - 32)) depend(out: a(:,i))
     do j = 1, 32, 1
       if (boundary(j,i) > 1) then
@@ -2628,7 +2628,7 @@ def test_omp_task_directive_array_member_if_indirection_readonly(
         type(x) :: AA
         integer, dimension(10,320) :: B
         integer, dimension(10,320) :: boundary
-        integer :: iplusone = 1
+        integer :: iplusone
         integer :: i
         integer :: j
         do i = 1, 320, 32
@@ -2656,10 +2656,10 @@ def test_omp_task_directive_array_member_if_indirection_readonly(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,b,aa) \
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,b,aa) \
 depend(in: boundary(:,i),aa%A(1:10,i + 32),aa%A(1:10,i - 32),aa%A(1:10,i))\
  depend(out: b(:,i))
     do j = 1, 10, 1
@@ -2689,7 +2689,7 @@ def test_omp_task_directive_array_member_if_indirection_write(
         type(x) :: AA
         integer, dimension(10,320) :: B
         integer, dimension(10,320) :: boundary
-        integer :: iplusone = 1
+        integer :: iplusone
         integer :: i
         integer :: j
         do i = 1, 320, 32
@@ -2717,10 +2717,10 @@ def test_omp_task_directive_array_member_if_indirection_write(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,aa,b) \
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,aa,b) \
 depend(in: boundary(:,i),b(:,i)) \
 depend(out: aa%A(1:10,i + 32),aa%A(1:10,i - 32),aa%A(1:10,i))
     do j = 1, 10, 1
@@ -2860,7 +2860,7 @@ def test_omp_task_directive_multi_step_if_indirection(
         integer, dimension(321, 10) :: B
         integer, dimension(320, 10) :: boundary
         integer :: i
-        integer :: iplusone = 1
+        integer :: iplusone
         integer :: j
         integer :: k
         do i = 1, 320, 32
@@ -2888,10 +2888,10 @@ def test_omp_task_directive_multi_step_if_indirection(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-!$omp parallel default(shared) private(i,j) firstprivate(iplusone)
+!$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,a,b) \
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,a,b) \
 depend(in: boundary(:,i),b(:,i),k) depend(out: a(:,i + 32),a(:,i))
     do j = 1, 32, 1
       if (boundary(j,i) > 1) then

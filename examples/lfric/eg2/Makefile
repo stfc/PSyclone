@@ -40,9 +40,6 @@ include ../../common.mk
 
 transform: vanilla inline loopfuse
 
-# Location of the stripped-down LFRic infrastructure source
-LFRIC_INC_DIR = ../../../src/psyclone/tests/test_files/lfric/infrastructure
-
 # The '-d ../code' argument specifies that PSyclone should search the
 # '../code' directory when looking for user-supplied kernels.
 
@@ -50,13 +47,16 @@ LFRIC_INC_DIR = ../../../src/psyclone/tests/test_files/lfric/infrastructure
 # the transformation script 'my_script.py.'
 
 vanilla:
-	${PSYCLONE} -api lfric -nodm -d ../code -I${LFRIC_INC_DIR} -s ./print_psyir_trans.py ./multi_invoke_mod.x90
+	${PSYCLONE} -api lfric -nodm -d ../code \
+			-s ./print_psyir_trans.py ./multi_invoke_mod.x90
 
 inline:
-	${PSYCLONE} -api lfric -nodm -d ../code -I${LFRIC_INC_DIR} -s ./module_inline_trans.py ./multi_invoke_mod.x90
+	${PSYCLONE} -api lfric -nodm -d ../code \
+			-s ./module_inline_trans.py ./multi_invoke_mod.x90
 
 loopfuse:
-	${PSYCLONE} -api lfric -nodm -d ../code -I${LFRIC_INC_DIR} -s ./loop_fuse_trans.py ./multi_invoke_mod.x90
+	${PSYCLONE} -api lfric -nodm -d ../code \
+			-s ./loop_fuse_trans.py ./multi_invoke_mod.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg2"

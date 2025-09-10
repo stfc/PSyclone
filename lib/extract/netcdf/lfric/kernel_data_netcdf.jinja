@@ -122,15 +122,15 @@ contains
     !! @param[in] value The value of the variable.
     subroutine DeclareField_r{{prec}}(this, name, value)
 
-        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+        use field_real{{prec}}_mod, only : field_real{{prec}}_type, field_real{{prec}}_proxy_type
 
         implicit none
 
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
-        type(field_r{{prec}}_type), intent(in)                  :: value
+        type(field_real{{prec}}_type), intent(in)                  :: value
 
-        type(field_r{{prec}}_proxy_type) :: value_proxy
+        type(field_real{{prec}}_proxy_type) :: value_proxy
 
         value_proxy = value%get_proxy()
         call this%PreDeclareVariable(name, value_proxy%data)
@@ -146,15 +146,15 @@ contains
     !! @param[in] value The value of the variable.
     subroutine WriteField_r{{prec}}(this, name, value)
 
-        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+        use field_real{{prec}}_mod, only : field_real{{prec}}_type, field_real{{prec}}_proxy_type
 
         implicit none
 
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
-        type(field_r{{prec}}_type), intent(in)                  :: value
+        type(field_real{{prec}}_type), intent(in)                  :: value
 
-        type(field_r{{prec}}_proxy_type) :: value_proxy
+        type(field_real{{prec}}_proxy_type) :: value_proxy
 
         value_proxy = value%get_proxy()
         call this%ProvideVariable(name, value_proxy%data)
@@ -170,16 +170,16 @@ contains
     !! @param[in] value The value of the variable.
     subroutine DeclareFieldVector_r{{prec}}(this, name, value)
 
-        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+        use field_real{{prec}}_mod, only : field_real{{prec}}_type, field_real{{prec}}_proxy_type
 
         implicit none
 
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
-        type(field_r{{prec}}_type), dimension(:), intent(in)        :: value
+        type(field_real{{prec}}_type), dimension(:), intent(in)        :: value
 
         integer                :: i
-        type(field_r{{prec}}_proxy_type) :: value_proxy
+        type(field_real{{prec}}_proxy_type) :: value_proxy
         character(9)           :: number
 
         ! Provide each component of the vector as an individual 1D array.
@@ -204,16 +204,16 @@ contains
     !! @param[in] value The value of the variable.
     subroutine WriteFieldVector_r{{prec}}(this, name, value)
 
-        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+        use field_real{{prec}}_mod, only : field_real{{prec}}_type, field_real{{prec}}_proxy_type
 
         implicit none
 
         class(extract_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                          :: name
-        type(field_r{{prec}}_type), dimension(:), intent(in)        :: value
+        type(field_real{{prec}}_type), dimension(:), intent(in)        :: value
 
         integer                :: i
-        type(field_r{{prec}}_proxy_type) :: value_proxy
+        type(field_real{{prec}}_proxy_type) :: value_proxy
         character(9)           :: number
 
         ! Provide each dimension of the vector as an individual 1D array.

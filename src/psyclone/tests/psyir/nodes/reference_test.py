@@ -674,7 +674,8 @@ def test_reference_enters_and_escapes_scope(fortran_reader):
 
 
 def test_reference_enters_scope_multiple_conditional_source(fortran_reader):
-    ''' Test that the enters_scope with two sources both inside the loop. '''
+    ''' Test enters_scope with a conditional assignment inside the loop, but
+    all branches do assign to the variable of interest. '''
     code = """
     subroutine my_subroutine()
       use other
@@ -706,7 +707,9 @@ def test_reference_enters_scope_multiple_conditional_source(fortran_reader):
     for zice, loop in itertools.product(zice_refs, loops):
         assert not zice.enters_scope(loop)
 
-    # Now repeat the test but enclosing the loops in a Profile region
+    # Now repeat the test but enclosing the loops in a Profile region, so that
+    # we test the method is not getting confused with unrelated scoping regions
+    # enclosing the scope of interest.
     p_trans = ProfileTrans()
     p_trans.apply(loops[0])
     for zice, loop in itertools.product(zice_refs, loops):

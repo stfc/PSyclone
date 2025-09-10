@@ -185,7 +185,8 @@ class DefinitionUseChain:
         # In PSyclone, possible control flow nodes are IfBlock, Loop
         # and WhileLoop, along with RegionDirectives.
         for node in self._scope:
-            if node.has_a((IfBlock, Loop, WhileLoop, RegionDirective)):
+            if node.has_decendant(
+                    (IfBlock, Loop, WhileLoop, RegionDirective)):
                 return False
         return True
 
@@ -866,7 +867,7 @@ class DefinitionUseChain:
         Backward accesses are all of the prior References or Calls that read
         or write to the symbol of the reference up to the point that a
         write to the symbol is guaranteed to occur.
-        PSyclone assumes any control flow could be not-taken, so writes
+        DUC assumes that any control flow might not be taken, so writes
         that occur inside control flow do not end the backward access
         chain.
 

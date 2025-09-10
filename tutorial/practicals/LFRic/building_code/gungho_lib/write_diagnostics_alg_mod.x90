@@ -62,6 +62,8 @@ contains
   !> @param[in] tstep Time-step value to create the output file name from
   subroutine write_diagnostics(diag_field, chi, tstep)
 
+    use function_space_mod,          only: function_space_type
+
     implicit none
 
     type(field_type),    intent(in) :: diag_field
@@ -72,6 +74,7 @@ contains
     character(len=str_short)    :: tstr
     character(str_max_filename) :: filename
     integer(kind=i_def)         :: dim_fs, i, output_unit
+    type(function_space_type), pointer :: vspace
 
     ! Convert time-step value to string and create output filename
     write(tstr, '(I5)') tstep  ! Convert integer time-step to string
@@ -81,7 +84,8 @@ contains
 
     ! Get vector dimension of the diagnostic field (1 for scalar-valued
     ! field and 3 for vector-valued field)
-    dim_fs  = diag_field%vspace%get_dim_space()
+    vspace = diag_field%get_function_space()
+    dim_fs = vspace%get_dim_space()
     ! Populate components of the temporary output diagnostic field (all
     ! same here)
     do i = 1, dim_fs

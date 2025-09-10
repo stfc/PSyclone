@@ -555,11 +555,12 @@ class Loop(Statement):
     def enters_scope(self, scope, visited_nodes=None) -> bool:
         '''
         This is a Reference method, but sometimes it will reach this point
-        because self.reference_accesses return "self" for the Loop variable.
+        because self.reference_accesses returns a Loop as the Node associated
+        with the loop variable.
         In this case we can always return False as we know that this variable
         gets the iteration value.
 
-        #TODO #3124: Alternatively move the variable to a child Reference.
+        #TODO #3124: Alternatively move the loop variable to a child Reference.
 
         :param scope: the given scope that we evaluate.
         :param visited_nodes: a set of nodes already visited, this is necessary
