@@ -50,7 +50,8 @@ from psyclone.psyir.nodes import (
     Literal,
     Reference,
     Assignment,
-    BinaryOperation
+    BinaryOperation,
+    Call
 )
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall,
@@ -61,18 +62,13 @@ from psyclone.psyir.nodes.intrinsic_call import (
     _add_readwrite_argument,
     _add_typeinfo_argument,
     _add_inquiry_argument,
+    _compute_reference_accesses,
 )
 from psyclone.psyir.symbols import (
     ArrayType,
     DataSymbol,
     INTEGER_TYPE,
-    # IntrinsicSymbol,
-    # REAL_TYPE,
-    # BOOLEAN_TYPE,
-    # CHARACTER_TYPE,
-    # ScalarType,
-    # UnresolvedType,
-    # NoType
+    RoutineSymbol
 )
 
 
@@ -213,6 +209,88 @@ def test_add_inquiry_argument():
 
 
 # FIXME Test _compute_reference_accesses
+def test_compute_reference_accesses():
+    """ Test the _compute_reference_accesses helper function."""
+    # Create some References to use to test functionality.
+    a_sym = DataSymbol("a", INTEGER_TYPE)
+    b_sym = DataSymbol("b", INTEGER_TYPE)
+    c_sym = DataSymbol("c", INTEGER_TYPE)
+    d_sym = DataSymbol("d", INTEGER_TYPE)
+    e_sym = DataSymbol("e", INTEGER_TYPE)
+    f_sym = DataSymbol("f", INTEGER_TYPE)
+    g_sym = DataSymbol("g", INTEGER_TYPE)
+    h_sym = DataSymbol("h", INTEGER_TYPE)
+    i_sym = DataSymbol("i", INTEGER_TYPE)
+    j_sym = DataSymbol("j", INTEGER_TYPE)
+    a_ref = Reference(a_sym)
+    b_ref = Reference(b_sym)
+    c_ref = Reference(c_sym)
+    d_ref = Reference(d_sym)
+    e_ref = Reference(e_sym)
+    f_ref = Reference(f_sym)
+    g_ref = Reference(g_sym)
+    h_ref = Reference(h_sym)
+    i_ref = Reference(i_sym)
+    j_ref = Reference(j_sym)
+
+    # Create some general call to test the function.
+    call = Call.create(
+            Reference(RoutineSymbol("myname")),
+            [a_ref, b_ref, c_ref, d_ref, e_ref,
+             ("read", f_ref), ("write", g_ref),
+             ("readwrite", h_ref),
+             ("type_info", i_ref),
+             ("inquiry", j_ref),
+             ]
+    )
+    varaccesses = _compute_reference_accesses(
+            call,
+            read_indices=[0],
+            write_indices=[1],
+            readwrite_indices=[2],
+            type_info_indices=[3],
+            inquiry_indices=[4],
+            read_named_args=["read", "not_present_1"],
+            write_named_args=["write", "not_present_2"],
+            readwrite_named_args=["readwrite", "not_present_3"],
+            type_info_named_args=["type_info", "not_present_4"],
+            inquiry_named_args=["inquiry", "not_present_5"],
+    )
+    # We should onyl get the 10 accesses present in the Call.
+    assert len(varaccesses) == 10
+
+    sig, _ = a_ref.get_signature_and_indices()
+    assert len(varaccesses[sig]) == 1
+    assert varaccesses[sig][0].access_type == AccessType.READ
+    sig, _ = b_ref.get_signature_and_indices()
+    assert len(varaccesses[sig]) == 1
+    assert varaccesses[sig][0].access_type == AccessType.WRITE
+    sig, _ = c_ref.get_signature_and_indices()
+    assert len(varaccesses[sig]) == 1
+    assert varaccesses[sig][0].access_type == AccessType.READWRITE
+    sig, _ = d_ref.get_signature_and_indices()
+    assert len(varaccesses[sig]) == 1
+    assert varaccesses[sig][0].access_type == AccessType.TYPE_INFO
+    sig, _ = e_ref.get_signature_and_indices()
+    assert len(varaccesses[sig]) == 1
+    assert varaccesses[sig][0].access_type == AccessType.INQUIRY
+    sig, _ = f_ref.get_signature_and_indices()
+    assert len(varaccesses[sig]) == 1
+    assert varaccesses[sig][0].access_type == AccessType.READ
+    sig, _ = g_ref.get_signature_and_indices()
+    assert len(varaccesses[sig]) == 1
+    assert varaccesses[sig][0].access_type == AccessType.WRITE
+    sig, _ = h_ref.get_signature_and_indices()
+    assert len(varaccesses[sig]) == 1
+    assert varaccesses[sig][0].access_type == AccessType.READWRITE
+    sig, _ = i_ref.get_signature_and_indices()
+    assert len(varaccesses[sig]) == 1
+    assert varaccesses[sig][0].access_type == AccessType.TYPE_INFO
+    sig, _ = j_ref.get_signature_and_indices()
+    assert len(varaccesses[sig]) == 1
+    assert varaccesses[sig][0].access_type == AccessType.INQUIRY
+
+
 def test_convert_argument_to_type_info():
     """Test the _convert_argument_to_type_info helper function."""
     # Test that if we supply a Read-only Reference it results in a TYPE_INFO.
