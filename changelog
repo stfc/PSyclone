@@ -1,3 +1,9 @@
+   85) PR #3128 for #3123. Fixes Fortran file in lfric binary extraction
+   library so that it works with gfortran 15.
+
+   84) PR #3116 for #2623. Remove old LFRic infrastructure and bring in
+   new version.
+
    83) PR #3104. Move integration tests to new runner.
 
    82) PR #3107 towards #3074. Update dl_esm_inf submodule.
