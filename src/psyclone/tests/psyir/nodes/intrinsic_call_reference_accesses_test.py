@@ -128,6 +128,7 @@ def test_add_read_argument():
     assert len(vam[sig]) == 1
     assert vam[sig][0].access_type == AccessType.READ
 
+
 def test_add_write_argument():
     """ Test the _add_write_argument helper function."""
     # Test we get expected behaviour for a Reference input.
@@ -209,7 +210,7 @@ def test_add_inquiry_argument():
     assert len(vam) == 1
     assert len(vam[sig]) == 1
     assert vam[sig][0].access_type == AccessType.INQUIRY
-    
+
 
 # FIXME Test _compute_reference_accesses
 def test_convert_argument_to_type_info():
