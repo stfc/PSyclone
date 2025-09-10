@@ -45,10 +45,11 @@ the output data contained in the input file.
 # creation implementation should make this file much smaller.
 # pylint: disable=too-many-lines
 
+from typing import Optional, Tuple
+
 from psyclone.configuration import Config
 from psyclone.domain.common import BaseDriverCreator
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -162,12 +163,11 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
     :param region_name: the suggested region_name.
     '''
-    def __init__(self, region_name: str = None):
-        super().__init__()
+    def __init__(self, region_name: Optional[Tuple[str, str]] = None):
+        super().__init__(region_name)
         # TODO #2069: check if this list can be taken from LFRicConstants
         # TODO #2018: once r_field is defined in the LFRic infrastructure,
         #             it should be added to this list.
-        self._region_name = region_name
         self._all_field_types = ["integer_field_type", "field_type",
                                  "r_bl_field", "r_solver_field_type",
                                  "r_tran_field_type"]
@@ -477,48 +477,3 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         out.append(writer(file_container))
 
         return "\n".join(out)
-
-    # -------------------------------------------------------------------------
-    def write_driver(self, nodes, read_write_info, prefix, postfix,
-                     region_name, writer=FortranWriter()):
-        # pylint: disable=too-many-arguments
-        '''This function uses the ``get_driver_as_string()`` function to get a
-        a stand-alone driver, and then writes this source code to a file. The
-        file name is derived from the region name:
-        "driver-"+module_name+"_"+region_name+".F90"
-
-        :param nodes: a list of nodes containing the body of the driver
-            routine.
-        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param read_write_info: information about all input and output
-            parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol,
-            e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param str postfix: a postfix that is appended to an output variable
-            to create the corresponding variable that stores the output
-            value from the kernel data file. The caller must guarantee that
-            no name clashes are created when adding the postfix to a variable
-            and that the postfix is consistent between extract code and
-            driver code (see 'ExtractTrans.determine_postfix()').
-        :param Tuple[str,str] region_name: an optional name to
-            use for this PSyData area, provided as a 2-tuple containing a
-            location name followed by a local name. The pair of strings
-            should uniquely identify a region.
-        :param writer: a backend visitor to convert PSyIR
-            representation to the selected language. It defaults to
-            the FortranWriter.
-        :type writer:
-            :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
-
-        '''
-        if self._region_name is not None:
-            region_name = self._region_name
-        code = self.get_driver_as_string(nodes, read_write_info, prefix,
-                                         postfix, region_name, writer=writer)
-        fll = FortLineLength()
-        code = fll.process(code)
-        module_name, local_name = region_name
-        with open(f"driver-{module_name}-{local_name}.F90", "w",
-                  encoding='utf-8') as out:
-            out.write(code)

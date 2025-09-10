@@ -40,6 +40,7 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
+from typing import Optional, Tuple
 
 from psyclone.domain.common import BaseDriverCreator
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -68,9 +69,8 @@ class ExtractDriverCreator(BaseDriverCreator):
     '''
     def __init__(self, integer_type: ScalarType = INTEGER_TYPE,
                  real_type: ScalarType = REAL8_TYPE,
-                 region_name: str = None):
-        super().__init__()
-        self._region_name = region_name
+                 region_name: Optional[Tuple[str, str]] = None) -> None:
+        super().__init__(region_name)
         # Set the integer and real types to use.
         # For convenience, also add the names used in the gocean config file:
         self._default_types = {"integer": integer_type,
@@ -214,45 +214,3 @@ class ExtractDriverCreator(BaseDriverCreator):
         file_container = self.create(nodes, read_write_info,
                                      prefix, postfix, region_name)
         return writer(file_container)
-
-    # -------------------------------------------------------------------------
-    def write_driver(self, nodes, read_write_info, prefix, postfix,
-                     region_name, writer=FortranWriter()):
-        # pylint: disable=too-many-arguments
-        '''This function uses the `get_driver_as_string()` function to get a
-        a stand-alone driver, and then writes this source code to a file. The
-        file name is derived from the region name:
-        "driver-"+module_name+"_"+region_name+".f90"
-
-        :param nodes: a list of nodes.
-        :type nodes: list[:py:class:`psyclone.psyir.nodes.Node`]
-        :param read_write_info: information about all input and output
-            parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol,
-            e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param str postfix: a postfix that is appended to an output variable
-            to create the corresponding variable that stores the output
-            value from the kernel data file. The caller must guarantee that
-            no name clashes are created when adding the postfix to a variable
-            and that the postfix is consistent between extract code and
-            driver code (see 'ExtractTrans.determine_postfix()').
-        :param (str,str) region_name: an optional name to
-            use for this PSyData area, provided as a 2-tuple containing a
-            location name followed by a local name. The pair of strings
-            should uniquely identify a region.
-        :param language_writer: a backend visitor to convert PSyIR
-            representation to the selected language. It defaults to
-            the FortranWriter.
-        :type language_writer:
-            :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
-
-        '''
-        if self._region_name is not None:
-            region_name = self._region_name
-        code = self.get_driver_as_string(nodes, read_write_info, prefix,
-                                         postfix, region_name, writer=writer)
-        module_name, local_name = region_name
-        with open(f"driver-{module_name}-{local_name}.f90", "w",
-                  encoding='utf-8') as out:
-            out.write(code)

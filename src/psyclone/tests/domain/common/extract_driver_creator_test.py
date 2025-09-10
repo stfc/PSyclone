@@ -71,7 +71,7 @@ def clear_region_name_cache():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
-def test_driver_creation1():
+def test_driver_creation1() -> None:
     '''Test that driver is created correctly for all variable access
     modes (input, input-output, output). Do not specify a region name,
     so test that the driver (including its filename) use the proper
@@ -90,7 +90,7 @@ def test_driver_creation1():
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
-                  "kernel-compute_kernel_code-r0.f90")
+                  "kernel-compute_kernel_code-r0.F90")
     assert driver.is_file()
 
     with driver.open("r", encoding="utf-8") as driver_file:
@@ -129,8 +129,8 @@ def test_driver_creation1():
   real*8, allocatable, dimension(:,:) :: out_fld_data_post
 
   call extract_psy_data%OpenReadModuleRegion('psy_extract_example_with_\
-various_variable_access_patterns', 'invoke_0_compute_kernel-compute_\
-kernel_code-r0')
+various_variable_access_patterns', &
+&'invoke_0_compute_kernel-compute_kernel_code-r0')
   call extract_psy_data%ReadVariable('dx_data', dx_data)
   call extract_psy_data%ReadVariable('in_fld_data', in_fld_data)
   call extract_psy_data%ReadVariable('in_fld_grid_dx', in_fld_grid_dx)
@@ -211,7 +211,7 @@ def test_driver_creation2():
                               ("module_name", "local_name")})
 
     _ = psy.gen
-    driver = Path("driver-module_name-local_name.f90")
+    driver = Path("driver-module_name-local_name.F90")
     assert driver.is_file()
 
     with driver.open("r", encoding="utf-8") as driver_file:
@@ -319,7 +319,7 @@ def test_rename_suffix_if_name_clash():
     # Now we also need to check that the driver uses the new suffix,
     # i.e. both as key for ReadVariable, as well as for the variable
     # names.
-    driver = Path("driver-module_name-local_name.f90")
+    driver = Path("driver-module_name-local_name.F90")
     assert driver.is_file()
 
     with driver.open("r", encoding="utf-8") as driver_file:
@@ -406,7 +406,7 @@ def test_driver_creation_same_symbol():
     out_fld%internal%xstart = out_fld_internal_xstart
     out_fld%internal%ystop = out_fld_internal_ystop
     out_fld%internal%ystart = out_fld_internal_ystart""" in code
-    driver = Path("driver-module_name-local_name.f90")
+    driver = Path("driver-module_name-local_name.F90")
     assert driver.is_file()
 
     with driver.open("r", encoding="utf-8") as driver_file:

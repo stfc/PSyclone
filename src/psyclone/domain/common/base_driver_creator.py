@@ -38,8 +38,12 @@
 implementations.
 '''
 
-from typing import List, Tuple
+from abc import abstractmethod
+from typing import List, Optional, Tuple
 
+from psyclone.line_length import FortLineLength
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import (
     Call, Literal, Reference, ExtractNode, Routine, Node)
@@ -52,12 +56,13 @@ from psyclone.psyir.tools import ReadWriteInfo
 
 class BaseDriverCreator:
     '''This class provides the functionality common to all driver creations.
-    A more extended version will be created for TODO #2049, for now it only
-    provides two identical methods for LFRicExtractDriverCreator and
-    ExtractDriverCreator (which might need to be renamed to GOcean....)
 
+    :param region_name: Suggested region name.
     '''
-    # TODO #2049: Turn this into a proper base class.
+
+    # -------------------------------------------------------------------------
+    def __init__(self, region_name: Optional[Tuple[str, str]]):
+        self._region_name = region_name
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -150,8 +155,11 @@ class BaseDriverCreator:
 
     @staticmethod
     def _create_output_var_code(
-        name: str, program: Routine, read_var: str,
-        postfix: str, module_name: str = None
+        name: str,
+        program: Routine,
+        read_var: str,
+        postfix: str,
+        module_name: Optional[str] = None
     ) -> Tuple[Symbol, Symbol]:
         '''
         This function creates all code required for an output variable:
@@ -337,3 +345,60 @@ class BaseDriverCreator:
             new_routine_sym = RoutineSymbol(routine.name, UnresolvedType(),
                                             interface=ImportInterface(module))
             symtab.add(new_routine_sym)
+
+    # -------------------------------------------------------------------------
+    @abstractmethod
+    def get_driver_as_string(self,
+                             nodes: List[Node],
+                             read_write_info: ReadWriteInfo,
+                             prefix: str,
+                             postfix: str,
+                             region_name: Tuple[str, str],
+                             writer: LanguageWriter = FortranWriter()) -> None:
+        pass
+
+    # -------------------------------------------------------------------------
+    def write_driver(self,
+                     nodes: List[Node],
+                     read_write_info: ReadWriteInfo,
+                     prefix: str,
+                     postfix: str,
+                     region_name: Tuple[str, str],
+                     writer: LanguageWriter = FortranWriter()) -> None:
+        # pylint: disable=too-many-arguments
+        '''This function uses the `get_driver_as_string()` function to get a
+        a stand-alone driver, and then writes this source code to a file. The
+        file name is derived from the region name:
+        "driver-"+module_name+"_"+region_name+".F90"
+
+        :param nodes: a list of nodes containing the body of the driver
+            routine.
+        :param read_write_info: information about all input and output
+            parameters.
+        :param prefix: the prefix to use for each PSyData symbol,
+            e.g. 'extract' as prefix will create symbols `extract_psydata`.
+        :param postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
+            driver code (see 'ExtractTrans.determine_postfix()').
+        :param region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
+            should uniquely identify a region.
+        :param writer: a backend visitor to convert PSyIR
+            representation to the selected language. It defaults to
+            the FortranWriter.
+
+        '''
+        if self._region_name is not None:
+            region_name = self._region_name
+        code = self.get_driver_as_string(nodes, read_write_info, prefix,
+                                         postfix, region_name, writer=writer)
+        fll = FortLineLength()
+        code = fll.process(code)
+        module_name, local_name = region_name
+        with open(f"driver-{module_name}-{local_name}.F90", "w",
+                  encoding='utf-8') as out:
+            out.write(code)
