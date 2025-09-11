@@ -257,6 +257,7 @@ class Reference(DataNode):
         example, given the following fortran code:
 
         .. code-block:: fortran
+
                 do i=1,10
                   a = 1
                   b = 2
@@ -315,6 +316,7 @@ class Reference(DataNode):
         example, given the following fortran code:
 
         .. code-block:: fortran
+
             do i=1,10
               a = 1
               if (b>3) c = 1
