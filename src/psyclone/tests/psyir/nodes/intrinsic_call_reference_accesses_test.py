@@ -207,6 +207,12 @@ def test_add_inquiry_argument():
     assert len(vam[sig]) == 1
     assert vam[sig][0].access_type == AccessType.INQUIRY
 
+    # Test we skip for a Literal
+    vam = VariablesAccessMap()
+    lit = Literal("1", INTEGER_TYPE)
+    _add_inquiry_argument(lit, vam)
+    assert len(vam) == 0
+
 
 # FIXME Test _compute_reference_accesses
 def test_compute_reference_accesses():

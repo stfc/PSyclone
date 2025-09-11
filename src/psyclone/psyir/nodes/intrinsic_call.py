@@ -146,15 +146,14 @@ def _add_typeinfo_argument(
     var_acc_map.add_access(sig, AccessType.TYPE_INFO, argument)
 
 
-def _add_inquiry_argument(
-    argument: Reference, var_acc_map: VariablesAccessMap
-):
+def _add_inquiry_argument(argument: DataNode, var_acc_map: VariablesAccessMap):
     """Adds an inquiry access for argument into var_acc_map
 
     :param argument: The argument to add a inquiry access for.
     :param var_acc_map: The VariablesAccessMap to add the access into.
     """
-    # FIXME For reviewer - can we have a non-Reference inquiry argument?
+    if not isinstance(argument, Reference):
+        return
     sig, _ = argument.get_signature_and_indices()
     var_acc_map.add_access(sig, AccessType.INQUIRY, argument)
 
@@ -174,6 +173,10 @@ def _compute_reference_accesses(
 ) -> VariablesAccessMap:
     """General helper function for creating the reference_accesses for a
     general IntrinsicCall.
+    This function only uses indices for non-named arguments, e.g. if
+    [0] is passed in as an index, but the argument at position 0 has a name
+    the function will skip it and will assume that the relevant _named_args
+    contains the name.
 
     :param node: the IntrinsicCall whose reference_accesses to compute.
     :type node:  :py:class:`psyclone.psyir.nodes.IntrinsicCall`
@@ -192,48 +195,65 @@ def _compute_reference_accesses(
     :returns: the reference accesses of node.
     """
     reference_accesses = VariablesAccessMap()
-    for ind in read_indices:
-        arg = node.arguments[ind]
-        _add_read_argument(arg, reference_accesses)
-    for ind in write_indices:
-        arg = node.arguments[ind]
-        _add_write_argument(arg, reference_accesses)
-    for ind in readwrite_indices:
-        arg = node.arguments[ind]
-        _add_readwrite_argument(arg, reference_accesses)
-    for ind in type_info_indices:
-        arg = node.arguments[ind]
-        _add_typeinfo_argument(arg, reference_accesses)
-    for ind in inquiry_indices:
-        arg = node.arguments[ind]
-        _add_inquiry_argument(arg, reference_accesses)
+    # For indices, we only apply them if there is no argument name, othrwise
+    # it should be handled by the argument names.
+    if read_indices:
+        for ind in read_indices:
+            if ind < len(node.arguments) and node.argument_names[ind] is None:
+                arg = node.arguments[ind]
+                _add_read_argument(arg, reference_accesses)
+    if write_indices:
+        for ind in write_indices:
+            if ind < len(node.arguments) and node.argument_names[ind] is None:
+                arg = node.arguments[ind]
+                _add_write_argument(arg, reference_accesses)
+    if readwrite_indices:
+        for ind in readwrite_indices:
+            if ind < len(node.arguments) and node.argument_names[ind] is None:
+                arg = node.arguments[ind]
+                _add_readwrite_argument(arg, reference_accesses)
+    if type_info_indices:
+        for ind in type_info_indices:
+            if ind < len(node.arguments) and node.argument_names[ind] is None:
+                arg = node.arguments[ind]
+                _add_typeinfo_argument(arg, reference_accesses)
+    if inquiry_indices:
+        for ind in inquiry_indices:
+            if ind < len(node.arguments) and node.argument_names[ind] is None:
+                arg = node.arguments[ind]
+                _add_inquiry_argument(arg, reference_accesses)
     # For each named argument provided, we check if they are defined
     # for the given intrinsicCall as they are optional.
-    for name in read_named_args:
-        if name not in node.argument_names:
-            continue
-        arg = node.arguments[node.argument_names.index(name)]
-        _add_read_argument(arg, reference_accesses)
-    for name in write_named_args:
-        if name not in node.argument_names:
-            continue
-        arg = node.arguments[node.argument_names.index(name)]
-        _add_write_argument(arg, reference_accesses)
-    for name in type_info_named_args:
-        if name not in node.argument_names:
-            continue
-        arg = node.arguments[node.argument_names.index(name)]
-        _add_typeinfo_argument(arg, reference_accesses)
-    for name in inquiry_named_args:
-        if name not in node.argument_names:
-            continue
-        arg = node.arguments[node.argument_names.index(name)]
-        _add_inquiry_argument(arg, reference_accesses)
-    for name in readwrite_named_args:
-        if name not in node.argument_names:
-            continue
-        arg = node.arguments[node.argument_names.index(name)]
-        _add_readwrite_argument(arg, reference_accesses)
+    if read_named_args:
+        for name in read_named_args:
+            if name not in node.argument_names:
+                continue
+            arg = node.arguments[node.argument_names.index(name)]
+            _add_read_argument(arg, reference_accesses)
+    if write_named_args:
+        for name in write_named_args:
+            if name not in node.argument_names:
+                continue
+            arg = node.arguments[node.argument_names.index(name)]
+            _add_write_argument(arg, reference_accesses)
+    if type_info_named_args:
+        for name in type_info_named_args:
+            if name not in node.argument_names:
+                continue
+            arg = node.arguments[node.argument_names.index(name)]
+            _add_typeinfo_argument(arg, reference_accesses)
+    if inquiry_named_args:
+        for name in inquiry_named_args:
+            if name not in node.argument_names:
+                continue
+            arg = node.arguments[node.argument_names.index(name)]
+            _add_inquiry_argument(arg, reference_accesses)
+    if readwrite_named_args:
+        for name in readwrite_named_args:
+            if name not in node.argument_names:
+                continue
+            arg = node.arguments[node.argument_names.index(name)]
+            _add_readwrite_argument(arg, reference_accesses)
 
     return reference_accesses
 
@@ -1024,7 +1044,8 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    inquiry_indices=[0],
+                    inquiry_indices=(list(range(len(node.arguments)))),
+                    inquiry_named_args=["pointer", "target"],
                 )
             ),
         )
@@ -1078,8 +1099,11 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    read_indices=[1],
                     readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
                     write_named_args=["stat"],
                 )
             ),
@@ -1095,8 +1119,11 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    read_indices=[1],
                     readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
                     write_named_args=["stat"],
                 )
             ),
@@ -1112,10 +1139,12 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
+                    readwrite_indices=[0],
                     read_indices=[2, 3],
                     write_indices=[1],
-                    readwrite_indices=[0],
-                    write_named_args=["stat"],
+                    readwrite_named_args=["atom"],
+                    write_named_args=["old", "stat"],
+                    read_named_args=["new", "compare"],
                 )
             ),
         )
@@ -1130,8 +1159,11 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    read_indices=[1],
                     readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
                     write_named_args=["stat"],
                 )
             ),
@@ -1148,9 +1180,11 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     read_indices=[1],
-                    write_indices=[2],
                     readwrite_indices=[0],
-                    write_named_args=["stat"],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
+                    write_named_args=["old", "stat"],
                 )
             ),
         )
@@ -1166,9 +1200,11 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     read_indices=[1],
-                    write_indices=[2],
                     readwrite_indices=[0],
-                    write_named_args=["stat"],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
+                    write_named_args=["old", "stat"],
                 )
             ),
         )
@@ -1184,9 +1220,11 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     read_indices=[1],
-                    write_indices=[2],
                     readwrite_indices=[0],
-                    write_named_args=["stat"],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
+                    write_named_args=["old", "stat"],
                 )
             ),
         )
@@ -1202,9 +1240,11 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     read_indices=[1],
-                    write_indices=[2],
                     readwrite_indices=[0],
-                    write_named_args=["stat"],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
+                    write_named_args=["old", "stat"],
                 )
             ),
         )
@@ -1219,8 +1259,11 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    read_indices=[1],
                     readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
                     write_named_args=["stat"],
                 )
             ),
@@ -1237,8 +1280,9 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     read_indices=[1],
-                    readwrite_indices=[0],
-                    write_named_args=["stat"],
+                    write_indices=[0, 2],
+                    write_named_args=["value", "stat"],
+                    read_named_args=["atom"],
                 )
             ),
         )
@@ -1253,8 +1297,11 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    read_indices=[1],
                     readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
                     write_named_args=["stat"],
                 )
             ),
@@ -1367,6 +1414,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    inquiry_named_args=["i"],
                 )
             ),
         )
@@ -1448,19 +1496,18 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 2, DataNode),
+            required_args=ArgDesc(2, 2, DataNode),
             optional_args={"stat": DataNode, "errmsg": DataNode},
             return_type=None,
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    # If there are 2 non-optional args then the second is a
-                    # read.
-                    read_indices=(
-                        [] if node.argument_names.count(None) == 1 else [1],
-                    ),
+                    read_indices=[1],
                     readwrite_indices=[0],
-                    write_names_args=["stat", "errmsg"],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["a"],
+                    read_named_args=["source_image"],
+                    write_named_args=["stat", "errmsg"],
                 )
             ),
         )
@@ -1480,6 +1527,9 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["a"],
                     read_named_args=["result_image"],
                     write_named_args=["stat", "errmsg"],
                 )
@@ -1501,6 +1551,9 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["a"],
                     read_named_args=["result_image"],
                     write_named_args=["stat", "errmsg"],
                 )
@@ -1522,13 +1575,13 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     readwrite_indices=[0],
-                    # If there are 2 non-optional args then the second is a
-                    # read.
-                    inquiry_indices=(
-                        [] if node.argument_names.count(None) == 1 else [1],
-                    ),
+                    inquiry_indices=[1],
+                    read_indices=[2],
+                    write_indices=[3, 4],
+                    readwrite_named_args=["a"],
                     read_named_args=["result_image"],
                     write_named_args=["stat", "errmsg"],
+                    inquiry_args=["operation"],
                 )
             ),
         )
@@ -1548,6 +1601,9 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["a"],
                     read_named_args=["result_image"],
                     write_named_args=["stat", "errmsg"],
                 )
@@ -1630,6 +1686,8 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    type_info_indices=[1],
+                    inquiry_named_arguments=["coarray"],
                     type_info_named_arguments=["kind"],
                 )
             ),
@@ -1658,6 +1716,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     write_indices=[0],
+                    write_named_arguments=["time"],
                 )
             ),
         )
@@ -1689,6 +1748,7 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
+                    write_args=[0, 1, 2, 3],
                     write_named_indices=["date", "time", "zone", "values"],
                 )
             ),
@@ -1717,6 +1777,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    inquiry_named_args=["x"],
                 )
             ),
         )
@@ -1816,6 +1877,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    inquiry_named_args=["x"],
                 )
             ),
         )
@@ -1867,8 +1929,9 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     read_indices=[0],
-                    write_indices=[0],
-                    write_named_args=["stat"],
+                    write_indices=[1, 2],
+                    read_named_args=["event"],
+                    write_named_args=["count", "stat"],
                 )
             ),
         )
@@ -1888,8 +1951,9 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    read_indices=[0],
-                    read_named_args=["wait"],
+                    read_indices=[0, 1],
+                    write_indices=[2, 3, 4],
+                    read_named_args=["command", "wait"],
                     write_named_args=["exitstat", "cmdstat", "cmdmsg"],
                 )
             ),
@@ -1930,6 +1994,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0, 1],
+                    inquiry_named_args=["a", "mold"],
                 )
             ),
         )
@@ -2035,8 +2100,10 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
+                    write_indices=[0, 1, 2],
+                    readwrite_indices=[3],
                     write_named_args=["command", "length", "status"],
-                    readwrite_named_Args=["errmsg"],
+                    readwrite_named_args=["errmsg"],
                 )
             ),
         )
@@ -2057,8 +2124,11 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     read_indices=[0],
+                    write_indices=[1, 2, 3],
+                    readwrite_indices=[4],
+                    read_named_args=["number"],
                     write_named_args=["value", "length", "status"],
-                    readwrite_named_Args=["errmsg"],
+                    readwrite_named_args=["errmsg"],
                 )
             ),
         )
@@ -2079,10 +2149,13 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    read_indices=[0],
+                    read_indices=[0, 4],
+                    write_indices=[1, 2, 3],
+                    readwrite_indices=[5],
+                    read_named_args=["name"],
                     write_named_args=["value", "length", "status"],
                     read_named_args=["trim_name"],
-                    readwrite_named_Args=["errmsg"],
+                    readwrite_named_args=["errmsg"],
                 )
             ),
         )
@@ -2344,6 +2417,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    inquiry_named_args=["array"],
                 )
             ),
         )
@@ -2407,6 +2481,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    inquiry_named_args=["x"],
                 )
             ),
         )
@@ -2418,8 +2493,16 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=_get_bound_function_return_type,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    read_indices=[1],
+                    type_info_indices=[2],
+                    inquiry_named_args=["array"],
+                    read_named_args=["dim"],
+                    type_info_named_args=["kind"],
+                )
             ),
         )
         LCOBOUND = IAttr(
@@ -2430,8 +2513,16 @@ class IntrinsicCall(Call):
             required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=_get_bound_function_return_type,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    read_indices=[1],
+                    type_info_indices=[2],
+                    inquiry_named_args=["coarray"],
+                    read_named_args=["dim"],
+                    type_info_named_args=["kind"],
+                )
             ),
         )
         LEADZ = IAttr(
@@ -2626,6 +2717,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    inquiry_named_args=["x"],
                 )
             ),
         )
@@ -2708,6 +2800,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    inquiry_named_args=["x"],
                 )
             ),
         )
@@ -2777,10 +2870,10 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    readwrite_indices=[0],
-                    write_indices=[1],
-                    write_named_args=["stat"],
-                    readwrite_named_args=["errmsg"],
+                    readwrite_indices=[0, 3],
+                    write_indices=[1, 2],
+                    write_named_args=["to", "stat"],
+                    readwrite_named_args=["from", "errmsg"],
                 )
             ),
         )
@@ -2797,6 +2890,8 @@ class IntrinsicCall(Call):
                     node,
                     read_indices=[0, 1, 2, 4],
                     write_indices=[3],
+                    read_named_args=["from", "frompos", "len", "topos"],
+                    write_named_args=["to"],
                 )
             ),
         )
@@ -2824,6 +2919,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    inquiry_named_args=["c"],
                 )
             ),
         )
@@ -2882,6 +2978,7 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
+                    type_info_indices=[0],
                     type_info_named_args=["mold"],
                 )
             ),
@@ -2909,9 +3006,10 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    read_indices=[0],
+                    read_indices=[0, 2],
                     type_info_indices=[1],
-                    read_named_args=["round"],
+                    read_named_args=["x", "round"],
+                    type_info_named_args=["mold"],
                 )
             ),
         )
@@ -2981,6 +3079,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    inquiry_named_args=["x"],
                 )
             ),
         )
@@ -2996,6 +3095,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    inquiry_named_args=["a"],
                 )
             ),
         )
@@ -3027,6 +3127,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    inquiry_named_args=["x"],
                 )
             ),
         )
@@ -3054,6 +3155,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     write_indices=[0],
+                    write_named_args=["harvest"],
                 )
             ),
         )
@@ -3068,6 +3170,8 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
+                    write_indices=[0, 2],
+                    read_indices=[1],
                     read_named_args=["put"],
                     write_named_args=["size", "get"],
                 )
@@ -3085,6 +3189,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    inquiry_named_args=["x"],
                 )
             ),
         )
@@ -3100,6 +3205,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    inquiry_named_args=["a"],
                 )
             ),
         )
@@ -3189,7 +3295,8 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    inquiry_indices=[0],
+                    inquiry_indices=[0, 1],
+                    inquiry_named_args=["a", "b"],
                 )
             ),
         )
@@ -3299,7 +3406,9 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
-                    typeinfo_named_args=["kind"],
+                    type_info_indices=[1],
+                    inquiry_named_args=["source"],
+                    type_info_named_args=["kind"],
                 )
             ),
         )
@@ -3387,8 +3496,11 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    read_indices=[1],
+                    type_info_indices=[2],
+                    inquiry_named_args=["array"],
                     read_named_args=["dim"],
-                    typeinfo_named_args=["kind"],
+                    type_info_named_args=["kind"],
                 )
             ),
         )
@@ -3404,6 +3516,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    inquiry_named_args=["x"],
                 )
             ),
         )
@@ -3471,6 +3584,9 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    type_info_indices=[1],
+                    inquiry_named_args=["a"],
+                    type_info_named_args=["kind"],
                 )
             ),
         )
@@ -3507,6 +3623,7 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
+                    write_indices=[0, 1, 2],
                     write_named_args=[
                         "count",
                         "count_rate",
@@ -3580,6 +3697,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    inquiry_named_args=["x"],
                 )
             ),
         )
@@ -3665,6 +3783,9 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    read_indices=[1],
+                    type_info_indices=[2],
+                    inquiry_named_args=["array"],
                     read_named_args=["dim"],
                     type_info_named_args=["kind"],
                 )
@@ -3682,6 +3803,9 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_indices=[0],
+                    read_indices=[1],
+                    type_info_indices=[2],
+                    inquiry_named_args=["array"],
                     read_named_args=["dim"],
                     type_info_named_args=["kind"],
                 )
@@ -3820,7 +3944,6 @@ class IntrinsicCall(Call):
 
         """
         call = IntrinsicCall(intrinsic)
-
         if not isinstance(arguments, Iterable):
             raise TypeError(
                 f"IntrinsicCall.create() 'arguments' argument should be an "
@@ -3914,24 +4037,7 @@ class IntrinsicCall(Call):
             (a sequence of AccessTypes).
 
         """
-        var_accesses = VariablesAccessMap()
-        if self.intrinsic.is_inquiry and isinstance(
-            self.arguments[0], Reference
-        ):
-            # If this is an inquiry access (which doesn't actually access the
-            # value) then make sure we use the correct access type for the
-            # inquired variable, which is always the first argument.
-            sig, indices = self.arguments[0].get_signature_and_indices()
-            var_accesses.add_access(sig, AccessType.INQUIRY, self.arguments[0])
-            for idx_list in indices:
-                for idx in idx_list:
-                    var_accesses.update(idx.reference_accesses())
-        elif self.arguments:
-            var_accesses.update(self.arguments[0].reference_accesses())
-
-        for child in self.arguments[1:]:
-            var_accesses.update(child.reference_accesses())
-        return var_accesses
+        return self.intrinsic.reference_accesses(self)
 
     # TODO #2102: Maybe the three properties below can be removed if intrinsic
     # is a symbol, as they would act as the super() implementation.
