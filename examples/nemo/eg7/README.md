@@ -1,3 +1,4 @@
+
 # PSyclone NEMO Example 7
 
 **Authors:** A. B. G. Chalk, STFC Daresbury Lab
@@ -19,9 +20,39 @@ psyclone -s ./openmp_[cpu|gpu]_nowait_trans.py ../code/traadv.f90
 This will output the generated Fortran code with the OpenMP directives added.
 
 `tra_adv.F90` - is a stand-alone version of one of the tracer-advection
+>>>>>>> master
 routines from the NEMO ocean model. It was originally extracted by
 Silvia Mocavero of CMCC. The code can be found in the `../code`
 directory.
+
+<<<<<<< HEAD
+## Compiling and Execution
+
+If desired this example may be compiled and executed on a GPU device
+provided a suitable compiler with OpenACC support is available. Note
+that this example is only provided to demonstrate how one adds OpenACC
+directives using PSyclone with the NEMO API. It is not intended to
+demonstrate how to obtain good performance.
+
+Since `tra_adv.F90` is instrumented for use with the dl_timer library,
+this library is also required. It is available from
+[bitbucket.org/apeg/dl_timer](https://bitbucket.org/apeg/dl_timer).
+
+Once dl_timer has been downloaded, the supplied Makefile must be
+edited to supply the location of the library. The compiler and flags
+must be specified via the F90 and F90FLAGS environment variables, e.g.
+to use the NVIDIA compiler and OpenACC:
+
+```sh
+export F90=nvfortran
+export F90FLAGS="-O1 -acc -gpu=cc70 -Minfo=all"
+export LDFLAGS="-acc -gpu=cc70"
+```
+
+The size of domain and number of time-steps are also picked-up from
+environment variables. Some example settings are provided in the
+`domain_setup.sh` file.
+
 
 ## Licence
 
@@ -30,6 +61,7 @@ directory.
 BSD 3-Clause License
 
 Copyright (c) 2018-2025, Science and Technology Facilities Council
+
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

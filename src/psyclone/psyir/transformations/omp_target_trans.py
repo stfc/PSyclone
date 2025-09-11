@@ -124,6 +124,7 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         # Otherwise we have the next dependencies and we need to find where
         # the correct place for the preceding barrier is. Need to find a
         # guaranteed control flow path to place it.
+
         for depend in next_depend:
             # Find the deepest schedule in the tree containing both.
             sched = depend.ancestor(Schedule, shared_with=instance)

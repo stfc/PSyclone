@@ -532,3 +532,4 @@ jobs:
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca2_nvfortran_omp_offload_async}}"',
               '"$COMMON_FIELDS"'
             }])'
+

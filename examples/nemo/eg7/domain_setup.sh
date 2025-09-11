@@ -30,31 +30,13 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: J. Henrichs, Bureau of Meteorology,
-#          A. R. Porter, STFC Daresbury Laboratory.
-# Modified I. Kavcic, Met Office
+# ------------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
 
-# Makefile for the PSyclone wrapper to the NVTX profiling library.
+# Set environment variables required to define the domain size and number of
+# time steps for the tra_adv benchmark.
+export JPK=30
+export JPJ=100
+export JPI=100
+export IT=10
 
-# ----------- Default "make" values, can be overwritten by the user -----------
-# Compiler and compiler flags
-F90 ?= nvfortran
-F90FLAGS ?= -g
-# -----------------------------------------------------------------------------
-
-PSYDATA_LIB_NAME = nvtx_prof
-PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
-
-default: $(PSYDATA_LIB)
-
-.PHONY: default clean allclean
-
-$(PSYDATA_LIB): $(PSYDATA_LIB_NAME).f90
-	$(F90) -c $(F90FLAGS) $<
-	ar rs $(PSYDATA_LIB) $(PSYDATA_LIB_NAME).o
-
-clean:
-	rm -f *.o *.mod $(PSYDATA_LIB)
-
-allclean: clean
