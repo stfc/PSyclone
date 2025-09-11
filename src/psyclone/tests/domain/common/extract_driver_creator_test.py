@@ -39,8 +39,6 @@
 previously dumped kernel input- and output-data.
 '''
 
-# TODO #706: Add compilation support
-
 from pathlib import Path
 
 import pytest
