@@ -510,15 +510,14 @@ class Compile():
 
 
 # =============================================================================
-def get_base_path(api):
+def get_base_path(api: str) -> str:
     '''Get the absolute base path for the specified API relative to the
     'tests/test_files' directory, i.e. the directory in which all
     Fortran test files are stored.
 
-    :param str api: name of the API.
+    :param api: name of the API.
 
     :returns: the base path for the API.
-    :rtype: str
 
     :raises RuntimeError: if the supplied API name is invalid.
 
