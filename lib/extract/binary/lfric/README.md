@@ -8,8 +8,8 @@ using the LFRic infrastructure library. A stand-alone driver can then be
 used to rerun this specific code region and verify the results (or
 compare performance).
 
-Note that the processed file ``read_kernel_data_mod.f90`` is required for
-compilation tests.
+Note that the processed files ``read_kernel_data_mod.f90`` and
+``compare_variables_mod.F90`` are required for compilation tests.
 
 ## Dependencies
 
