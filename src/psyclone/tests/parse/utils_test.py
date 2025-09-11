@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 
 '''A module to perform pytest unit tests on the parse/utils.py
 file.
@@ -40,6 +41,9 @@ file.
 import tempfile
 
 import pytest
+
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
 
 from psyclone.parse.utils import check_line_length, parse_fp2, ParseError
 from psyclone.errors import InternalError
@@ -78,8 +82,6 @@ def test_line_length_unicode():
     '''Check that a file containing unicode character comments
     parses correctly.
 
-    Note: This test failed with Python >3,<3.7 before explicit codecs
-          were defined in the open(filename, ...) call.
     '''
     kwargs = dict(encoding='utf8')
     with tempfile.NamedTemporaryFile(mode='w', **kwargs) as tmp_file:
@@ -121,3 +123,22 @@ def test_parsefp2_invalid_fortran(tmpdir):
     with pytest.raises(ParseError) as excinfo:
         _ = parse_fp2(my_file)
     assert "Syntax error in file" in str(excinfo.value)
+
+
+def test_parsefp2_ignore_comments(tmpdir):
+    '''Test that ignore_comments=False option works for parse_fp2.'''
+    code = """subroutine test
+    integer :: i
+
+    ! Here is a comment
+    i = 1
+    end subroutine"""
+    my_file = str(tmpdir.join("comment.f90"))
+    with open(my_file, "w", encoding="utf-8") as ffile:
+        ffile.write(code)
+        ffile.close()
+
+    out = parse_fp2(my_file, ignore_comments=False)
+    comments = walk(out, Fortran2003.Comment)
+    assert len(comments) == 2
+    assert str(comments[1]) == "! Here is a comment"

@@ -231,6 +231,10 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
             interface=interface)
 
         psy_call = Call.create(routine_symbol, arguments)
+        # Copy over the comments.
+        psy_call.preceding_comment = node.preceding_comment
+        psy_call.inline_comment = node.inline_comment
+
         node.replace_with(psy_call)
 
         # Remove original 'invoke' symbol if there are no other

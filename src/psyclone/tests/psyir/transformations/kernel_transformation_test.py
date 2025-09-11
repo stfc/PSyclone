@@ -267,6 +267,48 @@ def test_new_same_kern_single(kernel_outputdir, monkeypatch):
     assert out_files == [new_kernels[1].module_name+".f90"]
 
 
+def test_transform_kern_with_interface(kernel_outputdir):
+    '''
+    Test that we can transform a polymorphic kernel - i.e. one where
+    there is more than one subroutine implementation in order to support
+    different precisions.
+
+    '''
+    rtrans = ACCRoutineTrans()
+    psy, invoke = get_invoke("26.8_mixed_precision_args.f90",
+                             api="lfric", idx=0)
+    sched = invoke.schedule
+    kernels = sched.coded_kernels()
+    # Have to use 'force' because the test kernel contains a WRITE which
+    # becomes a CodeBlock.
+    rtrans.apply(kernels[0], options={"force": True})
+    kernels[0].rename_and_write()
+    out_files = os.listdir(str(kernel_outputdir))
+    filename = os.path.join(str(kernel_outputdir), out_files[0])
+    assert os.path.isfile(filename)
+    with open(filename,
+              "r", encoding="utf-8") as ffile:
+        contents = ffile.read()
+    # Check that the interface name has been updated.
+    assert "interface mixed_0_code" in contents
+    assert ("module procedure :: mixed_code_32, mixed_code_64"
+            in contents)
+    # Check that the subroutines themselves haven't been renamed.
+    assert "subroutine mixed_code_32" in contents
+    assert "subroutine mixed_code_64" in contents
+    # But they have been transformed.
+    assert ('''real*4, dimension(op_ncell_3d,ndf_w0,ndf_w0), intent(in) :: op
+
+    !$acc routine seq''' in contents)
+    assert ('''real*8, dimension(op_ncell_3d,ndf_w0,ndf_w0), intent(in) :: op
+
+    !$acc routine seq''' in contents)
+    assert LFRicBuild(kernel_outputdir).code_compiles(psy)
+    kernels = sched.coded_kernels()
+    rtrans.apply(kernels[1], options={"force": True})
+    assert LFRicBuild(kernel_outputdir).code_compiles(psy)
+
+
 # The following tests test the MarkRoutineForGPUMixin validation, for this
 # it uses the ACCRoutineTrans as instance of this Mixin.
 
@@ -283,30 +325,6 @@ def test_gpumixin_validate_wrong_node_type():
             "Routine but got 'FileContainer'" in str(err.value))
 
 
-def test_gpumixin_kernel_interface(kernel_outputdir, monkeypatch,
-                                   fortran_reader, fortran_writer):
-    '''
-    Test that the MarkRoutineForGPUMixin.validate() rejects a kernel that has
-    multiple implementations (i.e. for different precisions).
-
-    TODO this limitation is the subject of #1946.
-
-    '''
-    # Ensure kernel-output directory is uninitialised
-    config = Config.get()
-    monkeypatch.setattr(config, "_kernel_naming", "multiple")
-    psy, invoke = get_invoke("26.8_mixed_precision_args.f90",
-                             api="lfric", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    rtrans = ACCRoutineTrans()
-    # Use force because the kernel contains a WRITE statement.
-    with pytest.raises(TransformationError) as err:
-        rtrans.apply(kernels[0], options={"force": True})
-    assert ("Cannot apply ACCRoutineTrans to kernel 'mixed_code' as it has "
-            "multiple implementations - TODO #1946" in str(err.value))
-
-
 def test_gpumixin_validate_no_schedule(monkeypatch):
     '''
     Test that the MarkRoutineForGPUMixin.validate_it_can_run_on_gpu() method
@@ -317,12 +335,12 @@ def test_gpumixin_validate_no_schedule(monkeypatch):
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kern = kernels[0]
-    # We monkeypatch the 'get_kernel_schedule' method of LFRicKern so that it
+    # We monkeypatch the 'get_callees' method of LFRicKern so that it
     # just raises an exception.
 
     def broken(_1_):
         raise GenerationError("this is just a test")
-    monkeypatch.setattr(kern, "get_kernel_schedule", broken)
+    monkeypatch.setattr(kern, "get_callees", broken)
 
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
@@ -424,15 +442,15 @@ def test_gpumixin_validate_no_call():
             in str(err.value))
 
     # The same error happens for unsupported GPU intrinsics
-    call = kernel.get_kernel_schedule().walk(Call)[0]
+    kschedules = kernel.get_callees()
+    call = kschedules[0].walk(Call)[0]
     call.replace_with(
         IntrinsicCall.create(IntrinsicCall.Intrinsic.GET_COMMAND))
     with pytest.raises(TransformationError) as err:
         rtrans.validate(kernel)
-    assert ("Kernel 'testkern_with_call_code' calls another routine "
-            "'GET_COMMAND()' which is not available on the accelerator device "
-            "and therefore cannot have ACCRoutineTrans applied to it "
-            "(TODO #342)."
+    assert ("Kernel 'testkern_with_call_code' calls intrinsic 'GET_COMMAND' "
+            "which is not available on the default accelerator device. Use "
+            "the 'device_string' option to specify a different device."
             in str(err.value))
 
 
@@ -450,8 +468,43 @@ def test_kernel_gpu_annotation_trans(rtrans, expected_directive,
     rtrans.apply(kern)
 
     # Check that the directive has been added to the kernel code
-    code = fortran_writer(kern.get_kernel_schedule())
+    kschedules = kern.get_callees()
+    code = fortran_writer(kschedules[0])
     assert expected_directive in code
+
+
+@pytest.mark.parametrize(
+    "rtrans",
+    [ACCRoutineTrans(), OMPDeclareTargetTrans()])
+def test_kernel_gpu_annotation_device_id(rtrans, fortran_reader):
+    ''' Check that the GPU annotation transformations validations
+    check the intrinsics using the provided device id. '''
+
+    code = '''
+    function myfunc(a)
+        integer :: a
+        real :: myfunc
+        myfunc = REAL(a)
+    end function
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    # The routine is valid
+    rtrans.validate(routine)
+    # But not if we are targeting "nvidia-repr" or an invalid device
+    with pytest.raises(TransformationError) as err:
+        rtrans.validate(routine, options={'device_string':
+                                          'nvfortran-uniform'})
+    assert ("routine 'myfunc' calls intrinsic 'REAL' which is not available on"
+            " the 'nvfortran-uniform' accelerator device. Use the "
+            "'device_string' option to specify a different device."
+            in str(err.value))
+    with pytest.raises(ValueError) as err:
+        rtrans.validate(routine, options={'device_string':
+                                          'unknown-device'})
+    assert ("Unsupported device_string value 'unknown-device', the supported "
+            "values are '' (default), 'nvfortran-all', 'nvfortran-uniform'"
+            in str(err.value))
 
 
 def test_1kern_trans(kernel_outputdir):

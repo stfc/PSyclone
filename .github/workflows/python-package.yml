@@ -74,11 +74,10 @@ jobs:
     # - run: cd doc; make doctest
   build:
     if: ${{ github.repository != 'stfc/PSyclone-mirror' }}
-    # TODO 2837: Switch to ubuntu-latest once Python 3.7 support is removed.
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.13]
+        python-version: ['3.9', '3.13']
     steps:
     - uses: actions/checkout@v4
       with:
@@ -99,9 +98,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        # Some of the examples use Jupyter. We need to keep IPython to
-        # below 8.0 as we still run the test suite with Python 3.7.
-        pip install "ipython>=7.0,<8.0" jupyter
+        # Some of the examples use Jupyter.
+        pip install jupyter
         # We need to install sphinx to get correct doc testing
         # Uncomment the below to use the submodule version of fparser rather
         # than the latest release from pypi.
@@ -123,12 +121,12 @@ jobs:
         # Jupyter notebooks are out-of-date
         # ( make -C tutorial/notebooks notebook )
     - name: Test with pytest
-      if: ${{ !(matrix.python-version == 3.8) }}
+      if: ${{ !(matrix.python-version == '3.9') }}
       run: |
         locale
         pytest -n auto --cov=psyclone --cov-report=xml src/psyclone/tests
     - name: Test with pytest and C Locale
-      if: ${{ matrix.python-version == 3.8 }}
+      if: ${{ matrix.python-version == '3.9' }}
       run: |
         locale
         pytest -n auto --cov=psyclone --cov-report=xml src/psyclone/tests
