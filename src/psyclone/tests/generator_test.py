@@ -1169,7 +1169,7 @@ def test_code_transformation_backend_validation(validate: bool,
     the Fortran writer when using generic code transformations.
     '''
 
-    # Create a dummy Fortran writer, which we use the check
+    # Create a dummy Fortran writer, which we use to check
     # the values passed in
     def dummy_fortran_writer(check_global_constraints: bool,
                              disable_copy: bool):
