@@ -264,19 +264,37 @@ jobs:
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%gcc@${GCC_VERSION}
+        export TEST_PREFIX=/archive/psyclone-tests/latest-run/lfric_atm
 
         # Reset folder
-        rm -rf /archive/psyclone-tests/latest-run/lfric_atm
-        mkdir /archive/psyclone-tests/latest-run/lfric_atm
-        cd /archive/psyclone-tests/latest-run/lfric_atm
+        rm -rf ${TEST_PREFIX}
+        mkdir ${TEST_PREFIX}
+        cd ${TEST_PREFIX}
 
-        # Fetch and build the app
+        # Fetch dependencies and build the app
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
           https://code.metoffice.gov.uk/svn/lfric_apps/main/branches/dev/stephencook/vn2.2_spectral_gwd_psyclone_transmute lfric_apps
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
           https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
+        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
+          https://code.metoffice.gov.uk/svn/monc/casim casim
+        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
+          https://code.metoffice.gov.uk/svn/jules/main jules
+        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
+           https://code.metoffice.gov.uk/svn/socrates/main socrates
+        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
+           https://code.metoffice.gov.uk/svn/ukca/main/branches/dev/robertwaters/um13.9_trunk_plus_nvtx_calipers/ ukca
+
         sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" lfric_apps/dependencies.sh
-        sed -i "s|lfric_core_sources=|lfric_core_sources=/archive/psyclone-tests/latest-run/lfric_atm/lfric_core|g" lfric_apps/dependencies.sh
+        sed -i "s|lfric_core_sources=|lfric_core_sources=${TEST_PREFIX}/lfric_core|g" lfric_apps/dependencies.sh
+        sed -i "s|casim_rev=.*|casim_rev=|g" lfric_apps/dependencies.sh
+        sed -i "s|casim_sources=|casim_sources=${TEST_PREFIX}/casim|g" lfric_apps/dependencies.sh
+        sed -i "s|jules_rev=.*|jules_rev=|g" lfric_apps/dependencies.sh
+        sed -i "s|jules_sources=|jules_sources=${TEST_PREFIX}/jules|g" lfric_apps/dependencies.sh
+        sed -i "s|socrates_rev=.*|socrates_rev=|g" lfric_apps/dependencies.sh
+        sed -i "s|socrates_sources=|socrates_sources=${TEST_PREFIX}/casim|g" lfric_apps/dependencies.sh
+        sed -i "s|ukca_rev=.*|ukca_rev=|g" lfric_apps/dependencies.sh
+        sed -i "s|ukca_sources=|ukca_sources=${TEST_PREFIX}/ukca|g" lfric_apps/dependencies.sh
         cd lfric_apps
         ./build/local_build.py -a lfric_atm -p meto-ex1a -j 16
 
