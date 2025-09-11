@@ -48,13 +48,46 @@ import pytest
 from psyclone.domain.common import ExtractDriverCreator
 from psyclone.domain.gocean.transformations import (GOceanExtractTrans,
                                                     GOConstLoopBoundsTrans)
+from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
 from psyclone.psyir.transformations import PSyDataTrans
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import (
+    get_base_path, get_infrastructure_path, get_invoke)
 
 # API names
 GOCEAN_API = "gocean"
+
+
+@pytest.fixture(scope='function', autouse=True)
+def init_module_manager():
+    ''' The tests in this module all assume that there is no pre-existing
+    ModuleManager object, so this fixture ensures that the module manager
+    instance is deleted before and after each test function. The latter
+    makes sure that any other test executed next will automatically reload
+    the default ModuleManager file.
+    '''
+
+    test_files_dir = get_base_path(GOCEAN_API)
+    infrastructure_path = Path(get_infrastructure_path(GOCEAN_API))
+    # Define the path to the ReadKernelData module (which contains functions
+    # to read extracted data from a file) relative to the infrastructure path:
+    psyclone_root = infrastructure_path.parents[3]
+    read_mod_path = (psyclone_root / "lib" / "extract" /
+                     "binary" / "dl_esm_inf")
+    # Enforce loading of the default ModuleManager
+    ModuleManager._instance = None
+
+    module_manager = ModuleManager.get()
+    module_manager.add_search_path(test_files_dir)
+    module_manager.add_search_path(str(infrastructure_path))
+    module_manager.add_search_path(str(read_mod_path))
+
+    # Now execute all tests
+    yield
+
+    # Enforce loading of the default ModuleManager
+    ModuleManager._instance = None
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -104,7 +137,7 @@ def test_driver_creation1() -> None:
     # property dx. The grid property will be renamed to 'dx_1':
     expected = '''
   use read_kernel_data_mod, only : ReadKernelDataType
-  use kernel_driver_test, only : compute_kernel_code
+  use kernel_driver_test_mod, only : compute_kernel_code
   use compare_variables_mod, only : compare, compare_init, compare_summary
   integer :: out_fld_internal_ystart
   integer :: out_fld_internal_ystop
