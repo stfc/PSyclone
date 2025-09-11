@@ -272,7 +272,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         '''
         if options:
             if options.get("enable_reductions", False):
-                options["reduction_ops"] = MAP_REDUCTION_OP_TO_OMP.keys()
+                options["reduction_ops"] = list(MAP_REDUCTION_OP_TO_OMP.keys())
 
         self.validate(node, options=options)
 

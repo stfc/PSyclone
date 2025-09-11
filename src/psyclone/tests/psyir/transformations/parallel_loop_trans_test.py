@@ -1110,3 +1110,18 @@ def test_parallel_loop_trans_add_asynchronicity():
     paratrans = ParaTrans()
     # Default implementation does nothing.
     paratrans._add_asynchronicity(None)
+
+
+def test_paralooptrans_reduction_ops_type(fortran_reader):
+    '''
+    Test that the type of the 'reduction_ops' option is checked.
+    '''
+    psyir = fortran_reader.psyir_from_source(CODE)
+    loop = psyir.walk(Loop)[1]
+    trans = ParaTrans()
+    with pytest.raises(TypeError) as err:
+        trans.apply(loop, reduction_ops=False)
+    assert "Element in reduction_ops has incorrect type." in str(err.value)
+    with pytest.raises(TypeError) as err:
+        trans.apply(loop, reduction_ops=[False])
+    assert "Element in reduction_ops has incorrect type." in str(err.value)

@@ -173,6 +173,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             sequential = self.get_option("sequential", **kwargs)
             privatise_arrays = self.get_option("privatise_arrays", **kwargs)
             reduction_ops = self.get_option("reduction_ops", **kwargs)
+            if reduction_ops is None:
+                reduction_ops = []
         else:
             verbose = options.get("verbose", False)
             collapse = options.get("collapse", False)
@@ -184,8 +186,21 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             privatise_arrays = options.get("privatise_arrays", False)
             reduction_ops = options.get("reduction_ops", [])
 
-        # As a side effect, this method produces a list of inferred reduction
-        # clauses (if 'reduction_ops' is not None)
+        # Check type of reduction_ops (not handled by validate_options)
+        reduction_ops_ok = False
+        if isinstance(reduction_ops, List):
+            reduction_ops_ok = True
+            for op in reduction_ops:
+                reduction_ops_ok = reduction_ops_ok and (
+                    isinstance(op, BinaryOperation.Operator) or
+                    isinstance(op, IntrinsicCall.Intrinsic))
+        if not reduction_ops_ok:
+            raise TypeError(
+                "Element in reduction_ops has incorrect type. "
+                "Expected BinaryOperation.Operator or "
+                "IntrinsicCall.Intrinsic.")
+
+        # This method produces a list of inferred reduction clauses
         self.inferred_reduction_clauses = []
 
         # Check we are not a sequential loop
@@ -311,7 +326,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
               privatise_arrays: bool = False, sequential: bool = False,
               nowait: bool = False,
               reduction_ops: List[Union[BinaryOperation.Operator,
-                                        IntrinsicCall.Intrinsic]] = [],
+                                        IntrinsicCall.Intrinsic]] = None,
               **kwargs):
         '''
         Apply the Loop transformation to the specified node in a
@@ -373,6 +388,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 list_of_names = []
             else:
                 list_of_names = ignore_dependencies_for
+            if reduction_ops is None:
+                reduction_ops = []
         else:
             # TODO 2668 - options dict is deprecated.
             warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
@@ -382,7 +399,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             list_of_names = options.get("ignore_dependencies_for", [])
             privatise_arrays = options.get("privatise_arrays", False)
             nowait = options.get("nowait", False)
-            reduction_ops = options.get("reduction_ops", False)
+            reduction_ops = options.get("reduction_ops", [])
 
         self.validate(node, options=options, verbose=verbose,
                       collapse=collapse,
