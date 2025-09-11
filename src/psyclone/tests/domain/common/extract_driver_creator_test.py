@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
 from psyclone.psyir.transformations import PSyDataTrans
 from psyclone.tests.utilities import (
-    get_base_path, get_infrastructure_path, get_invoke)
+    Compile, get_base_path, get_infrastructure_path, get_invoke)
 
 # API names
 GOCEAN_API = "gocean"
@@ -79,6 +79,9 @@ def init_module_manager():
     ModuleManager._instance = None
 
     module_manager = ModuleManager.get()
+    # Ignore the MPI implementation of parallel utils_mod,
+    # which means the parallel_utils_stub_mod will be found and used
+    module_manager.add_ignore_file("parallel_utils_mod")
     module_manager.add_search_path(test_files_dir)
     module_manager.add_search_path(str(infrastructure_path))
     module_manager.add_search_path(str(read_mod_path))
@@ -223,6 +226,11 @@ in_fld_grid_gphiu_post)
     for line in expected_lines:
         assert line in driver_code, line + "\n -- not in --\n" + driver_code
 
+    build = Compile(".")
+    build.compile_file("driver-psy_extract_example_with_various_"
+                       "variable_access_patterns-invoke_0_compute_"
+                       "kernel-compute_kernel_code-r0.F90")
+
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
@@ -309,6 +317,9 @@ in_fld_grid_gphiu_post)
     for line in expected_lines:
         assert line in driver_code, line + "\n -- not in --\n" + driver_code
 
+    build = Compile(".")
+    build.compile_file(str(driver))
+
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
@@ -367,6 +378,9 @@ out_fld_data_1_post)"""
 
     for line in expected.split("\n"):
         assert line in driver_code, line + "\n -- not in --\n" + driver_code
+
+    build = Compile(".")
+    build.compile_file(str(driver))
 
 
 # -----------------------------------------------------------------------------
@@ -466,6 +480,9 @@ in_fld_data, dx_data, in_fld_grid_dx, in_fld_grid_gphiu)
     enddo
   enddo"""
     assert correct in driver_code
+
+    build = Compile(".")
+    build.compile_file(str(driver))
 
 
 # -----------------------------------------------------------------------------

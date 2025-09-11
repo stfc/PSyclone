@@ -41,6 +41,7 @@ import pytest
 
 from psyclone.errors import InternalError
 from psyclone.parse import FileInfo, ModuleInfo, ModuleManager
+from psyclone.tests.utilities import get_infrastructure_path
 
 
 # ----------------------------------------------------------------------------
@@ -346,6 +347,39 @@ def test_mod_manager_add_ignore_modules():
     assert mod_info.filename == "d1/d3/b_mod.F90"
 
 
+# ----------------------------------------------------------------------------
+@pytest.mark.parametrize('version', ["stub", "mpi"])
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_mod_manager_add_ignore_files(version: str) -> None:
+    '''Tests that ignoring a file based on a substring works. We test the main
+    use case: ignoring parallel_utils_mod.f90 from dl_esm_inf, so the
+    non-MPI version parallel_utils_stub_mod.f90 is found instead.
+
+    Since there are two files, the order in which files are found might not
+    be the same on different platforms. So we set this test up to find
+    both files (by ignore the other), controlled by the 'version' parameter
+    (stub or mpi).
+
+    '''
+    mod_man = ModuleManager.get()
+    # Get the path to dl_esm_inf:
+    test_files_dir = get_infrastructure_path("gocean")
+    mod_man.add_search_path(str(test_files_dir))
+    if version == "mpi":
+        # Find the MPI module, and not the stub
+        expected_module = "parallel_utils_mod.f90"
+        ignored_file = "parallel_utils_stub_mod"
+    else:
+        # Find the stub, but not the MPI module
+        expected_module = "parallel_utils_stub_mod.f90"
+        ignored_file = "parallel_utils_mod"
+
+    mod_man.add_ignore_file(ignored_file)
+    mod_info = mod_man.get_module_info("parallel_utils_mod")
+    assert expected_module in mod_info.filename
+
+# ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_add_files_and_more():

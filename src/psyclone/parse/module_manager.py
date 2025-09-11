@@ -142,7 +142,14 @@ class ModuleManager:
         self._modules: OrderedDict[str, ModuleInfo] = \
             OrderedDict()
 
-        self._ignore_modules = set()
+        # Modules to be ignored (i.e. no warning will be printed if they are
+        # not found)
+        self._ignore_modules: Set[str] = set()
+
+        # A list of files that will not be read. This can be used if there
+        # are several implementations of one module (e.g. a MPI and a non-MPI
+        # version) to pick the right one.
+        self._ignore_files: Set[str] = set()
 
         # Setup the regex used to find Fortran modules. Have to be careful not
         # to match e.g. "module procedure :: some_sub".
@@ -203,6 +210,9 @@ class ModuleManager:
                 full_path = os.path.join(directory, entry.name)
                 if full_path in self._visited_files:
                     continue
+                # Check if the full path matches an ignore pattern:
+                if any(i in full_path for i in self._ignore_files):
+                    continue
                 self._visited_files[full_path] = \
                     FileInfo(
                             full_path,
@@ -257,6 +267,14 @@ class ModuleManager:
 
         '''
         self._ignore_modules.add(module_name.lower())
+
+    # ------------------------------------------------------------------------
+    def add_ignore_file(self, substring: str) -> None:
+        '''
+        Adds a substring to the list of files to ignore. Any file that includes
+        one of these strings in its full path will not be parsed or added.
+        '''
+        self._ignore_files.add(substring)
 
     # ------------------------------------------------------------------------
     def ignores(self):
