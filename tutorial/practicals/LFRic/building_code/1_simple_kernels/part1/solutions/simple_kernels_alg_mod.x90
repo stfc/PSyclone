@@ -45,7 +45,7 @@ module simple_kernels_alg_mod
                                          LOG_LEVEL_INFO
   use mesh_mod,                   only : mesh_type
   use function_space_mod,         only : function_space_type
-  use field_mod,                  only : field_type
+  use field_mod,                  only : field_type, field_proxy_type
   use fs_continuity_mod,          only : W0, W3
   use setval_field_w0_kernel_mod, only : setval_field_w0_kernel_type
   use setval_field_w3_kernel_mod, only : setval_field_w3_kernel_type
@@ -75,6 +75,7 @@ contains
     type(function_space_type), pointer :: fs_w0_ptr => null(), &
                                           fs_w3_ptr => null()
     type(field_type)                   :: field_w0, field_w3
+    type(field_proxy_type)             :: field_w0_proxy, field_w3_proxy
     ! Number of values per degree of freedom for function spaces
     integer(i_def), parameter          :: ndata_sz = 1
     ! Scalars to set the fields to
@@ -83,11 +84,11 @@ contains
     call log_event( "simple_kernels_alg: Running algorithm", LOG_LEVEL_INFO )
 
     ! Create W0 and W3 function spaces with single-valued data points
-    fs_w0 = function_space_type( mesh, element_order_h, element_order_v, W0, &
-                                 ndata_sz )
+    fs_w0 = function_space_type( mesh%get_id(), element_order_h,  &
+                                 element_order_v, W0, ndata_sz )
     fs_w0_ptr => fs_w0
-    fs_w3 = function_space_type( mesh, element_order_h, element_order_v, W3, &
-                                 ndata_sz )
+    fs_w3 = function_space_type( mesh%get_id(), element_order_h, &
+                                 element_order_v, W3, ndata_sz )
     fs_w3_ptr => fs_w3
 
     ! Create fields on W0 and W3 function spaces
@@ -106,8 +107,12 @@ contains
     !---------------------------------------------------------------------------
 
     ! Check the values of constant fields by printing the min/max values
-    call field_w0%log_minmax(LOG_LEVEL_INFO, field_w0%name)
-    call field_w3%log_minmax(LOG_LEVEL_INFO, field_w3%name)
+
+    field_w0_proxy = field_w0%get_proxy()
+    field_w3_proxy = field_w3%get_proxy()
+
+    print *,"minmax of field_w0", field_w0_proxy % get_min(), field_w0_proxy % get_max()!
+    print *,"minmax of field_w3", field_w3_proxy % get_min(), field_w3_proxy % get_max()!
 
     call log_event( "simple_kernels_alg: Finalising algorithm", LOG_LEVEL_INFO )
     nullify( fs_w0_ptr, fs_w3_ptr )

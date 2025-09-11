@@ -40,7 +40,7 @@
 # export F90=gfortran
 # export F90FLAGS="-Wall -g -fcheck=bound"
 
-include ../../../common.mk
+include ../../lfric_common.mk
 
 GENERATED_FILES = main_psy.f90 main_alg.f90 *.o *.mod $(EXEC)
 
@@ -50,12 +50,6 @@ F90FLAGS ?= -Wall -g -fcheck=bound
 OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 
 EXEC = example
-LFRIC_PATH = ../../../../src/psyclone/tests/test_files/lfric/infrastructure
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-
-# This sets up LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
 
 run: compile
 	./example
@@ -63,10 +57,8 @@ run: compile
 compile: transform $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
-
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) \
+	-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS)
 
 # Dependencies
 main_psy.o:	testkern_w0_kernel_mod.o
@@ -74,10 +66,10 @@ main_alg.o:	main_psy.o
 testkern_w0_kernel_mod.o: $(LFRIC_LIB)
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 # Keep the generated psy and alg files
 .precious: main_psy.f90 main_alg.f90
@@ -90,4 +82,4 @@ transform: main_psy.f90
 	${PSYCLONE} -api lfric --keep-comments --keep-directives -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 allclean: clean
-	make -C $(LFRIC_PATH) allclean
+	make -C $(LFRIC_PATH) -f ../Makefile allclean
