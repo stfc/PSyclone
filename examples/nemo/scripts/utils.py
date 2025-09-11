@@ -41,7 +41,7 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
 
     Assignment, Loop, Directive, Node, Reference, CodeBlock, ArrayReference,
-    Call, Return, IfBlock, Routine, Schedule, IntrinsicCall )
+    Call, Return, IfBlock, Routine, Schedule, IntrinsicCall)
 
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
@@ -63,8 +63,8 @@ NOT_PERFORMANT = [
     "icbdia.f90", "icbini.f90", "icbstp.f90", "iom.f90", "iom_nf90.f90",
     "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
     "obs_types.f90", "obs_read_prof.f90", "obs_write.f90", "tide_mod.f90",
-    "zdfosm.f90", "obs_read_surf.f90","dynldf_lev.f90", "ldftra.f90", "tramle.f90",
-    "trcsink.f90", "p4zpoc.f90"
+    "zdfosm.f90", "obs_read_surf.f90", "dynldf_lev.f90", "ldftra.f90",
+    "tramle.f90", "trcsink.f90", "p4zpoc.f90"
 ]
 
 # If routine names contain these substrings then we do not profile them
@@ -80,11 +80,7 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
 # function calls if the symbol is imported from some other module.
 # We therefore work-around this by keeping a list of known NEMO functions
 # from v4 and v5.
-DEBUGCHECKSUM_IGNORE = [ ]
-#DEBUGCHECKSUM_IGNORE = ['ldf_slp_init', 'dyn_spg_ts_init',
-#                        'lbc_lnk_pt2pt_dp', 'dyn_vor_init', 'tke_tke',
-#                        'p4z_fechem', 'p4z_micro', 'p4z_meso', 'tra_mle_trp_MLF',
-#                        'tra_adv', "p4z_lys", "tra_adv_fct"]
+DEBUGCHECKSUM_IGNORE = []
 NEMO_FUNCTIONS = [
     # Internal funtions can be obtained with:
     # $ grep -rhi "end function" src/ | awk '{print $3}' | uniq | sort
@@ -151,7 +147,7 @@ NEMO_FUNCTIONS = [
     'visc_air', 'visc_air_sclr', 'visc_air_vctr', 'w1', 'w2', 'z0_from_Cd',
     'z0tq_LKB', 'zdf_gls_alloc', 'zdf_iwm_alloc', 'zdf_mfc_alloc',
     'zdf_mxl_alloc', 'zdf_oce_alloc', 'zdf_osm_alloc', 'zdf_phy_alloc',
-    'zdf_tke_alloc', 'zdf_tmx_alloc','dynldf_lev_lap', 'ldf_eiv_trp_t',
+    'zdf_tke_alloc', 'zdf_tmx_alloc', 'dynldf_lev_lap', 'ldf_eiv_trp_t',
 ]
 
 # Currently fparser has no way of distinguishing array accesses from statement

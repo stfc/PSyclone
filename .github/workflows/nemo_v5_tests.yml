@@ -568,10 +568,10 @@ jobs:
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca2_nvfortran_omp_offload_async}}"',
               '"$COMMON_FIELDS"'
             },
-           {
-            ci_test: "NEMOv5 OpenACC for GPU (BENCH)",
-            nemo_version: "NEMOv5",
-            compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
-            date: new Date(),
-            elapsed_time: '"${TIME_sec}"'' 
+            {
+            ci_test: "NEMOv5 OpenACC for GPU (BENCH)", 
+            nemo_version: "NEMOv5", system: "GlaDos",
+            compiler:"nvhpc-24.5" ,
+            date: new Date(), 
+            elapsed_time: '"${TIME_sec}"'
             }])'
