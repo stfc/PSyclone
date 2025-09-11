@@ -4749,73 +4749,70 @@ def test_reduction_clause_eq(fortran_reader, fortran_writer):
     assert do_directive1 != do_directive2
 
 
-def test_reduction_arith_ops(fortran_reader, fortran_writer):
+@pytest.mark.parametrize("op", ["*", "-", "*"])
+def test_reduction_arith_ops(op, fortran_reader, fortran_writer):
     ''' Test that reduction loops involing arithmetic reduction operators are
     parallelised.
     '''
-    ops = ["+", "-", "*"]
-    for op in ops:
-        psyir = fortran_reader.psyir_from_source(f'''
-            function sum_arr(arr) result (acc)
-                integer, intent(in) :: arr(:)
-                integer :: i
-                integer :: acc = 0
+    psyir = fortran_reader.psyir_from_source(f'''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
 
-                do i = 1, ubound(arr)
-                    acc = acc {op} arr(i)
-                end do
-            end function''')
-        omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
-        loop = psyir.walk(Loop)[0]
-        omplooptrans.apply(loop, enable_reductions=True)
-        output = fortran_writer(psyir)
-        assert f"reduction({op}: acc)" in output
+            do i = 1, ubound(arr)
+                acc = acc {op} arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert f"reduction({op}: acc)" in output
 
 
-def test_reduction_logical(fortran_reader, fortran_writer):
+@pytest.mark.parametrize("op", [".AND.", ".OR.", ".EQV.", ".NEQV."])
+def test_reduction_logical(op, fortran_reader, fortran_writer):
     ''' Test that reduction loops involing logical reduction operators are
     parallelised.
     '''
-    ops = [".AND.", ".OR.", ".EQV.", ".NEQV."]
-    for op in ops:
-        psyir = fortran_reader.psyir_from_source(f'''
-            function sum_arr(arr) result (acc)
-                integer, intent(in) :: arr(:)
-                integer :: i
-                logical :: acc = .false.
+    psyir = fortran_reader.psyir_from_source(f'''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            logical :: acc = .false.
 
-                do i = 1, ubound(arr)
-                    acc = acc {op} arr(i)
-                end do
-            end function''')
-        omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
-        loop = psyir.walk(Loop)[0]
-        omplooptrans.apply(loop, enable_reductions=True)
-        output = fortran_writer(psyir)
-        assert f"reduction({op}: acc)" in output
+            do i = 1, ubound(arr)
+                acc = acc {op} arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert f"reduction({op}: acc)" in output
 
 
-def test_reduction_intrins(fortran_reader, fortran_writer):
+@pytest.mark.parametrize("op", ["MAX", "MIN", "IAND", "IOR", "IEOR"])
+def test_reduction_intrins(op, fortran_reader, fortran_writer):
     ''' Test that reduction loops involing intrinsic reduction operators are
     parallelised.
     '''
-    ops = ["MAX", "MIN", "IAND", "IOR", "IEOR"]
-    for op in ops:
-        psyir = fortran_reader.psyir_from_source(f'''
-            function sum_arr(arr) result (acc)
-                integer, intent(in) :: arr(:)
-                integer :: i
-                integer :: acc = 0
+    psyir = fortran_reader.psyir_from_source(f'''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
 
-                do i = 1, ubound(arr)
-                    acc = {op}(acc, arr(i))
-                end do
-            end function''')
-        omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
-        loop = psyir.walk(Loop)[0]
-        omplooptrans.apply(loop, enable_reductions=True)
-        output = fortran_writer(psyir)
-        assert f"reduction({op}: acc)" in output
+            do i = 1, ubound(arr)
+                acc = {op}(acc, arr(i))
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert f"reduction({op}: acc)" in output
 
 
 def test_bracketed_reductions(fortran_reader, fortran_writer):
