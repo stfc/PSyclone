@@ -39,11 +39,13 @@
 for the LFRic domain. '''
 
 import os
+from pathlib import Path
 import subprocess
 import sys
 
 
-from psyclone.tests.utilities import change_dir, CompileError, Compile
+from psyclone.tests.utilities import (change_dir, CompileError, Compile,
+                                      get_infrastructure_path)
 
 
 class LFRicBuild(Compile):
@@ -64,7 +66,7 @@ class LFRicBuild(Compile):
 
     # The temporary path in which the compiled infrastructure files
     # (.o and .mod) are stored for this process.
-    _compilation_path = ""
+    _compilation_path: Path = Path("")
 
     # Define the 'make' command to use. Having this as an attribute
     # allows testing to modify this to trigger exceptions.
@@ -73,10 +75,9 @@ class LFRicBuild(Compile):
     def __init__(self, tmpdir):
         super().__init__(tmpdir)
 
-        base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "lfric")
-        self.base_path = base_path
-        self._infrastructure_path = os.path.join(base_path, "infrastructure")
+        base_path = Path(__file__).parent / "test_files" / "lfric"
+        self.base_path = str(base_path)
+        self._infrastructure_path = Path(get_infrastructure_path("lfric"))
         # On first instantiation (triggered by conftest.infra_compile)
         # compile the infrastructure library files.
         if not LFRicBuild._infrastructure_built:
@@ -92,10 +93,10 @@ class LFRicBuild(Compile):
 
         '''
         all_flags = []
-        for entry in os.scandir(self._infrastructure_path):
-            if not entry.name.startswith('.') and entry.is_dir():
-                path = os.path.join(LFRicBuild._compilation_path, entry.name)
-                all_flags.extend(["-I", path])
+        for root, dirs, _ in os.walk(LFRicBuild._compilation_path):
+            for curr_dir in dirs:
+                all_flags.extend(["-I", str(os.path.join(root, curr_dir))])
+
         return all_flags
 
     def _build_infrastructure(self):
@@ -108,10 +109,12 @@ class LFRicBuild(Compile):
         with change_dir(self._tmpdir):
             # Store the temporary path so that the compiled infrastructure
             # files can be used by all test compilations later.
-            LFRicBuild._compilation_path = str(self._tmpdir)
-            makefile = os.path.join(self._infrastructure_path, "Makefile")
+            LFRicBuild._compilation_path = self._tmpdir
+            makefile = self._infrastructure_path.parent / "Makefile"
             arg_list = [LFRicBuild._make_command, f"F90={self._f90}",
-                        f"F90FLAGS={self._f90flags}", "-f", makefile]
+                        f"F90FLAGS={self._f90flags}",
+                        f"BUILD_PATH={self._tmpdir}", "-f", str(makefile),
+                        "liblfric"]
             try:
                 with subprocess.Popen(arg_list, stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT) as build:
