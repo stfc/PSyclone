@@ -302,12 +302,10 @@ def valid_acc_kernel(node):
                     if child.walk(Loop):
                         loop_count += 1
                         if loop_count > 1:
-                            log_msg(
-                                routine_name,
-                                "Loop over levels contains several "
-                                "other loops",
-                                enode,
-                            )
+                            msg = "Loop over levels contains several \
+                            other loops"
+                            if msg not in enode.preceding_comment:
+                                enode.append_preceding_comment(msg)
                             return False
 
     return True
