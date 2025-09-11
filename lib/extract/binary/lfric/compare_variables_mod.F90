@@ -134,7 +134,7 @@ contains
             "#rel<1E-9", "#rel<1E-6", "#rel<1E-3", "#rel>=1E-3", &
             "max_abs", "max_rel", "l2_diff", "l2_cos"
 
-        out_format = trim(out_format)//"' ',6(I12, ' '),4(E12.7,' '))"
+        out_format = trim(out_format)//",' ',6(I12, ' '),4(E12.7,' '))"
 
         ! Then write out the results for each variable:
         do i=1, current_index
