@@ -118,7 +118,7 @@ CHECKSUM_TRANS = DebugChecksumTrans()
 
 # Whether or not to add profiling calls around unaccelerated regions
 # N.B. this can inhibit PSyclone's ability to inline!
-PROFILE_NONACC = False
+PROFILE_NONACC = True
 
 # Whether or not to add OpenACC enter data and update directives to explicitly
 # move data between host and device memory
@@ -280,37 +280,41 @@ def valid_acc_kernel(node):
                 )
                 return False
 
-        elif isinstance(enode, Loop):
+        else: 
+            return False
+            #isinstance(enode, Loop):
             # Heuristic:
             # We don't want to put loops around 3D loops into KERNELS regions
             # and nor do we want to put loops over levels into KERNELS regions
             # if they themselves contain several 2D loops.
             # In general, this heuristic will depend upon how many levels the
             # model configuration will contain.
-            child = enode.loop_body[0] if enode.loop_body.children else None
+
+            #child = enode.loop_body[0] if enode.loop_body.children else None
+
             # if isinstance(child, Loop) and child.loop_type == "levels":
             # We have a loop around a loop over levels
             #   log_msg(routine_name, "Loop is around a loop over levels",
             #        enode)
-            #   return False
-            if (
-                    enode.loop_type == "levels"
-                    and len(enode.loop_body.children) > 1
-            ):
+            #   return False:
+            #if (
+            #        enode.loop_type == "levels"
+            #        and len(enode.loop_body.children) > 1
+            #):
                 # The body of the loop contains more than one statement.
                 # How many distinct loop nests are there?
-                loop_count = 0
-                for child in enode.loop_body.children:
-                    if child.walk(Loop):
-                        loop_count += 1
-                        if loop_count > 1:
-                            log_msg(
-                                routine_name,
-                                "Loop over levels contains several "
-                                "other loops",
-                                enode,
-                            )
-                            return False
+             #   loop_count = 0
+             #   for child in enode.loop_body.children:
+             #       if child.walk(Loop):
+             #           loop_count += 1
+             #           if loop_count > 1:
+             #               log_msg(
+             #                   routine_name,
+             #                   "Loop over levels contains several "
+             #                   "other loops",
+             #                   enode,
+             #               )
+             #               return False
 
     return True
 

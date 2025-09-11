@@ -1,3 +1,4 @@
-output.dat
-psy.f90
-traldf_iso.F90
+
+cpu_output.F90
+gpu_output.F90
+

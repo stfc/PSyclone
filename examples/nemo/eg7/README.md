@@ -1,45 +1,31 @@
-# PSyclone NEMO Example 3
 
-**Authors:** R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# PSyclone NEMO Example 7
 
-This directory contains a relatively simple example transformation script,
-`kernels_trans.py`.  This demonstrates the use of PSyclone to add OpenACC
-Kernel and Data directives to NEMO code. Note, the transformations are
-indicative of what could be done - no claim is made as to the performance of
-the resulting code.
+**Authors:** A. B. G. Chalk, STFC Daresbury Lab
 
-A more sophisticated `acc_kernels_trans.py` script is provided in the
-`../scripts` directory. This is designed to work with the NVIDIA (PGI)
-compiler's 'managed memory' option (`-gpu=mem:managed`) and therefore makes
-no attempt to control data movement to/from the GPU. It also adds
-profiling instrumentation around those parts of the code that have
-not been enclosed within an OpenACC KERNELS region.
+This directory contains the PSyclone example scripts:
+`openmp_cpu_nowait_trans.py` and `openmp_gpu_nowait_trans.py`,
+that demonstrates the use of PSyclone to parallelise all loops over
+levels for the `tra_adv.F90` code, using OpenMP with `nowait` and
+minimisation of the number of introduced barriers. It also contains
+Makefile rules to generate parallel versions of the file with the
+../scripts/ OpenMP scripts.
 
-Once you have installed PSyclone, either script may be supplied to
-PSyclone via the -s option, e.g.:
+Once you have installed PSyclone, these scripts may be run by doing:
 
 ```sh
-psyclone -s ./kernels_trans.py ../code/tra_adv.F90
+psyclone -s ./openmp_[cpu|gpu]_nowait_trans.py ../code/traadv.f90
 ```
 
-Executing this will output 1) the PSyclone invokes found in the code,
-2) PSyclone's Schedule view of the original code, 3) PSyclone's
-Schedule view of the code after adding OpenACC Kernels directives, 4)
-PSyclone's Schedule view of the code after adding OpenACC Kernels and
-Data directives, and 5) the transformed Fortran code with the OpenACC
-directives added. Note that some of the lines in this Fortran code will
-exceed the 132-character limit. This may be remedied by supplying the
-`-l all` flag to PSyclone (as is done in the Makefile).
+This will output the generated Fortran code with the OpenMP directives added.
 
-Running PSyclone with the `../scripts/acc_kernels_trans.py` script will
-produce similar output but the Schedule will contain `Profile` nodes
-and there will be no Data directives.
-
-`tra_adv.F90` is a stand-alone version of one of the tracer-advection
+`tra_adv.F90` - is a stand-alone version of one of the tracer-advection
+>>>>>>> master
 routines from the NEMO ocean model. It was originally extracted by
 Silvia Mocavero of CMCC. The code can be found in the `../code`
 directory.
 
+<<<<<<< HEAD
 ## Compiling and Execution
 
 If desired this example may be compiled and executed on a GPU device
@@ -67,13 +53,15 @@ The size of domain and number of time-steps are also picked-up from
 environment variables. Some example settings are provided in the
 `domain_setup.sh` file.
 
+
 ## Licence
 
 -----------------------------------------------------------------------------
 
 BSD 3-Clause License
 
-Copyright (c) 2018-2025, Science and Technology Facilities Council.
+Copyright (c) 2018-2025, Science and Technology Facilities Council
+
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

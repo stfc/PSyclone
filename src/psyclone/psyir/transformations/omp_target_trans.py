@@ -39,8 +39,9 @@
 ''' This module provides the OMPTargetTrans PSyIR transformation '''
 
 from psyclone.psyir.nodes import (
-    CodeBlock, OMPTargetDirective, Call, Routine, Reference,
+    CodeBlock, OMPTargetDirective, Call, Routine, Reference, Literal,
     OMPTaskwaitDirective, Directive, Schedule)
+from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
@@ -106,40 +107,33 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         # next dependency so we can't add an asynchronous clause.
         if not next_depend:
             return
+        # As soon as we have a nowait target, we need to add a barrier
+        # at the end of the Routine.
+        containing_routine = instance.ancestor(Routine)
+        if not isinstance(containing_routine.children[-1],
+                          OMPTaskwaitDirective):
+            containing_routine.addchild(OMPTaskwaitDirective())
+
         # If find next_dependency returns True there is no follow up
-        # dependency, so we just need a barrier at the end of the containing
-        # Routine.
+        # dependency, so we don't need an additional barrier.
         if next_depend is True:
             # Add nowait to the instance.
             instance.nowait = True
-            # Add a barrier to the end of the containing Routine if there
-            # isn't one already.
-            containing_routine = instance.ancestor(Routine)
-            # Check barrier that corresponds to self.omp_directive and add the
-            # correct barrier type
-            if not isinstance(containing_routine.children[-1],
-                              OMPTaskwaitDirective):
-                containing_routine.addchild(OMPTaskwaitDirective())
             return
 
-        # Otherwise we have the next dependency and we need to find where the
-        # correct place for the preceding barrier is. Need to find a
+        # Otherwise we have the next dependencies and we need to find where
+        # the correct place for the preceding barrier is. Need to find a
         # guaranteed control flow path to place it.
 
-        # Find the deepest schedule in the tree containing both.
-        sched = next_depend.ancestor(Schedule, shared_with=instance)
-        routine = instance.ancestor(Routine)
-        if sched and (sched is routine or sched.is_descendent_of(routine)):
-            # Get the path from sched to next_depend
-            path = next_depend.path_from(sched)
+        for depend in next_depend:
+            # Find the deepest schedule in the tree containing both.
+            sched = depend.ancestor(Schedule, shared_with=instance)
+            # Get the path from sched to depend
+            path = depend.path_from(sched)
             # The first element of path is the position of the ancestor
             # of next_depend that is in sched, so we add the barrier there.
             sched.addchild(OMPTaskwaitDirective(), path[0])
-            instance.nowait = True
-
-        # If we didn't find anywhere to put the barrier then we just don't
-        # add the nowait.
-        # TODO #11: If we fail to have nowait added then log it
+        instance.nowait = True
 
     def validate(self, node, options=None):
         # pylint: disable=signature-differs
@@ -154,25 +148,36 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         :type options: Optional[Dict[str, Any]]
         :param str options["device_string"]: provide a compiler-platform
             identifier.
+        :param str options["allow_strings"]: permit OMP target regions
+            enclosing string operations.
+        :param str options["verbose"]: insert preceding comments with the
+            reason that made this validation fail.
 
         :raises TransformationError: if it contains calls to routines that
             are not available in the accelerator device.
         :raises TransformationError: if its a function and the target region
             attempts to enclose the assingment setting the return value.
+        :raises TransformationError: if the target region attempts to enclose
+            string operations and the 'allow_strings' option is not set.
         '''
         device_string = options.get("device_string", "") if options else ""
+        strings = options.get("allow_strings", False) if options else False
+        verbose = options.get("verbose", False) if options else False
         node_list = self.get_node_list(node)
         super().validate(node, options)
         for node in node_list:
             for call in node.walk(Call):
                 if not call.is_available_on_device(device_string):
                     device_str = device_string if device_string else "default"
-                    raise TransformationError(
+                    message = (
                         f"'{call.routine.name}' is not available on the"
                         f" '{device_str}' accelerator device, and therefore "
                         f"it cannot be called from within an OMP Target "
                         f"region. Use the 'device_string' option to specify a "
                         f"different device.")
+                    if verbose:
+                        node.preceding_comment = message
+                    raise TransformationError(message)
         routine = node.ancestor(Routine)
         if routine and routine.return_symbol:
             # if it is a function, the target must not include its return sym
@@ -183,6 +188,24 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
                             f"OpenMP Target cannot enclose a region that has "
                             f"a function return value symbol, but found one in"
                             f" '{routine.return_symbol.name}'.")
+
+        if not strings:
+            for check_node in node_list:
+                for datanode in check_node.walk((Reference, Literal),
+                                                stop_type=Reference):
+                    dtype = datanode.datatype
+                    # Don't allow CHARACTERS on GPU
+                    if hasattr(dtype, "intrinsic"):
+                        if dtype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                            message = (
+                                f"OpenMP Target cannot enclose a region that "
+                                f"uses characters, but found: "
+                                f"{datanode.debug_string()}"
+                            )
+                            if verbose:
+                                node.preceding_comment = message
+                            raise TransformationError(message)
+                    # TODO #3054: Deal with UnresolvedType
 
     def apply(self, node, options=None):
         ''' Insert an OMPTargetDirective before the provided node or list

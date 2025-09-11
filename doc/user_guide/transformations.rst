@@ -295,6 +295,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.IncreaseRankLoopArraysTrans
+      :members: apply
+      :no-index:
+
+####
+
 .. autoclass:: psyclone.domain.common.transformations.KernelModuleInlineTrans
     :members: apply
     :no-index:
@@ -313,7 +319,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.psyir.transformations.LoopTiling2DTrans
+.. autoclass:: psyclone.psyir.transformations.LoopTilingTrans
     :members: apply
     :no-index:
 
@@ -376,7 +382,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPDeclareTargetTrans
+.. autoclass:: psyclone.psyir.transformations.OMPDeclareTargetTrans
     :members: apply
     :no-index:
 

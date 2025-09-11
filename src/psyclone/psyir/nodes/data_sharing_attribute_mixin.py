@@ -83,6 +83,10 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                   the directive body as PRIVATE, FIRSTPRIVATE or SHARED NEEDING
                   SYNCHRONISATION.
         '''
+        # Compute the abs position caches as we'll use these a lot.
+        # The compute_cached_abs_position will only do this if needed
+        # so we don't need to check here.
+        self.compute_cached_abs_positions()
 
         # TODO #598: Improve the handling of scalar variables, there are
         # remaining issues when we have accesses of variables after the
@@ -107,7 +111,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         for signature in var_accesses.all_signatures:
             if not var_accesses[signature].has_data_access():
                 continue
-            accesses = var_accesses[signature].all_accesses
+            accesses = var_accesses[signature]
             # TODO #2094: var_name only captures the top-level
             # component in the derived type accessor. If the attributes
             # only apply to a sub-component, this won't be captured
@@ -130,7 +134,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                 continue
 
             # All arrays not explicitly marked as threadprivate are shared
-            if any(accs.is_array() for accs in accesses):
+            if any(accs.has_indices() for accs in accesses):
                 continue
 
             # If a variable is only accessed once, it is either an error

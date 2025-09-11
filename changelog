@@ -1,4 +1,63 @@
-   59) PR #2137 towards #1312: adds metadata support for read-only ScalarArrays
+   83) PR #3104. Move integration tests to new runner.
+
+   82) PR #3107 towards #3074. Update dl_esm_inf submodule.
+
+   81) PR #3103 for #3091. Fix AsyncTransMixin with loops with if-else blocks.
+
+   80) PR #3100 for #3097. Disable inheriting the options keyword in
+   transformation docstrings when not appropriate.
+
+   79) PR #3099 for #3089. Remove is_array from Nodes and rename it to
+   has_indices() in Signature.
+
+   78) PR #3106 for #3105. Add print handlers for Sympy boolean literals.
+
+   77) PR #3089 for #2781. Refine halo-depth logic for LFRic "halo" kernels.
+
+   76) PR #2910 for #2896. Adds IncreaseRankLoopArraysTrans.
+
+   75) PR #3093 for #3092. Fixes Fortran backend declarations of (1:) arrays.
+
+   74) PR #3078 for #3068. Refactors single-variable access info (to
+   AccessSequence).
+
+   73) PR #3088 for #1812. Implements the OMPReductionClause.
+
+   72) PR #3086 for #3071. Improves TransInfo-related deprecation warnings.
+
+   71) PR #3062 for #2671. Improves the support for allowing arrays to be
+   declared thread private.
+
+   70) PR #2969 for #2902. Adds LFRic driver extraction integration tests.
+
+   69) PR #3042 for #2971. Moves OMPDeclareTargetTrans and
+   MarkRoutineForGPUMixin into psyir/transformations.
+
+   68) PR #2893 for #2561. Add support for allocatables in the
+   HoistLocalArraysTrans and check for kind/type dependent symbols.
+
+   67) PR #3073 for #3072 and #1930. Move domain code out of
+   PSyGen.Argument to fix test issues.
+
+   66) PR #3039. Generalised loop tiling with examples
+
+   65) PR #3077 for #3076. Small optimisation to avoid computing depth in
+   node.walk() unless it is required.
+
+   64) PR #3023 for #3012. Initial version of psyclonefc command
+
+   63) PR #2907 for #2878. Improves Extraction library output stats.
+
+   62) PR #3058 for #3059. Update linkcheck parameters, fix links in docs
+   and READMEs, update mentions of nan_check with value_range_check.
+
+   61) PR #3040 for #3038. Improves the frontend error reporting of the
+   psyclone command.
+
+   60) PR #2967 towards #2551. Adds a barrier minimisation step on the Async
+   workflow to improve its performance and adds integration tests.
+
+   59) PR #2137 towards #1312. Adds metadata support for read-only ScalarArrays
    in the LFRic DSL.
 
    58) PR #3057 for 3056. Demote OpenMP lowering error to warning.

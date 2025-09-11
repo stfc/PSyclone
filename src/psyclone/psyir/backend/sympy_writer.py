@@ -44,7 +44,7 @@ from typing import Iterable, Optional, Union
 import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
-from psyclone.core import (Signature, SingleVariableAccessInfo,
+from psyclone.core import (Signature, AccessSequence,
                            VariablesAccessMap)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -272,7 +272,7 @@ class SymPyWriter(FortranWriter):
 
     @staticmethod
     def _ndims_for_struct_access(sig: Signature,
-                                 sva: SingleVariableAccessInfo) -> list[int]:
+                                 sva: AccessSequence) -> list[int]:
         '''
         The same Signature can be accessed with different numbers of indices,
         e.g. a%b, a%b(1) and a(1)%b. This routine examines all accesses and
@@ -289,7 +289,7 @@ class SymPyWriter(FortranWriter):
         # each component, one list per access, e.g.:
         #  a%b => [0,0] and  a(2)%b => [1,0]
         num_dims_for_access = []
-        for access in sva.all_accesses:
+        for access in sva:
             indices = access.component_indices
             # Create the list of number of indices on each component for
             # this access.
@@ -305,7 +305,7 @@ class SymPyWriter(FortranWriter):
         return max_dims
 
     @staticmethod
-    def _specialise_array_symbol(sym: Symbol, sva: SingleVariableAccessInfo):
+    def _specialise_array_symbol(sym: Symbol, sva: AccessSequence):
         '''
         If we can be confident that the supplied Symbol should be of ArrayType
         due to the way it is accessed then we specialise it in place.
@@ -314,13 +314,13 @@ class SymPyWriter(FortranWriter):
         :param sva: information on the ways in which the Symbol is accessed.
 
         '''
-        if all(acs.is_array() for acs in sva.all_accesses):
+        if all(acs.has_indices() for acs in sva):
             return
         if not sym or isinstance(sym, (DataSymbol, RoutineSymbol)):
             return
         # Find an access that has indices.
-        for acs in sva.all_accesses:
-            if not acs.is_array():
+        for acs in sva:
+            if not acs.has_indices():
                 continue
             ndims = None
             for indices in acs.component_indices:
@@ -409,7 +409,7 @@ class SymPyWriter(FortranWriter):
             vam.update(expr.reference_accesses())
 
         for sig in vam.all_signatures:
-            sva: SingleVariableAccessInfo = vam[sig]
+            sva: AccessSequence = vam[sig]
 
             flat_name = "_".join(name for name in sig)
             unique_sym = self._symbol_table.find_or_create_tag(
@@ -418,17 +418,16 @@ class SymPyWriter(FortranWriter):
             try:
                 # Depending on the situation, we won't always
                 # have a scope, hence the try...except.
-                orig_sym = sva.all_accesses[0].node.scope.symbol_table.\
-                    lookup(sig.var_name)
+                orig_sym = sva[0].node.scope.symbol_table.lookup(sig.var_name)
             except SymbolError:
-                if isinstance(sva.all_accesses[0].node, Reference):
-                    orig_sym = sva.all_accesses[0].node.symbol
+                if isinstance(sva[0].node, Reference):
+                    orig_sym = sva[0].node.symbol
                 else:
                     orig_sym = None
 
             is_fn_call = isinstance(orig_sym, RoutineSymbol)
 
-            if (sva.is_array() or
+            if (sva.has_indices() or
                     (orig_sym and (orig_sym.is_array or is_fn_call))):
                 # A Fortran array or function call. Declare a new SymPy
                 # function for it. This SymPy function will convert array
@@ -806,7 +805,7 @@ class SymPyWriter(FortranWriter):
             # been re-named, and we can use it as is.
             name = node.name
 
-        if not node.is_array:
+        if not node.symbol.is_array:
             # This reference is not an array, just return the name
             return name
 

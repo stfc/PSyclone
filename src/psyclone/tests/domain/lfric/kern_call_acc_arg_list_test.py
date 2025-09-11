@@ -151,7 +151,7 @@ def test_lfric_acc():
     var_accesses = VariablesAccessMap()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "f1_data: READ+WRITE" in var_info
+    assert "f1_data: INC" in var_info
     assert "f2_data: READ" in var_info
     assert "m1_data: READ" in var_info
     assert "m2_data: READ" in var_info
@@ -210,7 +210,7 @@ def test_lfric_stencil():
     var_accesses = VariablesAccessMap()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "f1: READ+WRITE" in var_info
+    assert "f1: INC" in var_info
     assert "f2: READ" in var_info
     assert "f2_stencil_dofmap: READ" in var_info
 
@@ -237,7 +237,7 @@ def test_lfric_field():
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     # Check fields
-    assert "f1_data: READ+WRITE" in var_info    # Written to in Built-in
+    assert "f1_data: INC" in var_info    # Written to in Built-in
     assert "f2_data: READ" in var_info
     assert "m1_data: READ" in var_info
     assert "m2_data: READ" in var_info

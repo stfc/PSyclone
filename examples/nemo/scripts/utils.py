@@ -63,7 +63,9 @@ NOT_PERFORMANT = [
     "icbdia.f90", "icbini.f90", "icbstp.f90", "iom.f90", "iom_nf90.f90",
     "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
     "obs_types.f90", "obs_read_prof.f90", "obs_write.f90", "tide_mod.f90",
-    "zdfosm.f90", "obs_read_surf.f90","dynldf_lev.f90","ldftra.f90", "tramle.f90"
+
+    "zdfosm.f90", "obs_read_surf.f90","dynldf_lev.f90","ldftra.f90", "tramle.f90" 
+
 ]
 
 # If routine names contain these substrings then we do not profile them
@@ -487,6 +489,12 @@ def insert_explicit_loop_parallelism(
             # associted to the loop in the generated output.
             continue
 
+
+    # If we are adding asynchronous parallelism then we now try to minimise
+    # the number of barriers.
+    if asynchronous_parallelism:
+        minsync_trans = OMPMinimiseSyncTrans()
+        minsync_trans.apply(schedule)
 
 def add_profiling(children: Union[List[Node], Schedule]):
     '''

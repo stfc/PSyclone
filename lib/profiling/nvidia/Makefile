@@ -39,7 +39,7 @@
 
 # ----------- Default "make" values, can be overwritten by the user -----------
 # Compiler and compiler flags
-F90 ?= gfortran
+F90 ?= nvfortran
 F90FLAGS ?= -g
 # -----------------------------------------------------------------------------
 

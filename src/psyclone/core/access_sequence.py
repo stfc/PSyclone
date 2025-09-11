@@ -125,15 +125,11 @@ class AccessInfo():
                                 f"ComponentIndices, got '{component_indices}'")
         self._component_indices = component_indices
 
-    def is_array(self):
-        '''Test if any of the components has an index. E.g. an access like
-        a(i)%b would still be considered an array.
-
-        :returns: if any of the variable components uses an index, i.e.\
-            the variable is an array.
-        :rtype: bool
+    def has_indices(self) -> bool:
         '''
-        return self._component_indices.is_array()
+        :returns: whether any of the access components uses an index.
+        '''
+        return self._component_indices.has_indices()
 
     @property
     def access_type(self):
@@ -176,8 +172,8 @@ class AccessInfo():
 
 
 # =============================================================================
-class SingleVariableAccessInfo():
-    '''This class stores a list with all accesses to one variable.
+class AccessSequence(list):
+    ''' This class stores a list with all accesses to one variable.
 
     :param signature: signature of the variable.
     :type signature: :py:class:`psyclone.core.Signature`
@@ -185,19 +181,23 @@ class SingleVariableAccessInfo():
     '''
     def __init__(self, signature):
         self._signature = signature
-        # This is the list of AccessInfo instances for this variable.
-        self._accesses = []
 
-    def __str__(self):
-        '''Returns a string representation of this object with the format:
-        var_name:[WRITE,WRITE,READ]
+    def __str__(self) -> str:
         '''
-        all_accesses = ",".join([str(access) for access in self._accesses])
+        :returns: a string representation of this object with the format:
+            var_name:[WRITE,WRITE,READ]
+        '''
+        all_accesses = ",".join([str(access) for access in self])
 
         return f"{self._signature}:[{all_accesses}]"
 
-    def __repr__(self):
-        return ",".join([str(access) for access in self._accesses])
+    def str_access_summary(self) -> str:
+        '''
+        :returns: a string of the accesstypes but removing duplicates.
+        '''
+        # Use a dict comprehension to get non-duplicated ordered results
+        access_set = "+".join({str(access): None for access in self}.keys())
+        return f"{access_set}"
 
     @property
     def signature(self):
@@ -218,8 +218,7 @@ class SingleVariableAccessInfo():
         :returns: whether or not any accesses of this variable
                   represent a call.
         '''
-        return any(info.access_type == AccessType.CALL for
-                   info in self._accesses)
+        return any(access.access_type == AccessType.CALL for access in self)
 
     def is_written(self) -> bool:
         '''
@@ -227,7 +226,7 @@ class SingleVariableAccessInfo():
         '''
         return any(access_info.access_type in
                    AccessType.all_write_accesses()
-                   for access_info in self._accesses)
+                   for access_info in self)
 
     def is_written_first(self) -> bool:
         '''
@@ -235,7 +234,7 @@ class SingleVariableAccessInfo():
             (which indicates that this variable is not an input variable
             for a kernel).
         '''
-        for acc in self._accesses:
+        for acc in self:
             if acc.access_type in AccessType.non_data_accesses():
                 continue
             if acc.access_type != AccessType.WRITE:
@@ -250,7 +249,7 @@ class SingleVariableAccessInfo():
         '''
         access_types = AccessType.non_data_accesses() + [AccessType.READ]
         return all(access_info.access_type in access_types
-                   for access_info in self._accesses)
+                   for access_info in self)
 
     def is_read(self) -> bool:
         '''
@@ -258,7 +257,7 @@ class SingleVariableAccessInfo():
         '''
         read_accesses = AccessType.all_read_accesses()
         return any(access_info.access_type in read_accesses
-                   for access_info in self._accesses)
+                   for access_info in self)
 
     def has_read_write(self):
         '''Checks if this variable has at least one READWRITE access.
@@ -267,32 +266,17 @@ class SingleVariableAccessInfo():
         :rtype: bool
         '''
         return any(access_info.access_type == AccessType.READWRITE
-                   for access_info in self._accesses)
+                   for access_info in self)
 
     def has_data_access(self) -> bool:
         '''
         :returns: True if there is an access of the data associated with this
             signature (as opposed to a call or an inquiry), False otherwise.
         '''
-        for info in self._accesses:
+        for info in self:
             if info.access_type not in AccessType.non_data_accesses():
                 return True
         return False
-
-    def __getitem__(self, index):
-        ''':return: the access information for the specified index.
-        :rtype: py:class:`psyclone.core.AccessInfo`
-
-        :raises IndexError: If there is no access with the specified index.
-        '''
-        return self._accesses[index]
-
-    @property
-    def all_accesses(self):
-        ''':returns: a list with all AccessInfo data for this variable.
-        :rtype: List[:py:class:`psyclone.core.AccessInfo`]
-        '''
-        return self._accesses
 
     @property
     def all_read_accesses(self):
@@ -300,7 +284,7 @@ class SingleVariableAccessInfo():
             that involve reading this variable.
         :rtype: List[:py:class:`psyclone.core.AccessInfo`]
         '''
-        return [access for access in self._accesses
+        return [access for access in self
                 if access.access_type in AccessType.all_read_accesses()]
 
     @property
@@ -309,7 +293,7 @@ class SingleVariableAccessInfo():
             that involve writing this variable.
         :rtype: List[:py:class:`psyclone.core.AccessInfo`]
         '''
-        return [access for access in self._accesses
+        return [access for access in self
                 if access.access_type in AccessType.all_write_accesses()]
 
     def add_access(
@@ -324,14 +308,14 @@ class SingleVariableAccessInfo():
         :param component_indices: indices used for each component of the \
             access.
         '''
-        self._accesses.append(AccessInfo(access_type, node, component_indices))
+        self.append(AccessInfo(access_type, node, component_indices))
 
     def change_read_to_write(self):
         '''This function is only used when analysing an assignment statement.
         The LHS has first all variables identified, which will be READ.
         This function is then called to change the assigned-to variable
         on the LHS to from READ to WRITE. Since the LHS is stored in a separate
-        SingleVariableAccessInfo class, it is guaranteed that there is only
+        AccessSequence class, it is guaranteed that there is only
         one READ entry for the variable (although there maybe INQUIRY accesses
         for array bounds).
 
@@ -339,7 +323,7 @@ class SingleVariableAccessInfo():
                                INQUIRY or there is > 1 READ access.
         '''
         read_access = None
-        for acc in self._accesses:
+        for acc in self:
 
             if acc.access_type == AccessType.READ:
                 if read_access:
@@ -360,35 +344,31 @@ class SingleVariableAccessInfo():
                 f" it does not have a 'READ' access.")
         read_access.change_read_to_write()
 
-    def is_array(self, index_variable=None):
-        '''Checks if the variable is used as an array, i.e. if it has
-        an index expression. If the optional `index_variable` is specified,
-        this variable must be used in (at least one) index access in order
-        for this variable to be considered as an array.
+    def has_indices(self, index_variable: str = None) -> bool:
+        ''' Checks whether this variable accesses has any index. If the
+        optional `index_variable` is provided, only indices involving the given
+        variable are considered.
 
-        :param str index_variable: only considers this variable to be used \
-            as array if there is at least one access using this \
-            index_variable.
+        :param index_variable: only consider index expressions that involve
+            this variable.
 
-        :returns: true if there is at least one access to this variable \
-            that uses an index.
-        :rtype: bool
+        :returns: true if any of the accesses has an index.
 
         '''
-        is_array = any(access_info.is_array() for
-                       access_info in self._accesses)
+        has_indices = any(access.has_indices() for access in self)
 
         # If there is no access information using an index, or there is no
         # index variable specified, return the current result:
-        if not is_array or index_variable is None:
-            return is_array
+        if not has_indices or index_variable is None:
+            return has_indices
 
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Reference
 
-        for access_info in self._accesses:
-            if any(ref.symbol.name == index_variable
+        lowered_name = index_variable.lower()
+        for access_info in self:
+            if any(ref.symbol.name.lower() == lowered_name
                    for ref in access_info.node.walk(Reference)):
                 return True
 
@@ -400,5 +380,5 @@ class SingleVariableAccessInfo():
 # The list of module members that we wish AutoAPI to generate
 # documentation for.
 __all__ = ["AccessInfo",
-           "SingleVariableAccessInfo"
+           "AccessSequence"
            ]

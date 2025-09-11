@@ -1,7 +1,8 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,52 +32,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Laboratory
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified S. Siso, STFC Daresbury Laboratory
+# Mofified A. B. G. Chalk, STFC Daresbury Laboratory
 
-# Makefile for the 3rd NEMO example. Uses PSyclone (which must
-# be installed) to generate Fortran with OpenACC directives for
-# the tracer-advection benchmark. The 'compile' target requires
-# the dl_timer library (bitbucket.org/apeg/dl_timer) which must
-# be installed and the location specified in DL_TIMER_ROOT below.
-#
-# The compiler to use must be specified via the F90 environment
-# variable. e.g. to use the NVIDIA compiler and OpenACC:
-#
-# export F90=nvfortran
-# export F90FLAGS="-O1 -acc -gpu=cc70 -Minfo=all"
-# export LDFLAGS="-acc -gpu=cc70"
 include ../../common.mk
 
-GENERATED_FILES += psy.F90 psy.o traadv.exe output.dat psyclone.log \
-  traldf_iso.F90
+GENERATED_FILES= cpu_output.F90 gpu_output.F90
 
-F90FLAGS ?= -fopenacc
-LDFLAGS ?= ${F90FLAGS}
+transform:
+	${PSYCLONE} -s ./openmp_cpu_nowait_trans.py ../code/tra_adv.F90 -o cpu_output.F90
+	${PSYCLONE} -s ./openmp_gpu_nowait_trans.py ../code/tra_adv.F90 -o gpu_output.F90
 
-.PHONY: allclean
-
-compile: traadv.exe
+compile: transform
+	@echo "No compilation supported for nemo/eg7"
 
 run: compile
-	 IT=2 JPI=10 JPJ=10 JPK=5  ./traadv.exe
+	@echo "No run targets for nemo/eg7"
 
-traadv.exe: psy.o
-	${F90} ${LDFLAGS} psy.o -o traadv.exe
-
-transform: kernels
-
-# Need `-l all` to ensure line-lengths in generated code are less than the
-# standard-mandated 132 chars
-kernels:
-	${PSYCLONE} -l all -s ./kernels_trans.py -o psy.F90 ../code/tra_adv.F90
-
-
-
-# Compilation uses the 'kernels' transformed code
-psy.F90: kernels
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<

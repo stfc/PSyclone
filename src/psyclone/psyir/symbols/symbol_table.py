@@ -46,6 +46,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 import inspect
 import copy
+import logging
 from typing import Any, List, Optional, Set, Union
 
 from psyclone.configuration import Config
@@ -1217,7 +1218,7 @@ class SymbolTable():
         if sig not in vam:
             return
 
-        # TODO #2424 - ideally SingleVariableAccessInfo.AccessInfo or
+        # TODO #2424 - ideally AccessSequence.AccessInfo or
         # Signature would store the actual Symbol that the access is to. In
         # the absence of that, we have to examine each access to determine
         # the Symbol.
@@ -1225,7 +1226,7 @@ class SymbolTable():
         from psyclone.psyir.symbols.generic_interface_symbol import (
             GenericInterfaceSymbol)
         try:
-            for access in vam[sig].all_accesses:
+            for access in vam[sig]:
                 if isinstance(access.node, GenericInterfaceSymbol):
                     for rinfo in access.node.routines:
                         if rinfo.symbol is symbol:
@@ -1896,15 +1897,12 @@ class SymbolTable():
                     local_node=self.node)
             # pylint: disable-next=broad-except
             except Exception:
-                # Ignore this container if the associated module file has not
-                # been found in the given include_path or any issue has arisen
-                # during parsing.
-                # TODO #11: It would be useful to log this.
-                continue
+                external_container = None
 
             if not external_container:
-                # Failed to get a Container (possibly due to parsing or raising
-                # errors).
+                message = f"Module '{c_symbol.name}' not found"
+                logger = logging.getLogger(__name__)
+                logger.warning(message)
                 continue
 
             imported_symbols = self._import_symbols_from(
@@ -2034,7 +2032,7 @@ class SymbolTable():
         '''
         :returns: a map of all the symbol accessed inside this object, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 

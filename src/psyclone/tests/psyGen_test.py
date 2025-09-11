@@ -55,6 +55,7 @@ import pytest
 from fparser import api as fpapi
 from fparser.two import Fortran2003
 
+from psyclone import transformations
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
@@ -66,7 +67,7 @@ from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
 from psyclone.parse.algorithm import parse, InvokeCall
-from psyclone.psyGen import (TransInfo, Transformation, PSyFactory,
+from psyclone.psyGen import (TransInfo, PSyFactory,
                              InlinedKern, object_index, HaloExchange, Invoke,
                              DataAccess, Kern, Arguments, CodedKern, Argument,
                              GlobalSum, InvokeSchedule)
@@ -84,7 +85,8 @@ from psyclone.transformations import (LFRicRedundantComputationTrans,
                                       LFRicKernelConstTrans,
                                       LFRicColourTrans,
                                       LFRicOMPLoopTrans,
-                                      OMPParallelTrans)
+                                      OMPParallelTrans,
+                                      Transformation)
 from psyclone.psyir.backend.visitor import VisitorError
 
 
@@ -235,7 +237,7 @@ def test_transformation_get_valid_options():
     class TestTrans(Transformation):
         '''Utilty transformation to test methods of the abstract
         Transformation class.'''
-        def apply(self, node, valid: bool = True, untyped=False):
+        def apply(self, node, valid: bool = True, untyped=False, options={}):
             '''Apply method of TestTrans.'''
 
     options = TestTrans.get_valid_options()
@@ -245,6 +247,8 @@ def test_transformation_get_valid_options():
     assert options['untyped'].default is False
     assert options['untyped'].type is None
     assert options['untyped'].typename is None
+    # Check that option is allowed if its specified on the transformation.
+    assert options['options'].default == {}
 
     class InheritTrans(TestTrans):
         '''Utility transformation to test inheriting arguments'''
@@ -261,6 +265,8 @@ def test_transformation_get_valid_options():
     assert options['valid2'].default == 1
     assert options['valid2'].type is int
     assert options['valid2'].typename == "int"
+    # Check options isn't inherited from the superclass.
+    assert options.get('options', None) is None
 
 
 def test_transformation_get_valid_options_no_sphinx():
@@ -311,17 +317,26 @@ def test_transformation_validate_options():
     with pytest.raises(ValueError) as excinfo:
         instance.validate_options(not_valid=True)
     assert ("'TestTrans' received invalid options ['not_valid']. "
-            "Valid options are '['valid']." in str(excinfo.value))
+            "Valid options are '['valid', 'options']." in str(excinfo.value))
 
 
 # TransInfo class unit tests
 
-def test_new_module():
+def test_transinfo_new_module():
     '''check that we can change the module where we look for
-    transformations.  There should be no transformations
-    available as the new module uses a different
-    transformation base class'''
-    trans = TransInfo(module=dummy_transformations)
+    transformations.  There should be no transformations available as the
+    new module uses a different transformation base class.
+
+    Also test that creating an instance of TransInfo raises a
+    DeprecationWarning.
+
+    '''
+    with warnings.catch_warnings(record=True) as warn:
+        # Cause all warnings to always be triggered.
+        warnings.simplefilter("always")
+        trans = TransInfo(module=dummy_transformations)
+    assert len(warn) == 1
+    assert "should import the required Transformation" in str(warn[-1].message)
     assert trans.num_trans == 0
 
 
@@ -392,6 +407,20 @@ def test_valid_return_object_from_name():
     trans = TransInfo()
     transform = trans.get_trans_name("ColourTrans")
     assert isinstance(transform, Transformation)
+
+
+def test_find_subclasses():
+    '''Test for the _find_subclasses() method.'''
+    trans = TransInfo()
+    # Check that the method does not include the legacy names for the
+    # LFRic transformations.
+    classes = trans._find_subclasses(transformations, Transformation)
+    for cls in classes:
+        assert "dynamo0p3" not in cls.__name__.lower()
+    # Check that the method finds at least one transformation we know about.
+    # We don't check for every transformation as this would break every time
+    # we added a new one.
+    assert "OMPLoopTrans" in [cls.__name__ for cls in classes]
 
 
 # Tests for class Invokes

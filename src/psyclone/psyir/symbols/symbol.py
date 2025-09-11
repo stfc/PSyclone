@@ -485,7 +485,7 @@ class Symbol(CommentableMixin):
             to determine if an access is an array access using this variable.
         :param access_info: variable access information, optional.
         :type access_info:
-            :py:class:`psyclone.core.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.AccessSequence`
 
         :returns: whether or not the variable is an array.
         :rtype bool:
@@ -514,7 +514,7 @@ class Symbol(CommentableMixin):
             # Access Info might not have information if a variable is used
             # as array (e.g. in case of an array expression). In this case
             # we still need to check the type information in the symbol table.
-            is_array = access_info.is_array(index_variable=index_variable)
+            is_array = access_info.has_indices(index_variable=index_variable)
 
             # Access information might indicate that a variable is not an
             # array if it is used in array expressions only. In order to
@@ -567,7 +567,7 @@ class Symbol(CommentableMixin):
         '''
         :returns: a map of all the symbol accessed inside this Symbol, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
         :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 

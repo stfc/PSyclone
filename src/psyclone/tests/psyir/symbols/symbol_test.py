@@ -48,9 +48,9 @@ is not tested here.
 
 import pytest
 
-from psyclone.core import Signature, SingleVariableAccessInfo
+from psyclone.core import Signature, AccessSequence, AccessType
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Container, Literal, KernelSchedule
+from psyclone.psyir.nodes import Container, Literal, KernelSchedule, Reference
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol,
     DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface,
@@ -449,7 +449,8 @@ def test_symbol_array_handling():
     assert ("index variable 'i' specified, but no access information given"
             in str(err.value))
     # Supply some access information.
-    svinfo = SingleVariableAccessInfo(Signature("a"))
+    svinfo = AccessSequence(Signature("i"))
+    svinfo.add_access(AccessType.READ, Reference(asym))
     assert not asym.is_array_access("i", svinfo)
 
 

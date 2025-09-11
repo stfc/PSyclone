@@ -147,14 +147,9 @@ class ComponentIndices():
         return self._component_indices
 
     # ------------------------------------------------------------------------
-    def is_array(self):
-        '''Test whether there is an index used in any component. E.g. an access
-        like `a(i)%b` with indices `[ [i], [] ]` would still be considered an
-        array.
-
-        :returns: whether any of the variable components uses an index, i.e.\
-            the variable is an array.
-        :rtype: bool
+    def has_indices(self) -> bool:
+        '''
+        :returns: whether any of the access components uses an index
         '''
         return any(grp for grp in self._component_indices)
 

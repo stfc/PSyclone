@@ -170,9 +170,56 @@ PSYCLONE_INTERNAL_line_ + 1
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(nodes, options={"node-type-check": False})
-        node_list = self.get_node_list(nodes)
-        writes = self._get_all_writes(node_list)
+
+        self.validate(node, options={"node-type-check": False})
+
+        node_list = self.get_node_list(node)
+        routine = node_list[0].ancestor(Routine)
+        routine_table = routine.symbol_table
+
+        fwriter = FortranWriter()
+        writes = []
+        # Loop over the assignments in the region
+        assigns = []
+        for node in node_list:
+            assigns.extend(node.walk(Assignment))
+        # Loop through the assignments and find the arrays
+        for assign in assigns:
+            # If we find a structure, we need to check that the final member
+            # is the only array access and is a supported type.
+            if isinstance(assign.lhs, StructureAccessorMixin):
+                # If the reference at assign.lhs is both a Structure
+                # and an Array (e.g. struct(i)%member...) then we
+                # can't know which arrays or indexes to sum over, so
+                # we need to prevent generating a Checksum for this
+                # element.
+                multiple_arrays = isinstance(assign.lhs, ArrayMixin)
+                # Find the last member.
+                member = assign.lhs.member
+                while isinstance(member, StructureAccessorMixin):
+                    # If we have an ArrayMixin Member that isn't the
+                    # final Member in the Structure then we can't
+                    # generate a checksum sensibly, as PSyclone can't know
+                    # which arrays or indexes to sum over.
+                    if (isinstance(member, ArrayMixin) and
+                            member.member is not None):
+                        multiple_arrays = True
+                    member = member.member
+                datatype = assign.lhs.datatype
+                while not isinstance(datatype, ScalarType):
+                    datatype = datatype.datatype
+                # If the final member is the only array, and its a supported
+                # datatype then we add it to the writes.
+                if (isinstance(member, ArrayMixin) and datatype.intrinsic in
+                        [ScalarType.Intrinsic.REAL,
+                         ScalarType.Intrinsic.INTEGER] and
+                        not multiple_arrays):
+                    writes.append(assign.lhs)
+            elif (isinstance(assign.lhs, ArrayMixin)
+                  and assign.lhs.datatype.intrinsic in
+                  [ScalarType.Intrinsic.REAL, ScalarType.Intrinsic.INTEGER]):
+                writes.append(assign.lhs)
+
 
         # For each write, add a checksum after.
         checksum_nodes = []
@@ -194,6 +241,7 @@ PSYCLONE_INTERNAL_line_ + 1
             else:
                 array_bit = copy
 
+
             # Need to convert the ref to a full range variant.
             if hasattr(array_bit, "indices"):
                 for i in range(len(array_bit.indices)):
@@ -202,6 +250,7 @@ PSYCLONE_INTERNAL_line_ + 1
             # Optimise the use of fwriter by detaching the copied node from
             # its parent tree.
             copy.detach()
+
             array = fwriter(copy)
 
             checksum = freader.psyir_from_statement(
