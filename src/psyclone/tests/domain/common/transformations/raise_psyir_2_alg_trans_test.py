@@ -43,7 +43,7 @@ import pytest
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Call, CodeBlock, Reference, \
-    ArrayReference, Literal, BinaryOperation
+    Literal, BinaryOperation
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, Symbol, \
     StructureType
 
@@ -302,9 +302,9 @@ def test_invoke_error():
             "found 'hello'." in str(info.value))
 
 
-def test_array_reference(fortran_reader):
+def test_invoke_kern_functor_argument(fortran_reader):
     '''Test that the validate method does not raise an exception if a
-    PSyIR ArrayReference is found.
+    PSyIR Call (representing a kern functor) is found.
 
     '''
     code = (
@@ -317,12 +317,12 @@ def test_array_reference(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
-    assert isinstance(subroutine[0].arguments[0], ArrayReference)
+    assert isinstance(subroutine[0].arguments[0], Call)
     invoke_trans = RaisePSyIR2AlgTrans()
     invoke_trans.validate(subroutine[0])
 
 
-@pytest.mark.parametrize("arg", ["0", "'hello'", "alg(field)"])
+@pytest.mark.parametrize("arg", ["0", "'hello'"])
 def test_arg_error(fortran_reader, arg):
     '''Test that the validate method raises an exception if unexpected
     content is found as an argument to an invoke.
@@ -342,18 +342,18 @@ def test_arg_error(fortran_reader, arg):
         invoke_trans.validate(psyir.children[0][0])
     if arg == "alg(field)":
         assert ("Error in RaisePSyIR2AlgTrans transformation. The invoke "
-                "call argument 'alg' has been used as a routine name. This "
-                "is not allowed." in str(info.value))
+                "call argument 'alg' has been used as the Algorithm routine "
+                "name. This is not allowed." in str(info.value))
     else:
         assert (
             f"The arguments to this invoke call are expected to be kernel "
-            f"calls which are represented in generic PSyIR as CodeBlocks "
-            f"or ArrayReferences, but '{arg}' is of type 'Literal'."
+            f"calls which are represented in generic PSyIR as Calls or "
+            f"Codeblocks, but '{arg}' is of type 'Literal'."
             in str(info.value))
 
 
-def test_apply_arrayref(fortran_reader):
-    '''Test that an invoke with an array reference argument is transformed
+def test_apply_call(fortran_reader):
+    '''Test that an invoke with an Call argument is transformed
     into PSyclone-specific AlgorithmInvokeCall and KernelFunctor
     classes.
 
@@ -369,7 +369,7 @@ def test_apply_arrayref(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
     assert len(subroutine[0].arguments) == 1
-    assert isinstance(subroutine[0].arguments[0], ArrayReference)
+    assert isinstance(subroutine[0].arguments[0], Call)
 
     invoke_trans = RaisePSyIR2AlgTrans()
     invoke_trans.apply(subroutine[0], 1)
@@ -457,7 +457,7 @@ def test_apply_mixed(fortran_reader):
     assert len(subroutine[0].arguments) == 4
     assert isinstance(subroutine[0].arguments[0], CodeBlock)
     assert isinstance(subroutine[0].arguments[1], CodeBlock)
-    assert isinstance(subroutine[0].arguments[2], ArrayReference)
+    assert isinstance(subroutine[0].arguments[2], Call)
     assert isinstance(subroutine[0].arguments[3], CodeBlock)
 
     invoke_trans = RaisePSyIR2AlgTrans()
@@ -490,7 +490,7 @@ def test_apply_expr(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
     assert len(subroutine[0].arguments) == 2
-    assert isinstance(subroutine[0].arguments[0], ArrayReference)
+    assert isinstance(subroutine[0].arguments[0], Call)
     assert isinstance(subroutine[0].arguments[1], CodeBlock)
 
     invoke_trans = RaisePSyIR2AlgTrans()
@@ -555,7 +555,7 @@ def test_apply_keep_comments():
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
     assert len(subroutine[0].arguments) == 1
-    assert isinstance(subroutine[0].arguments[0], ArrayReference)
+    assert isinstance(subroutine[0].arguments[0], Call)
 
     invoke_trans = RaisePSyIR2AlgTrans()
     invoke_trans.apply(subroutine[0], 1)
