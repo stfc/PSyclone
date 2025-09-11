@@ -142,35 +142,6 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         '''
         Perform validation checks before applying the transformation
 
-        :param node: the node we are checking.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool|int collapse: if it's a bool and is False
-            (default), it won't collapse. If it's a bool and is True, it will
-            collapse as much as possible. If it's an integer, it will attempt
-            to collapse until the specified number of loops (if they exist and
-            are safe to collapse them). The options 'ignore_dependencies_for'
-            and 'force' also affect the collapse applicability analysis.
-        :param bool force: whether to force parallelisation of the
-            target loop (i.e. ignore any dependence analysis).
-        :param list[str] ignore_dependencies_for: whether to ignore
-            some symbol names from the dependence analysis checks.
-        :param bool sequential: whether this is a sequential loop.
-        :param bool verbose: whether to report the reasons the
-            validate and collapse steps have failed.
-        :param bool nowait: whether to add a nowait clause and a
-            corresponding barrier (or equivalent) to enable asynchronous
-            execution.
-        :param bool privatise_arrays: whether to declare as private any
-            write after write dependency symbols.
-        :param reduction_ops: if non-empty, attempt parallelisation
-            of loops by inferring reduction clauses involving any of
-            the reduction operators in the list.
-        :type reduction_ops: List[
-            :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator` |
-            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`]
-
         :raises TypeError: if 'collapse' is not an int or a bool.
         :raises TypeError: if 'ignore_dependencies_for' is not a list of str.
         :raises TransformationError: if the given loop iterates over a
@@ -385,9 +356,6 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         :param reduction_ops: if non-empty, attempt parallelisation
             of loops by inferring reduction clauses involving any of
             the reduction operators in the list.
-        :type reduction_ops: List[
-            :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator` |
-            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`]
 
         '''
         if not options:
