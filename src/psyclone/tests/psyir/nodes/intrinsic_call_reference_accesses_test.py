@@ -213,6 +213,17 @@ def test_add_inquiry_argument():
     _add_inquiry_argument(lit, vam)
     assert len(vam) == 0
 
+    symbol = DataSymbol("c", ArrayType(INTEGER_TYPE, [2]))
+    aref = ArrayReference.create(symbol, [ref])
+    vam = VariablesAccessMap()
+    _add_inquiry_argument(aref, vam)
+    sig, _ = aref.get_signature_and_indices()
+    assert len(vam[sig]) == 1
+    assert vam[sig][0].access_type == AccessType.INQUIRY
+    sig, _ = ref.get_signature_and_indices()
+    assert len(vam[sig]) == 1
+    assert vam[sig][0].access_type == AccessType.READ
+
 
 # FIXME Test _compute_reference_accesses
 def test_compute_reference_accesses():

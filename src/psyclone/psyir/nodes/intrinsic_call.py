@@ -154,7 +154,11 @@ def _add_inquiry_argument(argument: DataNode, var_acc_map: VariablesAccessMap):
     """
     if not isinstance(argument, Reference):
         return
-    sig, _ = argument.get_signature_and_indices()
+    sig, all_indices = argument.get_signature_and_indices()
+    # For Array accesses, these have reads to their indices
+    for indices in all_indices:
+        for index in indices:
+            var_acc_map.update(index.reference_accesses())
     var_acc_map.add_access(sig, AccessType.INQUIRY, argument)
 
 
@@ -1748,8 +1752,8 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    write_args=[0, 1, 2, 3],
-                    write_named_indices=["date", "time", "zone", "values"],
+                    write_indices=[0, 1, 2, 3],
+                    write_named_args=["date", "time", "zone", "values"],
                 )
             ),
         )
@@ -2152,9 +2156,8 @@ class IntrinsicCall(Call):
                     read_indices=[0, 4],
                     write_indices=[1, 2, 3],
                     readwrite_indices=[5],
-                    read_named_args=["name"],
+                    read_named_args=["name", "trim_name"],
                     write_named_args=["value", "length", "status"],
-                    read_named_args=["trim_name"],
                     readwrite_named_args=["errmsg"],
                 )
             ),
