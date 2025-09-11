@@ -4981,50 +4981,48 @@ def test_non_reduction(fortran_reader, fortran_writer):
             in str(err.value))
 
 
-def test_reduction_teams(fortran_reader, fortran_writer):
+@pytest.mark.parametrize("d", ["teamsdistributeparalleldo", "teamsloop"])
+def test_reduction_teams(d, fortran_reader, fortran_writer):
     ''' Test that reduction loops with a teams directive are parallelised.
     '''
-    dirs = ["teamsdistributeparalleldo", "teamsloop"]
-    for d in dirs:
-        psyir = fortran_reader.psyir_from_source('''
-            function sum_arr(arr) result (acc)
-                integer, intent(in) :: arr(:)
-                integer :: i
-                integer :: acc = 0
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
 
-                do i = 1, ubound(arr)
-                    acc = acc + arr(i)
-                end do
-            end function''')
-        omplooptrans = OMPLoopTrans(omp_directive=d)
-        loop = psyir.walk(Loop)[0]
-        omplooptrans.apply(loop, enable_reductions=True)
-        output = fortran_writer(psyir)
-        assert "reduction(+: acc)" in output
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive=d)
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
 
 
-def test_reduction_do_loop(fortran_reader, fortran_writer):
+@pytest.mark.parametrize("d", ["do", "loop"])
+def test_reduction_do_loop(d, fortran_reader, fortran_writer):
     ''' Test that reduction loops with a do/loop directive inside a parallel
         region are parallelised.
     '''
-    dirs = ["do", "loop"]
-    for d in dirs:
-        psyir = fortran_reader.psyir_from_source('''
-            function sum_arr(arr) result (acc)
-                integer, intent(in) :: arr(:)
-                integer :: i
-                integer :: acc = 0
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
 
-                do i = 1, ubound(arr)
-                    acc = acc + arr(i)
-                end do
-            end function''')
-        omplooptrans = OMPLoopTrans(omp_directive=d)
-        loop = psyir.walk(Loop)[0]
-        OMPParallelTrans().apply(loop)
-        omplooptrans.apply(loop, enable_reductions=True)
-        output = fortran_writer(psyir)
-        assert "reduction(+: acc)" in output
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive=d)
+    loop = psyir.walk(Loop)[0]
+    OMPParallelTrans().apply(loop)
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
 
 
 def test_reduction_omp_parallel_loop_trans(fortran_reader, fortran_writer):
@@ -5048,7 +5046,7 @@ def test_reduction_omp_parallel_loop_trans(fortran_reader, fortran_writer):
 
 
 def test_reduction_struct_member(fortran_reader, fortran_writer):
-    ''' Test that reduction loops involing struct members are
+    ''' Test that reduction loops involving struct members are
     not parallelised. This is not yet supported by OpenMP.
     '''
     psyir = fortran_reader.psyir_from_source('''
