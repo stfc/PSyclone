@@ -45,20 +45,18 @@ the output data contained in the input file.
 # creation implementation should make this file much smaller.
 # pylint: disable=too-many-lines
 
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from psyclone.configuration import Config
 from psyclone.domain.common import BaseDriverCreator
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (Call, FileContainer,
+from psyclone.psyir.nodes import (Call, FileContainer, Node,
                                   Routine, StructureReference)
-from psyclone.psyir.symbols import (
-                                    ContainerSymbol, DataSymbol,
-                                    DataTypeSymbol, UnresolvedType,
+from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol,
                                     ImportInterface, INTEGER_TYPE,
                                     UnsupportedFortranType)
+from psyclone.psyir.tools import ReadWriteInfo
 
 
 class LFRicExtractDriverCreator(BaseDriverCreator):
@@ -201,90 +199,12 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                     interface=ImportInterface(constant_mod))
 
     # -------------------------------------------------------------------------
-    def _add_command_line_handler(self, program, psy_data_var, module_name,
-                                  region_name):
-        '''
-        This function adds code to handle the command line. For now an
-        alternative filename (to the default one that is hard-coded by
-        the created driver) can be specified, which allows the driver to
-        be used with different files, e.g. several dumps from one run, and/or
-        a separate file from each process. It will also add the code to
-        open the input file using the read_kernel_data routine from the
-        extraction library.
-
-        :param program: The driver PSyIR.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param psy_data_var: the symbol of the PSyDataExtraction type.
-        :type psy_data_var: :py:class:`psyclone.psyir.symbols.Symbol`
-        :param str module_name: the name of the module, used to create the
-            implicit default kernel dump file name.
-        :param str region_name: the name of the region, used to create the
-            implicit default kernel dump file name.
-
-        '''
-        # pylint: disable=too-many-locals
-        program_symbol_table = program.symbol_table
-
-        # PSyIR does not support allocatable strings, so create the two
-        # variables we need in a loop.
-        # TODO #2137: The UnsupportedFortranType could be reused for all
-        #             variables once this is fixed.
-        for str_name in ["psydata_filename", "psydata_arg"]:
-            str_unique_name = \
-                program_symbol_table.next_available_name(str_name)
-            str_type = UnsupportedFortranType(
-                f"character(:), allocatable :: {str_unique_name}")
-            sym = DataTypeSymbol(str_unique_name, str_type)
-            program_symbol_table.add(sym)
-            if str_name == "psydata_filename":
-                psydata_filename = str_unique_name
-            else:
-                psydata_arg = str_unique_name
-
-        psydata_len = \
-            program_symbol_table.find_or_create("psydata_len",
-                                                symbol_type=DataSymbol,
-                                                datatype=INTEGER_TYPE).name
-        psydata_i = \
-            program_symbol_table.find_or_create("psydata_i",
-                                                symbol_type=DataSymbol,
-                                                datatype=INTEGER_TYPE).name
-        # We can only parse one statement at a time, so start with the
-        # command line handling:
-        code = f"""
-        do {psydata_i}=1,command_argument_count()
-           call get_command_argument({psydata_i}, length={psydata_len})
-           allocate(character({psydata_len})::{psydata_arg})
-           call get_command_argument({psydata_i}, {psydata_arg}, &
-                                     length={psydata_len})
-           if ({psydata_arg} == "--update") then
-              ! For later to allow marking fields as being updated
-           else
-              allocate(character({psydata_len})::{psydata_filename})
-              {psydata_filename} = {psydata_arg}
-           endif
-           deallocate({psydata_arg})
-        enddo
-        """
-        command_line = \
-            FortranReader().psyir_from_statement(code, program_symbol_table)
-        program.children.insert(0, command_line)
-
-        # Now add the handling of the filename parameter
-        code = f"""
-        if (allocated({psydata_filename})) then
-           call {psy_data_var.name}%OpenReadFileName({psydata_filename})
-        else
-           call {psy_data_var.name}%OpenReadModuleRegion('{module_name}', &
-                                                         '{region_name}')
-        endif
-        """
-        filename_test = \
-            FortranReader().psyir_from_statement(code, program_symbol_table)
-        program.children.insert(1, filename_test)
-
-    # -------------------------------------------------------------------------
-    def create(self, nodes, read_write_info, prefix, postfix, region_name):
+    def create(self,
+               nodes: List[Node],
+               read_write_info: ReadWriteInfo,
+               prefix: str,
+               postfix: str,
+               region_name: Tuple[str, str]) -> FileContainer:
         # pylint: disable=too-many-arguments
         '''This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
@@ -294,52 +214,31 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         It returns the file container which contains the driver.
 
         :param nodes: a list of nodes.
-        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param read_write_info: information about all input and output
             parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol,
+        :param prefix: the prefix to use for each PSyData symbol,
             e.g. 'extract' as prefix will create symbols ``extract_psydata``.
-        :param str postfix: a postfix that is appended to an output variable
+        :param postfix: a postfix that is appended to an output variable
             to create the corresponding variable that stores the output
             value from the kernel data file. The caller must guarantee that
             no name clashes are created when adding the postfix to a variable
             and that the postfix is consistent between extract code and
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param Tuple[str,str] region_name: an optional name to
+        :param region_name: an optional name to
             use for this PSyData area, provided as a 2-tuple containing a
             location name followed by a local name. The pair of strings
             should uniquely identify a region.
 
         :returns: the program PSyIR for a stand-alone driver.
-        :rtype: :py:class:`psyclone.psyir.psyir.nodes.FileContainer`
 
         '''
         # pylint: disable=too-many-locals
-        module_name, local_name = region_name
-        unit_name = self._make_valid_unit_name(f"{module_name}_{local_name}")
 
-        # First create the file container, which will only store the program:
-        file_container = FileContainer(unit_name)
-
-        # Create the program and add it to the file container:
-        program = Routine.create(unit_name, is_program=True)
+        file_container, psy_data = self.create_driver_template(region_name,
+                                                               prefix)
+        program = file_container.walk(Routine)[0]
         program_symbol_table = program.symbol_table
         original_symbol_table = nodes[0].ancestor(InvokeSchedule).symbol_table
-        file_container.addchild(program)
-
-        # Add the extraction library symbols
-        psy_data_mod = ContainerSymbol("read_kernel_data_mod")
-        program_symbol_table.add(psy_data_mod)
-        psy_data_type = DataTypeSymbol("ReadKernelDataType", UnresolvedType(),
-                                       interface=ImportInterface(psy_data_mod))
-        program_symbol_table.add(psy_data_type)
-        if prefix:
-            prefix = prefix + "_"
-        root_name = prefix + "psy_data"
-        psy_data = program_symbol_table.new_symbol(root_name=root_name,
-                                                   symbol_type=DataSymbol,
-                                                   datatype=psy_data_type)
 
         extract_region = nodes[0].copy()
         # StructureReference must have been flattened before creating the
@@ -356,9 +255,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                  f"StructureReferences, but found: "
                                  f"{sref.debug_string()}")
 
-        # Add cmd line hander, read in, and result comparison for the code
-        self._add_command_line_handler(program, psy_data, module_name,
-                                       local_name)
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    original_symbol_table,
                                                    read_write_info, postfix)

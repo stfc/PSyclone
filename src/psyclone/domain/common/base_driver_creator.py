@@ -45,12 +45,13 @@ from psyclone.line_length import FortLineLength
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.parse import ModuleManager
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Call, FileContainer, Literal, Reference, ExtractNode, Routine, Node)
 from psyclone.psyir.symbols import (
-    CHARACTER_TYPE, ContainerSymbol, ImportInterface, INTEGER_TYPE, NoType,
-    RoutineSymbol, DataSymbol, UnsupportedFortranType, Symbol,
-    AutomaticInterface, UnresolvedType, SymbolTable)
+    CHARACTER_TYPE, ContainerSymbol, DataTypeSymbol, ImportInterface,
+    INTEGER_TYPE, NoType, RoutineSymbol, DataSymbol, UnsupportedFortranType,
+    Symbol, AutomaticInterface, UnresolvedType, SymbolTable)
 from psyclone.psyir.tools import ReadWriteInfo
 
 
@@ -348,8 +349,130 @@ class BaseDriverCreator:
 
     # -------------------------------------------------------------------------
     @abstractmethod
-    def create(self, nodes, read_write_info, prefix, postfix, region_name):
+    def create(self,
+               nodes: List[Node],
+               read_write_info: ReadWriteInfo,
+               prefix: str,
+               postfix: str,
+               region_name: Tuple[str, str]) -> FileContainer:
         pass
+
+    # -------------------------------------------------------------------------
+    def _add_command_line_handler(self, program, psy_data_var, module_name,
+                                  region_name):
+        '''
+        This function adds code to handle the command line. For now an
+        alternative filename (to the default one that is hard-coded by
+        the created driver) can be specified, which allows the driver to
+        be used with different files, e.g. several dumps from one run, and/or
+        a separate file from each process. It will also add the code to
+        open the input file using the read_kernel_data routine from the
+        extraction library.
+
+        :param program: The driver PSyIR.
+        :type program: :py:class:`psyclone.psyir.nodes.Routine`
+        :param psy_data_var: the symbol of the PSyDataExtraction type.
+        :type psy_data_var: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param str module_name: the name of the module, used to create the
+            implicit default kernel dump file name.
+        :param str region_name: the name of the region, used to create the
+            implicit default kernel dump file name.
+
+        '''
+        # pylint: disable=too-many-locals
+        program_symbol_table = program.symbol_table
+
+        # PSyIR does not support allocatable strings, so create the two
+        # variables we need in a loop.
+        # TODO #2137: The UnsupportedFortranType could be reused for all
+        #             variables once this is fixed.
+        for str_name in ["psydata_filename", "psydata_arg"]:
+            str_unique_name = \
+                program_symbol_table.next_available_name(str_name)
+            str_type = UnsupportedFortranType(
+                f"character(:), allocatable :: {str_unique_name}")
+            sym = DataTypeSymbol(str_unique_name, str_type)
+            program_symbol_table.add(sym)
+            if str_name == "psydata_filename":
+                psydata_filename = str_unique_name
+            else:
+                psydata_arg = str_unique_name
+
+        psydata_len = \
+            program_symbol_table.find_or_create("psydata_len",
+                                                symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE).name
+        psydata_i = \
+            program_symbol_table.find_or_create("psydata_i",
+                                                symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE).name
+        # We can only parse one statement at a time, so start with the
+        # command line handling:
+        code = f"""
+        do {psydata_i}=1,command_argument_count()
+           call get_command_argument({psydata_i}, length={psydata_len})
+           allocate(character({psydata_len})::{psydata_arg})
+           call get_command_argument({psydata_i}, {psydata_arg}, &
+                                     length={psydata_len})
+           if ({psydata_arg} == "--update") then
+              ! For later to allow marking fields as being updated
+           else
+              allocate(character({psydata_len})::{psydata_filename})
+              {psydata_filename} = {psydata_arg}
+           endif
+           deallocate({psydata_arg})
+        enddo
+        """
+        command_line = \
+            FortranReader().psyir_from_statement(code, program_symbol_table)
+        program.children.insert(0, command_line)
+
+        # Now add the handling of the filename parameter
+        code = f"""
+        if (allocated({psydata_filename})) then
+           call {psy_data_var.name}%OpenReadFileName({psydata_filename})
+        else
+           call {psy_data_var.name}%OpenReadModuleRegion('{module_name}', &
+                                                         '{region_name}')
+        endif
+        """
+        filename_test = \
+            FortranReader().psyir_from_statement(code, program_symbol_table)
+        program.children.insert(1, filename_test)
+
+    # -------------------------------------------------------------------------
+    def create_driver_template(self,
+                               region_name: Tuple[str, str],
+                               prefix: str
+                               ) -> Tuple[FileContainer, DataSymbol]:
+        module_name, local_name = region_name
+        unit_name = self._make_valid_unit_name(f"{module_name}_{local_name}")
+
+        # First create the file container, which will only store the program:
+        file_container = FileContainer(unit_name)
+
+        # Create the program and add it to the file container:
+        program = Routine.create(unit_name, is_program=True)
+        program_symbol_table = program.symbol_table
+        file_container.addchild(program)
+
+        # Add the extraction library symbols
+        psy_data_mod = ContainerSymbol("read_kernel_data_mod")
+        program_symbol_table.add(psy_data_mod)
+        psy_data_type = DataTypeSymbol("ReadKernelDataType", UnresolvedType(),
+                                       interface=ImportInterface(psy_data_mod))
+        program_symbol_table.add(psy_data_type)
+        if prefix:
+            prefix = prefix + "_"
+        root_name = prefix + "psy_data"
+        psy_data = program_symbol_table.new_symbol(root_name=root_name,
+                                                   symbol_type=DataSymbol,
+                                                   datatype=psy_data_type)
+
+        # Add cmd line hander, read in, and result comparison for the code
+        self._add_command_line_handler(program, psy_data, region_name[0],
+                                       region_name[1])
+        return file_container, psy_data
 
     # -------------------------------------------------------------------------
     @staticmethod

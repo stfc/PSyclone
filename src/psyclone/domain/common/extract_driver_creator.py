@@ -40,15 +40,14 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from psyclone.domain.common import BaseDriverCreator
-from psyclone.psyir.nodes import FileContainer, Literal, Routine
-from psyclone.psyir.symbols import (CHARACTER_TYPE,
-                                    ContainerSymbol, DataSymbol,
-                                    DataTypeSymbol, UnresolvedType,
-                                    ImportInterface, INTEGER_TYPE,
+from psyclone.psyir.nodes import FileContainer, Node, Routine
+from psyclone.psyir.symbols import (DataSymbol,
+                                    INTEGER_TYPE,
                                     REAL8_TYPE, ScalarType)
+from psyclone.psyir.tools import ReadWriteInfo
 
 # TODO 1382: once we support LFRic, make this into a proper base class
 # and put the domain-specific implementations into the domain/* directories.
@@ -76,7 +75,12 @@ class ExtractDriverCreator(BaseDriverCreator):
                                "real": real_type}
 
     # -------------------------------------------------------------------------
-    def create(self, nodes, read_write_info, prefix, postfix, region_name):
+    def create(self,
+               nodes: List[Node],
+               read_write_info: ReadWriteInfo,
+               prefix: str,
+               postfix: str,
+               region_name: Tuple[str, str]) -> FileContainer:
         # pylint: disable=too-many-arguments
         '''This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
@@ -85,61 +89,31 @@ class ExtractDriverCreator(BaseDriverCreator):
         file container which contains the driver.
 
         :param nodes: a list of nodes.
-        :type nodes: list[:py:class:`psyclone.psyir.nodes.Node`]
         :param read_write_info: information about all input and output
             parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol,
+        :param prefix: the prefix to use for each PSyData symbol,
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param str postfix: a postfix that is appended to an output variable
+        :param postfix: a postfix that is appended to an output variable
             to create the corresponding variable that stores the output
             value from the kernel data file. The caller must guarantee that
             no name clashes are created when adding the postfix to a variable
             and that the postfix is consistent between extract code and
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param (str,str) region_name: an optional name to
+        :param region_name: an optional name to
             use for this PSyData area, provided as a 2-tuple containing a
             location name followed by a local name. The pair of strings
             should uniquely identify a region.
 
         :returns: the program PSyIR for a stand-alone driver.
-        :rtype: :py:class:`psyclone.psyir.psyir.nodes.FileContainer`
 
         '''
         # pylint: disable=too-many-locals
 
-        # Since this is a 'public' method of an entirely separate class,
-        # we check that the list of nodes is what it expects. This is done
-        # by invoking the validate function of the basic extract function.
-        module_name, local_name = region_name
-        unit_name = self._make_valid_unit_name(f"{module_name}_{local_name}")
+        file_container, psy_data = self.create_driver_template(region_name,
+                                                               prefix)
 
-        # First create the file container, which will only store the program:
-        file_container = FileContainer(unit_name)
-
-        # Create the program and add it to the file container:
-        program = Routine.create(unit_name, is_program=True)
-        program_symbol_table = program.symbol_table
+        program = file_container.walk(Routine)[0]
         og_symtab = nodes[0].ancestor(Routine).symbol_table
-        file_container.addchild(program)
-
-        # Add the extraction library symbols
-        psy_data_mod = ContainerSymbol("read_kernel_data_mod")
-        program_symbol_table.add(psy_data_mod)
-        psy_data_type = DataTypeSymbol("ReadKernelDataType", UnresolvedType(),
-                                       interface=ImportInterface(psy_data_mod))
-        program_symbol_table.add(psy_data_type)
-        if prefix:
-            prefix = prefix + "_"
-        root_name = prefix + "psy_data"
-        psy_data = program_symbol_table.new_symbol(root_name=root_name,
-                                                   symbol_type=DataSymbol,
-                                                   datatype=psy_data_type)
-
-        module_str = Literal(module_name, CHARACTER_TYPE)
-        region_str = Literal(local_name, CHARACTER_TYPE)
-        self.add_call(program, f"{psy_data.name}%OpenReadModuleRegion",
-                      [module_str, region_str])
 
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    og_symtab,
