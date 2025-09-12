@@ -43,6 +43,7 @@ import pytest
 from psyclone.line_length import FortLineLength, find_break_point
 from psyclone.generator import generate
 from psyclone.errors import InternalError
+from psyclone.tests.utilities import Compile
 
 # functions
 
@@ -458,6 +459,47 @@ def test_long_line_continuator():
     input_string = str(alg)
     fll = FortLineLength()
     _ = fll.process(input_string)
+
+
+def test_long_line_big_indentation(fortran_reader, fortran_writer, tmpdir):
+    '''
+    '''
+    repetitions = 80
+    code = '''
+    subroutine test_subroutine(a)
+        !use other, only: my_sub
+        integer, intent(in) :: a
+
+        SELECT CASE(a)
+    '''
+    for i in range(repetitions):
+        code += f'''
+        CASE ({i})
+            write(*,*) {i} !call my_sub()
+        '''
+    code += '''
+        END SELECT
+    end subroutine'''
+
+#    code = '''\
+#    program test
+#      implicit none
+#      use some_mod
+#      select case(var)\n'''
+#    for idx in range(40):
+#      code += (f"      case (val{idx})\n"
+#               f"        write(*,*) val{idx}\n")
+#    code += '''\
+#      end select
+#    end program test'''
+    #print(code)
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    print(output)
+    line_length = FortLineLength()
+    out = line_length.process(output)
+    print(out)
+    assert Compile(tmpdir).string_compiles(out)
 
 
 @pytest.mark.parametrize("line,max_index,key_list,index", [
