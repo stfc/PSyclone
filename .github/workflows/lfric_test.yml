@@ -277,13 +277,13 @@ jobs:
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
           https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          https://code.metoffice.gov.uk/svn/monc/casim casim
+          https://code.metoffice.gov.uk/svn/monc/casim/trunk casim
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          https://code.metoffice.gov.uk/svn/jules/main jules
+          https://code.metoffice.gov.uk/svn/jules/main/trunk jules
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-           https://code.metoffice.gov.uk/svn/socrates/main socrates
+           https://code.metoffice.gov.uk/svn/socrates/main/trunk socrates
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-           https://code.metoffice.gov.uk/svn/ukca/main/branches/dev/robertwaters/um13.9_trunk_plus_nvtx_calipers/ ukca
+           https://code.metoffice.gov.uk/svn/ukca/main/trunk ukca
 
         sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" lfric_apps/dependencies.sh
         sed -i "s|lfric_core_sources=|lfric_core_sources=${TEST_PREFIX}/lfric_core|g" lfric_apps/dependencies.sh
