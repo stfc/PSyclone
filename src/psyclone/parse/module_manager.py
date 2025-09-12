@@ -39,8 +39,7 @@ which module is contained in which file (including full location). '''
 
 import copy
 from difflib import SequenceMatcher
-from typing import (cast, Dict, Iterable, List, Optional, OrderedDict, Set,
-                    Union)
+from typing import cast, Iterable, Optional, OrderedDict, Union
 import os
 import re
 
@@ -124,20 +123,20 @@ class ModuleManager:
         # Path to cache
         self._cache_path: Optional[str] = cache_path
 
-        self._visited_files: Dict[str, FileInfo] = {}
+        self._visited_files: dict[str, FileInfo] = {}
 
         # The list of all search paths which have not yet all their files
         # checked. It is stored as an ordered dict to make it easier to avoid
         # duplicating entries, but it only stores a 1 as 'value'.
         self._remaining_search_paths: OrderedDict[str, int] = OrderedDict()
-        self._original_search_paths: List[str] = []
+        self._original_search_paths: list[str] = []
 
         # Ordered dictionary to lookup file info from file path
         self._filepath_to_file_info: OrderedDict[str, FileInfo] = OrderedDict()
 
         # Ordered dictionary to lookup ModuleInfo from a file path
         # Note that there can be multiple modules per file
-        self._filepath_to_module_info: OrderedDict[str, List[ModuleInfo]] = \
+        self._filepath_to_module_info: OrderedDict[str, list[ModuleInfo]] = \
             OrderedDict()
 
         # Dictionary of ModuleInfo objects, indexed by module name
@@ -146,12 +145,12 @@ class ModuleManager:
 
         # Modules to be ignored (i.e. no warning will be printed if they are
         # not found)
-        self._ignore_modules: Set[str] = set()
+        self._ignore_modules: set[str] = set()
 
         # A list of files that will not be read. This can be used if there
         # are several implementations of one module (e.g. a MPI and a non-MPI
         # version) to pick the right one.
-        self._ignore_files: Set[str] = set()
+        self._ignore_files: set[str] = set()
 
         # Setup the regex used to find Fortran modules. Have to be careful not
         # to match e.g. "module procedure :: some_sub".
@@ -189,7 +188,7 @@ class ModuleManager:
                         self._original_search_paths.append(new_dir)
 
     # ------------------------------------------------------------------------
-    def _add_all_files_from_dir(self, directory: str) -> List[FileInfo]:
+    def _add_all_files_from_dir(self, directory: str) -> list[FileInfo]:
         '''This function creates (and caches) FileInfo objects for all files
         with an extension of (F/f/X/x)90 in the given directory that have
         not previously been visited. The new FileInfo objects are returned.
@@ -379,7 +378,7 @@ class ModuleManager:
             )
 
             # Collect all module infos in this list
-            module_info_in_file: List[ModuleInfo] = []
+            module_info_in_file: list[ModuleInfo] = []
 
             # Walk over containers and add respective module information
             container_node: Container
@@ -424,14 +423,14 @@ class ModuleManager:
             self._filepath_to_module_info[filepath] = module_info_in_file
 
     @property
-    def all_module_infos(self) -> List[ModuleInfo]:
+    def all_module_infos(self) -> list[ModuleInfo]:
         """
         :returns: list of all module infos.
         """
         return list(self._modules.values())
 
     @property
-    def all_file_infos(self) -> List[FileInfo]:
+    def all_file_infos(self) -> list[FileInfo]:
         """
         :returns: List of all FileInfo objects.
         """
@@ -491,7 +490,7 @@ class ModuleManager:
                                 f"command line option.")
 
     # ------------------------------------------------------------------------
-    def get_modules_in_file(self, finfo: FileInfo) -> List[str]:
+    def get_modules_in_file(self, finfo: FileInfo) -> list[str]:
         '''
         Uses a regex search to find all modules defined in the file with the
         supplied name.
@@ -513,8 +512,8 @@ class ModuleManager:
 
     def get_all_dependencies_recursively(
             self,
-            all_mod_names: List[str],
-    ) -> OrderedDict[str, List[str]]:
+            all_mod_names: list[str],
+    ) -> OrderedDict[str, list[str]]:
         '''This function collects recursively all module dependencies
         for any of the modules in the ``all_mod_names`` set. I.e. it will
         add all modules used by any module listed in ``all_mod_names``,
@@ -540,7 +539,7 @@ class ModuleManager:
 
         # This contains the mapping from each module name to the
         # list of the dependencies and is returned as result:
-        module_dependencies: OrderedDict[str, List[str]] = OrderedDict()
+        module_dependencies: OrderedDict[str, list[str]] = OrderedDict()
 
         # Work on a copy to avoid modifying the caller's set:
         todo = all_mod_names.copy()
@@ -587,7 +586,7 @@ class ModuleManager:
             # Remove all dependencies from the list of new dependencies
             # of `module` that have already been handled:
             module_dependencies_keys = module_dependencies.keys()
-            new_deps: List[str]
+            new_deps: list[str]
             new_deps = [x for x in mod_deps
                         if x not in module_dependencies_keys]
 
@@ -601,8 +600,8 @@ class ModuleManager:
 
     # -------------------------------------------------------------------------
     def sort_modules(
-        self, module_dependencies: Dict[str, Set[str]]
-    ) -> List[str]:
+        self, module_dependencies: dict[str, set[str]]
+    ) -> list[str]:
         '''This function sorts the given dependencies so that all
         dependencies of a module are before any module that
         needs it. Input is a dictionary that contains all modules to
@@ -626,7 +625,7 @@ class ModuleManager:
         # a warning, and remove it (otherwise no sort order could be
         # determined).
         dep: str
-        dependencies: Set[str]
+        dependencies: set[str]
         for module, dependencies in todo.items():
             # Take a copy so we can modify the original set of dependencies:
             dependencies_copy = dependencies.copy()
